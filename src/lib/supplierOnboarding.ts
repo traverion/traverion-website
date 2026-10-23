@@ -122,6 +122,20 @@ function businessVerified(profile: SupplierProfileRow | null | undefined): boole
   return (profile?.verification_status ?? '').trim().toLowerCase() === 'verified';
 }
 
+/**
+ * Banking ready for publish: Traverion-verified legacy IBAN **or** Stripe Connect
+ * payouts_enabled. Traverion IBAN alone never unlocks Stripe transfers.
+ */
+export function isSupplierBankingReadyForPublish(
+  profile: SupplierProfileRow | null | undefined
+): boolean {
+  if (!profile) return false;
+  if (Boolean(profile.connect_payouts_enabled) && Boolean(profile.stripe_connected_account_id)) {
+    return true;
+  }
+  return payoutVerified(profile) && isSupplierPayoutConfigured(profile);
+}
+
 /** Payout-approved footnote: do not claim business is still required when it is already verified. */
 export function partnerPayoutVerifiedStatusNote(businessIsVerified: boolean): string {
   return businessIsVerified
@@ -130,14 +144,14 @@ export function partnerPayoutVerifiedStatusNote(businessIsVerified: boolean): st
 }
 
 /**
- * Can create/publish listings: Traverion has verified business and payout (IBAN/BIC) independently,
- * and core identity fields remain filled.
+ * Can create/publish listings: Traverion business verification + banking ready
+ * (legacy IBAN verified OR Connect payouts enabled) + core identity fields.
+ * Does not require Stripe Connect for draft exploration.
  */
 export function isSupplierReadyToPublishTours(profile: SupplierProfileRow | null | undefined): boolean {
   if (!profile) return false;
   if (!businessVerified(profile)) return false;
-  if (!payoutVerified(profile)) return false;
+  if (!isSupplierBankingReadyForPublish(profile)) return false;
   if (!isSupplierBusinessProfileCompleteForPublish(profile)) return false;
-  if (!isSupplierPayoutConfigured(profile)) return false;
   return true;
 }

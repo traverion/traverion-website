@@ -62,8 +62,9 @@ describe('Phase 6: supplier income experience', () => {
     expect(page).toContain('fetchSupplierActiveFinancialHolds');
     expect(page).toContain('earningStatusExplanation');
     expect(earningStatusExplanation('pending')).toMatch(/awaiting service completion/i);
-    expect(settings).toContain('Stripe Connect payouts');
-    expect(settings).toContain('Live automatic bank payouts remain off');
+    expect(settings).toContain('Business & Payouts');
+    expect(settings).toContain('Live automatic payouts remain');
+    expect(settings).toContain('separately authorizes production money movement');
   });
 
   it('hardens period RPC access, paid-mark confirmation, and missing durations', () => {

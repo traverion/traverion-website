@@ -46,15 +46,16 @@ describe('Mission 2: Connect onboarding + TEST transfer engine', () => {
     'utf8'
   );
 
-  it('1. onboarding uses Stripe-hosted Account Links and never trusts redirect alone', () => {
-    expect(onboarding).toContain("type: 'account_onboarding'");
+  it('1. onboarding uses Account Sessions (embedded) with hosted Account Link fallback', () => {
+    expect(onboarding).toContain('accountSessions.create');
     expect(onboarding).toContain('accounts.create');
     expect(onboarding).toContain('accountLinks.create');
+    expect(onboarding).toContain("type: 'account_onboarding'");
     expect(onboarding).toContain('isStripeTestSecretKey');
     expect(onboarding).toContain('accounts.retrieve');
     expect(onboarding).toContain('not the browser return URL');
-    expect(settings).toContain('Start Stripe verification');
-    expect(settings).toContain('Resume Stripe verification');
+    expect(settings).toContain('Complete verification');
+    expect(settings).toContain('ConnectEmbeddedPanel');
     expect(settings).toContain('invokeConnectSupplierOnboarding');
     expect(settings).toContain('Requirements currently due');
     expect(mirror).toContain('Never treat a browser return URL alone as verified');
@@ -106,7 +107,7 @@ describe('Mission 2: Connect onboarding + TEST transfer engine', () => {
     expect(earnings).toContain('Scheduled payout date');
     expect(earnings).toContain('Connect payout statuses (TEST)');
     expect(earnings).toContain('A Connect transfer alone is not a bank payment');
-    expect(settings).toContain('Stripe Connect payouts');
+    expect(settings).toContain('Business & Payouts');
     expect(settings).toContain('Can receive transfers');
   });
 

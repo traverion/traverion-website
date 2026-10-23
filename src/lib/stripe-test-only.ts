@@ -7,6 +7,10 @@ export function stripeLiveSecretBlockedMessage(): string {
   return 'Stripe LIVE secret keys are blocked on Traverion. Use a TEST secret (sk_test_…).';
 }
 
+export function isStripeTestPublishableKey(key: string | null | undefined): boolean {
+  return (key ?? '').trim().startsWith('pk_test_');
+}
+
 export function stripeLivePublishableBlockedMessage(): string {
   return 'Stripe LIVE publishable keys are blocked on Traverion. Use a TEST publishable key (pk_test_…).';
 }

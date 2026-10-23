@@ -992,21 +992,22 @@ export default function BusinessProfilePage(p: BusinessProfilePageProps) {
           ) : null}
 
           <ProfileCard
-            title="Payout settings"
-            description="Bank details and payout preferences are managed in Income."
+            title="Business & Payouts"
+            description="Complete Stripe identity verification and bank details in Income → Settings. Business identity stays here; payout capabilities are confirmed by Stripe."
             actions={
               <button
                 type="button"
                 className="tv-btn-secondary inline-flex h-9 items-center gap-1.5 px-3 text-[13px]"
-                onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/money?tab=settings`)}
+                onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/money?tab=settings#business-payouts`)}
               >
                 <Wallet className="h-4 w-4" aria-hidden />
-                Manage payouts
+                Open Business & Payouts
               </button>
             }
           >
             <dl>
-              <InfoRow label="Payout status" value={payChip.label} />
+              <InfoRow label="Traverion bank review" value={payChip.label} />
+              <InfoRow label="Stripe verification" value="Managed in Income → Settings" />
             </dl>
           </ProfileCard>
 
