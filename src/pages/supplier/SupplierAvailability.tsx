@@ -1217,7 +1217,7 @@ export default function SupplierAvailability() {
         badge={null}
         sansTitle
         title="Departures & Availability"
-        description="Manage your departures, bookings, and available capacity."
+        description="Capacity, cutoffs, and booked seats by departure."
         actions={
           listings.length > 0 && listingId ? (
             <button

@@ -228,7 +228,12 @@ export default function PickupPlannerWorkspace(props: Props) {
                   .filter((key) => key !== 'missing')
               ).size;
               return (
-                <article key={dep.id} className="tv-pickup-dep-card">
+                <article
+                  key={dep.id}
+                  className="tv-pickup-dep-card"
+                  data-urgency={status && pickupOpsNeedsAction(status) ? 'true' : 'false'}
+                  data-meeting={isMeeting ? 'true' : 'false'}
+                >
                   {thumb ? (
                     <img src={thumb} alt="" className="tv-pickup-dep-card__thumb" loading="lazy" decoding="async" />
                   ) : (
@@ -268,10 +273,18 @@ export default function PickupPlannerWorkspace(props: Props) {
                   </div>
                   <button
                     type="button"
-                    className="tv-btn-primary tv-pickup-dep-card__cta"
+                    className={`tv-pickup-dep-card__cta${
+                      status && pickupOpsNeedsAction(status)
+                        ? ' tv-btn-primary'
+                        : ' tv-btn-secondary'
+                    }`}
                     onClick={() => props.onOpenDeparture(dep.id)}
                   >
-                    {isMeeting ? 'Edit meeting time' : 'Manage pickups'}
+                    {isMeeting
+                      ? 'View meeting point'
+                      : status && pickupOpsNeedsAction(status)
+                        ? 'Manage pickups'
+                        : 'Open departure'}
                   </button>
                 </article>
               );
