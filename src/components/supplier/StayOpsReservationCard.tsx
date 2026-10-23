@@ -3,7 +3,7 @@
  * with Stay-specific fields (property, nights, check-in/out).
  */
 import { type MouseEvent, type ReactNode } from 'react';
-import { CalendarDays, ChevronDown, Copy, Mail, Users } from 'lucide-react';
+import { CalendarDays, ChevronDown, Copy, Mail } from 'lucide-react';
 
 export type StayOpsCardModel = {
   id: string;
@@ -86,12 +86,14 @@ export default function StayOpsReservationCard({
           <div className="tour-ops-card__body">
             <div className="tour-ops-card__top">
               <div className="tour-ops-card__identity">
-                <p className="tour-ops-card__title" title={model.listingTitle}>
-                  {model.listingTitle}
+                <p className="tour-ops-card__title tour-ops-card__title--when" title={model.dateLine}>
+                  <CalendarDays className="tour-ops-card__title-icon" aria-hidden />
+                  <span className="min-w-0 truncate">{model.dateLine}</span>
                 </p>
                 {guestLine ? (
                   <p className="tour-ops-card__option" title={guestLine}>
                     {guestLine}
+                    {model.participantLabel ? ` · ${model.participantLabel}` : ''}
                   </p>
                 ) : null}
               </div>
@@ -106,18 +108,11 @@ export default function StayOpsReservationCard({
               </div>
             </div>
             <div className="tour-ops-card__meta">
-              <span className="tour-ops-card__meta-item tour-ops-card__meta-item--when">
-                <CalendarDays className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                <span className="tour-ops-card__when-text truncate" title={model.dateLine}>
-                  {model.dateLine}
-                </span>
-              </span>
               <span
-                className="tour-ops-card__meta-item tour-ops-card__meta-item--guests"
-                title={model.participantLabel}
+                className="tour-ops-card__meta-item tour-ops-card__meta-item--product"
+                title={model.listingTitle}
               >
-                <Users className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                <span className="truncate">{model.participantLabel}</span>
+                <span className="truncate">{model.listingTitle}</span>
               </span>
               <button
                 type="button"

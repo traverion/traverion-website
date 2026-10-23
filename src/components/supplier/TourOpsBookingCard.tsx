@@ -2,7 +2,7 @@
  * Expandable tour booking row — scan row + minimal inline ops details.
  */
 import { type MouseEvent, type ReactNode } from 'react';
-import { CalendarDays, ChevronDown, Copy, Mail, MapPin, User, Users } from 'lucide-react';
+import { CalendarDays, ChevronDown, Copy, Mail, MapPin, User } from 'lucide-react';
 
 export type TourOpsCardModel = {
   id: string;
@@ -110,14 +110,25 @@ export default function TourOpsBookingCard({
           <div className="tour-ops-card__body">
             <div className="tour-ops-card__top">
               <div className="tour-ops-card__identity">
-                <p className="tour-ops-card__title" title={model.listingTitle}>
-                  {model.listingTitle}
+                <p
+                  className="tour-ops-card__title tour-ops-card__title--when"
+                  title={
+                    model.departureNote ? `${model.dateLine}. ${model.departureNote}` : model.dateLine
+                  }
+                >
+                  <CalendarDays className="tour-ops-card__title-icon" strokeWidth={2} aria-hidden />
+                  <span className="min-w-0 truncate">
+                    {model.dateLine}
+                    {model.departureNote ? (
+                      <span className="tour-ops-card__when-note"> · {model.departureNote}</span>
+                    ) : null}
+                  </span>
                 </p>
-                {model.optionLabel ? (
-                  <p className="tour-ops-card__option" title={model.optionLabel}>
-                    {model.optionLabel}
-                  </p>
-                ) : null}
+                <p className="tour-ops-card__option" title={[model.guestName, model.participantLabel].filter(Boolean).join(' · ')}>
+                  <User className="inline h-3 w-3 shrink-0 opacity-60" strokeWidth={2} aria-hidden />{' '}
+                  {model.guestName}
+                  {model.participantLabel ? ` · ${model.participantLabel}` : ''}
+                </p>
               </div>
               <div className="tour-ops-card__rail">
                 <div className="tour-ops-card__rail-stack">
@@ -142,26 +153,16 @@ export default function TourOpsBookingCard({
               </div>
             </div>
             <div className="tour-ops-card__meta">
-              <span className="tour-ops-card__meta-item tour-ops-card__meta-item--when">
-                <CalendarDays className="h-3.5 w-3.5 shrink-0" strokeWidth={2} aria-hidden />
-                <span
-                  className="tour-ops-card__when-text"
-                  title={
-                    model.departureNote ? `${model.dateLine}. ${model.departureNote}` : model.dateLine
-                  }
-                >
-                  {model.dateLine}
-                  {model.departureNote ? (
-                    <span className="tour-ops-card__when-note"> · {model.departureNote}</span>
+              <span
+                className="tour-ops-card__meta-item tour-ops-card__meta-item--product"
+                title={[model.listingTitle, model.optionLabel].filter(Boolean).join(' · ')}
+              >
+                <span className="truncate">
+                  {model.listingTitle}
+                  {model.optionLabel ? (
+                    <span className="tour-ops-card__when-note"> · {model.optionLabel}</span>
                   ) : null}
                 </span>
-              </span>
-              <span
-                className="tour-ops-card__meta-item tour-ops-card__meta-item--guests"
-                title={model.participantLabel}
-              >
-                <Users className="h-3.5 w-3.5 shrink-0" strokeWidth={2} aria-hidden />
-                <span className="truncate">{model.participantLabel}</span>
               </span>
               <button
                 type="button"

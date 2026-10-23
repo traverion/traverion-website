@@ -111,7 +111,7 @@ describe('Bookings V4 — tour ops card & detail page', () => {
     expect(src).toContain('expandedStayId');
   });
 
-  it('keeps guest name out of the collapsed scan row and puts arrival under status', () => {
+  it('leads collapsed scan with departure, guest, and arrival under status', () => {
     const html = renderToStaticMarkup(
       createElement(TourOpsBookingCard, {
         model: baseModel,
@@ -131,8 +131,9 @@ describe('Bookings V4 — tour ops card & detail page', () => {
     expect(collapsed).toContain('Morning departure');
     expect(collapsed).toContain('TV-ABCDEF');
     expect(collapsed).toContain('12 Jun · 09:00');
+    expect(collapsed).toContain('tour-ops-card__title--when');
+    expect(collapsed).toContain('Ada Lovelace');
     expect(collapsed).toContain('2 adults');
-    expect(collapsed).not.toContain('Ada Lovelace');
     expect(collapsed).toContain('tour-ops-card__pickup');
     expect(collapsed).toContain('Pickup');
     expect(html).toContain('aria-expanded="false"');
@@ -171,7 +172,7 @@ describe('Bookings V4 — tour ops card & detail page', () => {
     expect(html).toContain('aria-expanded="true"');
   });
 
-  it('clamps long experience titles and keeps option secondary', () => {
+  it('leads with departure time and keeps long experience titles secondary', () => {
     const html = renderToStaticMarkup(
       createElement(TourOpsBookingCard, {
         model: {
@@ -188,12 +189,13 @@ describe('Bookings V4 — tour ops card & detail page', () => {
         onCopyReference: () => undefined,
       })
     );
-    expect(html).toContain('tour-ops-card__title');
+    expect(html).toContain('tour-ops-card__title--when');
+    expect(html).toContain('12 Jun · 09:00');
     expect(html).toContain('Northern Lights Guarantee');
     expect(html).toContain('Morning departure');
-    expect(html).toContain('tour-ops-card__option');
+    expect(html).toContain('tour-ops-card__meta-item--product');
     const css = readFileSync(resolve(__dirname, '../../index.css'), 'utf8');
-    expect(css).toMatch(/\.tour-ops-card__title[\s\S]*?-webkit-line-clamp:\s*2/);
+    expect(css).toContain('tour-ops-card__title--when');
   });
 
   it('isolates checkbox and copy clicks from row expand via stopPropagation', () => {
