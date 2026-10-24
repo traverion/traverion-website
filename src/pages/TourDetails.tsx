@@ -34,6 +34,7 @@ import {
   type ReviewReplyRow,
 } from '../data/supabase-reviews';
 import { displayReviewGuestName } from '../lib/review-public-identity';
+import ReviewCommentClamp from '../components/ReviewCommentClamp';
 import { fetchSupplierPublicLegal } from '../data/supabase-supplier-profile';
 import { fetchConsumerProfileRow } from '../data/supabase-consumer-profile';
 import { setPageMetaWithOg, setTourJsonLd, clearTourJsonLd } from '../lib/seo';
@@ -2535,7 +2536,11 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
                 {r.title && (
                   <p className="mb-1 text-sm font-semibold text-[#111827] break-words [overflow-wrap:anywhere]">{r.title}</p>
                 )}
-                <p className="line-clamp-4 text-sm leading-relaxed text-ink break-words [overflow-wrap:anywhere] whitespace-pre-wrap">{r.comment}</p>
+                <ReviewCommentClamp
+                  text={r.comment}
+                  className="text-sm leading-relaxed text-ink"
+                  toggleClassName="mt-1 text-[12.5px] font-semibold text-[#073b83] hover:underline"
+                />
                 {reviewReplies[r.id]?.reply_text ? (
                   <div className="mt-3 rounded-xl bg-finland/[0.04] px-3.5 py-3 ring-1 ring-finland/10">
                     <p className="tv-eyebrow mb-1">Response from the operator</p>

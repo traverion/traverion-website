@@ -56,6 +56,7 @@ import {
   type ReviewReplyRow,
 } from '../data/supabase-reviews';
 import { displayReviewGuestName } from '../lib/review-public-identity';
+import ReviewCommentClamp from '../components/ReviewCommentClamp';
 import type { TourPackage } from '../types/tour';
 import ErrorState from '../components/ErrorState';
 import { Skeleton } from '../components/ui/Skeleton';
@@ -1332,7 +1333,7 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
                     {r.title ? (
                       <p className="font-medium text-ink mb-1 break-words [overflow-wrap:anywhere]">{r.title}</p>
                     ) : null}
-                    <p className="text-ink break-words [overflow-wrap:anywhere] whitespace-pre-wrap">{r.comment}</p>
+                    <ReviewCommentClamp text={r.comment} className="text-[14px] leading-relaxed text-ink" />
                     {reviewReplies[r.id]?.reply_text ? (
                       <div className="mt-3 rounded-xl bg-finland/[0.04] px-3.5 py-3 ring-1 ring-finland/10">
                         <p className="tv-eyebrow mb-1">

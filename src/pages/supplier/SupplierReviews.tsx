@@ -10,6 +10,7 @@ import { SUPPLIER_PAGE_CLASS, SupplierListSkeleton } from '../../components/supp
 import ErrorState from '../../components/ErrorState';
 import NoticeCallout from '../../components/NoticeCallout';
 import PartnerSelect from '../../components/supplier/PartnerSelect';
+import ReviewCommentClamp from '../../components/ReviewCommentClamp';
 import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
 import {
   aggregateReviewRatings,
@@ -22,16 +23,15 @@ import {
 import { fetchMyListings } from '../../data/supabase-listings';
 import type { InventoryFamily } from '../../lib/inventory';
 import { inventoryFamilyFromListing } from '../../lib/inventory';
-import { openSupplierListingEditor } from '../../lib/supplierPortalNavigation';
+import {
+  openSupplierBooking,
+  openSupplierListingEditor,
+} from '../../lib/supplierPortalNavigation';
 import { reviewHasWrittenFeedback, reviewNeedsSupplierReply } from '../../lib/review-feedback';
 import {
   SUPPLIER_ANONYMOUS_PUBLIC_NOTE,
   supplierReviewCustomerName,
 } from '../../lib/review-public-identity';
-
-function familyLabel(family: InventoryFamily | undefined): 'Stay' | 'Tour' {
-  return family === 'stay' ? 'Stay' : 'Tour';
-}
 
 function formatCreatedAtDisplay(iso: string): string {
   const d = new Date(iso);
@@ -44,7 +44,6 @@ type SupplierReviewRow = SupplierReviewDisplay;
 type SortKey = 'newest' | 'oldest' | 'highest' | 'lowest';
 
 const PAGE_SIZE = 20;
-const COMMENT_PREVIEW = 280;
 
 function StarRow({ rating, size = 14 }: { rating: number; size?: number }) {
   return (
@@ -83,11 +82,11 @@ export default function SupplierReviews() {
   const [searchInput, setSearchInput] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [page, setPage] = useState(0);
-  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [editingReplyIds, setEditingReplyIds] = useState<Set<string>>(new Set());
   const loadGenRef = useRef(0);
   const reviewsHubUserIdRef = useRef<string | null>(null);
   const submitLockRef = useRef<Set<string>>(new Set());
+  const replyFocusRef = useRef<string | null>(null);
 
   const load = useCallback(async () => {
     const uid = user?.id;
@@ -356,8 +355,12 @@ export default function SupplierReviews() {
   };
 
   const startEditingReply = (reviewId: string) => {
+    replyFocusRef.current = reviewId;
     setEditingReplyIds((prev) => new Set(prev).add(reviewId));
     setReplySuccessId(null);
+    if (!replyText[reviewId] && replies[reviewId]?.reply_text) {
+      setReplyText((prev) => ({ ...prev, [reviewId]: replies[reviewId]!.reply_text }));
+    }
   };
 
   const cancelEditingReply = (reviewId: string) => {
@@ -370,19 +373,22 @@ export default function SupplierReviews() {
     setReplyText((prev) => ({ ...prev, [reviewId]: replies[reviewId]?.reply_text ?? '' }));
   };
 
+  useLayoutEffect(() => {
+    const id = replyFocusRef.current;
+    if (!id || !editingReplyIds.has(id)) return;
+    const el = document.getElementById(`review-reply-${id}`) as HTMLTextAreaElement | null;
+    if (el) {
+      el.focus();
+      const len = el.value.length;
+      el.setSelectionRange(len, len);
+    }
+    replyFocusRef.current = null;
+  }, [editingReplyIds]);
+
   const clearFilters = () => {
     setSearchInput('');
     setSearchQuery('');
     writeFiltersToUrl({ listingId: '', rating: '', reply: 'all', sort: 'newest', q: '', pageIndex: 0 });
-  };
-
-  const toggleExpanded = (id: string) => {
-    setExpandedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
   };
 
   if (!user) return null;
@@ -511,7 +517,7 @@ export default function SupplierReviews() {
       ) : null}
 
       {/* Toolbar is outside loading / empty conditionals so it always renders. */}
-      <div className="mx-auto w-full max-w-[1180px] space-y-3">
+      <div className="mx-auto w-full max-w-[1180px] space-y-2.5">
         {filtersToolbar}
 
         {loading ? (
@@ -613,110 +619,73 @@ export default function SupplierReviews() {
               </div>
             ) : (
               <>
-              <ul className="space-y-2.5">
+              <ul className="space-y-2">
                 {pageRows.map((r) => {
                   const needsReply = reviewNeedsSupplierReply(r, replies);
                   const isHighlighted = highlightReviewId === r.id;
-                  const kind = familyLabel(r.listing_family);
-                  const comment = (r.comment ?? '').trim();
-                  const expanded = expandedIds.has(r.id);
-                  const long = comment.length > COMMENT_PREVIEW;
-                  const shownComment =
-                    !long || expanded ? comment : `${comment.slice(0, COMMENT_PREVIEW).trimEnd()}…`;
+                  const composing = editingReplyIds.has(r.id);
+                  const hasReply = Boolean(replies[r.id]);
+                  const canCompose = canReply && reviewHasWrittenFeedback(r);
                   return (
                     <li key={r.id}>
                       <article
                         id={`supplier-review-card-${r.id}`}
-                        className={`tv-reviews-card ${isHighlighted ? 'tv-reviews-card--highlight' : ''} ${
-                          needsReply ? 'tv-reviews-card--needs-reply' : ''
-                        }`}
+                        className={`tv-reviews-card ${isHighlighted ? 'tv-reviews-card--highlight' : ''}`}
                       >
-                        <div className="flex flex-wrap items-start justify-between gap-2">
-                          <div className="min-w-0">
-                            <p className="text-[14px] font-semibold tracking-tight text-[#18181b]">
+                        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+                          <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+                            <p className="text-[13.5px] font-semibold tracking-tight text-[#18181b]">
                               {supplierReviewCustomerName(r)}
                             </p>
-                            <div className="mt-1 flex flex-wrap items-center gap-2">
-                              <StarRow rating={Number(r.rating) || 0} />
-                              <span className="text-[12px] font-semibold tabular-nums text-[#18181b]">
-                                {r.rating}/5
-                              </span>
-                              {needsReply ? (
-                                <span className="tv-reviews-chip tv-reviews-chip--warn">Awaiting reply</span>
-                              ) : null}
-                              {replies[r.id] ? (
-                                <span className="tv-reviews-chip tv-reviews-chip--ok">Replied</span>
-                              ) : null}
-                              {r.verified ? <span className="tv-reviews-chip">Verified</span> : null}
-                            </div>
-                            {r.is_anonymous ? (
-                              <p className="mt-1 text-[12px] italic text-[#71717a]">
-                                {SUPPLIER_ANONYMOUS_PUBLIC_NOTE}
-                              </p>
-                            ) : null}
-                            <p className="mt-1.5 text-[12px] text-[#71717a]">
-                              {r.booking_reference ? (
-                                <>
-                                  Booking:{' '}
-                                  <span className="font-mono font-semibold text-[#3f3f46]">
-                                    {r.booking_reference}
-                                  </span>
-                                  {' · '}
-                                </>
-                              ) : null}
-                              {kind}
-                              {' · '}
+                            <StarRow rating={Number(r.rating) || 0} size={13} />
+                            <span className="text-[12px] font-semibold tabular-nums text-[#18181b]">
+                              {r.rating}/5
+                            </span>
+                            <span className="text-[11.5px] text-[#a1a1aa]">
                               {formatCreatedAtDisplay(r.created_at)}
-                            </p>
-                            <p
-                              className="mt-0.5 text-[13px] font-semibold text-[#18181b]"
-                              title={r.listing_title}
-                            >
-                              {r.listing_title ?? 'Listing'}
-                            </p>
+                            </span>
+                            {r.verified ? <span className="tv-reviews-chip">Verified</span> : null}
+                            {needsReply ? (
+                              <span className="tv-reviews-chip tv-reviews-chip--warn">Awaiting reply</span>
+                            ) : null}
+                            {hasReply ? <span className="tv-reviews-chip tv-reviews-chip--ok">Replied</span> : null}
                           </div>
                         </div>
 
-                        {r.title || reviewHasWrittenFeedback(r) ? (
-                          <div className="mt-2.5">
-                            {r.title ? (
-                              <p className="text-[13px] font-semibold text-[#18181b] break-words">{r.title}</p>
-                            ) : null}
-                            {comment ? (
-                              <>
-                                <p className="mt-1 text-[13px] leading-relaxed text-[#3f3f46] whitespace-pre-wrap break-words">
-                                  {shownComment}
-                                </p>
-                                {long ? (
-                                  <button
-                                    type="button"
-                                    className="mt-1 text-[12px] font-semibold text-[#073b83]"
-                                    onClick={() => toggleExpanded(r.id)}
-                                  >
-                                    {expanded ? 'Show less' : 'Read more'}
-                                  </button>
-                                ) : null}
-                              </>
-                            ) : null}
-                          </div>
-                        ) : (
-                          <p className="mt-2 text-[12px] italic text-[#71717a]">Rating only — no written feedback.</p>
-                        )}
-
-                        {r.listing_id ? (
-                          <button
-                            type="button"
-                            className="mt-2 text-[12px] font-semibold text-[#073b83]"
-                            onClick={() => openSupplierListingEditor(r.listing_id)}
-                          >
-                            Open listing
-                          </button>
+                        <p className="mt-1 truncate text-[12.5px] font-medium text-[#3f3f46]" title={r.listing_title}>
+                          {r.listing_title ?? 'Listing'}
+                          {r.booking_reference ? (
+                            <span className="font-normal text-[#71717a]">
+                              {' · '}
+                              <span className="font-mono text-[12px]">{r.booking_reference}</span>
+                            </span>
+                          ) : null}
+                        </p>
+                        {r.is_anonymous ? (
+                          <p className="mt-0.5 text-[11.5px] italic text-[#71717a]">
+                            {SUPPLIER_ANONYMOUS_PUBLIC_NOTE}
+                          </p>
                         ) : null}
 
-                        {replies[r.id] && !editingReplyIds.has(r.id) ? (
+                        {r.title ? (
+                          <p className="mt-1.5 text-[13px] font-semibold text-[#18181b] break-words">{r.title}</p>
+                        ) : null}
+                        {(r.comment ?? '').trim() ? (
+                          <div className="mt-1">
+                            <ReviewCommentClamp
+                              text={r.comment}
+                              className="text-[13px] leading-snug text-[#3f3f46]"
+                              toggleClassName="mt-0.5 text-[12px] font-semibold text-[#073b83] hover:underline"
+                            />
+                          </div>
+                        ) : !r.title ? (
+                          <p className="mt-1.5 text-[12px] italic text-[#71717a]">Rating only</p>
+                        ) : null}
+
+                        {hasReply && !composing ? (
                           <div className="tv-reviews-reply">
-                            <div className="flex items-start justify-between gap-3">
-                              <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#073b83]">
+                            <div className="flex items-start justify-between gap-2">
+                              <p className="text-[10.5px] font-semibold uppercase tracking-[0.08em] text-[#073b83]">
                                 Your response
                               </p>
                               {canReply ? (
@@ -725,15 +694,12 @@ export default function SupplierReviews() {
                                   onClick={() => startEditingReply(r.id)}
                                   className="text-[12px] font-semibold text-[#073b83]"
                                 >
-                                  Edit reply
+                                  Edit
                                 </button>
                               ) : null}
                             </div>
-                            <p className="mt-1.5 text-[13px] leading-snug text-[#18181b] whitespace-pre-wrap break-words">
+                            <p className="mt-1 text-[12.5px] leading-snug text-[#18181b] whitespace-pre-wrap break-words">
                               {replies[r.id].reply_text}
-                            </p>
-                            <p className="mt-1 text-[11px] text-[#a1a1aa]">
-                              {formatCreatedAtDisplay(replies[r.id].created_at)}
                             </p>
                             {replySuccessId === r.id ? (
                               <p className="mt-1 text-[12px] font-semibold text-[#047857]" role="status">
@@ -741,15 +707,16 @@ export default function SupplierReviews() {
                               </p>
                             ) : null}
                           </div>
-                        ) : !reviewHasWrittenFeedback(r) ? (
-                          <p className="mt-2.5 text-[12px] text-[#71717a]">
-                            Replies are available when the guest leaves a title or written comment.
-                          </p>
-                        ) : (
-                          <div className="mt-3">
-                            <label htmlFor={`review-reply-${r.id}`} className="mb-1 block text-[12px] font-semibold text-[#18181b]">
+                        ) : null}
+
+                        {composing ? (
+                          <div className="mt-2.5">
+                            <label
+                              htmlFor={`review-reply-${r.id}`}
+                              className="mb-1 block text-[12px] font-semibold text-[#18181b]"
+                            >
                               <MessageSquare className="mr-1 inline h-3.5 w-3.5" aria-hidden />
-                              {replies[r.id] ? 'Edit reply' : 'Reply'}
+                              {hasReply ? 'Edit reply' : 'Reply'}
                             </label>
                             <textarea
                               id={`review-reply-${r.id}`}
@@ -770,29 +737,71 @@ export default function SupplierReviews() {
                             {/* Phase 1697: live length honesty on supplier review replies. */}
                             <p id={`review-reply-hint-${r.id}`} className="mt-1 text-[11px] text-[#a1a1aa]">
                               Up to 2000 characters
-                              {(replyText[r.id] ?? '').length > 0 ? ` · ${(replyText[r.id] ?? '').length} used` : ''}.
+                              {(replyText[r.id] ?? '').length > 0
+                                ? ` · ${(replyText[r.id] ?? '').length} used`
+                                : ''}
+                              .
                             </p>
                             <div className="mt-2 flex flex-wrap items-center gap-2">
                               <button
                                 type="button"
-                                disabled={!canReply || replyingId === r.id || !(replyText[r.id] ?? '').trim()}
+                                disabled={
+                                  !canReply || replyingId === r.id || !(replyText[r.id] ?? '').trim()
+                                }
                                 onClick={() => void handleSubmitReply(r.id)}
-                                className="tv-btn-primary inline-flex h-9 items-center gap-1.5 px-3 text-[13px] disabled:opacity-50"
+                                className="tv-btn-primary inline-flex h-8 items-center gap-1.5 px-2.5 text-[12.5px] disabled:opacity-50"
                               >
                                 <Check className="h-3.5 w-3.5" aria-hidden />
-                                {replyingId === r.id ? 'Saving…' : replies[r.id] ? 'Save changes' : 'Save reply'}
+                                {replyingId === r.id ? 'Saving…' : 'Save reply'}
                               </button>
-                              {replies[r.id] && editingReplyIds.has(r.id) ? (
-                                <button
-                                  type="button"
-                                  disabled={replyingId === r.id}
-                                  onClick={() => cancelEditingReply(r.id)}
-                                  className="tv-btn-ghost h-9 px-3 text-[13px] disabled:opacity-50"
-                                >
-                                  Cancel
-                                </button>
-                              ) : null}
+                              <button
+                                type="button"
+                                disabled={replyingId === r.id}
+                                onClick={() => cancelEditingReply(r.id)}
+                                className="tv-btn-ghost h-8 px-2.5 text-[12.5px] disabled:opacity-50"
+                              >
+                                Cancel
+                              </button>
                             </div>
+                          </div>
+                        ) : (
+                          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
+                            {canCompose && !hasReply ? (
+                              <button
+                                type="button"
+                                onClick={() => startEditingReply(r.id)}
+                                className="text-[12.5px] font-semibold text-[#073b83]"
+                              >
+                                Reply
+                              </button>
+                            ) : null}
+                            {!reviewHasWrittenFeedback(r) ? (
+                              <span className="text-[11.5px] text-[#a1a1aa]">
+                                Replies need a written comment
+                              </span>
+                            ) : null}
+                            {r.booking_id ? (
+                              <button
+                                type="button"
+                                className="text-[12.5px] font-semibold text-[#073b83]"
+                                onClick={() =>
+                                  openSupplierBooking(r.booking_id!, {
+                                    isStay: r.listing_family === 'stay',
+                                  })
+                                }
+                              >
+                                View booking
+                              </button>
+                            ) : null}
+                            {r.listing_id ? (
+                              <button
+                                type="button"
+                                className="text-[12px] font-medium text-[#71717a] hover:text-[#073b83]"
+                                onClick={() => openSupplierListingEditor(r.listing_id)}
+                              >
+                                Open listing
+                              </button>
+                            ) : null}
                           </div>
                         )}
                       </article>

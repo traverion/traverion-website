@@ -5221,12 +5221,10 @@ details:not([open]) > :not(summary) {
 }
 
 .tv-reviews-metric {
-  border-radius: 0.75rem;
+  border-radius: 0.65rem;
   background: #fff;
-  box-shadow:
-    0 0 0 1px rgba(15, 23, 42, 0.07),
-    0 1px 2px rgba(15, 23, 42, 0.03);
-  padding: 0.8rem 0.95rem;
+  box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.06);
+  padding: 0.55rem 0.75rem;
   transition: box-shadow var(--partner-dur-micro, 140ms) var(--partner-ease, ease);
 }
 
@@ -5245,9 +5243,9 @@ details:not([open]) > :not(summary) {
 }
 
 .tv-reviews-metric__value {
-  margin-top: 0.3rem;
+  margin-top: 0.15rem;
   font-family: inherit;
-  font-size: 1.5rem;
+  font-size: 1.25rem;
   font-weight: 750;
   letter-spacing: -0.035em;
   line-height: 1.1;
@@ -5404,22 +5402,16 @@ details:not([open]) > :not(summary) {
 }
 
 .tv-reviews-card {
-  border-radius: 10px;
+  border-radius: 8px;
   background: #fff;
   box-shadow: 0 0 0 1px rgba(28, 25, 23, 0.06);
-  padding: 0.85rem 1rem;
+  padding: 0.65rem 0.85rem;
 }
 
 .tv-reviews-card--highlight {
   box-shadow:
     0 0 0 1px rgba(7, 59, 131, 0.28),
-    0 0 0 3px rgba(7, 59, 131, 0.12);
-}
-
-.tv-reviews-card--needs-reply {
-  box-shadow:
-    0 0 0 1px rgba(245, 158, 11, 0.35),
-    0 0 0 1px rgba(28, 25, 23, 0.04);
+    0 0 0 3px rgba(7, 59, 131, 0.1);
 }
 
 .tv-reviews-card__meta {
@@ -5451,12 +5443,11 @@ details:not([open]) > :not(summary) {
 }
 
 .tv-reviews-reply {
-  margin-top: 0.75rem;
-  border-radius: 8px;
-  border: 1px solid rgba(7, 59, 131, 0.12);
-  border-left: 3px solid var(--tv-reviews-navy);
-  background: rgba(7, 59, 131, 0.04);
-  padding: 0.7rem 0.8rem;
+  margin-top: 0.55rem;
+  border-radius: 6px;
+  border-left: 2px solid var(--tv-reviews-navy);
+  background: rgba(7, 59, 131, 0.035);
+  padding: 0.45rem 0.65rem;
 }
 
 .tv-reviews-empty {

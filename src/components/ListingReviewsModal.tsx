@@ -9,6 +9,7 @@ import {
   type ReviewReplyRow,
 } from '../data/supabase-reviews';
 import { displayReviewGuestName } from '../lib/review-public-identity';
+import ReviewCommentClamp from './ReviewCommentClamp';
 
 type SortId = 'newest' | 'oldest' | 'highest' | 'lowest';
 
@@ -211,7 +212,7 @@ export function ListingReviewsModal({ open, onClose, reviews, replies, listingTi
                 {r.title ? (
                   <p className="mb-1 font-medium text-ink break-words [overflow-wrap:anywhere]">{r.title}</p>
                 ) : null}
-                <p className="text-ink break-words [overflow-wrap:anywhere] whitespace-pre-wrap">{r.comment}</p>
+                <ReviewCommentClamp text={r.comment} className="text-[14px] leading-relaxed text-ink" />
                 {replies[r.id]?.reply_text ? (
                   <div className="mt-3 rounded-xl bg-finland/[0.04] px-3.5 py-3 ring-1 ring-finland/10">
                     <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-finland">

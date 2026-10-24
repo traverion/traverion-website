@@ -18,7 +18,6 @@ import { supabase } from '../../lib/supabase';
 import PartnerAuthPage from './PartnerAuthPage';
 import PartnerLandingPage from './PartnerLandingPage';
 import PartnerSidebar from './PartnerSidebar';
-import PartnerActivityBell from './PartnerActivityBell';
 import {
   PARTNER_MORE_GROUPS,
   PARTNER_SIDEBAR_FOOTER,
@@ -1070,7 +1069,6 @@ export default function SupplierLayout() {
                 <span className="font-sans text-[10px] font-semibold tracking-[0.18em] text-slate-800">TRAVERION</span>
               </button>
               <div className="relative ml-auto flex items-center gap-2">
-                <PartnerActivityBell enabled={Boolean(user?.id) && isSupabase} />
                 <button
                   type="button"
                   onClick={() => setAccountMenuOpen((v) => !v)}
