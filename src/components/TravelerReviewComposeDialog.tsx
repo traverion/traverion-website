@@ -1,16 +1,25 @@
 /**
- * In-Trips (and reusable) traveler review compose dialog.
- * Submits via existing submitReview + RLS (paid completed booking required).
+ * Multi-step traveler review journey (Trips).
+ * Rate → optional comment → public identity → post → success.
+ * Persists via existing submitReview + RLS (paid completed booking required).
  */
 import { useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Star, X } from 'lucide-react';
+import { Check, ChevronLeft, Star, X } from 'lucide-react';
 import { useDialogFocus } from '../hooks/useDialogFocus';
 import NoticeCallout from './NoticeCallout';
 import { submitReview, userHasReviewedListing } from '../data/supabase-reviews';
 import { supabase } from '../lib/supabase';
 import { USER_ERROR, userFacingError } from '../lib/userFacingError';
 import { travelerDisplayNameFromSources } from '../lib/traveler-display-name';
+import {
+  normalizeReviewCommentForSubmit,
+  publicReviewGuestName,
+  ratingAdjective,
+  REVIEW_COMMENT_MAX_CHARS,
+  reviewIdentityFromRow,
+  type ReviewIdentityChoice,
+} from '../lib/review-public-identity';
 
 export type TravelerReviewTarget = {
   bookingId: string;
@@ -19,6 +28,8 @@ export type TravelerReviewTarget = {
   imageUrl?: string | null;
   mode: 'write' | 'edit';
 };
+
+type Step = 1 | 2 | 3 | 'success';
 
 type Props = {
   open: boolean;
@@ -29,6 +40,14 @@ type Props = {
   onClose: () => void;
   onSubmitted: (listingId: string) => void;
 };
+
+const RATING_LABELS = [
+  'Rate 1 out of 5 stars — Poor',
+  'Rate 2 out of 5 stars — Fair',
+  'Rate 3 out of 5 stars — Good',
+  'Rate 4 out of 5 stars — Great',
+  'Rate 5 out of 5 stars — Excellent',
+] as const;
 
 export default function TravelerReviewComposeDialog({
   open,
@@ -41,49 +60,85 @@ export default function TravelerReviewComposeDialog({
 }: Props) {
   const titleId = useId();
   const panelRef = useRef<HTMLDivElement>(null);
-  const [rating, setRating] = useState(5);
-  const [title, setTitle] = useState('');
+  const [step, setStep] = useState<Step>(1);
+  const [rating, setRating] = useState(0);
+  const [hoverRating, setHoverRating] = useState(0);
   const [comment, setComment] = useState('');
+  const [loadedComment, setLoadedComment] = useState('');
+  const [identity, setIdentity] = useState<ReviewIdentityChoice>('named');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [hydrating, setHydrating] = useState(false);
+  const stepRef = useRef<Step>(1);
+  const submittingRef = useRef(false);
+  stepRef.current = step;
+  submittingRef.current = submitting;
 
   useDialogFocus(open && Boolean(target), panelRef, () => {
-    if (!submitting) onClose();
+    if (submittingRef.current) return;
+    if (stepRef.current === 'success' && target) {
+      onSubmitted(target.listingId);
+    }
+    onClose();
   });
+
+  useEffect(() => {
+    if (!open) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [open]);
 
   useEffect(() => {
     if (!open || !target) return;
     setError(null);
     setSubmitting(false);
+    setStep(1);
+    setHoverRating(0);
     let cancelled = false;
     setHydrating(true);
     void (async () => {
       try {
         if (!supabase || target.mode !== 'edit') {
           if (!cancelled) {
-            setRating(5);
-            setTitle('');
+            setRating(0);
             setComment('');
+            setLoadedComment('');
+            setIdentity('named');
           }
           return;
         }
         const { data, error: qErr } = await supabase
           .from('reviews')
-          .select('rating, title, comment')
+          .select('rating, title, comment, guest_name, is_anonymous')
           .eq('user_id', userId)
           .eq('listing_id', target.listingId)
           .maybeSingle();
         if (cancelled) return;
         if (qErr) throw new Error(qErr.message);
         if (data) {
-          setRating(Number(data.rating) || 5);
-          setTitle((data.title ?? '').trim());
-          setComment((data.comment ?? '').trim());
+          setRating(Number(data.rating) || 0);
+          // Keep legacy title text only as comment seed if comment is empty — never invent.
+          const existingComment = (data.comment ?? '').trim();
+          const legacyTitle = (data.title ?? '').trim();
+          const seeded =
+            existingComment ||
+            (legacyTitle ? legacyTitle : '');
+          setComment(seeded);
+          setLoadedComment(seeded);
+          setIdentity(
+            reviewIdentityFromRow({
+              is_anonymous: (data as { is_anonymous?: boolean | null }).is_anonymous,
+              guest_name: data.guest_name,
+            })
+          );
         } else {
-          setRating(5);
-          setTitle('');
+          setRating(0);
           setComment('');
+          setLoadedComment('');
+          setIdentity('named');
         }
       } catch (e) {
         if (!cancelled) {
@@ -98,55 +153,79 @@ export default function TravelerReviewComposeDialog({
     };
   }, [open, target, userId]);
 
-  if (!open || !target) return null;
+  if (!open || !target || typeof document === 'undefined') return null;
 
-  const guestName = travelerDisplayNameFromSources({
+  const guestDisplayName = travelerDisplayNameFromSources({
     profileDisplayName: profileDisplayName ?? null,
     metadata: userMetadata as {
       full_name?: string;
       name?: string;
+      display_name?: string;
       customer_first_name?: string;
       customer_last_name?: string;
     } | null,
   });
 
+  const isEdit = target.mode === 'edit';
+  const progressStep = step === 'success' ? 3 : step;
+  const shownStars = hoverRating || rating;
+  const adjective = ratingAdjective(shownStars);
+
+  const closeJourney = () => {
+    if (submitting) return;
+    onClose();
+  };
+
+  const finishSuccess = () => {
+    onSubmitted(target.listingId);
+    onClose();
+  };
+
   const submit = async () => {
-    const trimmed = comment.trim();
-    if (!trimmed) {
-      setError('Please write a short review before submitting.');
-      return;
-    }
     if (rating < 1 || rating > 5) {
       setError('Choose a rating from 1 to 5 stars.');
+      setStep(1);
+      return;
+    }
+    const normalized = normalizeReviewCommentForSubmit(comment, {
+      allowExistingOverLimit: isEdit,
+      previousComment: loadedComment,
+    });
+    if (!normalized.ok) {
+      setError(normalized.error);
+      setStep(2);
       return;
     }
     setSubmitting(true);
     setError(null);
     try {
-      // Soft duplicate guard for write mode (upsert still safe).
       if (target.mode === 'write') {
         const already = await userHasReviewedListing(userId, target.listingId);
         if (already) {
-          onSubmitted(target.listingId);
-          onClose();
+          setStep('success');
           return;
         }
       }
+      const isAnonymous = identity === 'anonymous';
       const res = await submitReview({
         listingId: target.listingId,
         userId,
-        guestName,
+        guestName: publicReviewGuestName({
+          isAnonymous,
+          displayName: guestDisplayName,
+        }),
+        isAnonymous,
         rating,
-        title: title.trim() || undefined,
-        comment: trimmed,
+        title: null,
+        comment: normalized.comment,
         bookingId: target.bookingId,
       });
       if (!res.success) {
         setError(userFacingError(res.error, USER_ERROR.review));
         return;
       }
-      onSubmitted(target.listingId);
-      onClose();
+      setLoadedComment(normalized.comment);
+      setStep('success');
     } catch (e) {
       setError(userFacingError(e instanceof Error ? e.message : String(e), USER_ERROR.review));
     } finally {
@@ -154,144 +233,278 @@ export default function TravelerReviewComposeDialog({
     }
   };
 
+  const headline =
+    step === 'success'
+      ? isEdit
+        ? 'Your review was updated'
+        : 'Thank you for your review!'
+      : step === 1
+        ? 'How was your experience?'
+        : step === 2
+          ? 'Tell us about your experience'
+          : 'How would you like to post your review?';
+
   return createPortal(
-    <div className="tv-sheet-overlay tv-sheet-overlay--portal z-[80]">
+    <div className="tv-review-journey-overlay" role="presentation">
       <button
         type="button"
         tabIndex={-1}
-        className="absolute inset-0"
+        className="tv-review-journey-overlay__scrim"
         aria-label="Close"
-        onClick={() => !submitting && onClose()}
+        onClick={closeJourney}
       />
       <div
         ref={panelRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className="tv-traveler-review-dialog relative z-[81] mx-auto w-full max-w-[26rem] overflow-hidden rounded-2xl bg-white shadow-xl ring-1 ring-black/[0.08] motion-safe:animate-slide-up sm:motion-safe:animate-none"
+        className="tv-review-journey"
       >
-        <div className="flex items-start gap-3 border-b border-black/[0.06] px-4 py-3.5">
-          {target.imageUrl ? (
-            <img
-              src={target.imageUrl}
-              alt=""
-              className="h-12 w-12 shrink-0 rounded-lg object-cover bg-black/[0.04]"
-              width={48}
-              height={48}
-            />
-          ) : (
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-[#073b83]/[0.06]" aria-hidden>
-              <Star className="h-5 w-5 text-[#073b83]/60" />
-            </div>
-          )}
-          <div className="min-w-0 flex-1">
-            <h2 id={titleId} className="text-[1.05rem] font-semibold tracking-tight text-[#0c1118]">
-              {target.mode === 'edit' ? 'Your review' : 'Write a review'}
-            </h2>
-            <p className="mt-0.5 truncate text-[13px] text-[#5a6472]" title={target.listingTitle}>
+        <header className="tv-review-journey__chrome">
+          <div className="tv-review-journey__listing">
+            {target.imageUrl ? (
+              <img
+                src={target.imageUrl}
+                alt=""
+                className="tv-review-journey__thumb"
+                width={44}
+                height={44}
+              />
+            ) : (
+              <div className="tv-review-journey__thumb tv-review-journey__thumb--empty" aria-hidden>
+                <Star className="h-4 w-4 text-[#073b83]/55" />
+              </div>
+            )}
+            <p className="tv-review-journey__listing-title" title={target.listingTitle}>
               {target.listingTitle}
             </p>
           </div>
           <button
             type="button"
-            className="tv-btn-ghost -mr-1 inline-flex h-9 w-9 items-center justify-center rounded-lg p-0"
-            onClick={() => !submitting && onClose()}
+            className="tv-review-journey__close lux-flat"
+            onClick={closeJourney}
             aria-label="Close review"
+            disabled={submitting}
           >
             <X className="h-4 w-4" aria-hidden />
           </button>
-        </div>
+        </header>
 
-        <div className="space-y-4 px-4 py-4">
+        {step !== 'success' ? (
+          <div className="tv-review-journey__progress" aria-hidden>
+            {[1, 2, 3].map((n) => (
+              <span
+                key={n}
+                className={`tv-review-journey__progress-dot${n <= progressStep ? ' is-active' : ''}`}
+              />
+            ))}
+          </div>
+        ) : null}
+
+        <div className="tv-review-journey__body">
+          <h2 id={titleId} className="tv-review-journey__headline">
+            {headline}
+          </h2>
+
           {hydrating ? (
-            <p className="text-[13px] text-[#5a6472]">Loading your review…</p>
-          ) : (
-            <>
-              <div>
-                <p id={`${titleId}-rating`} className="mb-1.5 text-[13px] font-medium text-[#0c1118]">
-                  Rating
-                </p>
-                <div className="flex gap-0.5" role="group" aria-labelledby={`${titleId}-rating`}>
-                  {[1, 2, 3, 4, 5].map((i) => (
-                    <button
-                      key={i}
-                      type="button"
-                      onClick={() => setRating(i)}
-                      className="lux-tap-target inline-flex min-h-11 min-w-11 items-center justify-center p-0.5"
-                      aria-label={`Rate ${i} out of 5 stars`}
-                      aria-pressed={i <= rating}
-                    >
-                      <Star
-                        size={26}
-                        className={i <= rating ? 'fill-[#073b83] text-[#073b83]' : 'text-[#c4c9d1]'}
-                        aria-hidden
-                      />
-                    </button>
-                  ))}
-                </div>
+            <p className="tv-review-journey__muted">Loading your review…</p>
+          ) : null}
+
+          {!hydrating && step === 1 ? (
+            <div className="tv-review-journey__step">
+              <div
+                className="tv-review-journey__stars"
+                role="radiogroup"
+                aria-label="Star rating"
+                onMouseLeave={() => setHoverRating(0)}
+              >
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    role="radio"
+                    aria-checked={rating === i}
+                    aria-label={RATING_LABELS[i - 1]}
+                    className="tv-review-journey__star lux-flat"
+                    onMouseEnter={() => setHoverRating(i)}
+                    onFocus={() => setHoverRating(i)}
+                    onBlur={() => setHoverRating(0)}
+                    onClick={() => {
+                      setRating(i);
+                      setError(null);
+                    }}
+                  >
+                    <Star
+                      className={
+                        i <= shownStars
+                          ? 'tv-review-journey__star-icon is-filled'
+                          : 'tv-review-journey__star-icon'
+                      }
+                      aria-hidden
+                    />
+                  </button>
+                ))}
               </div>
-              <div>
-                <label htmlFor={`${titleId}-title`} className="mb-1 block text-[13px] font-medium text-[#0c1118]">
-                  Title <span className="font-normal text-[#8892a0]">(optional)</span>
-                </label>
-                <input
-                  id={`${titleId}-title`}
-                  type="text"
-                  maxLength={120}
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  className="tv-input w-full text-[13px]"
-                  placeholder="Sum up your experience"
-                />
+              <p className="tv-review-journey__adjective" aria-live="polite">
+                {adjective ?? '\u00a0'}
+              </p>
+            </div>
+          ) : null}
+
+          {!hydrating && step === 2 ? (
+            <div className="tv-review-journey__step">
+              <label htmlFor={`${titleId}-comment`} className="sr-only">
+                Optional comment
+              </label>
+              <textarea
+                id={`${titleId}-comment`}
+                rows={5}
+                maxLength={Math.max(REVIEW_COMMENT_MAX_CHARS, loadedComment.length)}
+                value={comment}
+                onChange={(e) => {
+                  const next = e.target.value;
+                  const softCap = Math.max(REVIEW_COMMENT_MAX_CHARS, loadedComment.length);
+                  setComment(next.length > softCap ? next.slice(0, softCap) : next);
+                  setError(null);
+                }}
+                className="tv-review-journey__textarea tv-input"
+                placeholder="What stood out? (optional)"
+                aria-describedby={`${titleId}-counter`}
+              />
+              <p id={`${titleId}-counter`} className="tv-review-journey__counter">
+                {comment.trim().length}/{REVIEW_COMMENT_MAX_CHARS}
+                {loadedComment.length > REVIEW_COMMENT_MAX_CHARS &&
+                comment.trim() === loadedComment.trim()
+                  ? ' · shorten to save changes to this text'
+                  : ''}
+              </p>
+            </div>
+          ) : null}
+
+          {!hydrating && step === 3 ? (
+            <div className="tv-review-journey__step tv-review-journey__identity">
+              <button
+                type="button"
+                className={`tv-review-journey__choice lux-flat${identity === 'named' ? ' is-selected' : ''}`}
+                aria-pressed={identity === 'named'}
+                onClick={() => setIdentity('named')}
+              >
+                <span className="tv-review-journey__choice-title">Post with my name</span>
+                <span className="tv-review-journey__choice-body">
+                  Review will be posted as {guestDisplayName}.
+                </span>
+              </button>
+              <button
+                type="button"
+                className={`tv-review-journey__choice lux-flat${
+                  identity === 'anonymous' ? ' is-selected' : ''
+                }`}
+                aria-pressed={identity === 'anonymous'}
+                onClick={() => setIdentity('anonymous')}
+              >
+                <span className="tv-review-journey__choice-title">Post anonymously</span>
+                <span className="tv-review-journey__choice-body">
+                  Your name won&apos;t be shown publicly.
+                </span>
+              </button>
+            </div>
+          ) : null}
+
+          {!hydrating && step === 'success' ? (
+            <div className="tv-review-journey__success">
+              <div className="tv-review-journey__success-icon" aria-hidden>
+                <Check className="h-7 w-7" strokeWidth={2.25} />
               </div>
-              <div>
-                <label htmlFor={`${titleId}-comment`} className="mb-1 block text-[13px] font-medium text-[#0c1118]">
-                  Your review
-                </label>
-                <textarea
-                  id={`${titleId}-comment`}
-                  rows={4}
-                  maxLength={2000}
-                  value={comment}
-                  onChange={(e) => setComment(e.target.value.slice(0, 2000))}
-                  className="tv-input min-h-[6.5rem] w-full resize-y text-[13px] leading-relaxed"
-                  placeholder="Tell others what stood out…"
-                  required
-                  aria-describedby={`${titleId}-hint`}
-                />
-                <p id={`${titleId}-hint`} className="mt-1 text-[11px] text-[#8892a0]">
-                  Up to 2000 characters{comment.length > 0 ? ` · ${comment.length} used` : ''}.
-                </p>
-              </div>
-            </>
-          )}
+              <p className="tv-review-journey__muted">
+                {isEdit
+                  ? 'Your changes are saved and visible where reviews are shown.'
+                  : 'Your review has been submitted successfully.'}
+              </p>
+            </div>
+          ) : null}
 
           {error ? (
-            <NoticeCallout title="Could not submit review" tone="danger">
+            <NoticeCallout title="Could not save review" tone="danger">
               {error}
             </NoticeCallout>
           ) : null}
-
-          <div className="flex flex-wrap justify-end gap-2 pt-0.5">
-            <button
-              type="button"
-              className="tv-btn-ghost h-10 px-3 text-[13px]"
-              disabled={submitting}
-              onClick={onClose}
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              className="tv-btn-primary h-10 min-w-[8.5rem] px-4 text-[13px] disabled:opacity-55"
-              disabled={submitting || hydrating || !comment.trim()}
-              aria-busy={submitting || undefined}
-              onClick={() => void submit()}
-            >
-              {submitting ? 'Submitting…' : target.mode === 'edit' ? 'Save review' : 'Submit review'}
-            </button>
-          </div>
         </div>
+
+        <footer className="tv-review-journey__footer">
+          {step === 'success' ? (
+            <button
+              type="button"
+              className="tv-btn-primary tv-review-journey__primary"
+              onClick={finishSuccess}
+            >
+              Continue to Trips
+            </button>
+          ) : (
+            <>
+              {step > 1 ? (
+                <button
+                  type="button"
+                  className="tv-btn-ghost tv-review-journey__back"
+                  disabled={submitting || hydrating}
+                  onClick={() => {
+                    setError(null);
+                    setStep((s) => (s === 3 ? 2 : 1));
+                  }}
+                >
+                  <ChevronLeft className="h-4 w-4" aria-hidden />
+                  Back
+                </button>
+              ) : (
+                <span />
+              )}
+              {step === 1 ? (
+                <button
+                  type="button"
+                  className="tv-btn-primary tv-review-journey__primary"
+                  disabled={hydrating || rating < 1}
+                  onClick={() => {
+                    setError(null);
+                    setStep(2);
+                  }}
+                >
+                  Continue
+                </button>
+              ) : null}
+              {step === 2 ? (
+                <button
+                  type="button"
+                  className="tv-btn-primary tv-review-journey__primary"
+                  disabled={hydrating}
+                  onClick={() => {
+                    const normalized = normalizeReviewCommentForSubmit(comment, {
+                      allowExistingOverLimit: isEdit,
+                      previousComment: loadedComment,
+                    });
+                    if (!normalized.ok) {
+                      setError(normalized.error);
+                      return;
+                    }
+                    setError(null);
+                    setStep(3);
+                  }}
+                >
+                  Continue
+                </button>
+              ) : null}
+              {step === 3 ? (
+                <button
+                  type="button"
+                  className="tv-btn-primary tv-review-journey__primary"
+                  disabled={submitting || hydrating}
+                  aria-busy={submitting || undefined}
+                  onClick={() => void submit()}
+                >
+                  {submitting ? 'Saving…' : isEdit ? 'Save changes' : 'Post review'}
+                </button>
+              ) : null}
+            </>
+          )}
+        </footer>
       </div>
     </div>,
     document.body

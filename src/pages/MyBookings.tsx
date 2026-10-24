@@ -14,6 +14,7 @@ import { travelerLoginHref } from '../lib/travelerAuthLinks';
 import { useDialogFocus } from '../hooks/useDialogFocus';
 import { SkeletonListItem, SkeletonConsumerPage } from '../components/ui/Skeleton';
 import { useAuth } from '../contexts/AuthContext';
+import { fetchConsumerProfileRow } from '../data/supabase-consumer-profile';
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
 import {
   fetchMyBookings,
@@ -194,6 +195,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
   const [focusMessageId, setFocusMessageId] = useState<string | null>(null);
   const [reviewedListingIds, setReviewedListingIds] = useState<Set<string>>(new Set());
   const [reviewTarget, setReviewTarget] = useState<TravelerReviewTarget | null>(null);
+  const [reviewProfileDisplayName, setReviewProfileDisplayName] = useState<string | null>(null);
   const [actionSuccess, setActionSuccess] = useState<{ title: string; body: string } | null>(null);
   // Phase 1677: copy feedback for expanded trip reference.
   const [copiedTripRefId, setCopiedTripRefId] = useState<string | null>(null);
@@ -304,6 +306,24 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
     } finally {
       if (gen === loadGenRef.current) setLoading(false);
     }
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (!user?.id) {
+      setReviewProfileDisplayName(null);
+      return;
+    }
+    let cancelled = false;
+    void fetchConsumerProfileRow(user.id)
+      .then((row) => {
+        if (!cancelled) setReviewProfileDisplayName((row?.display_name ?? '').trim() || null);
+      })
+      .catch(() => {
+        if (!cancelled) setReviewProfileDisplayName(null);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [user?.id]);
 
   useEffect(() => {
@@ -2127,7 +2147,11 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
           userId={user.id}
           userMetadata={(user.user_metadata as Record<string, unknown> | null) ?? null}
           profileDisplayName={
-            typeof user.user_metadata?.full_name === 'string' ? user.user_metadata.full_name : null
+            reviewProfileDisplayName ||
+            (typeof user.user_metadata?.full_name === 'string' ? user.user_metadata.full_name : null) ||
+            (typeof user.user_metadata?.display_name === 'string'
+              ? user.user_metadata.display_name
+              : null)
           }
           onClose={() => setReviewTarget(null)}
           onSubmitted={(listingId) => {
@@ -2135,10 +2159,6 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
               const next = new Set(prev);
               next.add(listingId);
               return next;
-            });
-            setActionSuccess({
-              title: 'Review submitted',
-              body: 'Thank you — your review is saved and visible where reviews are shown.',
             });
           }}
         />

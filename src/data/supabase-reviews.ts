@@ -15,6 +15,8 @@ export type ReviewRow = {
   user_id: string;
   booking_id: string | null;
   guest_name: string;
+  /** When true, guest_name is the public anonymized label. */
+  is_anonymous?: boolean;
   rating: number;
   title: string | null;
   comment: string;
@@ -104,18 +106,25 @@ export async function submitReview(params: {
   userId: string;
   guestName: string;
   rating: number;
-  title?: string;
+  title?: string | null;
   comment: string;
   bookingId: string;
+  /** Persist public anonymity; guestName should already be the public label when true. */
+  isAnonymous?: boolean;
 }): Promise<{ success: boolean; error?: string }> {
   if (!supabase) return { success: false, error: 'Supabase not configured' };
   const bookingId = (params.bookingId ?? '').trim();
   if (!bookingId) {
     return { success: false, error: 'A completed booking is required to leave a review.' };
   }
+  const rating = Number(params.rating);
+  if (!Number.isFinite(rating) || rating < 1 || rating > 5) {
+    return { success: false, error: 'Choose a rating from 1 to 5 stars.' };
+  }
   // Phase 579: capture the real row id so notify-supplier-event can re-derive
   // rating/title/guest name from the actual reviews row instead of trusting
   // this call's params verbatim (see supabase/functions/_shared/notify-supplier-event-guard.ts).
+  const isAnonymous = Boolean(params.isAnonymous);
   const { data: savedReview, error } = await supabase
     .from('reviews')
     .upsert(
@@ -123,9 +132,13 @@ export async function submitReview(params: {
         listing_id: params.listingId,
         user_id: params.userId,
         guest_name: params.guestName,
-        rating: params.rating,
+        is_anonymous: isAnonymous,
+        rating,
+        // Explicit null clears title (Trips journey). Omitted keeps prior row title on upsert
+        // only when we merge — upsert replaces columns present, so omit means we still set null
+        // unless callers pass a string. Prefer null when undefined for consistent public cards.
         title: params.title ?? null,
-        comment: params.comment,
+        comment: params.comment ?? '',
         booking_id: bookingId,
       },
       { onConflict: 'listing_id,user_id' }
@@ -143,8 +156,8 @@ export async function submitReview(params: {
       listingId: params.listingId,
       listingTitle: listingMeta.title ?? undefined,
       reviewId: savedReview.id,
-      reviewRating: params.rating,
-      reviewTitle: params.title,
+      reviewRating: rating,
+      reviewTitle: params.title ?? undefined,
       guestName: params.guestName,
       portalBaseUrl: supplierPortalPublicBaseUrl(),
       // Phase 1722: per-review key — default supplier:new_review:{supplierId} blocked all later reviews.

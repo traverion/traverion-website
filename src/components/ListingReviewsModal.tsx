@@ -8,6 +8,7 @@ import {
   type ReviewDisplay,
   type ReviewReplyRow,
 } from '../data/supabase-reviews';
+import { displayReviewGuestName } from '../lib/review-public-identity';
 
 type SortId = 'newest' | 'oldest' | 'highest' | 'lowest';
 
@@ -191,7 +192,7 @@ export function ListingReviewsModal({ open, onClose, reviews, replies, listingTi
             filtered.map((r) => (
               <article key={r.id} className="border-b border-black/[0.06] pb-5 last:border-0">
                 <div className="mb-2 flex flex-wrap items-center gap-2">
-                  <span className="font-medium text-ink">{r.guest_name}</span>
+                  <span className="font-medium text-ink">{displayReviewGuestName(r)}</span>
                   {r.verified ? (
                     <span className="rounded bg-emerald-100 px-2 py-0.5 text-xs text-emerald-800">Verified</span>
                   ) : null}

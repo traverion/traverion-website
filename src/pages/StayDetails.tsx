@@ -55,6 +55,7 @@ import {
   type ReviewDisplay,
   type ReviewReplyRow,
 } from '../data/supabase-reviews';
+import { displayReviewGuestName } from '../lib/review-public-identity';
 import type { TourPackage } from '../types/tour';
 import ErrorState from '../components/ErrorState';
 import { Skeleton } from '../components/ui/Skeleton';
@@ -1311,7 +1312,7 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
                 {reviews.slice(0, 3).map((r) => (
                   <div key={r.id} className="border-b border-black/[0.06] pb-6 last:border-0">
                     <div className="flex items-center gap-3 mb-2">
-                      <span className="font-medium text-ink">{r.guest_name}</span>
+                      <span className="font-medium text-ink">{displayReviewGuestName(r)}</span>
                       {r.verified ? (
                         <span className="rounded bg-emerald-100 px-2 py-0.5 text-xs text-emerald-800">Verified</span>
                       ) : null}

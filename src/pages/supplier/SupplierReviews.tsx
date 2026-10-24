@@ -24,6 +24,7 @@ import type { InventoryFamily } from '../../lib/inventory';
 import { inventoryFamilyFromListing } from '../../lib/inventory';
 import { openSupplierListingEditor } from '../../lib/supplierPortalNavigation';
 import { reviewHasWrittenFeedback, reviewNeedsSupplierReply } from '../../lib/review-feedback';
+import { displayReviewGuestName } from '../../lib/review-public-identity';
 
 function familyLabel(family: InventoryFamily | undefined): 'Stay' | 'Tour' {
   return family === 'stay' ? 'Stay' : 'Tour';
@@ -280,7 +281,7 @@ export default function SupplierReviews() {
       if (filterReply === 'unreplied' && !reviewNeedsSupplierReply(r, replies)) return false;
       if (filterReply === 'replied' && !replies[r.id]) return false;
       if (searchQuery) {
-        const hay = `${r.guest_name} ${r.listing_title ?? ''} ${r.title ?? ''} ${r.comment ?? ''}`.toLowerCase();
+        const hay = `${displayReviewGuestName(r)} ${r.listing_title ?? ''} ${r.title ?? ''} ${r.comment ?? ''}`.toLowerCase();
         if (!hay.includes(searchQuery)) return false;
       }
       return true;
@@ -633,7 +634,7 @@ export default function SupplierReviews() {
                         <div className="flex flex-wrap items-start justify-between gap-2">
                           <div className="min-w-0">
                             <p className="tv-reviews-card__meta">
-                              {r.guest_name || 'Guest'}
+                              {displayReviewGuestName(r)}
                               {' · '}
                               {formatCreatedAtDisplay(r.created_at)}
                               {' · '}

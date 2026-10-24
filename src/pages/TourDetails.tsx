@@ -33,6 +33,7 @@ import {
   type ReviewDisplay,
   type ReviewReplyRow,
 } from '../data/supabase-reviews';
+import { displayReviewGuestName } from '../lib/review-public-identity';
 import { fetchSupplierPublicLegal } from '../data/supabase-supplier-profile';
 import { fetchConsumerProfileRow } from '../data/supabase-consumer-profile';
 import { setPageMetaWithOg, setTourJsonLd, clearTourJsonLd } from '../lib/seo';
@@ -2514,7 +2515,7 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
             {reviews.slice(0, 3).map((r) => (
               <article key={r.id} className="rounded-xl border border-[#E8EBF0] bg-white p-3.5">
                 <div className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1">
-                  <span className="font-semibold text-[#111827]">{r.guest_name}</span>
+                  <span className="font-semibold text-[#111827]">{displayReviewGuestName(r)}</span>
                   {r.verified && (
                     <span className="rounded bg-emerald-100 px-2 py-0.5 text-xs text-emerald-800">Verified</span>
                   )}
