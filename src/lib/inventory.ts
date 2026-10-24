@@ -1,18 +1,19 @@
 /**
  * Traveler inventory families vs operator listing rows.
  *
- * Families (do not collapse): tour, stay, experience, package.
+ * Families (do not collapse): tour, stay, rental, experience, package.
  * Live for travelers today: tour and stay.
+ * Rentals: partner creator + draft persistence only — not on the traveler catalog or checkout yet.
  *
  * `listings.experience_kind` (tour | ticket | transportation) is the operator format of a tour,
  * not the Experiences category. Do not rename that column.
  *
  * Shared marketplace primitives: listing, booking, availability, money, business, customer.
- * Availability is family-specific: tour departure, stay night, package itinerary, experience slot.
+ * Availability is family-specific: tour departure, stay night, rental interval, package itinerary, experience slot.
  * Live quote paths: tour departure (`quoteBooking`) and stay nights (`quoteStayNights`).
  */
 
-export const INVENTORY_FAMILIES = ['tour', 'stay', 'experience', 'package'] as const;
+export const INVENTORY_FAMILIES = ['tour', 'stay', 'rental', 'experience', 'package'] as const;
 export type InventoryFamily = (typeof INVENTORY_FAMILIES)[number];
 
 export const LIVE_INVENTORY_FAMILIES = ['tour', 'stay'] as const;
@@ -21,12 +22,14 @@ export type LiveInventoryFamily = (typeof LIVE_INVENTORY_FAMILIES)[number];
 export type InventoryAvailabilityUnit =
   | 'tour_departure'
   | 'stay_night'
+  | 'rental_interval'
   | 'package_itinerary'
   | 'experience_slot';
 
 export const INVENTORY_AVAILABILITY_UNIT: Record<InventoryFamily, InventoryAvailabilityUnit> = {
   tour: 'tour_departure',
   stay: 'stay_night',
+  rental: 'rental_interval',
   package: 'package_itinerary',
   experience: 'experience_slot',
 };
@@ -124,11 +127,20 @@ export const PARTNER_CREATE_INVENTORY: PartnerCreateInventoryOption[] = [
     title: 'Stay',
     description: 'An apartment or room with nights, guest capacity, and house rules.',
   },
+  {
+    family: 'rental',
+    canCreate: true,
+    title: 'Rental',
+    description: 'Equipment and vehicles with quantity inventory — drafts only until public bookings launch.',
+  },
 ];
 
-export function reservedInventoryFamilyFromPath(pathname: string): Exclude<InventoryFamily, 'tour' | 'stay'> | null {
+export function reservedInventoryFamilyFromPath(
+  pathname: string
+): Exclude<InventoryFamily, 'tour' | 'stay'> | null {
   const normalized = pathname.length > 1 && pathname.endsWith('/') ? pathname.slice(0, -1) : pathname;
   if (normalized === '/experiences') return 'experience';
+  if (normalized === '/rentals') return 'rental';
   return null;
 }
 
@@ -136,14 +148,23 @@ export function publicPathForInventoryFamily(family: InventoryFamily): string {
   if (family === 'tour') return '/packages';
   if (family === 'stay') return '/stays';
   if (family === 'experience') return '/experiences';
+  if (family === 'rental') return '/rentals';
   return '/packages';
 }
 
-export function reservedInventoryCopy(family: Exclude<InventoryFamily, 'tour' | 'stay'>): { title: string; body: string } {
+export function reservedInventoryCopy(
+  family: Exclude<InventoryFamily, 'tour' | 'stay'>
+): { title: string; body: string } {
   if (family === 'package') {
     return {
       title: 'Packages are not live',
       body: 'Multi-day packages are reserved as their own category. Browse tours for what you can book today.',
+    };
+  }
+  if (family === 'rental') {
+    return {
+      title: 'Rentals are not bookable yet',
+      body: 'Operators can prepare rental listings in the partner portal. Traveler booking opens in a later Traverion Rentals launch.',
     };
   }
   return {

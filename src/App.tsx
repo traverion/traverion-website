@@ -428,8 +428,9 @@ function App() {
       return;
     }
     if (currentPage === 'inventory-reserved') {
-      if (window.location.pathname !== '/experiences') {
-        window.history.replaceState({}, '', '/experiences');
+      const reservedPath = destinationSlug === 'rental' ? '/rentals' : '/experiences';
+      if (window.location.pathname !== reservedPath) {
+        window.history.replaceState({}, '', reservedPath);
       }
       return;
     }
@@ -586,8 +587,11 @@ function App() {
       'content-creator': { title: 'Content creators', description: 'Apply to collaborate with Traverion on travel content.' },
       destination: { title: 'Destination', description: 'Tours and stays in this destination from live operators.' },
       'inventory-reserved': {
-        title: 'Experiences',
-        description: 'Experiences is a reserved category, not mixed into Tours.',
+        title: destinationSlug === 'rental' ? 'Rentals' : 'Experiences',
+        description:
+          destinationSlug === 'rental'
+            ? 'Rentals are reserved for a later Traverion launch — partners can prepare listings in the portal.'
+            : 'Experiences is a reserved category, not mixed into Tours.',
       },
       'not-found': { title: 'Page not found', description: 'This address is not a Traverion page.' },
     };
@@ -610,7 +614,9 @@ function App() {
       currentPage === 'destination'
         ? `/destinations/${destinationSlug || ''}`
         : currentPage === 'inventory-reserved'
-          ? '/experiences'
+          ? destinationSlug === 'rental'
+            ? '/rentals'
+            : '/experiences'
           : currentPage === 'not-found'
             ? window.location.pathname
           : (pathMap[currentPage] ?? '/');
@@ -833,7 +839,7 @@ function App() {
       case 'inventory-reserved':
         return (
           <ReservedInventoryPage
-            family="experience"
+            family={destinationSlug === 'rental' ? 'rental' : 'experience'}
             onNavigate={handleNavigate}
           />
         );

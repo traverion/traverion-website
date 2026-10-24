@@ -3,6 +3,7 @@ import type { TourPackage } from '../types/tour';
 import {
   getListingPublishBlockers,
   partnerListingCardPresentation,
+  partnerListingDraftPublishSubtitle,
   publishBlockerListingWizardStep,
 } from './listingPublishGate';
 
@@ -329,5 +330,45 @@ describe('stay exterior camera publish gate', () => {
       },
     } as TourPackage;
     expect(getListingPublishBlockers(leak).some((b) => /door codes/i.test(b))).toBe(true);
+  });
+});
+
+describe('rental publish gate', () => {
+  it('never allows rentals to become ready for travelers', () => {
+    const rental = {
+      title: 'Premium Thermal Overall Rental',
+      subtitle: 'Arctic sizes S–XL',
+      description: 'Warm thermal overalls for Arctic conditions, sized S through XL for winter guests.',
+      city: 'Rovaniemi',
+      country: 'Finland',
+      image: 'https://example.com/rental.jpg',
+      listingExtras: {
+        inventoryFamily: 'rental',
+        galleryImageUrls: [
+          'https://example.com/1.jpg',
+          'https://example.com/2.jpg',
+          'https://example.com/3.jpg',
+          'https://example.com/4.jpg',
+        ],
+        experienceLanguage: 'en',
+        rental: {
+          category: 'winter_clothing',
+          itemType: 'thermal_overall',
+          durationMode: 'daily',
+          pickupAddress: 'Rovaniemi depot',
+          sharedPricing: { pricePerDayMinor: 2000 },
+          creatorComplete: true,
+          variants: [
+            { id: 's', name: 'S', quantity: 8 },
+            { id: 'm', name: 'M', quantity: 12 },
+          ],
+        },
+      },
+    } as TourPackage;
+    const blockers = getListingPublishBlockers(rental);
+    expect(blockers.some((b) => /public rental bookings are not available/i.test(b))).toBe(true);
+    const draft = partnerListingDraftPublishSubtitle(rental);
+    expect(draft.readyToPublish).toBe(false);
+    expect(draft.subtitle).toMatch(/Rentals launches/i);
   });
 });

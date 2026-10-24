@@ -18,6 +18,7 @@ import {
   Map,
   Compass,
   Home,
+  KeyRound,
   Copy,
   Search,
   CalendarDays,
@@ -186,7 +187,7 @@ export default function SupplierListings() {
   const [justPublishedId, setJustPublishedId] = useState<string | null>(null);
   const [publishingId, setPublishingId] = useState<string | null>(null);
   const [justDuplicatedId, setJustDuplicatedId] = useState<string | null>(null);
-  const [createFamily, setCreateFamily] = useState<'tour' | 'stay'>('tour');
+  const [createFamily, setCreateFamily] = useState<'tour' | 'stay' | 'rental'>('tour');
   const createChooserRef = useRef<HTMLDivElement>(null);
   const deleteSheetRef = useRef<HTMLDivElement>(null);
   const deactivateSheetRef = useRef<HTMLDivElement>(null);
@@ -343,6 +344,17 @@ export default function SupplierListings() {
     setFormFocusSection(null);
   }, [bumpEditorInstanceIfOpening, canEditListings, clearCanonicalListingSession]);
 
+  const startNewRental = useCallback(() => {
+    if (!canEditListings) return;
+    bumpEditorInstanceIfOpening();
+    clearCanonicalListingSession();
+    setShowCreateChooser(false);
+    setCreateFamily('rental');
+    setEditingId(null);
+    setShowForm(true);
+    setFormFocusSection(null);
+  }, [bumpEditorInstanceIfOpening, canEditListings, clearCanonicalListingSession]);
+
   const openCreateChooser = useCallback(() => {
     if (!canEditListings) return;
     navigateSupplierUrl(PARTNER_CREATE_PATH);
@@ -430,12 +442,12 @@ export default function SupplierListings() {
     const focus = params.get('focus');
     const wantsNew = params.get('new') === '1';
     const createFam = params.get('create');
-    if (wantsNew && !edit && createFam !== 'tour' && createFam !== 'stay') {
+    if (wantsNew && !edit && createFam !== 'tour' && createFam !== 'stay' && createFam !== 'rental') {
       window.history.replaceState(window.history.state, '', PARTNER_CREATE_PATH);
       window.dispatchEvent(new PopStateEvent('popstate'));
       return;
     }
-    if ((createFam === 'tour' || createFam === 'stay') && !edit) {
+    if ((createFam === 'tour' || createFam === 'stay' || createFam === 'rental') && !edit) {
       // Phase 1857: wait for shared role roster — do not strip ?create= while still loading.
       if (!roleReady) return;
       // Phase 1755: deep-link create must not open the editor for finance/viewer.
@@ -459,7 +471,7 @@ export default function SupplierListings() {
       }
       bumpEditorInstanceIfOpening();
       clearCanonicalListingSession();
-      setCreateFamily(createFam);
+      setCreateFamily(createFam as 'tour' | 'stay' | 'rental');
       setEditingId(null);
       setShowForm(true);
       setShowCreateChooser(false);
@@ -1352,7 +1364,7 @@ export default function SupplierListings() {
             </p>
             <div className="mt-4 grid gap-2 sm:grid-cols-2" role="list">
               {PARTNER_CREATE_INVENTORY.map((opt) => {
-                const Icon = opt.family === 'stay' ? Home : Compass;
+                const Icon = opt.family === 'stay' ? Home : opt.family === 'rental' ? KeyRound : Compass;
                 if (!opt.canCreate) {
                   return (
                     <div
@@ -1374,14 +1386,20 @@ export default function SupplierListings() {
                     key={opt.family}
                     type="button"
                     role="listitem"
-                    onClick={opt.family === 'stay' ? startNewStay : startNewTour}
+                    onClick={
+                      opt.family === 'stay'
+                        ? startNewStay
+                        : opt.family === 'rental'
+                          ? startNewRental
+                          : startNewTour
+                    }
                     className="lux-flat group flex h-full flex-col rounded-lg border border-black/[0.06] bg-paper px-3.5 py-3 text-left transition-colors hover:border-finland/40 hover:bg-finland/[0.04] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-finland"
                   >
                     <span className="flex h-8 w-8 items-center justify-center rounded-md bg-finland/10 text-finland ring-1 ring-finland/15">
                       <Icon className="h-4 w-4" aria-hidden />
                     </span>
                     <span className="mt-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-finland">
-                      {opt.family === 'stay' ? 'Nights' : 'Departures'}
+                      {opt.family === 'stay' ? 'Nights' : opt.family === 'rental' ? 'Equipment' : 'Departures'}
                     </span>
                     <p className="mt-1 text-sm font-semibold text-ink">{opt.title}</p>
                     <p className="mt-1 flex-1 text-xs text-ink-muted leading-snug">{opt.description}</p>

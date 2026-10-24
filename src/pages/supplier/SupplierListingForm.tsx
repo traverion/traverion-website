@@ -252,11 +252,24 @@ import StayAmenityPicker from '../../components/supplier/listing-creation/StayAm
 import StayOptionsStep from '../../components/supplier/listing-creation/StayOptionsStep';
 import StayBedroomPhotos from '../../components/supplier/listing-creation/StayBedroomPhotos';
 import StayExampleQuote from '../../components/supplier/listing-creation/StayExampleQuote';
+import {
+  RENTAL_ONBOARDING_SCREENS,
+  rentalPublishBlockers,
+  rentalScreenIndexFromStorage,
+  rentalScreenIndexForPublishLine,
+  rentalStageBlocker,
+  type RentalOnboardingCheck,
+} from '../../lib/rental-onboarding';
+import { emptyRentalDetails, normalizeRentalDetails } from '../../lib/rental-details';
+import type { RentalDetails } from '../../types/rental';
+import { fetchSupplierActiveCommercialTerms } from '../../data/supabase-earnings';
+
 import { publicStayListingUrl, publicTourListingUrl } from '../../lib/publicSiteUrl';
 import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
 import NoticeCallout from '../../components/NoticeCallout';
 
 const StayOnboardingFlow = lazy(() => import('../../components/supplier/listing-creation/StayOnboardingFlow'));
+const RentalOnboardingFlow = lazy(() => import('../../components/supplier/listing-creation/RentalOnboardingFlow'));
 
 function stayAmenityTokens(raw: string): string[] {
   return raw
@@ -910,7 +923,8 @@ type ListingFormState = {
   bookingContactPhoneE164: string;
   venueSetting: VenueSetting;
   additionalLanguages: string[];
-  inventoryFamily: 'tour' | 'stay';
+  inventoryFamily: 'tour' | 'stay' | 'rental';
+  rental: RentalDetails;
   stayAccommodationMode: StayAccommodationMode;
   stayUnits: StayUnitDraft[];
   stayOptions: StayAccommodationOption[];
@@ -995,6 +1009,7 @@ function resolveListingDestinationLabel(
 function buildListingFromForm(form: ListingFormState, existingId?: string): TourPackage {
   const id = existingId ?? `supplier-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
   const isStay = form.inventoryFamily === 'stay';
+  const isRental = form.inventoryFamily === 'rental';
   const resolvedDestination = resolveListingDestinationLabel(form);
   const startLoc = form.city.trim() || resolvedDestination;
   const endLoc = startLoc;
@@ -1194,6 +1209,7 @@ function buildListingFromForm(form: ListingFormState, existingId?: string): Tour
           },
         }
       : {}),
+    ...(isRental ? { inventoryFamily: 'rental' as const, rental: form.rental ?? emptyRentalDetails() } : {}),
   };
   return {
     id,
@@ -1442,6 +1458,7 @@ const emptyForm: ListingFormState = {
   venueSetting: 'unspecified',
   additionalLanguages: [] as string[],
   inventoryFamily: 'tour',
+  rental: emptyRentalDetails(),
   stayAccommodationMode: 'single',
   stayUnits: [],
   stayOptions: [],
@@ -1589,7 +1606,7 @@ interface SupplierListingFormProps {
   canPostNewListing?: boolean;
   /** Truthful account-gate copy when canPostNewListing is false. */
   publishAccountBlockedReason?: string | null;
-  createFamily?: 'tour' | 'stay';
+  createFamily?: 'tour' | 'stay' | 'rental';
 }
 
 type StepId =
@@ -1622,6 +1639,8 @@ export default function SupplierListingForm({
   const [submitting, setSubmitting] = useState(false);
   const [publishBlockers, setPublishBlockers] = useState<string[] | null>(null);
   const isStayForm = form.inventoryFamily === 'stay' || createFamily === 'stay';
+  const isRentalForm = form.inventoryFamily === 'rental' || createFamily === 'rental';
+  const isFocusedCreator = isStayForm || isRentalForm;
   const infoEnterFromOptionsBackRef = useRef(false);
   const infoPendingSceneRef = useRef<number | null>(null);
 
@@ -1635,6 +1654,12 @@ export default function SupplierListingForm({
   const [stayReturnStage, setStayReturnStage] = useState<number | null>(null);
   const [stayLocationConfirmed, setStayLocationConfirmed] = useState(false);
   const stayStageHydrated = useRef(false);
+  const [rentalStage, setRentalStage] = useState(0);
+  const [rentalStageDir, setRentalStageDir] = useState<'forward' | 'back'>('forward');
+  const [rentalStageAttempted, setRentalStageAttempted] = useState(false);
+  const [rentalReturnStage, setRentalReturnStage] = useState<number | null>(null);
+  const [rentalCommissionBps, setRentalCommissionBps] = useState<number | null>(null);
+  const rentalStageHydrated = useRef(false);
   useEffect(() => {
     if (!isStayForm || typeof window === 'undefined') return;
     const legacyKey = `traverion-stay-onboarding-stage-v1-${editingId ?? 'create'}`;
@@ -1643,6 +1668,27 @@ export default function SupplierListingForm({
     setStayLocationConfirmed(sessionStorage.getItem(`${legacyKey}-pin`) === '1' || sessionStorage.getItem(`${key}-pin`) === '1');
     stayStageHydrated.current = true;
   }, [isStayForm, editingId]);
+  useEffect(() => {
+    if (!isRentalForm || typeof window === 'undefined') return;
+    const key = `traverion-rental-onboarding-screen-v1-${editingId ?? 'create'}`;
+    setRentalStage(rentalScreenIndexFromStorage(sessionStorage.getItem(key)));
+    rentalStageHydrated.current = true;
+  }, [isRentalForm, editingId]);
+  useEffect(() => {
+    if (!isRentalForm || !user?.id) {
+      setRentalCommissionBps(null);
+      return;
+    }
+    let cancelled = false;
+    void fetchSupplierActiveCommercialTerms(user.id).then((row) => {
+      if (cancelled) return;
+      const bps = row?.commission_bps;
+      setRentalCommissionBps(typeof bps === 'number' && Number.isFinite(bps) ? bps : null);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [isRentalForm, user?.id]);
   const formRef = useRef(form);
   formRef.current = form;
   const stepIdxRef = useRef(stepIdx);
@@ -2269,7 +2315,13 @@ export default function SupplierListingForm({
           bookingContactPhoneE164: extras.bookingContactPhoneE164 ?? '',
           venueSetting: extras.venueSetting ?? 'unspecified',
           additionalLanguages: normalizeSpokenLanguageIds(extras.additionalLanguages),
-          inventoryFamily: extras.inventoryFamily === 'stay' ? 'stay' : 'tour',
+          inventoryFamily:
+            extras.inventoryFamily === 'stay'
+              ? 'stay'
+              : extras.inventoryFamily === 'rental'
+                ? 'rental'
+                : 'tour',
+          rental: normalizeRentalDetails(extras.rental) ?? emptyRentalDetails(),
           stayAccommodationMode: extras.stay?.accommodationMode === 'multi' ? 'multi' : 'single',
           stayUnits: extras.stay?.units ?? [],
           stayOptions: ensureStayOptions({
@@ -2381,6 +2433,15 @@ export default function SupplierListingForm({
                 duration: 'Per night',
                 experienceKind: 'tour' as const,
                 highlights: [],
+              }
+            : {}),
+          ...(createFamily === 'rental'
+            ? {
+                experienceLanguage: 'en',
+                duration: 'Per rental',
+                experienceKind: 'tour' as const,
+                highlights: [],
+                rental: emptyRentalDetails(),
               }
             : {}),
         };
@@ -2620,7 +2681,7 @@ export default function SupplierListingForm({
       if (serializeListingFormState(current) === initialFormSnapshotRef.current) return;
       writeListingDraftBackup(editingId, current);
       if (!enableDraftOnClose) return;
-      if (current.status === 'published') {
+      if (current.status === 'published' && current.inventoryFamily !== 'rental') {
         const listing = buildListingFromForm({ ...current, status: 'published' }, editingId ?? undefined);
         void Promise.resolve(onSave(listing)).then((result) => {
           if (!result.success) return;
@@ -2659,6 +2720,18 @@ export default function SupplierListingForm({
     (line: string) => {
       const t = line.toLowerCase();
       const step = publishBlockerListingWizardStep(line, isStayForm);
+      if (isRentalForm) {
+        const next = rentalScreenIndexForPublishLine(line);
+        setRentalStageDir('forward');
+        setRentalStage(next);
+        setRentalStageAttempted(true);
+        setPublishBlockers(null);
+        if (typeof window !== 'undefined') {
+          const key = `traverion-rental-onboarding-screen-v1-${editingId ?? 'create'}`;
+          sessionStorage.setItem(key, RENTAL_ONBOARDING_SCREENS[next]?.id ?? 'category');
+        }
+        return;
+      }
       if (isStayForm) {
         const next = stayScreenIndexForPublishLine(line);
         setStayStageDir('forward');
@@ -2706,7 +2779,14 @@ export default function SupplierListingForm({
         }, 80);
       }
     },
-    [isStayForm, editingId, setStepIdxPersisted, setBasicsSceneIdxPersisted, setInfoSceneIdxPersisted]
+    [
+      isStayForm,
+      isRentalForm,
+      editingId,
+      setStepIdxPersisted,
+      setBasicsSceneIdxPersisted,
+      setInfoSceneIdxPersisted,
+    ]
   );
 
   const bookingContactPhoneError = useMemo(() => {
@@ -2827,8 +2907,16 @@ export default function SupplierListingForm({
         // Capture at click time so the payload matches what the supplier intended to save.
         // After await, merge only status into the latest form so mid-save edits are kept.
         const savedSnapshot = formRef.current;
-        const listing = buildListingFromForm({ ...savedSnapshot, status: targetStatus }, editingId ?? undefined);
-        if (targetStatus === 'published') {
+        // Rentals cannot go live until traveler booking ships — always persist as draft.
+        const effectiveStatus: 'draft' | 'published' =
+          savedSnapshot.inventoryFamily === 'rental' || createFamily === 'rental'
+            ? 'draft'
+            : targetStatus;
+        const listing = buildListingFromForm(
+          { ...savedSnapshot, status: effectiveStatus },
+          editingId ?? undefined
+        );
+        if (effectiveStatus === 'published') {
           if (!canPostNewListing) {
             const msg =
               'Publishing needs Traverion to verify your business and your payout (IBAN + BIC). Finish both in Settings, then try again.';
@@ -2877,10 +2965,13 @@ export default function SupplierListingForm({
           if (result.listingId && result.listingId !== editingId) {
             migrateListingEditorStorage(editingId, result.listingId, savedSnapshot.inventoryFamily === 'stay');
           }
-          setForm((current) => applyListingSaveStatus(current, targetStatus));
-          initialFormSnapshotRef.current = serializeListingFormState({ ...savedSnapshot, status: targetStatus });
+          setForm((current) => applyListingSaveStatus(current, effectiveStatus));
+          initialFormSnapshotRef.current = serializeListingFormState({
+            ...savedSnapshot,
+            status: effectiveStatus,
+          });
           setLastSavedAt(Date.now());
-          setSaveFlash(targetStatus === 'published' ? 'published' : 'draft');
+          setSaveFlash(effectiveStatus === 'published' ? 'published' : 'draft');
           if (opts?.closeOnSuccess) {
             clearListingDraftBackup(editingId);
             finishCloseEditor({ animated: true });
@@ -3902,7 +3993,28 @@ export default function SupplierListingForm({
       })
     : null;
 
-  const onCreationLastStep = isStayForm ? stayStage >= STAY_ONBOARDING_SCREENS.length - 1 : stepIdx >= steps.length - 1;
+  const rentalOnboardingCheck: RentalOnboardingCheck = {
+    title: form.title,
+    subtitle: form.subtitle,
+    description: form.description,
+    highlights: form.highlights,
+    galleryCount: orderedPhotoUrls(normalizePhotoSlots(form.photoSlots)).length,
+    city: form.city,
+    country: form.country,
+    experienceLanguage: form.experienceLanguage,
+    rental: form.rental ?? emptyRentalDetails(),
+  };
+  const rentalOnboardingBlocker = isRentalForm
+    ? rentalStageBlocker(
+        RENTAL_ONBOARDING_SCREENS[rentalStage]?.id ?? 'category',
+        rentalOnboardingCheck
+      )
+    : null;
+  const onCreationLastStep = isRentalForm
+    ? rentalStage >= RENTAL_ONBOARDING_SCREENS.length - 1
+    : isStayForm
+      ? stayStage >= STAY_ONBOARDING_SCREENS.length - 1
+      : stepIdx >= steps.length - 1;
 
   const rememberStayStage = (next: number, dir: 'forward' | 'back') => {
     const bounded = Math.max(0, Math.min(STAY_ONBOARDING_SCREENS.length - 1, next));
@@ -3913,19 +4025,37 @@ export default function SupplierListingForm({
     const key = `traverion-stay-onboarding-screen-v2-${editingId ?? 'create'}`;
     sessionStorage.setItem(key, STAY_ONBOARDING_SCREENS[bounded]?.id ?? 'location');
   };
+  const rememberRentalStage = (next: number, dir: 'forward' | 'back') => {
+    const clamped = Math.max(0, Math.min(RENTAL_ONBOARDING_SCREENS.length - 1, next));
+    setRentalStageDir(dir);
+    setRentalStage(clamped);
+    setRentalStageAttempted(false);
+    if (typeof window !== 'undefined') {
+      const key = `traverion-rental-onboarding-screen-v1-${editingId ?? 'create'}`;
+      sessionStorage.setItem(key, RENTAL_ONBOARDING_SCREENS[clamped]?.id ?? 'category');
+    }
+  };
+
 
   const creationTitle = editingId
-    ? form.title.trim() || (form.inventoryFamily === 'stay' ? 'Stay' : 'Tour')
+    ? form.title.trim() ||
+      (form.inventoryFamily === 'stay' ? 'Stay' : form.inventoryFamily === 'rental' ? 'Rental' : 'Tour')
     : createFamily === 'stay'
       ? 'Create a stay'
-      : 'Create a tour';
+      : createFamily === 'rental'
+        ? 'Create a rental'
+        : 'Create a tour';
   const creationNavLabel = editingId
     ? form.inventoryFamily === 'stay'
       ? 'Stay sections'
-      : 'Tour sections'
+      : form.inventoryFamily === 'rental'
+        ? 'Rental sections'
+        : 'Tour sections'
     : createFamily === 'stay'
       ? 'Create stay steps'
-      : 'Create tour steps';
+      : createFamily === 'rental'
+        ? 'Create rental steps'
+        : 'Create tour steps';
   const creationNavItems = listingCreationNavItems(steps, stepIdx, (idx) => isStepSatisfied(idx, form), {
     isNewCreation: sessionOpenedAsCreateRef.current === true,
     summaryForIndex: (idx) => {
@@ -3994,7 +4124,7 @@ export default function SupplierListingForm({
           contextNav={null}
           overlay={null}
           scrollRef={stepContainerRef}
-          focused={isStayForm}
+          focused={isFocusedCreator}
           banners={
             <>
               {optionLockHint ? (
@@ -4064,26 +4194,32 @@ export default function SupplierListingForm({
           }
           footer={
             <div className="listing-creation-footer-actions flex flex-col gap-2">
-            {isStayForm ? (
+            {isFocusedCreator ? (
               <div
                 className="pointer-events-none absolute inset-x-0 top-0 h-0.5 bg-[#E6EAF0]"
                 role="progressbar"
                 aria-valuemin={1}
-                aria-valuemax={STAY_ONBOARDING_SCREENS.length}
-                aria-valuenow={stayStage + 1}
-                aria-label={`Step ${stayStage + 1} of ${STAY_ONBOARDING_SCREENS.length}`}
+                aria-valuemax={isRentalForm ? RENTAL_ONBOARDING_SCREENS.length : STAY_ONBOARDING_SCREENS.length}
+                aria-valuenow={(isRentalForm ? rentalStage : stayStage) + 1}
+                aria-label={`Step ${(isRentalForm ? rentalStage : stayStage) + 1} of ${isRentalForm ? RENTAL_ONBOARDING_SCREENS.length : STAY_ONBOARDING_SCREENS.length}`}
               >
                 <div
                   className="h-full bg-[#0B397E] transition-[width] duration-200 motion-reduce:transition-none"
-                  style={{ width: `${((stayStage + 1) / STAY_ONBOARDING_SCREENS.length) * 100}%` }}
+                  style={{
+                    width: `${(((isRentalForm ? rentalStage : stayStage) + 1) / (isRentalForm ? RENTAL_ONBOARDING_SCREENS.length : STAY_ONBOARDING_SCREENS.length)) * 100}%`,
+                  }}
                 />
               </div>
             ) : null}
-            <div className={isStayForm ? 'grid grid-cols-3 items-center gap-2' : 'flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3'}>
-              <div className={isStayForm ? 'contents' : 'order-2 flex gap-2 sm:order-1 sm:contents'}>
+            <div className={isFocusedCreator ? 'grid grid-cols-3 items-center gap-2' : 'flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3'}>
+              <div className={isFocusedCreator ? 'contents' : 'order-2 flex gap-2 sm:order-1 sm:contents'}>
                 <button
                   type="button"
                   onClick={() => {
+                    if (isRentalForm) {
+                      rememberRentalStage(Math.max(0, rentalStage - 1), 'back');
+                      return;
+                    }
                     if (isStayForm) {
                       rememberStayStage(Math.max(0, stayStage - 1), 'back');
                       return;
@@ -4102,7 +4238,9 @@ export default function SupplierListingForm({
                     setStepIdxPersisted((s) => Math.max(0, s - 1));
                   }}
                   disabled={
-                    (isStayForm
+                    (isRentalForm
+                      ? rentalStage === 0
+                      : isStayForm
                       ? stayStage === 0
                       : tourBasicsGuided
                       ? basicsSceneIdx === 0
@@ -4112,7 +4250,7 @@ export default function SupplierListingForm({
                     draftCloseBusy ||
                     submitting
                   }
-                  className={isStayForm ? 'stay-nav-btn stay-nav-btn--start touch-manipulation tv-btn-ghost !min-h-11 disabled:opacity-50' : 'touch-manipulation tv-btn-ghost !min-h-12 flex-1 sm:!min-h-11 sm:w-auto sm:flex-none disabled:opacity-50'}
+                  className={isFocusedCreator ? 'stay-nav-btn stay-nav-btn--start touch-manipulation tv-btn-ghost !min-h-11 disabled:opacity-50' : 'touch-manipulation tv-btn-ghost !min-h-12 flex-1 sm:!min-h-11 sm:w-auto sm:flex-none disabled:opacity-50'}
                 >
                   Back
                 </button>
@@ -4127,7 +4265,7 @@ export default function SupplierListingForm({
                       })
                     }
                     disabled={submitting || draftCloseBusy || shellExiting}
-                    className={isStayForm ? 'stay-nav-btn touch-manipulation tv-btn-secondary !min-h-11 disabled:opacity-50' : 'touch-manipulation tv-btn-secondary !min-h-12 flex-1 sm:!min-h-11 sm:w-auto sm:flex-none disabled:opacity-50'}
+                    className={isFocusedCreator ? 'stay-nav-btn touch-manipulation tv-btn-secondary !min-h-11 disabled:opacity-50' : 'touch-manipulation tv-btn-secondary !min-h-12 flex-1 sm:!min-h-11 sm:w-auto sm:flex-none disabled:opacity-50'}
                   >
                     {submitting || shellExiting
                       ? 'Saving…'
@@ -4145,19 +4283,27 @@ export default function SupplierListingForm({
                       })
                     }
                     disabled={submitting || draftCloseBusy || shellExiting}
-                    className={isStayForm ? 'stay-nav-btn touch-manipulation tv-btn-secondary !min-h-11 disabled:opacity-50' : 'touch-manipulation tv-btn-secondary !min-h-12 flex-1 sm:!min-h-11 sm:w-auto sm:flex-none disabled:opacity-50'}
+                    className={isFocusedCreator ? 'stay-nav-btn touch-manipulation tv-btn-secondary !min-h-11 disabled:opacity-50' : 'touch-manipulation tv-btn-secondary !min-h-12 flex-1 sm:!min-h-11 sm:w-auto sm:flex-none disabled:opacity-50'}
                   >
                     {submitting || shellExiting ? 'Saving…' : 'Save as draft'}
                   </button>
-                ) : isStayForm ? (
+                ) : isFocusedCreator ? (
                   <span aria-hidden className="block" />
                 ) : null}
               </div>
-              <div className={isStayForm ? 'contents' : 'order-1 flex w-full min-w-0 sm:order-2 sm:w-auto'}>
+              <div className={isFocusedCreator ? 'contents' : 'order-1 flex w-full min-w-0 sm:order-2 sm:w-auto'}>
                 {!onCreationLastStep ? (
                   <button
                     type="button"
                     onClick={() => {
+                      if (isRentalForm) {
+                        if (rentalOnboardingBlocker) {
+                          setRentalStageAttempted(true);
+                          return;
+                        }
+                        rememberRentalStage(rentalStage + 1, 'forward');
+                        return;
+                      }
                       if (isStayForm) {
                         if (stayOnboardingBlocker) {
                           setStayStageAttempted(true);
@@ -4180,7 +4326,9 @@ export default function SupplierListingForm({
                       setStepIdxPersisted((s) => Math.min(steps.length - 1, s + 1));
                     }}
                     disabled={
-                      (isStayForm
+                      (isRentalForm
+                        ? Boolean(rentalOnboardingBlocker)
+                        : isStayForm
                         ? Boolean(stayOnboardingBlocker)
                         : tourBasicsGuided
                         ? !canContinueBasicsScene
@@ -4191,7 +4339,7 @@ export default function SupplierListingForm({
                       submitting ||
                       shellExiting
                     }
-                    className={isStayForm ? 'stay-nav-btn stay-nav-btn--end touch-manipulation tv-btn-primary !min-h-11 disabled:opacity-50' : 'touch-manipulation tv-btn-primary !min-h-12 w-full sm:!min-h-11 sm:w-auto disabled:opacity-50'}
+                    className={isFocusedCreator ? 'stay-nav-btn stay-nav-btn--end touch-manipulation tv-btn-primary !min-h-11 disabled:opacity-50' : 'touch-manipulation tv-btn-primary !min-h-12 w-full sm:!min-h-11 sm:w-auto disabled:opacity-50'}
                   >
                     Continue
                   </button>
@@ -4210,9 +4358,32 @@ export default function SupplierListingForm({
                         ? publishBlockersPreview[0]
                         : 'Save updates to your live listing'
                     }
-                    className={isStayForm ? 'stay-nav-btn stay-nav-btn--end touch-manipulation tv-btn-primary !min-h-11 disabled:opacity-50' : 'touch-manipulation tv-btn-primary !min-h-12 w-full sm:!min-h-11 sm:w-auto disabled:opacity-50'}
+                    className={isFocusedCreator ? 'stay-nav-btn stay-nav-btn--end touch-manipulation tv-btn-primary !min-h-11 disabled:opacity-50' : 'touch-manipulation tv-btn-primary !min-h-12 w-full sm:!min-h-11 sm:w-auto disabled:opacity-50'}
                   >
                     {submitting || shellExiting ? 'Saving…' : 'Save changes'}
+                  </button>
+                ) : isRentalForm ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const issues = rentalPublishBlockers(rentalOnboardingCheck);
+                      if (issues.length > 0) {
+                        setRentalStageAttempted(true);
+                        setPublishBlockers(issues);
+                        return;
+                      }
+                      setForm((current) => ({
+                        ...current,
+                        rental: { ...(current.rental ?? emptyRentalDetails()), creatorComplete: true },
+                        status: 'draft',
+                      }));
+                      void runSubmit('draft', { closeOnSuccess: true, bypassLastStepArm: true });
+                    }}
+                    disabled={submitting || draftCloseBusy || shellExiting}
+                    title="Saves a complete rental draft. Travelers cannot book rentals yet."
+                    className="stay-nav-btn stay-nav-btn--end touch-manipulation tv-btn-primary !min-h-11 disabled:opacity-50"
+                  >
+                    {submitting || shellExiting ? 'Saving…' : 'Mark ready'}
                   </button>
                 ) : (
                   <button
@@ -4220,7 +4391,7 @@ export default function SupplierListingForm({
                     onClick={() => void runSubmit('published', { closeOnSuccess: true })}
                     disabled={submitting || draftCloseBusy || shellExiting || !lastStepSubmitArmed}
                     title={publishButtonTitle}
-                    className={isStayForm ? 'stay-nav-btn stay-nav-btn--end touch-manipulation tv-btn-primary !min-h-11 disabled:opacity-50' : 'touch-manipulation tv-btn-primary !min-h-12 w-full sm:!min-h-11 sm:w-auto disabled:opacity-50'}
+                    className={isFocusedCreator ? 'stay-nav-btn stay-nav-btn--end touch-manipulation tv-btn-primary !min-h-11 disabled:opacity-50' : 'touch-manipulation tv-btn-primary !min-h-12 w-full sm:!min-h-11 sm:w-auto disabled:opacity-50'}
                   >
                     {submitting || shellExiting ? 'Publishing…' : isStayForm ? 'Publish property' : 'Publish experience'}
                   </button>
@@ -4229,7 +4400,11 @@ export default function SupplierListingForm({
             </div>
             {!onCreationLastStep
               ? (() => {
-                  const hint = isStayForm
+                  const hint = isRentalForm
+                    ? rentalStageAttempted
+                      ? rentalOnboardingBlocker
+                      : null
+                    : isStayForm
                     ? stayStageAttempted
                       ? stayOnboardingBlocker
                       : null
@@ -4260,7 +4435,67 @@ export default function SupplierListingForm({
             </div>
           }
         >
-          {isStayForm ? (
+          {isRentalForm ? (
+            <Suspense
+              fallback={
+                <div
+                  className="min-h-[16rem] rounded-xl bg-black/[0.03] animate-pulse motion-reduce:animate-none"
+                  aria-busy="true"
+                  aria-label="Loading rental editor"
+                />
+              }
+            >
+              <RentalOnboardingFlow
+                stage={rentalStage}
+                direction={rentalStageDir}
+                attemptedContinue={rentalStageAttempted}
+                values={{
+                  title: form.title,
+                  subtitle: form.subtitle,
+                  description: form.description,
+                  highlights: form.highlights,
+                  city: form.city,
+                  country: form.country,
+                  destinationPlaceId: form.destinationPlaceId,
+                  destinationCountryCode: form.destinationCountryCode,
+                  destinationLat: form.destinationLat,
+                  destinationLng: form.destinationLng,
+                  destinationFormatted: form.destinationFormatted,
+                  departureTimezone: form.departureTimezone,
+                  experienceLanguage: form.experienceLanguage,
+                  photoSlots: form.photoSlots,
+                  photoSlotLabels: form.photoSlotLabels,
+                  photoOriginalUrls: form.photoOriginalUrls,
+                  photoCropSettings: form.photoCropSettings,
+                  rental: form.rental ?? emptyRentalDetails(),
+                }}
+                onChange={(patch) =>
+                  setForm((current) => {
+                    const next = { ...current, ...patch } as ListingFormState;
+                    if (patch.rental) {
+                      next.rental = { ...(current.rental ?? emptyRentalDetails()), ...patch.rental };
+                    }
+                    return next;
+                  })
+                }
+                onEditStage={(stage) => {
+                  setRentalReturnStage(rentalStage);
+                  rememberRentalStage(stage, 'back');
+                }}
+                returnStage={rentalReturnStage}
+                onBackToPreview={() => {
+                  if (rentalReturnStage == null) return;
+                  const back = rentalReturnStage;
+                  setRentalReturnStage(null);
+                  rememberRentalStage(back, 'forward');
+                }}
+                commissionBps={rentalCommissionBps}
+                listingCurrency={listingCurrency}
+                userId={user?.id}
+                uploadsEnabled={isSupabaseConfigured() && !!user?.id}
+              />
+            </Suspense>
+          ) : isStayForm ? (
             <Suspense
               fallback={
                 <div

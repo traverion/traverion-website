@@ -30,6 +30,8 @@ import { validateBookingContactPhone } from './listing-booking-contact-phone';
 import { stayPublicArrivalNoteBlocker } from './stay-arrival';
 import { stayBedCount } from './stay-beds';
 import { activeStayOptions } from './stay-options';
+import { rentalPublishBlockers } from './rental-onboarding';
+import { emptyRentalDetails } from './rental-details';
 
 function optionPublishIssues(
   o: ListingBookingOption,
@@ -113,6 +115,29 @@ export function getListingPublishBlockers(
     experienceTodayIsoForListing(listing.listingExtras?.departureTimezone, nowMs);
   const out: string[] = [];
   const isStay = listing.listingExtras?.inventoryFamily === 'stay';
+  const isRental = listing.listingExtras?.inventoryFamily === 'rental';
+  // Rentals are never publicly bookable yet — always block “publish” with a clear readiness message.
+  if (isRental) {
+    const rental = listing.listingExtras?.rental ?? emptyRentalDetails();
+    const galleryCount = (listing.listingExtras?.galleryImageUrls ?? [])
+      .map((u) => String(u).trim())
+      .filter(Boolean).length;
+    const creatorBlockers = rentalPublishBlockers({
+      title: listing.title ?? '',
+      subtitle: listing.subtitle ?? '',
+      description: listing.description ?? '',
+      city: listing.city ?? '',
+      country: listing.country ?? '',
+      galleryCount,
+      experienceLanguage: listing.listingExtras?.experienceLanguage ?? 'en',
+      rental,
+    });
+    out.push(...creatorBlockers);
+    out.push(
+      'Public rental bookings are not available yet. Mark the listing ready in the partner portal — travelers cannot book until Traverion Rentals launches.'
+    );
+    return out;
+  }
   const title = listing.title?.trim() ?? '';
   if (title.length < MIN_LISTING_TITLE_LENGTH) {
     out.push(
@@ -305,6 +330,26 @@ export function partnerListingDraftPublishSubtitle(
   nowMs?: number
 ): { blockers: string[]; subtitle: string; readyToPublish: boolean } {
   const blockers = getListingPublishBlockers(listing, todayIso, nowMs);
+  if (listing.listingExtras?.inventoryFamily === 'rental') {
+    const rental = listing.listingExtras?.rental;
+    const contentReady =
+      Boolean(rental?.creatorComplete) &&
+      blockers.every((b) => /public rental bookings are not available/i.test(b));
+    if (contentReady) {
+      return {
+        blockers,
+        subtitle: 'Ready — public bookings open when Rentals launches',
+        readyToPublish: false,
+      };
+    }
+    const actionable = blockers.filter((b) => !/public rental bookings are not available/i.test(b));
+    const first = actionable[0] ?? blockers[0] ?? 'Finish required fields';
+    return {
+      blockers,
+      subtitle: `${actionable.length || blockers.length} before ready · ${first}`,
+      readyToPublish: false,
+    };
+  }
   if (blockers.length === 0) {
     return { blockers, subtitle: 'Ready for travelers', readyToPublish: true };
   }

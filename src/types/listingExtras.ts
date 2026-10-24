@@ -26,6 +26,8 @@ import { normalizeStayOptions, type StayAccommodationOption } from '../lib/stay-
 import { normalizeStayGuestPolicy, type StayGuestPolicy } from '../lib/stay-guest-party';
 import type { StayArrivalMethod } from '../lib/stay-arrival';
 import { normalizeStayBookingMethod, type StayBookingMethod } from '../lib/stay-booking-method';
+import { normalizeRentalDetails } from '../lib/rental-details';
+import type { RentalDetails } from './rental';
 
 /** Legacy preset values still parsed from stored `listing_extras` JSON. */
 export type CancellationPreset = 'free_24h' | 'free_48h' | 'free_7d' | 'non_refundable' | 'custom';
@@ -349,12 +351,15 @@ export interface ListingExtras {
     areaPixels?: { x?: number; y?: number; width?: number; height?: number } | null;
   }>;
   /**
-   * Public inventory family when this listing is not a tour (stay / experience / package).
+   * Public inventory family when this listing is not a tour (stay / rental / experience / package).
    * Omitted means tour. Separate from `experience_kind` on the listing row.
+   * Rental listings are partner drafts only until traveler checkout ships.
    */
-  inventoryFamily?: 'tour' | 'stay' | 'experience' | 'package';
+  inventoryFamily?: 'tour' | 'stay' | 'rental' | 'experience' | 'package';
   /** Stay-only facts. Ignored for tours. */
   stay?: StayDetails;
+  /** Rental-only facts. Ignored for tours and stays. */
+  rental?: RentalDetails;
   /**
    * Date-specific capacity / booking-cutoff overrides per departure start time.
    * Does not change recurring schedule defaults. Enforced by assert_checkout_inventory (Phase 243).
@@ -1159,11 +1164,19 @@ export function parseListingExtras(raw: unknown): ListingExtras {
   }
 
   const fam = o.inventoryFamily;
-  if (fam === 'tour' || fam === 'stay' || fam === 'experience' || fam === 'package') {
+  if (
+    fam === 'tour' ||
+    fam === 'stay' ||
+    fam === 'rental' ||
+    fam === 'experience' ||
+    fam === 'package'
+  ) {
     out.inventoryFamily = fam;
   }
   const stay = normalizeStayDetails(o.stay);
   if (stay) out.stay = stay;
+  const rental = normalizeRentalDetails(o.rental);
+  if (rental) out.rental = rental;
 
   const slotOverrides = parseSlotOverrides(o.slotOverrides);
   if (slotOverrides.length) out.slotOverrides = slotOverrides;
@@ -1245,6 +1258,9 @@ export function listingExtrasToDb(extras: ListingExtras | undefined): Record<str
       ...publicStay
     } = extras.stay;
     if (Object.keys(publicStay).length > 0) payload.stay = publicStay;
+  }
+  if (extras.rental && Object.keys(extras.rental).length > 0) {
+    payload.rental = extras.rental;
   }
   return Object.keys(payload).length > 0 ? payload : null;
 }

@@ -1,0 +1,272 @@
+import type {
+  RentalDetails,
+  RentalOperatingDay,
+  RentalPricing,
+  RentalVariant,
+  RentalWeekday,
+} from '../types/rental';
+import { isRentalCategoryId } from '../types/rental';
+import { newListingCreationId } from './listing-creation-persist';
+
+const WEEKDAYS: RentalWeekday[] = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+
+export function defaultRentalOperatingDays(): RentalOperatingDay[] {
+  return WEEKDAYS.map((day) => ({
+    day,
+    open: day !== 'sun',
+    earliestPickupHm: '09:00',
+    latestPickupHm: '17:00',
+    earliestReturnHm: '09:00',
+    latestReturnHm: '18:00',
+  }));
+}
+
+export function emptyRentalDetails(): RentalDetails {
+  return {
+    returnSameAsPickup: true,
+    calendarDayRentals: true,
+    durationMode: 'daily',
+    bufferMinutes: 0,
+    bookingNoticeHours: 0,
+    operatingDays: defaultRentalOperatingDays(),
+    sharedPricing: {},
+    variants: [],
+    highlights: [],
+    inclusions: [],
+    extras: [],
+    specifications: {},
+    requirements: {},
+    creatorComplete: false,
+  };
+}
+
+export function newRentalVariantId(): string {
+  return newListingCreationId();
+}
+
+export function createDefaultRentalVariant(name = 'Standard'): RentalVariant {
+  return {
+    id: newRentalVariantId(),
+    name,
+    quantity: 1,
+    attributes: {},
+    pricingOverride: null,
+  };
+}
+
+function normalizePricing(raw: unknown): RentalPricing | undefined {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined;
+  const o = raw as Record<string, unknown>;
+  const out: RentalPricing = {};
+  if (typeof o.currency === 'string' && o.currency.trim()) out.currency = o.currency.trim().slice(0, 3).toUpperCase();
+  if (typeof o.pricePerHourMinor === 'number' && Number.isFinite(o.pricePerHourMinor)) {
+    out.pricePerHourMinor = Math.max(0, Math.round(o.pricePerHourMinor));
+  } else if (o.pricePerHourMinor === null) {
+    out.pricePerHourMinor = null;
+  }
+  if (typeof o.pricePerDayMinor === 'number' && Number.isFinite(o.pricePerDayMinor)) {
+    out.pricePerDayMinor = Math.max(0, Math.round(o.pricePerDayMinor));
+  } else if (o.pricePerDayMinor === null) {
+    out.pricePerDayMinor = null;
+  }
+  if (typeof o.multiDayDiscountPercent === 'number' && Number.isFinite(o.multiDayDiscountPercent)) {
+    out.multiDayDiscountPercent = Math.max(0, Math.min(90, Math.round(o.multiDayDiscountPercent)));
+  }
+  if (typeof o.multiDayDiscountMinDays === 'number' && Number.isFinite(o.multiDayDiscountMinDays)) {
+    out.multiDayDiscountMinDays = Math.max(2, Math.min(90, Math.round(o.multiDayDiscountMinDays)));
+  }
+  return out;
+}
+
+function normalizeVariant(raw: unknown): RentalVariant | null {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const o = raw as Record<string, unknown>;
+  const id = typeof o.id === 'string' && o.id.trim() ? o.id.trim() : newRentalVariantId();
+  const name = typeof o.name === 'string' && o.name.trim() ? o.name.trim().slice(0, 80) : 'Option';
+  const quantity =
+    typeof o.quantity === 'number' && Number.isFinite(o.quantity)
+      ? Math.max(0, Math.min(9999, Math.floor(o.quantity)))
+      : 0;
+  const attributes: Record<string, string> = {};
+  if (o.attributes && typeof o.attributes === 'object' && !Array.isArray(o.attributes)) {
+    for (const [k, v] of Object.entries(o.attributes as Record<string, unknown>)) {
+      if (typeof v === 'string' && v.trim()) attributes[k.slice(0, 40)] = v.trim().slice(0, 120);
+    }
+  }
+  const pricingOverride =
+    o.pricingOverride === null ? null : normalizePricing(o.pricingOverride) ?? null;
+  return {
+    id,
+    name,
+    description:
+      typeof o.description === 'string' && o.description.trim()
+        ? o.description.trim().slice(0, 500)
+        : undefined,
+    attributes,
+    quantity,
+    pricingOverride,
+    availabilityOverrideNote:
+      typeof o.availabilityOverrideNote === 'string' && o.availabilityOverrideNote.trim()
+        ? o.availabilityOverrideNote.trim().slice(0, 240)
+        : undefined,
+  };
+}
+
+export function normalizeRentalDetails(raw: unknown): RentalDetails | undefined {
+  if (raw == null || typeof raw !== 'object' || Array.isArray(raw)) return undefined;
+  const o = raw as Record<string, unknown>;
+  const out: RentalDetails = emptyRentalDetails();
+
+  if (typeof o.category === 'string' && isRentalCategoryId(o.category)) out.category = o.category;
+  if (typeof o.itemType === 'string' && o.itemType.trim()) out.itemType = o.itemType.trim().slice(0, 60);
+  if (typeof o.customItemType === 'string' && o.customItemType.trim()) {
+    out.customItemType = o.customItemType.trim().slice(0, 80);
+  }
+  if (typeof o.shortIntro === 'string' && o.shortIntro.trim()) out.shortIntro = o.shortIntro.trim().slice(0, 280);
+  if (typeof o.pickupAddress === 'string') out.pickupAddress = o.pickupAddress.trim().slice(0, 240);
+  if (typeof o.pickupInstructions === 'string') out.pickupInstructions = o.pickupInstructions.trim().slice(0, 1000);
+  if (typeof o.pickupLat === 'number' && Number.isFinite(o.pickupLat)) out.pickupLat = o.pickupLat;
+  if (typeof o.pickupLng === 'number' && Number.isFinite(o.pickupLng)) out.pickupLng = o.pickupLng;
+  if (typeof o.returnSameAsPickup === 'boolean') out.returnSameAsPickup = o.returnSameAsPickup;
+  if (typeof o.returnAddress === 'string') out.returnAddress = o.returnAddress.trim().slice(0, 240);
+  if (typeof o.returnInstructions === 'string') out.returnInstructions = o.returnInstructions.trim().slice(0, 1000);
+  if (typeof o.collectionNotes === 'string') out.collectionNotes = o.collectionNotes.trim().slice(0, 1000);
+  if (typeof o.idRequired === 'boolean') out.idRequired = o.idRequired;
+  if (typeof o.staffAssisted === 'boolean') out.staffAssisted = o.staffAssisted;
+  if (o.durationMode === 'hourly' || o.durationMode === 'daily' || o.durationMode === 'both') {
+    out.durationMode = o.durationMode;
+  }
+  if (typeof o.minDurationHours === 'number') out.minDurationHours = Math.max(0, Math.round(o.minDurationHours));
+  if (typeof o.maxDurationHours === 'number') out.maxDurationHours = Math.max(0, Math.round(o.maxDurationHours));
+  if (typeof o.minDurationDays === 'number') out.minDurationDays = Math.max(0, Math.round(o.minDurationDays));
+  if (typeof o.maxDurationDays === 'number') out.maxDurationDays = Math.max(0, Math.round(o.maxDurationDays));
+  if (typeof o.calendarDayRentals === 'boolean') out.calendarDayRentals = o.calendarDayRentals;
+  if (typeof o.bufferMinutes === 'number' && Number.isFinite(o.bufferMinutes)) {
+    out.bufferMinutes = Math.max(0, Math.min(24 * 60, Math.round(o.bufferMinutes)));
+  }
+  if (typeof o.bookingNoticeHours === 'number' && Number.isFinite(o.bookingNoticeHours)) {
+    out.bookingNoticeHours = Math.max(0, Math.min(168, Math.round(o.bookingNoticeHours)));
+  }
+  if (typeof o.rentalRules === 'string') out.rentalRules = o.rentalRules.trim().slice(0, 4000);
+  if (typeof o.cancellationPreset === 'string') out.cancellationPreset = o.cancellationPreset.trim().slice(0, 40);
+  if (typeof o.depositDisclosure === 'string') out.depositDisclosure = o.depositDisclosure.trim().slice(0, 1000);
+  if (typeof o.insuranceDisclosure === 'string') out.insuranceDisclosure = o.insuranceDisclosure.trim().slice(0, 1000);
+  if (o.creatorComplete === true) out.creatorComplete = true;
+
+  if (Array.isArray(o.highlights)) {
+    out.highlights = o.highlights.map((x) => String(x ?? '').trim()).filter(Boolean).slice(0, 12);
+  }
+  if (Array.isArray(o.inclusions)) {
+    out.inclusions = o.inclusions.map((x) => String(x ?? '').trim()).filter(Boolean).slice(0, 24);
+  }
+  if (o.specifications && typeof o.specifications === 'object' && !Array.isArray(o.specifications)) {
+    const specs: Record<string, string> = {};
+    for (const [k, v] of Object.entries(o.specifications as Record<string, unknown>)) {
+      if (typeof v === 'string' && v.trim()) specs[k.slice(0, 40)] = v.trim().slice(0, 160);
+    }
+    out.specifications = specs;
+  }
+  if (o.requirements && typeof o.requirements === 'object' && !Array.isArray(o.requirements)) {
+    const req: Record<string, string> = {};
+    for (const [k, v] of Object.entries(o.requirements as Record<string, unknown>)) {
+      if (typeof v === 'string' && v.trim()) req[k.slice(0, 40)] = v.trim().slice(0, 240);
+    }
+    out.requirements = req;
+  }
+
+  const shared = normalizePricing(o.sharedPricing);
+  if (shared) out.sharedPricing = shared;
+
+  if (Array.isArray(o.operatingDays)) {
+    const days: RentalOperatingDay[] = [];
+    for (const row of o.operatingDays) {
+      if (!row || typeof row !== 'object') continue;
+      const d = row as Record<string, unknown>;
+      const day = d.day;
+      if (typeof day !== 'string' || !WEEKDAYS.includes(day as RentalWeekday)) continue;
+      days.push({
+        day: day as RentalWeekday,
+        open: d.open !== false,
+        earliestPickupHm: typeof d.earliestPickupHm === 'string' ? d.earliestPickupHm.slice(0, 5) : '09:00',
+        latestPickupHm: typeof d.latestPickupHm === 'string' ? d.latestPickupHm.slice(0, 5) : '17:00',
+        earliestReturnHm: typeof d.earliestReturnHm === 'string' ? d.earliestReturnHm.slice(0, 5) : '09:00',
+        latestReturnHm: typeof d.latestReturnHm === 'string' ? d.latestReturnHm.slice(0, 5) : '18:00',
+      });
+    }
+    if (days.length > 0) out.operatingDays = days;
+  }
+
+  if (Array.isArray(o.variants)) {
+    out.variants = o.variants.map(normalizeVariant).filter((v): v is RentalVariant => Boolean(v)).slice(0, 40);
+  }
+
+  if (Array.isArray(o.extras)) {
+    out.extras = o.extras
+      .map((row) => {
+        if (!row || typeof row !== 'object') return null;
+        const e = row as Record<string, unknown>;
+        const id = typeof e.id === 'string' && e.id.trim() ? e.id.trim() : newRentalVariantId();
+        const name = typeof e.name === 'string' && e.name.trim() ? e.name.trim().slice(0, 80) : '';
+        if (!name) return null;
+        return {
+          id,
+          name,
+          priceMinor:
+            typeof e.priceMinor === 'number' && Number.isFinite(e.priceMinor)
+              ? Math.max(0, Math.round(e.priceMinor))
+              : null,
+          optional: e.optional !== false,
+        };
+      })
+      .filter((x): x is NonNullable<typeof x> => Boolean(x))
+      .slice(0, 20);
+  }
+
+  return out;
+}
+
+export function ensureRentalHasDefaultVariant(rental: RentalDetails): RentalDetails {
+  if ((rental.variants?.length ?? 0) > 0) return rental;
+  return { ...rental, variants: [createDefaultRentalVariant('Standard')] };
+}
+
+export function effectiveVariantPricing(
+  rental: RentalDetails,
+  variant: RentalVariant
+): RentalPricing {
+  const shared = rental.sharedPricing ?? {};
+  const over = variant.pricingOverride;
+  if (!over) return shared;
+  return {
+    currency: over.currency ?? shared.currency,
+    pricePerHourMinor:
+      over.pricePerHourMinor !== undefined && over.pricePerHourMinor !== null
+        ? over.pricePerHourMinor
+        : shared.pricePerHourMinor,
+    pricePerDayMinor:
+      over.pricePerDayMinor !== undefined && over.pricePerDayMinor !== null
+        ? over.pricePerDayMinor
+        : shared.pricePerDayMinor,
+    multiDayDiscountPercent: over.multiDayDiscountPercent ?? shared.multiDayDiscountPercent,
+    multiDayDiscountMinDays: over.multiDayDiscountMinDays ?? shared.multiDayDiscountMinDays,
+  };
+}
+
+export function formatMinorAsEuro(minor: number | null | undefined): string {
+  if (minor == null || !Number.isFinite(minor)) return '—';
+  return `€${(minor / 100).toFixed(minor % 100 === 0 ? 0 : 2)}`;
+}
+
+export function rentalVariantComplete(variant: RentalVariant, rental: RentalDetails): boolean {
+  if (!variant.name.trim()) return false;
+  if (!Number.isFinite(variant.quantity) || variant.quantity < 1) return false;
+  const pricing = effectiveVariantPricing(rental, variant);
+  const mode = rental.durationMode ?? 'daily';
+  if (mode === 'hourly' || mode === 'both') {
+    if (!(pricing.pricePerHourMinor != null && pricing.pricePerHourMinor > 0)) return false;
+  }
+  if (mode === 'daily' || mode === 'both') {
+    if (!(pricing.pricePerDayMinor != null && pricing.pricePerDayMinor > 0)) return false;
+  }
+  return true;
+}
