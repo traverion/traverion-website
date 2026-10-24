@@ -2,7 +2,7 @@
  * Supplier: view all reviews for my listings and reply.
  */
 import { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef } from 'react';
-import { Star, MessageSquare, Check, Search } from 'lucide-react';
+import { Star, MessageSquare, Check, Search, ChevronDown } from 'lucide-react';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import { useSupplierRole } from '../../hooks/useSupplierRole';
 import { canManageBookings } from '../../lib/supplierTeamRoles';
@@ -65,12 +65,19 @@ function StarRow({ rating, size = 14 }: { rating: number; size?: number }) {
         <Star
           key={i}
           size={size}
-          className={i <= rating ? 'fill-amber-500 text-amber-500' : 'text-[#d4d4d8]'}
+          className={i <= rating ? 'fill-[#C9A227] text-[#C9A227]' : 'text-[#e4e4e7]'}
           aria-hidden
         />
       ))}
     </span>
   );
+}
+
+function guestInitials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return '?';
+  if (parts.length === 1) return parts[0].slice(0, 1).toUpperCase();
+  return `${parts[0][0] ?? ''}${parts[parts.length - 1][0] ?? ''}`.toUpperCase();
 }
 
 export default function SupplierReviews() {
@@ -97,6 +104,7 @@ export default function SupplierReviews() {
   const [page, setPage] = useState(0);
   const [editingReplyIds, setEditingReplyIds] = useState<Set<string>>(new Set());
   const [detailsOpenIds, setDetailsOpenIds] = useState<Set<string>>(new Set());
+  const [distOpen, setDistOpen] = useState(false);
   const loadGenRef = useRef(0);
   const reviewsHubUserIdRef = useRef<string | null>(null);
   const submitLockRef = useRef<Set<string>>(new Set());
@@ -513,6 +521,12 @@ export default function SupplierReviews() {
         <p className="tv-reviews-title" role="heading" aria-level={1}>
           Reviews
         </p>
+        {!loading && !error && reviews.length > 0 ? (
+          <p className="tv-reviews-subtitle">
+            {summary.count} guest {summary.count === 1 ? 'review' : 'reviews'}
+            {summary.awaiting > 0 ? ` · ${summary.awaiting} awaiting reply` : ''}
+          </p>
+        ) : null}
       </div>
 
       {!canReply ? (
@@ -540,7 +554,7 @@ export default function SupplierReviews() {
       ) : null}
 
       {/* Toolbar is outside loading / empty conditionals so it always renders. */}
-      <div className="mx-auto w-full max-w-[1180px] space-y-2.5">
+      <div className="mx-auto w-full max-w-[1180px] space-y-2">
         {filtersToolbar}
 
         {loading ? (
@@ -559,36 +573,54 @@ export default function SupplierReviews() {
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
-              <div className="tv-reviews-metric">
-                <p className="tv-reviews-metric__label">Average rating</p>
-                <p className="tv-reviews-metric__value">
-                  {summary.count > 0 ? `${summary.avg.toFixed(1)}` : '—'}
-                  <span className="tv-reviews-metric__suffix"> / 5</span>
-                </p>
+            <div className="tv-reviews-overview" role="group" aria-label="Review statistics">
+              <div className="tv-reviews-overview__stat">
+                <span className="tv-reviews-overview__value">
+                  {summary.count > 0 ? summary.avg.toFixed(1) : '—'}
+                </span>
+                <span className="tv-reviews-overview__label">Average</span>
               </div>
-              <div className="tv-reviews-metric">
-                <p className="tv-reviews-metric__label">Total reviews</p>
-                <p className="tv-reviews-metric__value">{summary.count}</p>
+              <div className="tv-reviews-overview__stat">
+                <span className="tv-reviews-overview__value">{summary.count}</span>
+                <span className="tv-reviews-overview__label">Total</span>
               </div>
-              <div className="tv-reviews-metric">
-                <p className="tv-reviews-metric__label">Awaiting reply</p>
-                <p className="tv-reviews-metric__value">{summary.awaiting}</p>
+              <div className="tv-reviews-overview__stat">
+                <span
+                  className={`tv-reviews-overview__value ${
+                    summary.awaiting > 0 ? 'tv-reviews-overview__value--accent' : ''
+                  }`}
+                >
+                  {summary.awaiting}
+                </span>
+                <span className="tv-reviews-overview__label">Awaiting</span>
               </div>
-              <div className="tv-reviews-metric">
-                <p className="tv-reviews-metric__label">Response rate</p>
-                <p className="tv-reviews-metric__value">
+              <div className="tv-reviews-overview__stat">
+                <span className="tv-reviews-overview__value">
                   {summary.responseRate == null ? '—' : `${summary.responseRate}%`}
-                </p>
+                </span>
+                <span className="tv-reviews-overview__label">Response</span>
               </div>
+              {summary.count >= 3 ? (
+                <button
+                  type="button"
+                  className="tv-reviews-overview__dist-toggle"
+                  aria-expanded={distOpen}
+                  onClick={() => setDistOpen((v) => !v)}
+                >
+                  Distribution
+                  <ChevronDown
+                    className={`h-3.5 w-3.5 motion-safe:transition-transform motion-safe:duration-150 ${
+                      distOpen ? 'rotate-180' : ''
+                    }`}
+                    aria-hidden
+                  />
+                </button>
+              ) : null}
             </div>
 
-            {summary.count >= 3 ? (
-              <div className="tv-reviews-panel">
-                <p className="tv-reviews-panel__title" role="heading" aria-level={2}>
-                  Rating distribution
-                </p>
-                <ul className="tv-reviews-dist mt-2">
+            {summary.count >= 3 && distOpen ? (
+              <div className="tv-reviews-panel tv-reviews-panel--compact">
+                <ul className="tv-reviews-dist">
                   {[5, 4, 3, 2, 1].map((star) => {
                     const count = summary.dist[star - 1];
                     const width = summary.count > 0 ? (count / summary.count) * 100 : 0;
@@ -651,25 +683,30 @@ export default function SupplierReviews() {
                   const hasReply = Boolean(replies[r.id]);
                   const canCompose = canReply && reviewHasWrittenFeedback(r);
                   const familyKind = r.listing_family === 'stay' ? 'Stay' : 'Tour';
+                  const guestLabel = supplierReviewCustomerName(r);
                   return (
                     <li key={r.id}>
                       <article
                         id={`supplier-review-card-${r.id}`}
                         className={`tv-reviews-card ${isHighlighted ? 'tv-reviews-card--highlight' : ''}`}
                       >
-                        {/* Top: identity + rating + date + status */}
-                        <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-start gap-3">
+                          <span className="tv-reviews-avatar" aria-hidden>
+                            {guestInitials(guestLabel)}
+                          </span>
                           <div className="min-w-0 flex-1">
-                            <p className="truncate text-[14px] font-semibold tracking-tight text-[#18181b]">
-                              {supplierReviewCustomerName(r)}
-                            </p>
+                            <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5">
+                              <p className="truncate text-[14px] font-semibold tracking-tight text-[#18181b]">
+                                {guestLabel}
+                              </p>
+                              <span className="shrink-0 text-[12px] text-[#a1a1aa]">
+                                {formatCreatedAtDisplay(r.created_at)}
+                              </span>
+                            </div>
                             <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
                               <StarRow rating={Number(r.rating) || 0} size={13} />
                               <span className="text-[12px] font-semibold tabular-nums text-[#18181b]">
                                 {r.rating}/5
-                              </span>
-                              <span className="text-[12px] text-[#a1a1aa]">
-                                {formatCreatedAtDisplay(r.created_at)}
                               </span>
                               {r.verified ? (
                                 <span className="text-[11px] font-medium text-[#a1a1aa]">Verified</span>
@@ -681,31 +718,29 @@ export default function SupplierReviews() {
                                 <span className="tv-reviews-chip tv-reviews-chip--ok">Replied</span>
                               ) : null}
                             </div>
+                            <p
+                              className="mt-1.5 line-clamp-1 text-[12.5px] text-[#71717a]"
+                              title={r.listing_title}
+                            >
+                              {r.listing_title ?? 'Listing'}
+                            </p>
                           </div>
                         </div>
-
-                        {/* Middle: listing + comment */}
-                        <p
-                          className="mt-2 line-clamp-1 text-[12.5px] font-medium text-[#52525b]"
-                          title={r.listing_title}
-                        >
-                          {r.listing_title ?? 'Listing'}
-                        </p>
                         {r.title ? (
-                          <p className="mt-1.5 text-[13px] font-semibold text-[#18181b] break-words">
+                          <p className="mt-2 text-[13px] font-semibold text-[#18181b] break-words">
                             {r.title}
                           </p>
                         ) : null}
                         {(r.comment ?? '').trim() ? (
-                          <div className="mt-1">
+                          <div className={r.title ? 'mt-1' : 'mt-2'}>
                             <ReviewCommentClamp
                               text={r.comment}
                               className="text-[13px] leading-snug text-[#3f3f46]"
-                              toggleClassName="mt-0.5 text-[12px] font-semibold text-[#073b83] hover:underline"
+                              toggleClassName="tv-reviews-see-more"
                             />
                           </div>
                         ) : !r.title ? (
-                          <p className="mt-1.5 text-[12px] italic text-[#a1a1aa]">Rating only</p>
+                          <p className="mt-2 text-[12px] italic text-[#a1a1aa]">Rating only</p>
                         ) : null}
 
                         {hasReply && !composing ? (
@@ -839,6 +874,10 @@ export default function SupplierReviews() {
                                 <dt>Type</dt>
                                 <dd>{familyKind}</dd>
                               </div>
+                              <div>
+                                <dt>Public</dt>
+                                <dd>{r.is_anonymous ? 'Anonymous' : 'Named'}</dd>
+                              </div>
                               {r.option_label ? (
                                 <div className="tv-reviews-details__wide">
                                   <dt>Option</dt>
@@ -847,18 +886,14 @@ export default function SupplierReviews() {
                                   </dd>
                                 </div>
                               ) : null}
-                              <div>
-                                <dt>Public identity</dt>
-                                <dd>{r.is_anonymous ? 'Anonymous' : 'Named'}</dd>
-                              </div>
                               {r.verified ? (
                                 <div>
                                   <dt>Status</dt>
-                                  <dd>Verified booking</dd>
+                                  <dd>Verified</dd>
                                 </div>
                               ) : null}
                             </dl>
-                            <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1">
+                            <div className="tv-reviews-details__actions">
                               {r.booking_id ? (
                                 <button
                                   type="button"

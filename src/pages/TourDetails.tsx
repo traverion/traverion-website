@@ -2512,12 +2512,14 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
               </div>
             </div>
           ) : null}
-          {/* items-start: each card sizes independently when one comment expands */}
-          <div className="mb-5 grid items-start gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {reviews.slice(0, 3).map((r) => (
-              <article key={r.id} className="rounded-xl border border-[#E8EBF0] bg-white p-3.5">
-                <div className="mb-1.5 min-w-0">
-                  <p className="truncate font-semibold text-[#111827]">{displayReviewGuestName(r)}</p>
+          {/* Two columns + items-start: comfortable reading width; independent heights */}
+          <div className="mb-5 grid items-start gap-4 sm:grid-cols-2">
+            {reviews.slice(0, 4).map((r) => (
+              <article key={r.id} className="tv-public-review-card">
+                <div className="min-w-0">
+                  <p className="truncate text-[15px] font-semibold tracking-tight text-[#111827]">
+                    {displayReviewGuestName(r)}
+                  </p>
                   <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5">
                     <div className="flex gap-0.5" aria-label={`${r.rating} out of 5 stars`}>
                       {[1, 2, 3, 4, 5].map((i) => (
@@ -2538,17 +2540,19 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
                   </div>
                 </div>
                 {r.title ? (
-                  <p className="mb-1 text-sm font-semibold text-[#111827] break-words [overflow-wrap:anywhere]">
+                  <p className="mt-2 text-sm font-semibold text-[#111827] break-words [overflow-wrap:anywhere]">
                     {r.title}
                   </p>
                 ) : null}
-                <ReviewCommentClamp
-                  text={r.comment}
-                  className="text-sm leading-relaxed text-ink"
-                  toggleClassName="mt-1 text-[12.5px] font-semibold text-[#073b83] hover:underline"
-                />
+                <div className="mt-1">
+                  <ReviewCommentClamp
+                    text={r.comment}
+                    className="text-[14px] leading-relaxed text-ink"
+                    toggleClassName="tv-reviews-see-more"
+                  />
+                </div>
                 {reviewReplies[r.id]?.reply_text ? (
-                  <div className="mt-2.5 border-l-2 border-finland/25 pl-3">
+                  <div className="tv-public-review-reply">
                     <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-finland">
                       Response from the operator
                     </p>

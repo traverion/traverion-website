@@ -1309,22 +1309,24 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
                   <p className="mt-1 text-sm text-ink-muted leading-relaxed">{LISTING_REVIEWS_EMPTY_COPY}</p>
                 </div>
               ) : null}
-              <div className="mb-6 space-y-5">
-                {reviews.slice(0, 3).map((r) => (
-                  <div key={r.id} className="border-b border-black/[0.06] pb-5 last:border-0">
-                    <p className="font-medium text-ink">{displayReviewGuestName(r)}</p>
+              <div className="mb-6 grid items-start gap-4 sm:grid-cols-2">
+                {reviews.slice(0, 4).map((r) => (
+                  <article key={r.id} className="tv-public-review-card">
+                    <p className="truncate text-[15px] font-semibold tracking-tight text-ink">
+                      {displayReviewGuestName(r)}
+                    </p>
                     <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5">
                       <div className="flex gap-0.5" aria-label={`${r.rating} out of 5 stars`}>
                         {[1, 2, 3, 4, 5].map((i) => (
                           <Star
                             key={i}
-                            size={14}
+                            size={13}
                             aria-hidden
                             className={i <= r.rating ? 'text-finland fill-finland' : 'text-ink-faint'}
                           />
                         ))}
                       </div>
-                      <span className="text-sm text-ink-muted">
+                      <span className="text-xs text-ink-muted">
                         {new Date(r.created_at).toLocaleDateString()}
                       </span>
                       {r.verified ? (
@@ -1332,15 +1334,19 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
                       ) : null}
                     </div>
                     {r.title ? (
-                      <p className="mt-1.5 font-medium text-ink break-words [overflow-wrap:anywhere]">
+                      <p className="mt-2 text-sm font-semibold text-ink break-words [overflow-wrap:anywhere]">
                         {r.title}
                       </p>
                     ) : null}
                     <div className="mt-1">
-                      <ReviewCommentClamp text={r.comment} className="text-[14px] leading-relaxed text-ink" />
+                      <ReviewCommentClamp
+                        text={r.comment}
+                        className="text-[14px] leading-relaxed text-ink"
+                        toggleClassName="tv-reviews-see-more"
+                      />
                     </div>
                     {reviewReplies[r.id]?.reply_text ? (
-                      <div className="mt-2.5 border-l-2 border-finland/25 pl-3">
+                      <div className="tv-public-review-reply">
                         <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-finland">
                           Response from the host
                         </p>
@@ -1349,7 +1355,7 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
                         </p>
                       </div>
                     ) : null}
-                  </div>
+                  </article>
                 ))}
               </div>
               {canLeaveReview && !hasReviewed && !showReviewForm ? (

@@ -25,25 +25,30 @@ describe('ReviewCommentClamp + public review surfaces', () => {
 });
 
 describe('Supplier reviews compact + email-first notify', () => {
-  it('keeps Reply / Details on-demand and hides booking metadata by default', () => {
+  it('keeps Reply / Details on-demand and a compact overview strip', () => {
     const page = readFileSync(resolve(__dirname, '../pages/supplier/SupplierReviews.tsx'), 'utf8');
     expect(page).toContain('startEditingReply');
     expect(page).toContain('toggleDetails');
     expect(page).toContain('Hide details');
     expect(page).toContain('tv-reviews-details');
+    expect(page).toContain('tv-reviews-overview');
+    expect(page).toContain('tv-reviews-avatar');
     expect(page).toContain('ReviewCommentClamp');
     expect(page).toContain('View booking');
-    // Booking reference is details-only, not in the default listing line.
     expect(page).toMatch(/detailsOpen[\s\S]*booking_reference/);
     expect(page).not.toContain('tv-reviews-card--needs-reply');
     const css = readFileSync(resolve(__dirname, '../index.css'), 'utf8');
     expect(css).toContain('.tv-reviews-details');
+    expect(css).toContain('.tv-reviews-overview');
+    expect(css).toContain('.tv-public-review-card');
     expect(css).not.toContain('.tv-reviews-card--needs-reply');
   });
 
-  it('Tour review grid uses items-start so expanded cards do not stretch neighbors', () => {
+  it('Tour review grid uses items-start and wider two-column cards', () => {
     const tour = readFileSync(resolve(__dirname, '../pages/TourDetails.tsx'), 'utf8');
     expect(tour).toContain('items-start');
+    expect(tour).toContain('sm:grid-cols-2');
+    expect(tour).toContain('tv-public-review-card');
     expect(tour).toContain('ReviewCommentClamp');
   });
 

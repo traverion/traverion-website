@@ -100,12 +100,15 @@ export function ListingReviewsModal({ open, onClose, reviews, replies, listingTi
         role="dialog"
         aria-modal="true"
         aria-labelledby="listing-reviews-title"
-        className="tv-sheet-panel relative flex max-h-[min(92dvh,44rem)] w-full max-w-2xl flex-col overflow-hidden motion-safe:animate-slide-up sm:rounded-2xl"
+        className="tv-sheet-panel relative flex max-h-[min(92dvh,48rem)] w-full max-w-3xl flex-col overflow-hidden motion-safe:animate-slide-up sm:rounded-2xl"
       >
-        <div className="mb-4 flex items-start justify-between gap-3 shrink-0">
-          <div>
+        <div className="mb-3 flex items-start justify-between gap-3 shrink-0">
+          <div className="min-w-0">
             <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland">Reviews</p>
-            <h2 id="listing-reviews-title" className="font-display text-xl sm:text-2xl text-ink tracking-tight mt-1">
+            <h2
+              id="listing-reviews-title"
+              className="mt-1 truncate font-display text-xl tracking-tight text-ink sm:text-2xl"
+            >
               {listingTitle}
             </h2>
             <p className="mt-1 text-sm text-ink-muted tabular-nums">
@@ -191,20 +194,22 @@ export function ListingReviewsModal({ open, onClose, reviews, replies, listingTi
             </div>
           ) : (
             filtered.map((r) => (
-              <article key={r.id} className="border-b border-black/[0.06] pb-5 last:border-0">
-                <p className="font-medium text-ink">{displayReviewGuestName(r)}</p>
+              <article key={r.id} className="border-b border-black/[0.06] pb-4 last:border-0">
+                <p className="text-[15px] font-semibold tracking-tight text-ink">
+                  {displayReviewGuestName(r)}
+                </p>
                 <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5">
                   <div className="flex gap-0.5" aria-label={`${r.rating} out of 5 stars`}>
                     {[1, 2, 3, 4, 5].map((i) => (
                       <Star
                         key={i}
-                        size={14}
+                        size={13}
                         className={i <= r.rating ? 'fill-finland text-finland' : 'text-ink-faint'}
                         aria-hidden
                       />
                     ))}
                   </div>
-                  <span className="text-sm text-ink-muted">
+                  <span className="text-xs text-ink-muted">
                     {new Date(r.created_at).toLocaleDateString()}
                   </span>
                   {r.verified ? (
@@ -212,13 +217,19 @@ export function ListingReviewsModal({ open, onClose, reviews, replies, listingTi
                   ) : null}
                 </div>
                 {r.title ? (
-                  <p className="mt-1.5 font-medium text-ink break-words [overflow-wrap:anywhere]">{r.title}</p>
+                  <p className="mt-2 text-sm font-semibold text-ink break-words [overflow-wrap:anywhere]">
+                    {r.title}
+                  </p>
                 ) : null}
                 <div className="mt-1">
-                  <ReviewCommentClamp text={r.comment} className="text-[14px] leading-relaxed text-ink" />
+                  <ReviewCommentClamp
+                    text={r.comment}
+                    className="text-[14px] leading-relaxed text-ink"
+                    toggleClassName="tv-reviews-see-more"
+                  />
                 </div>
                 {replies[r.id]?.reply_text ? (
-                  <div className="mt-2.5 border-l-2 border-finland/25 pl-3">
+                  <div className="tv-public-review-reply">
                     <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-finland">
                       Response from the operator
                     </p>
