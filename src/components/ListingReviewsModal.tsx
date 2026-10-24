@@ -192,33 +192,37 @@ export function ListingReviewsModal({ open, onClose, reviews, replies, listingTi
           ) : (
             filtered.map((r) => (
               <article key={r.id} className="border-b border-black/[0.06] pb-5 last:border-0">
-                <div className="mb-2 flex flex-wrap items-center gap-2">
-                  <span className="font-medium text-ink">{displayReviewGuestName(r)}</span>
+                <p className="font-medium text-ink">{displayReviewGuestName(r)}</p>
+                <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                  <div className="flex gap-0.5" aria-label={`${r.rating} out of 5 stars`}>
+                    {[1, 2, 3, 4, 5].map((i) => (
+                      <Star
+                        key={i}
+                        size={14}
+                        className={i <= r.rating ? 'fill-finland text-finland' : 'text-ink-faint'}
+                        aria-hidden
+                      />
+                    ))}
+                  </div>
+                  <span className="text-sm text-ink-muted">
+                    {new Date(r.created_at).toLocaleDateString()}
+                  </span>
                   {r.verified ? (
-                    <span className="rounded bg-emerald-100 px-2 py-0.5 text-xs text-emerald-800">Verified</span>
+                    <span className="text-[11px] font-medium text-ink-faint">Verified</span>
                   ) : null}
-                  <span className="text-sm text-ink-muted">{new Date(r.created_at).toLocaleDateString()}</span>
-                </div>
-                <div className="mb-1 flex gap-1">
-                  {[1, 2, 3, 4, 5].map((i) => (
-                    <Star
-                      key={i}
-                      size={16}
-                      className={i <= r.rating ? 'fill-finland text-finland' : 'text-ink-faint'}
-                      aria-hidden
-                    />
-                  ))}
                 </div>
                 {r.title ? (
-                  <p className="mb-1 font-medium text-ink break-words [overflow-wrap:anywhere]">{r.title}</p>
+                  <p className="mt-1.5 font-medium text-ink break-words [overflow-wrap:anywhere]">{r.title}</p>
                 ) : null}
-                <ReviewCommentClamp text={r.comment} className="text-[14px] leading-relaxed text-ink" />
+                <div className="mt-1">
+                  <ReviewCommentClamp text={r.comment} className="text-[14px] leading-relaxed text-ink" />
+                </div>
                 {replies[r.id]?.reply_text ? (
-                  <div className="mt-3 rounded-xl bg-finland/[0.04] px-3.5 py-3 ring-1 ring-finland/10">
-                    <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-finland">
+                  <div className="mt-2.5 border-l-2 border-finland/25 pl-3">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-finland">
                       Response from the operator
                     </p>
-                    <p className="text-sm leading-relaxed text-ink break-words [overflow-wrap:anywhere] whitespace-pre-wrap">
+                    <p className="mt-1 text-sm leading-relaxed text-ink break-words [overflow-wrap:anywhere] whitespace-pre-wrap">
                       {replies[r.id]!.reply_text}
                     </p>
                   </div>

@@ -39,6 +39,19 @@ function formatCreatedAtDisplay(iso: string): string {
   return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
+/** Booking travel date is a calendar date — format in UTC to avoid off-by-one. */
+function formatTravelDate(ymd: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(ymd.trim());
+  if (!m) return formatCreatedAtDisplay(ymd);
+  const d = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])));
+  return d.toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    timeZone: 'UTC',
+  });
+}
+
 type SupplierReviewRow = SupplierReviewDisplay;
 
 type SortKey = 'newest' | 'oldest' | 'highest' | 'lowest';
@@ -83,6 +96,7 @@ export default function SupplierReviews() {
   const [searchQuery, setSearchQuery] = useState('');
   const [page, setPage] = useState(0);
   const [editingReplyIds, setEditingReplyIds] = useState<Set<string>>(new Set());
+  const [detailsOpenIds, setDetailsOpenIds] = useState<Set<string>>(new Set());
   const loadGenRef = useRef(0);
   const reviewsHubUserIdRef = useRef<string | null>(null);
   const submitLockRef = useRef<Set<string>>(new Set());
@@ -391,6 +405,15 @@ export default function SupplierReviews() {
     writeFiltersToUrl({ listingId: '', rating: '', reply: 'all', sort: 'newest', q: '', pageIndex: 0 });
   };
 
+  const toggleDetails = (id: string) => {
+    setDetailsOpenIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
   if (!user) return null;
 
   const filtersToolbar = (
@@ -624,51 +647,54 @@ export default function SupplierReviews() {
                   const needsReply = reviewNeedsSupplierReply(r, replies);
                   const isHighlighted = highlightReviewId === r.id;
                   const composing = editingReplyIds.has(r.id);
+                  const detailsOpen = detailsOpenIds.has(r.id);
                   const hasReply = Boolean(replies[r.id]);
                   const canCompose = canReply && reviewHasWrittenFeedback(r);
+                  const familyKind = r.listing_family === 'stay' ? 'Stay' : 'Tour';
                   return (
                     <li key={r.id}>
                       <article
                         id={`supplier-review-card-${r.id}`}
                         className={`tv-reviews-card ${isHighlighted ? 'tv-reviews-card--highlight' : ''}`}
                       >
-                        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
-                          <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-                            <p className="text-[13.5px] font-semibold tracking-tight text-[#18181b]">
+                        {/* Top: identity + rating + date + status */}
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-[14px] font-semibold tracking-tight text-[#18181b]">
                               {supplierReviewCustomerName(r)}
                             </p>
-                            <StarRow rating={Number(r.rating) || 0} size={13} />
-                            <span className="text-[12px] font-semibold tabular-nums text-[#18181b]">
-                              {r.rating}/5
-                            </span>
-                            <span className="text-[11.5px] text-[#a1a1aa]">
-                              {formatCreatedAtDisplay(r.created_at)}
-                            </span>
-                            {r.verified ? <span className="tv-reviews-chip">Verified</span> : null}
-                            {needsReply ? (
-                              <span className="tv-reviews-chip tv-reviews-chip--warn">Awaiting reply</span>
-                            ) : null}
-                            {hasReply ? <span className="tv-reviews-chip tv-reviews-chip--ok">Replied</span> : null}
+                            <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
+                              <StarRow rating={Number(r.rating) || 0} size={13} />
+                              <span className="text-[12px] font-semibold tabular-nums text-[#18181b]">
+                                {r.rating}/5
+                              </span>
+                              <span className="text-[12px] text-[#a1a1aa]">
+                                {formatCreatedAtDisplay(r.created_at)}
+                              </span>
+                              {r.verified ? (
+                                <span className="text-[11px] font-medium text-[#a1a1aa]">Verified</span>
+                              ) : null}
+                              {needsReply ? (
+                                <span className="tv-reviews-chip tv-reviews-chip--warn">Awaiting reply</span>
+                              ) : null}
+                              {hasReply && !needsReply ? (
+                                <span className="tv-reviews-chip tv-reviews-chip--ok">Replied</span>
+                              ) : null}
+                            </div>
                           </div>
                         </div>
 
-                        <p className="mt-1 truncate text-[12.5px] font-medium text-[#3f3f46]" title={r.listing_title}>
+                        {/* Middle: listing + comment */}
+                        <p
+                          className="mt-2 line-clamp-1 text-[12.5px] font-medium text-[#52525b]"
+                          title={r.listing_title}
+                        >
                           {r.listing_title ?? 'Listing'}
-                          {r.booking_reference ? (
-                            <span className="font-normal text-[#71717a]">
-                              {' · '}
-                              <span className="font-mono text-[12px]">{r.booking_reference}</span>
-                            </span>
-                          ) : null}
                         </p>
-                        {r.is_anonymous ? (
-                          <p className="mt-0.5 text-[11.5px] italic text-[#71717a]">
-                            {SUPPLIER_ANONYMOUS_PUBLIC_NOTE}
-                          </p>
-                        ) : null}
-
                         {r.title ? (
-                          <p className="mt-1.5 text-[13px] font-semibold text-[#18181b] break-words">{r.title}</p>
+                          <p className="mt-1.5 text-[13px] font-semibold text-[#18181b] break-words">
+                            {r.title}
+                          </p>
                         ) : null}
                         {(r.comment ?? '').trim() ? (
                           <div className="mt-1">
@@ -679,7 +705,7 @@ export default function SupplierReviews() {
                             />
                           </div>
                         ) : !r.title ? (
-                          <p className="mt-1.5 text-[12px] italic text-[#71717a]">Rating only</p>
+                          <p className="mt-1.5 text-[12px] italic text-[#a1a1aa]">Rating only</p>
                         ) : null}
 
                         {hasReply && !composing ? (
@@ -765,7 +791,7 @@ export default function SupplierReviews() {
                             </div>
                           </div>
                         ) : (
-                          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
+                          <div className="mt-2.5 flex flex-wrap items-center gap-x-3.5 gap-y-1">
                             {canCompose && !hasReply ? (
                               <button
                                 type="button"
@@ -780,30 +806,84 @@ export default function SupplierReviews() {
                                 Replies need a written comment
                               </span>
                             ) : null}
-                            {r.booking_id ? (
-                              <button
-                                type="button"
-                                className="text-[12.5px] font-semibold text-[#073b83]"
-                                onClick={() =>
-                                  openSupplierBooking(r.booking_id!, {
-                                    isStay: r.listing_family === 'stay',
-                                  })
-                                }
-                              >
-                                View booking
-                              </button>
-                            ) : null}
-                            {r.listing_id ? (
-                              <button
-                                type="button"
-                                className="text-[12px] font-medium text-[#71717a] hover:text-[#073b83]"
-                                onClick={() => openSupplierListingEditor(r.listing_id)}
-                              >
-                                Open listing
-                              </button>
-                            ) : null}
+                            <button
+                              type="button"
+                              className="text-[12.5px] font-medium text-[#71717a] hover:text-[#073b83]"
+                              aria-expanded={detailsOpen}
+                              onClick={() => toggleDetails(r.id)}
+                            >
+                              {detailsOpen ? 'Hide details' : 'Details'}
+                            </button>
                           </div>
                         )}
+
+                        {detailsOpen ? (
+                          <div className="tv-reviews-details" role="region" aria-label="Booking details">
+                            {r.is_anonymous ? (
+                              <p className="tv-reviews-details__note">{SUPPLIER_ANONYMOUS_PUBLIC_NOTE}</p>
+                            ) : null}
+                            <dl className="tv-reviews-details__grid">
+                              {r.booking_reference ? (
+                                <div>
+                                  <dt>Booking</dt>
+                                  <dd className="font-mono">{r.booking_reference}</dd>
+                                </div>
+                              ) : null}
+                              {r.booking_date ? (
+                                <div>
+                                  <dt>Travel date</dt>
+                                  <dd>{formatTravelDate(r.booking_date)}</dd>
+                                </div>
+                              ) : null}
+                              <div>
+                                <dt>Type</dt>
+                                <dd>{familyKind}</dd>
+                              </div>
+                              {r.option_label ? (
+                                <div className="tv-reviews-details__wide">
+                                  <dt>Option</dt>
+                                  <dd className="line-clamp-2" title={r.option_label}>
+                                    {r.option_label}
+                                  </dd>
+                                </div>
+                              ) : null}
+                              <div>
+                                <dt>Public identity</dt>
+                                <dd>{r.is_anonymous ? 'Anonymous' : 'Named'}</dd>
+                              </div>
+                              {r.verified ? (
+                                <div>
+                                  <dt>Status</dt>
+                                  <dd>Verified booking</dd>
+                                </div>
+                              ) : null}
+                            </dl>
+                            <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1">
+                              {r.booking_id ? (
+                                <button
+                                  type="button"
+                                  className="text-[12px] font-semibold text-[#073b83]"
+                                  onClick={() =>
+                                    openSupplierBooking(r.booking_id!, {
+                                      isStay: r.listing_family === 'stay',
+                                    })
+                                  }
+                                >
+                                  View booking
+                                </button>
+                              ) : null}
+                              {r.listing_id ? (
+                                <button
+                                  type="button"
+                                  className="text-[12px] font-medium text-[#71717a] hover:text-[#073b83]"
+                                  onClick={() => openSupplierListingEditor(r.listing_id)}
+                                >
+                                  Open listing
+                                </button>
+                              ) : null}
+                            </div>
+                          </div>
+                        ) : null}
                       </article>
                     </li>
                   );

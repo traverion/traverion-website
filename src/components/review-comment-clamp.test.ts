@@ -25,14 +25,26 @@ describe('ReviewCommentClamp + public review surfaces', () => {
 });
 
 describe('Supplier reviews compact + email-first notify', () => {
-  it('opens reply editor on demand and drops orange needs-reply card chrome', () => {
+  it('keeps Reply / Details on-demand and hides booking metadata by default', () => {
     const page = readFileSync(resolve(__dirname, '../pages/supplier/SupplierReviews.tsx'), 'utf8');
     expect(page).toContain('startEditingReply');
-    expect(page).toContain('View booking');
+    expect(page).toContain('toggleDetails');
+    expect(page).toContain('Hide details');
+    expect(page).toContain('tv-reviews-details');
     expect(page).toContain('ReviewCommentClamp');
+    expect(page).toContain('View booking');
+    // Booking reference is details-only, not in the default listing line.
+    expect(page).toMatch(/detailsOpen[\s\S]*booking_reference/);
     expect(page).not.toContain('tv-reviews-card--needs-reply');
     const css = readFileSync(resolve(__dirname, '../index.css'), 'utf8');
+    expect(css).toContain('.tv-reviews-details');
     expect(css).not.toContain('.tv-reviews-card--needs-reply');
+  });
+
+  it('Tour review grid uses items-start so expanded cards do not stretch neighbors', () => {
+    const tour = readFileSync(resolve(__dirname, '../pages/TourDetails.tsx'), 'utf8');
+    expect(tour).toContain('items-start');
+    expect(tour).toContain('ReviewCommentClamp');
   });
 
   it('removes PartnerActivityBell from the partner topbar', () => {

@@ -51,7 +51,7 @@ export default function ReviewCommentClamp({
     <div>
       <p
         ref={ref}
-        className={`${className} break-words [overflow-wrap:anywhere] whitespace-pre-wrap ${
+        className={`${className} break-words [overflow-wrap:anywhere] whitespace-pre-wrap motion-safe:transition-[max-height] motion-safe:duration-150 ${
           expanded ? '' : 'line-clamp-3'
         }`}
       >

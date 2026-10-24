@@ -1309,37 +1309,44 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
                   <p className="mt-1 text-sm text-ink-muted leading-relaxed">{LISTING_REVIEWS_EMPTY_COPY}</p>
                 </div>
               ) : null}
-              <div className="space-y-6 mb-6">
+              <div className="mb-6 space-y-5">
                 {reviews.slice(0, 3).map((r) => (
-                  <div key={r.id} className="border-b border-black/[0.06] pb-6 last:border-0">
-                    <div className="flex items-center gap-3 mb-2">
-                      <span className="font-medium text-ink">{displayReviewGuestName(r)}</span>
+                  <div key={r.id} className="border-b border-black/[0.06] pb-5 last:border-0">
+                    <p className="font-medium text-ink">{displayReviewGuestName(r)}</p>
+                    <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                      <div className="flex gap-0.5" aria-label={`${r.rating} out of 5 stars`}>
+                        {[1, 2, 3, 4, 5].map((i) => (
+                          <Star
+                            key={i}
+                            size={14}
+                            aria-hidden
+                            className={i <= r.rating ? 'text-finland fill-finland' : 'text-ink-faint'}
+                          />
+                        ))}
+                      </div>
+                      <span className="text-sm text-ink-muted">
+                        {new Date(r.created_at).toLocaleDateString()}
+                      </span>
                       {r.verified ? (
-                        <span className="rounded bg-emerald-100 px-2 py-0.5 text-xs text-emerald-800">Verified</span>
+                        <span className="text-[11px] font-medium text-ink-faint">Verified</span>
                       ) : null}
-                      <span className="text-sm text-ink-muted">{new Date(r.created_at).toLocaleDateString()}</span>
-                    </div>
-                    {/* Phase 1620: announce rating to assistive tech (Tour / reviews modal parity). */}
-                    <div className="flex gap-1 mb-1" aria-label={`${r.rating} out of 5 stars`}>
-                      {[1, 2, 3, 4, 5].map((i) => (
-                        <Star
-                          key={i}
-                          size={16}
-                          aria-hidden
-                          className={i <= r.rating ? 'text-finland fill-finland' : 'text-ink-faint'}
-                        />
-                      ))}
                     </div>
                     {r.title ? (
-                      <p className="font-medium text-ink mb-1 break-words [overflow-wrap:anywhere]">{r.title}</p>
+                      <p className="mt-1.5 font-medium text-ink break-words [overflow-wrap:anywhere]">
+                        {r.title}
+                      </p>
                     ) : null}
-                    <ReviewCommentClamp text={r.comment} className="text-[14px] leading-relaxed text-ink" />
+                    <div className="mt-1">
+                      <ReviewCommentClamp text={r.comment} className="text-[14px] leading-relaxed text-ink" />
+                    </div>
                     {reviewReplies[r.id]?.reply_text ? (
-                      <div className="mt-3 rounded-xl bg-finland/[0.04] px-3.5 py-3 ring-1 ring-finland/10">
-                        <p className="tv-eyebrow mb-1">
+                      <div className="mt-2.5 border-l-2 border-finland/25 pl-3">
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-finland">
                           Response from the host
                         </p>
-                        <p className="text-sm text-ink leading-relaxed break-words [overflow-wrap:anywhere] whitespace-pre-wrap">{reviewReplies[r.id]!.reply_text}</p>
+                        <p className="mt-1 text-sm leading-relaxed text-ink break-words [overflow-wrap:anywhere] whitespace-pre-wrap">
+                          {reviewReplies[r.id]!.reply_text}
+                        </p>
                       </div>
                     ) : null}
                   </div>

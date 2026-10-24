@@ -2512,39 +2512,49 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
               </div>
             </div>
           ) : null}
-          <div className="mb-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {/* items-start: each card sizes independently when one comment expands */}
+          <div className="mb-5 grid items-start gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {reviews.slice(0, 3).map((r) => (
               <article key={r.id} className="rounded-xl border border-[#E8EBF0] bg-white p-3.5">
-                <div className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1">
-                  <span className="font-semibold text-[#111827]">{displayReviewGuestName(r)}</span>
-                  {r.verified && (
-                    <span className="rounded bg-emerald-100 px-2 py-0.5 text-xs text-emerald-800">Verified</span>
-                  )}
-                  <span className="text-xs text-ink-muted">{new Date(r.created_at).toLocaleDateString()}</span>
+                <div className="mb-1.5 min-w-0">
+                  <p className="truncate font-semibold text-[#111827]">{displayReviewGuestName(r)}</p>
+                  <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                    <div className="flex gap-0.5" aria-label={`${r.rating} out of 5 stars`}>
+                      {[1, 2, 3, 4, 5].map((i) => (
+                        <Star
+                          key={i}
+                          size={13}
+                          aria-hidden
+                          className={i <= r.rating ? 'fill-[#C9A227] text-[#C9A227]' : 'text-[#E8EBF0]'}
+                        />
+                      ))}
+                    </div>
+                    <span className="text-xs text-ink-muted">
+                      {new Date(r.created_at).toLocaleDateString()}
+                    </span>
+                    {r.verified ? (
+                      <span className="text-[11px] font-medium text-ink-faint">Verified</span>
+                    ) : null}
+                  </div>
                 </div>
-                {/* Phase 1620: announce rating to assistive tech (supplier Reviews parity). */}
-                <div className="mb-1.5 flex gap-0.5" aria-label={`${r.rating} out of 5 stars`}>
-                  {[1, 2, 3, 4, 5].map((i) => (
-                    <Star
-                      key={i}
-                      size={14}
-                      aria-hidden
-                      className={i <= r.rating ? 'fill-[#C9A227] text-[#C9A227]' : 'text-[#E8EBF0]'}
-                    />
-                  ))}
-                </div>
-                {r.title && (
-                  <p className="mb-1 text-sm font-semibold text-[#111827] break-words [overflow-wrap:anywhere]">{r.title}</p>
-                )}
+                {r.title ? (
+                  <p className="mb-1 text-sm font-semibold text-[#111827] break-words [overflow-wrap:anywhere]">
+                    {r.title}
+                  </p>
+                ) : null}
                 <ReviewCommentClamp
                   text={r.comment}
                   className="text-sm leading-relaxed text-ink"
                   toggleClassName="mt-1 text-[12.5px] font-semibold text-[#073b83] hover:underline"
                 />
                 {reviewReplies[r.id]?.reply_text ? (
-                  <div className="mt-3 rounded-xl bg-finland/[0.04] px-3.5 py-3 ring-1 ring-finland/10">
-                    <p className="tv-eyebrow mb-1">Response from the operator</p>
-                    <p className="text-sm text-ink leading-relaxed break-words [overflow-wrap:anywhere] whitespace-pre-wrap">{reviewReplies[r.id]!.reply_text}</p>
+                  <div className="mt-2.5 border-l-2 border-finland/25 pl-3">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-finland">
+                      Response from the operator
+                    </p>
+                    <p className="mt-1 text-sm leading-relaxed text-ink break-words [overflow-wrap:anywhere] whitespace-pre-wrap">
+                      {reviewReplies[r.id]!.reply_text}
+                    </p>
                   </div>
                 ) : null}
               </article>

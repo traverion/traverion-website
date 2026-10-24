@@ -5450,6 +5450,56 @@ details:not([open]) > :not(summary) {
   padding: 0.45rem 0.65rem;
 }
 
+.tv-reviews-details {
+  margin-top: 0.65rem;
+  border-top: 1px solid rgba(28, 25, 23, 0.06);
+  padding-top: 0.55rem;
+}
+
+.tv-reviews-details__note {
+  margin-bottom: 0.45rem;
+  font-size: 11.5px;
+  font-style: italic;
+  color: #71717a;
+}
+
+.tv-reviews-details__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.4rem 1rem;
+  margin: 0;
+}
+
+@media (max-width: 640px) {
+  .tv-reviews-details__grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.tv-reviews-details__grid > div {
+  min-width: 0;
+}
+
+.tv-reviews-details__wide {
+  grid-column: 1 / -1;
+}
+
+.tv-reviews-details__grid dt {
+  font-size: 10.5px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #a1a1aa;
+}
+
+.tv-reviews-details__grid dd {
+  margin: 0.1rem 0 0;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: #3f3f46;
+  word-break: break-word;
+}
+
 .tv-reviews-empty {
   display: flex;
   flex-direction: column;

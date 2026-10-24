@@ -30,6 +30,8 @@ export type ReviewDisplay = ReviewRow & { verified: boolean };
 export type SupplierReviewParty = {
   booking_guest_name?: string | null;
   booking_reference?: string | null;
+  booking_date?: string | null;
+  option_label?: string | null;
 };
 
 export type SupplierReviewDisplay = ReviewDisplay &
@@ -37,6 +39,14 @@ export type SupplierReviewDisplay = ReviewDisplay &
     listing_title?: string;
     listing_family?: InventoryFamily;
   };
+
+function optionLabelFromPurchaseSnapshot(snapshot: unknown): string | null {
+  if (!snapshot || typeof snapshot !== 'object') return null;
+  const label = (snapshot as { optionLabel?: unknown }).optionLabel;
+  if (typeof label !== 'string') return null;
+  const trimmed = label.trim();
+  return trimmed || null;
+}
 
 /** Fetch public-safe reviews for a listing (newest first). Uses reviews_public view. */
 export async function fetchReviewsByListingId(listingId: string): Promise<ReviewDisplay[]> {
@@ -314,7 +324,7 @@ export async function fetchReviewsForSupplierListings(
   const { data, error } = await supabase
     .from('reviews')
     .select(
-      'id, listing_id, user_id, booking_id, guest_name, is_anonymous, rating, title, comment, images, created_at, bookings:booking_id ( guest_name, public_reference )'
+      'id, listing_id, user_id, booking_id, guest_name, is_anonymous, rating, title, comment, images, created_at, bookings:booking_id ( guest_name, public_reference, booking_date, purchase_snapshot )'
     )
     .in('listing_id', ids)
     .order('created_at', { ascending: false });
@@ -328,7 +338,12 @@ export async function fetchReviewsForSupplierListings(
   });
   return (data ?? []).map((raw) => {
     const r = raw as ReviewRow & {
-      bookings?: { guest_name?: string | null; public_reference?: string | null } | null;
+      bookings?: {
+        guest_name?: string | null;
+        public_reference?: string | null;
+        booking_date?: string | null;
+        purchase_snapshot?: unknown;
+      } | null;
     };
     const booking = r.bookings && !Array.isArray(r.bookings) ? r.bookings : null;
     return {
@@ -346,6 +361,8 @@ export async function fetchReviewsForSupplierListings(
       verified: !!r.booking_id,
       booking_guest_name: booking?.guest_name ?? null,
       booking_reference: booking?.public_reference ?? null,
+      booking_date: booking?.booking_date ?? null,
+      option_label: optionLabelFromPurchaseSnapshot(booking?.purchase_snapshot),
       listing_title: byListingId[r.listing_id]?.title,
       listing_family: byListingId[r.listing_id]?.family ?? 'tour',
     };
