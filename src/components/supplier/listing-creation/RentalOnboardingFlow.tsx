@@ -21,8 +21,12 @@ import {
   defaultRentalOperatingDays,
   effectiveVariantPricing,
   ensureRentalHasDefaultVariant,
+  groupRentalOperatingHours,
   newRentalVariantId,
+  rentalHasDepositInfo,
+  rentalHasInsuranceInfo,
   rentalVariantComplete,
+  rentalVariantMetaLine,
 } from '../../../lib/rental-details';
 import { formatBpsAsPercent, splitGrossByCommissionBps } from '../../../lib/commercial-money';
 import { clampListingDescriptionInput, clampListingTitleInput, MAX_LISTING_DESCRIPTION_LENGTH, MAX_LISTING_TITLE_LENGTH } from '../../../lib/listingQualityScore';
@@ -238,12 +242,7 @@ function fullOperatingDays(rental: RentalDetails): RentalOperatingDay[] {
 }
 
 function hoursLines(rental: RentalDetails): string[] {
-  return fullOperatingDays(rental)
-    .filter((d) => d.open)
-    .map(
-      (d) =>
-        `${DAY_LABELS[d.day] ?? d.day}: pickup ${d.earliestPickupHm ?? '—'}–${d.latestPickupHm ?? '—'}, return ${d.earliestReturnHm ?? '—'}–${d.latestReturnHm ?? '—'}`
-    );
+  return groupRentalOperatingHours(fullOperatingDays(rental));
 }
 
 function itemTypeText(rental: RentalDetails): string {
@@ -252,12 +251,7 @@ function itemTypeText(rental: RentalDetails): string {
 }
 
 function variantAttributeText(variant: RentalVariant, cfg: RentalCategoryConfig | null): string {
-  const attrs = variant.attributes ?? {};
-  const keys = cfg?.variantAttributeKeys ?? [];
-  return keys
-    .map((k) => (attrs[k.key] ?? '').trim())
-    .filter(Boolean)
-    .join(' · ');
+  return rentalVariantMetaLine(variant, cfg?.variantAttributeKeys ?? []);
 }
 
 function galleryUrlsOf(values: Values): string[] {
@@ -301,7 +295,7 @@ function Pill({
     <button
       type="button"
       aria-pressed={pressed}
-      className={`stay-choice lc-choice min-h-11 rounded-full px-3 text-sm font-semibold ${pressed ? 'lc-choice--selected text-[#073b83]' : ''}`}
+      className={`rental-pill stay-choice lc-choice min-h-11 rounded-full px-3.5 text-sm font-semibold ${pressed ? 'lc-choice--selected text-[#073b83]' : ''}`}
       onClick={onClick}
     >
       {children}
@@ -461,17 +455,30 @@ function CategoryStage({ ctx }: { ctx: Ctx }) {
   const { rental, patchRental } = ctx;
   const choose = (id: RentalCategoryId) => {
     if (rental.category === id) return;
-    const keys = new Set(RENTAL_CATEGORY_CONFIG[id].variantAttributeKeys.map((a) => a.key));
+    const nextCfg = RENTAL_CATEGORY_CONFIG[id];
+    const attrKeys = new Set(nextCfg.variantAttributeKeys.map((a) => a.key));
+    const specKeys = new Set(nextCfg.listingSpecKeys.map((s) => s.key));
+    const reqKeys = new Set(nextCfg.requirementKeys.map((r) => r.key));
+    const keepItem =
+      rental.itemType === 'custom' && nextCfg.allowCustomItemType
+        ? 'custom'
+        : nextCfg.itemTypes.some((t) => t.id === rental.itemType)
+          ? rental.itemType
+          : undefined;
     const variants = (rental.variants ?? []).map((v) => ({
       ...v,
-      attributes: Object.fromEntries(Object.entries(v.attributes ?? {}).filter(([k]) => keys.has(k))),
+      attributes: Object.fromEntries(Object.entries(v.attributes ?? {}).filter(([k]) => attrKeys.has(k))),
     }));
     patchRental({
       category: id,
-      itemType: undefined,
-      customItemType: undefined,
-      specifications: {},
-      requirements: {},
+      itemType: keepItem,
+      customItemType: keepItem === 'custom' ? rental.customItemType : undefined,
+      specifications: Object.fromEntries(
+        Object.entries(rental.specifications ?? {}).filter(([k, v]) => specKeys.has(k) && String(v).trim())
+      ),
+      requirements: Object.fromEntries(
+        Object.entries(rental.requirements ?? {}).filter(([k, v]) => reqKeys.has(k) && String(v).trim())
+      ),
       variants,
     });
   };
@@ -694,7 +701,7 @@ function HighlightsStage({ ctx }: { ctx: Ctx }) {
       max={MAX_HIGHLIGHTS}
       placeholder="Add your own highlight"
       addLabel="Add a highlight"
-      emptyHelp="Customers only see highlights you add. This step is optional."
+      emptyHelp="Optional. Prefer specific points (warm to −20°C, helmet included) over vague praise."
       onChange={(next) => patch({ highlights: next, rental: { ...rental, highlights: next } })}
     />
   );
@@ -843,6 +850,7 @@ function ReturnStage({ ctx }: { ctx: Ctx }) {
 function HoursStage({ ctx }: { ctx: Ctx }) {
   const { rental, patchRental } = ctx;
   const days = fullOperatingDays(rental);
+  const summary = groupRentalOperatingHours(days);
   const write = (day: string, next: Partial<RentalOperatingDay>) =>
     patchRental({ operatingDays: days.map((d) => (d.day === day ? { ...d, ...next } : d)) });
   const source = days.find((d) => d.open);
@@ -864,6 +872,17 @@ function HoursStage({ ctx }: { ctx: Ctx }) {
   };
   return (
     <div className="space-y-3">
+      {summary.length > 0 ? (
+        <section className="stay-panel space-y-1.5" aria-label="Hours summary">
+          <p className="stay-kicker">Summary</p>
+          <ul className="space-y-0.5 text-sm text-ink">
+            {summary.map((line) => (
+              <li key={line}>{line}</li>
+            ))}
+          </ul>
+          <StayHelp>Days with the same hours are grouped above. Edit any day below.</StayHelp>
+        </section>
+      ) : null}
       {days.map((d) => {
         const name = DAY_LABELS[d.day] ?? d.day;
         return (
@@ -997,10 +1016,7 @@ function OptionsStage({ ctx }: { ctx: Ctx }) {
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <p className="truncate text-base font-semibold text-ink">{variant.name.trim() || 'Untitled option'}</p>
-                  <p className="text-sm text-ink-muted">
-                    {variant.quantity} {variant.quantity === 1 ? 'unit' : 'units'}
-                    {attrs ? ` · ${attrs}` : ''}
-                  </p>
+                  <p className="text-sm text-ink-muted">{attrs || `${variant.quantity} ${variant.quantity === 1 ? 'unit' : 'units'}`}</p>
                 </div>
                 <span
                   className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${
@@ -1072,8 +1088,8 @@ function OptionsStage({ ctx }: { ctx: Ctx }) {
         + Add option
       </button>
       <StayHelp>
-        Most rentals need just one option. Add more for different sizes or models, each with its own stock. Keep at
-        least one.
+        Each option is a separately tracked choice (for example Size M). The quantity is how many identical units of
+        that option you can rent at once — not a guest count. One option is enough for a single-product listing.
       </StayHelp>
     </div>
   );
@@ -1270,7 +1286,7 @@ function AvailabilitySummaryStage({ ctx }: { ctx: Ctx }) {
         <SummaryRow label="Booking notice" value={noticeLabel(rental.bookingNoticeHours ?? 0)} onEdit={() => goTo('notice')} />
         <SummaryRow
           label="Pickup and return hours"
-          value={hours.length > 0 ? `${hours.length} open ${hours.length === 1 ? 'day' : 'days'}` : 'No open days'}
+          value={hours.length > 0 ? hours.join(' · ') : 'No open days'}
           onEdit={() => goTo('hours')}
         />
       </ul>
@@ -1309,7 +1325,13 @@ function PricingStage({ ctx }: { ctx: Ctx }) {
         </StayField>
       ) : null}
       <StayHelp>
-        Enter the price customers pay per unit, in {currency}. Every option uses it unless you set a custom price.
+        Per-unit rates in {currency}
+        {mode === 'hourly'
+          ? ' — charged for each hour rented.'
+          : mode === 'daily'
+            ? ' — charged for each calendar day rented.'
+            : ' — hourly and daily fields apply to the matching rental length.'}{' '}
+        Options inherit these rates unless you set a custom price. Quantity does not change the unit rate.
       </StayHelp>
     </div>
   );
@@ -1478,7 +1500,7 @@ function EarningsStage({ ctx }: { ctx: Ctx }) {
         </section>
       ) : (
         <section className="stay-panel space-y-3" aria-label="Example earnings">
-          <p className="stay-kicker">Example · 1 {unit} × 1 unit</p>
+          <p className="stay-kicker tracking-[0.12em]">EXAMPLE · 1 {unit === 'day' ? 'DAY' : 'HOUR'} × 1 UNIT</p>
           <dl className="space-y-2 text-sm">
             <div className="flex items-baseline justify-between gap-3">
               <dt className="text-ink">Customer pays</dt>
@@ -1572,15 +1594,17 @@ function RulesStage({ ctx }: { ctx: Ctx }) {
     <div className="space-y-2">
       <StayField label="Rental rules (optional)">
         <textarea
-          className="tv-input w-full resize-y py-2"
+          className="tv-input rental-rules-input w-full resize-y py-2.5"
           rows={7}
           maxLength={4000}
           value={value}
-          placeholder="Where the item may be used, how it must be returned, cleaning, damage, and late returns."
+          placeholder="Where the item may be used, how it must be returned, cleaning, damage reporting, and late returns."
           onChange={(e) => patchRental({ rentalRules: e.target.value.slice(0, 4000) })}
         />
       </StayField>
-      <StayHelp>{value.length}/4000</StayHelp>
+      <StayHelp>
+        {value.length}/4000 · Keep this practical. Avoid legal language Traverion has not reviewed.
+      </StayHelp>
     </div>
   );
 }
@@ -1602,46 +1626,167 @@ function CancellationStage({ ctx }: { ctx: Ctx }) {
         ))}
       </div>
       <StayHelp>
-        Your choice is saved with this draft. Customers see the terms before they pay once rental bookings open.
+        Saved with this draft for when rental bookings open. Cancellation refunds are not operational for rentals yet —
+        this is the policy customers will eventually see before paying.
       </StayHelp>
     </div>
   );
 }
 
 function DepositStage({ ctx }: { ctx: Ctx }) {
-  const { rental, patchRental } = ctx;
+  const { rental, currency, patchRental } = ctx;
+  const method = rental.depositCollectionMethod ?? null;
+  const methodLabel = (id: typeof method) => {
+    if (id === 'cash_at_pickup') return 'Cash at pickup';
+    if (id === 'card_at_pickup') return 'Card at pickup (supplier-managed)';
+    if (id === 'other') return 'Other supplier-managed method';
+    return '';
+  };
   return (
-    <div className="space-y-4">
-      <section className="stay-panel space-y-2">
-        <p className="stay-kicker">Traverion standard</p>
+    <div className="space-y-5">
+      <section className="stay-panel space-y-2" aria-label="Traverion deposit policy">
+        <p className="stay-kicker">Important</p>
         <p className="text-sm font-semibold leading-relaxed text-ink">
-          Traverion does not collect security deposits online yet.
+          Traverion does not currently collect security deposits online.
         </p>
         <p className="text-sm leading-relaxed text-ink-muted">
-          Customers are not charged a deposit at checkout. If you need a deposit or an insurance excess, explain how you
-          handle it below. This is shown for information only and is not enforced or collected by Traverion.
+          Anything you configure here is informational for customers. It is not charged, held, or released through
+          Traverion checkout.
         </p>
       </section>
-      <StayField label="Deposit information (optional)">
-        <textarea
-          className="tv-input w-full resize-y py-2"
-          rows={4}
-          maxLength={1000}
-          value={rental.depositDisclosure ?? ''}
-          placeholder="e.g. A refundable €100 deposit is taken in cash at pickup."
-          onChange={(e) => patchRental({ depositDisclosure: e.target.value.slice(0, 1000) })}
-        />
-      </StayField>
-      <StayField label="Insurance information (optional)">
-        <textarea
-          className="tv-input w-full resize-y py-2"
-          rows={3}
-          maxLength={1000}
-          value={rental.insuranceDisclosure ?? ''}
-          placeholder="e.g. Basic damage cover is included; theft is not covered."
-          onChange={(e) => patchRental({ insuranceDisclosure: e.target.value.slice(0, 1000) })}
-        />
-      </StayField>
+
+      <section className="space-y-3" aria-label="Security deposit">
+        <p className="stay-kicker">Security deposit</p>
+        <div className="grid gap-2 sm:grid-cols-2" role="group" aria-label="Is a deposit required?">
+          <StayChoice
+            pressed={rental.depositRequired === true}
+            onClick={() => patchRental({ depositRequired: true })}
+          >
+            Deposit required
+          </StayChoice>
+          <StayChoice
+            pressed={rental.depositRequired === false}
+            onClick={() =>
+              patchRental({
+                depositRequired: false,
+                depositAmountMinor: null,
+                depositCollectionMethod: null,
+              })
+            }
+          >
+            No deposit
+          </StayChoice>
+        </div>
+        {rental.depositRequired === true ? (
+          <div className="space-y-3">
+            <StayField label={`Deposit amount (${currency})`}>
+              <RentalMoneyInput
+                value={rental.depositAmountMinor}
+                currency={currency}
+                ariaLabel="Deposit amount"
+                onChange={(depositAmountMinor) =>
+                  patchRental({ depositAmountMinor, depositCurrency: currency })
+                }
+              />
+            </StayField>
+            <div>
+              <p className="stay-field">
+                <span>How you collect it</span>
+              </p>
+              <div className="mt-1.5 grid gap-2" role="group" aria-label="Deposit collection method">
+                {(
+                  [
+                    ['cash_at_pickup', 'Cash at pickup'],
+                    ['card_at_pickup', 'Card at pickup (you handle it)'],
+                    ['other', 'Other'],
+                  ] as const
+                ).map(([id, label]) => (
+                  <StayChoice
+                    key={id}
+                    pressed={method === id}
+                    onClick={() => patchRental({ depositCollectionMethod: id })}
+                  >
+                    {label}
+                  </StayChoice>
+                ))}
+              </div>
+            </div>
+            <StayField label="Return / refund conditions (optional)">
+              <textarea
+                className="tv-input w-full resize-y py-2"
+                rows={3}
+                maxLength={500}
+                value={rental.depositReturnNotes ?? ''}
+                placeholder="When and how the deposit is returned after the rental."
+                onChange={(e) => patchRental({ depositReturnNotes: e.target.value.slice(0, 500) })}
+              />
+            </StayField>
+            {method ? <StayHelp>Customers will see: {methodLabel(method)}.</StayHelp> : null}
+          </div>
+        ) : null}
+        <StayField label="Extra deposit notes (optional)">
+          <textarea
+            className="tv-input w-full resize-y py-2"
+            rows={3}
+            maxLength={1000}
+            value={rental.depositDisclosure ?? ''}
+            placeholder="Anything else customers should know about the deposit."
+            onChange={(e) => patchRental({ depositDisclosure: e.target.value.slice(0, 1000) })}
+          />
+        </StayField>
+      </section>
+
+      <section className="space-y-3" aria-label="Insurance">
+        <p className="stay-kicker">Insurance</p>
+        <div className="grid gap-2 sm:grid-cols-2" role="group" aria-label="Is insurance included?">
+          <StayChoice
+            pressed={rental.insuranceIncluded === true}
+            onClick={() => patchRental({ insuranceIncluded: true })}
+          >
+            Insurance included
+          </StayChoice>
+          <StayChoice
+            pressed={rental.insuranceIncluded === false}
+            onClick={() => patchRental({ insuranceIncluded: false })}
+          >
+            Not included
+          </StayChoice>
+        </div>
+        <StayField label="Coverage notes (optional)">
+          <textarea
+            className="tv-input w-full resize-y py-2"
+            rows={2}
+            maxLength={1000}
+            value={rental.insuranceCoverageNotes ?? rental.insuranceDisclosure ?? ''}
+            placeholder="What is covered, if anything."
+            onChange={(e) =>
+              patchRental({
+                insuranceCoverageNotes: e.target.value.slice(0, 1000),
+                insuranceDisclosure: e.target.value.slice(0, 1000),
+              })
+            }
+          />
+        </StayField>
+        <StayField label="Exclusions (optional)">
+          <textarea
+            className="tv-input w-full resize-y py-2"
+            rows={2}
+            maxLength={1000}
+            value={rental.insuranceExclusions ?? ''}
+            placeholder="What is not covered."
+            onChange={(e) => patchRental({ insuranceExclusions: e.target.value.slice(0, 1000) })}
+          />
+        </StayField>
+        <StayField label="Excess / deductible (optional)">
+          <input
+            className="tv-input w-full"
+            maxLength={500}
+            value={rental.insuranceExcessNotes ?? ''}
+            placeholder="e.g. €200 excess on damage claims"
+            onChange={(e) => patchRental({ insuranceExcessNotes: e.target.value.slice(0, 500) })}
+          />
+        </StayField>
+      </section>
     </div>
   );
 }
@@ -1650,15 +1795,79 @@ function DepositStage({ ctx }: { ctx: Ctx }) {
 /* Preview & publish                                                   */
 /* ------------------------------------------------------------------ */
 
+function RentalPreviewGallery({ photos, title }: { photos: string[]; title: string }) {
+  const n = photos.length;
+  const alt = title.trim() ? `${title.trim()} photo` : 'Rental photo';
+  if (n === 0) {
+    return (
+      <div className="rental-preview-gallery rental-preview-gallery--empty flex min-h-[10rem] items-center justify-center rounded-xl bg-[#F4F6F8] text-sm text-ink-muted">
+        Add photos to preview the gallery
+      </div>
+    );
+  }
+  if (n === 1) {
+    return (
+      <div className="rental-preview-gallery rental-preview-gallery--solo overflow-hidden rounded-xl bg-[#F4F6F8]">
+        <img src={photos[0]} alt={alt} className="h-full w-full object-cover" />
+      </div>
+    );
+  }
+  if (n === 2) {
+    return (
+      <div className="rental-preview-gallery rental-preview-gallery--duo overflow-hidden rounded-xl">
+        {photos.slice(0, 2).map((url, i) => (
+          <div key={url} className="rental-preview-gallery-cell bg-[#F4F6F8]">
+            <img src={url} alt={`${alt} ${i + 1}`} />
+          </div>
+        ))}
+      </div>
+    );
+  }
+  if (n === 3) {
+    return (
+      <div className="rental-preview-gallery rental-preview-gallery--trio overflow-hidden rounded-xl">
+        <div className="rental-preview-gallery-main bg-[#F4F6F8]">
+          <img src={photos[0]} alt={`${alt} 1`} />
+        </div>
+        <div className="rental-preview-gallery-side">
+          {photos.slice(1, 3).map((url, i) => (
+            <div key={url} className="rental-preview-gallery-cell bg-[#F4F6F8]">
+              <img src={url} alt={`${alt} ${i + 2}`} />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+  const side = photos.slice(1, 5);
+  return (
+    <div className="rental-preview-gallery rental-preview-gallery--multi overflow-hidden rounded-xl">
+      <div className="rental-preview-gallery-main bg-[#F4F6F8]">
+        <img src={photos[0]} alt={`${alt} 1`} />
+      </div>
+      <div className="rental-preview-gallery-side rental-preview-gallery-side--grid">
+        {side.map((url, i) => (
+          <div key={url} className="rental-preview-gallery-cell relative bg-[#F4F6F8]">
+            <img src={url} alt={`${alt} ${i + 2}`} />
+            {i === side.length - 1 && n > 5 ? (
+              <span className="absolute inset-0 flex items-center justify-center bg-black/45 text-sm font-semibold text-white">
+                +{n - 5} more
+              </span>
+            ) : null}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function PreviewStage({ ctx }: { ctx: Ctx }) {
   const { values, rental, cfg, mode, currency, goTo } = ctx;
   const photos = galleryUrlsOf(values);
-  const cover = photos[0];
-  const side = photos.slice(1, 4);
   const variants = rental.variants ?? [];
   const from = startingPrice(rental, mode);
   const highlights = values.highlights.map((l) => l.trim()).filter(Boolean);
-  const inclusions = rental.inclusions ?? [];
+  const inclusions = (rental.inclusions ?? []).map((l) => l.trim()).filter(Boolean);
   const specs = Object.entries(rental.specifications ?? {}).filter(([, v]) => v.trim());
   const specLabel = (key: string) => cfg?.listingSpecKeys.find((s) => s.key === key)?.label ?? key;
   const reqs = Object.entries(rental.requirements ?? {}).filter(([, v]) => v.trim());
@@ -1668,9 +1877,23 @@ function PreviewStage({ ctx }: { ctx: Ctx }) {
   const place = travelerDestinationLabel(values.city, values.country);
   const description = values.description.trim();
   const intro = (rental.shortIntro || values.subtitle || '').trim();
+  const showDeposit = rentalHasDepositInfo(rental);
+  const showInsurance = rentalHasInsuranceInfo(rental);
+  const depositMethod =
+    rental.depositCollectionMethod === 'cash_at_pickup'
+      ? 'Cash at pickup'
+      : rental.depositCollectionMethod === 'card_at_pickup'
+        ? 'Card at pickup (supplier-managed)'
+        : rental.depositCollectionMethod === 'other'
+          ? 'Other supplier-managed method'
+          : null;
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
+      <p className="rounded-xl bg-[#F4F6F8] px-3.5 py-2.5 text-sm text-ink-muted" role="note">
+        Supplier review of how this rental will read for travelers. Public booking stays unavailable until Traverion
+        Rentals launches.
+      </p>
       <article className="stay-preview-shell overflow-hidden rounded-2xl bg-white ring-1 ring-[#E6EAF0]">
         <div className="space-y-5 p-4 sm:p-5">
           <section className="space-y-2">
@@ -1678,27 +1901,7 @@ function PreviewStage({ ctx }: { ctx: Ctx }) {
               <h5 className="font-display text-base font-semibold text-ink">Photos</h5>
               <PreviewEdit onClick={() => goTo('photos')} label="Edit photos" />
             </div>
-            <div className="stay-preview-gallery">
-              <div className={`stay-preview-gallery-main ${side.length > 0 ? '' : 'stay-preview-gallery-main--solo'}`}>
-                {cover ? (
-                  <img src={cover} alt="" className="h-full w-full object-cover" />
-                ) : (
-                  <div className="flex h-full min-h-[12rem] items-center justify-center bg-[#F4F6F8] text-sm text-ink-muted">
-                    Add a cover photo
-                  </div>
-                )}
-              </div>
-              {side.length > 0 ? (
-                <div className="stay-preview-gallery-side">
-                  {side.map((url) => (
-                    <div key={url} className="stay-preview-gallery-thumb overflow-hidden rounded-xl">
-                      <img src={url} alt="" />
-                    </div>
-                  ))}
-                </div>
-              ) : null}
-            </div>
-            {photos.length > 4 ? <p className="stay-help">+ {photos.length - 4} more photos</p> : null}
+            <RentalPreviewGallery photos={photos} title={values.title} />
           </section>
 
           <section className="stay-preview-section">
@@ -1718,12 +1921,42 @@ function PreviewStage({ ctx }: { ctx: Ctx }) {
               <p className="mt-3 text-base font-semibold text-ink">
                 From {formatRentalMinor(from.minor, currency)}
                 <span className="font-normal text-ink-muted"> / {from.unit}</span>
+                <span className="ml-1 font-normal text-ink-muted">per unit</span>
               </p>
             ) : (
-              <p className="mt-3 text-sm text-ink-muted">Add prices to show a “from” price.</p>
+              <p className="mt-3 text-sm text-ink-muted">Add prices to show a starting rate.</p>
             )}
             {intro ? <p className="mt-2 text-sm leading-relaxed text-ink">{intro}</p> : null}
           </section>
+
+          <PreviewSection title="Rental options" onEdit={() => goTo('options')}>
+            {variants.length === 0 ? (
+              <p className="text-sm text-ink-muted">No options yet.</p>
+            ) : (
+              <ul className="space-y-2">
+                {variants.map((variant) => {
+                  const attrs = variantAttributeText(variant, cfg);
+                  return (
+                    <li
+                      key={variant.id}
+                      className="flex items-start justify-between gap-3 rounded-xl px-3 py-2.5 ring-1 ring-[#E6EAF0]"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-ink">{variant.name.trim() || 'Untitled option'}</p>
+                        <p className="stay-help">{attrs}</p>
+                        {variant.description?.trim() ? (
+                          <p className="mt-1 text-sm text-ink-muted">{variant.description.trim()}</p>
+                        ) : null}
+                      </div>
+                      <p className="shrink-0 text-right text-sm font-semibold text-ink">
+                        {rentalPricingSummary(effectiveVariantPricing(rental, variant), mode, currency)}
+                      </p>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </PreviewSection>
 
           {description ? (
             <PreviewSection title="About this rental" onEdit={() => goTo('description')}>
@@ -1756,38 +1989,20 @@ function PreviewStage({ ctx }: { ctx: Ctx }) {
             </PreviewSection>
           ) : null}
 
-          <PreviewSection title="Options" onEdit={() => goTo('options')}>
-            {variants.length === 0 ? (
-              <p className="text-sm text-ink-muted">No options yet.</p>
-            ) : (
-              <ul className="space-y-2">
-                {variants.map((variant) => {
-                  const attrs = variantAttributeText(variant, cfg);
-                  return (
-                    <li key={variant.id} className="flex items-start justify-between gap-3 rounded-xl px-3 py-2.5 ring-1 ring-[#E6EAF0]">
-                      <div className="min-w-0">
-                        <p className="text-sm font-semibold text-ink">{variant.name.trim() || 'Untitled option'}</p>
-                        <p className="stay-help">
-                          {variant.quantity} {variant.quantity === 1 ? 'unit' : 'units'}
-                          {attrs ? ` · ${attrs}` : ''}
-                        </p>
-                        {variant.description?.trim() ? <p className="mt-1 text-sm text-ink-muted">{variant.description.trim()}</p> : null}
-                      </div>
-                      <p className="shrink-0 text-right text-sm font-semibold text-ink">
-                        {rentalPricingSummary(effectiveVariantPricing(rental, variant), mode, currency)}
-                      </p>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </PreviewSection>
-
-          <PreviewSection title="Availability" onEdit={() => goTo('availability-summary')}>
+          <PreviewSection title="Availability & duration" onEdit={() => goTo('availability-summary')}>
             <ul className="space-y-1 text-sm text-ink">
-              <li>Rent {durationLabel(mode).toLowerCase()} · {limitsSummary(rental, mode)}</li>
-              {(rental.bookingNoticeHours ?? 0) > 0 ? <li>Book at least {noticeLabel(rental.bookingNoticeHours ?? 0)} ahead</li> : null}
-              {Number(rental.bufferMinutes ?? 0) > 0 ? <li>{bufferLabel(Number(rental.bufferMinutes))} preparation between rentals</li> : null}
+              <li>
+                Rent {durationLabel(mode).toLowerCase()} · {limitsSummary(rental, mode)}
+              </li>
+              {(rental.bookingNoticeHours ?? 0) > 0 ? (
+                <li>Book at least {noticeLabel(rental.bookingNoticeHours ?? 0)} ahead</li>
+              ) : null}
+              {Number(rental.bufferMinutes ?? 0) > 0 ? (
+                <li>{bufferLabel(Number(rental.bufferMinutes))} preparation between rentals</li>
+              ) : null}
+              {rental.calendarDayRentals !== false && (mode === 'daily' || mode === 'both') ? (
+                <li>Daily rentals use calendar days with your pickup and return hours</li>
+              ) : null}
             </ul>
           </PreviewSection>
 
@@ -1808,11 +2023,16 @@ function PreviewStage({ ctx }: { ctx: Ctx }) {
                 </ul>
               ) : null}
               {rental.collectionNotes?.trim() ? <p className="text-ink-muted">{rental.collectionNotes.trim()}</p> : null}
+              {rental.staffAssisted != null ? (
+                <p className="text-ink-muted">
+                  {rental.staffAssisted ? 'Staff hand over the item' : 'Self-service pickup'}
+                </p>
+              ) : null}
             </div>
           </PreviewSection>
 
           {inclusions.length > 0 ? (
-            <PreviewSection title="Included" onEdit={() => goTo('inclusions')}>
+            <PreviewSection title="What's included" onEdit={() => goTo('inclusions')}>
               <ul className="grid gap-1 text-sm text-ink sm:grid-cols-2">
                 {inclusions.map((line) => (
                   <li key={line}>✓ {line}</li>
@@ -1822,7 +2042,7 @@ function PreviewStage({ ctx }: { ctx: Ctx }) {
           ) : null}
 
           {reqs.length > 0 || rental.idRequired != null ? (
-            <PreviewSection title="Requirements" onEdit={() => goTo('requirements')}>
+            <PreviewSection title="Customer requirements" onEdit={() => goTo('requirements')}>
               <dl className="space-y-1.5 text-sm">
                 {reqs.map(([key, value]) => (
                   <div key={key} className="flex justify-between gap-3">
@@ -1846,22 +2066,74 @@ function PreviewStage({ ctx }: { ctx: Ctx }) {
             </PreviewSection>
           ) : null}
 
-          <PreviewSection title="Cancellation" onEdit={() => goTo('cancellation')}>
-            <p className="text-sm text-ink">{cancellation ? `${cancellation.title}: ${cancellation.body}` : 'No cancellation policy chosen yet.'}</p>
-          </PreviewSection>
+          {cancellation ? (
+            <PreviewSection title="Cancellation policy" onEdit={() => goTo('cancellation')}>
+              <p className="text-sm text-ink">
+                <span className="font-semibold">{cancellation.title}.</span> {cancellation.body}
+              </p>
+              <p className="stay-help mt-1">Shown to customers once rental bookings open — not active yet.</p>
+            </PreviewSection>
+          ) : null}
 
-          {rental.depositDisclosure?.trim() || rental.insuranceDisclosure?.trim() ? (
-            <PreviewSection title="Deposits and insurance" onEdit={() => goTo('deposit-info')}>
+          {showDeposit || showInsurance ? (
+            <PreviewSection title="Deposit & insurance" onEdit={() => goTo('deposit-info')}>
               <div className="space-y-2 text-sm text-ink">
-                {rental.depositDisclosure?.trim() ? <p>{rental.depositDisclosure.trim()}</p> : null}
-                {rental.insuranceDisclosure?.trim() ? <p>{rental.insuranceDisclosure.trim()}</p> : null}
+                {showDeposit ? (
+                  <div className="space-y-1">
+                    <p className="font-semibold">Security deposit</p>
+                    {rental.depositRequired === false ? <p>No deposit required</p> : null}
+                    {rental.depositRequired === true ? (
+                      <>
+                        {rental.depositAmountMinor != null && rental.depositAmountMinor > 0 ? (
+                          <p>{formatRentalMinor(rental.depositAmountMinor, rental.depositCurrency || currency)}</p>
+                        ) : null}
+                        {depositMethod ? <p>{depositMethod}</p> : null}
+                        {rental.depositReturnNotes?.trim() ? <p>{rental.depositReturnNotes.trim()}</p> : null}
+                      </>
+                    ) : null}
+                    {rental.depositDisclosure?.trim() ? <p>{rental.depositDisclosure.trim()}</p> : null}
+                  </div>
+                ) : null}
+                {showInsurance ? (
+                  <div className="space-y-1">
+                    <p className="font-semibold">Insurance</p>
+                    {rental.insuranceIncluded === true ? <p>Included</p> : null}
+                    {rental.insuranceIncluded === false ? <p>Not included</p> : null}
+                    {(rental.insuranceCoverageNotes || rental.insuranceDisclosure)?.trim() ? (
+                      <p>{(rental.insuranceCoverageNotes || rental.insuranceDisclosure || '').trim()}</p>
+                    ) : null}
+                    {rental.insuranceExclusions?.trim() ? (
+                      <p>
+                        <span className="text-ink-muted">Exclusions:</span> {rental.insuranceExclusions.trim()}
+                      </p>
+                    ) : null}
+                    {rental.insuranceExcessNotes?.trim() ? (
+                      <p>
+                        <span className="text-ink-muted">Excess:</span> {rental.insuranceExcessNotes.trim()}
+                      </p>
+                    ) : null}
+                  </div>
+                ) : null}
                 <p className="stay-help">Traverion does not collect security deposits online.</p>
               </div>
             </PreviewSection>
           ) : null}
+
+          <section className="rounded-xl bg-[#F8FAFC] px-3.5 py-3 ring-1 ring-[#E6EAF0]" aria-label="Booking status">
+            <p className="text-sm font-semibold text-ink">Book this rental</p>
+            <p className="mt-1 text-sm text-ink-muted">
+              Traveler booking is not available yet. This button will open when Traverion Rentals launches.
+            </p>
+            <button
+              type="button"
+              disabled
+              className="tv-btn-primary mt-3 min-h-11 w-full cursor-not-allowed px-4 text-sm font-semibold opacity-50"
+            >
+              Booking unavailable
+            </button>
+          </section>
         </div>
       </article>
-      <p className="stay-help">Travelers cannot book rentals yet. This preview shows how the listing will read.</p>
     </div>
   );
 }
@@ -1896,58 +2168,82 @@ function PublishStage({ ctx, check }: { ctx: Ctx; check: RentalOnboardingCheck }
         {cover ? (
           <img src={cover} alt="" className="h-20 w-28 shrink-0 rounded-lg object-cover" />
         ) : (
-          <div className="flex h-20 w-28 shrink-0 items-center justify-center rounded-lg bg-[#F4F6F8] text-xs text-ink-muted">No photo</div>
+          <div className="flex h-20 w-28 shrink-0 items-center justify-center rounded-lg bg-[#F4F6F8] text-xs text-ink-muted">
+            No photo
+          </div>
         )}
         <div className="min-w-0 flex-1">
-          <p className="truncate font-display text-lg font-semibold text-ink">{values.title.trim() || 'Untitled rental'}</p>
-          <p className="text-sm text-ink-muted">{travelerDestinationLabel(values.city, values.country) || 'Location not set'}</p>
+          <p className="truncate font-display text-lg font-semibold text-ink">
+            {values.title.trim() || 'Untitled rental'}
+          </p>
+          <p className="text-sm text-ink-muted">
+            {travelerDestinationLabel(values.city, values.country) || 'Location not set'}
+          </p>
           <p className={`mt-1 text-sm font-semibold ${ready ? 'text-[#073b83]' : 'text-[#9f1239]'}`} role="status">
-            {ready ? 'Ready to mark complete' : `${issues.length} thing${issues.length === 1 ? '' : 's'} still need${issues.length === 1 ? 's' : ''} attention`}
+            {ready
+              ? 'Setup complete — ready to save as a finished draft'
+              : `${issues.length} item${issues.length === 1 ? '' : 's'} still need${issues.length === 1 ? 's' : ''} attention`}
           </p>
         </div>
       </div>
 
-      {issues.length > 0 ? (
+      {ready ? (
+        <section className="stay-panel space-y-2" aria-label="Completion confirmation">
+          <p className="text-sm font-semibold text-ink">Everything required for this draft is filled in.</p>
+          <p className="text-sm text-ink-muted">
+            Finishing setup saves your draft. The listing stays unpublished, and travelers cannot book until Traverion
+            Rentals launches.
+          </p>
+        </section>
+      ) : (
         <section className="stay-panel space-y-2" aria-label="Still needed">
           <p className="stay-kicker">Still needed</p>
           <ul className="overflow-hidden rounded-xl ring-1 ring-[#E6EAF0]">
             {issues.map((line) => (
-              <li key={line} className="flex items-start justify-between gap-3 border-t border-[#E6EAF0] bg-[#FFF8F8] px-3 py-2.5 first:border-t-0">
+              <li
+                key={line}
+                className="flex items-start justify-between gap-3 border-t border-[#E6EAF0] bg-[#FFF8F8] px-3 py-2.5 first:border-t-0"
+              >
                 <p className="min-w-0 text-sm text-ink">{line}</p>
-                <PreviewEdit onClick={() => props.onEditStage(rentalScreenIndexForPublishLine(line))} label={`Fix: ${line}`} />
+                <PreviewEdit
+                  onClick={() => props.onEditStage(rentalScreenIndexForPublishLine(line))}
+                  label={`Fix: ${line}`}
+                />
               </li>
             ))}
           </ul>
         </section>
-      ) : (
-        <section className="stay-panel space-y-1">
-          <p className="text-sm font-semibold text-ink">Everything required is filled in.</p>
-          <p className="text-sm text-ink-muted">You can still edit any step from the checklist below.</p>
-        </section>
       )}
 
-      <details className="stay-panel">
-        <summary className="min-h-11 cursor-pointer text-sm font-semibold text-ink">Full checklist</summary>
-        <ul className="mt-2 overflow-hidden rounded-xl ring-1 ring-[#E6EAF0]">
+      <section className="stay-panel space-y-2" aria-label="Setup checklist">
+        <p className="stay-kicker">Setup checklist</p>
+        <ul className="overflow-hidden rounded-xl ring-1 ring-[#E6EAF0]">
           {PUBLISH_ROWS.map((row) => {
             const issue = rentalStageBlocker(row.id, check);
             return (
-              <li key={row.id} className={`flex items-start justify-between gap-3 border-t border-[#E6EAF0] px-3 py-2.5 first:border-t-0 ${issue ? 'bg-[#FFF8F8]' : ''}`}>
+              <li
+                key={row.id}
+                className={`flex items-start justify-between gap-3 border-t border-[#E6EAF0] px-3 py-2.5 first:border-t-0 ${
+                  issue ? 'bg-[#FFF8F8]' : 'bg-white'
+                }`}
+              >
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-ink">{row.label}</p>
-                  <p className={`text-sm ${issue ? 'text-[#9f1239]' : 'text-ink-muted'}`}>{issue ?? 'Complete'}</p>
+                  <p className={`text-sm ${issue ? 'text-[#9f1239]' : 'text-ink-muted'}`}>
+                    {issue ?? 'Complete'}
+                  </p>
                 </div>
                 <PreviewEdit onClick={() => goTo(row.id)} label={`Edit ${row.label}`} />
               </li>
             );
           })}
         </ul>
-      </details>
+      </section>
 
       <section className="stay-panel space-y-1" aria-label="Booking status">
         <p className="stay-kicker">Before you finish</p>
         <p className="text-sm leading-relaxed text-ink">
-          Marking this complete saves a finished draft. Travelers cannot book rentals yet, and your listing stays
+          Finish rental setup saves a complete draft only. Travelers cannot book rentals yet, and your listing stays
           unpublished until Traverion Rentals launches.
         </p>
       </section>
@@ -2164,18 +2460,15 @@ export default function RentalOnboardingFlow(props: Props) {
     <>
     <div
       key={props.stage}
-      className={`stay-creator mx-auto w-full ${previewWide ? 'max-w-4xl' : wide ? 'max-w-3xl' : 'max-w-xl'} ${
+      className={`stay-creator rental-creator mx-auto w-full ${previewWide ? 'max-w-4xl' : wide ? 'max-w-3xl' : 'max-w-xl'} ${
         props.direction === 'back' ? 'stay-stage-back' : 'stay-stage-forward'
       }`}
     >
       <div className="flex items-center justify-between gap-3">
-        <div>
+        <div className="min-w-0">
           <p className="stay-kicker">
             {stage.group}
             {stage.part && !/of 1$/.test(stage.part) ? ` · ${stage.part}` : ''}
-          </p>
-          <p className="stay-help mt-1">
-            Step {props.stage + 1} of {RENTAL_ONBOARDING_SCREENS.length}
           </p>
         </div>
         {showBack ? (

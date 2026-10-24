@@ -101,8 +101,20 @@ export type RentalDetails = {
   requirements?: Record<string, string>;
   rentalRules?: string;
   cancellationPreset?: string;
+  /** Free-text deposit notes (legacy + custom detail). */
   depositDisclosure?: string;
+  /** Free-text insurance notes (legacy + custom detail). */
   insuranceDisclosure?: string;
+  /** Structured deposit — informational only; Traverion does not collect online. */
+  depositRequired?: boolean | null;
+  depositAmountMinor?: number | null;
+  depositCurrency?: string;
+  depositCollectionMethod?: 'cash_at_pickup' | 'card_at_pickup' | 'other' | null;
+  depositReturnNotes?: string;
+  insuranceIncluded?: boolean | null;
+  insuranceCoverageNotes?: string;
+  insuranceExclusions?: string;
+  insuranceExcessNotes?: string;
   /**
    * Supplier marked the creator checklist complete.
    * Does NOT make the listing publicly bookable — status must stay draft until rental checkout ships.

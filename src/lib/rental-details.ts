@@ -151,6 +151,35 @@ export function normalizeRentalDetails(raw: unknown): RentalDetails | undefined 
   if (typeof o.cancellationPreset === 'string') out.cancellationPreset = o.cancellationPreset.trim().slice(0, 40);
   if (typeof o.depositDisclosure === 'string') out.depositDisclosure = o.depositDisclosure.trim().slice(0, 1000);
   if (typeof o.insuranceDisclosure === 'string') out.insuranceDisclosure = o.insuranceDisclosure.trim().slice(0, 1000);
+  if (typeof o.depositRequired === 'boolean') out.depositRequired = o.depositRequired;
+  if (typeof o.depositAmountMinor === 'number' && Number.isFinite(o.depositAmountMinor)) {
+    out.depositAmountMinor = Math.max(0, Math.round(o.depositAmountMinor));
+  } else if (o.depositAmountMinor === null) {
+    out.depositAmountMinor = null;
+  }
+  if (typeof o.depositCurrency === 'string' && o.depositCurrency.trim()) {
+    out.depositCurrency = o.depositCurrency.trim().slice(0, 3).toUpperCase();
+  }
+  if (
+    o.depositCollectionMethod === 'cash_at_pickup' ||
+    o.depositCollectionMethod === 'card_at_pickup' ||
+    o.depositCollectionMethod === 'other'
+  ) {
+    out.depositCollectionMethod = o.depositCollectionMethod;
+  } else if (o.depositCollectionMethod === null) {
+    out.depositCollectionMethod = null;
+  }
+  if (typeof o.depositReturnNotes === 'string') out.depositReturnNotes = o.depositReturnNotes.trim().slice(0, 500);
+  if (typeof o.insuranceIncluded === 'boolean') out.insuranceIncluded = o.insuranceIncluded;
+  if (typeof o.insuranceCoverageNotes === 'string') {
+    out.insuranceCoverageNotes = o.insuranceCoverageNotes.trim().slice(0, 1000);
+  }
+  if (typeof o.insuranceExclusions === 'string') {
+    out.insuranceExclusions = o.insuranceExclusions.trim().slice(0, 1000);
+  }
+  if (typeof o.insuranceExcessNotes === 'string') {
+    out.insuranceExcessNotes = o.insuranceExcessNotes.trim().slice(0, 500);
+  }
   if (o.creatorComplete === true) out.creatorComplete = true;
 
   if (Array.isArray(o.highlights)) {
@@ -269,4 +298,85 @@ export function rentalVariantComplete(variant: RentalVariant, rental: RentalDeta
     if (!(pricing.pricePerDayMinor != null && pricing.pricePerDayMinor > 0)) return false;
   }
   return true;
+}
+
+const DAY_SHORT: Record<RentalWeekday, string> = {
+  mon: 'Mon',
+  tue: 'Tue',
+  wed: 'Wed',
+  thu: 'Thu',
+  fri: 'Fri',
+  sat: 'Sat',
+  sun: 'Sun',
+};
+
+function hoursFingerprint(day: RentalOperatingDay): string {
+  return [
+    day.earliestPickupHm ?? '',
+    day.latestPickupHm ?? '',
+    day.earliestReturnHm ?? '',
+    day.latestReturnHm ?? '',
+  ].join('|');
+}
+
+/** Compact preview lines — groups consecutive open days that share identical hours. */
+export function groupRentalOperatingHours(days: RentalOperatingDay[]): string[] {
+  const open = days.filter((d) => d.open);
+  if (open.length === 0) return [];
+  const groups: { days: RentalWeekday[]; fingerprint: string; sample: RentalOperatingDay }[] = [];
+  for (const day of open) {
+    const fp = hoursFingerprint(day);
+    const last = groups[groups.length - 1];
+    if (last && last.fingerprint === fp) {
+      last.days.push(day.day);
+    } else {
+      groups.push({ days: [day.day], fingerprint: fp, sample: day });
+    }
+  }
+  return groups.map((g) => {
+    const dayLabel =
+      g.days.length === 1
+        ? DAY_SHORT[g.days[0]]
+        : `${DAY_SHORT[g.days[0]]}–${DAY_SHORT[g.days[g.days.length - 1]]}`;
+    const s = g.sample;
+    return `${dayLabel}: pickup ${s.earliestPickupHm ?? '—'}–${s.latestPickupHm ?? '—'}, return ${s.earliestReturnHm ?? '—'}–${s.latestReturnHm ?? '—'}`;
+  });
+}
+
+/**
+ * Concise option subtitle: quantity + attributes that are not already in the option name.
+ * Avoids "Standard · 5 units · S · Option S" duplication.
+ */
+export function rentalVariantMetaLine(
+  variant: RentalVariant,
+  attributeLabels: { key: string; label: string }[] = []
+): string {
+  const name = variant.name.trim().toLowerCase();
+  const attrs = variant.attributes ?? {};
+  const parts: string[] = [];
+  const qty = Number.isFinite(variant.quantity) ? Math.max(0, Math.floor(variant.quantity)) : 0;
+  parts.push(`${qty} ${qty === 1 ? 'unit' : 'units'}`);
+  for (const key of attributeLabels.map((a) => a.key)) {
+    const value = (attrs[key] ?? '').trim();
+    if (!value) continue;
+    if (name && (name === value.toLowerCase() || name.includes(value.toLowerCase()))) continue;
+    parts.push(value);
+  }
+  return parts.join(' · ');
+}
+
+export function rentalHasDepositInfo(rental: RentalDetails): boolean {
+  if (rental.depositRequired === true) return true;
+  if ((rental.depositDisclosure ?? '').trim()) return true;
+  if (rental.depositAmountMinor != null && rental.depositAmountMinor > 0) return true;
+  return false;
+}
+
+export function rentalHasInsuranceInfo(rental: RentalDetails): boolean {
+  if (rental.insuranceIncluded != null) return true;
+  if ((rental.insuranceDisclosure ?? '').trim()) return true;
+  if ((rental.insuranceCoverageNotes ?? '').trim()) return true;
+  if ((rental.insuranceExclusions ?? '').trim()) return true;
+  if ((rental.insuranceExcessNotes ?? '').trim()) return true;
+  return false;
 }

@@ -369,19 +369,20 @@ export default function RentalOptionEditor({
 
           <section className="stay-panel space-y-3" aria-label="Inventory">
             <p className="stay-kicker">Inventory</p>
-            <StayField label="Units available">
+            <StayField label="Identical units for this option">
               <RentalIntegerInput
                 id={quantityId}
                 value={variant.quantity}
                 min={1}
                 max={9999}
                 stepper
-                ariaLabel="Units available"
+                ariaLabel="Identical units for this option"
                 onChange={(n) => patch({ quantity: n ?? 1 })}
               />
             </StayField>
             <StayHelp>
-              How many of this option you can rent out at the same time. At least 1.
+              Stock for this choice only (for example Size M). Not the number of guests, and not a total across all
+              sizes. At least 1.
             </StayHelp>
             {attempted && quantityInvalid ? (
               <p className="stay-alert !mt-0" role="alert">

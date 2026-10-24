@@ -4383,7 +4383,7 @@ export default function SupplierListingForm({
                     title="Saves a complete rental draft. Travelers cannot book rentals yet."
                     className="stay-nav-btn stay-nav-btn--end touch-manipulation tv-btn-primary !min-h-11 disabled:opacity-50"
                   >
-                    {submitting || shellExiting ? 'Saving…' : 'Mark ready'}
+                    {submitting || shellExiting ? 'Saving…' : 'Finish rental setup'}
                   </button>
                 ) : (
                   <button

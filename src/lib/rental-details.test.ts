@@ -1,11 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import {
   createDefaultRentalVariant,
+  defaultRentalOperatingDays,
   effectiveVariantPricing,
   emptyRentalDetails,
   ensureRentalHasDefaultVariant,
+  groupRentalOperatingHours,
   normalizeRentalDetails,
   rentalVariantComplete,
+  rentalVariantMetaLine,
 } from './rental-details';
 import { rentalPublishBlockers } from './rental-onboarding';
 import type { RentalDetails } from '../types/rental';
@@ -72,6 +75,31 @@ describe('rental details', () => {
     rental.sharedPricing = { pricePerDayMinor: 2500 };
     rental.variants![0].quantity = 6;
     expect(rentalVariantComplete(rental.variants![0], rental)).toBe(true);
+  });
+});
+
+describe('rental display helpers', () => {
+  it('groups identical operating hours across consecutive days', () => {
+    const days = defaultRentalOperatingDays().map((d) => ({
+      ...d,
+      open: d.day !== 'sun',
+      earliestPickupHm: '09:00',
+      latestPickupHm: '17:00',
+      earliestReturnHm: '09:00',
+      latestReturnHm: '18:00',
+    }));
+    const lines = groupRentalOperatingHours(days);
+    expect(lines.some((l) => l.startsWith('Mon–Sat:'))).toBe(true);
+    expect(lines).toHaveLength(1);
+  });
+
+  it('omits attributes already present in the option name', () => {
+    const line = rentalVariantMetaLine(
+      { id: '1', name: 'Size M', quantity: 12, attributes: { size: 'M' } },
+      [{ key: 'size', label: 'Size' }]
+    );
+    expect(line).toBe('12 units');
+    expect(line).not.toMatch(/\bM\b/);
   });
 });
 

@@ -14,7 +14,7 @@ export const RENTAL_ONBOARDING_SCREENS = [
   { id: 'title', group: 'Rental details', part: '1 of 5', title: 'What would you like to call your rental?', body: 'This is the title customers see in search.' },
   { id: 'intro', group: 'Rental details', part: '2 of 5', title: 'Short introduction', body: 'One or two sentences that explain what you rent.' },
   { id: 'description', group: 'Rental details', part: '3 of 5', title: 'Describe the rental', body: 'Tell customers what to expect and what makes this useful.' },
-  { id: 'highlights', group: 'Rental details', part: '4 of 5', title: 'Rental highlights', body: 'Short points customers can scan quickly.' },
+  { id: 'highlights', group: 'Rental details', part: '4 of 5', title: 'Rental highlights', body: 'Add a few concrete selling points — not filler. Skip any that do not help customers decide.' },
   { id: 'specs', group: 'Rental details', part: '5 of 5', title: 'Item specifications', body: 'Shared facts for this listing. Differences between sizes belong in options.' },
   { id: 'photos', group: 'Photos', part: '1 of 2', title: 'Add rental photos', body: 'The first photo is the cover customers see in search.' },
   { id: 'gallery', group: 'Photos', part: '2 of 2', title: 'Review your gallery', body: 'Reorder or remove photos before continuing.' },
@@ -37,9 +37,9 @@ export const RENTAL_ONBOARDING_SCREENS = [
   { id: 'inclusions', group: 'Policies', part: '2 of 5', title: "What's included?", body: 'Items provided with the rental at no extra charge.' },
   { id: 'rules', group: 'Policies', part: '3 of 5', title: 'Important rental rules', body: 'Use, return condition, and late returns.' },
   { id: 'cancellation', group: 'Policies', part: '4 of 5', title: 'Cancellation policy', body: 'Customers see these terms before they pay — once bookings open.' },
-  { id: 'deposit-info', group: 'Policies', part: '5 of 5', title: 'Deposits and insurance', body: 'Informational only. Traverion does not collect security deposits online yet.' },
-  { id: 'preview', group: 'Preview', part: '1 of 2', title: 'This is what customers will see', body: 'Public bookings stay closed until Traverion Rentals launches.' },
-  { id: 'publish', group: 'Preview', part: '2 of 2', title: 'Ready to mark complete?', body: 'Save a complete draft. Travelers cannot book rentals yet.' },
+  { id: 'deposit-info', group: 'Policies', part: '5 of 5', title: 'Deposits and insurance', body: 'Optional supplier-managed terms. Traverion does not collect security deposits online.' },
+  { id: 'preview', group: 'Preview', part: '1 of 2', title: 'Review your rental listing', body: 'A structured preview of what travelers will eventually see. Bookings stay closed until Rentals launches.' },
+  { id: 'publish', group: 'Preview', part: '2 of 2', title: 'Finish rental setup', body: 'Confirm a complete draft. Your listing stays unpublished — travelers cannot book yet.' },
 ] as const;
 
 export type RentalOnboardingScreenId = (typeof RENTAL_ONBOARDING_SCREENS)[number]['id'];
@@ -70,7 +70,6 @@ export type RentalOnboardingCheck = {
 
 export function rentalStageBlocker(screenId: RentalOnboardingScreenId, check: RentalOnboardingCheck): string | null {
   const r = check.rental;
-  const cfg = rentalCategoryConfig(r.category);
 
   switch (screenId) {
     case 'category':
