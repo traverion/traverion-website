@@ -125,6 +125,16 @@ export async function submitReview(params: {
   // rating/title/guest name from the actual reviews row instead of trusting
   // this call's params verbatim (see supabase/functions/_shared/notify-supplier-event-guard.ts).
   const isAnonymous = Boolean(params.isAnonymous);
+  // Edits must not fire another "New review" email / in-app notification.
+  const { data: priorRow, error: priorErr } = await supabase
+    .from('reviews')
+    .select('id')
+    .eq('listing_id', params.listingId)
+    .eq('user_id', params.userId)
+    .maybeSingle();
+  if (priorErr) return { success: false, error: priorErr.message };
+  const isNewReview = !priorRow?.id;
+
   const { data: savedReview, error } = await supabase
     .from('reviews')
     .upsert(
@@ -148,22 +158,28 @@ export async function submitReview(params: {
   if (error) return { success: false, error: error.message };
   // Phase 1730: draft/unpublished listings are hidden from traveler SELECT; resolve
   // supplier via party RPC so new_review still emails the host (1707/1729 parity).
-  const listingMeta = await fetchListingSupplierMetaForParty(params.listingId);
-  if (listingMeta.supplier_id && savedReview?.id) {
-    void notifySupplierEvent({
-      supplierId: listingMeta.supplier_id,
-      eventType: 'new_review',
-      listingId: params.listingId,
-      listingTitle: listingMeta.title ?? undefined,
-      reviewId: savedReview.id,
-      reviewRating: rating,
-      reviewTitle: params.title ?? undefined,
-      guestName: params.guestName,
-      portalBaseUrl: supplierPortalPublicBaseUrl(),
-      // Phase 1722: per-review key — default supplier:new_review:{supplierId} blocked all later reviews.
-      idempotencyKey: `supplier:new_review:${savedReview.id}`,
-      bookingId: bookingId || undefined,
-    });
+  // Only notify on first create — edits must not create another "New review".
+  // Idempotency key still dedupes retries/refreshes for the same review id.
+  if (isNewReview && savedReview?.id) {
+    const listingMeta = await fetchListingSupplierMetaForParty(params.listingId);
+    if (listingMeta.supplier_id) {
+      const commentPreview = (params.comment ?? '').trim().slice(0, 280) || undefined;
+      void notifySupplierEvent({
+        supplierId: listingMeta.supplier_id,
+        eventType: 'new_review',
+        listingId: params.listingId,
+        listingTitle: listingMeta.title ?? undefined,
+        reviewId: savedReview.id,
+        reviewRating: rating,
+        reviewTitle: params.title ?? undefined,
+        guestName: params.guestName,
+        messagePreview: commentPreview,
+        portalBaseUrl: supplierPortalPublicBaseUrl(),
+        // Phase 1722: per-review key — default supplier:new_review:{supplierId} blocked all later reviews.
+        idempotencyKey: `supplier:new_review:${savedReview.id}`,
+        bookingId: bookingId || undefined,
+      });
+    }
   }
   return { success: true };
 }

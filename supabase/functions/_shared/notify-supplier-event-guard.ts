@@ -150,7 +150,15 @@ function listingTitleForBookingTiedSupplierEvent(
 }
 
 export type ReviewRowForSupplierEvent =
-  | { id?: string | null; listing_id?: string | null; rating?: number | null; title?: string | null; guest_name?: string | null }
+  | {
+      id?: string | null;
+      listing_id?: string | null;
+      rating?: number | null;
+      title?: string | null;
+      guest_name?: string | null;
+      comment?: string | null;
+      is_anonymous?: boolean | null;
+    }
   | null
   | undefined;
 
@@ -166,6 +174,7 @@ export type SupplierEventFieldOverrides = {
   bookingPaymentStatus?: 'paid' | 'pending' | 'none';
   reviewRating?: number;
   reviewTitle?: string;
+  messagePreview?: string;
 };
 
 export type SupplierEventResolution =
@@ -246,19 +255,23 @@ export function resolveSupplierEventContext(params: {
     if (String(listingRow.supplier_id ?? '') !== String(params.supplierId)) {
       return { ok: false, error: 'Listing does not belong to the given supplier', status: 403 };
     }
+    const comment = typeof reviewRow.comment === 'string' ? reviewRow.comment.trim() : '';
+    const isAnonymous = Boolean(reviewRow.is_anonymous);
+    const rawGuest =
+      typeof reviewRow.guest_name === 'string' && reviewRow.guest_name.trim()
+        ? reviewRow.guest_name.trim()
+        : undefined;
     return {
       ok: true,
       overrides: {
         listingTitle:
           typeof listingRow.title === 'string' && listingRow.title.trim() ? listingRow.title.trim() : undefined,
-        guestName:
-          typeof reviewRow.guest_name === 'string' && reviewRow.guest_name.trim()
-            ? reviewRow.guest_name.trim()
-            : undefined,
+        guestName: isAnonymous ? 'Anonymous traveler' : rawGuest,
         reviewRating:
           typeof reviewRow.rating === 'number' && Number.isFinite(reviewRow.rating) ? reviewRow.rating : undefined,
         reviewTitle:
           typeof reviewRow.title === 'string' && reviewRow.title.trim() ? reviewRow.title.trim() : undefined,
+        messagePreview: comment ? comment.slice(0, 280) : undefined,
       },
     };
   }

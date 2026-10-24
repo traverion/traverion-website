@@ -430,7 +430,7 @@ export const SUPPLIER_BOOKING_DETAIL_CHANGED_NOTIFY_SUB =
  * Keep in sync with notify-supplier-event new_review subcopy.
  */
 export const SUPPLIER_NEW_REVIEW_NOTIFY_SUB =
-  'Someone left a review on your tour. Open Reviews in the partner portal — Traverion does not treat email delivery as proof you saw it.';
+  'A traveler left a review. Open Reviews in the partner portal to read it and reply — Traverion does not treat email delivery as proof you saw it.';
 
 /**
  * Partner notify for a new paid booking — Bookings is durable.

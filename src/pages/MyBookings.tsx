@@ -15,6 +15,7 @@ import { useDialogFocus } from '../hooks/useDialogFocus';
 import { SkeletonListItem, SkeletonConsumerPage } from '../components/ui/Skeleton';
 import { useAuth } from '../contexts/AuthContext';
 import { fetchConsumerProfileRow } from '../data/supabase-consumer-profile';
+import { displayReviewGuestName } from '../lib/review-public-identity';
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
 import {
   fetchMyBookings,
@@ -194,6 +195,12 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
   const [tripDetailTab, setTripDetailTab] = useState<'overview' | 'details' | 'messages'>('overview');
   const [focusMessageId, setFocusMessageId] = useState<string | null>(null);
   const [reviewedListingIds, setReviewedListingIds] = useState<Set<string>>(new Set());
+  const [myReviewsByListing, setMyReviewsByListing] = useState<
+    Record<
+      string,
+      { rating: number; comment: string; guest_name: string; is_anonymous: boolean }
+    >
+  >({});
   const [reviewTarget, setReviewTarget] = useState<TravelerReviewTarget | null>(null);
   const [reviewProfileDisplayName, setReviewProfileDisplayName] = useState<string | null>(null);
   const [actionSuccess, setActionSuccess] = useState<{ title: string; body: string } | null>(null);
@@ -293,10 +300,25 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
       if (supabase && user?.id) {
         const { data: reviewed, error: reviewErr } = await supabase
           .from('reviews')
-          .select('listing_id')
+          .select('listing_id, rating, comment, guest_name, is_anonymous')
           .eq('user_id', user.id);
         if (gen === loadGenRef.current && !reviewErr) {
-          setReviewedListingIds(new Set((reviewed ?? []).map((row) => row.listing_id).filter(Boolean)));
+          const byListing: Record<
+            string,
+            { rating: number; comment: string; guest_name: string; is_anonymous: boolean }
+          > = {};
+          for (const row of reviewed ?? []) {
+            const lid = String((row as { listing_id?: string }).listing_id ?? '').trim();
+            if (!lid) continue;
+            byListing[lid] = {
+              rating: Number((row as { rating?: number }).rating) || 0,
+              comment: String((row as { comment?: string | null }).comment ?? '').trim(),
+              guest_name: String((row as { guest_name?: string | null }).guest_name ?? '').trim(),
+              is_anonymous: Boolean((row as { is_anonymous?: boolean | null }).is_anonymous),
+            };
+          }
+          setMyReviewsByListing(byListing);
+          setReviewedListingIds(new Set(Object.keys(byListing)));
         }
       }
     } catch (e) {
@@ -1353,38 +1375,94 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                   tripView === 'past' &&
                   tripAllowsLeaveReview(ops) &&
                   bookingEligibleForReview(b) ? (
-                    <div className="tv-trip-card__review-invite">
-                      <div className="min-w-0">
-                        <p className="text-[13px] font-semibold text-ink">
-                          {reviewedListingIds.has(b.listing_id)
-                            ? 'Your review'
-                            : isStay
-                              ? 'How was your stay?'
-                              : 'How was the experience?'}
-                        </p>
-                        <p className="mt-0.5 text-[12.5px] text-ink-muted">
-                          {reviewedListingIds.has(b.listing_id)
-                            ? 'Update your rating or comments anytime.'
-                            : 'Share feedback for other travelers.'}
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setReviewTarget({
-                            bookingId: b.id,
-                            listingId: b.listing_id,
-                            listingTitle: tripTitle,
-                            imageUrl: thumb,
-                            mode: reviewedListingIds.has(b.listing_id) ? 'edit' : 'write',
-                          })
-                        }
-                        className="tv-btn-secondary shrink-0 !min-h-9 !px-3 !text-[13px]"
-                      >
-                        <Star className="h-3.5 w-3.5" aria-hidden />
-                        {reviewedListingIds.has(b.listing_id) ? 'Edit review' : 'Write a review'}
-                      </button>
-                    </div>
+                    (() => {
+                      const mine = myReviewsByListing[b.listing_id];
+                      if (mine && mine.rating >= 1) {
+                        const preview =
+                          mine.comment.length > 140
+                            ? `${mine.comment.slice(0, 140).trimEnd()}…`
+                            : mine.comment;
+                        const identityLabel = mine.is_anonymous
+                          ? 'Posted anonymously'
+                          : `Posted as ${displayReviewGuestName(mine)}`;
+                        return (
+                          <div className="tv-trip-card__review-summary">
+                            <div className="min-w-0 flex-1">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span
+                                  className="inline-flex items-center gap-0.5"
+                                  aria-label={`${mine.rating} out of 5 stars`}
+                                >
+                                  {[1, 2, 3, 4, 5].map((i) => (
+                                    <Star
+                                      key={i}
+                                      className={`h-3.5 w-3.5 ${
+                                        i <= mine.rating
+                                          ? 'fill-[#073b83] text-[#073b83]'
+                                          : 'text-[#d1d5db]'
+                                      }`}
+                                      aria-hidden
+                                    />
+                                  ))}
+                                </span>
+                                <span className="text-[12px] font-semibold tabular-nums text-ink">
+                                  {mine.rating}/5
+                                </span>
+                              </div>
+                              {preview ? (
+                                <p className="mt-1 text-[12.5px] leading-snug text-ink-muted line-clamp-2">
+                                  {preview}
+                                </p>
+                              ) : null}
+                              <p className="mt-1 text-[11.5px] text-ink-faint">{identityLabel}</p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setReviewTarget({
+                                  bookingId: b.id,
+                                  listingId: b.listing_id,
+                                  listingTitle: tripTitle,
+                                  imageUrl: thumb,
+                                  mode: 'edit',
+                                })
+                              }
+                              className="tv-btn-ghost shrink-0 !min-h-9 !px-2.5 !text-[13px]"
+                            >
+                              Edit review
+                            </button>
+                          </div>
+                        );
+                      }
+                      return (
+                        <div className="tv-trip-card__review-invite">
+                          <div className="min-w-0">
+                            <p className="text-[13px] font-semibold text-ink">
+                              {isStay ? 'How was your stay?' : 'How was the experience?'}
+                            </p>
+                            <p className="mt-0.5 text-[12.5px] text-ink-muted">
+                              Share feedback for other travelers.
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setReviewTarget({
+                                bookingId: b.id,
+                                listingId: b.listing_id,
+                                listingTitle: tripTitle,
+                                imageUrl: thumb,
+                                mode: 'write',
+                              })
+                            }
+                            className="tv-btn-secondary shrink-0 !min-h-9 !px-3 !text-[13px]"
+                          >
+                            <Star className="h-3.5 w-3.5" aria-hidden />
+                            Write a review
+                          </button>
+                        </div>
+                      );
+                    })()
                   ) : null}
                   {tripDetailTab === 'overview' && isStayRequestAwaitingHost(b) ? (
                     <StayRequestActions
@@ -2160,6 +2238,27 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
               next.add(listingId);
               return next;
             });
+            // Refresh this listing's review preview without a full trips reload.
+            if (supabase && user?.id) {
+              void supabase
+                .from('reviews')
+                .select('listing_id, rating, comment, guest_name, is_anonymous')
+                .eq('user_id', user.id)
+                .eq('listing_id', listingId)
+                .maybeSingle()
+                .then(({ data }) => {
+                  if (!data) return;
+                  setMyReviewsByListing((prev) => ({
+                    ...prev,
+                    [listingId]: {
+                      rating: Number(data.rating) || 0,
+                      comment: String(data.comment ?? '').trim(),
+                      guest_name: String(data.guest_name ?? '').trim(),
+                      is_anonymous: Boolean(data.is_anonymous),
+                    },
+                  }));
+                });
+            }
           }}
         />
       ) : null}

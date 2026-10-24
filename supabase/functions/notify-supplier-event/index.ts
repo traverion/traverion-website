@@ -170,6 +170,13 @@ function eventSubject(payload: Payload): string {
   if (payload.eventType === 'partial_refund_recorded') {
     return ref ? `Partial refund · ${ref}` : `Partial refund recorded · ${listing}`;
   }
+  if (payload.eventType === 'new_review') {
+    const stars =
+      typeof payload.reviewRating === 'number' && payload.reviewRating >= 1 && payload.reviewRating <= 5
+        ? payload.reviewRating
+        : null;
+    return stars != null ? `New ${stars}-star review received · ${listing}` : `New review · ${listing}`;
+  }
   return `New review · ${listing}`;
 }
 
@@ -325,9 +332,12 @@ function eventHtml(payload: Payload): string {
   const portal = `${base}/partner`;
   // Stays open Reservations; tours/activities open Bookings.
   const deskPath = payload.listingKind === 'stay' ? '/partner/reservations' : '/partner/bookings';
-  const bookingsUrl = payload.bookingId
-    ? `${base}${deskPath}?booking=${encodeURIComponent(payload.bookingId)}`
-    : `${base}${deskPath}`;
+  const bookingsUrl =
+    payload.eventType === 'new_review' && payload.reviewId
+      ? `${base}/partner/reviews?highlight=${encodeURIComponent(payload.reviewId)}`
+      : payload.bookingId
+        ? `${base}${deskPath}?booking=${encodeURIComponent(payload.bookingId)}`
+        : `${base}${deskPath}`;
 
   if (payload.eventType === 'supplier_welcome') {
     const bodyText = escapeHtml(eventBody(payload)).replace(/\n/g, '<br/>');
@@ -404,10 +414,17 @@ function eventHtml(payload: Payload): string {
       ? 'The booking is already cancelled (Refund due). Stripe recorded a partial refund and reduced the remaining charge. The booking stays cancelled.'
       : 'Stripe recorded a partial refund. The booking stays paid for the remaining amount.';
   } else if (payload.eventType === 'new_review') {
-    headline = 'New review';
+    const stars =
+      typeof payload.reviewRating === 'number' && payload.reviewRating >= 1 && payload.reviewRating <= 5
+        ? payload.reviewRating
+        : null;
+    headline = stars != null ? `New ${stars}-star review received` : 'New review received';
     // Keep in sync with SUPPLIER_NEW_REVIEW_NOTIFY_SUB in booking-confirmation-copy.ts
-    sub =
-      'A traveler left a review. Open Reviews to read it.';
+    sub = payload.messagePreview?.trim()
+      ? 'A traveler left a review. Open Reviews to read it and reply.'
+      : stars != null
+        ? `Customer left a ${stars}-star rating. Open Reviews in the partner portal.`
+        : 'A traveler left a review. Open Reviews to read it.';
   } else if (payload.eventType === 'guest_message') {
     if (payload.fieldDiffs?.length) {
       headline = 'Guest updated their booking details';
@@ -520,11 +537,17 @@ function eventHtml(payload: Payload): string {
   }
   if (payload.messagePreview) {
     const previewLabel =
-      payload.eventType === 'guest_message' && !(payload.fieldDiffs?.length)
-        ? 'Message'
-        : 'Latest note';
+      payload.eventType === 'new_review'
+        ? 'Comment'
+        : payload.eventType === 'guest_message' && !(payload.fieldDiffs?.length)
+          ? 'Message'
+          : 'Latest note';
     rows.push(
       `<tr><td style="padding:6px 0;font-size:14px;color:#6b7280;vertical-align:top;">${previewLabel}</td><td style="padding:6px 0;font-size:14px;color:#111827;line-height:1.5;">${escapeHtml(payload.messagePreview)}</td></tr>`,
+    );
+  } else if (payload.eventType === 'new_review' && typeof payload.reviewRating === 'number') {
+    rows.push(
+      `<tr><td style="padding:6px 0;font-size:14px;color:#6b7280;vertical-align:top;">Comment</td><td style="padding:6px 0;font-size:14px;color:#111827;line-height:1.5;">Customer left a ${payload.reviewRating}-star rating.</td></tr>`,
     );
   }
   if (payload.changeSummary) {
@@ -803,7 +826,15 @@ serve(async (req) => {
         }
       | null = null;
     let reviewRow:
-      | { id?: string | null; listing_id?: string | null; rating?: number | null; title?: string | null; guest_name?: string | null }
+      | {
+          id?: string | null;
+          listing_id?: string | null;
+          rating?: number | null;
+          title?: string | null;
+          guest_name?: string | null;
+          comment?: string | null;
+          is_anonymous?: boolean | null;
+        }
       | null = null;
 
     if (isBookingTiedSupplierEvent(payload.eventType) || isReviewTiedSupplierEvent(payload.eventType)) {
@@ -829,7 +860,7 @@ serve(async (req) => {
         if (reviewId) {
           const { data } = await admin
             .from('reviews')
-            .select('id, listing_id, rating, title, guest_name')
+            .select('id, listing_id, rating, title, guest_name, comment, is_anonymous')
             .eq('id', reviewId)
             .maybeSingle();
           reviewRow = data;
@@ -962,6 +993,40 @@ serve(async (req) => {
     });
     if (claim.action === 'skip') {
       return json({ success: true, skipped: true, reason: claim.reason, notified: 0, idempotencyKey });
+    }
+
+    // In-app bell notification (persisted). Same trusted path as email; unique on
+    // (supplier_id, review_id) for new_review so edits/retries never duplicate.
+    if (effectivePayload.eventType === 'new_review' && String(effectivePayload.reviewId ?? '').trim()) {
+      const stars =
+        typeof effectivePayload.reviewRating === 'number' &&
+        effectivePayload.reviewRating >= 1 &&
+        effectivePayload.reviewRating <= 5
+          ? Math.floor(effectivePayload.reviewRating)
+          : null;
+      const listingLabel = (effectivePayload.listingTitle ?? 'Your listing').trim() || 'Your listing';
+      const guestLabel = (effectivePayload.guestName ?? '').trim() || 'Traveler';
+      const comment = (effectivePayload.messagePreview ?? '').trim();
+      const starLine = stars != null ? `${'★'.repeat(stars)}${'☆'.repeat(5 - stars)}` : '';
+      const bodyLines = [
+        listingLabel,
+        starLine,
+        comment ? `"${comment}"` : stars != null ? `Customer left a ${stars}-star rating.` : '',
+        guestLabel,
+      ].filter(Boolean);
+      const { error: activityErr } = await admin.from('supplier_activity_notifications').insert({
+        supplier_id: payload.supplierId,
+        event_type: 'new_review',
+        title: stars != null ? `New ${stars}-star review received` : 'New review received',
+        body: bodyLines.join('\n'),
+        listing_id: String(payload.listingId ?? '').trim() || null,
+        review_id: String(effectivePayload.reviewId).trim(),
+        href_path: `/partner/reviews?highlight=${encodeURIComponent(String(effectivePayload.reviewId).trim())}`,
+      });
+      // Unique violation = already notified for this review — continue to email claim path.
+      if (activityErr && !/duplicate|unique/i.test(activityErr.message ?? '')) {
+        console.error('supplier_activity_notifications insert failed', activityErr.message);
+      }
     }
 
     const recipients = new Set<string>();
