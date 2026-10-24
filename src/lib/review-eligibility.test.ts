@@ -15,10 +15,30 @@ describe('bookingEligibleForReview', () => {
     },
   };
 
-  it('allows paid confirmed tour after experience-local start', () => {
-    // 20:00 Helsinki on 2026-09-01 is 17:00 UTC; after that instant → eligible.
+  it('allows paid confirmed tour after experience-local start when duration is absent', () => {
+    // No snapshotted duration → unlock after start (legacy; do not invent an end).
     const now = Date.parse('2026-09-01T17:01:00.000Z');
     expect(bookingEligibleForReview(pastTour, now)).toBe(true);
+  });
+
+  it('unlocks tour review only after departure + snapshotted duration', () => {
+    const withDuration = {
+      ...pastTour,
+      purchase_snapshot: {
+        ...pastTour.purchase_snapshot,
+        duration: '5 hours',
+      },
+    };
+    // 20:00 + 5h Helsinki = 01:00 next day (22:00 UTC on 2026-09-01 during EEST).
+    expect(bookingEligibleForReview(withDuration, Date.parse('2026-09-01T17:01:00.000Z'))).toBe(
+      false
+    );
+    expect(bookingEligibleForReview(withDuration, Date.parse('2026-09-01T21:59:00.000Z'))).toBe(
+      false
+    );
+    expect(bookingEligibleForReview(withDuration, Date.parse('2026-09-01T22:01:00.000Z'))).toBe(
+      true
+    );
   });
 
   it('rejects before experience-local start even if browser TZ would already be past', () => {

@@ -1,9 +1,22 @@
-import { resolveDepartureTimezone, wallTimeInZoneToUtcMs } from './tour-departure-cutoff';
 import { bookingIsStayNight } from './pickup-completeness';
-import { displayDepartureTimezoneFromPurchase, displayStartTimeFromPurchase } from './purchase-snapshot';
+import { displayStayCheckOutTimeFromPurchase } from './purchase-snapshot';
 import { stayRangeFromBooking } from './stayOccupancy';
+import {
+  durationMinutesFromPurchase,
+  resolveReviewTimezone,
+  reviewUnlockMsForStay,
+  reviewUnlockMsForTour,
+  tourStartHmFromBooking,
+} from './review-experience-end';
 
-/** Pure rules for when a booking may unlock a traveler review — mirrors SQL booking_experience_started_for_review (Phase 1326/1328). */
+/**
+ * Pure rules for when a booking may unlock a traveler review.
+ * Mirrors SQL booking_experience_started_for_review (Phase 1326/1328 + duration end).
+ *
+ * Tours: unlock after scheduled departure + snapshotted duration (when present).
+ * Stays: unlock after scheduled checkout (date + optional checkOutTime).
+ * Cancelled / unpaid never unlock.
+ */
 export function bookingEligibleForReview(
   b: {
     status?: string | null;
@@ -23,25 +36,34 @@ export function bookingEligibleForReview(
   const pay = lower(b.payment_status);
   if (!(pay === 'paid' || pay === 'complete' || pay === 'succeeded')) return false;
 
-  const tz = resolveDepartureTimezone(
-    displayDepartureTimezoneFromPurchase(b.purchase_snapshot) || b.departureTimezone
-  );
+  const tz = resolveReviewTimezone({
+    purchase_snapshot: b.purchase_snapshot,
+    departureTimezone: b.departureTimezone,
+  });
 
-  // Stay: bookingIsStayNight parity with SQL booking_is_stay_night; unlock on/after
-  // stay_booking_check_out day (stayRangeFromBooking).
   if (bookingIsStayNight(b)) {
     const stay = stayRangeFromBooking(b);
     if (!stay) return false;
-    const todayLocal = ymdInZone(nowMs, tz);
-    return Boolean(todayLocal && todayLocal >= stay.checkOut);
+    const checkOutHm = displayStayCheckOutTimeFromPurchase(b.purchase_snapshot, null);
+    const unlockMs = reviewUnlockMsForStay({
+      checkOutYmd: stay.checkOut,
+      checkOutTimeHm: checkOutHm,
+      timeZone: tz,
+    });
+    return unlockMs != null && nowMs > unlockMs;
   }
 
   const date = (b.booking_date ?? '').trim();
   if (!date) return false;
-  const startHm =
-    displayStartTimeFromPurchase(b.purchase_snapshot, b.start_time)?.slice(0, 5) || '23:59';
-  const startMs = wallTimeInZoneToUtcMs(date, startHm, tz);
-  return startMs != null && nowMs > startMs;
+  const startHm = tourStartHmFromBooking(b);
+  const durationMinutes = durationMinutesFromPurchase(b.purchase_snapshot, null);
+  const unlockMs = reviewUnlockMsForTour({
+    bookingDate: date,
+    startTimeHm: startHm,
+    timeZone: tz,
+    durationMinutes,
+  });
+  return unlockMs != null && nowMs > unlockMs;
 }
 
 function lower(v: string | null | undefined): string {
