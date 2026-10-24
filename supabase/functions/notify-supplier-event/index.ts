@@ -62,6 +62,8 @@ type Payload = {
   guestName?: string;
   reviewRating?: number;
   reviewTitle?: string;
+  /** new_review: traveler chose public anonymity (supplier still sees booking guest name). */
+  reviewPostedAnonymously?: boolean;
   /** new_review: the real reviews row this notification is about (Phase 579 ownership/content check). */
   reviewId?: string;
   /** Base site URL (no trailing slash), e.g. https://www.traverion.com — used in supplier_welcome body */
@@ -307,7 +309,13 @@ function eventBody(payload: Payload): string {
   if (payload.optionLabel) lines.push(`Option: ${payload.optionLabel}`);
   if (payload.startTimeLabel) lines.push(`Start time: ${payload.startTimeLabel}`);
   if (payload.guestName) lines.push(`Guest: ${payload.guestName}`);
-  if (payload.guestEmail) lines.push(`Guest email: ${payload.guestEmail}`);
+  // new_review: never include guest email — privacy (booking party name is enough).
+  if (payload.guestEmail && payload.eventType !== 'new_review') {
+    lines.push(`Guest email: ${payload.guestEmail}`);
+  }
+  if (payload.eventType === 'new_review' && payload.reviewPostedAnonymously) {
+    lines.push('Public display: Anonymous traveler');
+  }
   if (payload.arrivalLabel && payload.arrivalPlace) {
     lines.push(`${payload.arrivalLabel}: ${payload.arrivalPlace}`);
   }
@@ -315,9 +323,11 @@ function eventBody(payload: Payload): string {
   if (payload.reviewTitle) lines.push(`Review: ${payload.reviewTitle}`);
   if (payload.messagePreview) {
     const previewLabel =
-      payload.eventType === 'guest_message' && !(payload.fieldDiffs?.length)
-        ? 'Message'
-        : 'Latest note';
+      payload.eventType === 'new_review'
+        ? 'Comment'
+        : payload.eventType === 'guest_message' && !(payload.fieldDiffs?.length)
+          ? 'Message'
+          : 'Latest note';
     lines.push(`${previewLabel}: ${payload.messagePreview}`);
   }
   if (payload.changeSummary) lines.push(`Changes: ${payload.changeSummary}`);
@@ -492,7 +502,12 @@ function eventHtml(payload: Payload): string {
       `<tr><td style="padding:6px 0;font-size:14px;color:#6b7280;">Guest</td><td style="padding:6px 0;font-size:14px;color:#111827;">${escapeHtml(payload.guestName)}</td></tr>`,
     );
   }
-  if (payload.guestEmail) {
+  if (payload.eventType === 'new_review' && payload.reviewPostedAnonymously) {
+    rows.push(
+      `<tr><td style="padding:6px 0;font-size:14px;color:#6b7280;">Public display</td><td style="padding:6px 0;font-size:14px;color:#111827;">Anonymous traveler</td></tr>`,
+    );
+  }
+  if (payload.guestEmail && payload.eventType !== 'new_review') {
     rows.push(
       `<tr><td style="padding:6px 0;font-size:14px;color:#6b7280;">Guest email</td><td style="padding:6px 0;font-size:14px;color:#111827;">${escapeHtml(payload.guestEmail)}</td></tr>`,
     );
@@ -829,6 +844,7 @@ serve(async (req) => {
       | {
           id?: string | null;
           listing_id?: string | null;
+          booking_id?: string | null;
           rating?: number | null;
           title?: string | null;
           guest_name?: string | null;
@@ -860,10 +876,22 @@ serve(async (req) => {
         if (reviewId) {
           const { data } = await admin
             .from('reviews')
-            .select('id, listing_id, rating, title, guest_name, comment, is_anonymous')
+            .select('id, listing_id, booking_id, rating, title, guest_name, comment, is_anonymous')
             .eq('id', reviewId)
             .maybeSingle();
           reviewRow = data;
+          // Authorized supplier party: booking customer name for anonymous public reviews.
+          const reviewBookingId = String(data?.booking_id ?? payload.bookingId ?? '').trim();
+          if (reviewBookingId) {
+            const { data: bookingData } = await admin
+              .from('bookings')
+              .select(
+                'id, listing_id, guest_name, booking_date, check_out, nights, guests, booking_number, public_reference, payment_status, purchase_snapshot'
+              )
+              .eq('id', reviewBookingId)
+              .maybeSingle();
+            bookingRow = bookingData;
+          }
         }
       }
     }
@@ -908,6 +936,10 @@ serve(async (req) => {
     }
 
     const effectivePayload: Payload = { ...payload, ...resolved.overrides };
+    // new_review notifications must not carry guest email even if a caller sent one.
+    if (effectivePayload.eventType === 'new_review') {
+      delete (effectivePayload as { guestEmail?: string }).guestEmail;
+    }
     if (bookingRow && effectivePayload.eventType === 'new_booking') {
       const snap = bookingRow.purchase_snapshot && typeof bookingRow.purchase_snapshot === 'object'
         ? (bookingRow.purchase_snapshot as Record<string, unknown>)
@@ -1013,6 +1045,7 @@ serve(async (req) => {
         starLine,
         comment ? `"${comment}"` : stars != null ? `Customer left a ${stars}-star rating.` : '',
         guestLabel,
+        effectivePayload.reviewPostedAnonymously ? 'Posted anonymously to the public' : '',
       ].filter(Boolean);
       const { error: activityErr } = await admin.from('supplier_activity_notifications').insert({
         supplier_id: payload.supplierId,

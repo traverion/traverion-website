@@ -153,6 +153,7 @@ export type ReviewRowForSupplierEvent =
   | {
       id?: string | null;
       listing_id?: string | null;
+      booking_id?: string | null;
       rating?: number | null;
       title?: string | null;
       guest_name?: string | null;
@@ -176,6 +177,8 @@ export type SupplierEventFieldOverrides = {
   reviewTitle?: string;
   /** new_review: trusted comment preview from reviews.comment */
   messagePreview?: string;
+  /** new_review: public chose anonymous — supplier still gets booking guest name. */
+  reviewPostedAnonymously?: boolean;
 };
 
 export type SupplierEventResolution =
@@ -258,17 +261,29 @@ export function resolveSupplierEventContext(params: {
     }
     const comment = typeof reviewRow.comment === 'string' ? reviewRow.comment.trim() : '';
     const isAnonymous = Boolean(reviewRow.is_anonymous);
-    const rawGuest =
+    const bookingGuest =
+      bookingRow && typeof bookingRow.guest_name === 'string' && bookingRow.guest_name.trim()
+        ? bookingRow.guest_name.trim()
+        : undefined;
+    const publicGuest =
       typeof reviewRow.guest_name === 'string' && reviewRow.guest_name.trim()
         ? reviewRow.guest_name.trim()
         : undefined;
+    // Supplier-facing: booking customer name when authorized row is present.
+    // Never invent; fall back to named public label, then Traveler.
+    const supplierGuest =
+      bookingGuest ||
+      (!isAnonymous && publicGuest && publicGuest.toLowerCase() !== 'anonymous traveler'
+        ? publicGuest
+        : undefined) ||
+      'Traveler';
     return {
       ok: true,
       overrides: {
         listingTitle:
           typeof listingRow.title === 'string' && listingRow.title.trim() ? listingRow.title.trim() : undefined,
-        // Prefer stored public guest_name; force Anonymous traveler when flagged.
-        guestName: isAnonymous ? 'Anonymous traveler' : rawGuest,
+        guestName: supplierGuest,
+        reviewPostedAnonymously: isAnonymous || undefined,
         reviewRating:
           typeof reviewRow.rating === 'number' && Number.isFinite(reviewRow.rating) ? reviewRow.rating : undefined,
         reviewTitle:

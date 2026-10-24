@@ -313,6 +313,36 @@ describe('resolveSupplierEventContext: new_review (Phase 579 content-forgery fix
     });
   });
 
+  it('uses booking guest name for suppliers when the review is public-anonymous', () => {
+    const result = resolveSupplierEventContext({
+      eventType: 'new_review',
+      supplierId: REAL_SUPPLIER,
+      bookingId: REAL_BOOKING,
+      listingId: REAL_LISTING,
+      reviewId: REAL_REVIEW,
+      listingRow,
+      bookingRow,
+      reviewRow: {
+        ...reviewRow,
+        booking_id: REAL_BOOKING,
+        guest_name: 'Anonymous traveler',
+        is_anonymous: true,
+        comment: 'Great tour',
+      },
+    });
+    expect(result).toEqual({
+      ok: true,
+      overrides: {
+        listingTitle: 'Real Northern Lights Tour',
+        guestName: 'Real Guest',
+        reviewPostedAnonymously: true,
+        reviewRating: 5,
+        reviewTitle: 'Loved it',
+        messagePreview: 'Great tour',
+      },
+    });
+  });
+
   it('rejects new_review missing reviewId or listingId (400)', () => {
     expect(
       resolveSupplierEventContext({

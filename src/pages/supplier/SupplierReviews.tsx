@@ -16,15 +16,18 @@ import {
   fetchReviewsForSupplierListings,
   getReviewRepliesByReviewIds,
   submitReviewReply,
-  type ReviewDisplay,
   type ReviewReplyRow,
+  type SupplierReviewDisplay,
 } from '../../data/supabase-reviews';
 import { fetchMyListings } from '../../data/supabase-listings';
 import type { InventoryFamily } from '../../lib/inventory';
 import { inventoryFamilyFromListing } from '../../lib/inventory';
 import { openSupplierListingEditor } from '../../lib/supplierPortalNavigation';
 import { reviewHasWrittenFeedback, reviewNeedsSupplierReply } from '../../lib/review-feedback';
-import { displayReviewGuestName } from '../../lib/review-public-identity';
+import {
+  SUPPLIER_ANONYMOUS_PUBLIC_NOTE,
+  supplierReviewCustomerName,
+} from '../../lib/review-public-identity';
 
 function familyLabel(family: InventoryFamily | undefined): 'Stay' | 'Tour' {
   return family === 'stay' ? 'Stay' : 'Tour';
@@ -36,10 +39,7 @@ function formatCreatedAtDisplay(iso: string): string {
   return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
-type SupplierReviewRow = ReviewDisplay & {
-  listing_title?: string;
-  listing_family?: InventoryFamily;
-};
+type SupplierReviewRow = SupplierReviewDisplay;
 
 type SortKey = 'newest' | 'oldest' | 'highest' | 'lowest';
 
@@ -281,7 +281,7 @@ export default function SupplierReviews() {
       if (filterReply === 'unreplied' && !reviewNeedsSupplierReply(r, replies)) return false;
       if (filterReply === 'replied' && !replies[r.id]) return false;
       if (searchQuery) {
-        const hay = `${displayReviewGuestName(r)} ${r.listing_title ?? ''} ${r.title ?? ''} ${r.comment ?? ''}`.toLowerCase();
+        const hay = `${supplierReviewCustomerName(r)} ${r.booking_reference ?? ''} ${r.listing_title ?? ''} ${r.title ?? ''} ${r.comment ?? ''}`.toLowerCase();
         if (!hay.includes(searchQuery)) return false;
       }
       return true;
@@ -633,25 +633,47 @@ export default function SupplierReviews() {
                       >
                         <div className="flex flex-wrap items-start justify-between gap-2">
                           <div className="min-w-0">
-                            <p className="tv-reviews-card__meta">
-                              {displayReviewGuestName(r)}
+                            <p className="text-[14px] font-semibold tracking-tight text-[#18181b]">
+                              {supplierReviewCustomerName(r)}
+                            </p>
+                            <div className="mt-1 flex flex-wrap items-center gap-2">
+                              <StarRow rating={Number(r.rating) || 0} />
+                              <span className="text-[12px] font-semibold tabular-nums text-[#18181b]">
+                                {r.rating}/5
+                              </span>
+                              {needsReply ? (
+                                <span className="tv-reviews-chip tv-reviews-chip--warn">Awaiting reply</span>
+                              ) : null}
+                              {replies[r.id] ? (
+                                <span className="tv-reviews-chip tv-reviews-chip--ok">Replied</span>
+                              ) : null}
+                              {r.verified ? <span className="tv-reviews-chip">Verified</span> : null}
+                            </div>
+                            {r.is_anonymous ? (
+                              <p className="mt-1 text-[12px] italic text-[#71717a]">
+                                {SUPPLIER_ANONYMOUS_PUBLIC_NOTE}
+                              </p>
+                            ) : null}
+                            <p className="mt-1.5 text-[12px] text-[#71717a]">
+                              {r.booking_reference ? (
+                                <>
+                                  Booking:{' '}
+                                  <span className="font-mono font-semibold text-[#3f3f46]">
+                                    {r.booking_reference}
+                                  </span>
+                                  {' · '}
+                                </>
+                              ) : null}
+                              {kind}
                               {' · '}
                               {formatCreatedAtDisplay(r.created_at)}
-                              {' · '}
-                              {kind}
                             </p>
-                            <p className="mt-0.5 text-[13px] font-semibold text-[#18181b]" title={r.listing_title}>
+                            <p
+                              className="mt-0.5 text-[13px] font-semibold text-[#18181b]"
+                              title={r.listing_title}
+                            >
                               {r.listing_title ?? 'Listing'}
                             </p>
-                          </div>
-                          <div className="flex flex-wrap items-center gap-2">
-                            <StarRow rating={Number(r.rating) || 0} />
-                            <span className="text-[12px] font-semibold tabular-nums text-[#18181b]">
-                              {r.rating}/5
-                            </span>
-                            {needsReply ? <span className="tv-reviews-chip tv-reviews-chip--warn">Awaiting reply</span> : null}
-                            {replies[r.id] ? <span className="tv-reviews-chip tv-reviews-chip--ok">Replied</span> : null}
-                            {r.verified ? <span className="tv-reviews-chip">Verified</span> : null}
                           </div>
                         </div>
 

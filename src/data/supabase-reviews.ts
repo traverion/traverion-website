@@ -12,8 +12,8 @@ import { reviewHasWrittenFeedback } from '../lib/review-feedback';
 export type ReviewRow = {
   id: string;
   listing_id: string;
-  user_id: string;
-  booking_id: string | null;
+  user_id?: string;
+  booking_id?: string | null;
   guest_name: string;
   /** When true, guest_name is the public anonymized label. */
   is_anonymous?: boolean;
@@ -26,19 +26,49 @@ export type ReviewRow = {
 
 export type ReviewDisplay = ReviewRow & { verified: boolean };
 
-/** Fetch reviews for a listing (newest first). */
+/** Supplier-authorized enrichment from the linked booking (RLS-gated). */
+export type SupplierReviewParty = {
+  booking_guest_name?: string | null;
+  booking_reference?: string | null;
+};
+
+export type SupplierReviewDisplay = ReviewDisplay &
+  SupplierReviewParty & {
+    listing_title?: string;
+    listing_family?: InventoryFamily;
+  };
+
+/** Fetch public-safe reviews for a listing (newest first). Uses reviews_public view. */
 export async function fetchReviewsByListingId(listingId: string): Promise<ReviewDisplay[]> {
   if (!supabase) return [];
   const { data, error } = await supabase
-    .from('reviews')
-    .select('*')
+    .from('reviews_public')
+    .select('id, listing_id, guest_name, is_anonymous, rating, title, comment, images, created_at, verified')
     .eq('listing_id', listingId)
     .order('created_at', { ascending: false });
   if (error) throw new Error(error.message);
-  return (data ?? []).map((r: ReviewRow) => ({
-    ...r,
+  return (data ?? []).map((r: {
+    id: string;
+    listing_id: string;
+    guest_name: string;
+    is_anonymous?: boolean;
+    rating: number;
+    title: string | null;
+    comment: string;
+    images: string[] | null;
+    created_at: string;
+    verified?: boolean;
+  }) => ({
+    id: r.id,
+    listing_id: r.listing_id,
+    guest_name: r.guest_name,
+    is_anonymous: Boolean(r.is_anonymous),
+    rating: r.rating,
+    title: r.title,
+    comment: r.comment ?? '',
     images: Array.isArray(r.images) ? r.images : [],
-    verified: !!r.booking_id,
+    created_at: r.created_at,
+    verified: Boolean(r.verified),
   }));
 }
 
@@ -267,10 +297,11 @@ export async function userHasReviewedListing(userId: string, listingId: string):
 }
 
 /** Fetch all reviews for a supplier's listings (for supplier portal). Throws on Supabase error.
- * Phase 1157: resolve team JWT → owner supplier_id. */
+ * Phase 1157: resolve team JWT → owner supplier_id.
+ * Joins booking party fields; bookings RLS hides other suppliers' guests. */
 export async function fetchReviewsForSupplierListings(
   supplierId: string
-): Promise<(ReviewDisplay & { listing_title?: string; listing_family?: InventoryFamily })[]> {
+): Promise<SupplierReviewDisplay[]> {
   if (!supabase) return [];
   const ownerSupplierId = await resolveSupplierId(supplierId);
   const { data: listings, error: listErr } = await supabase
@@ -282,7 +313,9 @@ export async function fetchReviewsForSupplierListings(
   if (ids.length === 0) return [];
   const { data, error } = await supabase
     .from('reviews')
-    .select('*')
+    .select(
+      'id, listing_id, user_id, booking_id, guest_name, is_anonymous, rating, title, comment, images, created_at, bookings:booking_id ( guest_name, public_reference )'
+    )
     .in('listing_id', ids)
     .order('created_at', { ascending: false });
   if (error) throw new Error(error.message);
@@ -293,13 +326,30 @@ export async function fetchReviewsForSupplierListings(
       family: inventoryFamilyFromListing({ listingExtras: parseListingExtras(l.listing_extras) }),
     };
   });
-  return (data ?? []).map((r: ReviewRow) => ({
-    ...r,
-    images: Array.isArray(r.images) ? r.images : [],
-    verified: !!r.booking_id,
-    listing_title: byListingId[r.listing_id]?.title,
-    listing_family: byListingId[r.listing_id]?.family ?? 'tour',
-  }));
+  return (data ?? []).map((raw) => {
+    const r = raw as ReviewRow & {
+      bookings?: { guest_name?: string | null; public_reference?: string | null } | null;
+    };
+    const booking = r.bookings && !Array.isArray(r.bookings) ? r.bookings : null;
+    return {
+      id: r.id,
+      listing_id: r.listing_id,
+      user_id: r.user_id,
+      booking_id: r.booking_id ?? null,
+      guest_name: r.guest_name,
+      is_anonymous: Boolean(r.is_anonymous),
+      rating: r.rating,
+      title: r.title,
+      comment: r.comment ?? '',
+      images: Array.isArray(r.images) ? r.images : [],
+      created_at: r.created_at,
+      verified: !!r.booking_id,
+      booking_guest_name: booking?.guest_name ?? null,
+      booking_reference: booking?.public_reference ?? null,
+      listing_title: byListingId[r.listing_id]?.title,
+      listing_family: byListingId[r.listing_id]?.family ?? 'tour',
+    };
+  });
 }
 
 export type ReviewReplyRow = {

@@ -47,6 +47,29 @@ export function displayReviewGuestName(row: {
   return name;
 }
 
+/**
+ * Authorized supplier presentation: prefer the booking customer name.
+ * Never invent; fall back to named public guest_name, then "Traveler".
+ * Do not use this on public Tour/Stay surfaces.
+ */
+export function supplierReviewCustomerName(row: {
+  is_anonymous?: boolean | null;
+  guest_name?: string | null;
+  booking_guest_name?: string | null;
+}): string {
+  const fromBooking = (row.booking_guest_name ?? '').trim();
+  if (fromBooking) return fromBooking;
+  if (!row.is_anonymous) {
+    const named = (row.guest_name ?? '').trim();
+    if (named && named.toLowerCase() !== ANONYMOUS_REVIEW_GUEST_NAME.toLowerCase()) {
+      return named;
+    }
+  }
+  return 'Traveler';
+}
+
+export const SUPPLIER_ANONYMOUS_PUBLIC_NOTE = 'Posted anonymously to the public';
+
 export function reviewIdentityFromRow(row: {
   is_anonymous?: boolean | null;
   guest_name?: string | null;
