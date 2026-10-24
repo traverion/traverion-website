@@ -13,6 +13,7 @@ describe('Phase 1806: Trips itinerary card polish', () => {
     expect(trips).toContain('tv-trip-card');
     expect(trips).toContain('tv-trip-card__facts');
     expect(trips).toContain('tv-trip-card__title');
+    expect(trips).toContain('tv-trip-card__actions');
     expect(trips).toContain("data-open={open ? 'true' : 'false'}");
   });
 

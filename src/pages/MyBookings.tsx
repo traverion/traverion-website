@@ -3,7 +3,7 @@
  * RLS ensures only rows where guest_email = auth user email are returned.
  */
 import { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef } from 'react';
-import { LogIn, RefreshCw, ArrowLeft, CalendarDays, MapPin, ChevronDown, X, Copy, Check, Printer, Star } from 'lucide-react';
+import { LogIn, RefreshCw, CalendarDays, MapPin, ChevronDown, X, Copy, Check, Printer, Star } from 'lucide-react';
 import TravelerReviewComposeDialog, {
   type TravelerReviewTarget,
 } from '../components/TravelerReviewComposeDialog';
@@ -115,8 +115,6 @@ import {
   TRAVELER_ACCEPT_HOST_CANCEL_REFUND_POLICY,
   TRAVELER_PICKUP_PENDING_UI_NOTE,
   TRAVELER_SELF_CANCEL_CTA,
-  TRAVELER_SELF_CANCEL_DEADLINE_PASSED_TITLE,
-  TRAVELER_SELF_CANCEL_CONTACT_OPERATOR_NOTE,
   TRAVELER_SELF_CANCEL_SUCCESS_REFUND_DUE,
   TRAVELER_SELF_CANCEL_SUCCESS_NO_REFUND,
   TRAVELER_CANCEL_UNPAID_CHECKOUT_CTA,
@@ -570,6 +568,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
   const selectTripView = useCallback(
     (view: 'upcoming' | 'past' | 'cancelled') => {
       setTripView(view);
+      setTripDetailTab((tab) => (view !== 'upcoming' && tab === 'details' ? 'overview' : tab));
       setOpenTripId((current) => {
         if (!current) return null;
         const row = bookings.find((b) => b.id === current);
@@ -716,41 +715,28 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
 
   return (
     <div className="min-h-screen bg-paper tv-page">
-      <div className="tv-shell px-4 sm:px-6 lg:px-8 py-8 pb-12">
-        <header className="mx-auto mb-5 max-w-[1000px] border-b border-[#E8EBF0] pb-4">
-          <div className="flex flex-wrap items-end justify-between gap-4">
-            <div>
-              <p className="tv-eyebrow">Bookings</p>
-              <h1 id={TRIPS_HEADING_ID} className="tv-page-title">
+      <div className="tv-shell px-4 sm:px-6 lg:px-8 py-6 pb-10 sm:py-7">
+        <header className="tv-trips-header mx-auto mb-4 max-w-[1080px]">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="min-w-0">
+              <h1 id={TRIPS_HEADING_ID} className="tv-page-title !text-[1.5rem] sm:!text-[1.625rem]">
                 Your trips
               </h1>
-              <p className="mt-1.5 max-w-xl text-sm leading-relaxed text-ink-muted">
-                Upcoming, past, and cancelled bookings — with local departure times.
-              </p>
             </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                onClick={() => onNavigate('account')}
-                className="lux-flat lux-tap-target inline-flex min-h-11 items-center gap-1.5 px-2 py-2 text-sm text-ink-muted hover:text-ink"
-              >
-                <ArrowLeft className="w-4 h-4" aria-hidden />
-                Account
-              </button>
-              <button
-                type="button"
-                onClick={load}
-                disabled={loading}
-                className="lux-flat lux-tap-target inline-flex min-h-11 items-center gap-2 px-3 py-2 text-sm text-ink-muted hover:text-ink disabled:opacity-50"
-              >
-                <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} aria-hidden />
-                Refresh
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={load}
+              disabled={loading}
+              className="lux-flat inline-flex h-9 items-center gap-1.5 rounded-lg px-2.5 text-[13px] font-medium text-ink-muted hover:bg-black/[0.04] hover:text-ink disabled:opacity-50"
+              aria-label="Refresh trips"
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} aria-hidden />
+              Refresh
+            </button>
           </div>
         </header>
 
-        <section className="mx-auto max-w-[1000px]" aria-labelledby={TRIPS_HEADING_ID}>
+        <section className="mx-auto max-w-[1080px]" aria-labelledby={TRIPS_HEADING_ID}>
         {loadError && (
           <ErrorState
             className="py-6"
@@ -867,51 +853,47 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
             }
           />
         ) : (
-          <div className="space-y-4">
-            <div className="max-w-md">
-              <label htmlFor="trips-search" className="mb-1.5 block text-sm font-semibold tracking-tight text-[#111827]">
-                Search
+          <div className="space-y-3">
+            <div className="tv-trips-toolbar">
+              <div
+                className="tv-trips-toolbar__tabs"
+                role="tablist"
+                aria-label="Trip status"
+              >
+                {([
+                  ['upcoming', 'Upcoming'],
+                  ['past', 'Past'],
+                  ['cancelled', 'Cancelled'],
+                ] as const).map(([id, label]) => (
+                  <button
+                    key={id}
+                    type="button"
+                    role="tab"
+                    id={tripsTabId(id)}
+                    aria-controls={TRIPS_TABPANEL_ID}
+                    aria-selected={tripView === id}
+                    onClick={() => selectTripView(id)}
+                    className={`tv-trips-toolbar__tab lux-flat${
+                      tripView === id ? ' is-active' : ''
+                    }${tripView === id && id === 'cancelled' ? ' is-cancelled' : ''}${
+                      tripView === id && id === 'past' ? ' is-past' : ''
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <label className="tv-trips-toolbar__search">
+                <span className="sr-only">Search bookings</span>
+                <input
+                  id="trips-search"
+                  type="search"
+                  value={tripSearchQuery}
+                  onChange={(e) => setTripSearchQuery(e.target.value)}
+                  placeholder="Search bookings"
+                  className="tv-input tv-trips-toolbar__search-input"
+                />
               </label>
-              <input
-                id="trips-search"
-                type="search"
-                value={tripSearchQuery}
-                onChange={(e) => setTripSearchQuery(e.target.value)}
-                placeholder="Experience, reference, or destination"
-                className="tv-input"
-              />
-            </div>
-            <div
-              className="flex w-fit gap-1 rounded-full bg-[#F5F6F8] p-1 ring-1 ring-black/[0.04]"
-              role="tablist"
-              aria-label="Trip status"
-            >
-              {([
-                ['upcoming', 'Upcoming'],
-                ['past', 'Past'],
-                ['cancelled', 'Cancelled'],
-              ] as const).map(([id, label]) => (
-                <button
-                  key={id}
-                  type="button"
-                  role="tab"
-                  id={tripsTabId(id)}
-                  aria-controls={TRIPS_TABPANEL_ID}
-                  aria-selected={tripView === id}
-                  onClick={() => selectTripView(id)}
-                  className={`lux-flat min-h-10 rounded-full px-3.5 py-1.5 text-sm font-semibold transition-[background-color,color,box-shadow] duration-150 ${
-                    tripView === id
-                      ? id === 'cancelled'
-                        ? 'bg-rose-600 text-white shadow-sm'
-                        : id === 'past'
-                          ? 'bg-stone-700 text-white shadow-sm'
-                          : 'bg-[#0758CB] text-white shadow-sm'
-                      : 'text-ink-muted hover:bg-white hover:text-[#0758CB]'
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
             </div>
             <div
               id={TRIPS_TABPANEL_ID}
@@ -1184,7 +1166,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                             ) : null}
                           </p>
                         ) : null}
-                        <span className="tv-trip-card__view">
+                        <span className="tv-trip-card__view" aria-hidden>
                           {open ? 'Close' : 'View details'}
                           <ChevronDown
                             className={`h-3.5 w-3.5 transition-transform duration-180 motion-reduce:transition-none ${open ? 'rotate-180' : ''}`}
@@ -1200,7 +1182,9 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                         {payLabel !== lifecycle ? (
                           <StatusChip tone={toneForPaymentLabel(payLabel)}>{payLabel}</StatusChip>
                         ) : null}
-                        {pickupMissing ? <StatusChip tone="warn">Pickup needed</StatusChip> : null}
+                        {tripView === 'upcoming' && pickupMissing ? (
+                          <StatusChip tone="warn">Pickup needed</StatusChip>
+                        ) : null}
                       </span>
                       <span className="tv-trip-card__facts-inline">
                         {placeLine ? (
@@ -1224,7 +1208,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                 tripView === 'past' &&
                 tripAllowsLeaveReview(ops) &&
                 bookingEligibleForReview(b) ? (
-                  <div className="tv-trip-card__review-bar">
+                  <div className="tv-trip-card__actions">
                     <button
                       type="button"
                       onClick={() =>
@@ -1236,10 +1220,43 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                           mode: reviewedListingIds.has(b.listing_id) ? 'edit' : 'write',
                         })
                       }
-                      className="tv-trip-card__review-btn lux-flat"
+                      className="tv-trip-card__action-link lux-flat"
                     >
                       <Star className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                      {reviewedListingIds.has(b.listing_id) ? 'Edit review' : 'Write a review'}
+                      {reviewedListingIds.has(b.listing_id) ? 'Edit review' : 'Write review'}
+                    </button>
+                    <span className="tv-trip-card__action-sep" aria-hidden>
+                      ·
+                    </span>
+                    <button
+                      type="button"
+                      className="tv-trip-card__action-link lux-flat"
+                      onClick={() => {
+                        setOpenTripId(b.id);
+                        setTripDetailTab('overview');
+                        const url = new URL(window.location.href);
+                        url.searchParams.set('booking', b.id);
+                        window.history.replaceState({}, '', `${url.pathname}${url.search}`);
+                      }}
+                    >
+                      View details
+                    </button>
+                  </div>
+                ) : null}
+                {!open && tripView === 'cancelled' ? (
+                  <div className="tv-trip-card__actions">
+                    <button
+                      type="button"
+                      className="tv-trip-card__action-link lux-flat"
+                      onClick={() => {
+                        setOpenTripId(b.id);
+                        setTripDetailTab('overview');
+                        const url = new URL(window.location.href);
+                        url.searchParams.set('booking', b.id);
+                        window.history.replaceState({}, '', `${url.pathname}${url.search}`);
+                      }}
+                    >
+                      View cancellation details
                     </button>
                   </div>
                 ) : null}
@@ -1280,14 +1297,22 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                 {open ? (
                 <div
                   id={`trip-panel-${b.id}`}
-                  className="tv-trip-card__panel space-y-2.5 border-t border-black/[0.06] px-3.5 py-3 sm:px-4 motion-safe:animate-fade-in"
+                  className="tv-trip-card__panel space-y-3 border-t border-black/[0.06] px-3.5 py-3 sm:px-4 motion-safe:animate-fade-in"
+                  data-trip-lifecycle={tripView}
                 >
                   <div className="tv-trip-card__tabs flex gap-1" role="tablist" aria-label="Booking sections">
-                    {([
-                      ['overview', 'Overview'],
-                      ['details', 'Details'],
-                      ['messages', 'Messages'],
-                    ] as const).map(([id, label]) => (
+                    {(
+                      tripView === 'upcoming'
+                        ? ([
+                            ['overview', 'Overview'],
+                            ['details', 'Details'],
+                            ['messages', 'Messages'],
+                          ] as const)
+                        : ([
+                            ['overview', 'Overview'],
+                            ['messages', 'Messages'],
+                          ] as const)
+                    ).map(([id, label]) => (
                       <button
                         key={id}
                         type="button"
@@ -1304,6 +1329,43 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                       </button>
                     ))}
                   </div>
+                  {tripDetailTab === 'overview' &&
+                  tripView === 'past' &&
+                  tripAllowsLeaveReview(ops) &&
+                  bookingEligibleForReview(b) ? (
+                    <div className="tv-trip-card__review-invite">
+                      <div className="min-w-0">
+                        <p className="text-[13px] font-semibold text-ink">
+                          {reviewedListingIds.has(b.listing_id)
+                            ? 'Your review'
+                            : isStay
+                              ? 'How was your stay?'
+                              : 'How was the experience?'}
+                        </p>
+                        <p className="mt-0.5 text-[12.5px] text-ink-muted">
+                          {reviewedListingIds.has(b.listing_id)
+                            ? 'Update your rating or comments anytime.'
+                            : 'Share feedback for other travelers.'}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setReviewTarget({
+                            bookingId: b.id,
+                            listingId: b.listing_id,
+                            listingTitle: tripTitle,
+                            imageUrl: thumb,
+                            mode: reviewedListingIds.has(b.listing_id) ? 'edit' : 'write',
+                          })
+                        }
+                        className="tv-btn-secondary shrink-0 !min-h-9 !px-3 !text-[13px]"
+                      >
+                        <Star className="h-3.5 w-3.5" aria-hidden />
+                        {reviewedListingIds.has(b.listing_id) ? 'Edit review' : 'Write a review'}
+                      </button>
+                    </div>
+                  ) : null}
                   {tripDetailTab === 'overview' && isStayRequestAwaitingHost(b) ? (
                     <StayRequestActions
                       role="traveler"
@@ -1314,7 +1376,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                       onDone={() => void load()}
                     />
                   ) : null}
-                  {tripDetailTab === 'overview' ? (
+                  {tripDetailTab === 'overview' && tripView === 'upcoming' ? (
                     <SupplierCancelResolutionPanel
                       booking={b}
                       listingExtras={ops?.listing_extras}
@@ -1336,7 +1398,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                       }}
                     />
                   ) : null}
-                  {tripDetailTab === 'overview' ? (
+                  {tripDetailTab === 'overview' && tripView !== 'past' ? (
                     <BookingSupportCasePanel
                       booking={b}
                       cases={supportCasesByBooking[b.id] ?? []}
@@ -1383,6 +1445,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                       </div>
                     ) : null}
                     {isStay &&
+                    tripView === 'upcoming' &&
                     (() => {
                       const inT = displayStayCheckInTimeFromPurchase(b.purchase_snapshot, null);
                       const outT = displayStayCheckOutTimeFromPurchase(b.purchase_snapshot, null);
@@ -1441,7 +1504,10 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                         </dd>
                       </div>
                     ) : null}
-                    {tripDetailTab === 'overview' && !isStay && tripPlaceValue ? (
+                    {tripDetailTab === 'overview' &&
+                    tripView === 'upcoming' &&
+                    !isStay &&
+                    tripPlaceValue ? (
                       <div className="sm:col-span-2">
                         <dt className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-faint">
                           {tripPlaceHeading}
@@ -1566,14 +1632,18 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                       </div>
                     ) : null}
                   </dl>
-                  {tripDetailTab === 'overview' && b.pickup_time && !tripHidesExactPickup && (pickupMissing || !tripPickupInstructions) ? (
+                  {tripDetailTab === 'overview' &&
+                  tripView === 'upcoming' &&
+                  b.pickup_time &&
+                  !tripHidesExactPickup &&
+                  (pickupMissing || !tripPickupInstructions) ? (
                     <p className="text-sm text-ink-muted">Pickup {pgTimeToHm(b.pickup_time)}</p>
-                  ) : tripDetailTab === 'overview' && pickupMissing ? (
+                  ) : tripDetailTab === 'overview' && tripView === 'upcoming' && pickupMissing ? (
                     <NoticeCallout title="Pickup details pending" tone="warn">
                       {TRAVELER_PICKUP_PENDING_UI_NOTE}
                     </NoticeCallout>
                   ) : null}
-                  {tripDetailTab === 'overview' && openCancel ? (
+                  {tripDetailTab === 'overview' && openCancel && tripView === 'upcoming' ? (
                     <NoticeCallout
                       title="The host requested cancellation"
                       tone="danger"
@@ -1710,41 +1780,20 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                       </button>
                     </div>
                   )}
-                  <div className={`flex flex-wrap gap-2 ${tripDetailTab === 'overview' ? '' : 'hidden'}`}>
+                  <div className={`flex flex-wrap items-center gap-2 ${tripDetailTab === 'overview' ? '' : 'hidden'}`}>
                     <button
                       type="button"
                       onClick={() => {
                         setTripDetailTab('messages');
                         setFocusMessageId(b.id);
                       }}
-                      className="tv-btn-secondary"
+                      className="tv-btn-secondary !min-h-9 !text-[13px]"
                     >
-                      Contact operator
+                      {isStay ? 'Message host' : 'Contact operator'}
                     </button>
-                    {/* Phase 1678 + Phase 1709 + Phase 1731: Leave a review for published or draft (unpublish); not live-season.
-                        Trips compose dialog — do not route via PDP (season gate blocked past trips). */}
-                    {tripView === 'past' &&
-                    tripAllowsLeaveReview(ops) &&
-                    bookingEligibleForReview(b) ? (
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setReviewTarget({
-                            bookingId: b.id,
-                            listingId: b.listing_id,
-                            listingTitle: tripTitle,
-                            imageUrl: thumb,
-                            mode: reviewedListingIds.has(b.listing_id) ? 'edit' : 'write',
-                          })
-                        }
-                        className="tv-btn-secondary"
-                      >
-                        {reviewedListingIds.has(b.listing_id) ? 'Edit review' : 'Leave a review'}
-                      </button>
-                    ) : null}
-                    {onTourSelect &&
-                    tripAllowsBrowseLiveListing(ops) &&
-                    !(tripView === 'past' && bookingEligibleForReview(b) && tripAllowsLeaveReview(ops)) && (
+                    {tripView === 'upcoming' &&
+                    onTourSelect &&
+                    tripAllowsBrowseLiveListing(ops) ? (
                       <button
                         type="button"
                         onClick={() => {
@@ -1755,55 +1804,41 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                               : {}),
                           });
                         }}
-                        className="tv-btn-ghost"
+                        className="tv-btn-ghost !min-h-9 !text-[13px]"
                         title="Opens the live marketplace page. Details above are what you booked."
                       >
-                        {isStay ? 'Browse current listing' : 'Browse current tour'}
+                        {isStay ? 'Browse listing' : 'Browse tour'}
                       </button>
-                    )}
-                    {liveTrip &&
+                    ) : null}
+                    {tripView === 'upcoming' &&
+                    liveTrip &&
                     (payLabel === 'Checkout expired' || payLabel === 'Hold expired') &&
                     travelerBookingNeedsPayNow(b) ? (
                       <NoticeCallout title="Checkout expired" tone="warn">
                         {TRAVELER_HOLD_EXPIRED_PAY_NOW_NOTE}
                       </NoticeCallout>
                     ) : null}
-                    {liveTrip && travelerBookingNeedsPayNow(b) && (
+                    {tripView === 'upcoming' && liveTrip && travelerBookingNeedsPayNow(b) && (
                       <button
                         type="button"
                         onClick={() => void handlePayNow(b)}
                         disabled={payingId === b.id}
-                        className="tv-btn-primary"
+                        className="tv-btn-primary !min-h-9"
                       >
                         {payingId === b.id ? TRAVELER_OPENING_CHECKOUT_CTA : TRAVELER_PAY_NOW_TEST_CTA}
                       </button>
                     )}
-                    {liveTrip &&
+                    {tripView === 'upcoming' &&
+                      liveTrip &&
                       !openCancel &&
                       (travelerBookingNeedsPayNow(b) || b.status === 'confirmed') &&
                       getSelfCancelAvailable(b) && (
-                      <button
-                        type="button"
-                        onClick={() => setCancelConfirm(b)}
-                        disabled={cancellingId !== null}
-                        className="tv-btn-ghost text-red-700"
-                      >
-                        {travelerSelfCancelIsUnpaidCheckout(b)
-                          ? TRAVELER_CANCEL_UNPAID_CHECKOUT_CTA
-                          : TRAVELER_SELF_CANCEL_CTA}
-                      </button>
-                    )}
-                    {liveTrip &&
-                      !openCancel &&
-                      b.status === 'confirmed' &&
-                      !travelerSelfCancelIsUnpaidCheckout(b) &&
-                      !getSelfCancelAvailable(b) && (
-                      <div className="w-full rounded-xl bg-amber-50 px-3.5 py-3 ring-1 ring-amber-200/80">
-                        <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-amber-900/80">
-                          {TRAVELER_SELF_CANCEL_DEADLINE_PASSED_TITLE}
-                        </p>
-                        <p className="mt-1.5 text-sm text-ink leading-relaxed">
+                      <div className="tv-trip-card__cancel-strip w-full">
+                        <p className="text-[12.5px] leading-relaxed text-ink-muted">
                           {(() => {
+                            if (travelerSelfCancelIsUnpaidCheckout(b)) {
+                              return 'No payment taken — you can cancel this checkout hold.';
+                            }
                             const policy = resolveStayCancelPolicyFromSnapshot(b.purchase_snapshot);
                             const tz = resolveDepartureTimezone(
                               displayDepartureTimezoneFromPurchase(b.purchase_snapshot)
@@ -1818,46 +1853,99 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                               ? new Intl.DateTimeFormat('en-GB', {
                                   timeZone: tz,
                                   day: 'numeric',
-                                  month: 'long',
+                                  month: 'short',
                                   hour: '2-digit',
                                   minute: '2-digit',
                                   hourCycle: 'h23',
                                 }).format(new Date(deadline))
                               : null;
-                            if (policy.freeCancelHours == null) {
-                              return travelerSelfCancelUnavailableMessage({ freeCancelHours: null });
-                            }
+                            const hours =
+                              policy.freeCancelHours != null
+                                ? `${policy.freeCancelHours}h free cancel`
+                                : 'Cancellation policy applies';
                             return when
-                              ? `Self-cancellation closed at ${when} (local time). Contact the supplier or Traverion Support to discuss your booking.`
-                              : travelerSelfCancelUnavailableMessage({
-                                  freeCancelHours: policy.freeCancelHours,
-                                });
+                              ? `${hours} · deadline ${when} (local) · full refund if cancelled in time`
+                              : hours;
                           })()}
                         </p>
-                        <p className="mt-1 text-sm text-ink-muted leading-relaxed">
-                          {TRAVELER_SELF_CANCEL_CONTACT_OPERATOR_NOTE}
-                        </p>
-                        <div className="mt-3 flex flex-wrap gap-2">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setTripDetailTab('messages');
-                              setFocusMessageId(b.id);
-                            }}
-                            className="tv-btn-secondary"
-                          >
-                            Contact supplier
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => onNavigate('contact')}
-                            className="tv-btn-ghost"
-                          >
-                            Contact Traverion Support
-                          </button>
-                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setCancelConfirm(b)}
+                          disabled={cancellingId !== null}
+                          className="tv-btn-ghost !min-h-9 text-red-700"
+                        >
+                          {travelerSelfCancelIsUnpaidCheckout(b)
+                            ? TRAVELER_CANCEL_UNPAID_CHECKOUT_CTA
+                            : TRAVELER_SELF_CANCEL_CTA}
+                        </button>
                       </div>
                     )}
+                    {tripView === 'upcoming' &&
+                      liveTrip &&
+                      !openCancel &&
+                      b.status === 'confirmed' &&
+                      !travelerSelfCancelIsUnpaidCheckout(b) &&
+                      !getSelfCancelAvailable(b) && (
+                      <p className="w-full text-[12.5px] leading-relaxed text-ink-muted">
+                        {(() => {
+                          const policy = resolveStayCancelPolicyFromSnapshot(b.purchase_snapshot);
+                          const tz = resolveDepartureTimezone(
+                            displayDepartureTimezoneFromPurchase(b.purchase_snapshot)
+                          );
+                          const deadline = travelerSelfCancelDeadlineMs({
+                            bookingDate: b.booking_date,
+                            startTimeHm: getSelfCancelStartHm(b),
+                            departureTimezone: tz,
+                            freeCancelHours: policy.freeCancelHours,
+                          });
+                          const when = deadline
+                            ? new Intl.DateTimeFormat('en-GB', {
+                                timeZone: tz,
+                                day: 'numeric',
+                                month: 'long',
+                                hour: '2-digit',
+                                minute: '2-digit',
+                                hourCycle: 'h23',
+                              }).format(new Date(deadline))
+                            : null;
+                          if (policy.freeCancelHours == null) {
+                            return travelerSelfCancelUnavailableMessage({ freeCancelHours: null });
+                          }
+                          return when
+                            ? `Self-cancellation closed at ${when} (local). Contact the operator or Traverion Support if you need help.`
+                            : travelerSelfCancelUnavailableMessage({
+                                freeCancelHours: policy.freeCancelHours,
+                              });
+                        })()}
+                      </p>
+                    )}
+                    {tripView === 'cancelled' ? (
+                      <button
+                        type="button"
+                        onClick={() => onNavigate('contact')}
+                        className="tv-btn-ghost !min-h-9 !text-[13px]"
+                      >
+                        Contact Traverion Support
+                      </button>
+                    ) : null}
+                    {tripView === 'past' ? (
+                      <button
+                        type="button"
+                        onClick={() => onNavigate('contact')}
+                        className="tv-btn-ghost !min-h-9 !text-[13px] text-ink-muted"
+                      >
+                        Report a problem
+                      </button>
+                    ) : null}
+                    {tripView === 'upcoming' ? (
+                      <button
+                        type="button"
+                        onClick={() => onNavigate('contact')}
+                        className="tv-btn-ghost !min-h-9 !text-[13px] text-ink-muted"
+                      >
+                        Traverion Support
+                      </button>
+                    ) : null}
                   </div>
                   {(() => {
                     const msg = {
