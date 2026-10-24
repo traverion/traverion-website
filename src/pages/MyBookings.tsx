@@ -3,7 +3,10 @@
  * RLS ensures only rows where guest_email = auth user email are returned.
  */
 import { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef } from 'react';
-import { LogIn, RefreshCw, ArrowLeft, CalendarDays, MapPin, ChevronDown, X, Copy, Check, Printer } from 'lucide-react';
+import { LogIn, RefreshCw, ArrowLeft, CalendarDays, MapPin, ChevronDown, X, Copy, Check, Printer, Star } from 'lucide-react';
+import TravelerReviewComposeDialog, {
+  type TravelerReviewTarget,
+} from '../components/TravelerReviewComposeDialog';
 import EmptyState from '../components/EmptyState';
 import ErrorState from '../components/ErrorState';
 import { USER_ERROR, userFacingError } from '../lib/userFacingError';
@@ -192,6 +195,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
   const [tripDetailTab, setTripDetailTab] = useState<'overview' | 'details' | 'messages'>('overview');
   const [focusMessageId, setFocusMessageId] = useState<string | null>(null);
   const [reviewedListingIds, setReviewedListingIds] = useState<Set<string>>(new Set());
+  const [reviewTarget, setReviewTarget] = useState<TravelerReviewTarget | null>(null);
   const [actionSuccess, setActionSuccess] = useState<{ title: string; body: string } | null>(null);
   // Phase 1677: copy feedback for expanded trip reference.
   const [copiedTripRefId, setCopiedTripRefId] = useState<string | null>(null);
@@ -1140,105 +1144,102 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                       });
                     }
                   }}
-                  className="lux-flat flex w-full items-start gap-3 p-3 text-left sm:gap-3.5 sm:p-3.5"
+                  className="tv-trip-card__hit lux-flat"
                 >
                   {thumb ? (
                     <img
                       src={thumb}
                       alt=""
-                      className="h-16 w-24 rounded-md object-cover shrink-0 bg-black/[0.04]"
-                      width={80}
-                      height={80}
+                      className="tv-trip-card__thumb"
+                      width={84}
+                      height={84}
                       loading="lazy"
                       decoding="async"
                     />
                   ) : (
-                    <div
-                      className="flex h-16 w-24 shrink-0 items-center justify-center rounded-md bg-finland/[0.06] ring-1 ring-finland/10"
-                      aria-hidden
-                    >
-                      <CalendarDays className="h-6 w-6 text-finland/50" />
+                    <div className="tv-trip-card__thumb tv-trip-card__thumb--empty" aria-hidden>
+                      <CalendarDays className="h-5 w-5 text-finland/45" />
                     </div>
                   )}
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-start justify-between gap-2">
+                  <div className="tv-trip-card__body min-w-0 flex-1">
+                    <div className="tv-trip-card__top">
                       <div className="min-w-0">
-                        <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-faint">
-                          {dateLine}
-                          {timeBit ? ` · ${timeBit}` : ''}
-                        </p>
-                        <h3 className="tv-trip-card__title mt-1 line-clamp-2 break-words [overflow-wrap:anywhere]">
+                        <h3 className="tv-trip-card__title" title={tripTitle}>
                           {tripTitle}
                         </h3>
-                        {tripOption ? (
-                          <p className="mt-0.5 text-sm text-ink-muted line-clamp-1">{tripOption}</p>
-                        ) : null}
+                        <p className="tv-trip-card__when">
+                          {dateLine}
+                          {timeBit ? ` · ${timeBit}` : ''}
+                          {tripOption ? ` · ${tripOption}` : ''}
+                        </p>
                       </div>
-                      <span className="inline-flex shrink-0 items-center gap-1 text-xs font-semibold text-finland">
-                        {open ? 'Close' : 'View booking'}
-                        <ChevronDown
-                          className={`h-4 w-4 text-ink-faint transition-transform duration-200 motion-reduce:transition-none ${open ? 'rotate-180' : ''}`}
-                          aria-hidden
-                        />
+                      <div className="tv-trip-card__aside">
+                        {b.amount_paid != null &&
+                        Number(b.amount_paid) > 0 &&
+                        bookingPaymentWasCollected(b.payment_status) ? (
+                          <p className="tv-trip-card__price">
+                            {formatMoney(Number(b.amount_paid), b.currency)}
+                            {isStripeTestCheckoutSession(b.checkout_session_id) || appStripeIsTestMode() ? (
+                              <span className="tv-trip-card__test">Test</span>
+                            ) : null}
+                          </p>
+                        ) : null}
+                        <span className="tv-trip-card__view">
+                          {open ? 'Close' : 'View details'}
+                          <ChevronDown
+                            className={`h-3.5 w-3.5 transition-transform duration-180 motion-reduce:transition-none ${open ? 'rotate-180' : ''}`}
+                            aria-hidden
+                          />
+                        </span>
+                      </div>
+                    </div>
+                    <div className="tv-trip-card__meta">
+                      <span className="tv-trip-card__chips">
+                        {openCancel ? <StatusChip tone="warn">Host cancellation</StatusChip> : null}
+                        <StatusChip tone={toneForPaymentLabel(lifecycle)}>{lifecycle}</StatusChip>
+                        {payLabel !== lifecycle ? (
+                          <StatusChip tone={toneForPaymentLabel(payLabel)}>{payLabel}</StatusChip>
+                        ) : null}
+                        {pickupMissing ? <StatusChip tone="warn">Pickup needed</StatusChip> : null}
+                      </span>
+                      <span className="tv-trip-card__facts-inline">
+                        {placeLine ? (
+                          <span className="inline-flex min-w-0 max-w-[14rem] items-center gap-1 truncate sm:max-w-[18rem]">
+                            <MapPin className="h-3 w-3 shrink-0 text-ink-faint" aria-hidden />
+                            <span className="truncate">{placeLine}</span>
+                          </span>
+                        ) : null}
+                        <span className="shrink-0">
+                          {formatBookingParticipantsLabel(b)}
+                          {stayNightsSuffix}
+                        </span>
+                        {ref ? (
+                          <span className="tv-trip-card__ref shrink-0 font-mono">{ref}</span>
+                        ) : null}
                       </span>
                     </div>
-                    <div className="mt-2.5 flex flex-wrap gap-1.5">
-                      {openCancel ? <StatusChip tone="warn">Host cancellation</StatusChip> : null}
-                      <StatusChip tone={toneForPaymentLabel(lifecycle)}>{lifecycle}</StatusChip>
-                      {payLabel !== lifecycle ? (
-                        <StatusChip tone={toneForPaymentLabel(payLabel)}>{payLabel}</StatusChip>
-                      ) : null}
-                      {pickupMissing ? <StatusChip tone="warn">Pickup needed</StatusChip> : null}
-                    </div>
-                    <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-ink-muted">
-                      {placeLine ? (
-                        <span className="inline-flex min-w-0 max-w-full items-center gap-1">
-                          <MapPin className="h-3.5 w-3.5 shrink-0 text-ink-faint" aria-hidden />
-                          <span className="min-w-0 break-words [overflow-wrap:anywhere]">{placeLine}</span>
-                        </span>
-                      ) : null}
-                      <span>
-                        {formatBookingParticipantsLabel(b)}
-                        {stayNightsSuffix}
-                      </span>
-                    </div>
-                    <p className="mt-2 flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-sm text-ink-muted">
-                      {ref ? (
-                        <span className="font-mono text-[13px] text-finland font-semibold tracking-wide">{ref}</span>
-                      ) : null}
-                      {b.amount_paid != null &&
-                      Number(b.amount_paid) > 0 &&
-                      bookingPaymentWasCollected(b.payment_status) ? (
-                        <span className="font-sans text-[0.95rem] font-bold tabular-nums tracking-tight text-[#111827]">
-                          {formatMoney(Number(b.amount_paid), b.currency)}
-                          {isStripeTestCheckoutSession(b.checkout_session_id) || appStripeIsTestMode() ? (
-                            <span className="ml-2 text-[11px] font-semibold uppercase tracking-wide text-amber-800">Test mode</span>
-                          ) : null}
-                        </span>
-                      ) : null}
-                    </p>
                   </div>
                 </button>
                 {!open &&
                 tripView === 'past' &&
-                onTourSelect &&
                 tripAllowsLeaveReview(ops) &&
                 bookingEligibleForReview(b) ? (
-                  <div className="flex flex-wrap items-center justify-between gap-2 border-t border-black/[0.05] px-3.5 py-2.5 sm:px-4">
-                    <p className="text-sm text-ink">
-                      {reviewedListingIds.has(b.listing_id) ? 'Your review is saved.' : 'How was your experience?'}
-                    </p>
+                  <div className="tv-trip-card__review-bar">
                     <button
                       type="button"
-                      onClick={() => {
-                        onTourSelect({
-                          id: b.listing_id,
-                          ...(isStay ? { listingExtras: { inventoryFamily: 'stay' as const } } : {}),
-                        });
-                      }}
-                      className="tv-btn-secondary min-h-9"
+                      onClick={() =>
+                        setReviewTarget({
+                          bookingId: b.id,
+                          listingId: b.listing_id,
+                          listingTitle: tripTitle,
+                          imageUrl: thumb,
+                          mode: reviewedListingIds.has(b.listing_id) ? 'edit' : 'write',
+                        })
+                      }
+                      className="tv-trip-card__review-btn lux-flat"
                     >
-                      {reviewedListingIds.has(b.listing_id) ? 'Your review' : 'Write a review'}
+                      <Star className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                      {reviewedListingIds.has(b.listing_id) ? 'Edit review' : 'Write a review'}
                     </button>
                   </div>
                 ) : null}
@@ -1279,9 +1280,9 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                 {open ? (
                 <div
                   id={`trip-panel-${b.id}`}
-                  className="space-y-3 border-t border-black/[0.06] px-3.5 py-3.5 sm:px-4 motion-safe:animate-fade-in"
+                  className="tv-trip-card__panel space-y-2.5 border-t border-black/[0.06] px-3.5 py-3 sm:px-4 motion-safe:animate-fade-in"
                 >
-                  <div className="flex gap-1" role="tablist" aria-label="Booking sections">
+                  <div className="tv-trip-card__tabs flex gap-1" role="tablist" aria-label="Booking sections">
                     {([
                       ['overview', 'Overview'],
                       ['details', 'Details'],
@@ -1293,8 +1294,10 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                         role="tab"
                         aria-selected={tripDetailTab === id}
                         onClick={() => setTripDetailTab(id)}
-                        className={`min-h-9 rounded-full px-3 text-sm font-semibold ${
-                          tripDetailTab === id ? 'bg-finland text-white' : 'text-ink-muted hover:bg-black/[0.04]'
+                        className={`min-h-8 rounded-md px-2.5 text-[12.5px] font-semibold ${
+                          tripDetailTab === id
+                            ? 'bg-finland text-white'
+                            : 'text-ink-muted hover:bg-black/[0.04]'
                         }`}
                       >
                         {label}
@@ -1718,24 +1721,25 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                     >
                       Contact operator
                     </button>
-                    {/* Phase 1678 + Phase 1709 + Phase 1731: Leave a review for published or draft (unpublish); not live-season. */}
-                    {onTourSelect &&
-                    tripView === 'past' &&
+                    {/* Phase 1678 + Phase 1709 + Phase 1731: Leave a review for published or draft (unpublish); not live-season.
+                        Trips compose dialog — do not route via PDP (season gate blocked past trips). */}
+                    {tripView === 'past' &&
                     tripAllowsLeaveReview(ops) &&
                     bookingEligibleForReview(b) ? (
                       <button
                         type="button"
-                        onClick={() => {
-                          onTourSelect({
-                            id: b.listing_id,
-                            ...(isStay
-                              ? { listingExtras: { inventoryFamily: 'stay' as const } }
-                              : {}),
-                          });
-                        }}
+                        onClick={() =>
+                          setReviewTarget({
+                            bookingId: b.id,
+                            listingId: b.listing_id,
+                            listingTitle: tripTitle,
+                            imageUrl: thumb,
+                            mode: reviewedListingIds.has(b.listing_id) ? 'edit' : 'write',
+                          })
+                        }
                         className="tv-btn-secondary"
                       >
-                        {reviewedListingIds.has(b.listing_id) ? 'Your review' : 'Leave a review'}
+                        {reviewedListingIds.has(b.listing_id) ? 'Edit review' : 'Leave a review'}
                       </button>
                     ) : null}
                     {onTourSelect &&
@@ -2027,6 +2031,30 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
           </div>
         )}
       </div>
+
+      {user ? (
+        <TravelerReviewComposeDialog
+          open={reviewTarget !== null}
+          target={reviewTarget}
+          userId={user.id}
+          userMetadata={(user.user_metadata as Record<string, unknown> | null) ?? null}
+          profileDisplayName={
+            typeof user.user_metadata?.full_name === 'string' ? user.user_metadata.full_name : null
+          }
+          onClose={() => setReviewTarget(null)}
+          onSubmitted={(listingId) => {
+            setReviewedListingIds((prev) => {
+              const next = new Set(prev);
+              next.add(listingId);
+              return next;
+            });
+            setActionSuccess({
+              title: 'Review submitted',
+              body: 'Thank you — your review is saved and visible where reviews are shown.',
+            });
+          }}
+        />
+      ) : null}
     </div>
   );
 }

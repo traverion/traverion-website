@@ -9,9 +9,10 @@ describe('Phase 1806: Trips itinerary card polish', () => {
     expect(css).toContain('Phase 1806');
     expect(css).toContain('.tv-trip-card');
     expect(css).toContain('.tv-trip-card__facts');
+    expect(css).toContain('.tv-trip-card__hit');
     expect(trips).toContain('tv-trip-card');
     expect(trips).toContain('tv-trip-card__facts');
-    expect(trips).toMatch(/font-display text-\[1\.05rem\].*font-semibold text-ink/);
+    expect(trips).toContain('tv-trip-card__title');
     expect(trips).toContain("data-open={open ? 'true' : 'false'}");
   });
 

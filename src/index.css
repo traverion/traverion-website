@@ -4576,30 +4576,170 @@ details:not([open]) > :not(summary) {
   padding: 0.75rem 1rem max(0.75rem, env(safe-area-inset-bottom));
 }
 
-/* Phase 1806: Trips itinerary cards — travel document, not DB row */
+/* Phase 1806 + Trips compact redesign: dense itinerary cards */
 .tv-trip-card {
-  border-radius: var(--tv-radius-lg, 1rem);
+  border-radius: 0.75rem;
   background: #ffffff;
   overflow: hidden;
-  box-shadow: var(--tv-elev-1);
+  box-shadow:
+    0 0 0 1px rgba(15, 23, 42, 0.07),
+    0 1px 2px rgba(15, 23, 42, 0.04);
   transition:
-    box-shadow var(--tv-duration-ui, 180ms) var(--tv-ease),
-    ring-color var(--tv-duration-ui, 180ms) var(--tv-ease);
+    box-shadow 160ms cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 160ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 .tv-trip-card[data-open='true'] {
-  box-shadow: var(--tv-shadow-hover);
+  box-shadow:
+    0 0 0 1px rgba(7, 59, 131, 0.14),
+    0 6px 18px rgba(15, 23, 42, 0.06);
 }
 @media (hover: hover) and (pointer: fine) {
   .tv-trip-card:hover {
-    box-shadow: var(--tv-shadow-hover);
+    box-shadow:
+      0 0 0 1px rgba(15, 23, 42, 0.1),
+      0 4px 14px rgba(15, 23, 42, 0.06);
   }
+}
+.tv-trip-card__hit {
+  display: flex;
+  width: 100%;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.75rem 0.85rem;
+  text-align: left;
+}
+@media (min-width: 640px) {
+  .tv-trip-card__hit {
+    gap: 0.85rem;
+    padding: 0.8rem 0.95rem;
+  }
+}
+.tv-trip-card__thumb {
+  width: 4.75rem;
+  height: 4.75rem;
+  flex: 0 0 auto;
+  border-radius: 0.5rem;
+  object-fit: cover;
+  background: rgba(15, 23, 42, 0.04);
+  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.06);
+}
+.tv-trip-card__thumb--empty {
+  display: grid;
+  place-items: center;
+  background: rgba(7, 59, 131, 0.05);
+}
+.tv-trip-card__top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.65rem 0.85rem;
+}
+.tv-trip-card__aside {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.35rem;
+  flex: 0 0 auto;
+}
+.tv-trip-card__price {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  color: #0c1118;
+  line-height: 1.2;
+  text-align: right;
+}
+.tv-trip-card__test {
+  margin-left: 0.35rem;
+  font-size: 0.625rem;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #92400e;
+}
+.tv-trip-card__view {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  font-size: 0.75rem;
+  font-weight: 650;
+  color: #073b83;
+  white-space: nowrap;
+}
+.tv-trip-card__when {
+  margin: 0.2rem 0 0;
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1.35;
+  color: #5a6472;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tv-trip-card__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-top: 0.45rem;
+}
+.tv-trip-card__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+.tv-trip-card__chips > * {
+  min-height: 1.35rem;
+  font-size: 0.6875rem;
+}
+.tv-trip-card__facts-inline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.65rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #5a6472;
+  line-height: 1.35;
+}
+.tv-trip-card__ref {
+  font-size: 0.6875rem;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  color: #073b83;
+}
+.tv-trip-card__review-bar {
+  display: flex;
+  justify-content: flex-end;
+  border-top: 1px solid rgba(15, 23, 42, 0.05);
+  padding: 0.35rem 0.85rem 0.45rem;
+}
+.tv-trip-card__review-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  min-height: 2rem;
+  padding: 0.25rem 0.55rem;
+  border-radius: 0.375rem;
+  font-size: 0.75rem;
+  font-weight: 650;
+  color: #073b83;
+  background: rgba(7, 59, 131, 0.05);
+}
+.tv-trip-card__review-btn:hover {
+  background: rgba(7, 59, 131, 0.09);
+}
+.tv-traveler-review-dialog {
+  max-height: min(92dvh, 36rem);
+  overflow-y: auto;
 }
 .tv-trip-card__facts {
   display: grid;
-  gap: 0.65rem;
-  border-radius: 0.75rem;
+  gap: 0.55rem;
+  border-radius: 0.65rem;
   background: rgba(28, 25, 23, 0.025);
-  padding: 0.75rem 0.85rem;
+  padding: 0.65rem 0.75rem;
   box-shadow: inset 0 0 0 1px rgba(28, 25, 23, 0.05);
 }
 @media (min-width: 640px) {
@@ -10779,16 +10919,23 @@ details:not([open]) > :not(summary) {
 }
 
 .tv-trip-card__title {
+  margin: 0;
   font-family: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
-  font-size: 1.05rem;
+  font-size: 0.9375rem;
   font-weight: 700;
   letter-spacing: -0.02em;
   line-height: 1.3;
-  color: #111827;
+  color: #0c1118;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: anywhere;
 }
 @media (min-width: 640px) {
   .tv-trip-card__title {
-    font-size: 1.125rem;
+    font-size: 1rem;
+    -webkit-line-clamp: 1;
   }
 }
 
