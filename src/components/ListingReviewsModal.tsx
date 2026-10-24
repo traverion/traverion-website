@@ -204,7 +204,7 @@ export function ListingReviewsModal({ open, onClose, reviews, replies, listingTi
                       <Star
                         key={i}
                         size={13}
-                        className={i <= r.rating ? 'fill-finland text-finland' : 'text-ink-faint'}
+                        className={i <= r.rating ? 'fill-[#C9A227] text-[#C9A227]' : 'text-[#E8EBF0]'}
                         aria-hidden
                       />
                     ))}
