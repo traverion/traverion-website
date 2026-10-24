@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  clearRentalDepositAmounts,
   createDefaultRentalVariant,
   defaultRentalOperatingDays,
   effectiveVariantPricing,
@@ -7,10 +8,13 @@ import {
   ensureRentalHasDefaultVariant,
   groupRentalOperatingHours,
   normalizeRentalDetails,
+  rentalIllustrativeTotalMinor,
+  rentalOperatingHoursIssue,
+  rentalStartingFromMajor,
   rentalVariantComplete,
   rentalVariantMetaLine,
 } from './rental-details';
-import { rentalPublishBlockers } from './rental-onboarding';
+import { LEGACY_RENTAL_SCREEN_ALIASES, resolveRentalScreenId, rentalPublishBlockers } from './rental-onboarding';
 import type { RentalDetails } from '../types/rental';
 
 describe('rental details', () => {
@@ -100,6 +104,80 @@ describe('rental display helpers', () => {
     );
     expect(line).toBe('12 units');
     expect(line).not.toMatch(/\bM\b/);
+  });
+});
+
+describe('rental pricing derivation', () => {
+  it('derives startingFrom from lowest daily variant rate (major units)', () => {
+    const rental: RentalDetails = {
+      ...emptyRentalDetails(),
+      durationMode: 'daily',
+      sharedPricing: { pricePerDayMinor: 2000 },
+      variants: [
+        { id: 'a', name: 'S', quantity: 1 },
+        { id: 'b', name: 'XL', quantity: 1, pricingOverride: { pricePerDayMinor: 2500 } },
+      ],
+    };
+    expect(rentalStartingFromMajor(rental)).toBe(20);
+  });
+
+  it('applies multi-day discount on illustrative totals only for daily mode', () => {
+    expect(
+      rentalIllustrativeTotalMinor({
+        unitMinor: 2000,
+        units: 2,
+        durationCount: 3,
+        mode: 'day',
+        multiDayDiscountPercent: 10,
+        multiDayDiscountMinDays: 3,
+      })
+    ).toBe(10800);
+    expect(
+      rentalIllustrativeTotalMinor({
+        unitMinor: 800,
+        units: 1,
+        durationCount: 5,
+        mode: 'hour',
+        multiDayDiscountPercent: 10,
+        multiDayDiscountMinDays: 3,
+      })
+    ).toBe(4000);
+  });
+
+  it('clears deposit amounts when no deposit is selected (normalize + helper)', () => {
+    const cleared = clearRentalDepositAmounts();
+    expect(cleared.depositRequired).toBe(false);
+    expect(cleared.depositAmountMinor).toBeNull();
+    const normalized = normalizeRentalDetails({
+      depositRequired: false,
+      depositAmountMinor: 5000,
+      depositCollectionMethod: 'cash_at_pickup',
+      depositCurrency: 'EUR',
+      depositDisclosure: 'Bring cash',
+    });
+    expect(normalized?.depositAmountMinor).toBeNull();
+    expect(normalized?.depositCollectionMethod).toBeNull();
+    expect(normalized?.depositDisclosure).toBe('Bring cash');
+  });
+
+  it('flags invalid pickup windows', () => {
+    const days = defaultRentalOperatingDays().map((d) => ({
+      ...d,
+      open: d.day === 'mon',
+      earliestPickupHm: '17:00',
+      latestPickupHm: '09:00',
+    }));
+    expect(rentalOperatingHoursIssue(days)).toMatch(/Pickup/i);
+  });
+});
+
+describe('legacy rental screen aliases', () => {
+  it('maps retired 33-step ids onto the simplified journey', () => {
+    expect(resolveRentalScreenId('gallery')).toBe('photos');
+    expect(resolveRentalScreenId('buffers')).toBe('booking-rules');
+    expect(resolveRentalScreenId('availability-summary')).toBe('duration');
+    expect(resolveRentalScreenId('basics-title')).toBe('basics-title');
+    expect(Object.keys(LEGACY_RENTAL_SCREEN_ALIASES).length).toBeGreaterThan(10);
   });
 });
 

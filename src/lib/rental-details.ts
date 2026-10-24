@@ -170,6 +170,13 @@ export function normalizeRentalDetails(raw: unknown): RentalDetails | undefined 
     out.depositCollectionMethod = null;
   }
   if (typeof o.depositReturnNotes === 'string') out.depositReturnNotes = o.depositReturnNotes.trim().slice(0, 500);
+  // Authoritative: no deposit → neutralize amount/method (keep free-text disclosure notes).
+  if (out.depositRequired === false) {
+    out.depositAmountMinor = null;
+    out.depositCollectionMethod = null;
+    out.depositCurrency = undefined;
+    out.depositReturnNotes = undefined;
+  }
   if (typeof o.insuranceIncluded === 'boolean') out.insuranceIncluded = o.insuranceIncluded;
   if (typeof o.insuranceCoverageNotes === 'string') {
     out.insuranceCoverageNotes = o.insuranceCoverageNotes.trim().slice(0, 1000);
@@ -379,4 +386,91 @@ export function rentalHasInsuranceInfo(rental: RentalDetails): boolean {
   if ((rental.insuranceExclusions ?? '').trim()) return true;
   if ((rental.insuranceExcessNotes ?? '').trim()) return true;
   return false;
+}
+
+/**
+ * Lowest positive per-unit rate across variants for the primary duration unit.
+ * Authoritative for listing.price.startingFrom on rental drafts (major currency units).
+ */
+export function rentalStartingFromMajor(rental: RentalDetails): number {
+  const mode = rental.durationMode ?? 'daily';
+  const preferHour = mode === 'hourly';
+  let best: number | null = null;
+  const variants = rental.variants?.length ? rental.variants : [createDefaultRentalVariant()];
+  for (const v of variants) {
+    const p = effectiveVariantPricing(rental, v);
+    const minor = preferHour
+      ? p.pricePerHourMinor
+      : p.pricePerDayMinor ?? (mode === 'both' ? p.pricePerHourMinor : null);
+    if (minor != null && minor > 0 && (best == null || minor < best)) best = minor;
+  }
+  if (best == null) return 0;
+  return best / 100;
+}
+
+/** Clear deposit amount/method when supplier selects no deposit. Keeps optional free-text notes. */
+export function clearRentalDepositAmounts(_rental?: RentalDetails): Partial<RentalDetails> {
+  return {
+    depositRequired: false,
+    depositAmountMinor: null,
+    depositCollectionMethod: null,
+    depositCurrency: undefined,
+    depositReturnNotes: undefined,
+  };
+}
+
+/** Parse HH:MM to minutes from midnight; null if invalid. */
+export function parseHmToMinutes(hm: string | null | undefined): number | null {
+  if (!hm || typeof hm !== 'string') return null;
+  const m = /^(\d{1,2}):(\d{2})$/.exec(hm.trim());
+  if (!m) return null;
+  const h = Number(m[1]);
+  const min = Number(m[2]);
+  if (!Number.isInteger(h) || !Number.isInteger(min) || h < 0 || h > 23 || min < 0 || min > 59) return null;
+  return h * 60 + min;
+}
+
+/**
+ * Validate pickup/return windows on open days.
+ * Latest must be after earliest for each window. Returns first issue or null.
+ */
+export function rentalOperatingHoursIssue(days: RentalOperatingDay[] | undefined): string | null {
+  for (const d of days ?? []) {
+    if (!d.open) continue;
+    const ep = parseHmToMinutes(d.earliestPickupHm);
+    const lp = parseHmToMinutes(d.latestPickupHm);
+    const er = parseHmToMinutes(d.earliestReturnHm);
+    const lr = parseHmToMinutes(d.latestReturnHm);
+    const label = DAY_SHORT[d.day] ?? d.day;
+    if (ep == null || lp == null) return `Set valid pickup hours for ${label}.`;
+    if (er == null || lr == null) return `Set valid return hours for ${label}.`;
+    if (lp <= ep) return `Pickup “until” must be after “from” on ${label}.`;
+    if (lr <= er) return `Return “until” must be after “from” on ${label}.`;
+  }
+  return null;
+}
+
+/**
+ * Billable example total for earnings UI — not a checkout quote.
+ * daysOrHours × units × unitMinor, with optional multi-day discount on daily rates.
+ */
+export function rentalIllustrativeTotalMinor(args: {
+  unitMinor: number;
+  units: number;
+  durationCount: number;
+  mode: 'hour' | 'day';
+  multiDayDiscountPercent?: number | null;
+  multiDayDiscountMinDays?: number | null;
+}): number {
+  const { unitMinor, units, durationCount, mode } = args;
+  if (!(unitMinor > 0) || !(units > 0) || !(durationCount > 0)) return 0;
+  let gross = Math.round(unitMinor * units * durationCount);
+  if (mode === 'day') {
+    const pct = args.multiDayDiscountPercent ?? 0;
+    const minDays = args.multiDayDiscountMinDays ?? 0;
+    if (pct > 0 && durationCount >= minDays) {
+      gross = Math.round(gross * (1 - Math.min(90, pct) / 100));
+    }
+  }
+  return Math.max(0, gross);
 }

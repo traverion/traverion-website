@@ -260,7 +260,11 @@ import {
   rentalStageBlocker,
   type RentalOnboardingCheck,
 } from '../../lib/rental-onboarding';
-import { emptyRentalDetails, normalizeRentalDetails } from '../../lib/rental-details';
+import {
+  emptyRentalDetails,
+  normalizeRentalDetails,
+  rentalStartingFromMajor,
+} from '../../lib/rental-details';
 import type { RentalDetails } from '../../types/rental';
 import { fetchSupplierActiveCommercialTerms } from '../../data/supabase-earnings';
 
@@ -1023,19 +1027,25 @@ function buildListingFromForm(form: ListingFormState, existingId?: string): Tour
   const stayBeds = Number.parseInt(form.stayBeds, 10);
   const stayBaths = Number.parseFloat(form.stayBathrooms);
   const stayCleaning = Number.parseFloat(form.stayCleaningFee);
-  const derivedStarting =
-    isStay && Number.isFinite(stayNightly) && stayNightly > 0
+  const derivedStarting = isRental
+    ? rentalStartingFromMajor(form.rental ?? emptyRentalDetails())
+    : isStay && Number.isFinite(stayNightly) && stayNightly > 0
       ? stayNightly
       : headlineStartingAmountFromBookingOptions(activeOpts, 0);
-  const groupSizeStr = isStay
-    ? Number.isFinite(stayMaxGuests) && stayMaxGuests >= 1
-      ? `Up to ${stayMaxGuests} guests`
-      : 'Guests'
-    : activeOpts.length === 0
-      ? '1–12 guests'
-      : activeOpts.length === 1
-        ? `${activeOpts[0].minPersons}–${activeOpts[0].maxPersons} guests`
-        : `${activeOpts.length} bookable options`;
+  const groupSizeStr = isRental
+    ? (() => {
+        const n = (form.rental?.variants ?? []).length;
+        return n <= 1 ? 'Rental options' : `${n} rental options`;
+      })()
+    : isStay
+      ? Number.isFinite(stayMaxGuests) && stayMaxGuests >= 1
+        ? `Up to ${stayMaxGuests} guests`
+        : 'Guests'
+      : activeOpts.length === 0
+        ? '1–12 guests'
+        : activeOpts.length === 1
+          ? `${activeOpts[0].minPersons}–${activeOpts[0].maxPersons} guests`
+          : `${activeOpts.length} bookable options`;
   const kind =
     form.experienceKind === 'tour' ||
     form.experienceKind === 'ticket' ||
@@ -1209,7 +1219,16 @@ function buildListingFromForm(form: ListingFormState, existingId?: string): Tour
           },
         }
       : {}),
-    ...(isRental ? { inventoryFamily: 'rental' as const, rental: form.rental ?? emptyRentalDetails() } : {}),
+    ...(isRental
+      ? {
+          inventoryFamily: 'rental' as const,
+          // form.highlights is authoritative; keep rental.highlights mirrored for draft JSON consumers.
+          rental: {
+            ...(form.rental ?? emptyRentalDetails()),
+            highlights: form.highlights.map((h) => h.trim()).filter(Boolean),
+          },
+        }
+      : {}),
   };
   return {
     id,
@@ -1227,7 +1246,7 @@ function buildListingFromForm(form: ListingFormState, existingId?: string): Tour
     price: {
       startingFrom: derivedStarting,
       currency: DEFAULT_CURRENCY,
-      perPerson: true,
+      perPerson: isRental ? false : true,
       twinOccupancy: false,
       customQuote: false,
       singleSupplement: 0,

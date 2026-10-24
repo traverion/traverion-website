@@ -129,7 +129,9 @@ export function getListingPublishBlockers(
       city: listing.city ?? '',
       country: listing.country ?? '',
       galleryCount,
-      experienceLanguage: listing.listingExtras?.experienceLanguage ?? 'en',
+      experienceLanguage:
+        (listing.listingExtras as { experienceLanguage?: string } | undefined)?.experienceLanguage ??
+        'en',
       rental,
     });
     out.push(...creatorBlockers);

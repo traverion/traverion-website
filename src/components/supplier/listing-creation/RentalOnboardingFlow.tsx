@@ -2,7 +2,9 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { Pencil } from 'lucide-react';
 import {
+  RENTAL_COMPLETION_GROUPS,
   RENTAL_ONBOARDING_SCREENS,
+  resolveRentalScreenId,
   rentalPublishBlockers,
   rentalScreenIndex,
   rentalScreenIndexForPublishLine,
@@ -17,6 +19,7 @@ import {
   type RentalCategoryConfig,
 } from '../../../lib/rental-categories';
 import {
+  clearRentalDepositAmounts,
   createDefaultRentalVariant,
   defaultRentalOperatingDays,
   effectiveVariantPricing,
@@ -25,6 +28,7 @@ import {
   newRentalVariantId,
   rentalHasDepositInfo,
   rentalHasInsuranceInfo,
+  rentalIllustrativeTotalMinor,
   rentalVariantComplete,
   rentalVariantMetaLine,
 } from '../../../lib/rental-details';
@@ -103,7 +107,8 @@ type Ctx = {
   currency: string;
   patch: (next: Partial<Values>) => void;
   patchRental: (next: Partial<RentalDetails>) => void;
-  goTo: (id: RentalOnboardingScreenId) => void;
+  /** Accepts current or legacy screen ids; resolved via resolveRentalScreenId. */
+  goTo: (id: string) => void;
   editVariant: (variant: RentalVariant, isNew: boolean) => void;
 };
 
@@ -337,18 +342,6 @@ function PreviewSection({ title, onEdit, children }: { title: string; onEdit: ()
       </div>
       {children}
     </section>
-  );
-}
-
-function SummaryRow({ label, value, onEdit }: { label: string; value: string; onEdit: () => void }) {
-  return (
-    <li className="flex items-start justify-between gap-3 border-t border-[#E6EAF0] px-3 py-2.5 first:border-t-0">
-      <div className="min-w-0">
-        <p className="text-sm font-semibold text-ink">{label}</p>
-        <p className="text-sm text-ink-muted">{value}</p>
-      </div>
-      <PreviewEdit onClick={onEdit} label={`Edit ${label}`} />
-    </li>
   );
 }
 
@@ -1206,7 +1199,7 @@ function DailyRulesStage({ ctx }: { ctx: Ctx }) {
     return (
       <section className="stay-panel space-y-2">
         <p className="text-sm text-ink">Daily rules only apply when you offer daily rentals.</p>
-        <p className="stay-help">Your rental is hourly. Change this in Availability if you want to add daily rentals.</p>
+        <p className="stay-help">Your rental is hourly. Switch to daily or both under rental length to configure day rules.</p>
       </section>
     );
   }
@@ -1222,11 +1215,14 @@ function DailyRulesStage({ ctx }: { ctx: Ctx }) {
         <StayChoice pressed={!calendar} onClick={() => patchRental({ calendarDayRentals: false })}>
           <span className="block">24-hour periods</span>
           <span className="stay-help mt-0.5 block font-normal">
-            Each day lasts 24 hours from the pickup time the customer chooses.
+            Preference for when bookings open: each day lasts 24 hours from pickup. Not enforced in checkout yet.
           </span>
         </StayChoice>
       </div>
-      <StayHelp>Pickup and return hours come from the Pickup & return step.</StayHelp>
+      <StayHelp>
+        Calendar days are the default for equipment rentals. Pickup and return windows come from your hours step.
+        24-hour periods are saved as a preference until the booking engine enforces them.
+      </StayHelp>
     </div>
   );
 }
@@ -1265,31 +1261,6 @@ function PresetNumber({
       <StayField label={customLabel}>
         <RentalIntegerInput value={value} min={0} max={max} ariaLabel={customLabel} suffix={customSuffix} onChange={(n) => onChange(n ?? 0)} />
       </StayField>
-    </div>
-  );
-}
-
-function AvailabilitySummaryStage({ ctx }: { ctx: Ctx }) {
-  const { rental, mode, goTo } = ctx;
-  const hours = hoursLines(rental);
-  return (
-    <div className="space-y-3">
-      <ul className="overflow-hidden rounded-xl ring-1 ring-[#E6EAF0]">
-        <SummaryRow label="Rental length" value={durationLabel(mode)} onEdit={() => goTo('duration-mode')} />
-        <SummaryRow label="Minimum and maximum" value={limitsSummary(rental, mode) || '—'} onEdit={() => goTo('duration-limits')} />
-        <SummaryRow
-          label="Daily rules"
-          value={mode === 'hourly' ? 'Not used for hourly rentals' : rental.calendarDayRentals === false ? '24-hour periods' : 'Calendar days'}
-          onEdit={() => goTo('daily-rules')}
-        />
-        <SummaryRow label="Preparation time" value={bufferLabel(Number(rental.bufferMinutes ?? 0))} onEdit={() => goTo('buffers')} />
-        <SummaryRow label="Booking notice" value={noticeLabel(rental.bookingNoticeHours ?? 0)} onEdit={() => goTo('notice')} />
-        <SummaryRow
-          label="Pickup and return hours"
-          value={hours.length > 0 ? hours.join(' · ') : 'No open days'}
-          onEdit={() => goTo('hours')}
-        />
-      </ul>
     </div>
   );
 }
@@ -1666,13 +1637,7 @@ function DepositStage({ ctx }: { ctx: Ctx }) {
           </StayChoice>
           <StayChoice
             pressed={rental.depositRequired === false}
-            onClick={() =>
-              patchRental({
-                depositRequired: false,
-                depositAmountMinor: null,
-                depositCollectionMethod: null,
-              })
-            }
+            onClick={() => patchRental(clearRentalDepositAmounts(rental))}
           >
             No deposit
           </StayChoice>
@@ -2138,30 +2103,18 @@ function PreviewStage({ ctx }: { ctx: Ctx }) {
   );
 }
 
-const PUBLISH_ROWS: { id: RentalOnboardingScreenId; label: string }[] = [
-  { id: 'category', label: 'Category' },
-  { id: 'item-type', label: 'Item type' },
-  { id: 'location', label: 'Location' },
-  { id: 'language', label: 'Language' },
-  { id: 'title', label: 'Title' },
-  { id: 'intro', label: 'Introduction' },
-  { id: 'description', label: 'Description' },
-  { id: 'photos', label: 'Photos' },
-  { id: 'pickup', label: 'Pickup' },
-  { id: 'return', label: 'Return' },
-  { id: 'hours', label: 'Pickup and return hours' },
-  { id: 'options', label: 'Options' },
-  { id: 'duration-mode', label: 'Rental length' },
-  { id: 'duration-limits', label: 'Duration limits' },
-  { id: 'pricing', label: 'Prices' },
-  { id: 'requirements', label: 'Requirements' },
-];
-
 function PublishStage({ ctx, check }: { ctx: Ctx; check: RentalOnboardingCheck }) {
   const { values, props, goTo } = ctx;
   const issues = rentalPublishBlockers(check);
   const ready = issues.length === 0;
   const cover = galleryUrlsOf(values)[0];
+  const groups = RENTAL_COMPLETION_GROUPS.map((group) => {
+    const blockers = group.screens
+      .map((screenId) => ({ screenId, issue: rentalStageBlocker(screenId, check) }))
+      .filter((row) => row.issue);
+    return { ...group, blockers, complete: blockers.length === 0 };
+  }).sort((a, b) => Number(a.complete) - Number(b.complete));
+
   return (
     <div className="space-y-4">
       <div className="stay-panel flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -2215,29 +2168,27 @@ function PublishStage({ ctx, check }: { ctx: Ctx; check: RentalOnboardingCheck }
         </section>
       )}
 
-      <section className="stay-panel space-y-2" aria-label="Setup checklist">
-        <p className="stay-kicker">Setup checklist</p>
-        <ul className="overflow-hidden rounded-xl ring-1 ring-[#E6EAF0]">
-          {PUBLISH_ROWS.map((row) => {
-            const issue = rentalStageBlocker(row.id, check);
-            return (
-              <li
-                key={row.id}
-                className={`flex items-start justify-between gap-3 border-t border-[#E6EAF0] px-3 py-2.5 first:border-t-0 ${
-                  issue ? 'bg-[#FFF8F8]' : 'bg-white'
-                }`}
-              >
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold text-ink">{row.label}</p>
-                  <p className={`text-sm ${issue ? 'text-[#9f1239]' : 'text-ink-muted'}`}>
-                    {issue ?? 'Complete'}
-                  </p>
-                </div>
-                <PreviewEdit onClick={() => goTo(row.id)} label={`Edit ${row.label}`} />
-              </li>
-            );
-          })}
-        </ul>
+      <section className="space-y-3" aria-label="Setup checklist by section">
+        <p className="stay-kicker">Sections</p>
+        {groups.map((group) => (
+          <div
+            key={group.id}
+            className={`stay-panel space-y-2 ${group.complete ? '' : 'ring-1 ring-[#fecdd3]'}`}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-ink">{group.label}</p>
+                <p className={`text-sm ${group.complete ? 'text-ink-muted' : 'text-[#9f1239]'}`}>
+                  {group.complete ? 'Complete' : group.blockers[0]?.issue}
+                </p>
+              </div>
+              <PreviewEdit
+                onClick={() => goTo(group.blockers[0]?.screenId ?? group.screens[0])}
+                label={`Edit ${group.label}`}
+              />
+            </div>
+          </div>
+        ))}
       </section>
 
       <section className="stay-panel space-y-1" aria-label="Booking status">
@@ -2291,7 +2242,7 @@ export default function RentalOnboardingFlow(props: Props) {
     currency,
     patch: onChange,
     patchRental: (next) => onChange({ rental: { ...rental, ...next } }),
-    goTo: (target) => props.onEditStage(rentalScreenIndex(target)),
+    goTo: (target) => props.onEditStage(rentalScreenIndex(resolveRentalScreenId(target))),
     editVariant: (variant, isNew) => setEditing({ variant, isNew }),
   };
 
@@ -2323,115 +2274,131 @@ export default function RentalOnboardingFlow(props: Props) {
   const wide =
     previewWide ||
     id === 'photos' ||
-    id === 'gallery' ||
     id === 'hours' ||
     id === 'options' ||
-    id === 'pricing-overrides' ||
-    id === 'availability-summary';
+    id === 'pickup-handover' ||
+    id === 'duration' ||
+    id === 'pricing';
 
   const showBack = props.returnStage != null && props.stage !== props.returnStage;
 
   let body: ReactNode = null;
   switch (id) {
-    case 'category':
-      body = <CategoryStage ctx={ctx} />;
+    case 'basics-category':
+      body = (
+        <div className="space-y-6">
+          <CategoryStage ctx={ctx} />
+          {rental.category ? (
+            <div className="space-y-2">
+              <p className="stay-kicker">Item type</p>
+              <ItemTypeStage ctx={ctx} />
+            </div>
+          ) : null}
+        </div>
+      );
       break;
-    case 'item-type':
-      body = <ItemTypeStage ctx={ctx} />;
+    case 'basics-location':
+      body = (
+        <div className="space-y-6">
+          <LocationStage ctx={ctx} />
+          <div className="space-y-2">
+            <p className="stay-kicker">Listing language</p>
+            <LanguageStage ctx={ctx} />
+          </div>
+        </div>
+      );
       break;
-    case 'location':
-      body = <LocationStage ctx={ctx} />;
+    case 'basics-title':
+      body = (
+        <div className="space-y-6">
+          <TitleStage ctx={ctx} />
+          <IntroStage ctx={ctx} />
+        </div>
+      );
       break;
-    case 'language':
-      body = <LanguageStage ctx={ctx} />;
+    case 'basics-description':
+      body = (
+        <div className="space-y-6">
+          <DescriptionStage ctx={ctx} />
+          <div className="space-y-2">
+            <p className="stay-kicker">Highlights (optional)</p>
+            <HighlightsStage ctx={ctx} />
+          </div>
+        </div>
+      );
       break;
-    case 'title':
-      body = <TitleStage ctx={ctx} />;
-      break;
-    case 'intro':
-      body = <IntroStage ctx={ctx} />;
-      break;
-    case 'description':
-      body = <DescriptionStage ctx={ctx} />;
-      break;
-    case 'highlights':
-      body = <HighlightsStage ctx={ctx} />;
-      break;
-    case 'specs':
+    case 'basics-specs':
       body = <SpecsStage ctx={ctx} />;
       break;
     case 'photos':
       body = <PhotosStage ctx={ctx} review={false} />;
       break;
-    case 'gallery':
-      body = <PhotosStage ctx={ctx} review />;
-      break;
-    case 'pickup':
-      body = <PickupStage ctx={ctx} />;
-      break;
-    case 'return':
-      body = <ReturnStage ctx={ctx} />;
+    case 'pickup-handover':
+      body = (
+        <div className="space-y-6">
+          <PickupStage ctx={ctx} />
+          <ReturnStage ctx={ctx} />
+          <CollectionStage ctx={ctx} />
+        </div>
+      );
       break;
     case 'hours':
       body = <HoursStage ctx={ctx} />;
       break;
-    case 'collection':
-      body = <CollectionStage ctx={ctx} />;
-      break;
     case 'options':
       body = <OptionsStage ctx={ctx} />;
       break;
-    case 'duration-mode':
-      body = <DurationModeStage ctx={ctx} />;
-      break;
-    case 'duration-limits':
-      body = <DurationLimitsStage ctx={ctx} />;
-      break;
-    case 'daily-rules':
-      body = <DailyRulesStage ctx={ctx} />;
-      break;
-    case 'buffers':
+    case 'duration':
       body = (
-        <PresetNumber
-          label="Time between bookings"
-          value={Number(rental.bufferMinutes ?? 0)}
-          presets={BUFFER_PRESETS}
-          format={bufferLabel}
-          max={1440}
-          customLabel="Custom preparation time"
-          customSuffix="min"
-          onChange={(bufferMinutes) => ctx.patchRental({ bufferMinutes })}
-        />
+        <div className="space-y-6">
+          <DurationModeStage ctx={ctx} />
+          <DurationLimitsStage ctx={ctx} />
+          <DailyRulesStage ctx={ctx} />
+        </div>
       );
       break;
-    case 'notice':
+    case 'booking-rules':
       body = (
-        <PresetNumber
-          label="Minimum notice"
-          value={rental.bookingNoticeHours ?? 0}
-          presets={NOTICE_PRESETS}
-          format={noticeLabel}
-          max={168}
-          customLabel="Custom notice"
-          customSuffix="hours"
-          onChange={(bookingNoticeHours) => ctx.patchRental({ bookingNoticeHours })}
-        />
+        <div className="space-y-6">
+          <PresetNumber
+            label="Preparation time between bookings"
+            value={Number(rental.bufferMinutes ?? 0)}
+            presets={BUFFER_PRESETS}
+            format={bufferLabel}
+            max={1440}
+            customLabel="Custom preparation time"
+            customSuffix="min"
+            onChange={(bufferMinutes) => ctx.patchRental({ bufferMinutes })}
+          />
+          <PresetNumber
+            label="Minimum booking notice"
+            value={rental.bookingNoticeHours ?? 0}
+            presets={NOTICE_PRESETS}
+            format={noticeLabel}
+            max={168}
+            customLabel="Custom notice"
+            customSuffix="hours"
+            onChange={(bookingNoticeHours) => ctx.patchRental({ bookingNoticeHours })}
+          />
+          <StayHelp>
+            These rules are saved with your draft. They will be enforced when rental bookings open — they do not block
+            inventory yet.
+          </StayHelp>
+        </div>
       );
-      break;
-    case 'availability-summary':
-      body = <AvailabilitySummaryStage ctx={ctx} />;
       break;
     case 'pricing':
-      body = <PricingStage ctx={ctx} />;
-      break;
-    case 'multi-day':
-      body = <MultiDayStage ctx={ctx} />;
-      break;
-    case 'pricing-overrides':
-      body = <PricingOverridesStage ctx={ctx} />;
-      break;
-    case 'earnings':
-      body = <EarningsStage ctx={ctx} />;
+      body = (
+        <div className="space-y-6">
+          <PricingStage ctx={ctx} />
+          <MultiDayStage ctx={ctx} />
+          <EarningsStage ctx={ctx} />
+          <StayHelp>
+            Custom prices for individual sizes or models are set inside each option. Shared rates apply unless an option
+            overrides them.
+          </StayHelp>
+        </div>
+      );
       break;
     case 'requirements':
       body = <RequirementsStage ctx={ctx} />;

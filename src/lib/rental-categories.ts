@@ -29,6 +29,7 @@ export const RENTAL_CATEGORY_CONFIG: Record<RentalCategoryId, RentalCategoryConf
     listingSpecKeys: [
       { key: 'brand', label: 'Brand', placeholder: 'e.g. Trek' },
       { key: 'model', label: 'Model line', placeholder: 'Optional' },
+      { key: 'batteryRange', label: 'Battery / range (e-bikes)', placeholder: 'e.g. ~60 km assist' },
     ],
     variantAttributeKeys: [
       { key: 'size', label: 'Frame / size', placeholder: 'e.g. M' },
@@ -54,6 +55,7 @@ export const RENTAL_CATEGORY_CONFIG: Record<RentalCategoryId, RentalCategoryConf
     listingSpecKeys: [
       { key: 'brand', label: 'Brand', placeholder: 'Optional' },
       { key: 'material', label: 'Material', placeholder: 'Optional' },
+      { key: 'cleaningReturn', label: 'Cleaning / return notes', placeholder: 'How items should be returned' },
     ],
     variantAttributeKeys: [{ key: 'size', label: 'Size', placeholder: 'S / M / L / XL' }],
     requirementKeys: [{ key: 'idRequiredNote', label: 'ID notes', placeholder: 'Optional' }],
@@ -70,7 +72,10 @@ export const RENTAL_CATEGORY_CONFIG: Record<RentalCategoryId, RentalCategoryConf
       { id: 'complete_set', label: 'Complete equipment set' },
     ],
     allowCustomItemType: true,
-    listingSpecKeys: [{ key: 'brand', label: 'Brand', placeholder: 'Optional' }],
+    listingSpecKeys: [
+      { key: 'brand', label: 'Brand', placeholder: 'Optional' },
+      { key: 'skillLevel', label: 'Skill suitability', placeholder: 'e.g. Beginner to intermediate' },
+    ],
     variantAttributeKeys: [
       { key: 'length', label: 'Length / size', placeholder: 'e.g. 160 cm' },
       { key: 'bootSize', label: 'Boot size', placeholder: 'When applicable' },
@@ -90,12 +95,14 @@ export const RENTAL_CATEGORY_CONFIG: Record<RentalCategoryId, RentalCategoryConf
     listingSpecKeys: [
       { key: 'brand', label: 'Brand', placeholder: 'Optional' },
       { key: 'model', label: 'Model', placeholder: 'Optional' },
+      { key: 'capacity', label: 'Passenger capacity', placeholder: 'e.g. 1–2 riders' },
     ],
     variantAttributeKeys: [{ key: 'modelTrim', label: 'Model / trim', placeholder: 'Optional' }],
     requirementKeys: [
       { key: 'minAge', label: 'Minimum age', placeholder: 'e.g. 18' },
       { key: 'license', label: 'License requirements', placeholder: 'Describe what is required' },
       { key: 'experience', label: 'Experience / guide notes', placeholder: 'Optional' },
+      { key: 'insuranceNote', label: 'Insurance disclosure', placeholder: 'What coverage applies — configurable only' },
     ],
     inclusionSuggestions: ['Helmet', 'Safety briefing', 'Fuel for the rental period'],
   },

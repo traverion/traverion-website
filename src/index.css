@@ -13112,13 +13112,40 @@ details:not([open]) > :not(summary) {
   }
 }
 
-/* Rental Creator — compact preview gallery (does not alter Stay preview). */
+/* Rental Creator — premium shell + compact preview (does not alter Stay). */
+.rental-creator {
+  --rental-border: #e6eaf0;
+  --rental-ink: #0f172a;
+}
+
 .rental-creator .stay-title {
-  font-size: clamp(1.35rem, 2.4vw, 1.65rem);
+  font-size: clamp(1.4rem, 2.5vw, 1.75rem);
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  color: var(--rental-ink);
+  line-height: 1.2;
+}
+
+.rental-creator .stay-lede {
+  margin-top: 0.4rem;
+  max-width: 36rem;
+  font-size: 0.9375rem;
+  line-height: 1.45;
 }
 
 .rental-creator .stay-kicker {
-  letter-spacing: 0.1em;
+  letter-spacing: 0.12em;
+  font-weight: 600;
+}
+
+.rental-creator .stay-panel {
+  border-color: var(--rental-border);
+  box-shadow: 0 1px 2px rgb(15 23 42 / 0.04);
+}
+
+.rental-creator .stay-choice[aria-pressed='true'],
+.rental-creator .stay-choice[data-pressed='true'] {
+  box-shadow: 0 0 0 1px rgb(7 59 131 / 0.35);
 }
 
 .rental-creator .rental-pill:focus:not(:focus-visible) {
