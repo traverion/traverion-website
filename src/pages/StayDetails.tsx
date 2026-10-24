@@ -55,8 +55,8 @@ import {
   type ReviewDisplay,
   type ReviewReplyRow,
 } from '../data/supabase-reviews';
-import { displayReviewGuestName } from '../lib/review-public-identity';
-import ReviewCommentClamp from '../components/ReviewCommentClamp';
+import PublicReviewCard from '../components/PublicReviewCard';
+import StarRatingDisplay from '../components/StarRatingDisplay';
 import type { TourPackage } from '../types/tour';
 import ErrorState from '../components/ErrorState';
 import { Skeleton } from '../components/ui/Skeleton';
@@ -1283,13 +1283,17 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
               {(() => {
                 const review = publicReviewLabel(reviewAggregate);
                 return review.score ? (
-                  <p className="text-sm text-ink-muted mb-4">
-                    <strong className="text-ink tabular-nums">{review.score}</strong>
-                    <span className="text-ink-muted">
-                      {' '}
-                      ({review.count} {review.count === 1 ? 'review' : 'reviews'})
-                    </span>
-                  </p>
+                  <div className="mb-4 flex items-center gap-3">
+                    <p className="text-4xl font-bold tabular-nums leading-none tracking-tight text-[#111827]">
+                      {review.score}
+                    </p>
+                    <div>
+                      <StarRatingDisplay rating={Number(review.score) || 0} size={16} />
+                      <p className="mt-1 text-sm text-ink-muted">
+                        {review.count} {review.count === 1 ? 'review' : 'reviews'}
+                      </p>
+                    </div>
+                  </div>
                 ) : null;
               })()}
               {reviewsLoadError ? (
@@ -1304,58 +1308,24 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
                   </button>
                 </div>
               ) : reviews.length === 0 && !showReviewForm ? (
-                <div className="mb-4 max-w-xl rounded-xl bg-finland/[0.04] px-4 py-3.5">
-                  <p className="text-sm font-semibold text-ink">No guest reviews yet</p>
-                  <p className="mt-1 text-sm text-ink-muted leading-relaxed">{LISTING_REVIEWS_EMPTY_COPY}</p>
+                <div className="mb-4 flex items-start gap-3 py-1">
+                  <Star size={20} className="mt-0.5 shrink-0 text-ink-faint" aria-hidden />
+                  <div>
+                    <p className="text-sm font-bold tracking-tight text-[#111827]">No reviews yet</p>
+                    <p className="mt-0.5 max-w-md text-sm leading-relaxed text-ink-muted">
+                      {LISTING_REVIEWS_EMPTY_COPY}
+                    </p>
+                  </div>
                 </div>
               ) : null}
               <div className="mb-6 grid items-start gap-4 sm:grid-cols-2">
                 {reviews.slice(0, 4).map((r) => (
-                  <article key={r.id} className="tv-public-review-card">
-                    <p className="truncate text-[15px] font-semibold tracking-tight text-ink">
-                      {displayReviewGuestName(r)}
-                    </p>
-                    <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                      <div className="flex gap-0.5" aria-label={`${r.rating} out of 5 stars`}>
-                        {[1, 2, 3, 4, 5].map((i) => (
-                          <Star
-                            key={i}
-                            size={13}
-                            aria-hidden
-                            className={i <= r.rating ? 'text-finland fill-finland' : 'text-ink-faint'}
-                          />
-                        ))}
-                      </div>
-                      <span className="text-xs text-ink-muted">
-                        {new Date(r.created_at).toLocaleDateString()}
-                      </span>
-                      {r.verified ? (
-                        <span className="text-[11px] font-medium text-ink-faint">Verified</span>
-                      ) : null}
-                    </div>
-                    {r.title ? (
-                      <p className="mt-2 text-sm font-semibold text-ink break-words [overflow-wrap:anywhere]">
-                        {r.title}
-                      </p>
-                    ) : null}
-                    <div className="mt-1">
-                      <ReviewCommentClamp
-                        text={r.comment}
-                        className="text-[14px] leading-relaxed text-ink"
-                        toggleClassName="tv-reviews-see-more"
-                      />
-                    </div>
-                    {reviewReplies[r.id]?.reply_text ? (
-                      <div className="tv-public-review-reply">
-                        <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-finland">
-                          Response from the host
-                        </p>
-                        <p className="mt-1 text-sm leading-relaxed text-ink break-words [overflow-wrap:anywhere] whitespace-pre-wrap">
-                          {reviewReplies[r.id]!.reply_text}
-                        </p>
-                      </div>
-                    ) : null}
-                  </article>
+                  <PublicReviewCard
+                    key={r.id}
+                    review={r}
+                    reply={reviewReplies[r.id]}
+                    replyFromLabel="host"
+                  />
                 ))}
               </div>
               {canLeaveReview && !hasReviewed && !showReviewForm ? (

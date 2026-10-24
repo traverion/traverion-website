@@ -33,8 +33,8 @@ import {
   type ReviewDisplay,
   type ReviewReplyRow,
 } from '../data/supabase-reviews';
-import { displayReviewGuestName } from '../lib/review-public-identity';
-import ReviewCommentClamp from '../components/ReviewCommentClamp';
+import PublicReviewCard from '../components/PublicReviewCard';
+import StarRatingDisplay from '../components/StarRatingDisplay';
 import { fetchSupplierPublicLegal } from '../data/supabase-supplier-profile';
 import { fetchConsumerProfileRow } from '../data/supabase-consumer-profile';
 import { setPageMetaWithOg, setTourJsonLd, clearTourJsonLd } from '../lib/seo';
@@ -2466,7 +2466,7 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
               <button
                 type="button"
                 onClick={() => setReviewsModalOpen(true)}
-                className="text-sm font-semibold text-[#0758CB] hover:underline"
+                className="text-sm font-semibold text-finland hover:underline"
               >
                 See all reviews
               </button>
@@ -2497,15 +2497,7 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
             <div className="mb-4 flex items-center gap-3">
               <p className="text-4xl font-bold tabular-nums leading-none tracking-tight text-[#111827]">{review.score}</p>
               <div>
-                <div className="flex gap-0.5" aria-hidden>
-                  {[1, 2, 3, 4, 5].map((i) => (
-                    <Star
-                      key={i}
-                      size={16}
-                      className={i <= Math.round(Number(review.score)) ? 'fill-[#C9A227] text-[#C9A227]' : 'text-[#E8EBF0]'}
-                    />
-                  ))}
-                </div>
+                <StarRatingDisplay rating={Number(review.score) || 0} size={16} />
                 <p className="mt-1 text-sm text-ink-muted">
                   {review.count} {review.count === 1 ? 'review' : 'reviews'}
                 </p>
@@ -2515,53 +2507,12 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
           {/* Two columns + items-start: comfortable reading width; independent heights */}
           <div className="mb-5 grid items-start gap-4 sm:grid-cols-2">
             {reviews.slice(0, 4).map((r) => (
-              <article key={r.id} className="tv-public-review-card">
-                <div className="min-w-0">
-                  <p className="truncate text-[15px] font-semibold tracking-tight text-[#111827]">
-                    {displayReviewGuestName(r)}
-                  </p>
-                  <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                    <div className="flex gap-0.5" aria-label={`${r.rating} out of 5 stars`}>
-                      {[1, 2, 3, 4, 5].map((i) => (
-                        <Star
-                          key={i}
-                          size={13}
-                          aria-hidden
-                          className={i <= r.rating ? 'fill-[#C9A227] text-[#C9A227]' : 'text-[#E8EBF0]'}
-                        />
-                      ))}
-                    </div>
-                    <span className="text-xs text-ink-muted">
-                      {new Date(r.created_at).toLocaleDateString()}
-                    </span>
-                    {r.verified ? (
-                      <span className="text-[11px] font-medium text-ink-faint">Verified</span>
-                    ) : null}
-                  </div>
-                </div>
-                {r.title ? (
-                  <p className="mt-2 text-sm font-semibold text-[#111827] break-words [overflow-wrap:anywhere]">
-                    {r.title}
-                  </p>
-                ) : null}
-                <div className="mt-1">
-                  <ReviewCommentClamp
-                    text={r.comment}
-                    className="text-[14px] leading-relaxed text-ink"
-                    toggleClassName="tv-reviews-see-more"
-                  />
-                </div>
-                {reviewReplies[r.id]?.reply_text ? (
-                  <div className="tv-public-review-reply">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-finland">
-                      Response from the operator
-                    </p>
-                    <p className="mt-1 text-sm leading-relaxed text-ink break-words [overflow-wrap:anywhere] whitespace-pre-wrap">
-                      {reviewReplies[r.id]!.reply_text}
-                    </p>
-                  </div>
-                ) : null}
-              </article>
+              <PublicReviewCard
+                key={r.id}
+                review={r}
+                reply={reviewReplies[r.id]}
+                replyFromLabel="operator"
+              />
             ))}
           </div>
 

@@ -11,6 +11,7 @@ import ErrorState from '../../components/ErrorState';
 import NoticeCallout from '../../components/NoticeCallout';
 import PartnerSelect from '../../components/supplier/PartnerSelect';
 import ReviewCommentClamp from '../../components/ReviewCommentClamp';
+import StarRatingDisplay from '../../components/StarRatingDisplay';
 import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
 import {
   aggregateReviewRatings,
@@ -57,21 +58,6 @@ type SupplierReviewRow = SupplierReviewDisplay;
 type SortKey = 'newest' | 'oldest' | 'highest' | 'lowest';
 
 const PAGE_SIZE = 20;
-
-function StarRow({ rating, size = 14 }: { rating: number; size?: number }) {
-  return (
-    <span className="inline-flex items-center gap-0.5" aria-label={`${rating} out of 5 stars`}>
-      {[1, 2, 3, 4, 5].map((i) => (
-        <Star
-          key={i}
-          size={size}
-          className={i <= rating ? 'fill-[#C9A227] text-[#C9A227]' : 'text-[#e4e4e7]'}
-          aria-hidden
-        />
-      ))}
-    </span>
-  );
-}
 
 function guestInitials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -470,6 +456,19 @@ export default function SupplierReviews() {
         />
       </div>
       <div className="tv-reviews-field">
+        <span id="reviews-filter-reply-label">Reply status</span>
+        <PartnerSelect
+          aria-labelledby="reviews-filter-reply-label"
+          value={filterReply}
+          options={[
+            { value: 'all', label: 'All reviews' },
+            { value: 'unreplied', label: 'Awaiting reply' },
+            { value: 'replied', label: 'Replied' },
+          ]}
+          onChange={(v) => writeFiltersToUrl({ reply: v as typeof filterReply, pageIndex: 0 })}
+        />
+      </div>
+      <div className="tv-reviews-field tv-reviews-field--secondary">
         <span id="reviews-filter-rating-label">Rating</span>
         <PartnerSelect
           aria-labelledby="reviews-filter-rating-label"
@@ -484,20 +483,7 @@ export default function SupplierReviews() {
           onChange={(v) => writeFiltersToUrl({ rating: v === '' ? '' : Number(v), pageIndex: 0 })}
         />
       </div>
-      <div className="tv-reviews-field">
-        <span id="reviews-filter-reply-label">Reply status</span>
-        <PartnerSelect
-          aria-labelledby="reviews-filter-reply-label"
-          value={filterReply}
-          options={[
-            { value: 'all', label: 'All reviews' },
-            { value: 'unreplied', label: 'Awaiting reply' },
-            { value: 'replied', label: 'Replied' },
-          ]}
-          onChange={(v) => writeFiltersToUrl({ reply: v as typeof filterReply, pageIndex: 0 })}
-        />
-      </div>
-      <div className="tv-reviews-field">
+      <div className="tv-reviews-field tv-reviews-field--secondary">
         <span id="reviews-filter-sort-label">Sort</span>
         <PartnerSelect
           aria-labelledby="reviews-filter-sort-label"
@@ -704,18 +690,12 @@ export default function SupplierReviews() {
                               </span>
                             </div>
                             <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
-                              <StarRow rating={Number(r.rating) || 0} size={13} />
+                              <StarRatingDisplay rating={Number(r.rating) || 0} size={13} />
                               <span className="text-[12px] font-semibold tabular-nums text-[#18181b]">
                                 {r.rating}/5
                               </span>
-                              {r.verified ? (
-                                <span className="text-[11px] font-medium text-[#a1a1aa]">Verified</span>
-                              ) : null}
                               {needsReply ? (
                                 <span className="tv-reviews-chip tv-reviews-chip--warn">Awaiting reply</span>
-                              ) : null}
-                              {hasReply && !needsReply ? (
-                                <span className="tv-reviews-chip tv-reviews-chip--ok">Replied</span>
                               ) : null}
                             </div>
                             <p
@@ -866,30 +846,22 @@ export default function SupplierReviews() {
                               ) : null}
                               {r.booking_date ? (
                                 <div>
-                                  <dt>Travel date</dt>
+                                  <dt>{r.listing_family === 'stay' ? 'Stay dates' : 'Travel date'}</dt>
                                   <dd>{formatTravelDate(r.booking_date)}</dd>
                                 </div>
                               ) : null}
-                              <div>
-                                <dt>Type</dt>
-                                <dd>{familyKind}</dd>
-                              </div>
-                              <div>
-                                <dt>Public</dt>
-                                <dd>{r.is_anonymous ? 'Anonymous' : 'Named'}</dd>
-                              </div>
                               {r.option_label ? (
                                 <div className="tv-reviews-details__wide">
-                                  <dt>Option</dt>
+                                  <dt>{familyKind === 'Stay' ? 'Accommodation' : 'Option'}</dt>
                                   <dd className="line-clamp-2" title={r.option_label}>
                                     {r.option_label}
                                   </dd>
                                 </div>
                               ) : null}
-                              {r.verified ? (
+                              {r.is_anonymous ? (
                                 <div>
-                                  <dt>Status</dt>
-                                  <dd>Verified</dd>
+                                  <dt>Public name</dt>
+                                  <dd>Anonymous</dd>
                                 </div>
                               ) : null}
                             </dl>

@@ -5399,7 +5399,7 @@ details:not([open]) > :not(summary) {
 
 .tv-reviews-filters {
   display: grid;
-  grid-template-columns: minmax(11rem, 1.5fr) repeat(4, minmax(7.5rem, 1fr));
+  grid-template-columns: minmax(11rem, 1.6fr) repeat(2, minmax(8rem, 1.1fr)) repeat(2, minmax(7rem, 0.9fr));
   gap: 8px 10px;
   align-items: end;
 }
@@ -5527,7 +5527,7 @@ details:not([open]) > :not(summary) {
   margin-top: 0.25rem;
   font-size: 12px;
   font-weight: 650;
-  color: var(--tv-reviews-navy);
+  color: #073b83;
   border-radius: 4px;
 }
 
@@ -5543,6 +5543,62 @@ details:not([open]) > :not(summary) {
 .tv-reviews-see-more:focus-visible {
   outline: 2px solid rgba(7, 59, 131, 0.35);
   outline-offset: 2px;
+}
+
+/* Traverion review stars — warm gold, soft depth */
+.tv-star-rating {
+  --tv-star-gold: #e8b923;
+  --tv-star-gold-deep: #d4a017;
+  --tv-star-empty: #e5e7eb;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.12rem;
+  line-height: 1;
+  vertical-align: middle;
+}
+
+.tv-star-rating__star {
+  display: block;
+  flex-shrink: 0;
+}
+
+.tv-star-rating__star--filled {
+  color: var(--tv-star-gold);
+  fill: var(--tv-star-gold);
+  filter: drop-shadow(0 0.5px 1.25px rgba(212, 160, 23, 0.42));
+}
+
+.tv-star-rating__star--empty {
+  color: var(--tv-star-empty);
+  fill: transparent;
+}
+
+.tv-star-rating__partial {
+  position: relative;
+  display: inline-block;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.tv-star-rating__partial > .tv-star-rating__star--empty {
+  display: block;
+}
+
+.tv-star-rating__partial-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  overflow: hidden;
+}
+
+.tv-star-rating__partial-fill .tv-star-rating__star {
+  display: block;
+}
+
+.tv-review-verified {
+  font-size: 11px;
+  font-weight: 550;
+  color: #a1a1aa;
+  letter-spacing: 0.01em;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -5674,13 +5730,63 @@ details:not([open]) > :not(summary) {
   border-radius: 12px;
   border: 1px solid #e8ebf0;
   background: #fff;
-  padding: 1rem 1.05rem;
+  padding: 0.95rem 1.05rem;
+  transition: box-shadow 160ms ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .tv-public-review-card:hover {
+    box-shadow: 0 2px 10px rgba(15, 23, 42, 0.04);
+  }
 }
 
 .tv-public-review-reply {
-  margin-top: 0.75rem;
-  border-left: 2px solid rgba(7, 59, 131, 0.22);
-  padding-left: 0.75rem;
+  margin-top: 0.7rem;
+  border-left: 2px solid rgba(7, 59, 131, 0.2);
+  padding-left: 0.7rem;
+}
+
+.tv-public-review-reply__label {
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #073b83;
+}
+
+.tv-reviews-modal-panel {
+  width: min(100%, 48rem);
+  max-width: min(48rem, calc(100vw - 1.5rem));
+}
+
+.tv-reviews-modal-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.65rem;
+}
+
+.tv-reviews-modal-filters .partner-select__trigger {
+  min-height: 2.25rem;
+  height: 2.25rem;
+  border-radius: 999px;
+  font-size: 0.8125rem;
+}
+
+.tv-reviews-modal-row {
+  padding-bottom: 1.05rem;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+}
+
+.tv-reviews-modal-row:last-child {
+  border-bottom: 0;
+  padding-bottom: 0.25rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tv-public-review-card {
+    transition: none !important;
+  }
 }
 
 .tv-reviews-empty {

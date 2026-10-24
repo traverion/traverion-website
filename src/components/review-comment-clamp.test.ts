@@ -12,17 +12,38 @@ describe('ReviewCommentClamp + public review surfaces', () => {
     expect(src).toContain('scrollHeight');
   });
 
-  it('Tour, Stay, and reviews modal use ReviewCommentClamp', () => {
-    for (const rel of [
-      '../pages/TourDetails.tsx',
-      '../pages/StayDetails.tsx',
-      'ListingReviewsModal.tsx',
-    ]) {
-      const src = readFileSync(resolve(__dirname, rel), 'utf8');
-      expect(src).toContain('ReviewCommentClamp');
-    }
+  it('Tour and Stay use PublicReviewCard; modal and card use ReviewCommentClamp', () => {
+    expect(readFileSync(resolve(__dirname, '../pages/TourDetails.tsx'), 'utf8')).toContain(
+      'PublicReviewCard'
+    );
+    expect(readFileSync(resolve(__dirname, '../pages/StayDetails.tsx'), 'utf8')).toContain(
+      'PublicReviewCard'
+    );
+    expect(readFileSync(resolve(__dirname, 'PublicReviewCard.tsx'), 'utf8')).toContain(
+      'ReviewCommentClamp'
+    );
+    expect(readFileSync(resolve(__dirname, 'ListingReviewsModal.tsx'), 'utf8')).toContain(
+      'ReviewCommentClamp'
+    );
+  });
+
+  it('modal uses PartnerSelect instead of native sort select', () => {
+    const modal = readFileSync(resolve(__dirname, 'ListingReviewsModal.tsx'), 'utf8');
+    expect(modal).toContain('PartnerSelect');
+    expect(modal).toContain('tv-reviews-modal-panel');
+    expect(modal).not.toMatch(/<select[\s\S]*Sort reviews/);
+  });
+
+  it('StarRatingDisplay supports partial averages with Traverion gold class', () => {
+    const stars = readFileSync(resolve(__dirname, 'StarRatingDisplay.tsx'), 'utf8');
+    expect(stars).toContain('tv-star-rating');
+    expect(stars).toContain('tv-star-rating__partial');
+    const css = readFileSync(resolve(__dirname, '../index.css'), 'utf8');
+    expect(css).toContain('--tv-star-gold');
+    expect(css).toContain('.tv-star-rating__star--filled');
   });
 });
+
 
 describe('Supplier reviews compact + email-first notify', () => {
   it('keeps Reply / Details on-demand and a compact overview strip', () => {
@@ -44,13 +65,13 @@ describe('Supplier reviews compact + email-first notify', () => {
     expect(css).not.toContain('.tv-reviews-card--needs-reply');
   });
 
-  it('Tour review grid uses items-start and wider two-column cards', () => {
+  it('Tour review grid uses items-start and shared PublicReviewCard', () => {
     const tour = readFileSync(resolve(__dirname, '../pages/TourDetails.tsx'), 'utf8');
     expect(tour).toContain('items-start');
     expect(tour).toContain('sm:grid-cols-2');
-    expect(tour).toContain('tv-public-review-card');
-    expect(tour).toContain('ReviewCommentClamp');
+    expect(tour).toContain('PublicReviewCard');
   });
+
 
   it('removes PartnerActivityBell from the partner topbar', () => {
     const layout = readFileSync(resolve(__dirname, 'supplier/SupplierLayout.tsx'), 'utf8');
