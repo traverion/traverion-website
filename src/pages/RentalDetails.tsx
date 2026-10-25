@@ -12,13 +12,14 @@ import { useAuth } from '../contexts/AuthContext';
 import { fetchListingById } from '../data/supabase-listings';
 import { inventoryFamilyFromListing } from '../lib/inventory';
 import { rentalCancellationCustomerText } from '../lib/rental-cancellation';
-import { formatMinorAsEuro, effectiveVariantPricing, normalizeRentalDetails, rentalCustomerSkillSuitability } from '../lib/rental-details';
+import { effectiveVariantPricing, normalizeRentalDetails, rentalCustomerSkillSuitability } from '../lib/rental-details';
 import {
   rentalCategoryTitle,
   rentalDepositCustomerText,
   rentalDurationCustomerText,
   rentalHoursLines,
   rentalItemLabel,
+  rentalOptionRateLabel,
   rentalRequirementLabel,
   rentalSpecLabel,
   rentalReturnPoint,
@@ -218,13 +219,13 @@ function RentalBody({
               <Section title="Options">
                 <ul className="space-y-2">
                   {variants.map((variant) => {
-                    const day = effectiveVariantPricing(rental, variant).pricePerDayMinor;
+                    const rates = rentalOptionRateLabel(rental, effectiveVariantPricing(rental, variant));
                     return (
                     <li key={variant.id} className="rounded-xl bg-[#F7F8FA] px-3.5 py-3">
                       <p className="text-sm font-semibold text-ink">{variant.name}</p>
                       <p className="mt-0.5 text-sm text-ink-muted">
                         {variant.quantity} available
-                        {day != null && day > 0 ? ` · ${formatMinorAsEuro(day)} / day` : ''}
+                        {rates ? ` · ${rates}` : ''}
                       </p>
                     </li>
                     );

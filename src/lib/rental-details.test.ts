@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { rentalReturnPoint } from './rental-presentation';
+import { rentalFromPrice, rentalReturnPoint } from './rental-presentation';
 import {
   clearRentalDepositAmounts,
   createDefaultRentalVariant,
@@ -97,6 +97,7 @@ describe('rental details', () => {
     expect(normalized?.variants?.[0]?.id).toBe(id);
     expect(normalized?.variants?.[0]?.quantity).toBe(2);
     expect(normalized?.variants?.[0]?.pricingOverride?.pricePerDayMinor).toBe(3000);
+    expect(normalized?.variants?.[0]?.pricingOverride?.pricePerHourMinor).toBe(800);
     expect(normalized?.variants?.[1]?.pricingOverride?.pricePerDayMinor).toBe(4500);
     expect(normalized?.variants?.[1]?.pricingOverride?.pricePerHourMinor).toBe(900);
     expect(normalized?.variants?.[2]?.pricingOverride?.pricePerDayMinor).toBe(3000);
@@ -113,7 +114,8 @@ describe('rental details', () => {
       variants: [{ id: 'a', name: 'A', quantity: 1, pricingOverride: null }],
     });
     expect(normalized?.variants?.[0]?.id).toBe('a');
-    expect(normalized?.variants?.[0]?.pricingOverride).toBeNull();
+    expect(normalized?.variants?.[0]?.pricingOverride?.pricePerHourMinor).toBe(800);
+    expect(normalized?.variants?.[0]?.pricingOverride?.pricePerDayMinor).toBeUndefined();
     expect(rentalStartingFromMajor(normalized!)).toBe(0);
   });
 
@@ -125,19 +127,20 @@ describe('rental details', () => {
     expect(again.variants![0].id).toBe(empty.variants![0].id);
   });
 
-  it('marks incomplete variants when quantity or an option day price is missing', () => {
-    const rental: RentalDetails = {
-      ...emptyRentalDetails(),
-      durationMode: 'hourly',
-      sharedPricing: { pricePerHourMinor: 800, pricePerDayMinor: 2500 },
-      variants: [createDefaultRentalVariant('XL')],
-    };
-    expect(rentalVariantComplete(rental.variants![0], rental)).toBe(false);
-    rental.variants![0].quantity = 6;
-    rental.variants![0].pricingOverride = { pricePerDayMinor: 2500 };
-    expect(rentalVariantComplete(rental.variants![0], rental)).toBe(true);
-    rental.variants![0].pricingOverride = { pricePerDayMinor: 0, pricePerHourMinor: 800 };
-    expect(rentalVariantComplete(rental.variants![0], rental)).toBe(false);
+  it('requires the rates for the listing duration mode', () => {
+    const variant = { ...createDefaultRentalVariant('XL'), quantity: 6, pricingOverride: { pricePerHourMinor: 800, pricePerDayMinor: 2500 } };
+    const hourly: RentalDetails = { ...emptyRentalDetails(), durationMode: 'hourly', variants: [{ ...variant, pricingOverride: { pricePerDayMinor: 2500 } }] };
+    expect(rentalVariantComplete(hourly.variants![0], hourly)).toBe(false);
+    hourly.variants![0].pricingOverride = { pricePerHourMinor: 800 };
+    expect(rentalVariantComplete(hourly.variants![0], hourly)).toBe(true);
+    const daily: RentalDetails = { ...emptyRentalDetails(), durationMode: 'daily', variants: [{ ...variant, pricingOverride: { pricePerHourMinor: 800 } }] };
+    expect(rentalVariantComplete(daily.variants![0], daily)).toBe(false);
+    daily.variants![0].pricingOverride = { pricePerHourMinor: 800, pricePerDayMinor: 2500 };
+    expect(rentalVariantComplete(daily.variants![0], daily)).toBe(true);
+    const both: RentalDetails = { ...emptyRentalDetails(), durationMode: 'both', variants: [{ ...variant, pricingOverride: { pricePerDayMinor: 2500 } }] };
+    expect(rentalVariantComplete(both.variants![0], both)).toBe(false);
+    both.variants![0].pricingOverride = { pricePerHourMinor: 800, pricePerDayMinor: 2500 };
+    expect(rentalVariantComplete(both.variants![0], both)).toBe(true);
   });
 });
 
@@ -226,16 +229,81 @@ describe('rental pricing derivation', () => {
       ],
     };
     expect(rentalStartingFromMajor(rental)).toBe(30);
+    expect(rentalFromPrice(rental)?.label).toBe('€30 / day');
   });
 
-  it('does not invent a starting price when no day price exists', () => {
+  it('uses the lowest hourly option rate when the listing is hourly', () => {
     const rental: RentalDetails = {
       ...emptyRentalDetails(),
       durationMode: 'hourly',
       sharedPricing: { pricePerHourMinor: 800 },
-      variants: [{ id: 'a', name: 'A', quantity: 1, pricingOverride: { pricePerHourMinor: 800 } }],
+      variants: [
+        { id: 'a', name: 'A', quantity: 1, pricingOverride: { pricePerHourMinor: 900 } },
+        { id: 'b', name: 'B', quantity: 1, pricingOverride: { pricePerHourMinor: 800 } },
+      ],
     };
-    expect(rentalStartingFromMajor(rental)).toBe(0);
+    expect(rentalStartingFromMajor(rental)).toBe(8);
+    expect(rentalFromPrice(rental)?.label).toBe('€8 / hour');
+  });
+
+  it('keeps duration limits and option rates, and does not store 24-hour counting', () => {
+    const normalized = normalizeRentalDetails({
+      durationMode: 'both',
+      minDurationHours: 2,
+      maxDurationHours: 6,
+      minDurationDays: 1,
+      maxDurationDays: 10,
+      calendarDayRentals: false,
+      sharedPricing: { pricePerHourMinor: 800, pricePerDayMinor: 3000 },
+      variants: [{ id: 'a', name: 'A', quantity: 1, pricingOverride: { pricePerHourMinor: 900 } }],
+    });
+    expect(normalized?.calendarDayRentals).toBe(true);
+    expect(normalized?.minDurationHours).toBe(2);
+    expect(normalized?.maxDurationHours).toBe(6);
+    expect(normalized?.minDurationDays).toBe(1);
+    expect(normalized?.maxDurationDays).toBe(10);
+    expect(normalized?.variants?.[0]?.id).toBe('a');
+    expect(normalized?.variants?.[0]?.pricingOverride?.pricePerHourMinor).toBe(900);
+    expect(normalized?.variants?.[0]?.pricingOverride?.pricePerDayMinor).toBe(3000);
+    const again = normalizeRentalDetails(normalized);
+    expect(again?.variants?.[0]?.pricingOverride?.pricePerHourMinor).toBe(900);
+    expect(again?.maxDurationHours).toBe(6);
+    const base = {
+      title: '',
+      description: '',
+      city: '',
+      country: '',
+      galleryCount: 0,
+      experienceLanguage: 'en',
+    };
+    expect(
+      rentalStageBlocker('duration', {
+        ...base,
+        rental: { ...emptyRentalDetails(), durationMode: 'hourly', minDurationHours: 4, maxDurationHours: 2 },
+      }),
+    ).toMatch(/Maximum hours/);
+    expect(
+      rentalStageBlocker('duration', {
+        ...base,
+        rental: { ...emptyRentalDetails(), durationMode: 'daily', minDurationDays: 1, maxDurationDays: 7 },
+      }),
+    ).toBeNull();
+    expect(
+      rentalStageBlocker('duration', {
+        ...base,
+        rental: { ...emptyRentalDetails(), durationMode: 'hourly', minDurationHours: 1, maxDurationHours: 8 },
+      }),
+    ).toBeNull();
+    expect(
+      rentalStageBlocker('options', {
+        ...base,
+        rental: {
+          ...emptyRentalDetails(),
+          durationMode: 'both',
+          variants: [{ id: 'a', name: 'A', quantity: 1, pricingOverride: { pricePerDayMinor: 2000 } }],
+        },
+      }),
+    ).toMatch(/price per hour and a price per day/);
   });
 
   it('applies multi-day discount on illustrative totals only for daily mode', () => {

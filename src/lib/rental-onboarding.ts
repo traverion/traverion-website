@@ -6,7 +6,12 @@
 import type { RentalDetails } from '../types/rental';
 import { rentalCategoryConfig } from './rental-categories';
 import { isRentalCancellationPreset } from './rental-cancellation';
-import { rentalOperatingHoursIssue, rentalOptionDayPriceMinor, rentalVariantComplete } from './rental-details';
+import {
+  rentalDurationFieldIssue,
+  rentalMissingOptionRateMessage,
+  rentalOperatingHoursIssue,
+  rentalVariantComplete,
+} from './rental-details';
 
 export const RENTAL_ONBOARDING_SCREENS = [
   {
@@ -105,14 +110,14 @@ export const RENTAL_ONBOARDING_SCREENS = [
     group: 'Availability & duration',
     part: '1 of 3',
     title: 'How long can it be rented?',
-    body: 'Hourly, daily, or both, and the shortest and longest rental you accept.',
+    body: 'Hourly, daily, or both, then the shortest and longest rental you accept.',
   },
   {
     id: 'daily-counting',
     group: 'Availability & duration',
     part: '2 of 3',
     title: 'How is a day counted?',
-    body: 'Calendar days use your pickup and return hours. This is separate from preparation time.',
+    body: 'A rental day runs from the pickup date to the return date, during your opening hours.',
   },
   {
     id: 'booking-rules',
@@ -315,25 +320,18 @@ export function rentalStageBlocker(screenId: RentalOnboardingScreenId, check: Re
       if (!variants.every((v) => v.name.trim() && v.quantity >= 1)) {
         return 'Each option needs a name and at least 1 unit.';
       }
-      if (variants.some((v) => rentalOptionDayPriceMinor(v) == null)) {
-        return 'Each option needs a price per day.';
-      }
-      return null;
+      return rentalMissingOptionRateMessage(r);
     }
     case 'duration': {
       if (!r.durationMode) return 'Choose hourly, daily, or both.';
       const mode = r.durationMode;
       if (mode === 'hourly' || mode === 'both') {
-        if (!(r.minDurationHours != null && r.minDurationHours >= 1)) return 'Set a minimum hourly duration.';
-        if (!(r.maxDurationHours != null && r.maxDurationHours >= r.minDurationHours)) {
-          return 'Maximum hours must be at least the minimum.';
-        }
+        const issue = rentalDurationFieldIssue(r.minDurationHours, r.maxDurationHours, 'hours');
+        if (issue) return issue;
       }
       if (mode === 'daily' || mode === 'both') {
-        if (!(r.minDurationDays != null && r.minDurationDays >= 1)) return 'Set a minimum daily duration.';
-        if (!(r.maxDurationDays != null && r.maxDurationDays >= r.minDurationDays)) {
-          return 'Maximum days must be at least the minimum.';
-        }
+        const issue = rentalDurationFieldIssue(r.minDurationDays, r.maxDurationDays, 'days');
+        if (issue) return issue;
       }
       return null;
     }

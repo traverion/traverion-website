@@ -5,6 +5,8 @@ import { formatBpsAsPercent, splitGrossByCommissionBps } from '../../../lib/comm
 import {
   formatMinorAsEuro,
   rentalOptionDayPriceMinor,
+  rentalOptionHourPriceMinor,
+  rentalOptionRatesReady,
   rentalVariantComplete,
 } from '../../../lib/rental-details';
 import { formatMoney, normalizeCurrency } from '../../../lib/money';
@@ -28,6 +30,23 @@ export function formatRentalMinor(minor: number | null | undefined, currency?: s
   const code = normalizeCurrency(currency);
   if (code === 'EUR') return formatMinorAsEuro(minor);
   return formatMoney(minor / 100, code);
+}
+
+/** Applicable option rates for the listing duration mode, e.g. "€25 / day" or "€6 / hour · €25 / day". */
+export function formatRentalOptionRates(
+  pricing: { pricePerHourMinor?: number | null; pricePerDayMinor?: number | null },
+  mode: RentalDetails['durationMode'],
+  currency?: string,
+): string {
+  const m = mode ?? 'daily';
+  const parts: string[] = [];
+  if ((m === 'hourly' || m === 'both') && pricing.pricePerHourMinor != null && pricing.pricePerHourMinor > 0) {
+    parts.push(`${formatRentalMinor(pricing.pricePerHourMinor, currency)} / hour`);
+  }
+  if ((m === 'daily' || m === 'both') && pricing.pricePerDayMinor != null && pricing.pricePerDayMinor > 0) {
+    parts.push(`${formatRentalMinor(pricing.pricePerDayMinor, currency)} / day`);
+  }
+  return parts.length > 0 ? parts.join(' · ') : 'Price needed';
 }
 
 function minorToDraft(minor: number | null | undefined): string {
@@ -208,6 +227,7 @@ export default function RentalOptionEditor({
   const descriptionId = useId();
   const quantityId = useId();
   const priceId = useId();
+  const hourPriceId = useId();
   const nameRef = useRef<HTMLInputElement>(null);
   const [attempted, setAttempted] = useState(false);
   const [step, setStep] = useState(0);
@@ -215,6 +235,10 @@ export default function RentalOptionEditor({
   const currency = normalizeCurrency(listingCurrency ?? rental.sharedPricing?.currency);
   const config = rentalCategoryConfig(rental.category);
   const attributeKeys = config?.variantAttributeKeys ?? [];
+  const mode = rental.durationMode ?? 'daily';
+  const needsHour = mode === 'hourly' || mode === 'both';
+  const needsDay = mode === 'daily' || mode === 'both';
+  const hourPrice = rentalOptionHourPriceMinor(variant);
   const dayPrice = rentalOptionDayPriceMinor(variant);
 
   useEffect(() => {
@@ -234,18 +258,24 @@ export default function RentalOptionEditor({
 
   const nameMissing = !variant.name.trim();
   const quantityInvalid = !Number.isFinite(variant.quantity) || variant.quantity < 1;
-  const priceInvalid = dayPrice == null;
+  const priceInvalid = !rentalOptionRatesReady(variant, rental);
+  const priceMessage =
+    mode === 'hourly'
+      ? 'Enter a price per hour.'
+      : mode === 'both'
+        ? 'Enter a price per hour and a price per day.'
+        : 'Enter a price per day.';
   const canSave = !nameMissing && !quantityInvalid && !priceInvalid;
   const complete = rentalVariantComplete(variant, rental);
 
   const patch = (next: Partial<RentalVariant>) => onChange({ ...variant, ...next });
 
-  const writeDayPrice = (minor: number | null) => {
+  const writeRate = (key: 'pricePerHourMinor' | 'pricePerDayMinor', minor: number | null) => {
     patch({
       pricingOverride: {
         ...(variant.pricingOverride ?? {}),
         currency,
-        pricePerDayMinor: minor,
+        [key]: minor,
       },
     });
   };
@@ -296,7 +326,12 @@ export default function RentalOptionEditor({
     },
     pricing: {
       title: 'Pricing',
-      lede: 'The price a guest pays for one day of this option.',
+      lede:
+        mode === 'hourly'
+          ? 'The price a guest pays for one hour of this option.'
+          : mode === 'both'
+            ? 'The price a guest pays for one hour and for one day of this option.'
+            : 'The price a guest pays for one day of this option.',
     },
     review: {
       title: 'Review',
@@ -437,22 +472,41 @@ export default function RentalOptionEditor({
 
           {current === 'pricing' ? (
             <section className="space-y-3" aria-label="Pricing">
-              <StayField label="Price per day">
-                <RentalMoneyInput
-                  id={priceId}
-                  value={variant.pricingOverride?.pricePerDayMinor}
-                  currency={currency}
-                  ariaLabel="Price per day"
-                  placeholder=""
-                  onChange={writeDayPrice}
-                />
-              </StayField>
+              {needsHour ? (
+                <StayField label="Price per hour">
+                  <RentalMoneyInput
+                    id={hourPriceId}
+                    value={variant.pricingOverride?.pricePerHourMinor}
+                    currency={currency}
+                    ariaLabel="Price per hour"
+                    placeholder=""
+                    onChange={(minor) => writeRate('pricePerHourMinor', minor)}
+                  />
+                </StayField>
+              ) : null}
+              {needsDay ? (
+                <StayField label="Price per day">
+                  <RentalMoneyInput
+                    id={priceId}
+                    value={variant.pricingOverride?.pricePerDayMinor}
+                    currency={currency}
+                    ariaLabel="Price per day"
+                    placeholder=""
+                    onChange={(minor) => writeRate('pricePerDayMinor', minor)}
+                  />
+                </StayField>
+              ) : null}
               {attempted && priceInvalid ? (
                 <p className="stay-alert !mt-0" role="alert">
-                  Enter a price per day.
+                  {priceMessage}
                 </p>
               ) : null}
-              <OptionDayEarnings dayMinor={dayPrice} currency={currency} commissionBps={commissionBps} />
+              {needsHour ? (
+                <OptionRateEarnings minor={hourPrice} unit="hour" currency={currency} commissionBps={commissionBps} />
+              ) : null}
+              {needsDay ? (
+                <OptionRateEarnings minor={dayPrice} unit="day" currency={currency} commissionBps={commissionBps} />
+              ) : null}
             </section>
           ) : null}
 
@@ -470,12 +524,19 @@ export default function RentalOptionEditor({
                 <ReviewLine label="Units" value={String(variant.quantity)} onEdit={() => goTo('inventory')} />
                 <ReviewLine
                   label="Price"
-                  value={dayPrice != null ? `${formatRentalMinor(dayPrice, currency)} / day` : 'Not set'}
+                  value={formatRentalOptionRates(
+                    {
+                      pricePerHourMinor: hourPrice,
+                      pricePerDayMinor: dayPrice,
+                    },
+                    mode,
+                    currency,
+                  )}
                   onEdit={() => goTo('pricing')}
                 />
               </dl>
               <p className={`mt-3 text-sm font-semibold ${complete ? 'text-[#073b83]' : 'text-ink-muted'}`} role="status">
-                {complete ? 'Complete.' : 'Enter a price per day before saving this option.'}
+                {complete ? 'Complete.' : priceMessage}
               </p>
             </section>
           ) : null}
@@ -524,34 +585,37 @@ export default function RentalOptionEditor({
   );
 }
 
-function OptionDayEarnings({
-  dayMinor,
+function OptionRateEarnings({
+  minor,
+  unit,
   currency,
   commissionBps,
 }: {
-  dayMinor: number | null;
+  minor: number | null;
+  unit: 'hour' | 'day';
   currency: string;
   commissionBps: number | null;
 }) {
-  if (dayMinor == null || dayMinor <= 0) return null;
+  if (minor == null || minor <= 0) return null;
   let split: { commissionMinor: number; supplierMinor: number } | null = null;
   let percent = '';
   if (commissionBps != null) {
     try {
-      const result = splitGrossByCommissionBps(dayMinor, commissionBps);
+      const result = splitGrossByCommissionBps(minor, commissionBps);
       split = { commissionMinor: result.commissionMinor, supplierMinor: result.supplierMinor };
       percent = formatBpsAsPercent(commissionBps);
     } catch {
       split = null;
     }
   }
+  const unitLabel = unit === 'hour' ? '1 hour' : '1 day';
   return (
-    <section className="rounded-xl border border-[#E6EAF0] bg-white px-3 py-2.5" aria-label="One day earnings">
-      <p className="stay-kicker">1 day · 1 unit</p>
+    <section className="rounded-xl border border-[#E6EAF0] bg-white px-3 py-2.5" aria-label={`${unitLabel} earnings`}>
+      <p className="stay-kicker">{unitLabel} · 1 unit</p>
       <dl className="mt-2 space-y-1.5 text-sm">
         <div className="flex items-baseline justify-between gap-3">
           <dt className="text-ink">Guest price</dt>
-          <dd className="font-semibold text-ink">{formatRentalMinor(dayMinor, currency)}</dd>
+          <dd className="font-semibold text-ink">{formatRentalMinor(minor, currency)}</dd>
         </div>
         {split ? (
           <>

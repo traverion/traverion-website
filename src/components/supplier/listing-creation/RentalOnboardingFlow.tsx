@@ -43,7 +43,9 @@ import {
   rentalHasDepositInfo,
   rentalHasInsuranceInfo,
   rentalSkillConflictsDifficulty,
+  rentalDurationFieldIssue,
   rentalLowestDayPriceMinor,
+  rentalLowestHourPriceMinor,
   rentalVariantComplete,
   rentalVariantMetaLine,
   upsertRentalVariant,
@@ -72,6 +74,7 @@ import RentalOptionEditor, {
   RentalIntegerInput,
   RentalMoneyInput,
   formatRentalMinor,
+  formatRentalOptionRates,
 } from './RentalOptionEditor';
 import { StayChoice, StayField, StayHelp } from './StayCreatorUi';
 import RentalCollectionPoint from './RentalCollectionPoint';
@@ -294,10 +297,11 @@ function galleryUrlsOf(values: Values): string[] {
   return values.photoSlots.filter((url) => url.startsWith('http'));
 }
 
-/** Lowest option day price, matching the public starting price. */
-function startingPrice(rental: RentalDetails): { minor: number; unit: 'day' } | null {
-  const minor = rentalLowestDayPriceMinor(rental);
-  return minor == null ? null : { minor, unit: 'day' };
+/** Lowest applicable option rate, matching the public starting price. */
+function startingPrice(rental: RentalDetails): { minor: number; unit: 'hour' | 'day' } | null {
+  const hourly = rental.durationMode === 'hourly';
+  const minor = hourly ? rentalLowestHourPriceMinor(rental) : rentalLowestDayPriceMinor(rental);
+  return minor == null ? null : { minor, unit: hourly ? 'hour' : 'day' };
 }
 
 function cloneVariant(variant: RentalVariant): RentalVariant {
@@ -1229,11 +1233,7 @@ function OptionsStage({ ctx }: { ctx: Ctx }) {
                   {complete ? 'Complete' : basicsOk ? 'Needs pricing' : 'Incomplete'}
                 </span>
               </div>
-              <p className="text-sm font-semibold text-ink">
-                {pricing.pricePerDayMinor != null && pricing.pricePerDayMinor > 0
-                  ? `${formatRentalMinor(pricing.pricePerDayMinor, currency)} / day`
-                  : 'Price needed'}
-              </p>
+              <p className="text-sm font-semibold text-ink">{formatRentalOptionRates(pricing, rental.durationMode, currency)}</p>
               {confirming ? (
                 <div className="space-y-2 rounded-xl bg-[#fff7f7] p-3" role="alert">
                   <p className="text-sm font-semibold text-[#9f1239]">Delete “{name}”? This cannot be undone.</p>
@@ -1352,106 +1352,113 @@ function DurationModeStage({ ctx }: { ctx: Ctx }) {
   );
 }
 
+function DurationLimitFields({
+  label,
+  min,
+  max,
+  minLabel,
+  maxLabel,
+  maxValue,
+  unit,
+  showError,
+  onMin,
+  onMax,
+}: {
+  label: string;
+  min: number | null | undefined;
+  max: number | null | undefined;
+  minLabel: string;
+  maxLabel: string;
+  maxValue: number;
+  unit: 'hours' | 'days';
+  showError: boolean;
+  onMin: (n: number | null) => void;
+  onMax: (n: number | null) => void;
+}) {
+  const issue = rentalDurationFieldIssue(min, max, unit);
+  const clash = typeof min === 'number' && typeof max === 'number' && max < min;
+  return (
+    <section className="space-y-3" aria-label={label}>
+      <p className="stay-kicker">{label}</p>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <StayField label={minLabel}>
+          <RentalIntegerInput value={min} min={1} max={maxValue} allowEmpty stepper ariaLabel={minLabel} onChange={onMin} />
+        </StayField>
+        <StayField label={maxLabel}>
+          <RentalIntegerInput value={max} min={1} max={maxValue} allowEmpty stepper ariaLabel={maxLabel} onChange={onMax} />
+        </StayField>
+      </div>
+      {issue && (showError || clash) ? (
+        <p className="stay-alert !mt-0" role="alert">
+          {issue}
+        </p>
+      ) : null}
+    </section>
+  );
+}
+
 function DurationLimitsStage({ ctx }: { ctx: Ctx }) {
-  const { rental, mode, patchRental } = ctx;
+  const { rental, patchRental, props } = ctx;
+  const mode = rental.durationMode;
   const hourly = mode === 'hourly' || mode === 'both';
   const daily = mode === 'daily' || mode === 'both';
+  if (!hourly && !daily) return null;
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       {hourly ? (
-        <section className="stay-panel space-y-3" aria-label="Hourly limits">
-          <p className="stay-kicker">Hourly rentals</p>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <StayField label="Minimum hours">
-              <RentalIntegerInput
-                value={rental.minDurationHours}
-                min={1}
-                max={720}
-                allowEmpty
-                stepper
-                ariaLabel="Minimum hours"
-                onChange={(n) => patchRental({ minDurationHours: n })}
-              />
-            </StayField>
-            <StayField label="Maximum hours">
-              <RentalIntegerInput
-                value={rental.maxDurationHours}
-                min={1}
-                max={720}
-                allowEmpty
-                stepper
-                ariaLabel="Maximum hours"
-                onChange={(n) => patchRental({ maxDurationHours: n })}
-              />
-            </StayField>
-          </div>
-        </section>
+        <DurationLimitFields
+          label="Hourly rentals"
+          min={rental.minDurationHours}
+          max={rental.maxDurationHours}
+          minLabel="Minimum hours"
+          maxLabel="Maximum hours"
+          maxValue={720}
+          unit="hours"
+          showError={props.attemptedContinue}
+          onMin={(n) => patchRental({ minDurationHours: n })}
+          onMax={(n) => patchRental({ maxDurationHours: n })}
+        />
       ) : null}
       {daily ? (
-        <section className="stay-panel space-y-3" aria-label="Daily limits">
-          <p className="stay-kicker">Daily rentals</p>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <StayField label="Minimum days">
-              <RentalIntegerInput
-                value={rental.minDurationDays}
-                min={1}
-                max={365}
-                allowEmpty
-                stepper
-                ariaLabel="Minimum days"
-                onChange={(n) => patchRental({ minDurationDays: n })}
-              />
-            </StayField>
-            <StayField label="Maximum days">
-              <RentalIntegerInput
-                value={rental.maxDurationDays}
-                min={1}
-                max={365}
-                allowEmpty
-                stepper
-                ariaLabel="Maximum days"
-                onChange={(n) => patchRental({ maxDurationDays: n })}
-              />
-            </StayField>
-          </div>
-        </section>
+        <DurationLimitFields
+          label="Daily rentals"
+          min={rental.minDurationDays}
+          max={rental.maxDurationDays}
+          minLabel="Minimum days"
+          maxLabel="Maximum days"
+          maxValue={365}
+          unit="days"
+          showError={props.attemptedContinue}
+          onMin={(n) => patchRental({ minDurationDays: n })}
+          onMax={(n) => patchRental({ maxDurationDays: n })}
+        />
       ) : null}
-      <StayHelp>The maximum must be at least the minimum.</StayHelp>
     </div>
   );
 }
 
 function DailyRulesStage({ ctx }: { ctx: Ctx }) {
-  const { rental, mode, patchRental } = ctx;
-  const calendar = rental.calendarDayRentals !== false;
-  if (mode === 'hourly') {
-    return (
-      <section className="stay-panel space-y-2">
-        <p className="text-sm text-ink">Daily rules only apply when you offer daily rentals.</p>
-        <p className="stay-help">Your rental is hourly. Switch to daily or both under rental length to configure day rules.</p>
-      </section>
-    );
-  }
+  const { rental, patchRental } = ctx;
+  useEffect(() => {
+    if (rental.calendarDayRentals === false) patchRental({ calendarDayRentals: true });
+  }, [patchRental, rental.calendarDayRentals]);
   return (
-    <div className="space-y-4">
-      <div className="grid gap-2" role="group" aria-label="Daily rental style">
-        <StayChoice pressed={calendar} onClick={() => patchRental({ calendarDayRentals: true })}>
-          <span className="block">Calendar days</span>
-          <span className="stay-help mt-0.5 block font-normal">
-            A day runs from pickup to return within your opening hours. Customers pick up and return on open days.
-          </span>
-        </StayChoice>
-        <StayChoice pressed={!calendar} onClick={() => patchRental({ calendarDayRentals: false })}>
-          <span className="block">24-hour periods</span>
-          <span className="stay-help mt-0.5 block font-normal">
-            Preference for when bookings open: each day lasts 24 hours from pickup. Not enforced in checkout yet.
-          </span>
-        </StayChoice>
-      </div>
-      <StayHelp>
-        Calendar days are the default for equipment rentals. Pickup and return windows come from your hours step.
-        24-hour periods are saved as a preference until the booking engine enforces them.
-      </StayHelp>
+    <div className="grid gap-2" role="group" aria-label="How a rental day is counted">
+      <StayChoice
+        pressed
+        onClick={() => {
+          if (rental.calendarDayRentals === false) patchRental({ calendarDayRentals: true });
+        }}
+      >
+        <span className="block">Calendar days</span>
+        <span className="stay-help mt-0.5 block font-normal">
+          The pickup date through the return date. The same date counts as one day. Pickup and return stay inside your opening hours.
+        </span>
+      </StayChoice>
+      <StayChoice pressed={false} disabled onClick={() => undefined}>
+        <span className="block">24-hour periods</span>
+        <span className="stay-help mt-0.5 block font-normal">Coming later</span>
+      </StayChoice>
     </div>
   );
 }
@@ -2055,7 +2062,7 @@ function PreviewStage({ ctx }: { ctx: Ctx }) {
               <ul className="space-y-2">
                 {variants.map((variant) => {
                   const attrs = variantAttributeText(variant, cfg);
-                  const day = effectiveVariantPricing(rental, variant).pricePerDayMinor;
+                  const price = formatRentalOptionRates(effectiveVariantPricing(rental, variant), rental.durationMode, currency);
                   return (
                     <li
                       key={variant.id}
@@ -2068,9 +2075,7 @@ function PreviewStage({ ctx }: { ctx: Ctx }) {
                           <p className="mt-1 text-sm text-ink-muted">{variant.description.trim()}</p>
                         ) : null}
                       </div>
-                      <p className="shrink-0 text-right text-sm font-semibold text-ink">
-                        {day != null && day > 0 ? `${formatRentalMinor(day, currency)} / day` : 'Price needed'}
-                      </p>
+                      <p className="shrink-0 text-right text-sm font-semibold text-ink">{price}</p>
                     </li>
                   );
                 })}
@@ -2120,8 +2125,8 @@ function PreviewStage({ ctx }: { ctx: Ctx }) {
               {Number(rental.bufferMinutes ?? 0) > 0 ? (
                 <li>{bufferLabel(Number(rental.bufferMinutes))} preparation between rentals</li>
               ) : null}
-              {rental.calendarDayRentals !== false && (mode === 'daily' || mode === 'both') ? (
-                <li>Daily rentals use calendar days with your pickup and return hours</li>
+              {mode === 'daily' || mode === 'both' ? (
+                <li>Daily rentals run from the pickup date to the return date</li>
               ) : null}
             </ul>
           </PreviewSection>
@@ -2491,7 +2496,9 @@ export default function RentalOnboardingFlow(props: Props) {
     id === 'pickup-location' ||
     id === 'return-location' ||
     id === 'handover' ||
-    id === 'duration';
+    id === 'duration' ||
+    id === 'daily-counting' ||
+    id === 'booking-rules';
 
   const showBack = props.returnStage != null && props.stage !== props.returnStage;
 
@@ -2583,10 +2590,6 @@ export default function RentalOnboardingFlow(props: Props) {
             customSuffix="hours"
             onChange={(bookingNoticeHours) => ctx.patchRental({ bookingNoticeHours })}
           />
-          <StayHelp>
-            Preparation time is the gap you need between one rental and the next. Notice is how early a customer must
-            book. Both are saved. Neither closes inventory until rental bookings enforce them.
-          </StayHelp>
         </div>
       );
       break;

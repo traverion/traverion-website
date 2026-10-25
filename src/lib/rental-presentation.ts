@@ -1,6 +1,6 @@
 import { rentalCancellationCustomerText } from './rental-cancellation';
 import { rentalCategoryConfig, rentalItemTypeLabel } from './rental-categories';
-import { formatMinorAsEuro, rentalLowestDayPriceMinor } from './rental-details';
+import { formatMinorAsEuro, rentalLowestDayPriceMinor, rentalLowestHourPriceMinor } from './rental-details';
 import type { RentalPurchaseSnapshot } from './rental-booking-domain';
 import type { RentalDetails, RentalOperatingDay, RentalWeekday } from '../types/rental';
 
@@ -133,11 +133,28 @@ export function rentalDurationCustomerText(rental: RentalDetails): string {
   return bits.join(' · ');
 }
 
-/** Lowest option day price, for catalog cards. */
+/** Option rates a guest would pay for this listing's duration mode. */
+export function rentalOptionRateLabel(
+  rental: RentalDetails,
+  pricing: { pricePerHourMinor?: number | null; pricePerDayMinor?: number | null },
+): string {
+  const mode = rental.durationMode ?? 'daily';
+  const parts: string[] = [];
+  if ((mode === 'hourly' || mode === 'both') && pricing.pricePerHourMinor != null && pricing.pricePerHourMinor > 0) {
+    parts.push(`${formatMinorAsEuro(pricing.pricePerHourMinor)} / hour`);
+  }
+  if ((mode === 'daily' || mode === 'both') && pricing.pricePerDayMinor != null && pricing.pricePerDayMinor > 0) {
+    parts.push(`${formatMinorAsEuro(pricing.pricePerDayMinor)} / day`);
+  }
+  return parts.join(' · ');
+}
+
+/** Lowest applicable option rate, for catalog cards. Hourly listings use the hour rate. */
 export function rentalFromPrice(rental: RentalDetails): { label: string; minor: number } | null {
-  const minor = rentalLowestDayPriceMinor(rental);
+  const hourly = rental.durationMode === 'hourly';
+  const minor = hourly ? rentalLowestHourPriceMinor(rental) : rentalLowestDayPriceMinor(rental);
   if (minor == null) return null;
-  return { minor, label: `${formatMinorAsEuro(minor)} / day` };
+  return { minor, label: `${formatMinorAsEuro(minor)} / ${hourly ? 'hour' : 'day'}` };
 }
 
 export function rentalSnapshotCancellationText(snap: {

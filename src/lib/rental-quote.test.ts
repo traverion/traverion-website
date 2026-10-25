@@ -79,6 +79,43 @@ describe('quoteRentalLine', () => {
     expect(premium.unitMinor).toBe(2500);
   });
 
+  it('quotes one hour from the option hour price and keeps the day price separate', () => {
+    const rental = normalizeRentalDetails({
+      durationMode: 'both',
+      minDurationHours: 1,
+      maxDurationHours: 8,
+      minDurationDays: 1,
+      maxDurationDays: 14,
+      sharedPricing: { pricePerHourMinor: 500, pricePerDayMinor: 9000 },
+      variants: [{ id: 'a', name: 'A', quantity: 2, pricingOverride: { pricePerHourMinor: 700 } }],
+    });
+    const hour = quoteRentalLine({
+      rental: rental!,
+      variantId: 'a',
+      quantity: 1,
+      durationCount: 1,
+      unit: 'hour',
+      commissionBps: bps,
+    });
+    expect(hour.ok).toBe(true);
+    if (!hour.ok) return;
+    expect(hour.unitMinor).toBe(700);
+    expect(hour.customerTotalMinor).toBe(700);
+    expect(hour.commissionMinor).toBe(Math.floor((700 * bps) / 10000));
+    expect(hour.supplierEarningsMinor).toBe(700 - hour.commissionMinor);
+    const day = quoteRentalLine({
+      rental: rental!,
+      variantId: 'a',
+      quantity: 1,
+      durationCount: 1,
+      unit: 'day',
+      commissionBps: bps,
+    });
+    expect(day.ok).toBe(true);
+    if (!day.ok) return;
+    expect(day.unitMinor).toBe(9000);
+  });
+
   it('uses variant override pricing', () => {
     const result = quoteRentalLine({
       rental: thermalListing(),

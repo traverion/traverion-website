@@ -189,7 +189,8 @@ export function normalizeRentalDetails(raw: unknown): RentalDetails | undefined 
   if (typeof o.maxDurationHours === 'number') out.maxDurationHours = Math.max(0, Math.round(o.maxDurationHours));
   if (typeof o.minDurationDays === 'number') out.minDurationDays = Math.max(0, Math.round(o.minDurationDays));
   if (typeof o.maxDurationDays === 'number') out.maxDurationDays = Math.max(0, Math.round(o.maxDurationDays));
-  if (typeof o.calendarDayRentals === 'boolean') out.calendarDayRentals = o.calendarDayRentals;
+  // Quotes and availability count calendar dates. A 24-hour period is not enforceable, so it is not stored.
+  out.calendarDayRentals = true;
   if (typeof o.bufferMinutes === 'number' && Number.isFinite(o.bufferMinutes)) {
     out.bufferMinutes = Math.max(0, Math.min(24 * 60, Math.round(o.bufferMinutes)));
   }
@@ -344,29 +345,34 @@ export function normalizeRentalDetails(raw: unknown): RentalDetails | undefined 
       .slice(0, 20);
   }
 
-  return inheritRentalOptionDayPrices(out);
+  return inheritRentalOptionRates(out);
 }
 
 /**
- * Copy a positive listing day price onto options that do not already have one.
- * Existing option prices, including hourly amounts, stay as saved. Never writes 0.
+ * Copy a positive shared hour or day rate onto options that do not already have that rate.
+ * An existing option price stays as saved. Never writes 0.
  */
-export function inheritRentalOptionDayPrices(rental: RentalDetails): RentalDetails {
+export function inheritRentalOptionRates(rental: RentalDetails): RentalDetails {
   const sharedDay = rental.sharedPricing?.pricePerDayMinor;
-  if (!(typeof sharedDay === 'number' && sharedDay > 0) || !(rental.variants && rental.variants.length > 0)) {
-    return rental;
-  }
+  const sharedHour = rental.sharedPricing?.pricePerHourMinor;
+  const day = typeof sharedDay === 'number' && sharedDay > 0 ? sharedDay : null;
+  const hour = typeof sharedHour === 'number' && sharedHour > 0 ? sharedHour : null;
+  if ((day == null && hour == null) || !(rental.variants && rental.variants.length > 0)) return rental;
   let changed = false;
   const variants = rental.variants.map((variant) => {
-    if (rentalOptionDayPriceMinor(variant) != null) return variant;
+    const next = { ...(variant.pricingOverride ?? {}) };
+    let rowChanged = false;
+    if (day != null && rentalOptionDayPriceMinor(variant) == null) {
+      next.pricePerDayMinor = day;
+      rowChanged = true;
+    }
+    if (hour != null && rentalOptionHourPriceMinor(variant) == null) {
+      next.pricePerHourMinor = hour;
+      rowChanged = true;
+    }
+    if (!rowChanged) return variant;
     changed = true;
-    return {
-      ...variant,
-      pricingOverride: {
-        ...(variant.pricingOverride ?? {}),
-        pricePerDayMinor: sharedDay,
-      },
-    };
+    return { ...variant, pricingOverride: next };
   });
   return changed ? { ...rental, variants } : rental;
 }
@@ -374,6 +380,42 @@ export function inheritRentalOptionDayPrices(rental: RentalDetails): RentalDetai
 export function rentalOptionDayPriceMinor(variant: RentalVariant): number | null {
   const day = variant.pricingOverride?.pricePerDayMinor;
   return typeof day === 'number' && Number.isFinite(day) && day > 0 ? day : null;
+}
+
+export function rentalOptionHourPriceMinor(variant: RentalVariant): number | null {
+  const hour = variant.pricingOverride?.pricePerHourMinor;
+  return typeof hour === 'number' && Number.isFinite(hour) && hour > 0 ? hour : null;
+}
+
+/** True when the option has every rate its listing duration mode uses. */
+export function rentalOptionRatesReady(variant: RentalVariant, rental: RentalDetails): boolean {
+  const mode = rental.durationMode ?? 'daily';
+  if ((mode === 'hourly' || mode === 'both') && rentalOptionHourPriceMinor(variant) == null) return false;
+  if ((mode === 'daily' || mode === 'both') && rentalOptionDayPriceMinor(variant) == null) return false;
+  return true;
+}
+
+export function rentalMissingOptionRateMessage(rental: RentalDetails): string | null {
+  const variants = rental.variants ?? [];
+  if (!variants.some((variant) => !rentalOptionRatesReady(variant, rental))) return null;
+  const mode = rental.durationMode ?? 'daily';
+  if (mode === 'hourly') return 'Each option needs a price per hour.';
+  if (mode === 'both') return 'Each option needs a price per hour and a price per day.';
+  return 'Each option needs a price per day.';
+}
+
+export function rentalDurationFieldIssue(
+  min: number | null | undefined,
+  max: number | null | undefined,
+  unit: 'hours' | 'days',
+): string | null {
+  if (!(typeof min === 'number' && min >= 1)) {
+    return unit === 'hours' ? 'Set a minimum hourly duration.' : 'Set a minimum daily duration.';
+  }
+  if (!(typeof max === 'number' && max >= min)) {
+    return unit === 'hours' ? 'Maximum hours must be at least the minimum.' : 'Maximum days must be at least the minimum.';
+  }
+  return null;
 }
 
 /** Insert a new option or replace the one with the same id. Other options stay untouched. */
@@ -415,10 +457,10 @@ export function formatMinorAsEuro(minor: number | null | undefined): string {
   return `€${(minor / 100).toFixed(minor % 100 === 0 ? 0 : 2)}`;
 }
 
-export function rentalVariantComplete(variant: RentalVariant, _rental: RentalDetails): boolean {
+export function rentalVariantComplete(variant: RentalVariant, rental: RentalDetails): boolean {
   if (!variant.name.trim()) return false;
   if (!Number.isFinite(variant.quantity) || variant.quantity < 1) return false;
-  return rentalOptionDayPriceMinor(variant) != null;
+  return rentalOptionRatesReady(variant, rental);
 }
 
 const DAY_SHORT: Record<RentalWeekday, string> = {
@@ -618,23 +660,37 @@ export function rentalHasInsuranceInfo(rental: RentalDetails): boolean {
   return false;
 }
 
-/** Lowest positive option day price, in minor units. Empty option lists still read a shared day price. */
-export function rentalLowestDayPriceMinor(rental: RentalDetails): number | null {
+function lowestPositiveRate(
+  rental: RentalDetails,
+  pick: (pricing: RentalPricing) => number | null | undefined,
+): number | null {
   let best: number | null = null;
   const variants = rental.variants?.length ? rental.variants : [createDefaultRentalVariant()];
   for (const variant of variants) {
-    const minor = effectiveVariantPricing(rental, variant).pricePerDayMinor;
+    const minor = pick(effectiveVariantPricing(rental, variant));
     if (typeof minor === 'number' && minor > 0 && (best == null || minor < best)) best = minor;
   }
   return best;
 }
 
+/** Lowest positive option day price, in minor units. Empty option lists still read a shared day price. */
+export function rentalLowestDayPriceMinor(rental: RentalDetails): number | null {
+  return lowestPositiveRate(rental, (pricing) => pricing.pricePerDayMinor);
+}
+
+/** Lowest positive option hour price, in minor units. */
+export function rentalLowestHourPriceMinor(rental: RentalDetails): number | null {
+  return lowestPositiveRate(rental, (pricing) => pricing.pricePerHourMinor);
+}
+
 /**
- * Lowest positive option day price.
+ * Lowest applicable option rate for the listing duration mode.
+ * Hourly listings use the hour rate. Daily and combined listings use the day rate.
  * Authoritative for listing.price.startingFrom on rental drafts (major currency units).
  */
 export function rentalStartingFromMajor(rental: RentalDetails): number {
-  const best = rentalLowestDayPriceMinor(rental);
+  const mode = rental.durationMode ?? 'daily';
+  const best = mode === 'hourly' ? rentalLowestHourPriceMinor(rental) : rentalLowestDayPriceMinor(rental);
   if (best == null) return 0;
   return best / 100;
 }
