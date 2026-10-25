@@ -267,7 +267,7 @@ function RentalBody({
               </Section>
             ) : null}
 
-            {requirements.length > 0 || rental.idRequired || rental.rentalRules ? (
+            {requirements.length > 0 || rental.idRequired ? (
               <Section title="Requirements">
                 <ul className="space-y-2 text-sm text-ink">
                   {rental.idRequired ? (
@@ -285,9 +285,49 @@ function RentalBody({
                     </li>
                   ))}
                 </ul>
-                {rental.rentalRules ? (
-                  <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-ink-muted">{rental.rentalRules}</p>
+              </Section>
+            ) : null}
+
+            {rental.rentalRules?.trim() ? (
+              <Section title="Rental rules">
+                <p className="whitespace-pre-wrap text-sm leading-relaxed text-ink-muted">{rental.rentalRules.trim()}</p>
+              </Section>
+            ) : null}
+
+            {rental.accessibilityStatus === 'details_provided' ? (
+              <Section title="Accessibility">
+                <ul className="space-y-1 text-sm text-ink">
+                  {(rental.accessibilityFeatures ?? []).map((line) => (
+                    <li key={line}>{line}</li>
+                  ))}
+                </ul>
+                {rental.accessibilityNotes?.trim() ? (
+                  <p className="mt-2 text-sm leading-relaxed text-ink-muted">{rental.accessibilityNotes.trim()}</p>
                 ) : null}
+              </Section>
+            ) : null}
+
+            {(rental.difficulty && rental.difficulty !== 'not_applicable') || rental.suitableFor?.trim() || rental.notSuitableFor?.trim() ? (
+              <Section title="Suitability">
+                {rental.difficulty === 'easy' ? <p className="text-sm text-ink">Easy</p> : null}
+                {rental.difficulty === 'moderate' ? <p className="text-sm text-ink">Moderate</p> : null}
+                {rental.difficulty === 'challenging' ? <p className="text-sm text-ink">Challenging</p> : null}
+                {rental.suitableFor?.trim() ? (
+                  <p className="mt-2 text-sm text-ink">Suitable for: {rental.suitableFor.trim()}</p>
+                ) : null}
+                {rental.notSuitableFor?.trim() ? (
+                  <p className="mt-2 text-sm text-ink-muted">Not suitable for: {rental.notSuitableFor.trim()}</p>
+                ) : null}
+              </Section>
+            ) : null}
+
+            {(rental.restrictions ?? []).length > 0 ? (
+              <Section title="Restrictions">
+                <ul className="space-y-1 text-sm text-ink">
+                  {(rental.restrictions ?? []).map((line) => (
+                    <li key={line}>{line}</li>
+                  ))}
+                </ul>
               </Section>
             ) : null}
 

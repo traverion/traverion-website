@@ -12,135 +12,184 @@ export const RENTAL_ONBOARDING_SCREENS = [
   {
     id: 'basics-category',
     group: 'Basics',
-    part: '1 of 5',
+    part: '1 of 6',
     title: 'What are you renting out?',
-    body: 'Choose a category and the closest item type.',
+    body: 'Choose the category that matches the product. Item type is the next step.',
+  },
+  {
+    id: 'basics-item',
+    group: 'Basics',
+    part: '2 of 6',
+    title: 'Which item type is it?',
+    body: 'Pick the closest type. Use “Something else” when none of the names fit.',
   },
   {
     id: 'basics-location',
     group: 'Basics',
-    part: '2 of 5',
+    part: '3 of 6',
     title: 'Where is your rental?',
-    body: 'Destination, time zone, and listing language.',
+    body: 'Destination, time zone, and the language you write the listing in.',
   },
   {
     id: 'basics-title',
     group: 'Basics',
-    part: '3 of 5',
+    part: '4 of 6',
     title: 'Name your rental',
-    body: 'A clear title and short introduction for search and cards.',
+    body: 'A clear title and a short introduction for search and cards.',
   },
   {
     id: 'basics-description',
     group: 'Basics',
-    part: '4 of 5',
+    part: '5 of 6',
     title: 'Describe the rental',
-    body: 'Full description plus optional highlights customers can scan.',
+    body: 'The full description, plus optional highlights customers can scan.',
   },
   {
     id: 'basics-specs',
     group: 'Basics',
-    part: '5 of 5',
+    part: '6 of 6',
     title: 'Shared specifications',
-    body: 'Facts that apply to every option. Size differences belong in options.',
+    body: 'Facts that apply to every option. Sizes and models that differ belong in options.',
   },
   {
     id: 'photos',
     group: 'Photos',
     part: '1 of 1',
     title: 'Add rental photos',
-    body: 'The first photo is the cover. Reorder anytime — at least three photos.',
+    body: 'The first photo is the cover. Reorder anytime. At least three photos.',
   },
   {
-    id: 'pickup-handover',
+    id: 'pickup-location',
     group: 'Pickup & return',
-    part: '1 of 2',
-    title: 'Pickup, return and handover',
-    body: 'Where customers collect and return the item, and how handover works.',
+    part: '1 of 4',
+    title: 'Where do customers collect it?',
+    body: 'The pickup address or meeting place.',
+  },
+  {
+    id: 'return-location',
+    group: 'Pickup & return',
+    part: '2 of 4',
+    title: 'Where do they return it?',
+    body: 'Same place as pickup, or a different return point.',
   },
   {
     id: 'hours',
     group: 'Pickup & return',
-    part: '2 of 2',
+    part: '3 of 4',
     title: 'Pickup and return hours',
-    body: 'Days and times when handovers are possible.',
+    body: 'Open days, and separate windows for collection and return.',
+  },
+  {
+    id: 'handover',
+    group: 'Pickup & return',
+    part: '4 of 4',
+    title: 'How does handover work?',
+    body: 'Staff or self-service, ID at pickup, and any practical instructions.',
   },
   {
     id: 'options',
-    group: 'Rental setup',
-    part: '1 of 4',
+    group: 'Rental options',
+    part: '1 of 1',
     title: 'Rental options',
-    body: 'Sizes, models, or a single standard option — each with its own stock and price.',
+    body: 'A listing can have one standard option or several sizes and models. Each option keeps its own stock.',
   },
   {
     id: 'duration',
-    group: 'Rental setup',
-    part: '2 of 4',
-    title: 'Rental length',
-    body: 'Hourly, daily, or both — plus limits and how a day is counted.',
+    group: 'Availability & duration',
+    part: '1 of 3',
+    title: 'How long can it be rented?',
+    body: 'Hourly, daily, or both, and the shortest and longest rental you accept.',
+  },
+  {
+    id: 'daily-counting',
+    group: 'Availability & duration',
+    part: '2 of 3',
+    title: 'How is a day counted?',
+    body: 'Calendar days use your pickup and return hours. This is separate from preparation time.',
   },
   {
     id: 'booking-rules',
-    group: 'Rental setup',
-    part: '3 of 4',
-    title: 'Booking notice and preparation',
-    body: 'How far ahead customers must book, and time between rentals.',
+    group: 'Availability & duration',
+    part: '3 of 3',
+    title: 'Notice and preparation',
+    body: 'Notice is how far ahead a customer must book. Preparation is the buffer between two rentals.',
   },
   {
     id: 'pricing',
-    group: 'Rental setup',
-    part: '4 of 4',
-    title: 'Pricing',
-    body: 'Shared rates options inherit. Custom prices stay in each option.',
+    group: 'Pricing',
+    part: '1 of 1',
+    title: 'Standard price',
+    body: 'The rate every option uses, unless that option has its own price.',
   },
   {
     id: 'requirements',
     group: 'Guest information',
-    part: '1 of 5',
+    part: '1 of 8',
     title: 'Customer requirements',
-    body: 'Who can rent and what they need to bring.',
+    body: 'Age, identification, licence, and experience. One place for each.',
+  },
+  {
+    id: 'accessibility',
+    group: 'Guest information',
+    part: '2 of 8',
+    title: 'Accessibility',
+    body: 'Access at the pickup place. This is not the same as how demanding the product is.',
+  },
+  {
+    id: 'suitability',
+    group: 'Guest information',
+    part: '3 of 8',
+    title: 'Suitability',
+    body: 'Who the rental is for. Difficulty only appears when it describes the product.',
   },
   {
     id: 'inclusions',
     group: 'Guest information',
-    part: '2 of 5',
+    part: '4 of 8',
     title: "What's included?",
     body: 'Items provided with the rental at no extra charge.',
   },
   {
+    id: 'restrictions',
+    group: 'Guest information',
+    part: '5 of 8',
+    title: 'Restrictions',
+    body: 'Uses you do not allow. Customers see these before booking opens.',
+  },
+  {
     id: 'rules',
     group: 'Guest information',
-    part: '3 of 5',
-    title: 'Important rental rules',
-    body: 'Use, return condition, and late returns.',
+    part: '6 of 8',
+    title: 'Rental rules',
+    body: 'Permitted use, return condition, cleaning, damage, and late returns.',
   },
   {
     id: 'cancellation',
     group: 'Guest information',
-    part: '4 of 5',
+    part: '7 of 8',
     title: 'Cancellation policy',
-    body: 'Saved for when rental bookings open — not enforced yet.',
+    body: 'The window customers may request cancellation. Traverion does not issue automatic rental refunds.',
   },
   {
     id: 'deposit-info',
     group: 'Guest information',
-    part: '5 of 5',
+    part: '8 of 8',
     title: 'Deposits and insurance',
-    body: 'Supplier-managed terms. Traverion does not collect deposits online.',
+    body: 'Terms you manage yourself. Traverion does not collect deposits or handle insurance claims.',
   },
   {
     id: 'preview',
     group: 'Completion',
     part: '1 of 2',
     title: 'Review your rental listing',
-    body: 'A supplier preview of saved data. Bookings stay closed until Rentals launches.',
+    body: 'A supplier preview of saved data. This is not a live bookable listing.',
   },
   {
     id: 'publish',
     group: 'Completion',
     part: '2 of 2',
     title: 'Finish rental setup',
-    body: 'Save a finished draft. Your listing stays unpublished.',
+    body: 'Save a finished draft. The listing stays unpublished and payment stays closed.',
   },
 ] as const;
 
@@ -149,7 +198,7 @@ export type RentalOnboardingScreenId = (typeof RENTAL_ONBOARDING_SCREENS)[number
 /** Maps retired 33-step screen ids → current screen ids so drafts resume correctly. */
 export const LEGACY_RENTAL_SCREEN_ALIASES: Record<string, RentalOnboardingScreenId> = {
   category: 'basics-category',
-  'item-type': 'basics-category',
+  'item-type': 'basics-item',
   location: 'basics-location',
   language: 'basics-location',
   title: 'basics-title',
@@ -158,12 +207,13 @@ export const LEGACY_RENTAL_SCREEN_ALIASES: Record<string, RentalOnboardingScreen
   highlights: 'basics-description',
   specs: 'basics-specs',
   gallery: 'photos',
-  pickup: 'pickup-handover',
-  return: 'pickup-handover',
-  collection: 'pickup-handover',
+  'pickup-handover': 'pickup-location',
+  pickup: 'pickup-location',
+  return: 'return-location',
+  collection: 'handover',
   'duration-mode': 'duration',
   'duration-limits': 'duration',
-  'daily-rules': 'duration',
+  'daily-rules': 'daily-counting',
   buffers: 'booking-rules',
   notice: 'booking-rules',
   'availability-summary': 'duration',
@@ -207,7 +257,9 @@ export function rentalStageBlocker(screenId: RentalOnboardingScreenId, check: Re
   const r = check.rental;
 
   switch (screenId) {
-    case 'basics-category': {
+    case 'basics-category':
+      return r.category ? null : 'Choose a rental category to continue.';
+    case 'basics-item': {
       if (!r.category) return 'Choose a rental category to continue.';
       if (r.itemType === 'custom') {
         return (r.customItemType ?? '').trim() ? null : 'Enter a custom item type.';
@@ -237,13 +289,19 @@ export function rentalStageBlocker(screenId: RentalOnboardingScreenId, check: Re
       if (check.galleryCount < 3) return 'Add at least 3 photos before continuing.';
       return null;
     }
-    case 'pickup-handover': {
-      if ((r.pickupAddress || '').trim().length < 5) return 'Add a pickup address or meeting place.';
+    case 'pickup-location':
+      return (r.pickupAddress || '').trim().length < 5 ? 'Add a pickup address or meeting place.' : null;
+    case 'return-location':
       if (r.returnSameAsPickup === false && (r.returnAddress || '').trim().length < 5) {
         return 'Add a return address, or choose same as pickup.';
       }
       return null;
-    }
+    case 'handover':
+    case 'daily-counting':
+    case 'accessibility':
+    case 'suitability':
+    case 'restrictions':
+      return null;
     case 'hours': {
       const open = (r.operatingDays ?? []).some((d) => d.open);
       if (!open) return 'Open at least one day for pickup and return.';
@@ -288,9 +346,9 @@ export function rentalStageBlocker(screenId: RentalOnboardingScreenId, check: Re
       return null;
     }
     case 'requirements':
-      if (r.category === 'snowmobiles') {
+      if (r.category === 'snowmobiles' || r.category === 'vehicles') {
         const license = (r.requirements?.license ?? '').trim();
-        if (!license) return 'Describe license or driver requirements for snowmobiles.';
+        if (!license) return 'Describe the licence or driver requirements.';
       }
       return null;
     case 'cancellation':
@@ -332,8 +390,8 @@ export function rentalPublishBlockers(check: RentalOnboardingCheck): string[] {
   }
   if (!r.durationMode) out.push('Choose rental duration mode.');
   const cfg = rentalCategoryConfig(r.category);
-  if (cfg?.id === 'snowmobiles' && !(r.requirements?.license || '').trim()) {
-    out.push('Add snowmobile license / driver requirements.');
+  if ((cfg?.id === 'snowmobiles' || cfg?.id === 'vehicles') && !(r.requirements?.license || '').trim()) {
+    out.push('Add licence or driver requirements.');
   }
   if (!isRentalCancellationPreset(r.cancellationPreset)) out.push('Choose a cancellation policy.');
   return out;
@@ -342,11 +400,14 @@ export function rentalPublishBlockers(check: RentalOnboardingCheck): string[] {
 export function rentalScreenIndexForPublishLine(line: string): number {
   const text = line.toLowerCase();
   if (/photo|gallery|image/.test(text)) return rentalScreenIndex('photos');
-  if (/categor|item type/.test(text)) return rentalScreenIndex('basics-category');
+  if (/item type/.test(text)) return rentalScreenIndex('basics-item');
+  if (/categor/.test(text)) return rentalScreenIndex('basics-category');
   if (/title|introduction/.test(text)) return rentalScreenIndex('basics-title');
   if (/description/.test(text)) return rentalScreenIndex('basics-description');
   if (/city|country|location|language/.test(text)) return rentalScreenIndex('basics-location');
-  if (/pickup|return|handover/.test(text)) return rentalScreenIndex('pickup-handover');
+  if (/handover|hours/.test(text)) return rentalScreenIndex('handover');
+  if (/return address|return location/.test(text)) return rentalScreenIndex('return-location');
+  if (/pickup|return/.test(text)) return rentalScreenIndex('pickup-location');
   if (/option|variant|quantity|pricing|price/.test(text)) return rentalScreenIndex('options');
   if (/duration|hourly|daily/.test(text)) return rentalScreenIndex('duration');
   if (/snowmobile|license|requirement/.test(text)) return rentalScreenIndex('requirements');
@@ -363,15 +424,15 @@ export const RENTAL_COMPLETION_GROUPS: {
   {
     id: 'details',
     label: 'Listing details',
-    screens: ['basics-category', 'basics-location', 'basics-title', 'basics-description', 'basics-specs'],
+    screens: ['basics-category', 'basics-item', 'basics-location', 'basics-title', 'basics-description', 'basics-specs'],
   },
   { id: 'photos', label: 'Photos', screens: ['photos'] },
   { id: 'options', label: 'Rental options', screens: ['options'] },
-  { id: 'pricing', label: 'Pricing and duration', screens: ['duration', 'booking-rules', 'pricing'] },
-  { id: 'pickup', label: 'Pickup and availability', screens: ['pickup-handover', 'hours'] },
+  { id: 'pricing', label: 'Pricing and duration', screens: ['duration', 'daily-counting', 'booking-rules', 'pricing'] },
+  { id: 'pickup', label: 'Pickup and return', screens: ['pickup-location', 'return-location', 'hours', 'handover'] },
   {
     id: 'guest',
     label: 'Guest information and policies',
-    screens: ['requirements', 'inclusions', 'rules', 'cancellation', 'deposit-info'],
+    screens: ['requirements', 'accessibility', 'suitability', 'inclusions', 'restrictions', 'rules', 'cancellation', 'deposit-info'],
   },
 ];

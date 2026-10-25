@@ -225,6 +225,7 @@ export default function RentalOptionEditor({
   const quantityId = useId();
   const nameRef = useRef<HTMLInputElement>(null);
   const [attempted, setAttempted] = useState(false);
+  const [step, setStep] = useState(0);
 
   const currency = normalizeCurrency(listingCurrency ?? rental.sharedPricing?.currency);
   const mode = rental.durationMode ?? 'daily';
@@ -236,6 +237,7 @@ export default function RentalOptionEditor({
   useEffect(() => {
     if (!open) return;
     setAttempted(false);
+    setStep(0);
     const previous = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     const timer = window.setTimeout(() => nameRef.current?.focus({ preventScroll: true }), 60);
@@ -281,6 +283,24 @@ export default function RentalOptionEditor({
     .filter(Boolean)
     .join(' · ');
 
+  const steps = [
+    'identity',
+    ...(attributeKeys.length > 0 ? ['specs'] : []),
+    'inventory',
+    'pricing',
+    'conditions',
+    'review',
+  ] as const;
+  const current = steps[Math.min(step, steps.length - 1)];
+  const stepLabel: Record<(typeof steps)[number], string> = {
+    identity: 'Name this option',
+    specs: 'Specifications for this option',
+    inventory: 'How many identical units?',
+    pricing: 'Price for this option',
+    conditions: 'Option notes',
+    review: 'Review this option',
+  };
+
   return (
     <div
       role="dialog"
@@ -316,13 +336,33 @@ export default function RentalOptionEditor({
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
         <div className="mx-auto w-full max-w-xl space-y-5 px-4 pb-[max(2rem,env(safe-area-inset-bottom))] pt-5">
           <div>
-            <p className="stay-kicker">Rental option</p>
-            <h3 className="stay-title font-display font-semibold">Edit this option</h3>
-            <p className="stay-lede mt-2">
-              Options are what customers pick — for example a size or model. Each has its own stock.
+            <p className="stay-kicker">
+              Option · {steps.indexOf(current) + 1} of {steps.length}
             </p>
+            <h3 className="stay-title font-display font-semibold">{stepLabel[current]}</h3>
+            <p className="stay-lede mt-2">
+              A listing is the product. An option is what the customer chooses, such as a size or model. Stock is how
+              many identical units of that option you have.
+            </p>
+            <ol className="mt-3 flex flex-wrap gap-1.5" aria-label="Option steps">
+              {steps.map((id, index) => (
+                <li key={id}>
+                  <button
+                    type="button"
+                    className={`min-h-9 rounded-full px-3 text-xs font-semibold ${
+                      id === current ? 'bg-[#073b83] text-white' : 'bg-[#F4F6F8] text-ink'
+                    }`}
+                    aria-current={id === current ? 'step' : undefined}
+                    onClick={() => setStep(index)}
+                  >
+                    {index + 1}
+                  </button>
+                </li>
+              ))}
+            </ol>
           </div>
 
+          {current === 'identity' ? (
           <section className="stay-panel space-y-4" aria-label="Identity">
             <p className="stay-kicker">Identity</p>
             <StayField label="Option name">
@@ -350,23 +390,29 @@ export default function RentalOptionEditor({
               />
             </StayField>
             <StayHelp>{(variant.description ?? '').length}/500</StayHelp>
-            {attributeKeys.length > 0 ? (
-              <div className="grid gap-3 sm:grid-cols-2">
-                {attributeKeys.map((attr) => (
-                  <StayField key={attr.key} label={attr.label}>
-                    <input
-                      className="tv-input w-full"
-                      value={(variant.attributes ?? {})[attr.key] ?? ''}
-                      maxLength={120}
-                      placeholder={attr.placeholder}
-                      onChange={(e) => setAttribute(attr.key, e.target.value)}
-                    />
-                  </StayField>
-                ))}
-              </div>
-            ) : null}
           </section>
+          ) : null}
 
+          {current === 'specs' ? (
+          <section className="stay-panel space-y-4" aria-label="Specifications">
+            <StayHelp>These details belong only to this option. Shared facts stay on the listing.</StayHelp>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {attributeKeys.map((attr) => (
+                <StayField key={attr.key} label={attr.label}>
+                  <input
+                    className="tv-input w-full"
+                    value={(variant.attributes ?? {})[attr.key] ?? ''}
+                    maxLength={120}
+                    placeholder={attr.placeholder}
+                    onChange={(e) => setAttribute(attr.key, e.target.value)}
+                  />
+                </StayField>
+              ))}
+            </div>
+          </section>
+          ) : null}
+
+          {current === 'inventory' ? (
           <section className="stay-panel space-y-3" aria-label="Inventory">
             <p className="stay-kicker">Inventory</p>
             <StayField label="Identical units for this option">
@@ -381,8 +427,9 @@ export default function RentalOptionEditor({
               />
             </StayField>
             <StayHelp>
-              Stock for this choice only (for example Size M). Not the number of guests, and not a total across all
-              sizes. At least 1.
+              If you have 10 identical items of this option, enter 10. This is not a guest count, and it is not added
+              to other options. Confirmed bookings and holds reduce what is free to reserve. That check stays in the
+              inventory system.
             </StayHelp>
             {attempted && quantityInvalid ? (
               <p className="stay-alert !mt-0" role="alert">
@@ -390,12 +437,14 @@ export default function RentalOptionEditor({
               </p>
             ) : null}
           </section>
+          ) : null}
 
+          {current === 'pricing' ? (
           <section className="stay-panel space-y-3" aria-label="Pricing">
-            <p className="stay-kicker">Pricing</p>
+            <StayHelp>Use the listing&apos;s standard price, or set a different price for this option.</StayHelp>
             <div className="grid gap-2 sm:grid-cols-2" role="group" aria-label="Pricing source">
               <StayChoice pressed={!overriding} onClick={() => patch({ pricingOverride: null })}>
-                <span className="block">Use shared pricing</span>
+                <span className="block">Use the standard price</span>
                 <span className="stay-help mt-0.5 block font-normal">{sharedSummary}</span>
               </StayChoice>
               <StayChoice
@@ -452,7 +501,28 @@ export default function RentalOptionEditor({
               </StayHelp>
             )}
           </section>
+          ) : null}
 
+          {current === 'conditions' ? (
+          <section className="stay-panel space-y-3" aria-label="Option notes">
+            <StayField label="Notes for this option (optional)">
+              <textarea
+                className="tv-input w-full resize-y py-2"
+                rows={4}
+                maxLength={240}
+                value={variant.availabilityOverrideNote ?? ''}
+                placeholder="Anything different about this option, such as a size that needs extra setup."
+                onChange={(e) => patch({ availabilityOverrideNote: e.target.value.slice(0, 240) })}
+              />
+            </StayField>
+            <StayHelp>
+              Blocked dates and maintenance live on the rental calendar. This note is saved with the option. It does
+              not by itself close dates.
+            </StayHelp>
+          </section>
+          ) : null}
+
+          {current === 'review' ? (
           <section className="stay-panel space-y-2" aria-label="Review">
             <p className="stay-kicker">Review</p>
             <dl className="space-y-1.5 text-sm">
@@ -472,6 +542,12 @@ export default function RentalOptionEditor({
                 <dt className="text-ink-muted">Units</dt>
                 <dd className="font-semibold text-ink">{variant.quantity}</dd>
               </div>
+              {variant.availabilityOverrideNote?.trim() ? (
+                <div className="flex justify-between gap-3">
+                  <dt className="text-ink-muted">Notes</dt>
+                  <dd className="min-w-0 text-right text-ink">{variant.availabilityOverrideNote.trim()}</dd>
+                </div>
+              ) : null}
               <div className="flex justify-between gap-3">
                 <dt className="text-ink-muted">Price</dt>
                 <dd className="min-w-0 text-right font-semibold text-ink">
@@ -488,17 +564,43 @@ export default function RentalOptionEditor({
             >
               {complete
                 ? 'Complete — ready for customers.'
-                : 'Pricing is still missing. Set shared rates in the Pricing step or add a custom price above.'}
+                : 'Pricing is still missing. Set the standard price on the Pricing screen, or add a custom price on the price step.'}
             </p>
-            <div className="flex flex-col gap-2 pt-2 sm:flex-row-reverse">
+          </section>
+          ) : null}
+
+          <div className="flex flex-col gap-2 pt-1 sm:flex-row-reverse">
+            {current === 'review' ? (
               <button type="button" className="tv-btn-primary min-h-11 px-5 text-sm font-semibold" onClick={trySave}>
                 Save option
               </button>
-              <button type="button" className="tv-btn-secondary min-h-11 px-5 text-sm font-semibold" onClick={onCancel}>
-                Discard changes
+            ) : (
+              <button
+                type="button"
+                className="tv-btn-primary min-h-11 px-5 text-sm font-semibold"
+                onClick={() => {
+                  if (current === 'identity' && nameMissing) {
+                    setAttempted(true);
+                    nameRef.current?.focus();
+                    return;
+                  }
+                  setStep((value) => Math.min(steps.length - 1, value + 1));
+                }}
+              >
+                Continue
               </button>
-            </div>
-          </section>
+            )}
+            <button
+              type="button"
+              className="tv-btn-secondary min-h-11 px-5 text-sm font-semibold"
+              onClick={() => {
+                if (step === 0) onCancel();
+                else setStep((value) => Math.max(0, value - 1));
+              }}
+            >
+              {step === 0 ? 'Discard changes' : 'Back'}
+            </button>
+          </div>
         </div>
       </div>
     </div>

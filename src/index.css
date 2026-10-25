@@ -13238,7 +13238,12 @@ details:not([open]) > :not(summary) {
 }
 
 .listing-creation-workspace:has(.rental-creator) .listing-creation-content {
-  padding-bottom: 1.35rem;
+  padding-bottom: 6.5rem;
+}
+
+.rental-creator .stay-title {
+  letter-spacing: -0.03em;
+  line-height: 1.15;
 }
 
 .stay-creator .stay-quiet-suggest:hover {

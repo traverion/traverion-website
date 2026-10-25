@@ -9,6 +9,7 @@ import {
   groupRentalOperatingHours,
   normalizeRentalDetails,
   rentalIllustrativeTotalMinor,
+  rentalHasDepositInfo,
   rentalOperatingHoursIssue,
   rentalStartingFromMajor,
   rentalVariantComplete,
@@ -144,20 +145,29 @@ describe('rental pricing derivation', () => {
     ).toBe(4000);
   });
 
-  it('clears deposit amounts when no deposit is selected (normalize + helper)', () => {
+  it('keeps deposit amounts when no deposit is selected so they can be restored', () => {
     const cleared = clearRentalDepositAmounts();
     expect(cleared.depositRequired).toBe(false);
-    expect(cleared.depositAmountMinor).toBeNull();
+    expect(cleared.depositAmountMinor).toBeUndefined();
     const normalized = normalizeRentalDetails({
       depositRequired: false,
       depositAmountMinor: 5000,
       depositCollectionMethod: 'cash_at_pickup',
       depositCurrency: 'EUR',
       depositDisclosure: 'Bring cash',
+      accessibilityStatus: 'details_provided',
+      accessibilityFeatures: ['Step-free pickup access'],
+      difficulty: 'not_applicable',
+      restrictions: ['No subletting'],
+      suitableFor: 'Adults who can ride',
     });
-    expect(normalized?.depositAmountMinor).toBeNull();
-    expect(normalized?.depositCollectionMethod).toBeNull();
+    expect(normalized?.depositAmountMinor).toBe(5000);
+    expect(normalized?.depositCollectionMethod).toBe('cash_at_pickup');
     expect(normalized?.depositDisclosure).toBe('Bring cash');
+    expect(normalized?.accessibilityFeatures).toEqual(['Step-free pickup access']);
+    expect(normalized?.difficulty).toBe('not_applicable');
+    expect(normalized?.restrictions).toEqual(['No subletting']);
+    expect(rentalHasDepositInfo(normalized!)).toBe(true);
   });
 
   it('flags invalid pickup windows', () => {
@@ -177,6 +187,10 @@ describe('legacy rental screen aliases', () => {
     expect(resolveRentalScreenId('buffers')).toBe('booking-rules');
     expect(resolveRentalScreenId('availability-summary')).toBe('duration');
     expect(resolveRentalScreenId('basics-title')).toBe('basics-title');
+    expect(resolveRentalScreenId('pickup-handover')).toBe('pickup-location');
+    expect(resolveRentalScreenId('item-type')).toBe('basics-item');
+    expect(resolveRentalScreenId('daily-rules')).toBe('daily-counting');
+    expect(resolveRentalScreenId('collection')).toBe('handover');
     expect(Object.keys(LEGACY_RENTAL_SCREEN_ALIASES).length).toBeGreaterThan(10);
   });
 });

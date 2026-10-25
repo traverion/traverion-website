@@ -9,11 +9,19 @@ export const RENTAL_CATEGORIES = [
   'skis_snowboards',
   'snowmobiles',
   'outdoor_equipment',
+  'cameras_electronics',
+  'clothing_accessories',
+  'vehicles',
 ] as const;
 
 export type RentalCategoryId = (typeof RENTAL_CATEGORIES)[number];
 
 export type RentalDurationMode = 'hourly' | 'daily' | 'both';
+
+/** Unknown stays unset. Not applicable is an explicit supplier choice, not a lack of access. */
+export type RentalAccessibilityStatus = 'not_specified' | 'not_applicable' | 'details_provided';
+
+export type RentalDifficulty = 'easy' | 'moderate' | 'challenging' | 'not_applicable';
 
 export type RentalBufferMinutes = 0 | 30 | 60 | 120 | number;
 
@@ -99,6 +107,15 @@ export type RentalDetails = {
   extras?: RentalExtraDraft[];
   inclusions?: string[];
   requirements?: Record<string, string>;
+  /** Pickup-place access. Separate from product difficulty. */
+  accessibilityStatus?: RentalAccessibilityStatus;
+  accessibilityFeatures?: string[];
+  accessibilityNotes?: string;
+  /** Omitted when the category does not use difficulty. */
+  difficulty?: RentalDifficulty | null;
+  suitableFor?: string;
+  notSuitableFor?: string;
+  restrictions?: string[];
   rentalRules?: string;
   cancellationPreset?: string;
   /** Free-text deposit notes (legacy + custom detail). */

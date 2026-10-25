@@ -16,6 +16,7 @@ import {
   RENTAL_CATEGORY_CONFIG,
   rentalCategoryConfig,
   rentalItemTypeLabel,
+  rentalRestrictionSuggestions,
   type RentalCategoryConfig,
 } from '../../../lib/rental-categories';
 import {
@@ -40,8 +41,10 @@ import { travelerDestinationLabel } from '../../../lib/destination-place';
 import { RENTAL_CANCELLATION_PRESETS } from '../../../lib/rental-cancellation';
 import { RENTAL_CATEGORIES } from '../../../types/rental';
 import type {
+  RentalAccessibilityStatus,
   RentalCategoryId,
   RentalDetails,
+  RentalDifficulty,
   RentalDurationMode,
   RentalOperatingDay,
   RentalPricing,
@@ -170,6 +173,13 @@ const HIGHLIGHT_SUGGESTIONS = [
   'Suitable for beginners',
   'Safety briefing included',
   'Family friendly',
+];
+
+const ACCESS_FEATURES = [
+  'Step-free pickup access',
+  'Accessible collection location',
+  'Assistance available at handover',
+  'Physical handling is required',
 ];
 
 const BUFFER_PRESETS = [0, 30, 60, 120, 240];
@@ -468,6 +478,11 @@ function CategoryStage({ ctx }: { ctx: Ctx }) {
         Object.entries(rental.requirements ?? {}).filter(([k, v]) => reqKeys.has(k) && String(v).trim())
       ),
       variants,
+      difficulty: nextCfg.difficultyApplies
+        ? rental.difficulty === 'not_applicable'
+          ? null
+          : rental.difficulty
+        : 'not_applicable',
     });
   };
   return (
@@ -1519,7 +1534,7 @@ function RequirementsStage({ ctx }: { ctx: Ctx }) {
   return (
     <div className="space-y-4">
       {cfg.requirementKeys.map((req) => {
-        const required = cfg.id === 'snowmobiles' && req.key === 'license';
+        const required = (cfg.id === 'snowmobiles' || cfg.id === 'vehicles') && req.key === 'license';
         return (
           <StayField key={req.key} label={required ? `${req.label} (required)` : req.label}>
             <input
@@ -1533,8 +1548,132 @@ function RequirementsStage({ ctx }: { ctx: Ctx }) {
           </StayField>
         );
       })}
-      <StayHelp>Customers see these before they book. Leave blank what does not apply.</StayHelp>
+      <StayHelp>
+        Minimum age stays in this field only. Leave a line blank when it does not apply. Customers see what you fill in.
+      </StayHelp>
     </div>
+  );
+}
+
+function AccessibilityStage({ ctx }: { ctx: Ctx }) {
+  const { rental, patchRental } = ctx;
+  const status = rental.accessibilityStatus ?? 'not_specified';
+  const features = rental.accessibilityFeatures ?? [];
+  const setStatus = (accessibilityStatus: RentalAccessibilityStatus) => patchRental({ accessibilityStatus });
+  const toggle = (label: string) => {
+    const has = features.some((item) => item.toLowerCase() === label.toLowerCase());
+    patchRental({
+      accessibilityStatus: 'details_provided',
+      accessibilityFeatures: has ? features.filter((item) => item.toLowerCase() !== label.toLowerCase()) : [...features, label],
+    });
+  };
+  return (
+    <div className="space-y-4">
+      <div className="grid gap-2" role="group" aria-label="Accessibility status">
+        <StayChoice pressed={status === 'not_specified'} onClick={() => setStatus('not_specified')}>
+          <span className="block">Not specified</span>
+          <span className="stay-help mt-0.5 block font-normal">You have not confirmed access at pickup.</span>
+        </StayChoice>
+        <StayChoice pressed={status === 'not_applicable'} onClick={() => setStatus('not_applicable')}>
+          <span className="block">Not applicable</span>
+          <span className="stay-help mt-0.5 block font-normal">Access details do not apply to this rental.</span>
+        </StayChoice>
+        <StayChoice pressed={status === 'details_provided'} onClick={() => setStatus('details_provided')}>
+          <span className="block">I have access details</span>
+          <span className="stay-help mt-0.5 block font-normal">Describe the pickup place, not how hard the product is.</span>
+        </StayChoice>
+      </div>
+      {status === 'details_provided' ? (
+        <>
+          <div className="flex flex-wrap gap-2" role="group" aria-label="Access details">
+            {ACCESS_FEATURES.map((label) => (
+              <Pill key={label} pressed={features.some((item) => item.toLowerCase() === label.toLowerCase())} onClick={() => toggle(label)}>
+                {label}
+              </Pill>
+            ))}
+          </div>
+          <StayField label="Notes (optional)">
+            <textarea
+              className="tv-input w-full resize-y py-2"
+              rows={3}
+              maxLength={1000}
+              value={rental.accessibilityNotes ?? ''}
+              placeholder="For example, a ramp at the side door, or help carrying heavier kits."
+              onChange={(e) => patchRental({ accessibilityNotes: e.target.value.slice(0, 1000) })}
+            />
+          </StayField>
+        </>
+      ) : (
+        <StayHelp>
+          Not specified means access is unknown. Not applicable means you chose not to describe it. Neither means the
+          pickup is inaccessible.
+        </StayHelp>
+      )}
+    </div>
+  );
+}
+
+function SuitabilityStage({ ctx }: { ctx: Ctx }) {
+  const { cfg, rental, patchRental } = ctx;
+  const applies = cfg?.difficultyApplies === true;
+  const choices: { id: RentalDifficulty; label: string }[] = [
+    { id: 'easy', label: 'Easy' },
+    { id: 'moderate', label: 'Moderate' },
+    { id: 'challenging', label: 'Challenging' },
+    { id: 'not_applicable', label: 'Not applicable' },
+  ];
+  return (
+    <div className="space-y-4">
+      {applies ? (
+        <div className="flex flex-wrap gap-2" role="group" aria-label="Difficulty">
+          {choices.map((choice) => (
+            <Pill
+              key={choice.id}
+              pressed={rental.difficulty === choice.id}
+              onClick={() => patchRental({ difficulty: choice.id })}
+            >
+              {choice.label}
+            </Pill>
+          ))}
+        </div>
+      ) : (
+        <StayHelp>Difficulty is not used for this category. You can still say who it suits.</StayHelp>
+      )}
+      <StayField label="Who is this rental suitable for? (optional)">
+        <textarea
+          className="tv-input w-full resize-y py-2"
+          rows={3}
+          maxLength={500}
+          value={rental.suitableFor ?? ''}
+          onChange={(e) => patchRental({ suitableFor: e.target.value.slice(0, 500) })}
+        />
+      </StayField>
+      <StayField label="Who is this rental not suitable for? (optional)">
+        <textarea
+          className="tv-input w-full resize-y py-2"
+          rows={3}
+          maxLength={500}
+          value={rental.notSuitableFor ?? ''}
+          placeholder="Practical limits, such as a size range. Do not exclude people for personal characteristics."
+          onChange={(e) => patchRental({ notSuitableFor: e.target.value.slice(0, 500) })}
+        />
+      </StayField>
+    </div>
+  );
+}
+
+function RestrictionsStage({ ctx }: { ctx: Ctx }) {
+  const { rental, patchRental } = ctx;
+  return (
+    <ChipEditor
+      items={rental.restrictions ?? []}
+      suggestions={rentalRestrictionSuggestions(rental.category)}
+      max={16}
+      placeholder="Add a restriction"
+      addLabel="Add a restriction"
+      emptyHelp="Optional. List uses you do not allow. Customers will see these before booking."
+      onChange={(restrictions) => patchRental({ restrictions })}
+    />
   );
 }
 
@@ -1569,7 +1708,8 @@ function RulesStage({ ctx }: { ctx: Ctx }) {
         />
       </StayField>
       <StayHelp>
-        {value.length}/4000 · Keep this practical. Avoid legal language Traverion has not reviewed.
+        {value.length}/4000 · Cover permitted use, return condition, cleaning, damage reporting, and late returns if
+        they matter. Keep this practical.
       </StayHelp>
     </div>
   );
@@ -1736,6 +1876,7 @@ function DepositStage({ ctx }: { ctx: Ctx }) {
             onChange={(e) => patchRental({ insuranceExclusions: e.target.value.slice(0, 1000) })}
           />
         </StayField>
+        <StayHelp>Traverion does not provide this insurance and does not handle claims.</StayHelp>
         <StayField label="Excess / deductible (optional)">
           <input
             className="tv-input w-full"
@@ -1850,8 +1991,8 @@ function PreviewStage({ ctx }: { ctx: Ctx }) {
   return (
     <div className="space-y-4">
       <p className="rounded-xl bg-[#F4F6F8] px-3.5 py-2.5 text-sm text-ink-muted" role="note">
-        Supplier review of how this rental will read for travelers. Public booking stays unavailable until Traverion
-        Rentals launches.
+        Supplier preview of the saved listing. It is wider so you can read it like a product page. Travelers cannot
+        book it, and it is not published.
       </p>
       <article className="stay-preview-shell overflow-hidden rounded-2xl bg-white ring-1 ring-[#E6EAF0]">
         <div className="space-y-5 p-4 sm:p-5">
@@ -2019,6 +2160,45 @@ function PreviewStage({ ctx }: { ctx: Ctx }) {
             </PreviewSection>
           ) : null}
 
+          {rental.accessibilityStatus === 'details_provided' || rental.accessibilityStatus === 'not_applicable' ? (
+            <PreviewSection title="Accessibility" onEdit={() => goTo('accessibility')}>
+              <div className="space-y-1 text-sm text-ink">
+                {rental.accessibilityStatus === 'not_applicable' ? <p>Not applicable for this rental.</p> : null}
+                {(rental.accessibilityFeatures ?? []).length > 0 ? (
+                  <ul className="space-y-1">
+                    {(rental.accessibilityFeatures ?? []).map((line) => (
+                      <li key={line}>{line}</li>
+                    ))}
+                  </ul>
+                ) : null}
+                {rental.accessibilityNotes?.trim() ? <p>{rental.accessibilityNotes.trim()}</p> : null}
+              </div>
+            </PreviewSection>
+          ) : null}
+
+          {rental.difficulty || rental.suitableFor?.trim() || rental.notSuitableFor?.trim() ? (
+            <PreviewSection title="Suitability" onEdit={() => goTo('suitability')}>
+              <div className="space-y-1 text-sm text-ink">
+                {rental.difficulty === 'easy' ? <p>Easy</p> : null}
+                {rental.difficulty === 'moderate' ? <p>Moderate</p> : null}
+                {rental.difficulty === 'challenging' ? <p>Challenging</p> : null}
+                {rental.difficulty === 'not_applicable' ? <p>Difficulty is not used for this rental.</p> : null}
+                {rental.suitableFor?.trim() ? <p>Suitable for: {rental.suitableFor.trim()}</p> : null}
+                {rental.notSuitableFor?.trim() ? <p>Not suitable for: {rental.notSuitableFor.trim()}</p> : null}
+              </div>
+            </PreviewSection>
+          ) : null}
+
+          {(rental.restrictions ?? []).length > 0 ? (
+            <PreviewSection title="Restrictions" onEdit={() => goTo('restrictions')}>
+              <ul className="space-y-1 text-sm text-ink">
+                {(rental.restrictions ?? []).map((line) => (
+                  <li key={line}>{line}</li>
+                ))}
+              </ul>
+            </PreviewSection>
+          ) : null}
+
           {rental.rentalRules?.trim() ? (
             <PreviewSection title="Rental rules" onEdit={() => goTo('rules')}>
               <p className="whitespace-pre-line text-sm leading-relaxed text-ink">{rental.rentalRules.trim()}</p>
@@ -2079,9 +2259,9 @@ function PreviewStage({ ctx }: { ctx: Ctx }) {
           ) : null}
 
           <section className="rounded-xl bg-[#F8FAFC] px-3.5 py-3 ring-1 ring-[#E6EAF0]" aria-label="Booking status">
-            <p className="text-sm font-semibold text-ink">Book this rental</p>
+            <p className="text-sm font-semibold text-ink">Booking stays closed</p>
             <p className="mt-1 text-sm text-ink-muted">
-              Traveler booking is not available yet. This button will open when Traverion Rentals launches.
+              This preview does not take payment. Online rental checkout stays closed until Traverion opens it.
             </p>
             <button
               type="button"
@@ -2270,7 +2450,9 @@ export default function RentalOnboardingFlow(props: Props) {
     id === 'photos' ||
     id === 'hours' ||
     id === 'options' ||
-    id === 'pickup-handover' ||
+    id === 'pickup-location' ||
+    id === 'return-location' ||
+    id === 'handover' ||
     id === 'duration' ||
     id === 'pricing';
 
@@ -2279,17 +2461,10 @@ export default function RentalOnboardingFlow(props: Props) {
   let body: ReactNode = null;
   switch (id) {
     case 'basics-category':
-      body = (
-        <div className="space-y-6">
-          <CategoryStage ctx={ctx} />
-          {rental.category ? (
-            <div className="space-y-2">
-              <p className="stay-kicker">Item type</p>
-              <ItemTypeStage ctx={ctx} />
-            </div>
-          ) : null}
-        </div>
-      );
+      body = <CategoryStage ctx={ctx} />;
+      break;
+    case 'basics-item':
+      body = <ItemTypeStage ctx={ctx} />;
       break;
     case 'basics-location':
       body = (
@@ -2327,14 +2502,14 @@ export default function RentalOnboardingFlow(props: Props) {
     case 'photos':
       body = <PhotosStage ctx={ctx} review={false} />;
       break;
-    case 'pickup-handover':
-      body = (
-        <div className="space-y-6">
-          <PickupStage ctx={ctx} />
-          <ReturnStage ctx={ctx} />
-          <CollectionStage ctx={ctx} />
-        </div>
-      );
+    case 'pickup-location':
+      body = <PickupStage ctx={ctx} />;
+      break;
+    case 'return-location':
+      body = <ReturnStage ctx={ctx} />;
+      break;
+    case 'handover':
+      body = <CollectionStage ctx={ctx} />;
       break;
     case 'hours':
       body = <HoursStage ctx={ctx} />;
@@ -2347,9 +2522,11 @@ export default function RentalOnboardingFlow(props: Props) {
         <div className="space-y-6">
           <DurationModeStage ctx={ctx} />
           <DurationLimitsStage ctx={ctx} />
-          <DailyRulesStage ctx={ctx} />
         </div>
       );
+      break;
+    case 'daily-counting':
+      body = <DailyRulesStage ctx={ctx} />;
       break;
     case 'booking-rules':
       body = (
@@ -2375,8 +2552,8 @@ export default function RentalOnboardingFlow(props: Props) {
             onChange={(bookingNoticeHours) => ctx.patchRental({ bookingNoticeHours })}
           />
           <StayHelp>
-            These rules are saved with your draft. They will be enforced when rental bookings open — they do not block
-            inventory yet.
+            Preparation time is the gap you need between one rental and the next. Notice is how early a customer must
+            book. Both are saved. Neither closes inventory until rental bookings enforce them.
           </StayHelp>
         </div>
       );
@@ -2396,6 +2573,15 @@ export default function RentalOnboardingFlow(props: Props) {
       break;
     case 'requirements':
       body = <RequirementsStage ctx={ctx} />;
+      break;
+    case 'accessibility':
+      body = <AccessibilityStage ctx={ctx} />;
+      break;
+    case 'suitability':
+      body = <SuitabilityStage ctx={ctx} />;
+      break;
+    case 'restrictions':
+      body = <RestrictionsStage ctx={ctx} />;
       break;
     case 'inclusions':
       body = <InclusionsStage ctx={ctx} />;
@@ -2421,7 +2607,7 @@ export default function RentalOnboardingFlow(props: Props) {
     <>
     <div
       key={props.stage}
-      className={`stay-creator rental-creator mx-auto w-full ${previewWide ? 'max-w-4xl' : wide ? 'max-w-3xl' : 'max-w-xl'} ${
+      className={`stay-creator rental-creator mx-auto w-full ${previewWide ? 'max-w-[72rem]' : wide ? 'max-w-3xl' : 'max-w-xl'} ${
         props.direction === 'back' ? 'stay-stage-back' : 'stay-stage-forward'
       }`}
     >

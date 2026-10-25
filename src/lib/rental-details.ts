@@ -170,12 +170,39 @@ export function normalizeRentalDetails(raw: unknown): RentalDetails | undefined 
     out.depositCollectionMethod = null;
   }
   if (typeof o.depositReturnNotes === 'string') out.depositReturnNotes = o.depositReturnNotes.trim().slice(0, 500);
-  // Authoritative: no deposit → neutralize amount/method (keep free-text disclosure notes).
-  if (out.depositRequired === false) {
-    out.depositAmountMinor = null;
-    out.depositCollectionMethod = null;
-    out.depositCurrency = undefined;
-    out.depositReturnNotes = undefined;
+  if (
+    o.accessibilityStatus === 'not_specified' ||
+    o.accessibilityStatus === 'not_applicable' ||
+    o.accessibilityStatus === 'details_provided'
+  ) {
+    out.accessibilityStatus = o.accessibilityStatus;
+  }
+  if (Array.isArray(o.accessibilityFeatures)) {
+    out.accessibilityFeatures = o.accessibilityFeatures
+      .map((item) => String(item ?? '').trim().slice(0, 80))
+      .filter(Boolean)
+      .slice(0, 12);
+  }
+  if (typeof o.accessibilityNotes === 'string') {
+    out.accessibilityNotes = o.accessibilityNotes.trim().slice(0, 1000);
+  }
+  if (
+    o.difficulty === 'easy' ||
+    o.difficulty === 'moderate' ||
+    o.difficulty === 'challenging' ||
+    o.difficulty === 'not_applicable'
+  ) {
+    out.difficulty = o.difficulty;
+  } else if (o.difficulty === null) {
+    out.difficulty = null;
+  }
+  if (typeof o.suitableFor === 'string') out.suitableFor = o.suitableFor.trim().slice(0, 500);
+  if (typeof o.notSuitableFor === 'string') out.notSuitableFor = o.notSuitableFor.trim().slice(0, 500);
+  if (Array.isArray(o.restrictions)) {
+    out.restrictions = o.restrictions
+      .map((item) => String(item ?? '').trim().slice(0, 80))
+      .filter(Boolean)
+      .slice(0, 16);
   }
   if (typeof o.insuranceIncluded === 'boolean') out.insuranceIncluded = o.insuranceIncluded;
   if (typeof o.insuranceCoverageNotes === 'string') {
@@ -375,7 +402,13 @@ export function rentalVariantMetaLine(
 export function rentalHasDepositInfo(rental: RentalDetails): boolean {
   if (rental.depositRequired === true) return true;
   if ((rental.depositDisclosure ?? '').trim()) return true;
-  if (rental.depositAmountMinor != null && rental.depositAmountMinor > 0) return true;
+  if (
+    rental.depositRequired == null &&
+    rental.depositAmountMinor != null &&
+    rental.depositAmountMinor > 0
+  ) {
+    return true;
+  }
   return false;
 }
 
@@ -408,15 +441,13 @@ export function rentalStartingFromMajor(rental: RentalDetails): number {
   return best / 100;
 }
 
-/** Clear deposit amount/method when supplier selects no deposit. Keeps optional free-text notes. */
+/**
+ * Mark the listing as having no deposit.
+ * Amount, method, and return notes stay stored so switching back does not wipe them.
+ * Customer copy only shows those fields when a deposit is required.
+ */
 export function clearRentalDepositAmounts(_rental?: RentalDetails): Partial<RentalDetails> {
-  return {
-    depositRequired: false,
-    depositAmountMinor: null,
-    depositCollectionMethod: null,
-    depositCurrency: undefined,
-    depositReturnNotes: undefined,
-  };
+  return { depositRequired: false };
 }
 
 /** Parse HH:MM to minutes from midnight; null if invalid. */
