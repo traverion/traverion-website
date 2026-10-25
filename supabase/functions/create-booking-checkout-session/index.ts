@@ -48,6 +48,7 @@ import {
 } from '../_shared/pickup-area.ts';
 import { createCheckoutTiming } from '../_shared/checkout-initiation-timing.ts';
 import { quoteRentalCheckoutLine } from '../_shared/rental-checkout-quote.ts';
+import { rentalDraftCheckoutAllowed } from '../_shared/rental-checkout-listing-gate.ts';
 import { fromMinorUnits } from '../_shared/commercial-money.ts';
 
 type RequestBody = {
@@ -371,11 +372,26 @@ serve(async (req) => {
     if (listingError) return json({ success: false, error: listingError.message }, 500);
     if (!listingRow) return json({ success: false, error: 'Listing not found' }, 404);
     const listingStatus = String(listingRow.status ?? '').trim();
+    const earlyFamily =
+      listingRow.listing_extras && typeof listingRow.listing_extras === 'object'
+        ? (listingRow.listing_extras as { inventoryFamily?: unknown }).inventoryFamily
+        : null;
+    const rentalCheckoutEnabledEarly =
+      (Deno.env.get('RENTAL_CHECKOUT_ENABLED') ?? '').trim() === '1';
     // Phase 583: a falsy status (null/undefined/'') must never be
     // treated as bookable -- see src/lib/booking-quote.ts's
     // isListingBookable for the full explanation (migration-082
     // verification bypass).
-    if (listingStatus !== 'published') {
+    // Rentals cannot be published (migration 282). Draft checkout is allowed
+    // only when RENTAL_CHECKOUT_ENABLED=1. The production secret stays unset.
+    if (
+      listingStatus !== 'published' &&
+      !rentalDraftCheckoutAllowed({
+        inventoryFamily: typeof earlyFamily === 'string' ? earlyFamily : null,
+        listingStatus,
+        rentalCheckoutEnabled: rentalCheckoutEnabledEarly,
+      })
+    ) {
       return json({ success: false, error: 'This listing is not available to book.' }, 400);
     }
     // Phase 1278: season-ended tours must not reach Stripe (catalog/PDP parity).
@@ -582,7 +598,10 @@ serve(async (req) => {
         String(listingRow.title ?? body.listingTitle ?? 'Rental').trim() || 'Rental';
       const holdMinutes = 60;
       const holdExpiresAtIso = new Date(Date.now() + holdMinutes * 60_000).toISOString();
-      const holdExpiresAtUnix = checkoutHoldExpiresAtUnix(holdExpiresAtIso);
+      // checkoutHoldExpiresAtUnix() treats its argument as "now" and adds another
+      // hour. The rental hold timestamp is already absolute — Stripe needs that
+      // unix second, and it must be at least 30 minutes ahead.
+      const holdExpiresAtUnix = Math.floor(Date.parse(holdExpiresAtIso) / 1000);
       const idempotencyKey = [
         'rental',
         listingId,
@@ -718,11 +737,19 @@ serve(async (req) => {
             },
           },
         });
-      } catch {
-        await admin.rpc('release_rental_inventory_hold', {
-          p_hold_id: claimRow.hold_id ?? null,
-          p_reason: 'stripe_session_create_failed',
-        }).catch(() => null);
+      } catch (stripeErr) {
+        console.error(
+          'rental checkout session create failed',
+          stripeErr instanceof Error ? stripeErr.message : 'unknown'
+        );
+        try {
+          await admin.rpc('release_rental_inventory_hold', {
+            p_hold_id: claimRow.hold_id ?? null,
+            p_reason: 'stripe_session_create_failed',
+          });
+        } catch {
+          /* hold expires on its own if release fails */
+        }
         return json({ success: false, error: 'Could not start payment. Try again.' }, 500);
       }
 

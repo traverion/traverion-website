@@ -364,6 +364,14 @@ serve(async (req) => {
             bookingId: row.id,
           });
         }
+        // Release rental inventory before flipping payment_status. A failure
+        // must still see payment_status=pending so Stripe retries. Non-rentals
+        // return not_a_rental_booking and are ignored.
+        const { error: releaseErr } = await admin.rpc('release_rental_checkout_booking', {
+          p_booking_id: row.id,
+          p_reason: 'checkout_session_expired',
+        });
+        if (releaseErr) throw new Error(releaseErr.message);
         const { error: expireErr } = await admin
           .from('bookings')
           .update({ payment_status: 'failed' })

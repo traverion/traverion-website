@@ -22,6 +22,7 @@ import {
   resolveDepartureTimezone,
 } from './tour-departure-cutoff.ts';
 import { stayRequestApprovalExpiresAtIso } from './stay-booking-method.ts';
+import { paidPromotionListingStillBookable } from './rental-checkout-listing-gate.ts';
 
 function listingKindFromExtras(extras: unknown): 'stay' | 'tour' | 'rental' {
   if (extras && typeof extras === 'object') {
@@ -1104,7 +1105,14 @@ export async function promotePaidFromCheckoutSession(params: {
       .maybeSingle();
     const listingStatus = String(listingGate?.status ?? '').trim();
     const seasonBookable = listingHasUpcomingBookableSeason(listingGate?.listing_extras);
-    const listingStillBookable = listingStatus === 'published' && seasonBookable;
+    const listingKindForGate = listingKindFromExtras(listingGate?.listing_extras);
+    // Rentals remain drafts under migration 282. A paid rental session must
+    // confirm; tours and stays still require a published listing.
+    const listingStillBookable = paidPromotionListingStillBookable({
+      inventoryFamily: listingKindForGate,
+      listingStatus,
+      seasonBookable,
+    });
     if (!listingStillBookable) {
       let listingGateRefunded = false;
       if (

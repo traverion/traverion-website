@@ -1,0 +1,406 @@
+{
+  "ok": true,
+  "phase": "rental_checkout_session",
+  "startedAt": "2026-10-25T18:07:01.208Z",
+  "runId": "ee85074e",
+  "environment": {
+    "project": "xcopqllkulxfkpunetbc",
+    "stripeMode": "test",
+    "checkoutFunction": "local_deno_RENTAL_CHECKOUT_ENABLED=1",
+    "webhook": "deployed stripe-webhook",
+    "publicFlag": "unset"
+  },
+  "safety": {
+    "before": {
+      "bookings": 22,
+      "published_rentals": 0
+    },
+    "flagStillAbsent": true
+  },
+  "steps": [
+    {
+      "name": "rental_checkout_flag_absent",
+      "ok": true,
+      "at": "2026-10-25T18:07:09.063Z"
+    },
+    {
+      "name": "baseline_counts",
+      "ok": true,
+      "bookings": 22,
+      "published_rentals": 0,
+      "at": "2026-10-25T18:07:14.251Z"
+    },
+    {
+      "name": "cert_identities_example_com",
+      "ok": true,
+      "at": "2026-10-25T18:07:20.846Z"
+    },
+    {
+      "name": "fixture_listing_draft",
+      "ok": true,
+      "at": "2026-10-25T18:07:23.610Z"
+    },
+    {
+      "name": "publication_gate_282_blocks_publish",
+      "ok": true,
+      "status": "draft",
+      "at": "2026-10-25T18:07:26.252Z"
+    },
+    {
+      "name": "isolated_checkout_function_booted",
+      "ok": true,
+      "at": "2026-10-25T18:07:26.780Z"
+    },
+    {
+      "name": "production_checkout_still_blocked",
+      "ok": true,
+      "http": 400,
+      "error": "This listing is not available to book.",
+      "at": "2026-10-25T18:07:28.007Z"
+    },
+    {
+      "name": "price_tamper_rejected",
+      "ok": true,
+      "http": 409,
+      "at": "2026-10-25T18:07:28.870Z"
+    },
+    {
+      "name": "checkout_session_created_idempotent",
+      "ok": true,
+      "bookingId": "e02dfd84",
+      "sessionId": "cs_test_a11rvZtBbLFQCFqmqsqjVgzrnVlpv6prEXDBwcYnvKWN1xO1zsPnQVyrjb",
+      "quotedTotal": 25,
+      "at": "2026-10-25T18:07:34.727Z"
+    },
+    {
+      "name": "expired_superseded_session",
+      "ok": true,
+      "at": "2026-10-25T18:07:35.088Z"
+    },
+    {
+      "name": "stripe_checkout_session_test_mode",
+      "ok": true,
+      "amount_total": 2500,
+      "currency": "eur",
+      "mode": "payment",
+      "at": "2026-10-25T18:07:35.412Z"
+    },
+    {
+      "name": "checkout_session_completed",
+      "ok": true,
+      "via": "payment_pages_confirm_tok_visa",
+      "at": "2026-10-25T18:07:36.717Z"
+    },
+    {
+      "name": "success_page_reconcile_first",
+      "ok": true,
+      "http": 200,
+      "alreadySettled": false,
+      "promoted": true,
+      "at": "2026-10-25T18:07:43.543Z"
+    },
+    {
+      "name": "webhook_or_reconcile_promoted",
+      "ok": true,
+      "status": "confirmed",
+      "payment": "paid",
+      "amount": "25.00",
+      "bookingNumber": 84,
+      "publicReference": "TV-RMVZ97T3",
+      "holdsConfirmed": 1,
+      "at": "2026-10-25T18:07:49.677Z"
+    },
+    {
+      "name": "success_page_refresh_idempotent",
+      "ok": true,
+      "http": 200,
+      "alreadySettled": true,
+      "at": "2026-10-25T18:07:50.260Z"
+    },
+    {
+      "name": "signed_webhook_processed",
+      "ok": true,
+      "events": [
+        "charge.updated",
+        "checkout.session.completed",
+        "payment_intent.succeeded",
+        "charge.succeeded",
+        "payment_intent.created",
+        "checkout.session.expired"
+      ],
+      "webhook": [
+        {
+          "event_type": "checkout.session.expired",
+          "id": "evt_1UUVpTC3BaJIHpM6YQAaUaET",
+          "status": "processed"
+        },
+        {
+          "event_type": "checkout.session.completed",
+          "id": "evt_1UUVpUC3BaJIHpM6LsMG8zI2",
+          "status": "processed"
+        },
+        {
+          "event_type": "payment_intent.succeeded",
+          "id": "evt_3UUVpTC3BaJIHpM60I9SulQz",
+          "status": "processed"
+        }
+      ],
+      "at": "2026-10-25T18:07:53.632Z"
+    },
+    {
+      "name": "duplicate_webhook_idempotent",
+      "ok": true,
+      "webhookStatus": "processed",
+      "holds": 1,
+      "at": "2026-10-25T18:08:05.820Z"
+    },
+    {
+      "name": "out_of_order_events_single_reservation",
+      "ok": true,
+      "sawPaymentIntentSucceeded": true,
+      "sawCheckoutCompleted": true,
+      "confirmedHolds": 1,
+      "at": "2026-10-25T18:08:08.242Z"
+    },
+    {
+      "name": "paid_notifications_captured",
+      "ok": true,
+      "customerConfirm": true,
+      "supplierNotify": true,
+      "rows": [
+        {
+          "channel": "supplier",
+          "template": "new_booking",
+          "status": "failed",
+          "recipient": "cert-rental-supplier-ee85074e@example.com"
+        },
+        {
+          "channel": "customer",
+          "template": "booking_confirmed_paid",
+          "status": "failed",
+          "recipient": "cert-rental-guest-ee85074e@example.com"
+        }
+      ],
+      "at": "2026-10-25T18:08:14.392Z"
+    },
+    {
+      "name": "confirmation_dedup",
+      "ok": true,
+      "http": 401,
+      "skipped": false,
+      "reason": null,
+      "at": "2026-10-25T18:08:14.884Z"
+    },
+    {
+      "name": "ownership_visibility",
+      "ok": true,
+      "guest": 1,
+      "supplier": 1,
+      "anon": 0,
+      "at": "2026-10-25T18:08:15.229Z"
+    },
+    {
+      "name": "admin_permissions_blocked",
+      "ok": true,
+      "edge": 403,
+      "rpc": 403,
+      "error": "Forbidden: Traverion admin role required (see grant_traverion_admin.sql).",
+      "at": "2026-10-25T18:08:16.559Z"
+    },
+    {
+      "name": "abandon_checkout_released_hold",
+      "ok": true,
+      "payment": "failed",
+      "holds": [
+        "released"
+      ],
+      "at": "2026-10-25T18:08:28.956Z"
+    },
+    {
+      "name": "delayed_payment_after_hold_expiry_refunded",
+      "ok": true,
+      "payment": "failed",
+      "status": "cancelled",
+      "refund": "re_3UUVqTC3BaJIHpM60hPW1HNi",
+      "at": "2026-10-25T18:08:46.168Z"
+    },
+    {
+      "name": "cancel_races_promotion_refunded",
+      "ok": true,
+      "status": "cancelled",
+      "payment": "failed",
+      "refund": "re_3UUVqgC3BaJIHpM61lEVtwao",
+      "at": "2026-10-25T18:08:59.602Z"
+    },
+    {
+      "name": "concurrent_last_unit_one_winner",
+      "ok": true,
+      "reserved": 1,
+      "loser": "Not enough rental inventory for those dates.",
+      "at": "2026-10-25T18:09:03.517Z"
+    },
+    {
+      "name": "admin_stuck_hold_recovered",
+      "ok": true,
+      "kinds": [
+        "stuck_hold",
+        "pending_hold_expired"
+      ],
+      "hold": "expired",
+      "at": "2026-10-25T18:09:14.774Z"
+    },
+    {
+      "name": "cancel_released_confirmed_hold",
+      "ok": true,
+      "at": "2026-10-25T18:09:21.491Z"
+    },
+    {
+      "name": "execute_booking_refund",
+      "ok": true,
+      "http": 200,
+      "refundId": "re_3UUVpTC3BaJIHpM60qKIk8cz",
+      "replayHttp": 200,
+      "replay": true,
+      "at": "2026-10-25T18:09:30.211Z"
+    },
+    {
+      "name": "stripe_refund_present",
+      "ok": true,
+      "refundId": "re_3UUVpTC3BaJIHpM60qKIk8cz",
+      "status": "succeeded",
+      "bookingPayment": "refunded",
+      "at": "2026-10-25T18:09:34.144Z"
+    },
+    {
+      "name": "notification_smoke",
+      "ok": true,
+      "cancel": {
+        "http": 401,
+        "ok": false,
+        "skipped": false
+      },
+      "pickupReminder": {
+        "http": 401,
+        "ok": false
+      },
+      "returnReminder": {
+        "http": 401,
+        "ok": false
+      },
+      "supplierCancel": {
+        "http": 401,
+        "ok": false
+      },
+      "recipients": [
+        {
+          "channel": "supplier",
+          "template": "new_booking",
+          "status": "failed",
+          "recipient": "cert-rental-supplier-ee85074e@example.com"
+        },
+        {
+          "channel": "customer",
+          "template": "booking_confirmed_paid",
+          "status": "failed",
+          "recipient": "cert-rental-guest-ee85074e@example.com"
+        },
+        {
+          "channel": "customer",
+          "template": "refund_initiated",
+          "status": "failed",
+          "recipient": "cert-rental-guest-ee85074e@example.com"
+        },
+        {
+          "channel": "supplier",
+          "template": "refund_initiated",
+          "status": "failed",
+          "recipient": "cert-rental-supplier-ee85074e@example.com"
+        },
+        {
+          "channel": "customer",
+          "template": "refund_completed",
+          "status": "failed",
+          "recipient": "cert-rental-guest-ee85074e@example.com"
+        },
+        {
+          "channel": "supplier",
+          "template": "refund_completed",
+          "status": "failed",
+          "recipient": "cert-rental-supplier-ee85074e@example.com"
+        }
+      ],
+      "at": "2026-10-25T18:09:40.355Z"
+    },
+    {
+      "name": "no_live_booking_contamination",
+      "ok": true,
+      "other_bookings": 22,
+      "published_rentals": 0,
+      "at": "2026-10-25T18:09:43.557Z"
+    },
+    {
+      "name": "cleanup_listing",
+      "ok": true,
+      "at": "2026-10-25T18:09:46.521Z"
+    },
+    {
+      "name": "cleanup_cert_users",
+      "ok": true,
+      "at": "2026-10-25T18:09:46.913Z"
+    }
+  ],
+  "errors": [],
+  "ids": {
+    "guestEmail": "cert-rental-guest-ee85074e@example.com",
+    "supplierEmail": "cert-rental-supplier-ee85074e@example.com",
+    "guestId": "88c8ef7a-c1d5-44f0-bcfa-087d2d1d5d7c",
+    "supplierId": "b5db2de6-69e9-4b89-9d5f-bfb406d29499",
+    "listingId": "e5649c03-ceeb-4615-b34c-dad13421ba2f",
+    "bookingId": "e02dfd84-e1e9-4108-b046-a2c56b1a2374",
+    "checkoutSessionId": "cs_test_a11rvZtBbLFQCFqmqsqjVgzrnVlpv6prEXDBwcYnvKWN1xO1zsPnQVyrjb"
+  },
+  "notifications": [
+    {
+      "channel": "supplier",
+      "template": "new_booking",
+      "status": "failed",
+      "recipient": "cert-rental-supplier-ee85074e@example.com"
+    },
+    {
+      "channel": "customer",
+      "template": "booking_confirmed_paid",
+      "status": "failed",
+      "recipient": "cert-rental-guest-ee85074e@example.com"
+    },
+    {
+      "channel": "customer",
+      "template": "refund_initiated",
+      "status": "failed",
+      "recipient": "cert-rental-guest-ee85074e@example.com"
+    },
+    {
+      "channel": "supplier",
+      "template": "refund_initiated",
+      "status": "failed",
+      "recipient": "cert-rental-supplier-ee85074e@example.com"
+    },
+    {
+      "channel": "customer",
+      "template": "refund_completed",
+      "status": "failed",
+      "recipient": "cert-rental-guest-ee85074e@example.com"
+    },
+    {
+      "channel": "supplier",
+      "template": "refund_completed",
+      "status": "failed",
+      "recipient": "cert-rental-supplier-ee85074e@example.com"
+    }
+  ],
+  "finishedAt": "2026-10-25T18:09:48.549Z",
+  "postRunReview": {
+    "paymentJourney": "PASS",
+    "emailDelivery": "FAIL",
+    "note": "ok=true means the script's payment assertions passed. Every transactional_email_log row for this run has status failed. Pickup, return, and booking_cancelled invokes returned HTTP 401 and were not delivered. See scripts/cert-rental-release-matrix.md."
+  }
+}
