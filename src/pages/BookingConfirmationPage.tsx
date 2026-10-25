@@ -20,7 +20,14 @@ import { nightsOccupiedByStay, stayRangeFromBooking } from '../lib/stayOccupancy
 import { formatMoney, isStripeTestCheckoutSession, appStripeIsTestMode } from '../lib/money';
 import NoticeCallout from '../components/NoticeCallout';
 import StatusChip, { toneForPaymentLabel } from '../components/StatusChip';
-import { bookingIsStayNight, listingPickupCopyIncomplete, resolvePartnerPickupCopy } from '../lib/pickup-completeness';
+import {
+  bookingIsRental,
+  bookingIsStayNight,
+  bookingProductNoun,
+  listingPickupCopyIncomplete,
+  resolvePartnerPickupCopy,
+} from '../lib/pickup-completeness';
+import { parseRentalPurchaseSnapshot } from '../lib/rental-booking-domain';
 import {
   displayListingTitleFromPurchase,
   displayOptionLabelFromPurchase,
@@ -199,10 +206,11 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
             displayListingTitleFromPurchase(
               row.purchase_snapshot,
               meta?.title,
-              bookingIsStayNight(row) ? 'Your stay' : 'Your tour'
+              `Your ${bookingProductNoun(row).toLowerCase()}`
             )
           );
           const stay = bookingIsStayNight(row);
+          const rental = bookingIsRental(row);
           // Phase 1716: include special_requests overrides (Pickup Planner) for pending honesty.
           const tripPickup = resolvePartnerPickupCopy({
             purchaseSnapshot: row.purchase_snapshot,
@@ -214,6 +222,7 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
           setMeetingPoint(tripPickup.meetingPoint || '');
           setPickupPending(
             !stay &&
+              !rental &&
               listingPickupCopyIncomplete(tripPickup.meetingPoint || null, tripPickup.pickupInstructions || null) &&
               !row.pickup_time
           );
@@ -223,10 +232,11 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
             displayListingTitleFromPurchase(
               row.purchase_snapshot,
               '',
-              bookingIsStayNight(row) ? 'Your stay' : 'Your tour'
+              `Your ${bookingProductNoun(row).toLowerCase()}`
             )
           );
           const stay = bookingIsStayNight(row);
+          const rental = bookingIsRental(row);
           const tripPickup = resolvePartnerPickupCopy({
             purchaseSnapshot: row.purchase_snapshot,
             bookingOptionId: row.booking_option_id,
@@ -237,6 +247,7 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
           setMeetingPoint(tripPickup.meetingPoint || '');
           setPickupPending(
             !stay &&
+              !rental &&
               listingPickupCopyIncomplete(tripPickup.meetingPoint || null, tripPickup.pickupInstructions || null) &&
               !row.pickup_time
           );
@@ -334,11 +345,22 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
   }, [canQuery, sessionId, booking, pollCount, reconcileAttempted, load]);
 
   const isStayBooking = booking ? bookingIsStayNight(booking) : false;
+  const isRentalBooking = booking ? bookingIsRental(booking) : false;
+  const rentalSnap = booking ? parseRentalPurchaseSnapshot(booking.purchase_snapshot) : null;
   const stayRange = isStayBooking && booking ? stayRangeFromBooking(booking) : null;
   const stayCheckOut = stayRange?.checkOut ?? null;
   const stayNights = stayRange ? nightsOccupiedByStay(stayRange.checkIn, stayRange.checkOut).length : null;
 
   const dateLabel = useMemo(() => {
+    if (rentalSnap?.pickupAt && rentalSnap.returnAt) {
+      const pick = new Date(rentalSnap.pickupAt);
+      const ret = new Date(rentalSnap.returnAt);
+      if (!Number.isNaN(pick.getTime()) && !Number.isNaN(ret.getTime())) {
+        const start = formatBookingDateDisplay(pick.toISOString().slice(0, 10));
+        const end = formatBookingDateDisplay(ret.toISOString().slice(0, 10));
+        if (start && end) return `${start} → ${end}`;
+      }
+    }
     if (!booking?.booking_date) return '—';
     const start = formatBookingDateDisplay(booking.booking_date);
     if (!start) return booking.booking_date;
@@ -347,7 +369,7 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
       return end ? `${start} → ${end}` : start;
     }
     return start;
-  }, [booking?.booking_date, stayCheckOut]);
+  }, [booking?.booking_date, stayCheckOut, rentalSnap]);
 
   const phase = booking ? bookingConfirmationPhase(booking) : null;
   const paidActive = phase === 'confirmed';

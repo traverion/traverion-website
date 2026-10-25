@@ -99,6 +99,8 @@ import { formatPartnerCheckoutHoldLabel, partnerUnpaidCheckoutHoldsInventory } f
 import { formatStayNightHuman } from '../../lib/stay-calendar';
 import { formatBookingDateDisplay } from '../../lib/booking-flow';
 import { bookingIsRental, bookingIsStayNight, partnerBookingHasPickupAttention, resolvePartnerPickupCopy } from '../../lib/pickup-completeness';
+import { parseRentalPurchaseSnapshot, type RentalOpsStatus } from '../../lib/rental-booking-domain';
+import { setRentalOpsStatus } from '../../data/supabase-rental-ops';
 import { parseListingExtras, materializedBookingOptions } from '../../types/listingExtras';
 import {
   applyPartnerBookingsDesk,
@@ -815,6 +817,22 @@ export default function SupplierBookings({
     url.searchParams.delete('ops');
     window.history.replaceState({}, '', `${url.pathname}${url.search}`);
   }, [filteredBookings, highlightBookingId]);
+
+  const handleRentalOps = useCallback(
+    async (booking: BookingRow, next: RentalOpsStatus) => {
+      if (!canEditBookings) return;
+      setUpdatingId(booking.id);
+      setError(null);
+      const res = await setRentalOpsStatus(booking.id, next);
+      setUpdatingId(null);
+      if (!res.ok) {
+        setError(res.error);
+        return;
+      }
+      await load();
+    },
+    [canEditBookings, load]
+  );
 
   const handleStatusChange = useCallback(
     async (
@@ -2207,12 +2225,73 @@ export default function SupplierBookings({
                 }
                 onOpenPickupPlanner={() => openSupplierPickup(booking.id)}
                 extraNotices={
-                  ['Refund due', 'Refund processing', 'Refund delayed'].includes(partnerPaymentLabel(booking)) ? (
-                    <div className="mt-2 rounded-md border border-black/[0.06] border-l-[3px] border-l-amber-500 bg-paper px-3 py-2">
-                      <p className="text-[13px] font-semibold text-ink">{partnerPaymentLabel(booking)}</p>
-                      <p className="mt-0.5 text-[12px] leading-snug text-ink-muted">{REFUND_DUE_MANUAL_COPY}</p>
-                    </div>
-                  ) : null
+                  <>
+                    {isRentalDesk
+                      ? (() => {
+                          const rentalSnap = parseRentalPurchaseSnapshot(booking.purchase_snapshot);
+                          const ops = rentalSnap?.rentalOpsStatus ?? 'awaiting_pickup';
+                          const paidReady =
+                            booking.status === 'confirmed' &&
+                            String(booking.payment_status ?? '').toLowerCase() === 'paid';
+                          return (
+                            <div className="mt-2 space-y-2 rounded-md border border-black/[0.06] bg-paper px-3 py-2.5">
+                              <p className="text-[13px] font-semibold text-ink">
+                                Handover ·{' '}
+                                {ops === 'awaiting_pickup'
+                                  ? 'Awaiting pickup'
+                                  : ops === 'collected'
+                                    ? 'Collected'
+                                    : ops === 'returned'
+                                      ? 'Returned'
+                                      : 'Cancelled'}
+                              </p>
+                              {rentalSnap ? (
+                                <p className="text-[12px] leading-snug text-ink-muted">
+                                  {rentalSnap.quantity} unit{rentalSnap.quantity === 1 ? '' : 's'} ·{' '}
+                                  {new Date(rentalSnap.pickupAt).toLocaleString(undefined, {
+                                    dateStyle: 'medium',
+                                    timeStyle: 'short',
+                                  })}{' '}
+                                  →{' '}
+                                  {new Date(rentalSnap.returnAt).toLocaleString(undefined, {
+                                    dateStyle: 'medium',
+                                    timeStyle: 'short',
+                                  })}
+                                </p>
+                              ) : null}
+                              {canEditBookings && paidReady && ops === 'awaiting_pickup' ? (
+                                <button
+                                  type="button"
+                                  className="tv-btn-primary min-h-9 text-sm"
+                                  disabled={busy}
+                                  onClick={() => void handleRentalOps(booking, 'collected')}
+                                >
+                                  Mark collected
+                                </button>
+                              ) : null}
+                              {canEditBookings && paidReady && ops === 'collected' ? (
+                                <button
+                                  type="button"
+                                  className="tv-btn-primary min-h-9 text-sm"
+                                  disabled={busy}
+                                  onClick={() => void handleRentalOps(booking, 'returned')}
+                                >
+                                  Mark returned
+                                </button>
+                              ) : null}
+                            </div>
+                          );
+                        })()
+                      : null}
+                    {['Refund due', 'Refund processing', 'Refund delayed'].includes(
+                      partnerPaymentLabel(booking)
+                    ) ? (
+                      <div className="mt-2 rounded-md border border-black/[0.06] border-l-[3px] border-l-amber-500 bg-paper px-3 py-2">
+                        <p className="text-[13px] font-semibold text-ink">{partnerPaymentLabel(booking)}</p>
+                        <p className="mt-0.5 text-[12px] leading-snug text-ink-muted">{REFUND_DUE_MANUAL_COPY}</p>
+                      </div>
+                    ) : null}
+                  </>
                 }
                 privateNotesSlot={
                   user?.id ? (

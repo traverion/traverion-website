@@ -29,9 +29,22 @@ END="2031-08-02 18:00:00+00"
 claim() {
   local key=$1
   local outfile=$2
-  npx supabase db query --linked \
+  # Cap wait: concurrent CLI auth can stall; advisory lock itself should finish quickly.
+  ( npx supabase db query --linked \
     "select public.claim_rental_inventory_hold('${LISTING_ID}'::uuid, 'race-m', 1, timestamptz '${START}', timestamptz '${END}', '${key}', 30) as result;" \
-    >"$outfile" 2>&1 || true
+    >"$outfile" 2>&1 ) &
+  local cpid=$!
+  local waited=0
+  while kill -0 "$cpid" 2>/dev/null; do
+    if [[ "$waited" -ge 45 ]]; then
+      kill "$cpid" 2>/dev/null || true
+      echo "TIMEOUT" >>"$outfile"
+      break
+    fi
+    sleep 1
+    waited=$((waited + 1))
+  done
+  wait "$cpid" 2>/dev/null || true
 }
 
 TMPA=$(mktemp)

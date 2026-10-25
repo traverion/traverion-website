@@ -158,13 +158,21 @@ function resolveListingKind(
   listing: ListingRowForContent,
   booking: BookingRowForContent
 ): string | undefined {
+  // Purchase snapshot family wins (rentals reuse check_out for return-day accounting).
+  const snapFam = snapshotString(booking?.purchase_snapshot, 'inventoryFamily');
+  if (snapFam === 'rental') return 'rental';
+  if (snapFam === 'stay') return 'stay';
+  if (snapFam === 'tour') return 'tour';
+
   const extras = listing?.listing_extras;
   if (extras && typeof extras === 'object') {
     const fam = (extras as Record<string, unknown>).inventoryFamily;
+    if (typeof fam === 'string' && fam.trim().toLowerCase() === 'rental') return 'rental';
     if (typeof fam === 'string' && fam.trim().toLowerCase() === 'stay') return 'stay';
     if (typeof fam === 'string' && fam.trim()) return fam.trim().toLowerCase();
   }
   // Phase 1525: bookingIsStayNight parity — column / nights / snap (never notes-only).
+  // Skip when snapshot already identified a non-stay family above.
   const checkOut = typeof booking?.check_out === 'string' ? booking.check_out.trim() : '';
   if (checkOut && /^\d{4}-\d{2}-\d{2}$/.test(checkOut)) return 'stay';
   const nights = Math.floor(Number(booking?.nights ?? 0));
@@ -243,10 +251,12 @@ export function resolveBookingTiedContent(params: {
 
   const listingKind = resolveListingKind(params.listingRow, params.bookingRow);
   const isStay = listingKind === 'stay';
+  const isRental = listingKind === 'rental';
 
   // Tours: place + traveler start instructions (Phase 1059/1060).
   // Phase 1741: host Pickup planner note overrides win over purchase_snapshot (Trips 1716 parity).
   // Stays: do not invent tour meeting copy — use purchased house logistics instead.
+  // Rentals: pickup/return from rental snapshot fields (not tour meeting points).
   const notePlace = keyedSpecialRequestLine(params.bookingRow.special_requests, 'meeting_point');
   const noteInstructions = keyedSpecialRequestLine(
     params.bookingRow.special_requests,
@@ -256,7 +266,7 @@ export function resolveBookingTiedContent(params: {
   const snapInstructions = snapshotString(snap, 'pickupInstructions');
   const travelerPickup =
     snapshotString(snap, 'fulfillment') === 'pickup' ? snapshotString(snap, 'travelerPickupAddress') : '';
-  const logisticsNote = isStay
+  const logisticsNote = isStay || isRental
     ? ''
     : [
         snapshotString(snap, 'pickupTiming') === 'at_start' ? 'Pickup is at the departure time.' : '',
@@ -290,8 +300,22 @@ export function resolveBookingTiedContent(params: {
       ]
         .filter(Boolean)
         .join(' ');
+  const rentalPickupIso = isRental ? snapshotString(snap, 'pickupAt') : undefined;
+  const rentalReturnIso = isRental ? snapshotString(snap, 'returnAt') : undefined;
   const meetingPoint = isStay
     ? undefined
+    : isRental
+      ? [
+          rentalPickupIso
+            ? `Pickup ${new Date(rentalPickupIso).toISOString().replace('T', ' ').slice(0, 16)} UTC`
+            : '',
+          rentalReturnIso
+            ? `Return ${new Date(rentalReturnIso).toISOString().replace('T', ' ').slice(0, 16)} UTC`
+            : '',
+          snapshotString(snap, 'variantId') ? `Option ${snapshotString(snap, 'variantId')}` : '',
+        ]
+          .filter(Boolean)
+          .join(' — ') || undefined
     : [travelerPickup || notePlace || snapPlace, noteInstructions || snapInstructions, logisticsNote]
         .filter(Boolean)
         .join(' — ') ||

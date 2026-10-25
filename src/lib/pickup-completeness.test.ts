@@ -3,6 +3,7 @@ import {
   bookingIsRental,
   bookingIsStayNight,
   bookingNeedsPickupCopy,
+  bookingProductNoun,
   listingPickupCopyIncomplete,
   partnerBookingHasPickupAttention,
   resolveBookingPickupCopy,
@@ -41,6 +42,9 @@ describe('pickup completeness', () => {
     };
     expect(bookingIsRental(rentalWithReturnDay)).toBe(true);
     expect(bookingIsStayNight(rentalWithReturnDay)).toBe(false);
+    expect(bookingProductNoun(rentalWithReturnDay)).toBe('Rental');
+    expect(bookingProductNoun(stayCol)).toBe('Stay');
+    expect(bookingProductNoun(tour)).toBe('Tour');
     expect(bookingNeedsPickupCopy(stayCol, '', '')).toBe(false);
     expect(bookingNeedsPickupCopy(stayNightsOnly, 'Meet', '')).toBe(false);
     expect(bookingNeedsPickupCopy(tour, 'Meet', '')).toBe(true);

@@ -31,6 +31,17 @@ export function bookingIsRental(b: { purchase_snapshot?: unknown }): boolean {
   return family === 'rental';
 }
 
+/** Traveler/partner facing product noun for a booking row. */
+export function bookingProductNoun(b: {
+  check_out?: string | null;
+  nights?: number | null;
+  purchase_snapshot?: unknown;
+}): 'Rental' | 'Stay' | 'Tour' {
+  if (bookingIsRental(b)) return 'Rental';
+  if (bookingIsStayNight(b)) return 'Stay';
+  return 'Tour';
+}
+
 export function bookingIsStayNight(b: {
   check_out?: string | null;
   special_requests?: string | null;

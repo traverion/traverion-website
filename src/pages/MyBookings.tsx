@@ -74,7 +74,14 @@ import {
 import BookingMessageThread from '../components/BookingMessageThread';
 import StatusChip, { toneForPaymentLabel, toneForTravelerTripCard } from '../components/StatusChip';
 import NoticeCallout from '../components/NoticeCallout';
-import { bookingIsStayNight, listingPickupCopyIncomplete, resolvePartnerPickupCopy } from '../lib/pickup-completeness';
+import {
+  bookingIsRental,
+  bookingIsStayNight,
+  bookingProductNoun,
+  listingPickupCopyIncomplete,
+  resolvePartnerPickupCopy,
+} from '../lib/pickup-completeness';
+import { parseRentalPurchaseSnapshot } from '../lib/rental-booking-domain';
 import { travelerPickupAddressFromRecord } from '../lib/pickup-area';
 import {
   displayListingTitleFromPurchase,
@@ -212,6 +219,13 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
   const getSelfCancelStartHm = useCallback((b: BookingRow): string => {
     const isStay = bookingIsStayNight(b);
     const snap = b.purchase_snapshot;
+    const rentalSnap = parseRentalPurchaseSnapshot(snap);
+    if (rentalSnap?.pickupAt) {
+      const d = new Date(rentalSnap.pickupAt);
+      if (!Number.isNaN(d.getTime())) {
+        return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+      }
+    }
     // Official start only (never pickup). Blank snap clock → live start_time for SQL parity.
     const purchasedStart = displayStartTimeFromPurchase(snap, null);
     const liveStart = b.start_time ? pgTimeToHm(b.start_time) ?? null : null;
@@ -639,12 +653,11 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
     if (!q) return tripViewBookings;
     const qLower = q.toLowerCase();
     return tripViewBookings.filter((b) => {
-      const isStay = bookingIsStayNight(b);
       const ops = listingOps[b.listing_id];
       const title = displayListingTitleFromPurchase(
         b.purchase_snapshot,
         titles[b.listing_id] || ops?.title,
-        isStay ? 'Stay' : 'Tour'
+        bookingProductNoun(b)
       ).toLowerCase();
       // Phase 1486: desk parity — match Ref # on collapsed cards (Partner Bookings 1484 / admin 1053).
       const publicRef = (travelerPublicBookingReference(b.public_reference) ?? '').toLowerCase();
@@ -1027,11 +1040,13 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                   ? openCancelRaw
                   : undefined;
               const isStay = bookingIsStayNight(b);
+              const isRental = bookingIsRental(b);
+              const rentalSnap = isRental ? parseRentalPurchaseSnapshot(b.purchase_snapshot) : null;
               const ops = listingOps[b.listing_id];
               const tripTitle = displayListingTitleFromPurchase(
                 b.purchase_snapshot,
                 titles[b.listing_id] || ops?.title,
-                isStay ? 'Stay' : 'Tour'
+                bookingProductNoun(b)
               );
               const tripOption = displayOptionLabelFromPurchase(b.purchase_snapshot, null);
               // Phase 1716: host Pickup Planner saves override notes — same precedence as partner UI.
@@ -1069,6 +1084,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
               const pickupMissing =
                 liveTrip &&
                 !isStay &&
+                !isRental &&
                 listingPickupCopyIncomplete(tripMeeting || null, tripPickupInstructions || null) &&
                 !b.pickup_time;
               const thumb = ops?.image ?? null;
@@ -1087,6 +1103,13 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                 ? 'Check-in address'
                 : 'Place';
               const dateLine = (() => {
+                if (rentalSnap?.pickupAt && rentalSnap.returnAt) {
+                  const pick = new Date(rentalSnap.pickupAt);
+                  const ret = new Date(rentalSnap.returnAt);
+                  if (!Number.isNaN(pick.getTime()) && !Number.isNaN(ret.getTime())) {
+                    return `${formatBookingDateDisplay(pick.toISOString().slice(0, 10))} → ${formatBookingDateDisplay(ret.toISOString().slice(0, 10))}`;
+                  }
+                }
                 if (isStay) {
                   const stay = stayRangeFromBooking(b);
                   if (stay) {
@@ -1114,6 +1137,12 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
               })();
               const timeBit = (() => {
                 if (isStay) return null;
+                if (rentalSnap?.pickupAt) {
+                  const pick = new Date(rentalSnap.pickupAt);
+                  if (!Number.isNaN(pick.getTime())) {
+                    return `${String(pick.getHours()).padStart(2, '0')}:${String(pick.getMinutes()).padStart(2, '0')}`;
+                  }
+                }
                 const live = b.start_time ? pgTimeToHm(b.start_time) : null;
                 const shown = displayStartTimeFromPurchase(b.purchase_snapshot, live);
                 if (!shown) return null;
