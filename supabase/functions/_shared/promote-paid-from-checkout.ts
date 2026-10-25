@@ -23,6 +23,13 @@ import {
 } from './tour-departure-cutoff.ts';
 import { stayRequestApprovalExpiresAtIso } from './stay-booking-method.ts';
 import { paidPromotionListingStillBookable } from './rental-checkout-listing-gate.ts';
+import {
+  classifyPaidNotifyHttp,
+  paidNotifyResult,
+  parseNotifyJson,
+  type PaidNotifyChannel,
+  type PaidNotifyResult,
+} from './paid-booking-notify.ts';
 
 function listingKindFromExtras(extras: unknown): 'stay' | 'tour' | 'rental' {
   if (extras && typeof extras === 'object') {
@@ -71,7 +78,7 @@ export async function notifyPaidBookingSideEffects(params: {
   bookingId: string;
   amountPaid: number | null;
   currency: string;
-}) {
+}): Promise<PaidNotifyResult> {
   const { admin, supabaseUrl, serviceRoleKey, bookingId, amountPaid, currency } = params;
   const portalBase = (Deno.env.get('PUBLIC_SITE_URL') ?? 'https://www.traverion.com').replace(/\/$/, '');
 
@@ -99,7 +106,7 @@ export async function notifyPaidBookingSideEffects(params: {
       event_type: 'notify_side_effects_skipped',
       payload: { reason: withStay.error?.message?.slice(0, 180) || 'booking_missing' },
     });
-    return;
+    return paidNotifyResult({ customer: 'missing', supplier: 'missing' });
   }
   if (!booking?.listing_id) {
     await admin.from('booking_payment_events').insert({
@@ -108,7 +115,7 @@ export async function notifyPaidBookingSideEffects(params: {
       event_type: 'notify_side_effects_skipped',
       payload: { reason: 'listing_missing' },
     });
-    return;
+    return paidNotifyResult({ customer: 'missing', supplier: 'missing' });
   }
 
   let guestEmailResolved = String(booking.guest_email ?? '').trim().toLowerCase();
@@ -160,7 +167,11 @@ export async function notifyPaidBookingSideEffects(params: {
     },
   });
 
+  let supplierChannel: PaidNotifyChannel = 'missing';
+  let customerChannel: PaidNotifyChannel = guestEmailResolved ? 'failed' : 'missing';
+
   if (listing?.supplier_id) {
+    supplierChannel = 'failed';
     try {
       const res = await fetch(`${supabaseUrl}/functions/v1/notify-supplier-event`, {
         method: 'POST',
@@ -181,11 +192,16 @@ export async function notifyPaidBookingSideEffects(params: {
         }),
       });
       const supplierBody = (await res.text()).slice(0, 400);
+      supplierChannel = classifyPaidNotifyHttp({
+        called: true,
+        status: res.status,
+        body: parseNotifyJson(supplierBody),
+      });
       await admin.from('booking_payment_events').insert({
         booking_id: bookingId,
         event_id: `notify-supplier-new-booking:${bookingId}`,
-        event_type: res.ok ? 'notify_supplier_result' : 'notify_supplier_failed',
-        payload: { status: res.status, body: supplierBody },
+        event_type: supplierChannel === 'failed' ? 'notify_supplier_failed' : 'notify_supplier_result',
+        payload: { status: res.status, body: supplierBody, channel: supplierChannel },
       });
       if (!res.ok) {
         console.error(
@@ -237,11 +253,16 @@ export async function notifyPaidBookingSideEffects(params: {
         }),
       });
       const bodyText = (await res.text()).slice(0, 400);
+      customerChannel = classifyPaidNotifyHttp({
+        called: true,
+        status: res.status,
+        body: parseNotifyJson(bodyText),
+      });
       await admin.from('booking_payment_events').insert({
         booking_id: bookingId,
         event_id: `notify-customer-confirmed:${bookingId}`,
-        event_type: res.ok ? 'notify_customer_result' : 'notify_customer_failed',
-        payload: { status: res.status, body: bodyText },
+        event_type: customerChannel === 'failed' ? 'notify_customer_failed' : 'notify_customer_result',
+        payload: { status: res.status, body: bodyText, channel: customerChannel },
       });
       if (!res.ok) {
         console.error(
@@ -266,6 +287,40 @@ export async function notifyPaidBookingSideEffects(params: {
         })
       );
     }
+  }
+
+  return paidNotifyResult({ customer: customerChannel, supplier: supplierChannel });
+}
+
+/**
+ * Earnings and paid emails are separate. A failed snapshot must not skip mail,
+ * and an already-paid replay must not ack until both channels are accepted
+ * or already recorded under their idempotency keys.
+ */
+async function ensurePaidEarningsAndNotify(params: {
+  admin: SupabaseClient;
+  supabaseUrl: string;
+  serviceRoleKey: string;
+  bookingId: string;
+  amountPaid: number | null;
+  currency: string;
+}): Promise<void> {
+  let earnMessage: string | null = null;
+  const { error: earnErr } = await params.admin.rpc('record_paid_booking_earnings', {
+    p_booking_id: params.bookingId,
+  });
+  if (earnErr) earnMessage = earnErr.message;
+  const notify = await notifyPaidBookingSideEffects({
+    admin: params.admin,
+    supabaseUrl: params.supabaseUrl,
+    serviceRoleKey: params.serviceRoleKey,
+    bookingId: params.bookingId,
+    amountPaid: params.amountPaid,
+    currency: params.currency,
+  });
+  if (earnMessage) throw new Error(earnMessage);
+  if (!notify.complete) {
+    throw new Error(`paid booking notifications incomplete (${notify.detail})`);
   }
 }
 
@@ -797,10 +852,14 @@ export async function promotePaidFromCheckoutSession(params: {
   }
   if (existingPay === 'paid' || existingPay === 'refunded') {
     if (existingPay === 'paid') {
-      const { error: earnErr } = await admin.rpc('record_paid_booking_earnings', {
-        p_booking_id: bookingId,
+      await ensurePaidEarningsAndNotify({
+        admin,
+        supabaseUrl,
+        serviceRoleKey,
+        bookingId,
+        amountPaid,
+        currency: String(existingBooking?.currency || currency || 'eur').toUpperCase(),
       });
-      if (earnErr) throw new Error(earnErr.message);
     }
     await markProcessed('processed');
     return json({
@@ -1615,6 +1674,7 @@ export async function promotePaidFromCheckoutSession(params: {
       .maybeSingle();
     const againPay = (again?.payment_status ?? '').toLowerCase();
     let unpromotedRefunded = false;
+    let earnMessage: string | null = null;
     if (
       promoteOutcome.kind === 'already_paid' ||
       promoteOutcome.kind === 'already_refunded' ||
@@ -1625,7 +1685,7 @@ export async function promotePaidFromCheckoutSession(params: {
         const { error: earnErr } = await admin.rpc('record_paid_booking_earnings', {
           p_booking_id: bookingId,
         });
-        if (earnErr) throw new Error(earnErr.message);
+        if (earnErr) earnMessage = earnErr.message;
       }
       if (
         orphanSupersededCheckoutShouldRefund({
@@ -1679,8 +1739,9 @@ export async function promotePaidFromCheckoutSession(params: {
           }
         }
       }
+      let notifyMessage: string | null = null;
       if ((againPay === 'paid' || promoteOutcome.kind === 'already_paid') && !unpromotedRefunded) {
-        await notifyPaidBookingSideEffects({
+        const notify = await notifyPaidBookingSideEffects({
           admin,
           supabaseUrl,
           serviceRoleKey,
@@ -1688,7 +1749,10 @@ export async function promotePaidFromCheckoutSession(params: {
           amountPaid,
           currency: String(again?.currency || currency || 'eur').toUpperCase(),
         });
+        if (!notify.complete) notifyMessage = `paid booking notifications incomplete (${notify.detail})`;
       }
+      if (earnMessage) throw new Error(earnMessage);
+      if (notifyMessage) throw new Error(notifyMessage);
       await markProcessed('processed');
       return json({
         success: true,
@@ -1780,12 +1844,7 @@ export async function promotePaidFromCheckoutSession(params: {
     payload: event as unknown as Record<string, unknown>,
   });
 
-  const { error: earnErr } = await admin.rpc('record_paid_booking_earnings', {
-    p_booking_id: bookingId,
-  });
-  if (earnErr) throw new Error(earnErr.message);
-
-  await notifyPaidBookingSideEffects({
+  await ensurePaidEarningsAndNotify({
     admin,
     supabaseUrl,
     serviceRoleKey,

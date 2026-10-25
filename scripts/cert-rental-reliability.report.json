@@ -1,44 +1,77 @@
 {
-  "runId": "cee9de05",
-  "startedAt": "2026-10-25T19:25:10.569Z",
+  "runId": "82300d0e",
+  "startedAt": "2026-10-25T19:55:24.572Z",
   "steps": [
     {
       "name": "rental_checkout_flag_absent",
       "ok": true,
-      "at": "2026-10-25T19:25:12.985Z"
+      "at": "2026-10-25T19:55:26.983Z"
     },
     {
       "name": "example_com_rejected_by_resend",
       "ok": true,
       "http": 422,
-      "at": "2026-10-25T19:25:13.308Z"
+      "at": "2026-10-25T19:55:30.403Z"
     },
     {
       "name": "sender_domain_verified",
       "ok": true,
-      "at": "2026-10-25T19:25:13.518Z"
+      "at": "2026-10-25T19:55:30.634Z"
     },
     {
       "name": "cert_identities",
       "ok": true,
-      "at": "2026-10-25T19:25:21.383Z"
-    },
-    {
-      "name": "failure_fixture_without_supplier_profile",
-      "ok": true,
-      "at": "2026-10-25T19:25:31.581Z"
+      "at": "2026-10-25T19:55:38.304Z"
     },
     {
       "name": "isolated_checkout_function_booted",
       "ok": true,
-      "at": "2026-10-25T19:25:32.104Z"
+      "at": "2026-10-25T19:55:45.015Z"
+    },
+    {
+      "name": "hosted_webhook_paid_mail",
+      "ok": true,
+      "sessionId": "cs_test_a1dGYQewBm9aIOJeXaK82Z08ATeCqlaasg3F1JjJ6w0qUWzGmPcXlCpSWJ",
+      "bookingId": "67c761b6-f7e7-400e-9fb6-dfcb003cee7b",
+      "eventId": "evt_1UUXWJC3BaJIHpM6Ox8qFlIf",
+      "paymentIntentId": "pi_3UUXWIC3BaJIHpM60yM8jOnd",
+      "providerIds": [
+        "customer:booking_confirmed_paid:01a174a2-68f8-7c22-accc-3066e8a19ebc",
+        "supplier:new_booking:01a174a2-5ff4-7c87-a61e-d2b6b626c8c8"
+      ],
+      "replayProviderIds": [
+        "customer:booking_confirmed_paid:01a174a2-68f8-7c22-accc-3066e8a19ebc",
+        "supplier:new_booking:01a174a2-5ff4-7c87-a61e-d2b6b626c8c8"
+      ],
+      "delivery": [
+        {
+          "template": "new_booking",
+          "acceptance": "sent",
+          "providerMessageId": "01a174a2-5ff4-7c87-a61e-d2b6b626c8c8",
+          "lastEvent": "delivered",
+          "subject": "New booking · CERT reliability rental 82300d0e · 2034-05-10"
+        },
+        {
+          "template": "booking_confirmed_paid",
+          "acceptance": "sent",
+          "providerMessageId": "01a174a2-68f8-7c22-accc-3066e8a19ebc",
+          "lastEvent": "delivered",
+          "subject": "Your Traverion booking is confirmed — CERT reliability rental 82300d0e"
+        }
+      ],
+      "at": "2026-10-25T19:56:33.959Z"
+    },
+    {
+      "name": "failure_fixture_without_supplier_profile",
+      "ok": true,
+      "at": "2026-10-25T19:56:42.305Z"
     },
     {
       "name": "stripe_payment_accepted",
       "ok": true,
-      "sessionId": "cs_test_a1c52YGhcIO2soNNlLbnXWAEvKmfGLMJrmnEVjukMxbcdoX7AFtOhC8a7l",
-      "paymentIntentId": "pi_3UUX31C3BaJIHpM61XEYhl15",
-      "at": "2026-10-25T19:25:41.010Z"
+      "sessionId": "cs_test_a1gYG3bAAlCGP83DDhmLiNQyGCACotNnN1XW1KwXAz8ysg5MMjF9vpP8OY",
+      "paymentIntentId": "pi_3UUXXBC3BaJIHpM60jFx93oE",
+      "at": "2026-10-25T19:56:50.062Z"
     },
     {
       "name": "database_failure_after_payment",
@@ -50,7 +83,7 @@
       "exceptions": [
         "earnings_missing"
       ],
-      "at": "2026-10-25T19:25:54.480Z"
+      "at": "2026-10-25T19:57:10.567Z"
     },
     {
       "name": "idempotent_retry_one_hold",
@@ -63,20 +96,17 @@
       ],
       "snapshots": 1,
       "earningItems": 1,
-      "at": "2026-10-25T19:26:15.599Z"
+      "at": "2026-10-25T19:57:46.045Z"
     },
     {
       "name": "provider_acceptance_and_delivery",
       "ok": true,
       "templates": [
-        "booking_confirmed_paid:sent/delivered",
-        "new_booking:sent/delivered"
+        "new_booking:sent/delivered",
+        "booking_confirmed_paid:sent/delivered"
       ],
-      "hosted": [],
-      "paymentEventTypes": [
-        "payment_intent.succeeded"
-      ],
-      "at": "2026-10-25T19:27:05.176Z"
+      "replayStable": true,
+      "at": "2026-10-25T19:58:24.299Z"
     },
     {
       "name": "cancellation_and_refund_mail",
@@ -92,79 +122,79 @@
         {
           "template": "booking_cancelled",
           "status": "sent",
-          "id": "01a17487-f6db-7cef-ad67-97b41873eee4"
+          "id": "01a174a4-a98f-77bc-a37a-fb38fbc51421"
         },
         {
           "template": "booking_cancelled",
           "status": "sent",
-          "id": "01a17487-fa2d-753a-b298-9561f261d7f7"
+          "id": "01a174a4-af90-7c06-916c-57406a782e9d"
         },
         {
           "template": "refund_initiated",
           "status": "sent",
-          "id": "01a17488-0cf9-7443-b6f7-cecfb3b6c29d"
-        },
-        {
-          "template": "refund_completed",
-          "status": "sent",
-          "id": "01a17488-1504-78c1-8a38-a3df7c1fc26c"
+          "id": "01a174a4-c242-74ba-86e3-7ab64753834c"
         },
         {
           "template": "refund_initiated",
           "status": "sent",
-          "id": "01a17488-1c61-74af-a7d7-031abb5a118c"
+          "id": "01a174a4-c545-75fc-b900-3e2c5cfd5325"
         },
         {
           "template": "refund_completed",
           "status": "sent",
-          "id": "01a17488-2f55-7811-9176-89ecbf8c788f"
+          "id": "01a174a4-c7fe-78d2-88e8-a7acfa38a5df"
+        },
+        {
+          "template": "refund_completed",
+          "status": "sent",
+          "id": "01a174a4-cc6a-716c-b0f7-1c4fa451cf71"
         }
       ],
       "delivery": [
         {
           "template": "booking_cancelled",
           "acceptance": "sent",
-          "providerMessageId": "01a17487-f6db-7cef-ad67-97b41873eee4",
+          "providerMessageId": "01a174a4-a98f-77bc-a37a-fb38fbc51421",
           "lastEvent": "delivered",
-          "subject": "Your booking has been cancelled · TV-WL25454W"
+          "subject": "Your booking has been cancelled · TV-CT4AXDVL"
         },
         {
           "template": "booking_cancelled",
           "acceptance": "sent",
-          "providerMessageId": "01a17487-fa2d-753a-b298-9561f261d7f7",
+          "providerMessageId": "01a174a4-af90-7c06-916c-57406a782e9d",
           "lastEvent": "delivered",
-          "subject": "Booking cancelled · CERT reliability rental cee9de05"
+          "subject": "Booking cancelled · CERT reliability rental 82300d0e"
         },
         {
           "template": "refund_initiated",
           "acceptance": "sent",
-          "providerMessageId": "01a17488-0cf9-7443-b6f7-cecfb3b6c29d",
+          "providerMessageId": "01a174a4-c242-74ba-86e3-7ab64753834c",
           "lastEvent": "delivered",
-          "subject": "Your refund is being processed · TV-WL25454W"
-        },
-        {
-          "template": "refund_completed",
-          "acceptance": "sent",
-          "providerMessageId": "01a17488-1504-78c1-8a38-a3df7c1fc26c",
-          "lastEvent": "delivered",
-          "subject": "Your refund is complete · TV-WL25454W"
+          "subject": "Your refund is being processed · TV-CT4AXDVL"
         },
         {
           "template": "refund_initiated",
           "acceptance": "sent",
-          "providerMessageId": "01a17488-1c61-74af-a7d7-031abb5a118c",
+          "providerMessageId": "01a174a4-c545-75fc-b900-3e2c5cfd5325",
           "lastEvent": "delivered",
-          "subject": "Refund submitted to Stripe · CERT reliability rental cee9de05"
+          "subject": "Refund submitted to Stripe · CERT reliability rental 82300d0e"
         },
         {
           "template": "refund_completed",
           "acceptance": "sent",
-          "providerMessageId": "01a17488-2f55-7811-9176-89ecbf8c788f",
+          "providerMessageId": "01a174a4-c7fe-78d2-88e8-a7acfa38a5df",
           "lastEvent": "delivered",
-          "subject": "Refund recorded · CERT reliability rental cee9de05"
+          "subject": "Your refund is complete · TV-CT4AXDVL"
+        },
+        {
+          "template": "refund_completed",
+          "acceptance": "sent",
+          "providerMessageId": "01a174a4-cc6a-716c-b0f7-1c4fa451cf71",
+          "lastEvent": "delivered",
+          "subject": "Refund recorded · CERT reliability rental 82300d0e"
         }
       ],
-      "at": "2026-10-25T19:27:32.434Z"
+      "at": "2026-10-25T19:58:44.285Z"
     },
     {
       "name": "scoped_reminder_invocation",
@@ -177,28 +207,28 @@
       ],
       "timezoneControl": 0,
       "cancelled": 0,
-      "at": "2026-10-25T19:28:03.023Z"
+      "at": "2026-10-25T19:59:12.201Z"
     },
     {
       "name": "tour_checkout_webhook_refund",
       "ok": true,
-      "sessionId": "cs_test_a1QnyIFfca0ap3e4KdLN8kysoi4WgvPf4RuPDfWZgaolDSqQzZDIfIoezc",
-      "bookingId": "8e1e37eb-5620-4e8c-b895-f0bb867023f3",
+      "sessionId": "cs_test_a1dOr5j7vTqz4oYq7HI3g4BMwkly0bpfN21Rt3eO8IT5R9nhgWKziByF9O",
+      "bookingId": "8d05a3ea-38be-417d-8d6e-4f73ab449607",
       "confirmed": true,
       "refundHttp": 200,
       "refundOk": true,
       "unpublishedAfter": "draft",
-      "at": "2026-10-25T19:28:42.368Z"
+      "at": "2026-10-25T20:00:04.219Z"
     },
     {
       "name": "stay_checkout_webhook_refund",
       "ok": true,
-      "sessionId": "cs_test_a1ec4QIXMulD5WygaIO1AEm9VPzDGjWdAv8TQiPOeu33FnaledlobcCj80",
-      "bookingId": "fc3052f2-ba95-4f1e-8ab1-df67b7bc565f",
+      "sessionId": "cs_test_a1pcdrWu71bjVnldf0a7XhA99XCmrT47eqVfEPbaJbCJwwrDHz9CCH62Xw",
+      "bookingId": "b4b8070d-a8ac-4929-9509-42fe31940afb",
       "confirmed": true,
       "refundHttp": 200,
       "refundOk": true,
-      "at": "2026-10-25T19:29:13.979Z"
+      "at": "2026-10-25T20:01:13.170Z"
     },
     {
       "name": "admin_exception_inbox",
@@ -206,11 +236,11 @@
       "guestHttp": 403,
       "adminHttp": 200,
       "adminError": null,
-      "count": 7,
+      "count": 8,
       "kinds": [
         "paid_unconfirmed",
-        "pending_hold_expired",
         "stuck_hold",
+        "pending_hold_expired",
         "failed_refund"
       ],
       "stuckHoldAfterExpire": [
@@ -222,11 +252,13 @@
       "recoveryEvents": [
         "checkout_claimed",
         "checkout_paid_hold_confirmed",
+        "checkout_claimed",
+        "checkout_paid_hold_confirmed",
         "checkout_released",
         "return_reminder_sent",
         "checkout_claimed"
       ],
-      "at": "2026-10-25T19:29:52.477Z"
+      "at": "2026-10-25T20:02:47.874Z"
     },
     {
       "name": "fixtures_isolated",
@@ -234,7 +266,7 @@
       "cert_still_published": 0,
       "other_bookings": 22,
       "published_rentals": 0,
-      "at": "2026-10-25T19:29:55.753Z"
+      "at": "2026-10-25T20:02:57.451Z"
     }
   ],
   "email": {
@@ -247,52 +279,133 @@
       "name": "traverion.com",
       "status": "verified"
     },
-    "notifyFailures": [],
     "rows": [
-      {
-        "channel": "customer",
-        "template": "booking_confirmed_paid",
-        "status": "sent",
-        "providerMessageId": "01a17487-b211-71e5-b695-be66248c899e",
-        "error": null,
-        "sink": true
-      },
       {
         "channel": "supplier",
         "template": "new_booking",
         "status": "sent",
-        "providerMessageId": "01a17487-b7c4-7086-86ca-252efdacd866",
+        "providerMessageId": "01a174a3-30bd-76da-be49-09d9ee0dd0cc",
+        "error": null,
+        "sink": true
+      },
+      {
+        "channel": "customer",
+        "template": "booking_confirmed_paid",
+        "status": "sent",
+        "providerMessageId": "01a174a3-37a4-73a3-8e06-fb25233f0a17",
         "error": null,
         "sink": true
       }
     ],
-    "hostedAcceptedBeforeFallback": [],
-    "localConfirmation": {
-      "http": 200,
-      "ok": true,
-      "error": null
-    },
-    "supplierNotifyHttp": 200,
-    "delivery": [
+    "hostedProviderIds": [
+      "customer:booking_confirmed_paid:01a174a3-37a4-73a3-8e06-fb25233f0a17",
+      "supplier:new_booking:01a174a3-30bd-76da-be49-09d9ee0dd0cc"
+    ],
+    "replayProviderIds": [
+      "customer:booking_confirmed_paid:01a174a3-37a4-73a3-8e06-fb25233f0a17",
+      "supplier:new_booking:01a174a3-30bd-76da-be49-09d9ee0dd0cc"
+    ],
+    "notifyFailures": [
       {
-        "template": "booking_confirmed_paid",
-        "acceptance": "sent",
-        "providerMessageId": "01a17487-b211-71e5-b695-be66248c899e",
-        "lastEvent": "delivered",
-        "subject": "Your Traverion booking is confirmed — CERT reliability rental cee9de05",
-        "hasHelsinki": false
+        "event_type": "notify_side_effects_entered",
+        "payload": {
+          "hasGuestEmail": true,
+          "hasSupplier": true,
+          "listingKind": "rental"
+        }
       },
       {
-        "template": "new_booking",
-        "acceptance": "sent",
-        "providerMessageId": "01a17487-b7c4-7086-86ca-252efdacd866",
-        "lastEvent": "delivered",
-        "subject": "New booking · CERT reliability rental cee9de05 · 2034-06-01",
-        "hasHelsinki": false
+        "event_type": "notify_supplier_result",
+        "payload": {
+          "body": "{\"success\":true,\"providerMessageId\":\"01a174a3-30c7-7c14-a812-742ec737e87b\",\"notified\":1,\"idempotencyKey\":\"supplier:new_booking:8823f01a-c173-4f11-878b-bf371717574e\"}",
+          "channel": "sent",
+          "status": 200
+        }
+      },
+      {
+        "event_type": "notify_side_effects_entered",
+        "payload": {
+          "hasGuestEmail": true,
+          "hasSupplier": true,
+          "listingKind": "rental"
+        }
+      },
+      {
+        "event_type": "notify_supplier_result",
+        "payload": {
+          "body": "{\"success\":true,\"providerMessageId\":\"01a174a3-30bd-76da-be49-09d9ee0dd0cc\",\"notified\":1,\"idempotencyKey\":\"supplier:new_booking:8823f01a-c173-4f11-878b-bf371717574e\"}",
+          "channel": "sent",
+          "status": 200
+        }
+      },
+      {
+        "event_type": "notify_customer_result",
+        "payload": {
+          "body": "{\"success\":true,\"providerMessageId\":\"01a174a3-3700-71ab-b7db-bb9d557cf239\",\"idempotencyKey\":\"customer:booking_confirmed_paid:8823f01a-c173-4f11-878b-bf371717574e\"}",
+          "channel": "sent",
+          "status": 200
+        }
+      },
+      {
+        "event_type": "notify_side_effects_entered",
+        "payload": {
+          "hasGuestEmail": true,
+          "hasSupplier": true,
+          "listingKind": "rental"
+        }
+      },
+      {
+        "event_type": "notify_supplier_result",
+        "payload": {
+          "body": "{\"success\":true,\"skipped\":true,\"reason\":\"already_sent\",\"notified\":0,\"idempotencyKey\":\"supplier:new_booking:8823f01a-c173-4f11-878b-bf371717574e\"}",
+          "channel": "skipped",
+          "status": 200
+        }
+      },
+      {
+        "event_type": "notify_customer_result",
+        "payload": {
+          "body": "{\"success\":true,\"skipped\":true,\"reason\":\"already_sent\",\"idempotencyKey\":\"customer:booking_confirmed_paid:8823f01a-c173-4f11-878b-bf371717574e\"}",
+          "channel": "skipped",
+          "status": 200
+        }
+      },
+      {
+        "event_type": "notify_customer_result",
+        "payload": {
+          "body": "{\"success\":true,\"providerMessageId\":\"01a174a3-37a4-73a3-8e06-fb25233f0a17\",\"idempotencyKey\":\"customer:booking_confirmed_paid:8823f01a-c173-4f11-878b-bf371717574e\"}",
+          "channel": "sent",
+          "status": 200
+        }
       }
     ],
     "paymentEventTypes": [
-      "payment_intent.succeeded"
+      "payment_intent.succeeded",
+      "notify_side_effects_entered",
+      "notify_side_effects_entered",
+      "notify_supplier_result",
+      "notify_supplier_result",
+      "notify_customer_result",
+      "notify_customer_result",
+      "notify_side_effects_entered",
+      "notify_supplier_result",
+      "notify_customer_result"
+    ],
+    "delivery": [
+      {
+        "template": "new_booking",
+        "acceptance": "sent",
+        "providerMessageId": "01a174a3-30bd-76da-be49-09d9ee0dd0cc",
+        "lastEvent": "delivered",
+        "subject": "New booking · CERT reliability rental 82300d0e · 2034-06-01"
+      },
+      {
+        "template": "booking_confirmed_paid",
+        "acceptance": "sent",
+        "providerMessageId": "01a174a3-37a4-73a3-8e06-fb25233f0a17",
+        "lastEvent": "delivered",
+        "subject": "Your Traverion booking is confirmed — CERT reliability rental 82300d0e"
+      }
     ],
     "cancelAndRefund": {
       "customerCancelHttp": 200,
@@ -306,76 +419,76 @@
         {
           "template": "booking_cancelled",
           "status": "sent",
-          "id": "01a17487-f6db-7cef-ad67-97b41873eee4"
+          "id": "01a174a4-a98f-77bc-a37a-fb38fbc51421"
         },
         {
           "template": "booking_cancelled",
           "status": "sent",
-          "id": "01a17487-fa2d-753a-b298-9561f261d7f7"
+          "id": "01a174a4-af90-7c06-916c-57406a782e9d"
         },
         {
           "template": "refund_initiated",
           "status": "sent",
-          "id": "01a17488-0cf9-7443-b6f7-cecfb3b6c29d"
-        },
-        {
-          "template": "refund_completed",
-          "status": "sent",
-          "id": "01a17488-1504-78c1-8a38-a3df7c1fc26c"
+          "id": "01a174a4-c242-74ba-86e3-7ab64753834c"
         },
         {
           "template": "refund_initiated",
           "status": "sent",
-          "id": "01a17488-1c61-74af-a7d7-031abb5a118c"
+          "id": "01a174a4-c545-75fc-b900-3e2c5cfd5325"
         },
         {
           "template": "refund_completed",
           "status": "sent",
-          "id": "01a17488-2f55-7811-9176-89ecbf8c788f"
+          "id": "01a174a4-c7fe-78d2-88e8-a7acfa38a5df"
+        },
+        {
+          "template": "refund_completed",
+          "status": "sent",
+          "id": "01a174a4-cc6a-716c-b0f7-1c4fa451cf71"
         }
       ],
       "delivery": [
         {
           "template": "booking_cancelled",
           "acceptance": "sent",
-          "providerMessageId": "01a17487-f6db-7cef-ad67-97b41873eee4",
+          "providerMessageId": "01a174a4-a98f-77bc-a37a-fb38fbc51421",
           "lastEvent": "delivered",
-          "subject": "Your booking has been cancelled · TV-WL25454W"
+          "subject": "Your booking has been cancelled · TV-CT4AXDVL"
         },
         {
           "template": "booking_cancelled",
           "acceptance": "sent",
-          "providerMessageId": "01a17487-fa2d-753a-b298-9561f261d7f7",
+          "providerMessageId": "01a174a4-af90-7c06-916c-57406a782e9d",
           "lastEvent": "delivered",
-          "subject": "Booking cancelled · CERT reliability rental cee9de05"
+          "subject": "Booking cancelled · CERT reliability rental 82300d0e"
         },
         {
           "template": "refund_initiated",
           "acceptance": "sent",
-          "providerMessageId": "01a17488-0cf9-7443-b6f7-cecfb3b6c29d",
+          "providerMessageId": "01a174a4-c242-74ba-86e3-7ab64753834c",
           "lastEvent": "delivered",
-          "subject": "Your refund is being processed · TV-WL25454W"
-        },
-        {
-          "template": "refund_completed",
-          "acceptance": "sent",
-          "providerMessageId": "01a17488-1504-78c1-8a38-a3df7c1fc26c",
-          "lastEvent": "delivered",
-          "subject": "Your refund is complete · TV-WL25454W"
+          "subject": "Your refund is being processed · TV-CT4AXDVL"
         },
         {
           "template": "refund_initiated",
           "acceptance": "sent",
-          "providerMessageId": "01a17488-1c61-74af-a7d7-031abb5a118c",
+          "providerMessageId": "01a174a4-c545-75fc-b900-3e2c5cfd5325",
           "lastEvent": "delivered",
-          "subject": "Refund submitted to Stripe · CERT reliability rental cee9de05"
+          "subject": "Refund submitted to Stripe · CERT reliability rental 82300d0e"
         },
         {
           "template": "refund_completed",
           "acceptance": "sent",
-          "providerMessageId": "01a17488-2f55-7811-9176-89ecbf8c788f",
+          "providerMessageId": "01a174a4-c7fe-78d2-88e8-a7acfa38a5df",
           "lastEvent": "delivered",
-          "subject": "Refund recorded · CERT reliability rental cee9de05"
+          "subject": "Your refund is complete · TV-CT4AXDVL"
+        },
+        {
+          "template": "refund_completed",
+          "acceptance": "sent",
+          "providerMessageId": "01a174a4-cc6a-716c-b0f7-1c4fa451cf71",
+          "lastEvent": "delivered",
+          "subject": "Refund recorded · CERT reliability rental 82300d0e"
         }
       ]
     }
@@ -388,19 +501,19 @@
     },
     "inserted": [
       {
-        "id": "5d4503ed-1553-4971-825c-e130794333f3",
+        "id": "c66dc767-756d-4459-b222-d42b499c6979",
         "title": "CERT pickup reminder"
       },
       {
-        "id": "cf94606f-b6bc-4698-be97-9fa407cfcae7",
+        "id": "f5645f75-5650-4d34-a18e-74d4a4475548",
         "title": "CERT return reminder"
       },
       {
-        "id": "c19625b3-eded-46e3-9a13-c9cea18bd823",
+        "id": "a55d061d-af8e-4138-9545-8a47530ec339",
         "title": "CERT cancelled reminder"
       },
       {
-        "id": "70c6618b-537a-46ac-a989-181a5328d36d",
+        "id": "606f3577-9dbd-4ada-8f83-86f5afdd6bfd",
         "title": "CERT timezone control"
       }
     ],
@@ -491,21 +604,21 @@
   },
   "recovery": {
     "firstWebhook": {
-      "eventId": "evt_1UUX32C3BaJIHpM6Wl94sbVF",
+      "eventId": "evt_1UUXXBC3BaJIHpM6JrrPYm8o",
       "row": {
         "error_message": "insert or update on table \"booking_commercial_snapshots\" violates foreign key constraint \"booking_commercial_snapshots_supplier_id_fkey\"",
-        "id": "evt_1UUX32C3BaJIHpM6Wl94sbVF",
+        "id": "evt_1UUXXBC3BaJIHpM6JrrPYm8o",
         "status": "failed"
       },
       "booking": {
         "booking_date": "2034-06-01",
         "check_out": "2034-06-02",
-        "checkout_session_id": "cs_test_a1c52YGhcIO2soNNlLbnXWAEvKmfGLMJrmnEVjukMxbcdoX7AFtOhC8a7l",
+        "checkout_session_id": "cs_test_a1gYG3bAAlCGP83DDhmLiNQyGCACotNnN1XW1KwXAz8ysg5MMjF9vpP8OY",
         "guest_email": "delivered@resend.dev",
-        "id": "d3e0c558-92fb-46db-b3e3-c72cd5d41740",
-        "payment_intent_id": "pi_3UUX31C3BaJIHpM61XEYhl15",
+        "id": "8823f01a-c173-4f11-878b-bf371717574e",
+        "payment_intent_id": "pi_3UUXXBC3BaJIHpM60jFx93oE",
         "payment_status": "paid",
-        "public_reference": "TV-WL25454W",
+        "public_reference": "TV-CT4AXDVL",
         "status": "confirmed"
       }
     },
@@ -517,7 +630,7 @@
     ],
     "exceptionsAfterFailure": [
       {
-        "booking_id": "d3e0c558-92fb-46db-b3e3-c72cd5d41740",
+        "booking_id": "8823f01a-c173-4f11-878b-bf371717574e",
         "exception_kind": "earnings_missing"
       }
     ],
@@ -534,16 +647,16 @@
   },
   "regression": {
     "tour": {
-      "sessionId": "cs_test_a1QnyIFfca0ap3e4KdLN8kysoi4WgvPf4RuPDfWZgaolDSqQzZDIfIoezc",
-      "bookingId": "8e1e37eb-5620-4e8c-b895-f0bb867023f3",
+      "sessionId": "cs_test_a1dOr5j7vTqz4oYq7HI3g4BMwkly0bpfN21Rt3eO8IT5R9nhgWKziByF9O",
+      "bookingId": "8d05a3ea-38be-417d-8d6e-4f73ab449607",
       "confirmed": true,
       "refundHttp": 200,
       "refundOk": true,
       "unpublishedAfter": "draft"
     },
     "stay": {
-      "sessionId": "cs_test_a1ec4QIXMulD5WygaIO1AEm9VPzDGjWdAv8TQiPOeu33FnaledlobcCj80",
-      "bookingId": "fc3052f2-ba95-4f1e-8ab1-df67b7bc565f",
+      "sessionId": "cs_test_a1pcdrWu71bjVnldf0a7XhA99XCmrT47eqVfEPbaJbCJwwrDHz9CCH62Xw",
+      "bookingId": "b4b8070d-a8ac-4929-9509-42fe31940afb",
       "confirmed": true,
       "refundHttp": 200,
       "refundOk": true
@@ -553,11 +666,11 @@
     "guestHttp": 403,
     "adminHttp": 200,
     "adminError": null,
-    "count": 7,
+    "count": 8,
     "kinds": [
       "paid_unconfirmed",
-      "pending_hold_expired",
       "stuck_hold",
+      "pending_hold_expired",
       "failed_refund"
     ],
     "stuckHoldAfterExpire": [
@@ -569,6 +682,8 @@
     "recoveryEvents": [
       "checkout_claimed",
       "checkout_paid_hold_confirmed",
+      "checkout_claimed",
+      "checkout_paid_hold_confirmed",
       "checkout_released",
       "return_reminder_sent",
       "checkout_claimed"
@@ -577,10 +692,10 @@
   "ids": {
     "guestDomain": "example.com",
     "supplierRecipient": "delivered@resend.dev",
-    "guestId": "d0655419-84ab-4c83-add2-f955952ed46e",
-    "supplierId": "df8a354d-1cac-4e95-b8d6-e68360ce1d39",
-    "bookingId": "d3e0c558-92fb-46db-b3e3-c72cd5d41740",
-    "sessionId": "cs_test_a1c52YGhcIO2soNNlLbnXWAEvKmfGLMJrmnEVjukMxbcdoX7AFtOhC8a7l"
+    "guestId": "281704a1-3bed-42d4-bffc-df51af04fbfa",
+    "supplierId": "8de520ec-5d0d-470e-9c5f-2c4ada224aa1",
+    "bookingId": "8823f01a-c173-4f11-878b-bf371717574e",
+    "sessionId": "cs_test_a1gYG3bAAlCGP83DDhmLiNQyGCACotNnN1XW1KwXAz8ysg5MMjF9vpP8OY"
   },
   "safety": {
     "before": {
@@ -594,6 +709,36 @@
     },
     "flagStillAbsent": true
   },
+  "normal": {
+    "sessionId": "cs_test_a1dGYQewBm9aIOJeXaK82Z08ATeCqlaasg3F1JjJ6w0qUWzGmPcXlCpSWJ",
+    "bookingId": "67c761b6-f7e7-400e-9fb6-dfcb003cee7b",
+    "eventId": "evt_1UUXWJC3BaJIHpM6Ox8qFlIf",
+    "paymentIntentId": "pi_3UUXWIC3BaJIHpM60yM8jOnd",
+    "providerIds": [
+      "customer:booking_confirmed_paid:01a174a2-68f8-7c22-accc-3066e8a19ebc",
+      "supplier:new_booking:01a174a2-5ff4-7c87-a61e-d2b6b626c8c8"
+    ],
+    "replayProviderIds": [
+      "customer:booking_confirmed_paid:01a174a2-68f8-7c22-accc-3066e8a19ebc",
+      "supplier:new_booking:01a174a2-5ff4-7c87-a61e-d2b6b626c8c8"
+    ],
+    "delivery": [
+      {
+        "template": "new_booking",
+        "acceptance": "sent",
+        "providerMessageId": "01a174a2-5ff4-7c87-a61e-d2b6b626c8c8",
+        "lastEvent": "delivered",
+        "subject": "New booking · CERT reliability rental 82300d0e · 2034-05-10"
+      },
+      {
+        "template": "booking_confirmed_paid",
+        "acceptance": "sent",
+        "providerMessageId": "01a174a2-68f8-7c22-accc-3066e8a19ebc",
+        "lastEvent": "delivered",
+        "subject": "Your Traverion booking is confirmed — CERT reliability rental 82300d0e"
+      }
+    ]
+  },
   "ok": true,
-  "finishedAt": "2026-10-25T19:30:17.123Z"
+  "finishedAt": "2026-10-25T20:03:37.410Z"
 }

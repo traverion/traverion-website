@@ -434,12 +434,7 @@ async function run() {
     const rentalListingId = rentalListing?.id;
     listingIds.push(rentalListingId);
     if (rentalListing?.status !== 'draft') throw new Error('rental fixture was not draft');
-    dbQuery(`delete from public.supplier_profiles where id = '${supplierId}'::uuid;`);
-    const profiles = dbQuery(
-      `select count(*)::int as n from public.supplier_profiles where id = '${supplierId}'::uuid`
-    ).rows?.[0];
-    if (Number(profiles?.n) !== 0) throw new Error('supplier profile was not removed');
-    step('failure_fixture_without_supplier_profile');
+    dbQuery(`insert into public.supplier_profiles (id) values ('${supplierId}'::uuid) on conflict (id) do nothing;`);
 
     denoProc = await bootCheckout(sk, keys);
     step('isolated_checkout_function_booted');
@@ -502,7 +497,134 @@ async function run() {
       await sleep(500);
     }
 
-    const checkout = await postCheckout(keys.anon && guestJwt, keys.anon, {
+    async function waitHostedPaidMail(bookingId) {
+      const rows = await poll(async () => {
+        const found = emailRows(bookingId).filter(
+          (r) =>
+            (r.template_key === 'booking_confirmed_paid' || r.template_key === 'new_booking') &&
+            r.status === 'sent' &&
+            r.provider_message_id &&
+            r.recipient_email === SINK
+        );
+        const templates = new Set(found.map((r) => r.template_key));
+        if (templates.has('booking_confirmed_paid') && templates.has('new_booking')) return found;
+        return null;
+      }, 50000);
+      if (!rows) throw new Error(`hosted webhook did not accept both paid emails for ${bookingId}`);
+      return rows;
+    }
+    function paidProviderIds(rows) {
+      return rows
+        .filter((r) => r.template_key === 'booking_confirmed_paid' || r.template_key === 'new_booking')
+        .map((r) => `${r.channel}:${r.template_key}:${r.provider_message_id}`)
+        .sort();
+    }
+
+    const normalCheckout = await postCheckout(guestJwt, keys.anon, {
+      listingId: rentalListingId,
+      customerName: 'CERT Rental Guest',
+      checkoutConsentAccepted: true,
+      expectedTotal: 25,
+      currency: 'EUR',
+      successPath: '/booking-confirmed',
+      cancelPath: '/cart?payment=cancelled',
+      rental: {
+        variantId: 'cert-unit',
+        quantity: 1,
+        pickupAt: '2034-05-10T09:00:00+03:00',
+        returnAt: '2034-05-11T09:00:00+03:00',
+        durationCount: 1,
+        durationUnit: 'day',
+      },
+    });
+    if (!normalCheckout.json?.bookingId || !normalCheckout.json?.sessionId) {
+      throw new Error(`normal rental checkout failed: ${normalCheckout.status} ${normalCheckout.json?.error || ''}`);
+    }
+    const normalBookingId = normalCheckout.json.bookingId;
+    const normalSessionId = normalCheckout.json.sessionId;
+    dbQuery(`update public.bookings set guest_email = '${SINK}' where id = '${normalBookingId}'::uuid;`);
+    const normalSession = await stripeGet(sk, `/checkout/sessions/${normalSessionId}`);
+    await completeHostedCheckout(sk, normalSession);
+    const normalPaidSession = await stripeGet(sk, `/checkout/sessions/${normalSessionId}`);
+    const normalPi = typeof normalPaidSession.payment_intent === 'string'
+      ? normalPaidSession.payment_intent
+      : normalPaidSession.payment_intent?.id;
+    refundLater.push(normalPi);
+    const normalEvent = await poll(async () => {
+      const events = await stripeGet(sk, '/events?type=checkout.session.completed&limit=20');
+      const match = (events.data || []).find((e) => e.data?.object?.id === normalSessionId);
+      if (!match) return null;
+      const row = dbQuery(
+        `select id, status from public.stripe_webhook_events where id = '${match.id}'`
+      ).rows?.[0];
+      const booking = bookingRow(normalBookingId);
+      if (row?.status === 'processed' && booking?.status === 'confirmed' && booking?.payment_status === 'paid') {
+        return { eventId: match.id, booking };
+      }
+      return null;
+    });
+    if (!normalEvent) throw new Error('normal hosted webhook did not confirm the booking');
+    const normalMail = await waitHostedPaidMail(normalBookingId);
+    const normalIds = paidProviderIds(normalMail);
+    await stripeForm(sk, `/events/${normalEvent.eventId}/retry`, { webhook_endpoint: WEBHOOK_ENDPOINT });
+    await sleep(4000);
+    const normalIdsAgain = paidProviderIds(emailRows(normalBookingId));
+    if (normalIds.join('|') !== normalIdsAgain.join('|')) {
+      throw new Error(`normal webhook replay duplicated mail: ${normalIdsAgain.join('|')}`);
+    }
+    const normalCounts = {};
+    for (const id of normalIds) {
+      const template = id.split(':')[1];
+      normalCounts[template] = (normalCounts[template] || 0) + 1;
+    }
+    if (normalCounts.booking_confirmed_paid !== 1 || normalCounts.new_booking !== 1) {
+      throw new Error(`normal paid mail count ${JSON.stringify(normalCounts)}`);
+    }
+    const normalDelivery = [];
+    for (const row of normalMail) {
+      let last = null;
+      for (let i = 0; i < 6; i++) {
+        const got = await resendEmail(resendKey, row.provider_message_id);
+        last = got.json;
+        if (last?.last_event === 'delivered' || last?.last_event === 'bounced') break;
+        await sleep(2000);
+      }
+      normalDelivery.push({
+        template: row.template_key,
+        acceptance: row.status,
+        providerMessageId: row.provider_message_id,
+        lastEvent: last?.last_event || null,
+        subject: last?.subject || null,
+      });
+    }
+    if (normalDelivery.some((d) => d.lastEvent !== 'delivered')) {
+      throw new Error(`normal hosted mail was not delivered: ${JSON.stringify(normalDelivery)}`);
+    }
+    const normalHolds = holds(normalBookingId).filter((h) => h.status === 'confirmed').reduce((n, h) => n + Number(h.n), 0);
+    if (normalHolds !== 1) throw new Error(`normal booking hold count ${normalHolds}`);
+    report.normal = {
+      sessionId: normalSessionId,
+      bookingId: normalBookingId,
+      eventId: normalEvent.eventId,
+      paymentIntentId: normalPi,
+      providerIds: normalIds,
+      replayProviderIds: normalIdsAgain,
+      delivery: normalDelivery,
+    };
+    step('hosted_webhook_paid_mail', report.normal);
+
+    dbQuery(`
+      delete from public.supplier_earning_items where booking_id = '${normalBookingId}'::uuid;
+      delete from public.booking_commercial_snapshots where booking_id = '${normalBookingId}'::uuid;
+      delete from public.supplier_profiles where id = '${supplierId}'::uuid;
+    `);
+    const profiles = dbQuery(
+      `select count(*)::int as n from public.supplier_profiles where id = '${supplierId}'::uuid`
+    ).rows?.[0];
+    if (Number(profiles?.n) !== 0) throw new Error('supplier profile was not removed');
+    step('failure_fixture_without_supplier_profile');
+
+    const checkout = await postCheckout(guestJwt, keys.anon, {
       listingId: rentalListingId,
       customerName: 'CERT Rental Guest',
       checkoutConsentAccepted: true,
@@ -593,21 +715,25 @@ async function run() {
     report.recovery.afterRetry = { holds: holdsAfterRetry, snapshots: snaps?.n, earningItems: earns?.n };
     step('idempotent_retry_one_hold', report.recovery.afterRetry);
 
-    const mail = await poll(async () => {
-      const rows = emailRows(bookingId);
-      const confirmed = rows.filter((r) => r.template_key === 'booking_confirmed_paid' || r.template_key === 'new_booking');
-      if (confirmed.length >= 2) return rows;
-      return null;
-    }, 25000);
-    const mailRows = mail || emailRows(bookingId);
-    report.email.notifyFailures = dbQuery(`
-      select event_type, payload
-      from public.booking_payment_events
-      where booking_id = '${bookingId}'::uuid
-        and event_type like 'notify_%'
-    `).rows;
-    const badRecipient = mailRows.filter((r) => r.recipient_email && r.recipient_email !== SINK);
-    report.email.rows = mailRows.map((r) => ({
+    const hostedMail = await waitHostedPaidMail(bookingId);
+    const recoveryIds = paidProviderIds(hostedMail);
+    await stripeForm(sk, `/events/${failedEvent.eventId}/retry`, { webhook_endpoint: WEBHOOK_ENDPOINT });
+    await sleep(4000);
+    const recoveryIdsAgain = paidProviderIds(emailRows(bookingId));
+    if (recoveryIds.join('|') !== recoveryIdsAgain.join('|')) {
+      throw new Error(`recovery replay duplicated mail: ${recoveryIdsAgain.join('|')}`);
+    }
+    const recoveryCounts = {};
+    for (const id of recoveryIds) {
+      const template = id.split(':')[1];
+      recoveryCounts[template] = (recoveryCounts[template] || 0) + 1;
+    }
+    if (recoveryCounts.booking_confirmed_paid !== 1 || recoveryCounts.new_booking !== 1) {
+      throw new Error(`recovery paid mail count ${JSON.stringify(recoveryCounts)}`);
+    }
+    const badRecipient = emailRows(bookingId).filter((r) => r.recipient_email && r.recipient_email !== SINK);
+    if (badRecipient.length) throw new Error('a certification email used a non-sink recipient');
+    report.email.rows = emailRows(bookingId).map((r) => ({
       channel: r.channel,
       template: r.template_key,
       status: r.status,
@@ -615,58 +741,22 @@ async function run() {
       error: r.error_message,
       sink: r.recipient_email === SINK,
     }));
-    if (badRecipient.length) throw new Error('a certification email used a non-sink recipient');
-    const accepted = mailRows.filter((r) => r.template_key === 'booking_confirmed_paid' || r.template_key === 'new_booking');
-    report.email.hostedAcceptedBeforeFallback = accepted.map((r) => r.template_key);
-    if (accepted.length < 2) {
-      const localConfirm = await fetch('http://127.0.0.1:8002/', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${keys.service}`,
-          apikey: keys.service,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          bookingId,
-          customerEmail: SINK,
-          emailKind: 'booking_confirmed_paid',
-          idempotencyKey: `customer:booking_confirmed_paid:${bookingId}`,
-        }),
-      });
-      const localConfirmJson = await localConfirm.json().catch(() => ({}));
-      report.email.localConfirmation = { http: localConfirm.status, ok: localConfirmJson.success === true, error: localConfirmJson.error || null };
-      const supplierNote = await fetch('http://127.0.0.1:8003/', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${keys.service}`,
-          apikey: keys.service,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          supplierId,
-          bookingId,
-          listingId: rentalListingId,
-          eventType: 'new_booking',
-          listingTitle: `CERT reliability rental ${RUN_ID}`,
-          bookingPaymentStatus: 'paid',
-        }),
-      });
-      report.email.supplierNotifyHttp = supplierNote.status;
-      const refreshed = emailRows(bookingId);
-      report.email.rows = refreshed.map((r) => ({
-        channel: r.channel,
-        template: r.template_key,
-        status: r.status,
-        providerMessageId: r.provider_message_id,
-        error: r.error_message,
-        sink: r.recipient_email === SINK,
-      }));
-      if (!refreshed.some((r) => r.template_key === 'booking_confirmed_paid' && r.provider_message_id)) {
-        fail('confirmation_emails', new Error(`confirmation not accepted: ${JSON.stringify(report.email.localConfirmation)}`));
-      }
-    }
+    report.email.hostedProviderIds = recoveryIds;
+    report.email.replayProviderIds = recoveryIdsAgain;
+    report.email.notifyFailures = dbQuery(`
+      select event_type, payload
+      from public.booking_payment_events
+      where booking_id = '${bookingId}'::uuid
+        and event_type like 'notify_%'
+    `).rows;
+    report.email.paymentEventTypes = dbQuery(`
+      select event_type
+      from public.booking_payment_events
+      where booking_id = '${bookingId}'::uuid
+      order by created_at
+    `).rows?.map((r) => r.event_type);
     const delivery = [];
-    for (const row of emailRows(bookingId).filter((r) => r.provider_message_id)) {
+    for (const row of emailRows(bookingId).filter((r) => r.provider_message_id && (r.template_key === 'booking_confirmed_paid' || r.template_key === 'new_booking'))) {
       let last = null;
       for (let i = 0; i < 6; i++) {
         const got = await resendEmail(resendKey, row.provider_message_id);
@@ -680,20 +770,15 @@ async function run() {
         providerMessageId: row.provider_message_id,
         lastEvent: last?.last_event || null,
         subject: last?.subject || null,
-        hasHelsinki: JSON.stringify(last?.html || last?.text || '').includes('Europe/Helsinki'),
       });
     }
     report.email.delivery = delivery;
-    report.email.paymentEventTypes = dbQuery(`
-      select event_type
-      from public.booking_payment_events
-      where booking_id = '${bookingId}'::uuid
-      order by created_at
-    `).rows?.map((r) => r.event_type);
+    if (delivery.some((d) => d.lastEvent !== 'delivered')) {
+      throw new Error(`hosted paid mail was not delivered: ${JSON.stringify(delivery)}`);
+    }
     step('provider_acceptance_and_delivery', {
       templates: delivery.map((d) => `${d.template}:${d.acceptance}/${d.lastEvent}`),
-      hosted: report.email.hostedAcceptedBeforeFallback,
-      paymentEventTypes: report.email.paymentEventTypes,
+      replayStable: recoveryIds.join('|') === recoveryIdsAgain.join('|'),
     });
 
     dbQuery(`

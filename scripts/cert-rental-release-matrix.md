@@ -1,8 +1,8 @@
 # Traverion Rentals — Reliability Certification & Release Matrix
 
 **Date:** 2026-10-25  
-**Continued from:** `0950dbf93c2757436c06d7426980980e9633a210`  
-**This run:** `cee9de05` in `scripts/cert-rental-reliability.report.json`  
+**Continued from:** `a789d024911246be1c30e30fe62861a9dfb70730`  
+**This run:** `82300d0e` in `scripts/cert-rental-reliability.report.json`  
 **Linked project:** `xcopqllkulxfkpunetbc` (Traverionapp, eu-north-1)  
 **Stripe:** TEST only. Endpoint `we_1TWkBwC3BaJIHpM6eVbY1DOc`, `livemode: false`.  
 **Public rental checkout:** DISABLED. `RENTAL_CHECKOUT_ENABLED` was absent before and after (`flagStillAbsent: true`).  
@@ -59,7 +59,8 @@ The hosted paid-webhook retry did not write `booking_confirmed_paid` or `new_boo
 | --- | --- | --- |
 | `@example.com` failures are Resend's test-address rejection | **PASS** | HTTP 422 with Resend's testing-address message. Domain `traverion.com` verified. |
 | Confirmation, supplier, cancellation, and refund content can be delivered | **PASS** | Eight ids above. Acceptance `sent`. `last_event` `delivered`. Sink only. |
-| Hosted webhook sends confirmation after the earnings failure is repaired | **FAIL** | Retry processed, snapshot created, no notify event and no hosted email row. |
+| Hosted webhook sends confirmation after a normal payment | **PASS** | Session `cs_test_a1dGYQewBm9aIOJeXaK82Z08ATeCqlaasg3F1JjJ6w0qUWzGmPcXlCpSWJ`, event `evt_1UUXWJC3BaJIHpM6Ox8qFlIf`, booking `67c761b6-f7e7-400e-9fb6-dfcb003cee7b`. Customer `01a174a2-68f8-7c22-accc-3066e8a19ebc` and supplier `01a174a2-5ff4-7c87-a61e-d2b6b626c8c8` accepted (`sent`) and `last_event` `delivered`. Replay kept the same ids. One confirmed hold. |
+| Hosted webhook sends confirmation after the earnings failure is repaired | **PASS** | `evt_1UUXXBC3BaJIHpM6JrrPYm8o` failed on `booking_commercial_snapshots_supplier_id_fkey` while booking `8823f01a-c173-4f11-878b-bf371717574e` stayed confirmed/paid. After the profile was restored, retry left 1 snapshot, 1 earning item, and 1 confirmed hold. Customer `01a174a3-37a4-73a3-8e06-fb25233f0a17` and supplier `01a174a3-30bd-76da-be49-09d9ee0dd0cc` were `sent` then `delivered`. A second replay did not add ids. |
 | Pickup reminder date, zone, recipient, rental copy | **PASS** | Helsinki tomorrow `2026-10-26`. One send. Body has that date, `Europe/Helsinki`, and rental wording. `last_event` delivered. |
 | Return reminder | **PASS** | One return send, same date and zone, `last_event` delivered. Pickup count stayed 0 on that call. |
 | Timezone control | **PASS** | Pacific/Kiritimati local date was already `2026-10-26`. Same pickup calendar day sent 0. |
@@ -67,12 +68,12 @@ The hosted paid-webhook retry did not write `booking_confirmed_paid` or `new_boo
 | Duplicate reminder | **PASS** | Second pickup call `remindersSent: 0`. |
 | Reminder auth | **PASS** | Missing bearer 401. Wrong bearer 401. |
 | Scheduled path isolated from real bookings | **PASS** | Local `send-booking-reminders` with `onlyBookingIds` (1–4 ids). Empty `{}` still means a full scan in code. Production workflow was not dispatched. |
-| Database failure after Stripe success | **PASS** | Supplier profile removed. `evt_1UUX32C3BaJIHpM6Wl94sbVF` failed on `booking_commercial_snapshots_supplier_id_fkey`. Booking `d3e0c558-92fb-46db-b3e3-c72cd5d41740` stayed `confirmed` / `paid`. |
+| Database failure after Stripe success | **PASS** | Supplier profile removed. `evt_1UUXXBC3BaJIHpM6JrrPYm8o` failed on `booking_commercial_snapshots_supplier_id_fkey`. Booking `8823f01a-c173-4f11-878b-bf371717574e` stayed `confirmed` / `paid`. |
 | Paid-but-unconfirmed earnings gap is visible | **PASS** | `earnings_missing` while the snapshot was absent. Migration 290. |
 | Idempotent promotion and one inventory claim | **PASS** | After profile restore and event retry: 1 confirmed hold, 1 snapshot, 1 earning item. |
 | Safe refund, no second charge | **PASS** | One test refund `re_3UUX31C3BaJIHpM61qEfBDXM` for 2500. Replay did not add another. |
-| Tour Checkout, signed webhook, refund | **PASS** | `cs_test_a1QnyIFfca0ap3e4KdLN8kysoi4WgvPf4RuPDfWZgaolDSqQzZDIfIoezc`, booking `8e1e37eb-5620-4e8c-b895-f0bb867023f3`, confirmed, refund HTTP 200, then listing `draft`. Charge `pi_3UUX5ZC3BaJIHpM614DDno50` refunded 3000/3000, test mode. |
-| Stay Checkout, signed webhook, refund | **PASS** | `cs_test_a1ec4QIXMulD5WygaIO1AEm9VPzDGjWdAv8TQiPOeu33FnaledlobcCj80`, booking `fc3052f2-ba95-4f1e-8ab1-df67b7bc565f`, confirmed, refund HTTP 200. Charge `pi_3UUX6AC3BaJIHpM60iDapPTM` refunded 8000/8000, test mode. |
+| Tour Checkout, signed webhook, refund | **PASS** | `cs_test_a1dOr5j7vTqz4oYq7HI3g4BMwkly0bpfN21Rt3eO8IT5R9nhgWKziByF9O`, booking `8d05a3ea-38be-417d-8d6e-4f73ab449607`, confirmed, refund HTTP 200, then listing `draft`. Charge `pi_3UUXZnC3BaJIHpM61Jah8zaY` refunded 3000/3000, test mode. |
+| Stay Checkout, signed webhook, refund | **PASS** | `cs_test_a1pcdrWu71bjVnldf0a7XhA99XCmrT47eqVfEPbaJbCJwwrDHz9CCH62Xw`, booking `b4b8070d-a8ac-4929-9509-42fe31940afb`, confirmed, refund HTTP 200. Charge `pi_3UUXasC3BaJIHpM61Lm7tFpe` refunded 8000/8000, test mode. |
 | Live supplier or guest contacted | **PASS** (not contacted) | Fixtures only. Live stay `e21b231b-392a-4912-ba7f-07f7b181a564` was not used. |
 | Admin exception inbox | **PASS** | Staff magic-link session, not an email. Admin HTTP 200. Guest JWT HTTP 403. Kinds on the cert rows: `stuck_hold`, `pending_hold_expired`, `paid_unconfirmed`, `failed_refund`. |
 | Stuck-hold recovery | **PASS** | `expire_stale_rental_holds` moved the hold to `expired`. Events include `checkout_released`. No second hold. |
@@ -82,15 +83,17 @@ The hosted paid-webhook retry did not write `booking_confirmed_paid` or `new_boo
 | Production reminder cron | **NOT TESTED** | Isolated function only, so real bookings were not scanned. |
 | `RENTAL_CHECKOUT_ENABLED` unset | **PASS** | Secret absent after the run. |
 | Migration 282 and no published rental | **PASS** | Published rental count 0. Cert listings deleted. |
-| Automated regression | **PASS** | 77 tests passed. |
+| Automated regression | **PASS** | 11 files, 82 tests passed. |
 | Production build | **PASS** | `npx vite build` completed. |
 
 ## Production release verdict
 
-**NOT READY for public rental payments.**
+**READY FOR CONTROLLED RELEASE REVIEW.** Public rental checkout stays off.
 
-Keep `RENTAL_CHECKOUT_ENABLED` unset. Do not lift migration 282.
+`RENTAL_CHECKOUT_ENABLED` is still unset. Migration 282 still blocks rental publication. No live charges were made.
 
-The money path recovers: a missing supplier profile fails the webhook in the open, the booking stays paid with one confirmed hold, `earnings_missing` is visible, and the Stripe retry writes one snapshot and one earning item. Tour and stay test Checkout, confirmation, and refund passed on isolated fixtures. Mail delivery works when the notify functions run, including hosted refund mail. Pickup and return reminders are correct in an isolated scheduled invocation.
+Root cause of the missing hosted mail: once a booking was already `paid`, the webhook repaired `record_paid_booking_earnings` and marked the Stripe event processed without calling the notify functions. The first delivery hits that state whenever the earnings snapshot throws after promotion, and also whenever a second event arrives after the booking is already paid. Earnings and the two emails are now separate. The event stays retryable until the snapshot succeeds and both notify calls are accepted or already recorded. Existing idempotency keys (`customer:booking_confirmed_paid:{bookingId}` and `supplier:new_booking:{bookingId}`) keep a replay from sending a second email.
 
-**Blocker before enablement:** after the earnings failure is repaired, the hosted webhook retry does not send the customer confirmation or the supplier new-booking email. That side effect was proven only by invoking the notify functions directly. Public rental checkout stays off until that webhook path is shown to write the email, or until an operator accepts a manual notify step for that recovery. Enabling the flag still needs an explicit decision of its own.
+Run `82300d0e` in `scripts/cert-rental-reliability.report.json` shows both the normal hosted webhook and the earnings-failure recovery sending one customer confirmation and one supplier new-booking email to `delivered@resend.dev`, with Resend `last_event` `delivered`. Tour and stay Checkout, confirmation, and refund still passed on isolated fixtures.
+
+Stop here. Do not set the rental checkout flag or lift migration 282 without a separate approval.
