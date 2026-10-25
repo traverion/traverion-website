@@ -347,6 +347,13 @@ export function normalizeRentalDetails(raw: unknown): RentalDetails | undefined 
   return out;
 }
 
+/** Insert a new option or replace the one with the same id. Other options stay untouched. */
+export function upsertRentalVariant(variants: RentalVariant[], variant: RentalVariant): RentalVariant[] {
+  const exists = variants.some((row) => row.id === variant.id);
+  if (!exists) return [...variants, variant];
+  return variants.map((row) => (row.id === variant.id ? variant : row));
+}
+
 export function ensureRentalHasDefaultVariant(rental: RentalDetails): RentalDetails {
   if ((rental.variants?.length ?? 0) > 0) return rental;
   return { ...rental, variants: [createDefaultRentalVariant('Standard')] };

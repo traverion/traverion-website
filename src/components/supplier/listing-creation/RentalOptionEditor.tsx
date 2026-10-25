@@ -210,6 +210,8 @@ export function RentalIntegerInput({
   );
 }
 
+export const RENTAL_OPTION_STEPS = ['identity', 'inventory', 'pricing', 'review'] as const;
+
 export default function RentalOptionEditor({
   open,
   variant,
@@ -279,34 +281,42 @@ export default function RentalOptionEditor({
   };
 
   const attributeSummary = attributeKeys
-    .map((a) => ((variant.attributes ?? {})[a.key] ?? '').trim())
+    .map((attribute) => {
+      const value = ((variant.attributes ?? {})[attribute.key] ?? '').trim();
+      return value ? `${attribute.label}: ${value}` : '';
+    })
     .filter(Boolean)
     .join(' · ');
 
-  const steps = [
-    'identity',
-    ...(attributeKeys.length > 0 ? ['specs'] : []),
-    'inventory',
-    'pricing',
-    'conditions',
-    'review',
-  ] as const;
+  const steps = RENTAL_OPTION_STEPS;
   const current = steps[Math.min(step, steps.length - 1)];
-  const stepLabel: Record<(typeof steps)[number], string> = {
-    identity: 'Name this option',
-    specs: 'Specifications for this option',
-    inventory: 'How many identical units?',
-    pricing: 'Price for this option',
-    conditions: 'Option notes',
-    review: 'Review this option',
+  const stepCopy: Record<(typeof steps)[number], { title: string; lede: string }> = {
+    identity: {
+      title: 'Identity and specifications',
+      lede: 'Name the size or model. Only the fields for this category are shown.',
+    },
+    inventory: {
+      title: 'Inventory',
+      lede: 'How many identical units of this option can be rented at once.',
+    },
+    pricing: {
+      title: 'Pricing',
+      lede: 'Use the listing price, or set a different price for this option.',
+    },
+    review: {
+      title: 'Review',
+      lede: 'Check this option, then save it on the listing.',
+    },
   };
+
+  const goTo = (id: (typeof steps)[number]) => setStep(steps.indexOf(id));
 
   return (
     <div
       role="dialog"
       aria-modal="true"
       aria-labelledby={titleId}
-      className="stay-creator listing-creation-option-shell fixed inset-0 z-[80] !flex !flex-col bg-white"
+      className="stay-creator rental-creator fixed inset-0 z-[80] flex flex-col bg-white"
       onKeyDown={(e) => {
         if (e.key === 'Escape') {
           e.stopPropagation();
@@ -314,15 +324,15 @@ export default function RentalOptionEditor({
         }
       }}
     >
-      <header className="border-b border-[#e5e7eb] bg-white pt-[max(0.5rem,env(safe-area-inset-top))]">
-        <div className="mx-auto flex w-full max-w-xl items-center justify-between gap-3 px-4 pb-2">
+      <header className="shrink-0 border-b border-[#E6EAF0] bg-white pt-[max(0.5rem,env(safe-area-inset-top))]">
+        <div className="mx-auto flex w-full max-w-3xl items-center justify-between gap-3 px-4 py-2 sm:px-6">
           <button
             type="button"
-            className="inline-flex min-h-11 items-center gap-1 pr-2 text-sm font-semibold text-finland"
+            className="inline-flex min-h-11 items-center gap-1 pr-2 text-sm font-semibold text-[#073b83]"
             onClick={onCancel}
           >
             <ChevronLeft className="h-4 w-4" strokeWidth={2} aria-hidden />
-            Back
+            Options
           </button>
           <h2 id={titleId} className="min-w-0 flex-1 truncate text-center text-sm font-semibold text-ink">
             {variant.name.trim() || 'New option'}
@@ -334,275 +344,233 @@ export default function RentalOptionEditor({
       </header>
 
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-        <div className="mx-auto w-full max-w-xl space-y-5 px-4 pb-[max(2rem,env(safe-area-inset-bottom))] pt-5">
+        <div className="mx-auto w-full max-w-3xl space-y-4 px-4 py-5 sm:px-6">
           <div>
             <p className="stay-kicker">
               Option · {steps.indexOf(current) + 1} of {steps.length}
             </p>
-            <h3 className="stay-title font-display font-semibold">{stepLabel[current]}</h3>
-            <p className="stay-lede mt-2">
-              A listing is the product. An option is what the customer chooses, such as a size or model. Stock is how
-              many identical units of that option you have.
-            </p>
-            <ol className="mt-3 flex flex-wrap gap-1.5" aria-label="Option steps">
-              {steps.map((id, index) => (
-                <li key={id}>
-                  <button
-                    type="button"
-                    className={`min-h-9 rounded-full px-3 text-xs font-semibold ${
-                      id === current ? 'bg-[#073b83] text-white' : 'bg-[#F4F6F8] text-ink'
-                    }`}
-                    aria-current={id === current ? 'step' : undefined}
-                    onClick={() => setStep(index)}
-                  >
-                    {index + 1}
-                  </button>
-                </li>
-              ))}
-            </ol>
+            <h3 className="stay-title font-display font-semibold">{stepCopy[current].title}</h3>
+            <p className="stay-lede">{stepCopy[current].lede}</p>
           </div>
 
           {current === 'identity' ? (
-          <section className="stay-panel space-y-4" aria-label="Identity">
-            <p className="stay-kicker">Identity</p>
-            <StayField label="Option name">
-              <input
-                id={nameId}
-                ref={nameRef}
-                className="tv-input w-full"
-                value={variant.name}
-                maxLength={80}
-                placeholder="e.g. Medium, Adult e-bike, Standard"
-                aria-required="true"
-                aria-invalid={attempted && nameMissing}
-                onChange={(e) => patch({ name: e.target.value.slice(0, 80) })}
-              />
-            </StayField>
-            <StayField label="Description" optional>
-              <textarea
-                id={descriptionId}
-                className="tv-input w-full resize-y py-2"
-                rows={3}
-                maxLength={500}
-                value={variant.description ?? ''}
-                placeholder="What makes this option different?"
-                onChange={(e) => patch({ description: e.target.value.slice(0, 500) })}
-              />
-            </StayField>
-            <StayHelp>{(variant.description ?? '').length}/500</StayHelp>
-          </section>
-          ) : null}
-
-          {current === 'specs' ? (
-          <section className="stay-panel space-y-4" aria-label="Specifications">
-            <StayHelp>These details belong only to this option. Shared facts stay on the listing.</StayHelp>
-            <div className="grid gap-3 sm:grid-cols-2">
-              {attributeKeys.map((attr) => (
-                  <StayField key={attr.key} label={attr.label} optional>
-                  <input
-                    className="tv-input w-full"
-                    value={(variant.attributes ?? {})[attr.key] ?? ''}
-                    maxLength={120}
-                    placeholder={attr.placeholder}
-                    onChange={(e) => setAttribute(attr.key, e.target.value)}
-                  />
-                </StayField>
-              ))}
-            </div>
-          </section>
+            <section className="space-y-4" aria-label="Identity and specifications">
+              <StayField label="Option name">
+                <input
+                  id={nameId}
+                  ref={nameRef}
+                  className="tv-input w-full"
+                  value={variant.name}
+                  maxLength={80}
+                  placeholder="e.g. Medium, Adult e-bike, Standard"
+                  aria-required="true"
+                  aria-invalid={attempted && nameMissing}
+                  onChange={(e) => patch({ name: e.target.value.slice(0, 80) })}
+                />
+              </StayField>
+              {attempted && nameMissing ? (
+                <p className="stay-alert !mt-0" role="alert">
+                  Name this option to continue.
+                </p>
+              ) : null}
+              {attributeKeys.length > 0 ? (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {attributeKeys.map((attr) => (
+                    <StayField key={attr.key} label={attr.label} optional>
+                      <input
+                        className="tv-input w-full"
+                        value={(variant.attributes ?? {})[attr.key] ?? ''}
+                        maxLength={120}
+                        placeholder={attr.placeholder}
+                        onChange={(e) => setAttribute(attr.key, e.target.value)}
+                      />
+                    </StayField>
+                  ))}
+                </div>
+              ) : null}
+              <StayField label="Description" optional>
+                <textarea
+                  id={descriptionId}
+                  className="tv-input w-full resize-y py-2"
+                  rows={3}
+                  maxLength={500}
+                  value={variant.description ?? ''}
+                  placeholder="What makes this size or model different?"
+                  onChange={(e) => patch({ description: e.target.value.slice(0, 500) })}
+                />
+              </StayField>
+              <details className="rounded-xl border border-[#E6EAF0] bg-white px-3 py-2" defaultOpen={Boolean(variant.availabilityOverrideNote?.trim())}>
+                <summary className="cursor-pointer py-1 text-sm font-semibold text-ink">Advanced notes</summary>
+                <div className="pb-1 pt-3">
+                  <StayField label="Notes for this option" optional>
+                    <textarea
+                      className="tv-input w-full resize-y py-2"
+                      rows={3}
+                      maxLength={240}
+                      value={variant.availabilityOverrideNote ?? ''}
+                      placeholder="Setup, fit, or anything that applies only to this option."
+                      onChange={(e) => patch({ availabilityOverrideNote: e.target.value.slice(0, 240) })}
+                    />
+                  </StayField>
+                  <StayHelp>Saved with the option. It does not close dates on the calendar.</StayHelp>
+                </div>
+              </details>
+            </section>
           ) : null}
 
           {current === 'inventory' ? (
-          <section className="stay-panel space-y-3" aria-label="Inventory">
-            <p className="stay-kicker">Inventory</p>
-            <StayField label="Identical units for this option">
-              <RentalIntegerInput
-                id={quantityId}
-                value={variant.quantity}
-                min={1}
-                max={9999}
-                stepper
-                ariaLabel="Identical units for this option"
-                onChange={(n) => patch({ quantity: n ?? 1 })}
-              />
-            </StayField>
-            <StayHelp>
-              If you have 10 identical items of this option, enter 10. This is not a guest count, and it is not added
-              to other options. Confirmed bookings and holds reduce what is free to reserve. That check stays in the
-              inventory system.
-            </StayHelp>
-            {attempted && quantityInvalid ? (
-              <p className="stay-alert !mt-0" role="alert">
-                Enter at least 1 unit.
-              </p>
-            ) : null}
-          </section>
+            <section className="space-y-3" aria-label="Inventory">
+              <StayField label="Units available">
+                <RentalIntegerInput
+                  id={quantityId}
+                  value={variant.quantity}
+                  min={1}
+                  max={9999}
+                  stepper
+                  ariaLabel="Units available for this option"
+                  onChange={(n) => patch({ quantity: n ?? 1 })}
+                />
+              </StayField>
+              <StayHelp>Ten identical Medium bikes means 10. Other sizes keep their own stock.</StayHelp>
+              {attempted && quantityInvalid ? (
+                <p className="stay-alert !mt-0" role="alert">
+                  Enter at least 1 unit.
+                </p>
+              ) : null}
+            </section>
           ) : null}
 
           {current === 'pricing' ? (
-          <section className="stay-panel space-y-3" aria-label="Pricing">
-            <StayHelp>Use the listing&apos;s standard price, or set a different price for this option.</StayHelp>
-            <div className="grid gap-2 sm:grid-cols-2" role="group" aria-label="Pricing source">
-              <StayChoice pressed={!overriding} onClick={() => patch({ pricingOverride: null })}>
-                <span className="block">Use the standard price</span>
-                <span className="stay-help mt-0.5 block font-normal">{sharedSummary}</span>
-              </StayChoice>
-              <StayChoice
-                pressed={overriding}
-                onClick={() => {
-                  if (overriding) return;
-                  const shared = rental.sharedPricing ?? {};
-                  patch({
-                    pricingOverride: {
-                      currency,
-                      pricePerHourMinor: shared.pricePerHourMinor ?? null,
-                      pricePerDayMinor: shared.pricePerDayMinor ?? null,
-                    },
-                  });
-                }}
-              >
-                <span className="block">Custom price for this option</span>
-                <span className="stay-help mt-0.5 block font-normal">Overrides the shared rate.</span>
-              </StayChoice>
-            </div>
-
-            {overriding ? (
-              <div className="space-y-3">
-                {mode === 'daily' || mode === 'both' ? (
-                  <StayField label="Price per day">
-                    <RentalMoneyInput
-                      value={override?.pricePerDayMinor}
-                      currency={currency}
-                      ariaLabel="Custom price per day"
-                      onChange={(minor) => patchOverride({ pricePerDayMinor: minor })}
-                    />
-                  </StayField>
-                ) : null}
-                {mode === 'hourly' || mode === 'both' ? (
-                  <StayField label="Price per hour">
-                    <RentalMoneyInput
-                      value={override?.pricePerHourMinor}
-                      currency={currency}
-                      ariaLabel="Custom price per hour"
-                      onChange={(minor) => patchOverride({ pricePerHourMinor: minor })}
-                    />
-                  </StayField>
-                ) : null}
-                <StayHelp>
-                  Enter amounts in {currency}. A blank field falls back to the shared rate.
-                </StayHelp>
+            <section className="space-y-3" aria-label="Pricing">
+              <div className="grid gap-2 sm:grid-cols-2" role="group" aria-label="Pricing source">
+                <StayChoice pressed={!overriding} onClick={() => patch({ pricingOverride: null })}>
+                  <span className="block">Standard price</span>
+                  <span className="stay-help mt-0.5 block font-normal">{sharedSummary}</span>
+                </StayChoice>
+                <StayChoice
+                  pressed={overriding}
+                  onClick={() => {
+                    if (overriding) return;
+                    const shared = rental.sharedPricing ?? {};
+                    patch({
+                      pricingOverride: {
+                        currency,
+                        pricePerHourMinor: shared.pricePerHourMinor ?? null,
+                        pricePerDayMinor: shared.pricePerDayMinor ?? null,
+                      },
+                    });
+                  }}
+                >
+                  <span className="block">Custom price</span>
+                  <span className="stay-help mt-0.5 block font-normal">Only this option uses it.</span>
+                </StayChoice>
               </div>
-            ) : (
+              {overriding ? (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {mode === 'daily' || mode === 'both' ? (
+                    <StayField label="Price per day">
+                      <RentalMoneyInput
+                        value={override?.pricePerDayMinor}
+                        currency={currency}
+                        ariaLabel="Custom price per day"
+                        onChange={(minor) => patchOverride({ pricePerDayMinor: minor })}
+                      />
+                    </StayField>
+                  ) : null}
+                  {mode === 'hourly' || mode === 'both' ? (
+                    <StayField label="Price per hour">
+                      <RentalMoneyInput
+                        value={override?.pricePerHourMinor}
+                        currency={currency}
+                        ariaLabel="Custom price per hour"
+                        onChange={(minor) => patchOverride({ pricePerHourMinor: minor })}
+                      />
+                    </StayField>
+                  ) : null}
+                </div>
+              ) : null}
               <StayHelp>
-                This option follows the shared rates from the Pricing step
-                {rental.sharedPricing?.pricePerDayMinor || rental.sharedPricing?.pricePerHourMinor
-                  ? '.'
-                  : ' — you can set them there after adding your options.'}
+                {overriding
+                  ? `Amounts are in ${currency}. A blank field uses the standard price.`
+                  : 'This option follows the listing’s standard price.'}
               </StayHelp>
-            )}
-          </section>
-          ) : null}
-
-          {current === 'conditions' ? (
-          <section className="stay-panel space-y-3" aria-label="Option notes">
-            <StayField label="Notes for this option" optional>
-              <textarea
-                className="tv-input w-full resize-y py-2"
-                rows={4}
-                maxLength={240}
-                value={variant.availabilityOverrideNote ?? ''}
-                placeholder="Anything different about this option, such as a size that needs extra setup."
-                onChange={(e) => patch({ availabilityOverrideNote: e.target.value.slice(0, 240) })}
-              />
-            </StayField>
-            <StayHelp>
-              Blocked dates and maintenance live on the rental calendar. This note is saved with the option. It does
-              not by itself close dates.
-            </StayHelp>
-          </section>
+            </section>
           ) : null}
 
           {current === 'review' ? (
-          <section className="stay-panel space-y-2" aria-label="Review">
-            <p className="stay-kicker">Review</p>
-            <dl className="space-y-1.5 text-sm">
-              <div className="flex justify-between gap-3">
-                <dt className="text-ink-muted">Name</dt>
-                <dd className="min-w-0 truncate text-right font-semibold text-ink">
-                  {variant.name.trim() || 'Not named yet'}
-                </dd>
-              </div>
-              {attributeSummary ? (
-                <div className="flex justify-between gap-3">
-                  <dt className="text-ink-muted">Details</dt>
-                  <dd className="min-w-0 truncate text-right font-semibold text-ink">{attributeSummary}</dd>
-                </div>
-              ) : null}
-              <div className="flex justify-between gap-3">
-                <dt className="text-ink-muted">Units</dt>
-                <dd className="font-semibold text-ink">{variant.quantity}</dd>
-              </div>
-              {variant.availabilityOverrideNote?.trim() ? (
-                <div className="flex justify-between gap-3">
-                  <dt className="text-ink-muted">Notes</dt>
-                  <dd className="min-w-0 text-right text-ink">{variant.availabilityOverrideNote.trim()}</dd>
-                </div>
-              ) : null}
-              <div className="flex justify-between gap-3">
-                <dt className="text-ink-muted">Price</dt>
-                <dd className="min-w-0 text-right font-semibold text-ink">
-                  {rentalPricingSummary(effective, mode, currency)}
-                  <span className="stay-help block font-normal">
-                    {overriding ? 'Custom for this option' : 'Shared rate'}
-                  </span>
-                </dd>
-              </div>
-            </dl>
-            <p
-              className={`text-sm font-semibold ${complete ? 'text-[#073b83]' : 'text-ink-muted'}`}
-              role="status"
-            >
-              {complete
-                ? 'Complete — ready for customers.'
-                : 'Pricing is still missing. Set the standard price on the Pricing screen, or add a custom price on the price step.'}
-            </p>
-          </section>
+            <section aria-label="Review">
+              <dl className="divide-y divide-[#E6EAF0] rounded-2xl border border-[#E6EAF0] bg-white">
+                <ReviewLine label="Name" value={variant.name.trim() || 'Not named yet'} onEdit={() => goTo('identity')} />
+                {attributeSummary ? <ReviewLine label="Specifications" value={attributeSummary} onEdit={() => goTo('identity')} /> : null}
+                {variant.description?.trim() ? (
+                  <ReviewLine label="Description" value={variant.description.trim()} onEdit={() => goTo('identity')} />
+                ) : null}
+                {variant.availabilityOverrideNote?.trim() ? (
+                  <ReviewLine label="Notes" value={variant.availabilityOverrideNote.trim()} onEdit={() => goTo('identity')} />
+                ) : null}
+                <ReviewLine label="Units" value={String(variant.quantity)} onEdit={() => goTo('inventory')} />
+                <ReviewLine
+                  label="Price"
+                  value={`${rentalPricingSummary(effective, mode, currency)} · ${overriding ? 'Custom price' : 'Standard price'}`}
+                  onEdit={() => goTo('pricing')}
+                />
+              </dl>
+              <p className={`mt-3 text-sm font-semibold ${complete ? 'text-[#073b83]' : 'text-ink-muted'}`} role="status">
+                {complete ? 'Complete.' : 'Add a price on the Pricing screen, or a custom price here, before customers can see a rate.'}
+              </p>
+            </section>
           ) : null}
-
-          <div className="flex flex-col gap-2 pt-1 sm:flex-row-reverse">
-            {current === 'review' ? (
-              <button type="button" className="tv-btn-primary min-h-11 px-5 text-sm font-semibold" onClick={trySave}>
-                Save option
-              </button>
-            ) : (
-              <button
-                type="button"
-                className="tv-btn-primary min-h-11 px-5 text-sm font-semibold"
-                onClick={() => {
-                  if (current === 'identity' && nameMissing) {
-                    setAttempted(true);
-                    nameRef.current?.focus();
-                    return;
-                  }
-                  setStep((value) => Math.min(steps.length - 1, value + 1));
-                }}
-              >
-                Continue
-              </button>
-            )}
-            <button
-              type="button"
-              className="tv-btn-secondary min-h-11 px-5 text-sm font-semibold"
-              onClick={() => {
-                if (step === 0) onCancel();
-                else setStep((value) => Math.max(0, value - 1));
-              }}
-            >
-              {step === 0 ? 'Discard changes' : 'Back'}
-            </button>
-          </div>
         </div>
       </div>
+
+      <footer className="shrink-0 border-t border-[#E6EAF0] bg-white px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-6">
+        <div className="mx-auto flex w-full max-w-3xl flex-col gap-2 sm:flex-row-reverse">
+          {current === 'review' ? (
+            <button type="button" className="tv-btn-primary min-h-11 px-5 text-sm font-semibold" onClick={trySave}>
+              Save option
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="tv-btn-primary min-h-11 px-5 text-sm font-semibold"
+              onClick={() => {
+                if (current === 'identity' && nameMissing) {
+                  setAttempted(true);
+                  nameRef.current?.focus();
+                  return;
+                }
+                setStep((value) => Math.min(steps.length - 1, value + 1));
+              }}
+            >
+              Continue
+            </button>
+          )}
+          <button
+            type="button"
+            className="tv-btn-secondary min-h-11 px-5 text-sm font-semibold"
+            onClick={() => {
+              if (step === 0) onCancel();
+              else setStep((value) => Math.max(0, value - 1));
+            }}
+          >
+            Back
+          </button>
+        </div>
+      </footer>
+    </div>
+  );
+}
+
+function ReviewLine({ label, value, onEdit }: { label: string; value: string; onEdit: () => void }) {
+  return (
+    <div className="flex items-start justify-between gap-3 px-3 py-2.5">
+      <div className="min-w-0">
+        <dt className="text-xs font-semibold uppercase tracking-[0.08em] text-ink-muted">{label}</dt>
+        <dd className="mt-0.5 text-sm font-semibold text-ink">{value}</dd>
+      </div>
+      <button type="button" className="shrink-0 text-sm font-semibold text-[#073b83]" onClick={onEdit}>
+        Edit
+      </button>
     </div>
   );
 }

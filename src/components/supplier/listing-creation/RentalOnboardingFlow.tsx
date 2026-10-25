@@ -46,6 +46,7 @@ import {
   rentalSkillConflictsDifficulty,
   rentalVariantComplete,
   rentalVariantMetaLine,
+  upsertRentalVariant,
 } from '../../../lib/rental-details';
 import { formatBpsAsPercent, splitGrossByCommissionBps } from '../../../lib/commercial-money';
 import { clampListingDescriptionInput, clampListingTitleInput, MAX_LISTING_DESCRIPTION_LENGTH, MAX_LISTING_TITLE_LENGTH } from '../../../lib/listingQualityScore';
@@ -2726,12 +2727,7 @@ export default function RentalOnboardingFlow(props: Props) {
 
   const saveEditing = () => {
     if (!editing) return;
-    const current = rental.variants ?? [];
-    const exists = current.some((v) => v.id === editing.variant.id);
-    const variants = exists
-      ? current.map((v) => (v.id === editing.variant.id ? editing.variant : v))
-      : [...current, editing.variant];
-    onChange({ rental: { ...rental, variants } });
+    onChange({ rental: { ...rental, variants: upsertRentalVariant(rental.variants ?? [], editing.variant) } });
     setEditing(null);
   };
 

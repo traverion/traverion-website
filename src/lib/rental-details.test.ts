@@ -26,7 +26,12 @@ import {
   rentalStartingFromMajor,
   rentalVariantComplete,
   rentalVariantMetaLine,
+  upsertRentalVariant,
 } from './rental-details';
+import { rentalCategoryConfig } from './rental-categories';
+import { RENTAL_OPTION_STEPS } from '../components/supplier/listing-creation/RentalOptionEditor';
+import { rentalCategoryConfig } from './rental-categories';
+import { RENTAL_OPTION_STEPS } from '../components/supplier/listing-creation/RentalOptionEditor';
 import {
   LEGACY_RENTAL_SCREEN_ALIASES,
   RENTAL_ONBOARDING_SCREENS,
@@ -428,5 +433,26 @@ describe('rental publish readiness', () => {
       rental,
     });
     expect(blockers).toEqual([]);
+  });
+});
+
+describe('rental option save', () => {
+  it('keeps four option steps and category-specific fields', () => {
+    expect(RENTAL_OPTION_STEPS).toEqual(['identity', 'inventory', 'pricing', 'review']);
+    expect(rentalCategoryConfig('bikes')?.variantAttributeKeys.map((key) => key.key)).toEqual(['size', 'power']);
+    expect(rentalCategoryConfig('winter_clothing')?.variantAttributeKeys.map((key) => key.key)).toEqual(['size']);
+    expect(rentalCategoryConfig('skis_snowboards')?.variantAttributeKeys.map((key) => key.key)).toEqual(['length', 'bootSize']);
+    expect(rentalCategoryConfig('cameras_electronics')?.variantAttributeKeys.map((key) => key.key)).toEqual(['kit']);
+    expect(rentalCategoryConfig('vehicles')?.variantAttributeKeys.map((key) => key.key)).not.toContain('bootSize');
+  });
+
+  it('adds a new option and edits one without changing the others', () => {
+    const medium = { id: 'm', name: 'Medium', quantity: 10, attributes: { size: 'M' } };
+    const large = { id: 'l', name: 'Large', quantity: 4, pricingOverride: { pricePerDayMinor: 3000 } };
+    const created = upsertRentalVariant([medium], large);
+    expect(created.map((row) => row.id)).toEqual(['m', 'l']);
+    const edited = upsertRentalVariant(created, { ...medium, quantity: 8, description: 'Adult frame' });
+    expect(edited.find((row) => row.id === 'm')).toMatchObject({ quantity: 8, description: 'Adult frame' });
+    expect(edited.find((row) => row.id === 'l')).toEqual(large);
   });
 });
