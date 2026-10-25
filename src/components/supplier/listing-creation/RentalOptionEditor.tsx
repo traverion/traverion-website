@@ -1,20 +1,22 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { ChevronLeft } from 'lucide-react';
 import { rentalCategoryConfig } from '../../../lib/rental-categories';
+import { formatBpsAsPercent, splitGrossByCommissionBps } from '../../../lib/commercial-money';
 import {
-  effectiveVariantPricing,
   formatMinorAsEuro,
+  rentalOptionDayPriceMinor,
   rentalVariantComplete,
 } from '../../../lib/rental-details';
 import { formatMoney, normalizeCurrency } from '../../../lib/money';
-import type { RentalDetails, RentalPricing, RentalVariant } from '../../../types/rental';
-import { StayChoice, StayField, StayHelp } from './StayCreatorUi';
+import type { RentalDetails, RentalVariant } from '../../../types/rental';
+import { StayField, StayHelp } from './StayCreatorUi';
 
 type Props = {
   open: boolean;
   variant: RentalVariant;
   rental: RentalDetails;
   listingCurrency?: string;
+  commissionBps: number | null;
   onChange: (next: RentalVariant) => void;
   onSave: () => void;
   onCancel: () => void;
@@ -26,27 +28,6 @@ export function formatRentalMinor(minor: number | null | undefined, currency?: s
   const code = normalizeCurrency(currency);
   if (code === 'EUR') return formatMinorAsEuro(minor);
   return formatMoney(minor / 100, code);
-}
-
-/** One-line pricing summary for the rental duration mode, e.g. "€25 / day · €6 / hour". */
-export function rentalPricingSummary(
-  pricing: RentalPricing,
-  mode: RentalDetails['durationMode'],
-  currency?: string
-): string {
-  const parts: string[] = [];
-  const m = mode ?? 'daily';
-  if (m === 'daily' || m === 'both') {
-    if (pricing.pricePerDayMinor != null && pricing.pricePerDayMinor > 0) {
-      parts.push(`${formatRentalMinor(pricing.pricePerDayMinor, currency)} / day`);
-    }
-  }
-  if (m === 'hourly' || m === 'both') {
-    if (pricing.pricePerHourMinor != null && pricing.pricePerHourMinor > 0) {
-      parts.push(`${formatRentalMinor(pricing.pricePerHourMinor, currency)} / hour`);
-    }
-  }
-  return parts.length > 0 ? parts.join(' · ') : 'Not set yet';
 }
 
 function minorToDraft(minor: number | null | undefined): string {
@@ -217,6 +198,7 @@ export default function RentalOptionEditor({
   variant,
   rental,
   listingCurrency,
+  commissionBps,
   onChange,
   onSave,
   onCancel,
@@ -225,16 +207,15 @@ export default function RentalOptionEditor({
   const nameId = useId();
   const descriptionId = useId();
   const quantityId = useId();
+  const priceId = useId();
   const nameRef = useRef<HTMLInputElement>(null);
   const [attempted, setAttempted] = useState(false);
   const [step, setStep] = useState(0);
 
   const currency = normalizeCurrency(listingCurrency ?? rental.sharedPricing?.currency);
-  const mode = rental.durationMode ?? 'daily';
   const config = rentalCategoryConfig(rental.category);
   const attributeKeys = config?.variantAttributeKeys ?? [];
-  const override = variant.pricingOverride ?? null;
-  const overriding = override != null;
+  const dayPrice = rentalOptionDayPriceMinor(variant);
 
   useEffect(() => {
     if (!open) return;
@@ -253,12 +234,21 @@ export default function RentalOptionEditor({
 
   const nameMissing = !variant.name.trim();
   const quantityInvalid = !Number.isFinite(variant.quantity) || variant.quantity < 1;
-  const canSave = !nameMissing && !quantityInvalid;
-  const effective = effectiveVariantPricing(rental, variant);
-  const sharedSummary = rentalPricingSummary(rental.sharedPricing ?? {}, mode, currency);
+  const priceInvalid = dayPrice == null;
+  const canSave = !nameMissing && !quantityInvalid && !priceInvalid;
   const complete = rentalVariantComplete(variant, rental);
 
   const patch = (next: Partial<RentalVariant>) => onChange({ ...variant, ...next });
+
+  const writeDayPrice = (minor: number | null) => {
+    patch({
+      pricingOverride: {
+        ...(variant.pricingOverride ?? {}),
+        currency,
+        pricePerDayMinor: minor,
+      },
+    });
+  };
 
   const setAttribute = (key: string, value: string) => {
     const attributes = { ...(variant.attributes ?? {}) };
@@ -267,14 +257,19 @@ export default function RentalOptionEditor({
     patch({ attributes });
   };
 
-  const patchOverride = (next: Partial<RentalPricing>) => {
-    patch({ pricingOverride: { ...(override ?? {}), currency, ...next } });
-  };
-
   const trySave = () => {
     if (!canSave) {
       setAttempted(true);
-      if (nameMissing) nameRef.current?.focus();
+      if (nameMissing) {
+        setStep(RENTAL_OPTION_STEPS.indexOf('identity'));
+        nameRef.current?.focus();
+        return;
+      }
+      if (quantityInvalid) {
+        setStep(RENTAL_OPTION_STEPS.indexOf('inventory'));
+        return;
+      }
+      setStep(RENTAL_OPTION_STEPS.indexOf('pricing'));
       return;
     }
     onSave();
@@ -301,7 +296,7 @@ export default function RentalOptionEditor({
     },
     pricing: {
       title: 'Pricing',
-      lede: 'Use the listing price, or set a different price for this option.',
+      lede: 'The price a guest pays for one day of this option.',
     },
     review: {
       title: 'Review',
@@ -431,7 +426,7 @@ export default function RentalOptionEditor({
                   onChange={(n) => patch({ quantity: n ?? 1 })}
                 />
               </StayField>
-              <StayHelp>Ten identical Medium bikes means 10. Other sizes keep their own stock.</StayHelp>
+              <StayHelp>Ten identical units of this option means 10. Each option keeps its own stock.</StayHelp>
               {attempted && quantityInvalid ? (
                 <p className="stay-alert !mt-0" role="alert">
                   Enter at least 1 unit.
@@ -442,58 +437,22 @@ export default function RentalOptionEditor({
 
           {current === 'pricing' ? (
             <section className="space-y-3" aria-label="Pricing">
-              <div className="grid gap-2 sm:grid-cols-2" role="group" aria-label="Pricing source">
-                <StayChoice pressed={!overriding} onClick={() => patch({ pricingOverride: null })}>
-                  <span className="block">Standard price</span>
-                  <span className="stay-help mt-0.5 block font-normal">{sharedSummary}</span>
-                </StayChoice>
-                <StayChoice
-                  pressed={overriding}
-                  onClick={() => {
-                    if (overriding) return;
-                    const shared = rental.sharedPricing ?? {};
-                    patch({
-                      pricingOverride: {
-                        currency,
-                        pricePerHourMinor: shared.pricePerHourMinor ?? null,
-                        pricePerDayMinor: shared.pricePerDayMinor ?? null,
-                      },
-                    });
-                  }}
-                >
-                  <span className="block">Custom price</span>
-                  <span className="stay-help mt-0.5 block font-normal">Only this option uses it.</span>
-                </StayChoice>
-              </div>
-              {overriding ? (
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {mode === 'daily' || mode === 'both' ? (
-                    <StayField label="Price per day">
-                      <RentalMoneyInput
-                        value={override?.pricePerDayMinor}
-                        currency={currency}
-                        ariaLabel="Custom price per day"
-                        onChange={(minor) => patchOverride({ pricePerDayMinor: minor })}
-                      />
-                    </StayField>
-                  ) : null}
-                  {mode === 'hourly' || mode === 'both' ? (
-                    <StayField label="Price per hour">
-                      <RentalMoneyInput
-                        value={override?.pricePerHourMinor}
-                        currency={currency}
-                        ariaLabel="Custom price per hour"
-                        onChange={(minor) => patchOverride({ pricePerHourMinor: minor })}
-                      />
-                    </StayField>
-                  ) : null}
-                </div>
+              <StayField label="Price per day">
+                <RentalMoneyInput
+                  id={priceId}
+                  value={variant.pricingOverride?.pricePerDayMinor}
+                  currency={currency}
+                  ariaLabel="Price per day"
+                  placeholder=""
+                  onChange={writeDayPrice}
+                />
+              </StayField>
+              {attempted && priceInvalid ? (
+                <p className="stay-alert !mt-0" role="alert">
+                  Enter a price per day.
+                </p>
               ) : null}
-              <StayHelp>
-                {overriding
-                  ? `Amounts are in ${currency}. A blank field uses the standard price.`
-                  : 'This option follows the listing’s standard price.'}
-              </StayHelp>
+              <OptionDayEarnings dayMinor={dayPrice} currency={currency} commissionBps={commissionBps} />
             </section>
           ) : null}
 
@@ -511,12 +470,12 @@ export default function RentalOptionEditor({
                 <ReviewLine label="Units" value={String(variant.quantity)} onEdit={() => goTo('inventory')} />
                 <ReviewLine
                   label="Price"
-                  value={`${rentalPricingSummary(effective, mode, currency)} · ${overriding ? 'Custom price' : 'Standard price'}`}
+                  value={dayPrice != null ? `${formatRentalMinor(dayPrice, currency)} / day` : 'Not set'}
                   onEdit={() => goTo('pricing')}
                 />
               </dl>
               <p className={`mt-3 text-sm font-semibold ${complete ? 'text-[#073b83]' : 'text-ink-muted'}`} role="status">
-                {complete ? 'Complete.' : 'Add a price on the Pricing screen, or a custom price here, before customers can see a rate.'}
+                {complete ? 'Complete.' : 'Enter a price per day before saving this option.'}
               </p>
             </section>
           ) : null}
@@ -539,6 +498,10 @@ export default function RentalOptionEditor({
                   nameRef.current?.focus();
                   return;
                 }
+                if (current === 'pricing' && priceInvalid) {
+                  setAttempted(true);
+                  return;
+                }
                 setStep((value) => Math.min(steps.length - 1, value + 1));
               }}
             >
@@ -558,6 +521,54 @@ export default function RentalOptionEditor({
         </div>
       </footer>
     </div>
+  );
+}
+
+function OptionDayEarnings({
+  dayMinor,
+  currency,
+  commissionBps,
+}: {
+  dayMinor: number | null;
+  currency: string;
+  commissionBps: number | null;
+}) {
+  if (dayMinor == null || dayMinor <= 0) return null;
+  let split: { commissionMinor: number; supplierMinor: number } | null = null;
+  let percent = '';
+  if (commissionBps != null) {
+    try {
+      const result = splitGrossByCommissionBps(dayMinor, commissionBps);
+      split = { commissionMinor: result.commissionMinor, supplierMinor: result.supplierMinor };
+      percent = formatBpsAsPercent(commissionBps);
+    } catch {
+      split = null;
+    }
+  }
+  return (
+    <section className="rounded-xl border border-[#E6EAF0] bg-white px-3 py-2.5" aria-label="One day earnings">
+      <p className="stay-kicker">1 day · 1 unit</p>
+      <dl className="mt-2 space-y-1.5 text-sm">
+        <div className="flex items-baseline justify-between gap-3">
+          <dt className="text-ink">Guest price</dt>
+          <dd className="font-semibold text-ink">{formatRentalMinor(dayMinor, currency)}</dd>
+        </div>
+        {split ? (
+          <>
+            <div className="flex items-baseline justify-between gap-3">
+              <dt className="text-ink-muted">Traverion commission{percent ? ` (${percent})` : ''}</dt>
+              <dd className="text-ink-muted">− {formatRentalMinor(split.commissionMinor, currency)}</dd>
+            </div>
+            <div className="flex items-baseline justify-between gap-3 border-t border-[#E6EAF0] pt-1.5">
+              <dt className="font-semibold text-ink">You earn</dt>
+              <dd className="font-semibold text-[#073b83]">{formatRentalMinor(split.supplierMinor, currency)}</dd>
+            </div>
+          </>
+        ) : (
+          <p className="text-sm text-ink-muted">Earnings appear once your commercial terms load.</p>
+        )}
+      </dl>
+    </section>
   );
 }
 

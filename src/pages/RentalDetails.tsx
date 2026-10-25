@@ -12,7 +12,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { fetchListingById } from '../data/supabase-listings';
 import { inventoryFamilyFromListing } from '../lib/inventory';
 import { rentalCancellationCustomerText } from '../lib/rental-cancellation';
-import { formatMinorAsEuro, normalizeRentalDetails, rentalCustomerSkillSuitability } from '../lib/rental-details';
+import { formatMinorAsEuro, effectiveVariantPricing, normalizeRentalDetails, rentalCustomerSkillSuitability } from '../lib/rental-details';
 import {
   rentalCategoryTitle,
   rentalDepositCustomerText,
@@ -217,20 +217,18 @@ function RentalBody({
             {variants.length > 0 ? (
               <Section title="Options">
                 <ul className="space-y-2">
-                  {variants.map((variant) => (
+                  {variants.map((variant) => {
+                    const day = effectiveVariantPricing(rental, variant).pricePerDayMinor;
+                    return (
                     <li key={variant.id} className="rounded-xl bg-[#F7F8FA] px-3.5 py-3">
                       <p className="text-sm font-semibold text-ink">{variant.name}</p>
                       <p className="mt-0.5 text-sm text-ink-muted">
                         {variant.quantity} available
-                        {variant.pricingOverride?.pricePerDayMinor
-                          ? ` · ${formatMinorAsEuro(variant.pricingOverride.pricePerDayMinor)} / day`
-                          : ''}
-                        {variant.pricingOverride?.pricePerHourMinor
-                          ? ` · ${formatMinorAsEuro(variant.pricingOverride.pricePerHourMinor)} / hour`
-                          : ''}
+                        {day != null && day > 0 ? ` · ${formatMinorAsEuro(day)} / day` : ''}
                       </p>
                     </li>
-                  ))}
+                    );
+                  })}
                 </ul>
               </Section>
             ) : null}

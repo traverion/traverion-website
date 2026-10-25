@@ -28,9 +28,7 @@ import {
   rentalVariantMetaLine,
   upsertRentalVariant,
 } from './rental-details';
-import { rentalCategoryConfig } from './rental-categories';
-import { RENTAL_OPTION_STEPS } from '../components/supplier/listing-creation/RentalOptionEditor';
-import { rentalCategoryConfig } from './rental-categories';
+import { rentalCategoryConfig, rentalHighlightSuggestions } from './rental-categories';
 import { RENTAL_OPTION_STEPS } from '../components/supplier/listing-creation/RentalOptionEditor';
 import {
   LEGACY_RENTAL_SCREEN_ALIASES,
@@ -41,7 +39,6 @@ import {
   rentalScreenIndexForPublishLine,
   rentalStageBlocker,
 } from './rental-onboarding';
-import { rentalHighlightSuggestions } from './rental-categories';
 import type { RentalDetails } from '../types/rental';
 
 describe('rental details', () => {
@@ -87,6 +84,39 @@ describe('rental details', () => {
     expect(effectiveVariantPricing(rental, rental.variants![1]).pricePerDayMinor).toBe(4500);
   });
 
+  it('copies an inherited day price onto options that do not have one', () => {
+    const id = '11111111-2222-4333-8444-555555555555';
+    const normalized = normalizeRentalDetails({
+      sharedPricing: { pricePerDayMinor: 3000, pricePerHourMinor: 800 },
+      variants: [
+        { id, name: 'Standard', quantity: 2, pricingOverride: null },
+        { id: 'b', name: 'Premium', quantity: 1, pricingOverride: { pricePerDayMinor: 4500, pricePerHourMinor: 900 } },
+        { id: 'c', name: 'Hourly', quantity: 1, pricingOverride: { pricePerHourMinor: 700 } },
+      ],
+    });
+    expect(normalized?.variants?.[0]?.id).toBe(id);
+    expect(normalized?.variants?.[0]?.quantity).toBe(2);
+    expect(normalized?.variants?.[0]?.pricingOverride?.pricePerDayMinor).toBe(3000);
+    expect(normalized?.variants?.[1]?.pricingOverride?.pricePerDayMinor).toBe(4500);
+    expect(normalized?.variants?.[1]?.pricingOverride?.pricePerHourMinor).toBe(900);
+    expect(normalized?.variants?.[2]?.pricingOverride?.pricePerDayMinor).toBe(3000);
+    expect(normalized?.variants?.[2]?.pricingOverride?.pricePerHourMinor).toBe(700);
+    const again = normalizeRentalDetails(normalized);
+    expect(again?.variants?.[0]?.pricingOverride?.pricePerDayMinor).toBe(3000);
+    expect(again?.variants?.[1]?.pricingOverride?.pricePerDayMinor).toBe(4500);
+    expect(rentalStartingFromMajor(normalized!)).toBe(30);
+  });
+
+  it('does not invent a day price when the listing has none', () => {
+    const normalized = normalizeRentalDetails({
+      sharedPricing: { pricePerDayMinor: 0, pricePerHourMinor: 800 },
+      variants: [{ id: 'a', name: 'A', quantity: 1, pricingOverride: null }],
+    });
+    expect(normalized?.variants?.[0]?.id).toBe('a');
+    expect(normalized?.variants?.[0]?.pricingOverride).toBeNull();
+    expect(rentalStartingFromMajor(normalized!)).toBe(0);
+  });
+
   it('ensures a default variant without duplicating', () => {
     const empty = ensureRentalHasDefaultVariant(emptyRentalDetails());
     expect(empty.variants).toHaveLength(1);
@@ -95,17 +125,19 @@ describe('rental details', () => {
     expect(again.variants![0].id).toBe(empty.variants![0].id);
   });
 
-  it('marks incomplete variants when quantity or pricing is missing', () => {
+  it('marks incomplete variants when quantity or an option day price is missing', () => {
     const rental: RentalDetails = {
       ...emptyRentalDetails(),
-      durationMode: 'daily',
-      sharedPricing: {},
+      durationMode: 'hourly',
+      sharedPricing: { pricePerHourMinor: 800, pricePerDayMinor: 2500 },
       variants: [createDefaultRentalVariant('XL')],
     };
     expect(rentalVariantComplete(rental.variants![0], rental)).toBe(false);
-    rental.sharedPricing = { pricePerDayMinor: 2500 };
     rental.variants![0].quantity = 6;
+    rental.variants![0].pricingOverride = { pricePerDayMinor: 2500 };
     expect(rentalVariantComplete(rental.variants![0], rental)).toBe(true);
+    rental.variants![0].pricingOverride = { pricePerDayMinor: 0, pricePerHourMinor: 800 };
+    expect(rentalVariantComplete(rental.variants![0], rental)).toBe(false);
   });
 });
 
@@ -181,6 +213,29 @@ describe('rental pricing derivation', () => {
       ],
     };
     expect(rentalStartingFromMajor(rental)).toBe(20);
+  });
+
+  it('uses the lowest option day price and ignores a cheaper hourly rate', () => {
+    const rental: RentalDetails = {
+      ...emptyRentalDetails(),
+      durationMode: 'both',
+      sharedPricing: { pricePerHourMinor: 500, pricePerDayMinor: 4000 },
+      variants: [
+        { id: 'a', name: 'Standard', quantity: 1 },
+        { id: 'b', name: 'Premium', quantity: 1, pricingOverride: { pricePerDayMinor: 3000 } },
+      ],
+    };
+    expect(rentalStartingFromMajor(rental)).toBe(30);
+  });
+
+  it('does not invent a starting price when no day price exists', () => {
+    const rental: RentalDetails = {
+      ...emptyRentalDetails(),
+      durationMode: 'hourly',
+      sharedPricing: { pricePerHourMinor: 800 },
+      variants: [{ id: 'a', name: 'A', quantity: 1, pricingOverride: { pricePerHourMinor: 800 } }],
+    };
+    expect(rentalStartingFromMajor(rental)).toBe(0);
   });
 
   it('applies multi-day discount on illustrative totals only for daily mode', () => {
@@ -271,6 +326,10 @@ describe('legacy rental screen aliases', () => {
     expect(resolveRentalScreenId('collection')).toBe('handover');
     expect(resolveRentalScreenId('highlights')).toBe('basics-highlights');
     expect(resolveRentalScreenId('basics-description')).toBe('basics-description');
+    expect(resolveRentalScreenId('pricing')).toBe('options');
+    expect(resolveRentalScreenId('multi-day')).toBe('options');
+    expect(resolveRentalScreenId('earnings')).toBe('options');
+    expect(RENTAL_ONBOARDING_SCREENS.some((screen) => screen.id === 'pricing')).toBe(false);
     expect(Object.keys(LEGACY_RENTAL_SCREEN_ALIASES).length).toBeGreaterThan(10);
   });
 
@@ -403,8 +462,7 @@ describe('rental publish readiness', () => {
   });
 
   it('accepts a thermal-overall style listing for creator completeness checks', () => {
-    const rental: RentalDetails = {
-      ...emptyRentalDetails(),
+    const rental = normalizeRentalDetails({
       category: 'winter_clothing',
       itemType: 'thermal_overall',
       durationMode: 'daily',
@@ -422,7 +480,9 @@ describe('rental publish readiness', () => {
           pricingOverride: { pricePerDayMinor: 2500 },
         },
       ],
-    };
+    });
+    expect(rental?.variants?.find((variant) => variant.id === 's')?.pricingOverride?.pricePerDayMinor).toBe(2000);
+    expect(rental?.variants?.find((variant) => variant.id === 'xl')?.pricingOverride?.pricePerDayMinor).toBe(2500);
     const blockers = rentalPublishBlockers({
       title: 'Premium Thermal Overall Rental',
       description: 'Warm thermal overalls for Arctic conditions, sized S through XL.',
@@ -430,9 +490,10 @@ describe('rental publish readiness', () => {
       country: 'Finland',
       galleryCount: 4,
       experienceLanguage: 'en',
-      rental,
+      rental: rental!,
     });
     expect(blockers).toEqual([]);
+    expect(rentalStartingFromMajor(rental!)).toBe(20);
   });
 });
 

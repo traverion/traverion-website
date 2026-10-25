@@ -42,13 +42,12 @@ import {
   rentalCustomerSkillSuitability,
   rentalHasDepositInfo,
   rentalHasInsuranceInfo,
-  rentalIllustrativeTotalMinor,
   rentalSkillConflictsDifficulty,
+  rentalLowestDayPriceMinor,
   rentalVariantComplete,
   rentalVariantMetaLine,
   upsertRentalVariant,
 } from '../../../lib/rental-details';
-import { formatBpsAsPercent, splitGrossByCommissionBps } from '../../../lib/commercial-money';
 import { clampListingDescriptionInput, clampListingTitleInput, MAX_LISTING_DESCRIPTION_LENGTH, MAX_LISTING_TITLE_LENGTH } from '../../../lib/listingQualityScore';
 import { LISTING_PHOTO_MAX, type ListingPhotoCropSettings } from '../../../lib/listingPhotoGrid';
 import { normalizeCurrency } from '../../../lib/money';
@@ -63,7 +62,6 @@ import type {
   RentalDurationMode,
   RentalOperatingDay,
   RentalWeekday,
-  RentalPricing,
   RentalVariant,
 } from '../../../types/rental';
 import ListingImageFields, { type ListingPhotosValue } from '../ListingImageFields';
@@ -74,7 +72,6 @@ import RentalOptionEditor, {
   RentalIntegerInput,
   RentalMoneyInput,
   formatRentalMinor,
-  rentalPricingSummary,
 } from './RentalOptionEditor';
 import { StayChoice, StayField, StayHelp } from './StayCreatorUi';
 import RentalCollectionPoint from './RentalCollectionPoint';
@@ -297,16 +294,10 @@ function galleryUrlsOf(values: Values): string[] {
   return values.photoSlots.filter((url) => url.startsWith('http'));
 }
 
-/** Lowest per-unit price across all options for the primary duration unit. */
-function startingPrice(rental: RentalDetails, mode: RentalDurationMode): { minor: number; unit: string } | null {
-  const unit = mode === 'hourly' ? 'hour' : 'day';
-  let best: number | null = null;
-  for (const v of rental.variants ?? []) {
-    const p = effectiveVariantPricing(rental, v);
-    const minor = unit === 'hour' ? p.pricePerHourMinor : p.pricePerDayMinor;
-    if (minor != null && minor > 0 && (best == null || minor < best)) best = minor;
-  }
-  return best == null ? null : { minor: best, unit };
+/** Lowest option day price, matching the public starting price. */
+function startingPrice(rental: RentalDetails): { minor: number; unit: 'day' } | null {
+  const minor = rentalLowestDayPriceMinor(rental);
+  return minor == null ? null : { minor, unit: 'day' };
 }
 
 function cloneVariant(variant: RentalVariant): RentalVariant {
@@ -1179,7 +1170,7 @@ function CollectionStage({ ctx }: { ctx: Ctx }) {
 /* ------------------------------------------------------------------ */
 
 function OptionsStage({ ctx }: { ctx: Ctx }) {
-  const { rental, cfg, mode, currency, patchRental, editVariant } = ctx;
+  const { rental, cfg, currency, patchRental, editVariant } = ctx;
   const variants = rental.variants ?? [];
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [menuId, setMenuId] = useState<string | null>(null);
@@ -1239,8 +1230,9 @@ function OptionsStage({ ctx }: { ctx: Ctx }) {
                 </span>
               </div>
               <p className="text-sm font-semibold text-ink">
-                {rentalPricingSummary(pricing, mode, currency)}
-                <span className="ml-1.5 font-normal text-ink-muted">{variant.pricingOverride ? 'Custom price' : 'Shared rate'}</span>
+                {pricing.pricePerDayMinor != null && pricing.pricePerDayMinor > 0
+                  ? `${formatRentalMinor(pricing.pricePerDayMinor, currency)} / day`
+                  : 'Price needed'}
               </p>
               {confirming ? (
                 <div className="space-y-2 rounded-xl bg-[#fff7f7] p-3" role="alert">
@@ -1498,248 +1490,6 @@ function PresetNumber({
       <StayField label={customLabel}>
         <RentalIntegerInput value={value} min={0} max={max} ariaLabel={customLabel} suffix={customSuffix} onChange={(n) => onChange(n ?? 0)} />
       </StayField>
-    </div>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-/* Pricing                                                             */
-/* ------------------------------------------------------------------ */
-
-function PricingStage({ ctx }: { ctx: Ctx }) {
-  const { rental, mode, currency, patchRental } = ctx;
-  const shared = rental.sharedPricing ?? {};
-  const write = (next: Partial<RentalPricing>) => patchRental({ sharedPricing: { ...shared, currency, ...next } });
-  return (
-    <div className="space-y-4">
-      {mode === 'daily' || mode === 'both' ? (
-        <StayField label="Price per day">
-          <RentalMoneyInput
-            value={shared.pricePerDayMinor}
-            currency={currency}
-            ariaLabel="Price per day"
-            onChange={(minor) => write({ pricePerDayMinor: minor })}
-          />
-        </StayField>
-      ) : null}
-      {mode === 'hourly' || mode === 'both' ? (
-        <StayField label="Price per hour">
-          <RentalMoneyInput
-            value={shared.pricePerHourMinor}
-            currency={currency}
-            ariaLabel="Price per hour"
-            onChange={(minor) => write({ pricePerHourMinor: minor })}
-          />
-        </StayField>
-      ) : null}
-      <StayHelp>
-        Per-unit rates in {currency}
-        {mode === 'hourly'
-          ? ' — charged for each hour rented.'
-          : mode === 'daily'
-            ? ' — charged for each calendar day rented.'
-            : ' — hourly and daily fields apply to the matching rental length.'}{' '}
-        Options inherit these rates unless you set a custom price. Quantity does not change the unit rate.
-      </StayHelp>
-    </div>
-  );
-}
-
-function MultiDayStage({ ctx }: { ctx: Ctx }) {
-  const { rental, mode, currency, patchRental } = ctx;
-  const shared = rental.sharedPricing ?? {};
-  if (mode === 'hourly') {
-    return (
-      <section className="stay-panel space-y-2">
-        <p className="text-sm text-ink">Multi-day discounts only apply to daily rentals.</p>
-        <p className="stay-help">You can skip this step.</p>
-      </section>
-    );
-  }
-  const percent = shared.multiDayDiscountPercent ?? 0;
-  const enabled = percent > 0;
-  const minDays = shared.multiDayDiscountMinDays ?? 3;
-  const write = (next: Partial<RentalPricing>) => patchRental({ sharedPricing: { ...shared, currency, ...next } });
-  const day = shared.pricePerDayMinor ?? 0;
-  const discounted = Math.round(day * (1 - percent / 100));
-  return (
-    <div className="space-y-4">
-      <div className="grid gap-2 sm:grid-cols-2" role="group" aria-label="Multi-day discount">
-        <StayChoice pressed={!enabled} onClick={() => write({ multiDayDiscountPercent: null, multiDayDiscountMinDays: null })}>
-          No discount
-        </StayChoice>
-        <StayChoice
-          pressed={enabled}
-          onClick={() => {
-            if (!enabled) write({ multiDayDiscountPercent: 10, multiDayDiscountMinDays: 3 });
-          }}
-        >
-          Discount for longer rentals
-        </StayChoice>
-      </div>
-      {enabled ? (
-        <div className="space-y-3">
-          <div className="grid gap-3 sm:grid-cols-2">
-            <StayField label="Discount">
-              <RentalIntegerInput
-                value={percent}
-                min={1}
-                max={90}
-                stepper
-                suffix="%"
-                ariaLabel="Discount percent"
-                onChange={(n) => write({ multiDayDiscountPercent: n ?? 10 })}
-              />
-            </StayField>
-            <StayField label="From this many days">
-              <RentalIntegerInput
-                value={minDays}
-                min={2}
-                max={90}
-                stepper
-                ariaLabel="Minimum days for discount"
-                onChange={(n) => write({ multiDayDiscountMinDays: n ?? 3 })}
-              />
-            </StayField>
-          </div>
-          {day > 0 ? (
-            <StayHelp>
-              Example: from {minDays} days, each day costs {formatRentalMinor(discounted, currency)} instead of{' '}
-              {formatRentalMinor(day, currency)}.
-            </StayHelp>
-          ) : (
-            <StayHelp>Set a daily price in the previous step to see an example.</StayHelp>
-          )}
-        </div>
-      ) : (
-        <StayHelp>Optional. You can skip this step.</StayHelp>
-      )}
-    </div>
-  );
-}
-
-function PricingOverridesStage({ ctx }: { ctx: Ctx }) {
-  const { rental, cfg, mode, currency, goTo, editVariant } = ctx;
-  const variants = rental.variants ?? [];
-  return (
-    <div className="space-y-4">
-      <section className="stay-panel flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="stay-kicker">Shared rates</p>
-          <p className="mt-1 text-base font-semibold text-ink">
-            {rentalPricingSummary(rental.sharedPricing ?? {}, mode, currency)}
-          </p>
-          <p className="stay-help mt-1">Options inherit these unless you set a custom price.</p>
-        </div>
-        <PreviewEdit onClick={() => goTo('pricing')} label="Edit shared rates" />
-      </section>
-      <ul className="space-y-2">
-        {variants.map((variant) => {
-          const pricing = effectiveVariantPricing(rental, variant);
-          const attrs = variantAttributeText(variant, cfg);
-          return (
-            <li key={variant.id} className="stay-panel flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="truncate text-sm font-semibold text-ink">{variant.name.trim() || 'Untitled option'}</p>
-                {attrs ? <p className="stay-help">{attrs}</p> : null}
-                <p className="mt-1 text-sm text-ink">{rentalPricingSummary(pricing, mode, currency)}</p>
-                <p className="stay-help">{variant.pricingOverride ? 'Custom price' : 'Uses shared rate'}</p>
-              </div>
-              <button
-                type="button"
-                className="tv-btn-secondary min-h-11 shrink-0 px-4 text-sm font-semibold"
-                onClick={() => editVariant(cloneVariant(variant), false)}
-              >
-                {variant.pricingOverride ? 'Edit price' : 'Set custom'}
-              </button>
-            </li>
-          );
-        })}
-      </ul>
-    </div>
-  );
-}
-
-function EarningsStage({ ctx }: { ctx: Ctx }) {
-  const { props, rental, mode, currency, goTo } = ctx;
-  const bps = props.commissionBps;
-  const [bothUnit, setBothUnit] = useState<'day' | 'hour'>('day');
-  const unit: 'day' | 'hour' = mode === 'hourly' ? 'hour' : mode === 'daily' ? 'day' : bothUnit;
-  const shared = rental.sharedPricing ?? {};
-  const gross = unit === 'day' ? shared.pricePerDayMinor : shared.pricePerHourMinor;
-  const hasPrice = gross != null && gross > 0 && Number.isInteger(gross);
-
-  let split: { commissionMinor: number; supplierMinor: number } | null = null;
-  if (hasPrice && bps != null) {
-    try {
-      const s = splitGrossByCommissionBps(gross, bps);
-      split = { commissionMinor: s.commissionMinor, supplierMinor: s.supplierMinor };
-    } catch {
-      split = null;
-    }
-  }
-  let percent = '';
-  if (bps != null) {
-    try {
-      percent = formatBpsAsPercent(bps);
-    } catch {
-      percent = '';
-    }
-  }
-
-  return (
-    <div className="space-y-4">
-      {mode === 'both' ? (
-        <div className="flex flex-wrap gap-2" role="group" aria-label="Example duration">
-          <Pill pressed={unit === 'day'} onClick={() => setBothUnit('day')}>
-            1 day
-          </Pill>
-          <Pill pressed={unit === 'hour'} onClick={() => setBothUnit('hour')}>
-            1 hour
-          </Pill>
-        </div>
-      ) : null}
-      {!hasPrice ? (
-        <section className="stay-panel space-y-2">
-          <p className="text-sm text-ink">Set a {unit === 'day' ? 'daily' : 'hourly'} price to see an example.</p>
-          <button type="button" className="min-h-11 text-sm font-semibold text-finland" onClick={() => goTo('pricing')}>
-            Set prices
-          </button>
-        </section>
-      ) : (
-        <section className="stay-panel space-y-3" aria-label="Example earnings">
-          <p className="stay-kicker tracking-[0.12em]">EXAMPLE · 1 {unit === 'day' ? 'DAY' : 'HOUR'} × 1 UNIT</p>
-          <dl className="space-y-2 text-sm">
-            <div className="flex items-baseline justify-between gap-3">
-              <dt className="text-ink">Customer pays</dt>
-              <dd className="font-semibold text-ink">{formatRentalMinor(gross, currency)}</dd>
-            </div>
-            {split ? (
-              <>
-                <div className="flex items-baseline justify-between gap-3">
-                  <dt className="text-ink-muted">Traverion commission{percent ? ` (${percent})` : ''}</dt>
-                  <dd className="text-ink-muted">− {formatRentalMinor(split.commissionMinor, currency)}</dd>
-                </div>
-                <div className="flex items-baseline justify-between gap-3 border-t border-[#E6EAF0] pt-2">
-                  <dt className="font-semibold text-ink">You earn</dt>
-                  <dd className="text-base font-semibold text-[#073b83]">{formatRentalMinor(split.supplierMinor, currency)}</dd>
-                </div>
-              </>
-            ) : null}
-          </dl>
-          {!split ? (
-            <p className="text-sm text-ink-muted" role="status">
-              {bps == null
-                ? 'Your commission and earnings load from your commercial terms. They will appear here once available.'
-                : 'We could not calculate earnings for this example.'}
-            </p>
-          ) : null}
-        </section>
-      )}
-      <StayHelp>
-        This is an example based on your shared {unit === 'day' ? 'daily' : 'hourly'} rate. It is not a final checkout
-        quote, and travelers cannot book rentals yet.
-      </StayHelp>
     </div>
   );
 }
@@ -2233,7 +1983,7 @@ function PreviewStage({ ctx }: { ctx: Ctx }) {
   const { values, rental, cfg, mode, currency, goTo } = ctx;
   const photos = galleryUrlsOf(values);
   const variants = rental.variants ?? [];
-  const from = startingPrice(rental, mode);
+  const from = startingPrice(rental);
   const highlights = values.highlights.map((l) => l.trim()).filter(Boolean);
   const inclusions = (rental.inclusions ?? []).map((l) => l.trim()).filter(Boolean);
   const specs = Object.entries(rental.specifications ?? {}).filter(([key, value]) => key !== 'skillLevel' && value.trim());
@@ -2305,6 +2055,7 @@ function PreviewStage({ ctx }: { ctx: Ctx }) {
               <ul className="space-y-2">
                 {variants.map((variant) => {
                   const attrs = variantAttributeText(variant, cfg);
+                  const day = effectiveVariantPricing(rental, variant).pricePerDayMinor;
                   return (
                     <li
                       key={variant.id}
@@ -2318,7 +2069,7 @@ function PreviewStage({ ctx }: { ctx: Ctx }) {
                         ) : null}
                       </div>
                       <p className="shrink-0 text-right text-sm font-semibold text-ink">
-                        {rentalPricingSummary(effectiveVariantPricing(rental, variant), mode, currency)}
+                        {day != null && day > 0 ? `${formatRentalMinor(day, currency)} / day` : 'Price needed'}
                       </p>
                     </li>
                   );
@@ -2740,8 +2491,7 @@ export default function RentalOnboardingFlow(props: Props) {
     id === 'pickup-location' ||
     id === 'return-location' ||
     id === 'handover' ||
-    id === 'duration' ||
-    id === 'pricing';
+    id === 'duration';
 
   const showBack = props.returnStage != null && props.stage !== props.returnStage;
 
@@ -2840,19 +2590,6 @@ export default function RentalOnboardingFlow(props: Props) {
         </div>
       );
       break;
-    case 'pricing':
-      body = (
-        <div className="space-y-6">
-          <PricingStage ctx={ctx} />
-          <MultiDayStage ctx={ctx} />
-          <EarningsStage ctx={ctx} />
-          <StayHelp>
-            Custom prices for individual sizes or models are set inside each option. Shared rates apply unless an option
-            overrides them.
-          </StayHelp>
-        </div>
-      );
-      break;
     case 'requirements':
       body = <RequirementsStage ctx={ctx} />;
       break;
@@ -2922,6 +2659,7 @@ export default function RentalOnboardingFlow(props: Props) {
         variant={editing.variant}
         rental={rental}
         listingCurrency={currency}
+        commissionBps={props.commissionBps}
         onChange={(variant) => setEditing((cur) => (cur ? { ...cur, variant } : cur))}
         onSave={saveEditing}
         onCancel={() => setEditing(null)}

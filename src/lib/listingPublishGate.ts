@@ -31,7 +31,7 @@ import { stayPublicArrivalNoteBlocker } from './stay-arrival';
 import { stayBedCount } from './stay-beds';
 import { activeStayOptions } from './stay-options';
 import { rentalPublishBlockers } from './rental-onboarding';
-import { emptyRentalDetails } from './rental-details';
+import { emptyRentalDetails, normalizeRentalDetails } from './rental-details';
 
 function optionPublishIssues(
   o: ListingBookingOption,
@@ -118,7 +118,7 @@ export function getListingPublishBlockers(
   const isRental = listing.listingExtras?.inventoryFamily === 'rental';
   // Rentals are never publicly bookable yet — always block “publish” with a clear readiness message.
   if (isRental) {
-    const rental = listing.listingExtras?.rental ?? emptyRentalDetails();
+    const rental = normalizeRentalDetails(listing.listingExtras?.rental) ?? emptyRentalDetails();
     const galleryCount = (listing.listingExtras?.galleryImageUrls ?? [])
       .map((u) => String(u).trim())
       .filter(Boolean).length;

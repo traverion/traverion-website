@@ -6,7 +6,7 @@
 import type { RentalDetails } from '../types/rental';
 import { rentalCategoryConfig } from './rental-categories';
 import { isRentalCancellationPreset } from './rental-cancellation';
-import { rentalOperatingHoursIssue, rentalVariantComplete } from './rental-details';
+import { rentalOperatingHoursIssue, rentalOptionDayPriceMinor, rentalVariantComplete } from './rental-details';
 
 export const RENTAL_ONBOARDING_SCREENS = [
   {
@@ -98,7 +98,7 @@ export const RENTAL_ONBOARDING_SCREENS = [
     group: 'Rental options',
     part: '1 of 1',
     title: 'Rental options',
-    body: 'A listing can have one standard option or several sizes and models. Each option keeps its own stock.',
+    body: 'Each option has its own price, stock, and specifications.',
   },
   {
     id: 'duration',
@@ -120,13 +120,6 @@ export const RENTAL_ONBOARDING_SCREENS = [
     part: '3 of 3',
     title: 'Notice and preparation',
     body: 'Notice is how far ahead a customer must book. Preparation is the buffer between two rentals.',
-  },
-  {
-    id: 'pricing',
-    group: 'Pricing',
-    part: '1 of 1',
-    title: 'Standard price',
-    body: 'The rate every option uses, unless that option has its own price.',
   },
   {
     id: 'requirements',
@@ -224,9 +217,10 @@ export const LEGACY_RENTAL_SCREEN_ALIASES: Record<string, RentalOnboardingScreen
   buffers: 'booking-rules',
   notice: 'booking-rules',
   'availability-summary': 'duration',
-  'multi-day': 'pricing',
+  pricing: 'options',
+  'multi-day': 'options',
   'pricing-overrides': 'options',
-  earnings: 'pricing',
+  earnings: 'options',
 };
 
 export function rentalScreenIndex(id: string): number {
@@ -321,6 +315,9 @@ export function rentalStageBlocker(screenId: RentalOnboardingScreenId, check: Re
       if (!variants.every((v) => v.name.trim() && v.quantity >= 1)) {
         return 'Each option needs a name and at least 1 unit.';
       }
+      if (variants.some((v) => rentalOptionDayPriceMinor(v) == null)) {
+        return 'Each option needs a price per day.';
+      }
       return null;
     }
     case 'duration': {
@@ -342,17 +339,6 @@ export function rentalStageBlocker(screenId: RentalOnboardingScreenId, check: Re
     }
     case 'booking-rules':
       return null;
-    case 'pricing': {
-      const mode = r.durationMode ?? 'daily';
-      const p = r.sharedPricing ?? {};
-      if ((mode === 'hourly' || mode === 'both') && !(p.pricePerHourMinor != null && p.pricePerHourMinor > 0)) {
-        return 'Set an hourly price.';
-      }
-      if ((mode === 'daily' || mode === 'both') && !(p.pricePerDayMinor != null && p.pricePerDayMinor > 0)) {
-        return 'Set a daily price.';
-      }
-      return null;
-    }
     case 'requirements':
       if (r.category === 'snowmobiles' || r.category === 'vehicles') {
         const license = (r.requirements?.license ?? '').trim();
@@ -437,7 +423,7 @@ export const RENTAL_COMPLETION_GROUPS: {
   },
   { id: 'photos', label: 'Photos', screens: ['photos'] },
   { id: 'options', label: 'Rental options', screens: ['options'] },
-  { id: 'pricing', label: 'Pricing and duration', screens: ['duration', 'daily-counting', 'booking-rules', 'pricing'] },
+  { id: 'pricing', label: 'Availability', screens: ['duration', 'daily-counting', 'booking-rules'] },
   { id: 'pickup', label: 'Pickup and return', screens: ['pickup-location', 'return-location', 'hours', 'handover'] },
   {
     id: 'guest',

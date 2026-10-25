@@ -1,6 +1,6 @@
 import { rentalCancellationCustomerText } from './rental-cancellation';
 import { rentalCategoryConfig, rentalItemTypeLabel } from './rental-categories';
-import { effectiveVariantPricing, formatMinorAsEuro } from './rental-details';
+import { formatMinorAsEuro, rentalLowestDayPriceMinor } from './rental-details';
 import type { RentalPurchaseSnapshot } from './rental-booking-domain';
 import type { RentalDetails, RentalOperatingDay, RentalWeekday } from '../types/rental';
 
@@ -133,25 +133,11 @@ export function rentalDurationCustomerText(rental: RentalDetails): string {
   return bits.join(' · ');
 }
 
-/** Lowest public rate across options, for catalog cards. */
+/** Lowest option day price, for catalog cards. */
 export function rentalFromPrice(rental: RentalDetails): { label: string; minor: number } | null {
-  const variants = rental.variants ?? [];
-  const prices: { minor: number; unit: 'hour' | 'day' }[] = [];
-  const consider = variants.length > 0 ? variants : [null];
-  for (const variant of consider) {
-    const pricing = variant ? effectiveVariantPricing(rental, variant) : rental.sharedPricing;
-    if (!pricing) continue;
-    if (rental.durationMode !== 'hourly' && pricing.pricePerDayMinor && pricing.pricePerDayMinor > 0) {
-      prices.push({ minor: pricing.pricePerDayMinor, unit: 'day' });
-    }
-    if (rental.durationMode !== 'daily' && pricing.pricePerHourMinor && pricing.pricePerHourMinor > 0) {
-      prices.push({ minor: pricing.pricePerHourMinor, unit: 'hour' });
-    }
-  }
-  if (prices.length === 0) return null;
-  prices.sort((a, b) => a.minor - b.minor);
-  const best = prices[0];
-  return { minor: best.minor, label: `${formatMinorAsEuro(best.minor)} / ${best.unit}` };
+  const minor = rentalLowestDayPriceMinor(rental);
+  if (minor == null) return null;
+  return { minor, label: `${formatMinorAsEuro(minor)} / day` };
 }
 
 export function rentalSnapshotCancellationText(snap: {

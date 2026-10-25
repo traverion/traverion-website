@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { emptyRentalDetails } from './rental-details';
+import { emptyRentalDetails, normalizeRentalDetails } from './rental-details';
 import { quoteRentalLine, quoteRentalWithAvailability } from './rental-quote';
 import type { RentalDetails } from '../types/rental';
 import { COMMERCIAL_PLANS } from './commercial-money';
@@ -46,6 +46,37 @@ describe('quoteRentalLine', () => {
     expect(result.discountApplied).toBe(true);
     expect(result.commissionMinor + result.supplierEarningsMinor).toBe(10800);
     expect(result.commissionMinor).toBe(Math.floor((10800 * bps) / 10000));
+  });
+
+  it('quotes one day from the option price after an inherited rate is copied', () => {
+    const rental = normalizeRentalDetails(thermalListing());
+    expect(rental?.variants?.find((variant) => variant.id === 'm')?.pricingOverride?.pricePerDayMinor).toBe(2000);
+    expect(rental?.variants?.find((variant) => variant.id === 'xl')?.pricingOverride?.pricePerDayMinor).toBe(2500);
+    const result = quoteRentalLine({
+      rental: rental!,
+      variantId: 'm',
+      quantity: 1,
+      durationCount: 1,
+      unit: 'day',
+      commissionBps: bps,
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.unitMinor).toBe(2000);
+    expect(result.customerTotalMinor).toBe(2000);
+    expect(result.commissionMinor).toBe(Math.floor((2000 * bps) / 10000));
+    expect(result.supplierEarningsMinor).toBe(2000 - result.commissionMinor);
+    const premium = quoteRentalLine({
+      rental: rental!,
+      variantId: 'xl',
+      quantity: 1,
+      durationCount: 1,
+      unit: 'day',
+      commissionBps: bps,
+    });
+    expect(premium.ok).toBe(true);
+    if (!premium.ok) return;
+    expect(premium.unitMinor).toBe(2500);
   });
 
   it('uses variant override pricing', () => {
