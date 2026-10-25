@@ -205,6 +205,30 @@ const SHARED_RESTRICTIONS = [
   'No unsafe or unlawful use',
 ];
 
+/** Ideas the supplier can tap. Nothing here is saved until they select it. */
+export function rentalHighlightSuggestions(id: RentalCategoryId | undefined): string[] {
+  switch (id) {
+    case 'bikes':
+      return ['Helmet included', 'Lock included', 'Lights included', 'Charger for e-bikes', 'Several frame sizes'];
+    case 'winter_clothing':
+      return ['Several sizes', 'Insulated lining', 'Windproof outer', 'Easy to layer'];
+    case 'skis_snowboards':
+      return ['Boots available', 'Poles available', 'Several lengths', 'Bindings included'];
+    case 'snowmobiles':
+      return ['Helmet included', 'Safety briefing at pickup', 'One or two riders', 'Fuel for the rental period'];
+    case 'outdoor_equipment':
+      return ['Carrying bag included', 'Setup instructions included', 'Several sizes'];
+    case 'cameras_electronics':
+      return ['Battery included', 'Charger included', 'Memory card included', 'Protective case'];
+    case 'clothing_accessories':
+      return ['Several sizes', 'Care instructions included', 'Spare pieces available'];
+    case 'vehicles':
+      return ['Safety briefing at pickup', 'Several seats', 'Luggage space'];
+    default:
+      return [];
+  }
+}
+
 export function rentalRestrictionSuggestions(id: RentalCategoryId | undefined): string[] {
   if (id === 'snowmobiles' || id === 'vehicles') {
     return [...SHARED_RESTRICTIONS, 'No use outside permitted areas', 'No prohibited off-road use'];

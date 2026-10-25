@@ -15,6 +15,7 @@ import {
 import {
   RENTAL_CATEGORY_CONFIG,
   rentalCategoryConfig,
+  rentalHighlightSuggestions,
   rentalItemTypeLabel,
   rentalRestrictionSuggestions,
   type RentalCategoryConfig,
@@ -166,14 +167,6 @@ const DAY_LABELS: Record<string, string> = {
   sat: 'Saturday',
   sun: 'Sunday',
 };
-
-const HIGHLIGHT_SUGGESTIONS = [
-  'Well maintained',
-  'Easy pickup and return',
-  'Suitable for beginners',
-  'Safety briefing included',
-  'Family friendly',
-];
 
 const ACCESS_FEATURES = [
   'Step-free pickup access',
@@ -682,7 +675,7 @@ function DescriptionStage({ ctx }: { ctx: Ctx }) {
           className="tv-input w-full resize-y py-2"
           rows={8}
           value={values.description}
-          placeholder="What is included, who it suits, how handover works, and what to expect."
+          placeholder="What the rental is, how it is used, and what the customer should expect."
           onChange={(e) => patch({ description: clampListingDescriptionInput(e.target.value, values.description) })}
         />
       </StayField>
@@ -700,11 +693,15 @@ function HighlightsStage({ ctx }: { ctx: Ctx }) {
   return (
     <ChipEditor
       items={items}
-      suggestions={HIGHLIGHT_SUGGESTIONS}
+      suggestions={rentalHighlightSuggestions(rental.category)}
       max={MAX_HIGHLIGHTS}
       placeholder="Add your own highlight"
       addLabel="Add a highlight"
-      emptyHelp="Optional. Prefer specific points (warm to −20°C, helmet included) over vague praise."
+      emptyHelp={
+        rental.category
+          ? 'Optional. Tap a suggestion only if it is true for this rental, or write your own. Nothing is saved until you add it.'
+          : 'Optional. Choose a category first to see relevant ideas, or write your own highlight.'
+      }
       onChange={(next) => patch({ highlights: next, rental: { ...rental, highlights: next } })}
     />
   );
@@ -2065,7 +2062,7 @@ function PreviewStage({ ctx }: { ctx: Ctx }) {
           ) : null}
 
           {highlights.length > 0 ? (
-            <PreviewSection title="Highlights" onEdit={() => goTo('highlights')}>
+            <PreviewSection title="Highlights" onEdit={() => goTo('basics-highlights')}>
               <ul className="flex flex-wrap gap-2">
                 {highlights.map((line) => (
                   <li key={line} className="rounded-full bg-[#F4F6F8] px-3 py-1.5 text-sm text-ink">
@@ -2486,15 +2483,10 @@ export default function RentalOnboardingFlow(props: Props) {
       );
       break;
     case 'basics-description':
-      body = (
-        <div className="space-y-6">
-          <DescriptionStage ctx={ctx} />
-          <div className="space-y-2">
-            <p className="stay-kicker">Highlights (optional)</p>
-            <HighlightsStage ctx={ctx} />
-          </div>
-        </div>
-      );
+      body = <DescriptionStage ctx={ctx} />;
+      break;
+    case 'basics-highlights':
+      body = <HighlightsStage ctx={ctx} />;
       break;
     case 'basics-specs':
       body = <SpecsStage ctx={ctx} />;

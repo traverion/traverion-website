@@ -15,7 +15,16 @@ import {
   rentalVariantComplete,
   rentalVariantMetaLine,
 } from './rental-details';
-import { LEGACY_RENTAL_SCREEN_ALIASES, resolveRentalScreenId, rentalPublishBlockers } from './rental-onboarding';
+import {
+  LEGACY_RENTAL_SCREEN_ALIASES,
+  RENTAL_ONBOARDING_SCREENS,
+  resolveRentalScreenId,
+  rentalPublishBlockers,
+  rentalScreenIndex,
+  rentalScreenIndexForPublishLine,
+  rentalStageBlocker,
+} from './rental-onboarding';
+import { rentalHighlightSuggestions } from './rental-categories';
 import type { RentalDetails } from '../types/rental';
 
 describe('rental details', () => {
@@ -191,7 +200,43 @@ describe('legacy rental screen aliases', () => {
     expect(resolveRentalScreenId('item-type')).toBe('basics-item');
     expect(resolveRentalScreenId('daily-rules')).toBe('daily-counting');
     expect(resolveRentalScreenId('collection')).toBe('handover');
+    expect(resolveRentalScreenId('highlights')).toBe('basics-highlights');
+    expect(resolveRentalScreenId('basics-description')).toBe('basics-description');
     expect(Object.keys(LEGACY_RENTAL_SCREEN_ALIASES).length).toBeGreaterThan(10);
+  });
+
+  it('places highlights immediately after the description in Basics', () => {
+    const ids = RENTAL_ONBOARDING_SCREENS.filter((screen) => screen.group === 'Basics').map((screen) => screen.id);
+    expect(ids).toEqual([
+      'basics-category',
+      'basics-item',
+      'basics-location',
+      'basics-title',
+      'basics-description',
+      'basics-highlights',
+      'basics-specs',
+    ]);
+    expect(rentalScreenIndex('basics-highlights')).toBe(rentalScreenIndex('basics-description') + 1);
+    expect(RENTAL_ONBOARDING_SCREENS[rentalScreenIndex('basics-description')].part).toBe('5 of 7');
+    expect(RENTAL_ONBOARDING_SCREENS[rentalScreenIndex('basics-highlights')].part).toBe('6 of 7');
+    const check = {
+      title: 'Thermal overall rental',
+      subtitle: 'Warm overalls for a day outside.',
+      description: 'Short',
+      highlights: ['Several sizes'],
+      galleryCount: 3,
+      city: 'Rovaniemi',
+      country: 'Finland',
+      experienceLanguage: 'en',
+      rental: emptyRentalDetails(),
+    };
+    expect(rentalStageBlocker('basics-description', check)).toMatch(/40/);
+    expect(rentalStageBlocker('basics-highlights', { ...check, description: 'Warm thermal overalls for Arctic conditions, sized for a full day outside.' })).toBeNull();
+    expect(rentalScreenIndexForPublishLine('Add a highlight')).toBe(rentalScreenIndex('basics-highlights'));
+    expect(rentalHighlightSuggestions('bikes')).toContain('Helmet included');
+    expect(rentalHighlightSuggestions('cameras_electronics')).toContain('Battery included');
+    expect(rentalHighlightSuggestions('bikes').join(' ')).not.toMatch(/family friendly/i);
+    expect(rentalHighlightSuggestions(undefined)).toEqual([]);
   });
 });
 

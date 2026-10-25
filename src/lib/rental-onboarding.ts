@@ -12,42 +12,49 @@ export const RENTAL_ONBOARDING_SCREENS = [
   {
     id: 'basics-category',
     group: 'Basics',
-    part: '1 of 6',
+    part: '1 of 7',
     title: 'What are you renting out?',
     body: 'Choose the category that matches the product. Item type is the next step.',
   },
   {
     id: 'basics-item',
     group: 'Basics',
-    part: '2 of 6',
+    part: '2 of 7',
     title: 'Which item type is it?',
     body: 'Pick the closest type. Use “Something else” when none of the names fit.',
   },
   {
     id: 'basics-location',
     group: 'Basics',
-    part: '3 of 6',
+    part: '3 of 7',
     title: 'Where is your rental?',
     body: 'Destination, time zone, and the language you write the listing in.',
   },
   {
     id: 'basics-title',
     group: 'Basics',
-    part: '4 of 6',
+    part: '4 of 7',
     title: 'Name your rental',
     body: 'A clear title and a short introduction for search and cards.',
   },
   {
     id: 'basics-description',
     group: 'Basics',
-    part: '5 of 6',
+    part: '5 of 7',
     title: 'Describe the rental',
-    body: 'The full description, plus optional highlights customers can scan.',
+    body: 'The full description customers read on the listing.',
+  },
+  {
+    id: 'basics-highlights',
+    group: 'Basics',
+    part: '6 of 7',
+    title: 'Highlights',
+    body: 'Short points customers can scan. Only highlights you add are saved.',
   },
   {
     id: 'basics-specs',
     group: 'Basics',
-    part: '6 of 6',
+    part: '7 of 7',
     title: 'Shared specifications',
     body: 'Facts that apply to every option. Sizes and models that differ belong in options.',
   },
@@ -204,7 +211,7 @@ export const LEGACY_RENTAL_SCREEN_ALIASES: Record<string, RentalOnboardingScreen
   title: 'basics-title',
   intro: 'basics-title',
   description: 'basics-description',
-  highlights: 'basics-description',
+  highlights: 'basics-highlights',
   specs: 'basics-specs',
   gallery: 'photos',
   'pickup-handover': 'pickup-location',
@@ -282,6 +289,7 @@ export function rentalStageBlocker(screenId: RentalOnboardingScreenId, check: Re
       return (check.description || '').trim().length >= 40
         ? null
         : 'Add a description of at least 40 characters.';
+    case 'basics-highlights':
     case 'basics-specs':
       return null;
     case 'photos': {
@@ -403,6 +411,7 @@ export function rentalScreenIndexForPublishLine(line: string): number {
   if (/item type/.test(text)) return rentalScreenIndex('basics-item');
   if (/categor/.test(text)) return rentalScreenIndex('basics-category');
   if (/title|introduction/.test(text)) return rentalScreenIndex('basics-title');
+  if (/highlight/.test(text)) return rentalScreenIndex('basics-highlights');
   if (/description/.test(text)) return rentalScreenIndex('basics-description');
   if (/city|country|location|language/.test(text)) return rentalScreenIndex('basics-location');
   if (/handover|hours/.test(text)) return rentalScreenIndex('handover');
@@ -424,7 +433,7 @@ export const RENTAL_COMPLETION_GROUPS: {
   {
     id: 'details',
     label: 'Listing details',
-    screens: ['basics-category', 'basics-item', 'basics-location', 'basics-title', 'basics-description', 'basics-specs'],
+    screens: ['basics-category', 'basics-item', 'basics-location', 'basics-title', 'basics-description', 'basics-highlights', 'basics-specs'],
   },
   { id: 'photos', label: 'Photos', screens: ['photos'] },
   { id: 'options', label: 'Rental options', screens: ['options'] },
