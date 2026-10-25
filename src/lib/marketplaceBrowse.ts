@@ -65,7 +65,7 @@ export function marketplaceSearchMinSelectableIso(nowMs: number = Date.now()): s
   return marketplaceBrowseTodayIso(nowMs);
 }
 
-export type MarketplaceSearchFamily = 'tours' | 'stays';
+export type MarketplaceSearchFamily = 'tours' | 'stays' | 'rentals';
 
 export type MarketplaceSearchValues = {
   where: string;
@@ -370,6 +370,19 @@ export function listingIsPrivateOnly(tour: TourPackage): boolean {
   return opts.length > 0 && opts.every((o) => Boolean(o.isPrivate));
 }
 
+/** Pickup and return may be the same calendar day. A return before pickup moves to the pickup date. */
+export function nextRentalDatePatch(
+  current: Pick<MarketplaceSearchValues, 'date' | 'checkout'>,
+  nextPickup: string
+): Partial<MarketplaceSearchValues> {
+  if (!nextPickup.trim()) return { date: '', checkout: '' };
+  const patch: Partial<MarketplaceSearchValues> = { date: nextPickup };
+  if (current.checkout && nextPickup && current.checkout < nextPickup) {
+    patch.checkout = nextPickup;
+  }
+  return patch;
+}
+
 export function nextStayDatePatch(
   current: Pick<MarketplaceSearchValues, 'date' | 'checkout'>,
   nextCheckIn: string
@@ -547,8 +560,11 @@ export function marketplaceFamilySwitchPath(
       values.checkout && values.checkout > values.date ? values.checkout : addCalendarDays(values.date, 1);
     p.set('checkout', out);
   }
-  if (values.guests?.trim()) p.set('guests', values.guests.trim());
-  const path = target === 'stays' ? '/stays' : '/packages';
+  if (target === 'rentals' && values.date && values.checkout && values.checkout >= values.date) {
+    p.set('checkout', values.checkout);
+  }
+  if (target !== 'rentals' && values.guests?.trim()) p.set('guests', values.guests.trim());
+  const path = target === 'stays' ? '/stays' : target === 'rentals' ? '/rentals' : '/packages';
   const s = p.toString();
   return s ? `${path}?${s}` : path;
 }

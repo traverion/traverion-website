@@ -21,6 +21,7 @@ const STATIC_ENTRIES: SitemapUrlEntry[] = [
   { loc: 'https://traverion.com/', changefreq: 'weekly', priority: '1' },
   { loc: 'https://traverion.com/packages', changefreq: 'daily', priority: '0.9' },
   { loc: 'https://traverion.com/stays', changefreq: 'daily', priority: '0.9' },
+  { loc: 'https://traverion.com/rentals', changefreq: 'daily', priority: '0.9' },
   { loc: 'https://traverion.com/about', changefreq: 'monthly', priority: '0.6' },
   { loc: 'https://traverion.com/blog', changefreq: 'weekly', priority: '0.6' },
   { loc: 'https://traverion.com/contact', changefreq: 'monthly', priority: '0.6' },
@@ -46,6 +47,7 @@ export function sitemapPathForListing(row: SitemapListingRow, todayIso?: string)
   if (row.is_holiday_package) return null;
   const family = familyFromExtras(row.listing_extras) ?? 'tour';
   if (family === 'stay') return `/stays/${row.id}`;
+  if (family === 'rental') return `/rentals/${row.id}`;
   if (family === 'tour') {
     // Phase 1261: do not index tours whose every season has already ended.
     if (
@@ -76,7 +78,7 @@ export function buildSitemapEntries(listings: SitemapListingRow[]): SitemapUrlEn
   }
   inventory.sort((a, b) => a.loc.localeCompare(b.loc));
   // Static shell first (home/catalogs), then inventory, then rest of static — match prior human layout:
-  const head = STATIC_ENTRIES.slice(0, 3);
+  const head = STATIC_ENTRIES.slice(0, 4);
   const tail = STATIC_ENTRIES.slice(3);
   return [...head, ...inventory, ...tail];
 }
@@ -94,7 +96,7 @@ export function renderSitemapXml(entries: SitemapUrlEntry[], generatedAtIso?: st
   const lines = [
     '<?xml version="1.0" encoding="UTF-8"?>',
     '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
-    `  <!-- Generated ${stamp}. Published traveler catalog only (tour + stay). No drafts. -->`,
+    `  <!-- Generated ${stamp}. Published tours, stays, and rentals. No drafts. -->`,
   ];
   for (const e of entries) {
     lines.push(

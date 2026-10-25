@@ -17,6 +17,13 @@ describe('sitemap-xml', () => {
         listing_extras: { inventoryFamily: 'stay' },
       })
     ).toBe('/stays/s1');
+    expect(
+      sitemapPathForListing({
+        id: 'r1',
+        status: 'published',
+        listing_extras: { inventoryFamily: 'rental' },
+      })
+    ).toBe('/rentals/r1');
   });
 
   it('excludes drafts, packages, experiences', () => {

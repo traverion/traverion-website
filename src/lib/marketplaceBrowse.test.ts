@@ -9,6 +9,7 @@ import {
   matchesDurationFilter,
   matchesPriceChip,
   matchesRatingFilter,
+  nextRentalDatePatch,
   nextStayDatePatch,
   failCloseOrphanStayCheckout,
   toursBrowseFilteredEmptyBody,
@@ -396,6 +397,24 @@ describe('marketplace browse filters', () => {
       marketplaceFamilySwitchPath('tours', { q: 'Rovaniemi', date: '2026-09-22', checkout: '2026-09-25', guests: '2' })
     ).toBe('/packages?q=Rovaniemi&date=2026-09-22&guests=2');
     expect(marketplaceFamilySwitchPath('tours', {})).toBe('/packages');
+    expect(
+      marketplaceFamilySwitchPath('rentals', {
+        q: 'Rovaniemi',
+        date: '2026-09-22',
+        checkout: '2026-09-22',
+        guests: '2',
+      })
+    ).toBe('/rentals?q=Rovaniemi&date=2026-09-22&checkout=2026-09-22');
+  });
+
+  it('keeps a same-day rental return when the pickup date moves earlier', () => {
+    expect(nextRentalDatePatch({ date: '2026-09-22', checkout: '2026-09-22' }, '2026-09-20')).toEqual({
+      date: '2026-09-20',
+    });
+    expect(nextRentalDatePatch({ date: '2026-09-22', checkout: '2026-09-22' }, '2026-09-24')).toEqual({
+      date: '2026-09-24',
+      checkout: '2026-09-24',
+    });
   });
 
   it('marketplaceWhereDisplay prefers draft text, else destination chip label', () => {

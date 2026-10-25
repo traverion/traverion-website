@@ -1008,6 +1008,16 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
               window.history.pushState({}, '', next);
               onNavigate('stays');
             }}
+            onRentals={() => {
+              if (!onNavigate) return;
+              const next = marketplaceFamilySwitchPath('rentals', {
+                q: searchTerm,
+                destination: selectedDestination !== 'all' ? selectedDestination : undefined,
+                date: filterDate,
+              });
+              window.history.pushState({}, '', next);
+              onNavigate('rentals');
+            }}
           />
         }
         search={

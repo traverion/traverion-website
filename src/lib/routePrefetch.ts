@@ -39,9 +39,18 @@ export function prefetchStayDetailsPage() {
   warm(() => import('../pages/StayDetails'));
 }
 
+export function prefetchRentalsPage() {
+  warm(() => import('../pages/RentalsCatalog'));
+}
+
+export function prefetchRentalDetailsPage() {
+  warm(() => import('../pages/RentalDetails'));
+}
+
 /** Prefetch the correct detail chunk for a catalog card. */
-export function prefetchListingDetailsPage(kind: 'tour' | 'stay'): void {
+export function prefetchListingDetailsPage(kind: 'tour' | 'stay' | 'rental'): void {
   if (kind === 'stay') prefetchStayDetailsPage();
+  else if (kind === 'rental') prefetchRentalDetailsPage();
   else prefetchTourDetailsPage();
 }
 

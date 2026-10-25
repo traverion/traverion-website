@@ -89,6 +89,7 @@ export default function RentalDetails({ listingId, onNavigate }: Props) {
           setDraftPreview(true);
         }
         setListing(row);
+        document.title = `${row.title} · Rentals · Traverion`;
       } catch (e) {
         if (!cancelled) {
           setListing(null);
@@ -163,18 +164,24 @@ function RentalBody({
   const highlights = (rental.highlights?.length ? rental.highlights : listing.highlights) ?? [];
 
   return (
-    <div className="min-h-screen bg-[#F7F8FA] text-ink">
-      <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:py-10">
-        <button type="button" className="text-sm font-semibold text-[#073b83]" onClick={() => onNavigate('rentals')}>
-          All rentals
-        </button>
+    <div className="min-h-screen bg-paper text-ink tv-page pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] lg:pb-0">
+      <div className="tv-shell px-4 sm:px-6 lg:px-8 pt-2 sm:pt-3 pb-6 sm:pb-8">
+        <nav aria-label="Breadcrumb" className="mb-2.5">
+          <button
+            type="button"
+            className="text-sm font-semibold text-[#073b83]"
+            onClick={() => onNavigate('rentals')}
+          >
+            All rentals
+          </button>
+        </nav>
         {draftPreview ? (
           <p className="mt-4 rounded-xl bg-[#F4F6F8] px-3.5 py-2.5 text-sm text-ink" role="note">
             Draft preview. Travelers cannot see this listing, and it cannot be booked until Traverion publishes rentals.
           </p>
         ) : null}
 
-        <div className="mt-4 grid gap-8 lg:grid-cols-[minmax(0,1.45fr)_minmax(18rem,22rem)] lg:items-start">
+        <div className="mt-4 grid grid-cols-1 gap-8 pb-24 lg:grid-cols-[minmax(0,1.85fr)_minmax(17.5rem,22rem)] lg:items-start lg:gap-8 lg:pb-0">
           <div className="min-w-0 space-y-5">
             <RentalPhotoGallery photos={photos} title={listing.title} />
 
@@ -410,12 +417,20 @@ function RentalBody({
             </Section>
           </div>
 
-          <aside className="lg:sticky lg:top-24">
+          <aside
+            id="rental-booking"
+            className="tv-booking-sticky tv-booking-sticky--fit scroll-mt-28 h-fit lg:sticky lg:top-[calc(4.75rem+env(safe-area-inset-top,0px))]"
+          >
             <div className="rounded-2xl bg-white p-5 shadow-[0_8px_30px_rgb(15_23_42/0.06)] ring-1 ring-[#E6EAF0]">
               <RentalBookingWidget listingId={listing.id} listingTitle={listing.title} rental={rental} />
             </div>
           </aside>
         </div>
+      </div>
+      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-black/[0.06] bg-white px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] lg:hidden">
+        <a href="#rental-booking" className="tv-btn-primary flex min-h-12 w-full items-center justify-center font-semibold">
+          Review rental
+        </a>
       </div>
     </div>
   );

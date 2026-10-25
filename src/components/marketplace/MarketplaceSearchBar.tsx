@@ -3,6 +3,7 @@ import { useId } from 'react';
 import { Calendar, MapPin, Search, Users } from 'lucide-react';
 import { addCalendarDays } from '../../lib/stayOccupancy';
 import {
+  nextRentalDatePatch,
   nextStayDatePatch,
   marketplaceBrowseTodayIso,
   marketplaceSearchMinSelectableIso,
@@ -81,7 +82,8 @@ export function MarketplaceDestinationField({
   const isStay = family === 'stays';
   const labelId = useId();
   const valueId = useId();
-  const placeholder = isStay ? 'City, region or stay' : 'City, region or tour';
+  const placeholder =
+    family === 'rentals' ? 'City, region or rental' : isStay ? 'City, region or stay' : 'City, region or tour';
   const spokenValue = value.trim() || placeholder;
   return (
     <FieldShell stacked={stacked} icon={<MapPin className="h-4 w-4" strokeWidth={2} />}>
@@ -112,6 +114,8 @@ export function MarketplaceSearchFields({
   stacked = false,
 }: Pick<Props, 'family' | 'values' | 'onChange' | 'idPrefix' | 'stacked'>) {
   const isStay = family === 'stays';
+  const isRental = family === 'rentals';
+  const ranged = isStay || isRental;
   const searchMinIso = marketplaceSearchMinSelectableIso();
   const browseTodayIso = marketplaceBrowseTodayIso();
   return (
@@ -127,28 +131,36 @@ export function MarketplaceSearchFields({
       <FieldShell stacked={stacked} icon={<Calendar className="h-4 w-4" strokeWidth={2} />}>
         <TraverionSingleDateField
           id={`${idPrefix}-date`}
-          label={isStay ? 'Check-in' : 'Dates'}
+          label={isStay ? 'Check-in' : isRental ? 'Pickup' : 'Dates'}
           value={values.date}
-          placeholder={isStay ? 'Add date' : 'Any dates'}
+          placeholder={ranged ? 'Add date' : 'Any dates'}
           minIso={searchMinIso}
           todayIso={browseTodayIso}
           tone="premium"
           hideIcon
-          onChange={(next) => {
-            onChange(isStay ? nextStayDatePatch(values, next) : { date: next });
+            onChange={(next) => {
+            onChange(
+              isStay ? nextStayDatePatch(values, next) : isRental ? nextRentalDatePatch(values, next) : { date: next }
+            );
           }}
         />
       </FieldShell>
-      {isStay ? (
+      {ranged ? (
         <>
           <FieldDivider stacked={stacked} />
           <FieldShell stacked={stacked} icon={<Calendar className="h-4 w-4" strokeWidth={2} />}>
             <TraverionSingleDateField
               id={`${idPrefix}-checkout`}
-              label="Check-out"
+              label={isRental ? 'Return' : 'Check-out'}
               value={values.checkout}
               placeholder="Add date"
-              minIso={values.date ? addCalendarDays(values.date, 1) : searchMinIso}
+              minIso={
+                isRental
+                  ? values.date || searchMinIso
+                  : values.date
+                    ? addCalendarDays(values.date, 1)
+                    : searchMinIso
+              }
               todayIso={browseTodayIso}
               tone="premium"
               hideIcon
@@ -158,12 +170,15 @@ export function MarketplaceSearchFields({
                   if (!next.trim()) onChange({ checkout: next });
                   return;
                 }
+                if (isRental && next && next < values.date) return;
                 onChange({ checkout: next });
               }}
             />
           </FieldShell>
         </>
       ) : null}
+      {isRental ? null : (
+        <>
       <FieldDivider stacked={stacked} />
       <FieldShell stacked={stacked} icon={<Users className="h-4 w-4" strokeWidth={2} />}>
         <TravelerGuestPicker
@@ -176,6 +191,8 @@ export function MarketplaceSearchFields({
           onChange={(next) => onChange({ guests: next })}
         />
       </FieldShell>
+        </>
+      )}
     </>
   );
 }
@@ -191,6 +208,7 @@ export function MarketplaceSearchPill({
   className = '',
 }: Props) {
   const isStay = family === 'stays';
+  const isRental = family === 'rentals';
   const grid = isStay
     ? trailing
       ? 'grid-cols-[minmax(0,1.2fr)_auto_minmax(0,0.95fr)_auto_minmax(0,0.95fr)_auto_minmax(0,0.85fr)_auto]'
@@ -202,7 +220,7 @@ export function MarketplaceSearchPill({
     <form
       onSubmit={onSubmit ?? ((e) => e.preventDefault())}
       className={`tv-hero-search hidden items-center gap-0 overflow-visible rounded-full bg-white p-1.5 ring-1 ring-black/[0.04] sm:grid ${grid} ${className}`}
-      aria-label={ariaLabel ?? (isStay ? 'Search stays' : 'Search tours')}
+      aria-label={ariaLabel ?? (isRental ? 'Search rentals' : isStay ? 'Search stays' : 'Search tours')}
     >
       <MarketplaceSearchFields family={family} values={values} onChange={onChange} idPrefix={idPrefix} />
       {trailing}
@@ -223,11 +241,12 @@ export function MarketplaceSearchStack({
   header,
 }: Props & { submitLabel?: string; header?: ReactNode }) {
   const isStay = family === 'stays';
+  const isRental = family === 'rentals';
   return (
     <form
       onSubmit={onSubmit ?? ((e) => e.preventDefault())}
       className={`tv-hero-search overflow-hidden rounded-[1.25rem] bg-white ring-1 ring-black/[0.05] ${className}`}
-      aria-label={ariaLabel ?? (isStay ? 'Search stays' : 'Search tours')}
+      aria-label={ariaLabel ?? (isRental ? 'Search rentals' : isStay ? 'Search stays' : 'Search tours')}
     >
       {header}
       <MarketplaceSearchFields

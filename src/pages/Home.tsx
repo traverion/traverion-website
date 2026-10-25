@@ -28,7 +28,7 @@ import { SkeletonCardGrid, SkeletonPlaceGrid } from '../components/ui/Skeleton';
 import { USER_ERROR, userFacingError } from '../lib/userFacingError';
 import { HERO_IMG } from '../lib/heroImages';
 import { destinationCoverSrc } from '../lib/destinationCover';
-import { prefetchDestinationPage, prefetchPackagesPage, prefetchStaysPage } from '../lib/routePrefetch';
+import { prefetchDestinationPage, prefetchPackagesPage, prefetchRentalsPage, prefetchStaysPage } from '../lib/routePrefetch';
 import { addCalendarDays } from '../lib/stayOccupancy';
 import {
   recordTravelerInterest,
@@ -90,7 +90,7 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
     [catalogBase]
   );
   const stayListings = useMemo(() => filterCatalogByFamily(catalogBase, 'stay'), [catalogBase]);
-  const [searchFamily, setSearchFamily] = useState<'tours' | 'stays'>('tours');
+  const [searchFamily, setSearchFamily] = useState<'tours' | 'stays' | 'rentals'>('tours');
   const wishlist = useTravelerWishlist();
 
   const placeChips = useMemo(() => {
@@ -251,10 +251,27 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
     onNavigate('stays');
   };
 
+  const goToRentals = () => {
+    if (!onNavigate) return;
+    const params = new URLSearchParams();
+    const q = searchTerm.trim();
+    const date = when.trim();
+    const out = checkout.trim();
+    if (q) {
+      params.set('q', q);
+      params.set('destination', q);
+    }
+    if (date) params.set('date', date);
+    if (date && out && out >= date) params.set('checkout', out);
+    const query = params.toString();
+    window.history.pushState({}, '', query ? `/rentals?${query}` : '/rentals');
+    onNavigate('rentals');
+  };
+
   const submitSearch = (e: React.FormEvent) => {
     e.preventDefault();
     const q = searchTerm.trim();
-    if (q) {
+    if (q && searchFamily !== 'rentals') {
       recordTravelerInterest({
         kind: 'search',
         key: q,
@@ -263,6 +280,7 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
       setInterestSignals(readTravelerInterestSignals());
     }
     if (searchFamily === 'stays') goToStays();
+    else if (searchFamily === 'rentals') goToRentals();
     else goToPackages();
   };
 
@@ -285,6 +303,15 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
         className="tv-hero-family-tabs__btn lux-flat"
       >
         Stays
+      </button>
+      <button
+        type="button"
+        role="tab"
+        aria-selected={searchFamily === 'rentals'}
+        onClick={() => setSearchFamily('rentals')}
+        className="tv-hero-family-tabs__btn lux-flat"
+      >
+        Rentals
       </button>
     </div>
   );
@@ -320,10 +347,10 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
           {/* Phase 1801: brand dominates first viewport — headline must not overpower Traverion. */}
           <p className="page-hero-eyebrow font-sans text-white">Traverion</p>
           <h1 className="page-hero-title font-sans text-white">
-            Discover remarkable experiences and stays.
+            Discover remarkable experiences, stays, and rentals.
           </h1>
           <p className="page-hero-subtitle font-sans">
-            Book tours and nights directly with the people who run them.
+            Book tours, nights, and gear directly with the people who run them.
           </p>
 
           {/* Mobile: vertical floating search card on the hero */}
@@ -342,7 +369,9 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
                 idPrefix="home-mobile"
                 onSubmit={submitSearch}
                 submitLabel="Search"
-                ariaLabel={searchFamily === 'stays' ? 'Search stays' : 'Search tours'}
+                ariaLabel={
+                  searchFamily === 'stays' ? 'Search stays' : searchFamily === 'rentals' ? 'Search rentals' : 'Search tours'
+                }
                 className="text-ink"
               />
             </div>
@@ -351,7 +380,13 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
           {/* Desktop: floating pill across the lower hero */}
           <div
             className="mx-auto hidden w-full max-w-5xl space-y-2.5 sm:block"
-            onPointerEnter={() => (searchFamily === 'stays' ? prefetchStaysPage() : prefetchPackagesPage())}
+            onPointerEnter={() =>
+              searchFamily === 'stays'
+                ? prefetchStaysPage()
+                : searchFamily === 'rentals'
+                  ? prefetchRentalsPage()
+                  : prefetchPackagesPage()
+            }
           >
             {familyTabs}
             <form
@@ -361,7 +396,9 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
                   ? 'grid-cols-[minmax(0,1.2fr)_auto_minmax(0,0.95fr)_auto_minmax(0,0.95fr)_auto_minmax(0,0.85fr)_auto]'
                   : 'grid-cols-[minmax(0,1.4fr)_auto_minmax(0,1.05fr)_auto_minmax(0,0.95fr)_auto]'
               }`}
-              aria-label={searchFamily === 'stays' ? 'Search stays' : 'Search tours'}
+              aria-label={
+                searchFamily === 'stays' ? 'Search stays' : searchFamily === 'rentals' ? 'Search rentals' : 'Search tours'
+              }
             >
               {searchFields('home')}
               <button type="submit" className="tv-hero-search-btn lux-flat">

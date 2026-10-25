@@ -26,7 +26,7 @@ import { fetchDiscountsByListingIds } from '../data/supabase-discounts';
 import { getReviewAggregatesForListingIds } from '../data/supabase-reviews';
 import { formatMoney, normalizeCurrency } from '../lib/money';
 import { recordTravelerInterest } from '../lib/traveler-interest';
-import { MarketplaceBrowseShell, MarketplaceSortSelect } from '../components/marketplace/MarketplaceBrowseShell';
+import { MarketplaceBrowseShell, MarketplaceFamilySwitch, MarketplaceSortSelect } from '../components/marketplace/MarketplaceBrowseShell';
 import {
   MarketplaceActiveChip,
   MarketplaceFilterChip,
@@ -52,6 +52,7 @@ import {
   parseMarketplaceSort,
   parsePriceChipId,
   parseRatingFilterId,
+  marketplaceFamilySwitchPath,
   marketplaceWhereDisplay,
   parseCalendarDateParam,
   RATING_FILTER_CHIPS,
@@ -831,6 +832,34 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
       <MarketplaceBrowseShell
         headingId="stays-heading"
         resultTitle={resultTitle}
+        familyNav={
+          <MarketplaceFamilySwitch
+            current="stays"
+            onStays={() => undefined}
+            onTours={() => {
+              if (!onNavigate) return;
+              const next = marketplaceFamilySwitchPath('tours', {
+                q,
+                destination: selectedDestination !== 'all' ? selectedDestination : undefined,
+                date: checkIn,
+                guests,
+              });
+              window.history.pushState({}, '', next);
+              onNavigate('packages');
+            }}
+            onRentals={() => {
+              if (!onNavigate) return;
+              const next = marketplaceFamilySwitchPath('rentals', {
+                q,
+                destination: selectedDestination !== 'all' ? selectedDestination : undefined,
+                date: checkIn,
+                checkout: checkOut,
+              });
+              window.history.pushState({}, '', next);
+              onNavigate('rentals');
+            }}
+          />
+        }
         search={
           <MarketplaceSearchPill
             family="stays"

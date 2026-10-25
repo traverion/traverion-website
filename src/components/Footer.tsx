@@ -105,6 +105,11 @@ export default function Footer({ onNavigate }: { onNavigate?: (page: string) => 
                 </button>
               </li>
               <li>
+                <button type="button" onClick={() => nav('rentals')} className={linkClass}>
+                  Rentals
+                </button>
+              </li>
+              <li>
                 <button type="button" onClick={() => nav('cart')} className={linkClass}>
                   Cart
                 </button>

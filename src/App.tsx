@@ -437,7 +437,7 @@ function App() {
     }
     if (currentPage === 'rentals') {
       if (window.location.pathname !== '/rentals') {
-        window.history.replaceState(window.history.state, '', '/rentals');
+        window.history.replaceState({}, '', `/rentals${window.location.search}`);
       }
       return;
     }
@@ -872,6 +872,7 @@ function App() {
       case 'rentals':
         return (
           <RentalsCatalog
+            onNavigate={handleNavigate}
             onOpenListing={(id) => {
               window.history.pushState({ traverionPage: 'rental-details' }, '', `/rentals/${id}`);
               setDestinationSlug(id);
@@ -888,6 +889,7 @@ function App() {
         if (!rentalId) {
           return (
             <RentalsCatalog
+              onNavigate={handleNavigate}
               onOpenListing={(id) => {
                 window.history.pushState({ traverionPage: 'rental-details' }, '', `/rentals/${id}`);
                 setDestinationSlug(id);

@@ -132,38 +132,29 @@ export function MarketplaceFamilySwitch({
   current,
   onTours,
   onStays,
+  onRentals,
 }: {
-  current: 'tours' | 'stays';
+  current: 'tours' | 'stays' | 'rentals';
   onTours: () => void;
   onStays: () => void;
+  onRentals: () => void;
 }) {
+  const tabClass = (selected: boolean) =>
+    `lux-flat min-h-11 rounded-full px-4 py-1.5 text-sm font-medium ${
+      selected
+        ? 'bg-white font-semibold text-finland shadow-sm ring-1 ring-finland/25'
+        : 'text-ink-muted hover:bg-black/[0.04] hover:text-ink'
+    }`;
   return (
     <div className="flex flex-wrap gap-1 rounded-full bg-black/[0.04] p-1 w-fit max-w-full ring-1 ring-black/[0.06]" role="tablist" aria-label="Listing type">
-      <button
-        type="button"
-        role="tab"
-        aria-selected={current === 'tours'}
-        onClick={onTours}
-        className={`lux-flat min-h-11 rounded-full px-4 py-1.5 text-sm font-medium ${
-          current === 'tours'
-            ? 'bg-white font-semibold text-finland shadow-sm ring-1 ring-finland/25'
-            : 'text-ink-muted hover:bg-black/[0.04] hover:text-ink'
-        }`}
-      >
+      <button type="button" role="tab" aria-selected={current === 'tours'} onClick={onTours} className={tabClass(current === 'tours')}>
         Tours
       </button>
-      <button
-        type="button"
-        role="tab"
-        aria-selected={current === 'stays'}
-        onClick={onStays}
-        className={`lux-flat min-h-11 rounded-full px-4 py-1.5 text-sm font-medium ${
-          current === 'stays'
-            ? 'bg-white font-semibold text-finland shadow-sm ring-1 ring-finland/25'
-            : 'text-ink-muted hover:bg-black/[0.04] hover:text-ink'
-        }`}
-      >
+      <button type="button" role="tab" aria-selected={current === 'stays'} onClick={onStays} className={tabClass(current === 'stays')}>
         Stays
+      </button>
+      <button type="button" role="tab" aria-selected={current === 'rentals'} onClick={onRentals} className={tabClass(current === 'rentals')}>
+        Rentals
       </button>
     </div>
   );

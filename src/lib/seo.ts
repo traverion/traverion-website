@@ -108,6 +108,10 @@ export function publicStayPath(listingId: string): string {
   return `/stays/${listingId}`;
 }
 
+export function publicRentalPath(listingId: string): string {
+  return `/rentals/${listingId}`;
+}
+
 /** Inject JSON-LD for a single tour (Product schema). Call from tour detail page. */
 export function setTourJsonLd(tour: {
   id: string;

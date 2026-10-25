@@ -46,6 +46,15 @@ export type PublicListingBrowseCardProps = {
   browseDateIso?: string;
   /** Traveler/guest count from search — exclude options that cannot fit the party. */
   partySize?: number;
+  /**
+   * Rental browse uses the option starting rate and category.
+   * Skips tour seasons and stay nightly quotes so those prices are not invented.
+   */
+  rentalBrowse?: {
+    badge: string;
+    meta: string;
+    priceLabel: string | null;
+  } | null;
 };
 
 /**
@@ -66,12 +75,14 @@ export const PublicListingBrowseCard = memo(function PublicListingBrowseCard({
   wishlist = null,
   browseDateIso = '',
   partySize,
+  rentalBrowse = null,
 }: PublicListingBrowseCardProps) {
   // Defense in depth: unpublished listings must not appear on traveler browse surfaces.
   if (!isListingVisibleToTravelers(tour.status)) return null;
   const isStay = listingIsFamily(tour, 'stay');
+  const isRental = rentalBrowse != null;
   // Phase 1276: season-ended tours must not render even if a parent list missed the filter.
-  if (!isStay && !listingHasUpcomingBookableSeason(tour)) return null;
+  if (!isStay && !isRental && !listingHasUpcomingBookableSeason(tour)) return null;
 
   // Phase 1107: null map = offers not loaded / load failed — do not invent “no discount”.
   const offersUnknown = discountsByListing == null && isSupabaseListingId(tour.id);
@@ -126,7 +137,11 @@ export const PublicListingBrowseCard = memo(function PublicListingBrowseCard({
   const showWishlist = Boolean(wishlist && isSupabaseListingId(tour.id));
   // Phase 1559: dates selected + no successful stay total → hide catalog nightly.
   const stayQuoteUnavailable = isStay && stayDatesSelected && !stayStayTotal;
-  const priceAria = offersUnknown
+  const priceAria = isRental
+    ? rentalBrowse?.priceLabel
+      ? `From ${rentalBrowse.priceLabel}`
+      : 'Price on the listing'
+    : offersUnknown
     ? 'Price pending offer check'
     : stayQuoteUnavailable
       ? 'Price unavailable for these dates'
@@ -173,7 +188,7 @@ export const PublicListingBrowseCard = memo(function PublicListingBrowseCard({
             onSelect();
           }
         }}
-        onPointerEnter={() => prefetchListingDetailsPage(isStay ? 'stay' : 'tour')}
+        onPointerEnter={() => prefetchListingDetailsPage(isRental ? 'rental' : isStay ? 'stay' : 'tour')}
         className="tv-browse-card__surface group lux-flat block w-full overflow-hidden rounded-xl bg-white text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-finland focus-visible:ring-offset-2"
         style={{ animationDelay: `${Math.min(index * 35, 240)}ms` }}
         aria-label={`View ${tour.title}. ${priceAria}`}
@@ -196,7 +211,11 @@ export const PublicListingBrowseCard = memo(function PublicListingBrowseCard({
             />
           ) : null}
           <div className="absolute top-2.5 left-2.5 flex flex-wrap gap-1.5 pr-12">
-            {!isStay ? (
+            {isRental ? (
+              <span className="rounded-md bg-white/95 px-2 py-0.5 text-[11px] font-semibold text-ink ring-1 ring-black/[0.04]">
+                {rentalBrowse.badge}
+              </span>
+            ) : !isStay ? (
               <span className="rounded-md bg-white/95 px-2 py-0.5 text-[11px] font-semibold text-ink ring-1 ring-black/[0.04]">
                 Tour
               </span>
@@ -205,13 +224,13 @@ export const PublicListingBrowseCard = memo(function PublicListingBrowseCard({
                 {propertyType}
               </span>
             ) : null}
-            {listingShowsFreeCancellation(tour) ? (
+            {!isRental && listingShowsFreeCancellation(tour) ? (
               <span className="rounded-md bg-white/95 px-2 py-0.5 text-[11px] font-semibold text-emerald-800 ring-1 ring-black/[0.04]">
                 Free cancellation
               </span>
             ) : null}
           </div>
-            {hasDiscount && label ? (
+            {!isRental && hasDiscount && label ? (
             <div className="absolute bottom-2.5 left-2.5">
               <span className="rounded-md bg-[var(--tv-discount-bg,#F8EFEA)] px-2 py-0.5 text-[11px] font-semibold text-[var(--tv-discount-fg,#9A3412)]">
                 {label}
@@ -250,6 +269,8 @@ export const PublicListingBrowseCard = memo(function PublicListingBrowseCard({
                 </span>
               ) : null}
             </p>
+          ) : isRental && rentalBrowse.meta ? (
+            <p className="mt-1 truncate text-[13px] text-ink-muted">{rentalBrowse.meta}</p>
           ) : metaLine ? (
             <p className="mt-1 truncate text-[13px] text-ink-muted">{metaLine}</p>
           ) : null}
@@ -260,7 +281,16 @@ export const PublicListingBrowseCard = memo(function PublicListingBrowseCard({
             }`}
             aria-label={priceAria}
           >
-            {offersUnknown ? (
+            {isRental ? (
+              rentalBrowse.priceLabel ? (
+                <>
+                  <span className="text-[11px] font-semibold uppercase tracking-wide text-ink-muted">From</span>
+                  <span className="font-bold tracking-tight text-ink">{rentalBrowse.priceLabel}</span>
+                </>
+              ) : (
+                <span className="font-bold tracking-tight text-ink">—</span>
+              )
+            ) : offersUnknown ? (
               <span className="text-[13px] font-medium text-ink-faint">Checking offers…</span>
             ) : isStay && stayStayTotal ? (
               <>

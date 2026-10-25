@@ -64,6 +64,7 @@ export default function RentalBookingWidget({
   const [consent, setConsent] = useState(false);
   const [paying, setPaying] = useState(false);
   const [payError, setPayError] = useState<string | null>(null);
+  const [reviewing, setReviewing] = useState(false);
   const variants = rental.variants ?? [];
   const returnPoint = rentalReturnPoint(rental);
   const unit = defaultUnit(rental);
@@ -101,6 +102,10 @@ export default function RentalBookingWidget({
 
   const selected: RentalVariant | undefined =
     variants.find((v) => v.id === variantId) ?? variants[0];
+
+  useEffect(() => {
+    setReviewing(false);
+  }, [variantId, quantity, startDate, endDate, pickupHm, returnHm, durationUnit]);
   const pricing = selected ? effectiveVariantPricing(rental, selected) : null;
   const maxQty = selected?.quantity ?? 1;
 
@@ -257,7 +262,13 @@ export default function RentalBookingWidget({
           <select
             className="tv-input w-full"
             value={variantId}
-            onChange={(e) => setVariantId(e.target.value)}
+            onChange={(e) => {
+              const nextId = e.target.value;
+              setVariantId(nextId);
+              const next = variants.find((item) => item.id === nextId);
+              setQuantity((current) => Math.min(next?.quantity ?? 1, Math.max(1, current)));
+              setReviewing(false);
+            }}
           >
             {variants.map((v) => (
               <option key={v.id} value={v.id}>
@@ -448,12 +459,67 @@ export default function RentalBookingWidget({
         </div>
       )}
 
+      {reviewing && quote?.ok && interval.ok ? (
+        <div className="rounded-xl bg-[#F4F6F8] px-3.5 py-3 text-sm">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#073b83]">Review</p>
+          <dl className="mt-2 space-y-1.5">
+            <div className="flex justify-between gap-3">
+              <dt className="text-ink-muted">Rental</dt>
+              <dd className="text-right font-medium text-ink">{listingTitle}</dd>
+            </div>
+            <div className="flex justify-between gap-3">
+              <dt className="text-ink-muted">Option</dt>
+              <dd className="text-right font-medium text-ink">{selected?.name ?? 'Standard'}</dd>
+            </div>
+            <div className="flex justify-between gap-3">
+              <dt className="text-ink-muted">Quantity</dt>
+              <dd className="text-right font-medium text-ink">{Math.min(Math.max(1, quantity), maxQty)}</dd>
+            </div>
+            <div className="flex justify-between gap-3">
+              <dt className="text-ink-muted">Pickup</dt>
+              <dd className="text-right font-medium text-ink">
+                {startDate} · {pickupHm}
+              </dd>
+            </div>
+            <div className="flex justify-between gap-3">
+              <dt className="text-ink-muted">Return</dt>
+              <dd className="text-right font-medium text-ink">
+                {endDate} · {returnHm}
+              </dd>
+            </div>
+            <div className="flex justify-between gap-3">
+              <dt className="text-ink-muted">Duration</dt>
+              <dd className="text-right font-medium text-ink">
+                {interval.durationCount} {interval.durationUnit}
+                {interval.durationCount === 1 ? '' : 's'}
+                {interval.durationUnit === 'day' ? ' · calendar days' : ''}
+              </dd>
+            </div>
+            <div className="flex justify-between gap-3">
+              <dt className="text-ink-muted">Estimated total</dt>
+              <dd className="text-right font-semibold text-ink">{formatMinorAsEuro(quote.customerTotalMinor)}</dd>
+            </div>
+          </dl>
+          <p className="mt-2 text-xs leading-relaxed text-ink-muted">
+            The estimate is for review. Traverion confirms the amount on the server before any charge.
+          </p>
+          <button
+            type="button"
+            className="mt-2 text-xs font-semibold text-[#073b83]"
+            onClick={() => setReviewing(false)}
+          >
+            Edit selection
+          </button>
+        </div>
+      ) : null}
+
       {payError ? (
         <p className="text-sm text-[#9f1239]" role="alert">
           {payError}
         </p>
       ) : null}
 
+      {reviewing ? (
       <button
         type="button"
         className="tv-btn-primary min-h-12 w-full font-semibold disabled:opacity-60"
@@ -462,6 +528,16 @@ export default function RentalBookingWidget({
       >
         {paying ? 'Opening checkout…' : checkoutOpen ? 'Continue to checkout' : 'Payment not open yet'}
       </button>
+      ) : (
+        <button
+          type="button"
+          className="tv-btn-primary min-h-12 w-full font-semibold disabled:opacity-60"
+          disabled={!quote?.ok || !interval.ok || availability.ok === false}
+          onClick={() => setReviewing(true)}
+        >
+          Review rental
+        </button>
+      )}
       <p className="flex items-center justify-center gap-1.5 text-xs text-ink-muted">
         <CalendarDays className="h-3.5 w-3.5" aria-hidden />
         {checkoutOpen
