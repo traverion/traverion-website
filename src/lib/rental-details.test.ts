@@ -3,7 +3,14 @@ import { rentalReturnPoint } from './rental-presentation';
 import {
   clearRentalDepositAmounts,
   createDefaultRentalVariant,
+  applyRentalStandardHours,
+  copyRentalDayHours,
   defaultRentalOperatingDays,
+  rentalHourExceptions,
+  rentalStandardHours,
+  resetRentalHourOverrides,
+  setRentalDayHours,
+  toggleRentalOperatingDay,
   effectiveVariantPricing,
   emptyRentalDetails,
   ensureRentalHasDefaultVariant,
@@ -110,6 +117,41 @@ describe('rental display helpers', () => {
     const lines = groupRentalOperatingHours(days);
     expect(lines.some((l) => l.startsWith('Mon–Sat:'))).toBe(true);
     expect(lines).toHaveLength(1);
+  });
+
+  it('keeps a saved mixed schedule and only updates days that still use the standard window', () => {
+    const saved = defaultRentalOperatingDays().map((day) =>
+      day.day === 'sat'
+        ? { ...day, open: true, earliestPickupHm: '10:00', latestPickupHm: '14:00', earliestReturnHm: '10:00', latestReturnHm: '15:00' }
+        : day.day === 'sun'
+          ? { ...day, open: false, earliestPickupHm: '12:00', latestPickupHm: '16:00' }
+          : day,
+    );
+    expect(rentalStandardHours(saved)).toMatchObject({ earliestPickupHm: '09:00', latestPickupHm: '17:00' });
+    expect(rentalHourExceptions(saved).map((day) => day.day)).toEqual(['sat']);
+    const next = applyRentalStandardHours(saved, {
+      earliestPickupHm: '08:00',
+      latestPickupHm: '16:00',
+      earliestReturnHm: '08:00',
+      latestReturnHm: '17:00',
+    });
+    expect(next.find((day) => day.day === 'mon')?.earliestPickupHm).toBe('08:00');
+    expect(next.find((day) => day.day === 'sat')?.earliestPickupHm).toBe('10:00');
+    expect(next.find((day) => day.day === 'sun')).toMatchObject({ open: false, earliestPickupHm: '12:00' });
+    const opened = toggleRentalOperatingDay(next, 'sun');
+    expect(opened.find((day) => day.day === 'sun')).toMatchObject({ open: true, earliestPickupHm: '08:00' });
+    const copied = copyRentalDayHours(opened, 'sat', 'fri');
+    expect(copied.find((day) => day.day === 'fri')?.latestPickupHm).toBe('14:00');
+    const custom = setRentalDayHours(copied, 'mon', {
+      earliestPickupHm: '11:00',
+      latestPickupHm: '13:00',
+      earliestReturnHm: '11:00',
+      latestReturnHm: '14:00',
+    });
+    const reset = resetRentalHourOverrides(custom);
+    expect(rentalHourExceptions(reset)).toEqual([]);
+    expect(reset.find((day) => day.day === 'sun')?.open).toBe(true);
+    expect(reset.find((day) => day.day === 'mon')?.earliestPickupHm).toBe('08:00');
   });
 
   it('omits attributes already present in the option name', () => {

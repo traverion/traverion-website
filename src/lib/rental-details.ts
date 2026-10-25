@@ -412,6 +412,116 @@ function hoursFingerprint(day: RentalOperatingDay): string {
   ].join('|');
 }
 
+export type RentalHoursWindow = {
+  earliestPickupHm: string;
+  latestPickupHm: string;
+  earliestReturnHm: string;
+  latestReturnHm: string;
+};
+
+export function rentalHoursWindow(day: RentalOperatingDay): RentalHoursWindow {
+  return {
+    earliestPickupHm: day.earliestPickupHm ?? '09:00',
+    latestPickupHm: day.latestPickupHm ?? '17:00',
+    earliestReturnHm: day.earliestReturnHm ?? '09:00',
+    latestReturnHm: day.latestReturnHm ?? '18:00',
+  };
+}
+
+export function rentalHoursWindowsEqual(a: RentalHoursWindow, b: RentalHoursWindow): boolean {
+  return (
+    a.earliestPickupHm === b.earliestPickupHm &&
+    a.latestPickupHm === b.latestPickupHm &&
+    a.earliestReturnHm === b.earliestReturnHm &&
+    a.latestReturnHm === b.latestReturnHm
+  );
+}
+
+/**
+ * The window shared by the most open days. A tie keeps the earliest day in the week.
+ * Reading a saved schedule does not rewrite it.
+ */
+export function rentalStandardHours(days: RentalOperatingDay[]): RentalHoursWindow {
+  const open = days.filter((day) => day.open);
+  const pool = open.length > 0 ? open : days;
+  let best: { count: number; firstIndex: number; window: RentalHoursWindow } | null = null;
+  const counts = new Map<string, { count: number; firstIndex: number; window: RentalHoursWindow }>();
+  pool.forEach((day, index) => {
+    const window = rentalHoursWindow(day);
+    const key = [window.earliestPickupHm, window.latestPickupHm, window.earliestReturnHm, window.latestReturnHm].join('|');
+    const existing = counts.get(key);
+    if (existing) {
+      existing.count += 1;
+      return;
+    }
+    counts.set(key, { count: 1, firstIndex: index, window: rentalHoursWindow(day) });
+  });
+  for (const row of counts.values()) {
+    if (!best || row.count > best.count || (row.count === best.count && row.firstIndex < best.firstIndex)) {
+      best = row;
+    }
+  }
+  return (
+    best?.window ?? {
+      earliestPickupHm: '09:00',
+      latestPickupHm: '17:00',
+      earliestReturnHm: '09:00',
+      latestReturnHm: '18:00',
+    }
+  );
+}
+
+/** Open days whose hours differ from the shared window. Closed days stay untouched. */
+export function rentalHourExceptions(days: RentalOperatingDay[]): RentalOperatingDay[] {
+  const standard = rentalStandardHours(days);
+  return days.filter((day) => day.open && !rentalHoursWindowsEqual(rentalHoursWindow(day), standard));
+}
+
+/** Apply a new shared window to open days that still use it. Custom days and closed days stay as saved. */
+export function applyRentalStandardHours(days: RentalOperatingDay[], next: RentalHoursWindow): RentalOperatingDay[] {
+  const open = days.some((day) => day.open);
+  if (!open) return days.map((day) => ({ ...day, ...next }));
+  const current = rentalStandardHours(days);
+  return days.map((day) => {
+    if (!day.open || !rentalHoursWindowsEqual(rentalHoursWindow(day), current)) return day;
+    return { ...day, ...next };
+  });
+}
+
+/** Opening a day gives it the current standard hours. Closing keeps its saved times. */
+export function toggleRentalOperatingDay(days: RentalOperatingDay[], dayId: RentalWeekday): RentalOperatingDay[] {
+  const standard = rentalStandardHours(days);
+  return days.map((day) => {
+    if (day.day !== dayId) return day;
+    if (day.open) return { ...day, open: false };
+    return { ...day, open: true, ...standard };
+  });
+}
+
+export function setRentalDayHours(
+  days: RentalOperatingDay[],
+  dayId: RentalWeekday,
+  next: RentalHoursWindow,
+): RentalOperatingDay[] {
+  return days.map((day) => (day.day === dayId ? { ...day, open: true, ...next } : day));
+}
+
+export function copyRentalDayHours(
+  days: RentalOperatingDay[],
+  from: RentalWeekday,
+  to: RentalWeekday,
+): RentalOperatingDay[] {
+  if (from === to) return days;
+  const source = days.find((day) => day.day === from);
+  if (!source) return days;
+  return setRentalDayHours(days, to, rentalHoursWindow(source));
+}
+
+export function resetRentalHourOverrides(days: RentalOperatingDay[]): RentalOperatingDay[] {
+  const standard = rentalStandardHours(days);
+  return days.map((day) => (day.open ? { ...day, ...standard } : day));
+}
+
 /** Compact preview lines — groups consecutive open days that share identical hours. */
 export function groupRentalOperatingHours(days: RentalOperatingDay[]): string[] {
   const open = days.filter((d) => d.open);

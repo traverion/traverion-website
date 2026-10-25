@@ -84,7 +84,7 @@ export const RENTAL_ONBOARDING_SCREENS = [
     group: 'Pickup & return',
     part: '3 of 4',
     title: 'Pickup and return hours',
-    body: 'Open days, and separate windows for collection and return.',
+    body: 'Choose the open days, then set one pickup window and one return window.',
   },
   {
     id: 'handover',
