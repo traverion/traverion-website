@@ -5,6 +5,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { CheckCircle, Calendar, Users, LogIn, Copy, Check, Printer, MapPin, Clock } from 'lucide-react';
 import RentalCollectionMap from '../components/supplier/listing-creation/RentalCollectionMap';
+import { rentalReturnPoint } from '../lib/rental-presentation';
 import { Skeleton } from '../components/ui/Skeleton';
 import ErrorState from '../components/ErrorState';
 import { USER_ERROR, userFacingError } from '../lib/userFacingError';
@@ -348,6 +349,7 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
   const isStayBooking = booking ? bookingIsStayNight(booking) : false;
   const isRentalBooking = booking ? bookingIsRental(booking) : false;
   const rentalSnap = booking ? parseRentalPurchaseSnapshot(booking.purchase_snapshot) : null;
+  const rentalReturn = rentalSnap ? rentalReturnPoint(rentalSnap) : null;
   const stayRange = isStayBooking && booking ? stayRangeFromBooking(booking) : null;
   const stayCheckOut = stayRange?.checkOut ?? null;
   const stayNights = stayRange ? nightsOccupiedByStay(stayRange.checkIn, stayRange.checkOut).length : null;
@@ -831,8 +833,16 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
                         {isRentalBooking && rentalSnap?.pickupAddress ? (
                           <dd className="text-ink-muted">{rentalSnap.pickupAddress}</dd>
                         ) : null}
-                        {isRentalBooking && rentalSnap?.returnSameAsPickup === false && rentalSnap.returnAddress ? (
-                          <dd className="text-ink-muted">Return: {rentalSnap.returnAddress}</dd>
+                        {isRentalBooking && rentalReturn?.address ? (
+                          <dd className="text-ink-muted">
+                            Return: {rentalReturn.sameAsPickup ? `same place · ${rentalReturn.address}` : rentalReturn.address}
+                          </dd>
+                        ) : null}
+                        {isRentalBooking && rentalSnap?.pickupInstructions ? (
+                          <dd className="text-ink-muted">{rentalSnap.pickupInstructions}</dd>
+                        ) : null}
+                        {isRentalBooking && !rentalReturn?.sameAsPickup && rentalSnap?.returnInstructions ? (
+                          <dd className="text-ink-muted">{rentalSnap.returnInstructions}</dd>
                         ) : null}
                         {isRentalBooking &&
                         typeof rentalSnap?.pickupLat === 'number' &&
@@ -841,8 +851,13 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
                             <RentalCollectionMap
                               lat={rentalSnap.pickupLat}
                               lng={rentalSnap.pickupLng}
-                              label="Pickup location map"
+                              label={rentalReturn?.sameAsPickup ? 'Pickup and return map' : 'Pickup location map'}
                             />
+                          </dd>
+                        ) : null}
+                        {isRentalBooking && rentalReturn && !rentalReturn.sameAsPickup && rentalReturn.lat != null && rentalReturn.lng != null ? (
+                          <dd className="mt-2 max-w-sm">
+                            <RentalCollectionMap lat={rentalReturn.lat} lng={rentalReturn.lng} label="Return location map" />
                           </dd>
                         ) : null}
                         {isRentalBooking && rentalSnap?.cancellationLabel ? (

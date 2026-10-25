@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { rentalReturnPoint } from './rental-presentation';
 import {
   clearRentalDepositAmounts,
   createDefaultRentalVariant,
@@ -305,6 +306,36 @@ describe('rental collection points', () => {
     const returnMoved = applyRentalCollectionPin(returned, 'return', { lat: 66.565, lng: 25.831 });
     expect(returnMoved.returnAddress).toBe('Rovaniemi Airport');
     expect(returnMoved.returnLat).toBe(66.565);
+  });
+
+  it('keeps a separate return place when switching back to the pickup location', () => {
+    const pickup = applyRentalAddressSelection(emptyRentalDetails(), 'pickup', {
+      address: 'Siljotie 2, Rovaniemi',
+      lat: 66.5,
+      lng: 25.73,
+    });
+    const different = applyRentalAddressSelection(
+      { ...pickup, returnInstructions: 'Side door' },
+      'return',
+      { address: 'Rovaniemi Airport', lat: 66.56, lng: 25.83 },
+    );
+    const same = { ...different, returnSameAsPickup: true };
+    expect(same.returnAddress).toBe('Rovaniemi Airport');
+    expect(same.returnLat).toBe(66.56);
+    expect(same.returnInstructions).toBe('Side door');
+    expect(rentalReturnPoint(same)).toMatchObject({
+      sameAsPickup: true,
+      address: 'Siljotie 2, Rovaniemi',
+      lat: 66.5,
+      lng: 25.73,
+    });
+    const again = { ...same, returnSameAsPickup: false };
+    expect(rentalReturnPoint(again)).toMatchObject({
+      sameAsPickup: false,
+      address: 'Rovaniemi Airport',
+      lat: 66.56,
+      lng: 25.83,
+    });
   });
 });
 

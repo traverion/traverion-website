@@ -58,9 +58,11 @@ export type RentalPurchaseSnapshot = {
   pickupAddress?: string | null;
   pickupLat?: number | null;
   pickupLng?: number | null;
+  pickupInstructions?: string | null;
   returnAddress?: string | null;
   returnLat?: number | null;
   returnLng?: number | null;
+  returnInstructions?: string | null;
   returnSameAsPickup?: boolean;
   cancellationPreset?: string | null;
   cancellationLabel?: string | null;
@@ -159,9 +161,11 @@ export function parseRentalPurchaseSnapshot(raw: unknown): RentalPurchaseSnapsho
     pickupAddress: typeof o.pickupAddress === 'string' ? o.pickupAddress : null,
     pickupLat: rentalSnapshotCoord(o.pickupLat, -90, 90),
     pickupLng: rentalSnapshotCoord(o.pickupLng, -180, 180),
+    pickupInstructions: typeof o.pickupInstructions === 'string' ? o.pickupInstructions : null,
     returnAddress: typeof o.returnAddress === 'string' ? o.returnAddress : null,
     returnLat: rentalSnapshotCoord(o.returnLat, -90, 90),
     returnLng: rentalSnapshotCoord(o.returnLng, -180, 180),
+    returnInstructions: typeof o.returnInstructions === 'string' ? o.returnInstructions : null,
     returnSameAsPickup: o.returnSameAsPickup === false ? false : o.returnSameAsPickup === true ? true : undefined,
     cancellationPreset: typeof o.cancellationPreset === 'string' ? o.cancellationPreset : null,
     cancellationLabel: typeof o.cancellationLabel === 'string' ? o.cancellationLabel : null,

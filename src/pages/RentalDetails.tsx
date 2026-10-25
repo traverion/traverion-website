@@ -21,6 +21,7 @@ import {
   rentalItemLabel,
   rentalRequirementLabel,
   rentalSpecLabel,
+  rentalReturnPoint,
 } from '../lib/rental-presentation';
 import { supabase } from '../lib/supabase';
 import { USER_ERROR, userFacingError } from '../lib/userFacingError';
@@ -156,6 +157,7 @@ function RentalBody({
   const specs = Object.entries(rental.specifications ?? {}).filter(([key, value]) => key !== 'skillLevel' && value.trim());
   const requirements = Object.entries(rental.requirements ?? {}).filter(([, value]) => value.trim());
   const hours = rentalHoursLines(rental.operatingDays);
+  const returnPoint = rentalReturnPoint(rental);
   const variants = rental.variants ?? [];
   const highlights = (rental.highlights?.length ? rental.highlights : listing.highlights) ?? [];
 
@@ -348,23 +350,29 @@ function RentalBody({
                 <div>
                   <dt className="font-semibold text-ink">Return</dt>
                   <dd className="mt-0.5 text-ink-muted">
-                    {rental.returnSameAsPickup !== false
-                      ? 'Same place as pickup'
-                      : rental.returnAddress || 'The operator shares the return place after booking.'}
+                    {returnPoint.sameAsPickup
+                      ? returnPoint.address
+                        ? `Same place as pickup · ${returnPoint.address}`
+                        : 'Same place as pickup'
+                      : returnPoint.address || 'The operator shares the return place after booking.'}
                   </dd>
-                  {rental.returnInstructions ? <dd className="mt-1 text-ink-muted">{rental.returnInstructions}</dd> : null}
+                  {!returnPoint.sameAsPickup && rental.returnInstructions ? (
+                    <dd className="mt-1 text-ink-muted">{rental.returnInstructions}</dd>
+                  ) : null}
                 </div>
               </dl>
               {typeof rental.pickupLat === 'number' && typeof rental.pickupLng === 'number' ? (
                 <div className="mt-4">
-                  <RentalCollectionMap lat={rental.pickupLat} lng={rental.pickupLng} label="Pickup location map" />
+                  <RentalCollectionMap
+                    lat={rental.pickupLat}
+                    lng={rental.pickupLng}
+                    label={returnPoint.sameAsPickup ? 'Pickup and return map' : 'Pickup location map'}
+                  />
                 </div>
               ) : null}
-              {rental.returnSameAsPickup === false &&
-              typeof rental.returnLat === 'number' &&
-              typeof rental.returnLng === 'number' ? (
+              {!returnPoint.sameAsPickup && returnPoint.lat != null && returnPoint.lng != null ? (
                 <div className="mt-4">
-                  <RentalCollectionMap lat={rental.returnLat} lng={rental.returnLng} label="Return location map" />
+                  <RentalCollectionMap lat={returnPoint.lat} lng={returnPoint.lng} label="Return location map" />
                 </div>
               ) : null}
               {hours.length > 0 ? (

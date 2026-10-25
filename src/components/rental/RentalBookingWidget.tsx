@@ -6,7 +6,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { CalendarDays, Clock, Loader2, Shield } from 'lucide-react';
 import type { RentalDetails, RentalVariant } from '../../types/rental';
 import { effectiveVariantPricing, formatMinorAsEuro } from '../../lib/rental-details';
-import { rentalMapHref } from '../../lib/rental-presentation';
+import { rentalMapHref, rentalReturnPoint } from '../../lib/rental-presentation';
 import { quoteRentalLine } from '../../lib/rental-quote';
 import { COMMERCIAL_PLANS } from '../../lib/commercial-money';
 import {
@@ -65,6 +65,7 @@ export default function RentalBookingWidget({
   const [paying, setPaying] = useState(false);
   const [payError, setPayError] = useState<string | null>(null);
   const variants = rental.variants ?? [];
+  const returnPoint = rentalReturnPoint(rental);
   const unit = defaultUnit(rental);
   const showUnitToggle = rental.durationMode === 'both';
 
@@ -402,8 +403,10 @@ export default function RentalBookingWidget({
       {rental.pickupAddress ? (
         <p className="text-xs leading-relaxed text-ink-muted">Pickup: {rental.pickupAddress}</p>
       ) : null}
-      {rental.returnSameAsPickup === false && rental.returnAddress ? (
-        <p className="text-xs leading-relaxed text-ink-muted">Return: {rental.returnAddress}</p>
+      {returnPoint.address ? (
+        <p className="text-xs leading-relaxed text-ink-muted">
+          Return: {returnPoint.sameAsPickup ? `same place · ${returnPoint.address}` : returnPoint.address}
+        </p>
       ) : null}
       {rentalMapHref(rental.pickupLat, rental.pickupLng) ? (
         <a
@@ -412,7 +415,17 @@ export default function RentalBookingWidget({
           rel="noreferrer"
           className="text-xs font-semibold text-[#073b83] underline-offset-2 hover:underline"
         >
-          Open the collection point
+          {returnPoint.sameAsPickup ? 'Open the pickup and return point' : 'Open the collection point'}
+        </a>
+      ) : null}
+      {!returnPoint.sameAsPickup && rentalMapHref(returnPoint.lat, returnPoint.lng) ? (
+        <a
+          href={rentalMapHref(returnPoint.lat, returnPoint.lng) ?? undefined}
+          target="_blank"
+          rel="noreferrer"
+          className="text-xs font-semibold text-[#073b83] underline-offset-2 hover:underline"
+        >
+          Open the return point
         </a>
       ) : null}
 

@@ -650,6 +650,13 @@ serve(async (req) => {
       const pickupLng = rentalCoord(rentalRecord.pickupLng, -180, 180);
       const returnLat = returnSameAsPickup ? pickupLat : rentalCoord(rentalRecord.returnLat, -90, 90);
       const returnLng = returnSameAsPickup ? pickupLng : rentalCoord(rentalRecord.returnLng, -180, 180);
+      const pickupInstructions =
+        typeof rentalRecord.pickupInstructions === 'string' ? rentalRecord.pickupInstructions.trim() : '';
+      const returnInstructions = returnSameAsPickup
+        ? ''
+        : typeof rentalRecord.returnInstructions === 'string'
+          ? rentalRecord.returnInstructions.trim()
+          : '';
       const cancellationPreset =
         typeof rentalRecord.cancellationPreset === 'string' ? rentalRecord.cancellationPreset.trim() : '';
       const cancellationCopy: Record<string, string> = {
@@ -676,9 +683,11 @@ serve(async (req) => {
         pickupAddress: pickupAddress || null,
         pickupLat,
         pickupLng,
+        pickupInstructions: pickupInstructions || null,
         returnAddress: returnAddress || null,
         returnLat,
         returnLng,
+        returnInstructions: returnInstructions || null,
         returnSameAsPickup,
         durationCount: rentalQuote.durationCount,
         durationUnit: rentalQuote.durationUnit,

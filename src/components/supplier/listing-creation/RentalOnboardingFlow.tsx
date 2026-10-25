@@ -68,6 +68,7 @@ import RentalOptionEditor, {
 import { StayChoice, StayField, StayHelp } from './StayCreatorUi';
 import RentalCollectionPoint from './RentalCollectionPoint';
 import RentalCollectionMap from './RentalCollectionMap';
+import { rentalReturnPoint } from '../../../lib/rental-presentation';
 
 export type RentalFormSlice = {
   title: string;
@@ -845,7 +846,18 @@ function ReturnStage({ ctx }: { ctx: Ctx }) {
           A different place
         </StayChoice>
       </div>
-      {!same ? (
+      {same ? (
+        <div className="space-y-3">
+          <p className="text-sm text-ink">
+            <span className="font-semibold">Pickup address: </span>
+            {rental.pickupAddress?.trim() || 'Add the pickup address on the previous screen.'}
+          </p>
+          {typeof rental.pickupLat === 'number' && typeof rental.pickupLng === 'number' ? (
+            <RentalCollectionMap lat={rental.pickupLat} lng={rental.pickupLng} label="Return uses the pickup point" />
+          ) : null}
+          <StayHelp>Customers return the item here. Move the pin on the pickup screen.</StayHelp>
+        </div>
+      ) : (
         <>
           <RentalCollectionPoint
             id="rental-return-address"
@@ -880,8 +892,6 @@ function ReturnStage({ ctx }: { ctx: Ctx }) {
             />
           </StayField>
         </>
-      ) : (
-        <StayHelp>Customers return the item to the pickup place.</StayHelp>
       )}
     </div>
   );
@@ -2040,6 +2050,7 @@ function PreviewStage({ ctx }: { ctx: Ctx }) {
   const reqs = Object.entries(rental.requirements ?? {}).filter(([, v]) => v.trim());
   const reqLabel = (key: string) => cfg?.requirementKeys.find((r) => r.key === key)?.label ?? key;
   const hours = hoursLines(rental);
+  const returnPoint = rentalReturnPoint(rental);
   const cancellation = RENTAL_CANCELLATION_PRESETS.find((p) => p.id === rental.cancellationPreset);
   const place = travelerDestinationLabel(values.city, values.country);
   const description = values.description.trim();
@@ -2183,14 +2194,19 @@ function PreviewStage({ ctx }: { ctx: Ctx }) {
               ) : null}
               <p>
                 <span className="font-semibold">Return:</span>{' '}
-                {rental.returnSameAsPickup === false ? rental.returnAddress?.trim() || 'Not set' : 'Same as pickup location'}
+                {returnPoint.sameAsPickup
+                  ? returnPoint.address
+                    ? `Same as pickup · ${returnPoint.address}`
+                    : 'Same as pickup location'
+                  : returnPoint.address || 'Not set'}
               </p>
-              {rental.returnSameAsPickup === false &&
-              typeof rental.returnLat === 'number' &&
-              typeof rental.returnLng === 'number' ? (
-                <RentalCollectionMap lat={rental.returnLat} lng={rental.returnLng} label="Return location map" />
+              {!returnPoint.sameAsPickup && returnPoint.lat != null && returnPoint.lng != null ? (
+                <RentalCollectionMap lat={returnPoint.lat} lng={returnPoint.lng} label="Return location map" />
               ) : null}
               {rental.pickupInstructions?.trim() ? <p className="text-ink-muted">{rental.pickupInstructions.trim()}</p> : null}
+              {rental.returnSameAsPickup === false && rental.returnInstructions?.trim() ? (
+                <p className="text-ink-muted">{rental.returnInstructions.trim()}</p>
+              ) : null}
               {hours.length > 0 ? (
                 <ul className="stay-help space-y-0.5">
                   {hours.map((line) => (

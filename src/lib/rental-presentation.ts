@@ -14,6 +14,46 @@ const WEEKDAY_LABEL: Record<RentalWeekday, string> = {
   sun: 'Sunday',
 };
 
+export type RentalMapPoint = {
+  address: string;
+  lat: number | null;
+  lng: number | null;
+};
+
+function rentalMapPoint(address: unknown, lat: unknown, lng: unknown): RentalMapPoint {
+  const latOk = typeof lat === 'number' && Number.isFinite(lat) && lat >= -90 && lat <= 90 ? lat : null;
+  const lngOk = typeof lng === 'number' && Number.isFinite(lng) && lng >= -180 && lng <= 180 ? lng : null;
+  const paired = latOk != null && lngOk != null;
+  return {
+    address: typeof address === 'string' ? address.trim() : '',
+    lat: paired ? latOk : null,
+    lng: paired ? lngOk : null,
+  };
+}
+
+export function rentalPickupPoint(source: {
+  pickupAddress?: string | null;
+  pickupLat?: number | null;
+  pickupLng?: number | null;
+}): RentalMapPoint {
+  return rentalMapPoint(source.pickupAddress, source.pickupLat, source.pickupLng);
+}
+
+/** Same-as-pickup uses the pickup point. A different place keeps its own address and pin. */
+export function rentalReturnPoint(source: {
+  pickupAddress?: string | null;
+  pickupLat?: number | null;
+  pickupLng?: number | null;
+  returnSameAsPickup?: boolean | null;
+  returnAddress?: string | null;
+  returnLat?: number | null;
+  returnLng?: number | null;
+}): RentalMapPoint & { sameAsPickup: boolean } {
+  const sameAsPickup = source.returnSameAsPickup !== false;
+  if (sameAsPickup) return { ...rentalPickupPoint(source), sameAsPickup: true };
+  return { ...rentalMapPoint(source.returnAddress, source.returnLat, source.returnLng), sameAsPickup: false };
+}
+
 export function rentalMapHref(lat: number | null | undefined, lng: number | null | undefined): string | null {
   const latOk = typeof lat === 'number' && Number.isFinite(lat) && lat >= -90 && lat <= 90;
   const lngOk = typeof lng === 'number' && Number.isFinite(lng) && lng >= -180 && lng <= 180;
@@ -139,11 +179,14 @@ export function rentalTripFacts(snap: RentalPurchaseSnapshot): { label: string; 
   const ret = formatRentalInstant(snap.returnAt);
   if (pickup) rows.push({ label: 'Pickup', value: pickup });
   if (ret) rows.push({ label: 'Return', value: ret });
-  if (snap.pickupAddress?.trim()) rows.push({ label: 'Pickup place', value: snap.pickupAddress.trim() });
-  if (snap.returnSameAsPickup === false && snap.returnAddress?.trim()) {
-    rows.push({ label: 'Return place', value: snap.returnAddress.trim() });
-  } else if (snap.pickupAddress?.trim()) {
-    rows.push({ label: 'Return place', value: 'Same as pickup' });
+  const pickupPoint = rentalPickupPoint(snap);
+  const returnPoint = rentalReturnPoint(snap);
+  if (pickupPoint.address) rows.push({ label: 'Pickup place', value: pickupPoint.address });
+  if (returnPoint.address) {
+    rows.push({
+      label: 'Return place',
+      value: returnPoint.sameAsPickup ? `Same as pickup · ${returnPoint.address}` : returnPoint.address,
+    });
   }
   const policy = rentalSnapshotCancellationText(snap);
   if (policy) rows.push({ label: 'Cancellation', value: policy });

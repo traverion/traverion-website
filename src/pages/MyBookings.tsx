@@ -83,6 +83,7 @@ import {
 } from '../lib/pickup-completeness';
 import { parseRentalPurchaseSnapshot } from '../lib/rental-booking-domain';
 import RentalCollectionMap from '../components/supplier/listing-creation/RentalCollectionMap';
+import { rentalReturnPoint } from '../lib/rental-presentation';
 import { travelerPickupAddressFromRecord } from '../lib/pickup-area';
 import {
   displayListingTitleFromPurchase,
@@ -1043,6 +1044,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
               const isStay = bookingIsStayNight(b);
               const isRental = bookingIsRental(b);
               const rentalSnap = isRental ? parseRentalPurchaseSnapshot(b.purchase_snapshot) : null;
+              const rentalReturn = rentalSnap ? rentalReturnPoint(rentalSnap) : null;
               const ops = listingOps[b.listing_id];
               const tripTitle = displayListingTitleFromPurchase(
                 b.purchase_snapshot,
@@ -1559,8 +1561,13 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                         <dd className="mt-1 text-sm font-semibold text-ink break-words [overflow-wrap:anywhere] whitespace-pre-wrap leading-snug">
                           {placeLine}
                         </dd>
-                        {isRental && rentalSnap?.returnSameAsPickup === false && rentalSnap.returnAddress?.trim() ? (
-                          <p className="mt-1 text-sm text-ink-muted">Return: {rentalSnap.returnAddress.trim()}</p>
+                        {isRental && rentalReturn?.address ? (
+                          <p className="mt-1 text-sm text-ink-muted">
+                            Return: {rentalReturn.sameAsPickup ? `same place · ${rentalReturn.address}` : rentalReturn.address}
+                          </p>
+                        ) : null}
+                        {isRental && !rentalReturn?.sameAsPickup && rentalSnap?.returnInstructions ? (
+                          <p className="mt-1 text-sm text-ink-muted">{rentalSnap.returnInstructions}</p>
                         ) : null}
                         {isRental &&
                         typeof rentalSnap?.pickupLat === 'number' &&
@@ -1569,8 +1576,13 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                             <RentalCollectionMap
                               lat={rentalSnap.pickupLat}
                               lng={rentalSnap.pickupLng}
-                              label="Pickup location map"
+                              label={rentalReturn?.sameAsPickup ? 'Pickup and return map' : 'Pickup location map'}
                             />
+                          </div>
+                        ) : null}
+                        {isRental && rentalReturn && !rentalReturn.sameAsPickup && rentalReturn.lat != null && rentalReturn.lng != null ? (
+                          <div className="mt-3 max-w-md">
+                            <RentalCollectionMap lat={rentalReturn.lat} lng={rentalReturn.lng} label="Return location map" />
                           </div>
                         ) : null}
                       </div>

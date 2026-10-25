@@ -8,6 +8,7 @@ import {
   CalendarDays,
 } from 'lucide-react';
 import RentalCollectionMap from '../../components/supplier/listing-creation/RentalCollectionMap';
+import { rentalReturnPoint } from '../../lib/rental-presentation';
 import type { TourPackage } from '../../types/tour';
 import { listingHeroImageSrc, orderedPhotoUrls, photoSlotsFromTourPackage } from '../../lib/listingPhotoGrid';
 import { formatMoney, normalizeCurrency } from '../../lib/money';
@@ -2239,6 +2240,7 @@ export default function SupplierBookings({
                     {isRentalDesk
                       ? (() => {
                           const rentalSnap = parseRentalPurchaseSnapshot(booking.purchase_snapshot);
+                          const rentalReturn = rentalSnap ? rentalReturnPoint(rentalSnap) : null;
                           const ops = rentalSnap?.rentalOpsStatus ?? 'awaiting_pickup';
                           const paidReady =
                             booking.status === 'confirmed' &&
@@ -2271,29 +2273,26 @@ export default function SupplierBookings({
                                     })}
                                   </p>
                                   {rentalSnap.pickupAddress ? <p>Pickup: {rentalSnap.pickupAddress}</p> : null}
-                                  {rentalSnap.returnSameAsPickup === false && rentalSnap.returnAddress ? (
-                                    <p>Return: {rentalSnap.returnAddress}</p>
-                                  ) : rentalSnap.pickupAddress ? (
-                                    <p>Return: same place as pickup</p>
+                                  {rentalReturn?.address ? (
+                                    <p>
+                                      Return: {rentalReturn.sameAsPickup ? `same place · ${rentalReturn.address}` : rentalReturn.address}
+                                    </p>
+                                  ) : null}
+                                  {!rentalReturn?.sameAsPickup && rentalSnap.returnInstructions ? (
+                                    <p>{rentalSnap.returnInstructions}</p>
                                   ) : null}
                                   {typeof rentalSnap.pickupLat === 'number' && typeof rentalSnap.pickupLng === 'number' ? (
                                     <div className="max-w-md pt-1">
                                       <RentalCollectionMap
                                         lat={rentalSnap.pickupLat}
                                         lng={rentalSnap.pickupLng}
-                                        label="Pickup location map"
+                                        label={rentalReturn?.sameAsPickup ? 'Pickup and return map' : 'Pickup location map'}
                                       />
                                     </div>
                                   ) : null}
-                                  {rentalSnap.returnSameAsPickup === false &&
-                                  typeof rentalSnap.returnLat === 'number' &&
-                                  typeof rentalSnap.returnLng === 'number' ? (
+                                  {rentalReturn && !rentalReturn.sameAsPickup && rentalReturn.lat != null && rentalReturn.lng != null ? (
                                     <div className="max-w-md pt-1">
-                                      <RentalCollectionMap
-                                        lat={rentalSnap.returnLat}
-                                        lng={rentalSnap.returnLng}
-                                        label="Return location map"
-                                      />
+                                      <RentalCollectionMap lat={rentalReturn.lat} lng={rentalReturn.lng} label="Return location map" />
                                     </div>
                                   ) : null}
                                   {rentalSnap.cancellationLabel ? <p>{rentalSnap.cancellationLabel}</p> : null}
