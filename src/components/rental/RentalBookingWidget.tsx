@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { CalendarDays, Clock, Loader2, Shield } from 'lucide-react';
 import type { RentalDetails, RentalVariant } from '../../types/rental';
 import { effectiveVariantPricing, formatMinorAsEuro } from '../../lib/rental-details';
+import { rentalMapHref } from '../../lib/rental-presentation';
 import { quoteRentalLine } from '../../lib/rental-quote';
 import { COMMERCIAL_PLANS } from '../../lib/commercial-money';
 import {
@@ -400,6 +401,19 @@ export default function RentalBookingWidget({
       <p className="text-xs leading-relaxed text-ink-muted">{rentalCancellationCustomerText(rental.cancellationPreset)}</p>
       {rental.pickupAddress ? (
         <p className="text-xs leading-relaxed text-ink-muted">Pickup: {rental.pickupAddress}</p>
+      ) : null}
+      {rental.returnSameAsPickup === false && rental.returnAddress ? (
+        <p className="text-xs leading-relaxed text-ink-muted">Return: {rental.returnAddress}</p>
+      ) : null}
+      {rentalMapHref(rental.pickupLat, rental.pickupLng) ? (
+        <a
+          href={rentalMapHref(rental.pickupLat, rental.pickupLng) ?? undefined}
+          target="_blank"
+          rel="noreferrer"
+          className="text-xs font-semibold text-[#073b83] underline-offset-2 hover:underline"
+        >
+          Open the collection point
+        </a>
       ) : null}
 
       {checkoutOpen ? (

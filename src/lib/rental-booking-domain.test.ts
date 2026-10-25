@@ -3,6 +3,7 @@ import {
   parseRentalPurchaseSnapshot,
   validateRentalBookingTransition,
 } from './rental-booking-domain';
+import { rentalMapHref } from './rental-presentation';
 
 describe('rental booking domain', () => {
   it('parses a frozen rental purchase snapshot', () => {
@@ -25,6 +26,40 @@ describe('rental booking domain', () => {
     });
     expect(snap?.currency).toBe('EUR');
     expect(snap?.quantity).toBe(2);
+    expect(snap?.pickupLat).toBeNull();
+    expect(snap?.returnLng).toBeNull();
+    expect(rentalMapHref(snap?.pickupLat, snap?.pickupLng)).toBeNull();
+  });
+
+  it('keeps collection coordinates when a booking snapshot has them', () => {
+    const snap = parseRentalPurchaseSnapshot({
+      inventoryFamily: 'rental',
+      variantId: 'm',
+      quantity: 1,
+      pickupAt: '2030-01-01T09:00:00Z',
+      returnAt: '2030-01-03T18:00:00Z',
+      durationCount: 2,
+      durationUnit: 'day',
+      unitMinor: 2000,
+      customerTotalMinor: 4000,
+      commissionMinor: 600,
+      supplierEarningsMinor: 3400,
+      commissionBps: 1500,
+      currency: 'EUR',
+      rentalOpsStatus: 'awaiting_pickup',
+      pickupAddress: 'Siljotie 2, Rovaniemi',
+      pickupLat: 66.5039,
+      pickupLng: 25.7294,
+      returnSameAsPickup: false,
+      returnAddress: 'Rovaniemi Airport',
+      returnLat: 66.5648,
+      returnLng: 25.8304,
+    });
+    expect(snap?.pickupAddress).toBe('Siljotie 2, Rovaniemi');
+    expect(snap?.pickupLat).toBe(66.5039);
+    expect(snap?.returnLng).toBe(25.8304);
+    expect(rentalMapHref(snap?.pickupLat, snap?.pickupLng)).toContain('66.5039');
+    expect(rentalMapHref(91, 25)).toBeNull();
   });
 
   it('rejects confirming unpaid or expired-hold bookings', () => {

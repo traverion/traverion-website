@@ -5,6 +5,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { BadgeInfo, Clock, FileText, MapPin, Package } from 'lucide-react';
 import RentalBookingWidget from '../components/rental/RentalBookingWidget';
+import RentalCollectionMap from '../components/supplier/listing-creation/RentalCollectionMap';
 import RentalPhotoGallery from '../components/rental/RentalPhotoGallery';
 import ErrorState from '../components/ErrorState';
 import { useAuth } from '../contexts/AuthContext';
@@ -354,6 +355,18 @@ function RentalBody({
                   {rental.returnInstructions ? <dd className="mt-1 text-ink-muted">{rental.returnInstructions}</dd> : null}
                 </div>
               </dl>
+              {typeof rental.pickupLat === 'number' && typeof rental.pickupLng === 'number' ? (
+                <div className="mt-4">
+                  <RentalCollectionMap lat={rental.pickupLat} lng={rental.pickupLng} label="Pickup location map" />
+                </div>
+              ) : null}
+              {rental.returnSameAsPickup === false &&
+              typeof rental.returnLat === 'number' &&
+              typeof rental.returnLng === 'number' ? (
+                <div className="mt-4">
+                  <RentalCollectionMap lat={rental.returnLat} lng={rental.returnLng} label="Return location map" />
+                </div>
+              ) : null}
               {hours.length > 0 ? (
                 <div className="mt-4">
                   <p className="flex items-center gap-1.5 text-sm font-semibold text-ink">

@@ -7,6 +7,8 @@ import {
   emptyRentalDetails,
   ensureRentalHasDefaultVariant,
   groupRentalOperatingHours,
+  applyRentalAddressSelection,
+  applyRentalCollectionPin,
   normalizeRentalDetails,
   rentalIllustrativeTotalMinor,
   rentalHasDepositInfo,
@@ -256,6 +258,53 @@ describe('legacy rental screen aliases', () => {
     expect(rentalHighlightSuggestions('cameras_electronics')).toContain('Battery included');
     expect(rentalHighlightSuggestions('bikes').join(' ')).not.toMatch(/family friendly/i);
     expect(rentalHighlightSuggestions(undefined)).toEqual([]);
+  });
+});
+
+describe('rental collection points', () => {
+  it('keeps a saved address when coordinates are missing or invalid', () => {
+    const rental = normalizeRentalDetails({
+      pickupAddress: '  Rovaniemi depot, Main Street 1  ',
+      pickupInstructions: 'Blue door by the sauna',
+      pickupLat: '66.5',
+      pickupLng: Number.NaN,
+      returnAddress: 'Airport desk',
+      returnSameAsPickup: false,
+    });
+    expect(rental.pickupAddress).toBe('Rovaniemi depot, Main Street 1');
+    expect(rental.pickupInstructions).toBe('Blue door by the sauna');
+    expect(rental.pickupLat).toBeUndefined();
+    expect(rental.pickupLng).toBeUndefined();
+    expect(rental.returnAddress).toBe('Airport desk');
+    expect(rentalStageBlocker('pickup-location', { rental, title: '', description: '', city: '', country: '', galleryCount: 0, experienceLanguage: 'en' })).toBeNull();
+    expect(rentalStageBlocker('return-location', { rental, title: '', description: '', city: '', country: '', galleryCount: 0, experienceLanguage: 'en' })).toBeNull();
+  });
+
+  it('sets the address and pin together, then lets the marker move without rewriting the address', () => {
+    const selected = applyRentalAddressSelection(emptyRentalDetails(), 'pickup', {
+      address: 'Siljotie 2, 96900 Rovaniemi, Finland',
+      lat: 66.5039,
+      lng: 25.7294,
+    });
+    expect(selected.pickupAddress).toBe('Siljotie 2, 96900 Rovaniemi, Finland');
+    expect(selected.pickupInstructions).toBeUndefined();
+    const moved = applyRentalCollectionPin(selected, 'pickup', { lat: 66.5042, lng: 25.73 });
+    expect(moved.pickupAddress).toBe(selected.pickupAddress);
+    expect(moved.pickupLat).toBe(66.5042);
+    expect(moved.pickupLng).toBe(25.73);
+    expect(applyRentalCollectionPin(moved, 'pickup', { lat: 120, lng: 25 }).pickupLat).toBe(66.5042);
+
+    const returned = applyRentalAddressSelection(
+      { ...emptyRentalDetails(), returnInstructions: 'Leave it with the desk' },
+      'return',
+      { address: 'Rovaniemi Airport', lat: 66.5648, lng: 25.8304 },
+    );
+    expect(returned.returnSameAsPickup).toBe(false);
+    expect(returned.returnAddress).toBe('Rovaniemi Airport');
+    expect(returned.returnInstructions).toBe('Leave it with the desk');
+    const returnMoved = applyRentalCollectionPin(returned, 'return', { lat: 66.565, lng: 25.831 });
+    expect(returnMoved.returnAddress).toBe('Rovaniemi Airport');
+    expect(returnMoved.returnLat).toBe(66.565);
   });
 });
 

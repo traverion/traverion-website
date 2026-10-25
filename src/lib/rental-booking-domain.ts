@@ -56,7 +56,11 @@ export type RentalPurchaseSnapshot = {
   listingTitle?: string | null;
   variantName?: string | null;
   pickupAddress?: string | null;
+  pickupLat?: number | null;
+  pickupLng?: number | null;
   returnAddress?: string | null;
+  returnLat?: number | null;
+  returnLng?: number | null;
   returnSameAsPickup?: boolean;
   cancellationPreset?: string | null;
   cancellationLabel?: string | null;
@@ -86,6 +90,11 @@ export type TransitionResult =
 
 function isOps(v: string): v is RentalOpsStatus {
   return (RENTAL_OPS_STATUSES as readonly string[]).includes(v);
+}
+
+function rentalSnapshotCoord(value: unknown, min: number, max: number): number | null {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < min || value > max) return null;
+  return value;
 }
 
 export function parseRentalPurchaseSnapshot(raw: unknown): RentalPurchaseSnapshot | null {
@@ -148,7 +157,11 @@ export function parseRentalPurchaseSnapshot(raw: unknown): RentalPurchaseSnapsho
     listingTitle: typeof o.listingTitle === 'string' ? o.listingTitle : null,
     variantName: typeof o.variantName === 'string' ? o.variantName : null,
     pickupAddress: typeof o.pickupAddress === 'string' ? o.pickupAddress : null,
+    pickupLat: rentalSnapshotCoord(o.pickupLat, -90, 90),
+    pickupLng: rentalSnapshotCoord(o.pickupLng, -180, 180),
     returnAddress: typeof o.returnAddress === 'string' ? o.returnAddress : null,
+    returnLat: rentalSnapshotCoord(o.returnLat, -90, 90),
+    returnLng: rentalSnapshotCoord(o.returnLng, -180, 180),
     returnSameAsPickup: o.returnSameAsPickup === false ? false : o.returnSameAsPickup === true ? true : undefined,
     cancellationPreset: typeof o.cancellationPreset === 'string' ? o.cancellationPreset : null,
     cancellationLabel: typeof o.cancellationLabel === 'string' ? o.cancellationLabel : null,

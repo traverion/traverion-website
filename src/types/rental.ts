@@ -89,6 +89,8 @@ export type RentalDetails = {
   returnSameAsPickup?: boolean;
   returnAddress?: string;
   returnInstructions?: string;
+  returnLat?: number | null;
+  returnLng?: number | null;
   operatingDays?: RentalOperatingDay[];
   collectionNotes?: string;
   idRequired?: boolean;

@@ -21,6 +21,49 @@ export function defaultRentalOperatingDays(): RentalOperatingDay[] {
   }));
 }
 
+export function rentalFiniteCoord(value: unknown, min: number, max: number): number | undefined {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return undefined;
+  if (value < min || value > max) return undefined;
+  return value;
+}
+
+/** A chosen suggestion sets the address and the pin together. Instructions are left untouched. */
+export function applyRentalAddressSelection(
+  rental: RentalDetails,
+  which: 'pickup' | 'return',
+  selection: { address: string; lat: number; lng: number },
+): RentalDetails {
+  const address = selection.address.trim().slice(0, 240);
+  const lat = rentalFiniteCoord(selection.lat, -90, 90);
+  const lng = rentalFiniteCoord(selection.lng, -180, 180);
+  if (which === 'return') {
+    return {
+      ...rental,
+      returnSameAsPickup: false,
+      returnAddress: address,
+      ...(lat != null && lng != null ? { returnLat: lat, returnLng: lng } : {}),
+    };
+  }
+  return {
+    ...rental,
+    pickupAddress: address,
+    ...(lat != null && lng != null ? { pickupLat: lat, pickupLng: lng } : {}),
+  };
+}
+
+/** Marker drag or map click moves the pin only. The saved address text stays. */
+export function applyRentalCollectionPin(
+  rental: RentalDetails,
+  which: 'pickup' | 'return',
+  point: { lat: number; lng: number },
+): RentalDetails {
+  const lat = rentalFiniteCoord(point.lat, -90, 90);
+  const lng = rentalFiniteCoord(point.lng, -180, 180);
+  if (lat == null || lng == null) return rental;
+  if (which === 'return') return { ...rental, returnLat: lat, returnLng: lng };
+  return { ...rental, pickupLat: lat, pickupLng: lng };
+}
+
 export function emptyRentalDetails(): RentalDetails {
   return {
     returnSameAsPickup: true,
@@ -125,11 +168,17 @@ export function normalizeRentalDetails(raw: unknown): RentalDetails | undefined 
   if (typeof o.shortIntro === 'string' && o.shortIntro.trim()) out.shortIntro = o.shortIntro.trim().slice(0, 280);
   if (typeof o.pickupAddress === 'string') out.pickupAddress = o.pickupAddress.trim().slice(0, 240);
   if (typeof o.pickupInstructions === 'string') out.pickupInstructions = o.pickupInstructions.trim().slice(0, 1000);
-  if (typeof o.pickupLat === 'number' && Number.isFinite(o.pickupLat)) out.pickupLat = o.pickupLat;
-  if (typeof o.pickupLng === 'number' && Number.isFinite(o.pickupLng)) out.pickupLng = o.pickupLng;
+  const pickupLat = rentalFiniteCoord(o.pickupLat, -90, 90);
+  const pickupLng = rentalFiniteCoord(o.pickupLng, -180, 180);
+  if (pickupLat != null) out.pickupLat = pickupLat;
+  if (pickupLng != null) out.pickupLng = pickupLng;
   if (typeof o.returnSameAsPickup === 'boolean') out.returnSameAsPickup = o.returnSameAsPickup;
   if (typeof o.returnAddress === 'string') out.returnAddress = o.returnAddress.trim().slice(0, 240);
   if (typeof o.returnInstructions === 'string') out.returnInstructions = o.returnInstructions.trim().slice(0, 1000);
+  const returnLat = rentalFiniteCoord(o.returnLat, -90, 90);
+  const returnLng = rentalFiniteCoord(o.returnLng, -180, 180);
+  if (returnLat != null) out.returnLat = returnLat;
+  if (returnLng != null) out.returnLng = returnLng;
   if (typeof o.collectionNotes === 'string') out.collectionNotes = o.collectionNotes.trim().slice(0, 1000);
   if (typeof o.idRequired === 'boolean') out.idRequired = o.idRequired;
   if (typeof o.staffAssisted === 'boolean') out.staffAssisted = o.staffAssisted;

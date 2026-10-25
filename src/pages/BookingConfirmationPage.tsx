@@ -4,6 +4,7 @@
  */
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { CheckCircle, Calendar, Users, LogIn, Copy, Check, Printer, MapPin, Clock } from 'lucide-react';
+import RentalCollectionMap from '../components/supplier/listing-creation/RentalCollectionMap';
 import { Skeleton } from '../components/ui/Skeleton';
 import ErrorState from '../components/ErrorState';
 import { USER_ERROR, userFacingError } from '../lib/userFacingError';
@@ -829,6 +830,20 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
                         <dd className="font-semibold text-ink break-words">{dateLabel}</dd>
                         {isRentalBooking && rentalSnap?.pickupAddress ? (
                           <dd className="text-ink-muted">{rentalSnap.pickupAddress}</dd>
+                        ) : null}
+                        {isRentalBooking && rentalSnap?.returnSameAsPickup === false && rentalSnap.returnAddress ? (
+                          <dd className="text-ink-muted">Return: {rentalSnap.returnAddress}</dd>
+                        ) : null}
+                        {isRentalBooking &&
+                        typeof rentalSnap?.pickupLat === 'number' &&
+                        typeof rentalSnap.pickupLng === 'number' ? (
+                          <dd className="mt-2 max-w-sm">
+                            <RentalCollectionMap
+                              lat={rentalSnap.pickupLat}
+                              lng={rentalSnap.pickupLng}
+                              label="Pickup location map"
+                            />
+                          </dd>
                         ) : null}
                         {isRentalBooking && rentalSnap?.cancellationLabel ? (
                           <dd className="text-ink-muted">{rentalSnap.cancellationLabel}</dd>

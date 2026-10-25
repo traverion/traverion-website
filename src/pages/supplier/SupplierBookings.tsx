@@ -7,6 +7,7 @@ import {
   Trash2,
   CalendarDays,
 } from 'lucide-react';
+import RentalCollectionMap from '../../components/supplier/listing-creation/RentalCollectionMap';
 import type { TourPackage } from '../../types/tour';
 import { listingHeroImageSrc, orderedPhotoUrls, photoSlotsFromTourPackage } from '../../lib/listingPhotoGrid';
 import { formatMoney, normalizeCurrency } from '../../lib/money';
@@ -2274,6 +2275,26 @@ export default function SupplierBookings({
                                     <p>Return: {rentalSnap.returnAddress}</p>
                                   ) : rentalSnap.pickupAddress ? (
                                     <p>Return: same place as pickup</p>
+                                  ) : null}
+                                  {typeof rentalSnap.pickupLat === 'number' && typeof rentalSnap.pickupLng === 'number' ? (
+                                    <div className="max-w-md pt-1">
+                                      <RentalCollectionMap
+                                        lat={rentalSnap.pickupLat}
+                                        lng={rentalSnap.pickupLng}
+                                        label="Pickup location map"
+                                      />
+                                    </div>
+                                  ) : null}
+                                  {rentalSnap.returnSameAsPickup === false &&
+                                  typeof rentalSnap.returnLat === 'number' &&
+                                  typeof rentalSnap.returnLng === 'number' ? (
+                                    <div className="max-w-md pt-1">
+                                      <RentalCollectionMap
+                                        lat={rentalSnap.returnLat}
+                                        lng={rentalSnap.returnLng}
+                                        label="Return location map"
+                                      />
+                                    </div>
                                   ) : null}
                                   {rentalSnap.cancellationLabel ? <p>{rentalSnap.cancellationLabel}</p> : null}
                                   {rentalSnap.depositDisclosure ? <p>Deposit: {rentalSnap.depositDisclosure}</p> : null}

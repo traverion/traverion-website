@@ -21,6 +21,8 @@ import {
   type RentalCategoryConfig,
 } from '../../../lib/rental-categories';
 import {
+  applyRentalAddressSelection,
+  applyRentalCollectionPin,
   clearRentalDepositAmounts,
   createDefaultRentalVariant,
   defaultRentalOperatingDays,
@@ -64,6 +66,8 @@ import RentalOptionEditor, {
   rentalPricingSummary,
 } from './RentalOptionEditor';
 import { StayChoice, StayField, StayHelp } from './StayCreatorUi';
+import RentalCollectionPoint from './RentalCollectionPoint';
+import RentalCollectionMap from './RentalCollectionMap';
 
 export type RentalFormSlice = {
   title: string;
@@ -782,20 +786,37 @@ function PhotosStage({ ctx, review }: { ctx: Ctx; review: boolean }) {
 /* Pickup & return                                                     */
 /* ------------------------------------------------------------------ */
 
+function collectionBias(values: Values): { lat: number; lng: number } | null {
+  if (values.destinationLat == null || values.destinationLng == null) return null;
+  if (!Number.isFinite(values.destinationLat) || !Number.isFinite(values.destinationLng)) return null;
+  return { lat: values.destinationLat, lng: values.destinationLng };
+}
+
 function PickupStage({ ctx }: { ctx: Ctx }) {
-  const { rental, patchRental } = ctx;
+  const { rental, patchRental, values } = ctx;
   return (
     <div className="space-y-4">
-      <StayField label="Pickup address or meeting place">
-        <textarea
-          className="tv-input w-full resize-y py-2"
-          rows={2}
-          maxLength={240}
-          value={rental.pickupAddress ?? ''}
-          placeholder="Street, number, and area — or a clear meeting point"
-          onChange={(e) => patchRental({ pickupAddress: e.target.value.slice(0, 240) })}
-        />
-      </StayField>
+      <RentalCollectionPoint
+        id="rental-pickup-address"
+        label="Collection address"
+        address={rental.pickupAddress ?? ''}
+        lat={rental.pickupLat}
+        lng={rental.pickupLng}
+        bias={collectionBias(values)}
+        onSelect={(selection) => {
+          const next = applyRentalAddressSelection(rental, 'pickup', selection);
+          patchRental({
+            pickupAddress: next.pickupAddress,
+            pickupLat: next.pickupLat,
+            pickupLng: next.pickupLng,
+          });
+        }}
+        onMovePin={(point) => {
+          const next = applyRentalCollectionPin(rental, 'pickup', point);
+          patchRental({ pickupLat: next.pickupLat, pickupLng: next.pickupLng });
+        }}
+        onAddressText={(pickupAddress) => patchRental({ pickupAddress })}
+      />
       <StayField label="Finding the spot" optional>
         <textarea
           className="tv-input w-full resize-y py-2"
@@ -812,13 +833,13 @@ function PickupStage({ ctx }: { ctx: Ctx }) {
 }
 
 function ReturnStage({ ctx }: { ctx: Ctx }) {
-  const { rental, patchRental } = ctx;
+  const { rental, patchRental, values } = ctx;
   const same = rental.returnSameAsPickup !== false;
   return (
     <div className="space-y-4">
       <div className="grid gap-2 sm:grid-cols-2" role="group" aria-label="Return location">
         <StayChoice pressed={same} onClick={() => patchRental({ returnSameAsPickup: true })}>
-          Same as pickup
+          Same as pickup location
         </StayChoice>
         <StayChoice pressed={!same} onClick={() => patchRental({ returnSameAsPickup: false })}>
           A different place
@@ -826,21 +847,35 @@ function ReturnStage({ ctx }: { ctx: Ctx }) {
       </div>
       {!same ? (
         <>
-          <StayField label="Return address or meeting place">
-            <textarea
-              className="tv-input w-full resize-y py-2"
-              rows={2}
-              maxLength={240}
-              value={rental.returnAddress ?? ''}
-              onChange={(e) => patchRental({ returnAddress: e.target.value.slice(0, 240) })}
-            />
-          </StayField>
+          <RentalCollectionPoint
+            id="rental-return-address"
+            label="Return address"
+            address={rental.returnAddress ?? ''}
+            lat={rental.returnLat}
+            lng={rental.returnLng}
+            bias={collectionBias(values)}
+            onSelect={(selection) => {
+              const next = applyRentalAddressSelection(rental, 'return', selection);
+              patchRental({
+                returnSameAsPickup: false,
+                returnAddress: next.returnAddress,
+                returnLat: next.returnLat,
+                returnLng: next.returnLng,
+              });
+            }}
+            onMovePin={(point) => {
+              const next = applyRentalCollectionPin(rental, 'return', point);
+              patchRental({ returnLat: next.returnLat, returnLng: next.returnLng });
+            }}
+            onAddressText={(returnAddress) => patchRental({ returnAddress })}
+          />
           <StayField label="Return instructions" optional>
             <textarea
               className="tv-input w-full resize-y py-2"
               rows={3}
               maxLength={1000}
               value={rental.returnInstructions ?? ''}
+              placeholder="Entrance, parking, or who to hand it to"
               onChange={(e) => patchRental({ returnInstructions: e.target.value.slice(0, 1000) })}
             />
           </StayField>
@@ -2143,10 +2178,19 @@ function PreviewStage({ ctx }: { ctx: Ctx }) {
               <p>
                 <span className="font-semibold">Pickup:</span> {rental.pickupAddress?.trim() || 'Not set'}
               </p>
+              {typeof rental.pickupLat === 'number' && typeof rental.pickupLng === 'number' ? (
+                <RentalCollectionMap lat={rental.pickupLat} lng={rental.pickupLng} label="Pickup location map" />
+              ) : null}
               <p>
                 <span className="font-semibold">Return:</span>{' '}
-                {rental.returnSameAsPickup === false ? rental.returnAddress?.trim() || 'Not set' : 'Same as pickup'}
+                {rental.returnSameAsPickup === false ? rental.returnAddress?.trim() || 'Not set' : 'Same as pickup location'}
               </p>
+              {rental.returnSameAsPickup === false &&
+              typeof rental.returnLat === 'number' &&
+              typeof rental.returnLng === 'number' ? (
+                <RentalCollectionMap lat={rental.returnLat} lng={rental.returnLng} label="Return location map" />
+              ) : null}
+              {rental.pickupInstructions?.trim() ? <p className="text-ink-muted">{rental.pickupInstructions.trim()}</p> : null}
               {hours.length > 0 ? (
                 <ul className="stay-help space-y-0.5">
                   {hours.map((line) => (

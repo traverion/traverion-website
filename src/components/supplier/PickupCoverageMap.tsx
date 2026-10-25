@@ -2,10 +2,12 @@ import { useEffect, useRef, useState } from 'react';
 import { googleMapsBrowserKey } from '../../lib/places-client';
 
 type GoogleLatLng = { lat: number; lng: number };
+type GoogleMapClick = { latLng?: { lat: () => number; lng: () => number } | null };
 type GoogleMap = {
   fitBounds: (bounds: GoogleBounds) => void;
   setCenter: (center: GoogleLatLng) => void;
   setZoom: (zoom: number) => void;
+  addListener: (event: string, handler: (event?: GoogleMapClick) => void) => void;
 };
 type GoogleBounds = { extend: (point: GoogleLatLng) => void };
 type GoogleCircle = {
@@ -65,6 +67,10 @@ type Props = {
   pinZoom?: number | null;
   showRadius?: boolean;
   className?: string;
+  /** Clicking the map reports a point. The caller decides whether the address text changes. */
+  onMapClick?: (point: GoogleLatLng) => void;
+  gestureHandling?: 'greedy' | 'cooperative';
+  ariaLabel?: string;
 };
 
 export default function PickupCoverageMap({
@@ -78,6 +84,9 @@ export default function PickupCoverageMap({
   pinZoom = null,
   showRadius = true,
   className,
+  onMapClick,
+  gestureHandling = 'cooperative',
+  ariaLabel,
 }: Props) {
   const nodeRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<GoogleMap | null>(null);
@@ -85,6 +94,9 @@ export default function PickupCoverageMap({
   const markerRef = useRef<GoogleMarker | null>(null);
   const onDragRef = useRef(onMarkerDrag);
   onDragRef.current = onMarkerDrag;
+  const onClickRef = useRef(onMapClick);
+  onClickRef.current = onMapClick;
+  const gestureRef = useRef(gestureHandling);
   const [failed, setFailed] = useState(false);
   const key = googleMapsBrowserKey();
   const markerLat = marker?.lat;
@@ -104,7 +116,12 @@ export default function PickupCoverageMap({
             disableDefaultUI: true,
             zoomControl: true,
             clickableIcons: false,
-            gestureHandling: 'cooperative',
+            gestureHandling: gestureRef.current,
+          });
+          mapRef.current.addListener('click', (event) => {
+            const pos = event?.latLng;
+            if (!pos || !onClickRef.current) return;
+            onClickRef.current({ lat: pos.lat(), lng: pos.lng() });
           });
         }
         const focus = markerLat != null && markerLng != null ? { lat: markerLat, lng: markerLng } : { lat, lng };
@@ -185,9 +202,10 @@ export default function PickupCoverageMap({
       className={className ?? 'h-48 w-full overflow-hidden rounded-lg border border-[#e5e7eb] bg-white'}
       role="img"
       aria-label={
-        radiusKm != null
+        ariaLabel ??
+        (radiusKm != null
           ? `Pickup coverage map, ${radiusKm} kilometre radius`
-          : 'Pickup center map'
+          : 'Pickup center map')
       }
     />
   );

@@ -14,6 +14,13 @@ const WEEKDAY_LABEL: Record<RentalWeekday, string> = {
   sun: 'Sunday',
 };
 
+export function rentalMapHref(lat: number | null | undefined, lng: number | null | undefined): string | null {
+  const latOk = typeof lat === 'number' && Number.isFinite(lat) && lat >= -90 && lat <= 90;
+  const lngOk = typeof lng === 'number' && Number.isFinite(lng) && lng >= -180 && lng <= 180;
+  if (!latOk || !lngOk) return null;
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${lat},${lng}`)}`;
+}
+
 export function rentalItemLabel(rental: RentalDetails): string {
   if (rental.itemType === 'custom') return (rental.customItemType ?? '').trim();
   return rentalItemTypeLabel(rental.category, rental.itemType);

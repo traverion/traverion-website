@@ -82,6 +82,7 @@ import {
   resolvePartnerPickupCopy,
 } from '../lib/pickup-completeness';
 import { parseRentalPurchaseSnapshot } from '../lib/rental-booking-domain';
+import RentalCollectionMap from '../components/supplier/listing-creation/RentalCollectionMap';
 import { travelerPickupAddressFromRecord } from '../lib/pickup-area';
 import {
   displayListingTitleFromPurchase,
@@ -1558,6 +1559,20 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                         <dd className="mt-1 text-sm font-semibold text-ink break-words [overflow-wrap:anywhere] whitespace-pre-wrap leading-snug">
                           {placeLine}
                         </dd>
+                        {isRental && rentalSnap?.returnSameAsPickup === false && rentalSnap.returnAddress?.trim() ? (
+                          <p className="mt-1 text-sm text-ink-muted">Return: {rentalSnap.returnAddress.trim()}</p>
+                        ) : null}
+                        {isRental &&
+                        typeof rentalSnap?.pickupLat === 'number' &&
+                        typeof rentalSnap.pickupLng === 'number' ? (
+                          <div className="mt-3 max-w-md">
+                            <RentalCollectionMap
+                              lat={rentalSnap.pickupLat}
+                              lng={rentalSnap.pickupLng}
+                              label="Pickup location map"
+                            />
+                          </div>
+                        ) : null}
                       </div>
                     ) : null}
                     {isStay && tripDetailTab === 'overview' && readStayBookingPrice(b.purchase_snapshot) ? (
