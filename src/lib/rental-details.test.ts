@@ -10,7 +10,9 @@ import {
   normalizeRentalDetails,
   rentalIllustrativeTotalMinor,
   rentalHasDepositInfo,
+  rentalCustomerSkillSuitability,
   rentalOperatingHoursIssue,
+  rentalSkillConflictsDifficulty,
   rentalStartingFromMajor,
   rentalVariantComplete,
   rentalVariantMetaLine,
@@ -187,6 +189,23 @@ describe('rental pricing derivation', () => {
       latestPickupHm: '09:00',
     }));
     expect(rentalOperatingHoursIssue(days)).toMatch(/Pickup/i);
+  });
+});
+
+describe('skill suitability', () => {
+  it('lifts the old specification into one guest field and hides contradictions', () => {
+    const normalized = normalizeRentalDetails({
+      category: 'skis_snowboards',
+      difficulty: 'moderate',
+      specifications: { brand: 'Atomic', skillLevel: 'Beginner to intermediate' },
+    });
+    expect(normalized?.specifications?.skillLevel).toBeUndefined();
+    expect(normalized?.specifications?.brand).toBe('Atomic');
+    expect(normalized?.skillSuitability).toBe('Beginner to intermediate');
+    expect(rentalCustomerSkillSuitability(normalized!)).toBe('Beginner to intermediate');
+    expect(rentalSkillConflictsDifficulty('easy', 'Advanced riders')).toBe(true);
+    expect(rentalCustomerSkillSuitability({ ...normalized!, difficulty: 'easy', skillSuitability: 'Advanced' })).toBeNull();
+    expect(rentalCustomerSkillSuitability({ ...normalized!, difficulty: 'easy', skillSuitability: 'Easy' })).toBeNull();
   });
 });
 

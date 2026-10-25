@@ -28,9 +28,11 @@ import {
   ensureRentalHasDefaultVariant,
   groupRentalOperatingHours,
   newRentalVariantId,
+  rentalCustomerSkillSuitability,
   rentalHasDepositInfo,
   rentalHasInsuranceInfo,
   rentalIllustrativeTotalMinor,
+  rentalSkillConflictsDifficulty,
   rentalVariantComplete,
   rentalVariantMetaLine,
 } from '../../../lib/rental-details';
@@ -465,8 +467,11 @@ function CategoryStage({ ctx }: { ctx: Ctx }) {
       itemType: keepItem,
       customItemType: keepItem === 'custom' ? rental.customItemType : undefined,
       specifications: Object.fromEntries(
-        Object.entries(rental.specifications ?? {}).filter(([k, v]) => specKeys.has(k) && String(v).trim())
+        Object.entries(rental.specifications ?? {}).filter(
+          ([k, v]) => k !== 'skillLevel' && specKeys.has(k) && String(v).trim(),
+        )
       ),
+      skillSuitability: (rental.skillSuitability ?? rental.specifications?.skillLevel ?? '').trim() || undefined,
       requirements: Object.fromEntries(
         Object.entries(rental.requirements ?? {}).filter(([k, v]) => reqKeys.has(k) && String(v).trim())
       ),
@@ -720,7 +725,7 @@ function SpecsStage({ ctx }: { ctx: Ctx }) {
   return (
     <div className="space-y-4">
       {cfg.listingSpecKeys.map((spec) => (
-        <StayField key={spec.key} label={spec.label}>
+        <StayField key={spec.key} label={spec.label} optional>
           <input
             className="tv-input w-full"
             value={specs[spec.key] ?? ''}
@@ -791,7 +796,7 @@ function PickupStage({ ctx }: { ctx: Ctx }) {
           onChange={(e) => patchRental({ pickupAddress: e.target.value.slice(0, 240) })}
         />
       </StayField>
-      <StayField label="Finding the spot (optional)">
+      <StayField label="Finding the spot" optional>
         <textarea
           className="tv-input w-full resize-y py-2"
           rows={3}
@@ -830,7 +835,7 @@ function ReturnStage({ ctx }: { ctx: Ctx }) {
               onChange={(e) => patchRental({ returnAddress: e.target.value.slice(0, 240) })}
             />
           </StayField>
-          <StayField label="Return instructions (optional)">
+          <StayField label="Return instructions" optional>
             <textarea
               className="tv-input w-full resize-y py-2"
               rows={3}
@@ -950,7 +955,7 @@ function CollectionStage({ ctx }: { ctx: Ctx }) {
   const { rental, patchRental } = ctx;
   return (
     <div className="space-y-4">
-      <StayField label="How customers receive the item (optional)">
+      <StayField label="How customers receive the item" optional>
         <textarea
           className="tv-input w-full resize-y py-2"
           rows={4}
@@ -1533,7 +1538,7 @@ function RequirementsStage({ ctx }: { ctx: Ctx }) {
       {cfg.requirementKeys.map((req) => {
         const required = (cfg.id === 'snowmobiles' || cfg.id === 'vehicles') && req.key === 'license';
         return (
-          <StayField key={req.key} label={required ? `${req.label} (required)` : req.label}>
+          <StayField key={req.key} label={req.label} optional={!required} required={required}>
             <input
               className="tv-input w-full"
               value={reqs[req.key] ?? ''}
@@ -1589,7 +1594,7 @@ function AccessibilityStage({ ctx }: { ctx: Ctx }) {
               </Pill>
             ))}
           </div>
-          <StayField label="Notes (optional)">
+          <StayField label="Notes" optional>
             <textarea
               className="tv-input w-full resize-y py-2"
               rows={3}
@@ -1622,6 +1627,8 @@ function SuitabilityStage({ ctx }: { ctx: Ctx }) {
   return (
     <div className="space-y-4">
       {applies ? (
+        <div className="space-y-2">
+        <p className="stay-kicker">Difficulty</p>
         <div className="flex flex-wrap gap-2" role="group" aria-label="Difficulty">
           {choices.map((choice) => (
             <Pill
@@ -1633,19 +1640,47 @@ function SuitabilityStage({ ctx }: { ctx: Ctx }) {
             </Pill>
           ))}
         </div>
+        </div>
       ) : (
         <StayHelp>Difficulty is not used for this category. You can still say who it suits.</StayHelp>
       )}
-      <StayField label="Who is this rental suitable for? (optional)">
+      {applies || (rental.skillSuitability ?? rental.specifications?.skillLevel ?? '').trim() ? (
+        <StayField label="Skill suitability" optional>
+          <input
+            className="tv-input w-full"
+            maxLength={160}
+            value={rental.skillSuitability ?? rental.specifications?.skillLevel ?? ''}
+            placeholder="e.g. Beginner to intermediate"
+            onChange={(e) => {
+              const specifications = { ...(rental.specifications ?? {}) };
+              delete specifications.skillLevel;
+              const skillSuitability = e.target.value.slice(0, 160);
+              patchRental({
+                skillSuitability,
+                specifications,
+              });
+            }}
+          />
+        </StayField>
+      ) : null}
+      {rentalSkillConflictsDifficulty(rental.difficulty, rental.skillSuitability) ? (
+        <p className="stay-alert !mt-0" role="alert">
+          This skill line disagrees with the level above. Customers will see the level only until the two match.
+        </p>
+      ) : applies ? (
+        <StayHelp>Use the level for the main fit. Add a skill line only when you need a range the level does not say.</StayHelp>
+      ) : null}
+      <StayField label="Who is this rental suitable for?" optional>
         <textarea
           className="tv-input w-full resize-y py-2"
           rows={3}
           maxLength={500}
           value={rental.suitableFor ?? ''}
+          placeholder="e.g. Riders who want a relaxed day on marked trails"
           onChange={(e) => patchRental({ suitableFor: e.target.value.slice(0, 500) })}
         />
       </StayField>
-      <StayField label="Who is this rental not suitable for? (optional)">
+      <StayField label="Who is this rental not suitable for?" optional>
         <textarea
           className="tv-input w-full resize-y py-2"
           rows={3}
@@ -1694,7 +1729,7 @@ function RulesStage({ ctx }: { ctx: Ctx }) {
   const value = rental.rentalRules ?? '';
   return (
     <div className="space-y-2">
-      <StayField label="Rental rules (optional)">
+      <StayField label="Rental rules" optional>
         <textarea
           className="tv-input rental-rules-input w-full resize-y py-2.5"
           rows={7}
@@ -1807,7 +1842,7 @@ function DepositStage({ ctx }: { ctx: Ctx }) {
                 ))}
               </div>
             </div>
-            <StayField label="Return / refund conditions (optional)">
+            <StayField label="Return / refund conditions" optional>
               <textarea
                 className="tv-input w-full resize-y py-2"
                 rows={3}
@@ -1820,7 +1855,7 @@ function DepositStage({ ctx }: { ctx: Ctx }) {
             {method ? <StayHelp>Customers will see: {methodLabel(method)}.</StayHelp> : null}
           </div>
         ) : null}
-        <StayField label="Extra deposit notes (optional)">
+        <StayField label="Extra deposit notes" optional>
           <textarea
             className="tv-input w-full resize-y py-2"
             rows={3}
@@ -1848,7 +1883,7 @@ function DepositStage({ ctx }: { ctx: Ctx }) {
             Not included
           </StayChoice>
         </div>
-        <StayField label="Coverage notes (optional)">
+        <StayField label="Coverage notes" optional>
           <textarea
             className="tv-input w-full resize-y py-2"
             rows={2}
@@ -1863,7 +1898,7 @@ function DepositStage({ ctx }: { ctx: Ctx }) {
             }
           />
         </StayField>
-        <StayField label="Exclusions (optional)">
+        <StayField label="Exclusions" optional>
           <textarea
             className="tv-input w-full resize-y py-2"
             rows={2}
@@ -1874,7 +1909,7 @@ function DepositStage({ ctx }: { ctx: Ctx }) {
           />
         </StayField>
         <StayHelp>Traverion does not provide this insurance and does not handle claims.</StayHelp>
-        <StayField label="Excess / deductible (optional)">
+        <StayField label="Excess / deductible" optional>
           <input
             className="tv-input w-full"
             maxLength={500}
@@ -1965,7 +2000,7 @@ function PreviewStage({ ctx }: { ctx: Ctx }) {
   const from = startingPrice(rental, mode);
   const highlights = values.highlights.map((l) => l.trim()).filter(Boolean);
   const inclusions = (rental.inclusions ?? []).map((l) => l.trim()).filter(Boolean);
-  const specs = Object.entries(rental.specifications ?? {}).filter(([, v]) => v.trim());
+  const specs = Object.entries(rental.specifications ?? {}).filter(([key, value]) => key !== 'skillLevel' && value.trim());
   const specLabel = (key: string) => cfg?.listingSpecKeys.find((s) => s.key === key)?.label ?? key;
   const reqs = Object.entries(rental.requirements ?? {}).filter(([, v]) => v.trim());
   const reqLabel = (key: string) => cfg?.requirementKeys.find((r) => r.key === key)?.label ?? key;
@@ -2173,13 +2208,22 @@ function PreviewStage({ ctx }: { ctx: Ctx }) {
             </PreviewSection>
           ) : null}
 
-          {rental.difficulty || rental.suitableFor?.trim() || rental.notSuitableFor?.trim() ? (
+          {rental.difficulty ||
+          rental.suitableFor?.trim() ||
+          rental.notSuitableFor?.trim() ||
+          (rental.skillSuitability ?? '').trim() ? (
             <PreviewSection title="Suitability" onEdit={() => goTo('suitability')}>
               <div className="space-y-1 text-sm text-ink">
                 {rental.difficulty === 'easy' ? <p>Easy</p> : null}
                 {rental.difficulty === 'moderate' ? <p>Moderate</p> : null}
                 {rental.difficulty === 'challenging' ? <p>Challenging</p> : null}
                 {rental.difficulty === 'not_applicable' ? <p>Difficulty is not used for this rental.</p> : null}
+                {rentalCustomerSkillSuitability(rental) ? <p>Skill suitability: {rentalCustomerSkillSuitability(rental)}</p> : null}
+                {rentalSkillConflictsDifficulty(rental.difficulty, rental.skillSuitability) ? (
+                  <p className="text-ink-muted">
+                    Saved skill line “{rental.skillSuitability?.trim()}” conflicts with the level, so customers will not see it.
+                  </p>
+                ) : null}
                 {rental.suitableFor?.trim() ? <p>Suitable for: {rental.suitableFor.trim()}</p> : null}
                 {rental.notSuitableFor?.trim() ? <p>Not suitable for: {rental.notSuitableFor.trim()}</p> : null}
               </div>

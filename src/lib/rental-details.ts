@@ -229,6 +229,16 @@ export function normalizeRentalDetails(raw: unknown): RentalDetails | undefined 
     }
     out.specifications = specs;
   }
+  if (typeof o.skillSuitability === 'string' && o.skillSuitability.trim()) {
+    out.skillSuitability = o.skillSuitability.trim().slice(0, 160);
+  }
+  const legacySkill = out.specifications?.skillLevel?.trim();
+  if (!out.skillSuitability && legacySkill) out.skillSuitability = legacySkill.slice(0, 160);
+  if (out.specifications?.skillLevel) {
+    const specs = { ...out.specifications };
+    delete specs.skillLevel;
+    out.specifications = specs;
+  }
   if (o.requirements && typeof o.requirements === 'object' && !Array.isArray(o.requirements)) {
     const req: Record<string, string> = {};
     for (const [k, v] of Object.entries(o.requirements as Record<string, unknown>)) {
@@ -448,6 +458,35 @@ export function rentalStartingFromMajor(rental: RentalDetails): number {
  */
 export function clearRentalDepositAmounts(_rental?: RentalDetails): Partial<RentalDetails> {
   return { depositRequired: false };
+}
+
+/**
+ * True when a free-text skill line disagrees with the chosen difficulty.
+ * A range such as "beginner to intermediate" does not conflict with Moderate.
+ */
+export function rentalSkillConflictsDifficulty(
+  difficulty: RentalDetails['difficulty'],
+  skill: string | null | undefined,
+): boolean {
+  const text = (skill ?? '').trim().toLowerCase();
+  if (!text || !difficulty || difficulty === 'not_applicable') return false;
+  const beginner = /\b(beginner|novice|easy)\b/.test(text);
+  const advanced = /\b(advanced|expert|challenging)\b/.test(text);
+  const middle = /\b(intermediate|moderate)\b/.test(text);
+  if (difficulty === 'easy') return advanced && !beginner && !middle;
+  if (difficulty === 'challenging') return beginner && !advanced && !middle;
+  return false;
+}
+
+/** Skill line customers should see. Hides duplicates and lines that contradict difficulty. */
+export function rentalCustomerSkillSuitability(rental: RentalDetails): string | null {
+  const skill = (rental.skillSuitability ?? rental.specifications?.skillLevel ?? '').trim();
+  if (!skill) return null;
+  if (rentalSkillConflictsDifficulty(rental.difficulty, skill)) return null;
+  if (rental.difficulty === 'easy' && /^easy$/i.test(skill)) return null;
+  if (rental.difficulty === 'moderate' && /^moderate$/i.test(skill)) return null;
+  if (rental.difficulty === 'challenging' && /^challenging$/i.test(skill)) return null;
+  return skill;
 }
 
 /** Parse HH:MM to minutes from midnight; null if invalid. */

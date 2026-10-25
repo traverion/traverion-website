@@ -147,7 +147,7 @@ export const RENTAL_ONBOARDING_SCREENS = [
     group: 'Guest information',
     part: '3 of 8',
     title: 'Suitability',
-    body: 'Who the rental is for. Difficulty only appears when it describes the product.',
+    body: 'Difficulty, skill, and who the rental is for or not for. Say each thing once.',
   },
   {
     id: 'inclusions',

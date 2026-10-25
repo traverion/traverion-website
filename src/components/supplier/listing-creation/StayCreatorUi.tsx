@@ -29,10 +29,25 @@ export function StayChoice({
   );
 }
 
-export function StayField({ label, children }: { label: string; children: ReactNode }) {
+export function StayField({
+  label,
+  optional = false,
+  required = false,
+  children,
+}: {
+  label: string;
+  /** Rental creator marks skippable fields beside the label, not inside the input. */
+  optional?: boolean;
+  required?: boolean;
+  children: ReactNode;
+}) {
   return (
     <label className="stay-field block">
-      <span>{label}</span>
+      <span>
+        {label}
+        {optional ? <span className="ml-1.5 font-medium text-[#5c6570]">(optional)</span> : null}
+        {required ? <span className="ml-1.5 font-medium text-[#5c6570]">(required)</span> : null}
+      </span>
       <div className="mt-1.5 font-normal">{children}</div>
     </label>
   );

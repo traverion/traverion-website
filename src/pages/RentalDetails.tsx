@@ -11,7 +11,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { fetchListingById } from '../data/supabase-listings';
 import { inventoryFamilyFromListing } from '../lib/inventory';
 import { rentalCancellationCustomerText } from '../lib/rental-cancellation';
-import { normalizeRentalDetails, formatMinorAsEuro } from '../lib/rental-details';
+import { formatMinorAsEuro, normalizeRentalDetails, rentalCustomerSkillSuitability } from '../lib/rental-details';
 import {
   rentalCategoryTitle,
   rentalDepositCustomerText,
@@ -152,7 +152,7 @@ function RentalBody({
   const photos = photoList(listing);
   const place = [listing.city, listing.country].filter(Boolean).join(', ');
   const item = rentalItemLabel(rental);
-  const specs = Object.entries(rental.specifications ?? {}).filter(([, value]) => value.trim());
+  const specs = Object.entries(rental.specifications ?? {}).filter(([key, value]) => key !== 'skillLevel' && value.trim());
   const requirements = Object.entries(rental.requirements ?? {}).filter(([, value]) => value.trim());
   const hours = rentalHoursLines(rental.operatingDays);
   const variants = rental.variants ?? [];
@@ -307,11 +307,17 @@ function RentalBody({
               </Section>
             ) : null}
 
-            {(rental.difficulty && rental.difficulty !== 'not_applicable') || rental.suitableFor?.trim() || rental.notSuitableFor?.trim() ? (
+            {(rental.difficulty && rental.difficulty !== 'not_applicable') ||
+            rental.suitableFor?.trim() ||
+            rental.notSuitableFor?.trim() ||
+            rentalCustomerSkillSuitability(rental) ? (
               <Section title="Suitability">
                 {rental.difficulty === 'easy' ? <p className="text-sm text-ink">Easy</p> : null}
                 {rental.difficulty === 'moderate' ? <p className="text-sm text-ink">Moderate</p> : null}
                 {rental.difficulty === 'challenging' ? <p className="text-sm text-ink">Challenging</p> : null}
+                {rentalCustomerSkillSuitability(rental) ? (
+                  <p className="mt-2 text-sm text-ink">Skill suitability: {rentalCustomerSkillSuitability(rental)}</p>
+                ) : null}
                 {rental.suitableFor?.trim() ? (
                   <p className="mt-2 text-sm text-ink">Suitable for: {rental.suitableFor.trim()}</p>
                 ) : null}

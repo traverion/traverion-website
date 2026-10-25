@@ -378,7 +378,7 @@ export default function RentalOptionEditor({
                 onChange={(e) => patch({ name: e.target.value.slice(0, 80) })}
               />
             </StayField>
-            <StayField label="Description (optional)">
+            <StayField label="Description" optional>
               <textarea
                 id={descriptionId}
                 className="tv-input w-full resize-y py-2"
@@ -398,7 +398,7 @@ export default function RentalOptionEditor({
             <StayHelp>These details belong only to this option. Shared facts stay on the listing.</StayHelp>
             <div className="grid gap-3 sm:grid-cols-2">
               {attributeKeys.map((attr) => (
-                <StayField key={attr.key} label={attr.label}>
+                  <StayField key={attr.key} label={attr.label} optional>
                   <input
                     className="tv-input w-full"
                     value={(variant.attributes ?? {})[attr.key] ?? ''}
@@ -505,7 +505,7 @@ export default function RentalOptionEditor({
 
           {current === 'conditions' ? (
           <section className="stay-panel space-y-3" aria-label="Option notes">
-            <StayField label="Notes for this option (optional)">
+            <StayField label="Notes for this option" optional>
               <textarea
                 className="tv-input w-full resize-y py-2"
                 rows={4}

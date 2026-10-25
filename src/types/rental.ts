@@ -113,6 +113,8 @@ export type RentalDetails = {
   accessibilityNotes?: string;
   /** Omitted when the category does not use difficulty. */
   difficulty?: RentalDifficulty | null;
+  /** Extra skill line. Lifted from specifications.skillLevel so it is not also a spec. */
+  skillSuitability?: string;
   suitableFor?: string;
   notSuitableFor?: string;
   restrictions?: string[];
