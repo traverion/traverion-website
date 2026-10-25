@@ -42,16 +42,23 @@ describe('Tour availability vs Stay Calendar separation', () => {
       title: 'Rovaniemi: Northern Lights Guarantee',
       experienceKind: 'tour' as const,
     };
+    const thermalRental = {
+      id: '3',
+      title: 'Thermal Overall Rental',
+      listingExtras: { inventoryFamily: 'rental' as const },
+    };
     expect(listingIsStayForCalendarDesk(arcticStay)).toBe(true);
     expect(listingIsStayForCalendarDesk(lightsTour)).toBe(false);
-    expect(filterTourAvailabilityListings([arcticStay, lightsTour]).map((l) => l.id)).toEqual(['2']);
+    expect(
+      filterTourAvailabilityListings([arcticStay, lightsTour, thermalRental]).map((l) => l.id)
+    ).toEqual(['2']);
   });
 
   it('opens the correct calendar desk from Listings actions', () => {
     const src = readFileSync(resolve(__dirname, 'SupplierListings.tsx'), 'utf8');
     expect(src).toContain('openSupplierStayCalendar');
-    expect(src).toMatch(
-      /inventoryFamilyFromListing\(listing\) === 'stay'[\s\S]*openSupplierStayCalendar\(listing\.id\)/
-    );
+    expect(src).toContain('openSupplierRentalCalendar');
+    expect(src).toContain("family === 'stay'");
+    expect(src).toContain("family === 'rental'");
   });
 });

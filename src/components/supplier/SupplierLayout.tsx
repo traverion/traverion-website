@@ -100,6 +100,7 @@ const SupplierListings = lazy(() => import('../../pages/supplier/SupplierListing
 const SupplierBookings = lazy(() => import('../../pages/supplier/SupplierBookings'));
 const SupplierAvailability = lazy(() => import('../../pages/supplier/SupplierAvailability'));
 const SupplierStayCalendar = lazy(() => import('../../pages/supplier/SupplierStayCalendar'));
+const SupplierRentalCalendar = lazy(() => import('../../pages/supplier/SupplierRentalCalendar'));
 const SupplierEarnings = lazy(() => import('../../pages/supplier/SupplierEarnings'));
 const SupplierVerificationPage = lazy(() => import('../../pages/supplier/SupplierVerificationPage'));
 const SupplierPerformance = lazy(() => import('../../pages/supplier/SupplierPerformance'));
@@ -167,6 +168,7 @@ type SupplierSection =
   | 'bookings'
   | 'reservations'
   | 'stay-calendar'
+  | 'rental-calendar'
   | 'inbox'
   | 'earnings'
   | 'verification'
@@ -216,6 +218,7 @@ const PATH_ALIASES: Record<string, SupplierSection> = {
   bookings: 'bookings',
   reservations: 'reservations',
   'stay-calendar': 'stay-calendar',
+  'rental-calendar': 'rental-calendar',
   create: 'create',
   inbox: 'inbox',
   account: 'account-settings',
@@ -244,6 +247,7 @@ function pathForSection(s: SupplierSection): string {
   if (s === 'create') return PARTNER_CREATE_PATH;
   if (s === 'reservations') return PARTNER_RESERVATIONS_PATH;
   if (s === 'stay-calendar') return `${PARTNER_APP_BASE}/stay-calendar`;
+  if (s === 'rental-calendar') return `${PARTNER_APP_BASE}/rental-calendar`;
   if (s === 'support' || s === 'help') return PARTNER_SUPPORT_PATH;
   return `${PARTNER_APP_BASE}/${s}`;
 }
@@ -1263,6 +1267,7 @@ export default function SupplierLayout() {
                     {section === 'bookings' && <SupplierBookings inventoryFamily="tour" />}
                     {section === 'reservations' && <SupplierBookings inventoryFamily="stay" />}
                     {section === 'stay-calendar' && <SupplierStayCalendar />}
+                    {section === 'rental-calendar' && <SupplierRentalCalendar />}
                     {section === 'inbox' && <SupplierInbox />}
                     {/* Keep Income hub mounted during verification so return never remounts 3 blank skeletons. */}
                     {(section === 'earnings' || section === 'verification') && (

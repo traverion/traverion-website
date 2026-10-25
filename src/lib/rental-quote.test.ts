@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { emptyRentalDetails } from './rental-details';
-import { quoteRentalLine } from './rental-quote';
+import { quoteRentalLine, quoteRentalWithAvailability } from './rental-quote';
 import type { RentalDetails } from '../types/rental';
 import { COMMERCIAL_PLANS } from './commercial-money';
 
@@ -97,5 +97,50 @@ describe('quoteRentalLine', () => {
       commissionBps: bps,
     });
     expect(result.ok).toBe(false);
+  });
+
+  it('quoteRentalWithAvailability requires free stock for the interval', () => {
+    const pickup = Date.parse('2030-01-10T09:00:00Z');
+    const ret = Date.parse('2030-01-12T18:00:00Z');
+    const blocked = quoteRentalWithAvailability({
+      rental: thermalListing(),
+      variantId: 'm',
+      quantity: 2,
+      durationCount: 2,
+      unit: 'day',
+      commissionBps: bps,
+      availability: {
+        pickupReturn: { startMs: pickup, endMs: ret },
+        bufferMinutes: 0,
+        bookingNoticeHours: 0,
+        nowMs: Date.parse('2029-12-01T00:00:00Z'),
+        blocks: [],
+        occupancies: [
+          { variantId: 'm', quantity: 4, interval: { startMs: pickup, endMs: ret } },
+        ],
+      },
+    });
+    expect(blocked.ok).toBe(false);
+
+    const ok = quoteRentalWithAvailability({
+      rental: thermalListing(),
+      variantId: 'm',
+      quantity: 2,
+      durationCount: 2,
+      unit: 'day',
+      commissionBps: bps,
+      availability: {
+        pickupReturn: { startMs: pickup, endMs: ret },
+        bufferMinutes: 0,
+        bookingNoticeHours: 0,
+        nowMs: Date.parse('2029-12-01T00:00:00Z'),
+        blocks: [],
+        occupancies: [],
+      },
+    });
+    expect(ok.ok).toBe(true);
+    if (!ok.ok) return;
+    expect(ok.customerTotalMinor).toBe(8000);
+    expect(ok.availability.available).toBe(5);
   });
 });

@@ -1,5 +1,6 @@
 /**
- * Partner calendar desk paths: Tours → /partner/availability; Stays → /partner/stay-calendar.
+ * Partner calendar desk paths:
+ * Tours → /partner/availability; Stays → /partner/stay-calendar; Rentals → /partner/rental-calendar.
  */
 
 import { PARTNER_APP_BASE } from './partnerPortalPaths';
@@ -7,14 +8,26 @@ import { inventoryFamilyFromListing, type InventoryListingSlice } from './invent
 
 export const PARTNER_TOUR_AVAILABILITY_PATH = `${PARTNER_APP_BASE}/availability`;
 export const PARTNER_STAY_CALENDAR_PATH = `${PARTNER_APP_BASE}/stay-calendar`;
+export const PARTNER_RENTAL_CALENDAR_PATH = `${PARTNER_APP_BASE}/rental-calendar`;
 
 export function listingIsStayForCalendarDesk(listing: InventoryListingSlice): boolean {
   return inventoryFamilyFromListing(listing) === 'stay';
 }
 
-/** Tour / activity listings eligible for Departures & Availability. */
+export function listingIsRentalForCalendarDesk(listing: InventoryListingSlice): boolean {
+  return inventoryFamilyFromListing(listing) === 'rental';
+}
+
+/** Tour / activity listings eligible for Departures & Availability (excludes stays and rentals). */
 export function filterTourAvailabilityListings<T extends InventoryListingSlice>(listings: T[]): T[] {
-  return listings.filter((l) => !listingIsStayForCalendarDesk(l));
+  return listings.filter(
+    (l) => !listingIsStayForCalendarDesk(l) && !listingIsRentalForCalendarDesk(l)
+  );
+}
+
+/** Rental listings for the rental availability calendar. */
+export function filterRentalAvailabilityListings<T extends InventoryListingSlice>(listings: T[]): T[] {
+  return listings.filter((l) => listingIsRentalForCalendarDesk(l));
 }
 
 export function partnerCalendarDeskPath(params: {

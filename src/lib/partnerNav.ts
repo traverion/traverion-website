@@ -25,6 +25,7 @@ import {
   BedDouble,
   Compass,
   Hotel,
+  KeyRound,
 } from 'lucide-react';
 
 export type PartnerNavSectionId =
@@ -34,6 +35,7 @@ export type PartnerNavSectionId =
   | 'bookings'
   | 'reservations'
   | 'stay-calendar'
+  | 'rental-calendar'
   | 'inbox'
   | 'listings'
   | 'pickup'
@@ -142,6 +144,11 @@ export const PARTNER_NAV_STAYS_CHILDREN: PartnerSidebarChild[] = [
   { id: 'stay-calendar', label: 'Stay Calendar', icon: CalendarDays },
 ];
 
+/** Rental ops under Rentals (availability only — checkout still closed). */
+export const PARTNER_NAV_RENTALS_CHILDREN: PartnerSidebarChild[] = [
+  { id: 'rental-calendar', label: 'Rental calendar', icon: KeyRound },
+];
+
 /** @deprecated Use PARTNER_NAV_STAYS_CHILDREN navigable items */
 export const PARTNER_NAV_RESERVATIONS_CHILDREN: PartnerNavItem[] = [
   { id: 'reservations', label: 'Reservations', icon: BedDouble },
@@ -170,6 +177,14 @@ export const PARTNER_SIDEBAR_PRIMARY: PartnerSidebarEntry[] = [
     icon: Hotel,
     defaultOpen: true,
     children: PARTNER_NAV_STAYS_CHILDREN,
+  },
+  {
+    kind: 'group',
+    id: 'rentals',
+    label: 'Rentals',
+    icon: KeyRound,
+    defaultOpen: true,
+    children: PARTNER_NAV_RENTALS_CHILDREN,
   },
   { kind: 'section', id: 'business', label: 'Business' },
   { kind: 'item', id: 'earnings', label: 'Income & Payouts', icon: Wallet },
@@ -200,6 +215,7 @@ export const PARTNER_SECTION_TITLES: Record<PartnerNavSectionId, string> = {
   availability: 'Departures & Availability',
   reservations: 'Reservations',
   'stay-calendar': 'Stay Calendar',
+  'rental-calendar': 'Rental calendar',
   inbox: 'Inbox',
   reviews: 'Reviews',
   discounts: 'Offers',
@@ -309,6 +325,11 @@ export const PARTNER_MORE_GROUPS: PartnerNavGroup[] = [
       ...PARTNER_NAV_RESERVATIONS_CHILDREN,
       { id: 'stay-calendar', label: 'Stay Calendar', icon: CalendarDays },
     ],
+  },
+  {
+    id: 'rentals',
+    label: 'Rentals',
+    items: [{ id: 'rental-calendar', label: 'Rental calendar', icon: KeyRound }],
   },
   {
     id: 'business',

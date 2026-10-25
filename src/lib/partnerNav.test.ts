@@ -3,6 +3,7 @@ import {
   PARTNER_NAV_HOME,
   PARTNER_NAV_TOURS_CHILDREN,
   PARTNER_NAV_STAYS_CHILDREN,
+  PARTNER_NAV_RENTALS_CHILDREN,
   PARTNER_SIDEBAR_PRIMARY,
   PARTNER_SIDEBAR_FOOTER,
   PARTNER_MORE_GROUPS,
@@ -25,6 +26,7 @@ describe('partnerNav IA', () => {
       'inbox',
       'tours',
       'stays',
+      'rentals',
       'business',
       'earnings',
       'performance',
@@ -55,12 +57,20 @@ describe('partnerNav IA', () => {
     expect(partnerSectionTitle('stay-calendar')).toBe('Stay Calendar');
   });
 
+  it('nests Rental calendar under Rentals', () => {
+    expect(PARTNER_NAV_RENTALS_CHILDREN.map((i) => i.id)).toEqual(['rental-calendar']);
+    expect(partnerSidebarGroupContaining('rental-calendar')?.id).toBe('rentals');
+    expect(partnerSidebarNavigableIds()).toContain('rental-calendar');
+    expect(partnerSectionTitle('rental-calendar')).toBe('Rental calendar');
+  });
+
   it('does not duplicate Bookings and Reservations as top-level leaves', () => {
     const leaves = PARTNER_SIDEBAR_PRIMARY.filter((e) => e.kind === 'item').map((e) => e.id);
     expect(leaves).not.toContain('bookings');
     expect(leaves).not.toContain('reservations');
     expect(leaves).not.toContain('availability');
     expect(leaves).not.toContain('stay-calendar');
+    expect(leaves).not.toContain('rental-calendar');
   });
 
   it('keeps Support and Settings in the footer, not mixed with ops', () => {
@@ -76,6 +86,7 @@ describe('partnerNav IA', () => {
     expect(moreIds).toContain('pickup');
     expect(moreIds).toContain('reservations');
     expect(moreIds).toContain('stay-calendar');
+    expect(moreIds).toContain('rental-calendar');
     expect(moreIds).toContain('support');
     expect(moreIds).toContain('account-settings');
     expect(moreIds).toContain('earnings');

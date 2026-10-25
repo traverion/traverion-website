@@ -127,6 +127,15 @@ export function openSupplierCalendar(
 }
 
 /** Open Stays → Stay Calendar (optionally focus a property and date range). */
+/** Open Rentals → Rental calendar (optionally focus a listing). */
+export function openSupplierRentalCalendar(listingId?: string): void {
+  const q = new URLSearchParams();
+  const id = String(listingId ?? '').trim();
+  if (id) q.set('listing', id);
+  const qs = q.toString();
+  navigateSupplierUrl(qs ? `${PARTNER_APP_BASE}/rental-calendar?${qs}` : `${PARTNER_APP_BASE}/rental-calendar`);
+}
+
 export function openSupplierStayCalendar(
   listingId?: string,
   opts?: { from?: string; to?: string; view?: string }

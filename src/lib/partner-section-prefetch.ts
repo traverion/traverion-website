@@ -34,6 +34,9 @@ export function prefetchPartnerSection(section: string): void {
     case 'availability':
       warm(id, () => import('../pages/supplier/SupplierAvailability'));
       break;
+    case 'rental-calendar':
+      warm(id, () => import('../pages/supplier/SupplierRentalCalendar'));
+      break;
     case 'stay-calendar':
       warm(id, () => import('../pages/supplier/SupplierStayCalendar'));
       break;

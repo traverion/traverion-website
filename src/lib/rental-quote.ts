@@ -9,6 +9,11 @@ import {
   rentalIllustrativeTotalMinor,
 } from './rental-details';
 import { splitGrossByCommissionBps } from './commercial-money';
+import {
+  evaluateRentalAvailability,
+  type RentalAvailabilityQuery,
+  type RentalAvailabilityResult,
+} from './rental-availability';
 
 export type RentalQuoteInput = {
   rental: RentalDetails;
@@ -121,4 +126,41 @@ export function quoteRentalLine(input: RentalQuoteInput): RentalQuoteResult {
   } catch {
     return { ok: false, error: 'Could not calculate commission for this quote.' };
   }
+}
+
+export type RentalAuthoritativeQuoteInput = RentalQuoteInput & {
+  availability: Omit<RentalAvailabilityQuery, 'variantId' | 'stock' | 'requestedQty'>;
+  /** When true, stock comes from variant.quantity (listing extras). */
+  stock?: number;
+};
+
+export type RentalAuthoritativeQuoteResult =
+  | (Extract<RentalQuoteResult, { ok: true }> & {
+      availability: Extract<RentalAvailabilityResult, { ok: true }>;
+    })
+  | { ok: false; error: string; availability?: RentalAvailabilityResult };
+
+/**
+ * Price + availability together. Caller supplies occupancy/blocks from authoritative sources
+ * (or the DB evaluate RPC result mapped into availability.occupancies / blocks).
+ * Does not create holds or charge payment.
+ */
+export function quoteRentalWithAvailability(
+  input: RentalAuthoritativeQuoteInput
+): RentalAuthoritativeQuoteResult {
+  const variant = findRentalVariant(input.rental, input.variantId);
+  if (!variant) return { ok: false, error: 'Rental option not found.' };
+  const stock = input.stock ?? variant.quantity;
+  const availability = evaluateRentalAvailability({
+    ...input.availability,
+    variantId: input.variantId,
+    stock,
+    requestedQty: input.quantity,
+  });
+  if (!availability.ok) {
+    return { ok: false, error: availability.error, availability };
+  }
+  const quote = quoteRentalLine(input);
+  if (!quote.ok) return quote;
+  return { ...quote, availability };
 }

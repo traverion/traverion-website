@@ -64,6 +64,7 @@ import {
   openSupplierListingEditor,
   openSupplierCalendar,
   openSupplierStayCalendar,
+  openSupplierRentalCalendar,
 } from '../../lib/supplierPortalNavigation';
 import {
   isSupplierBusinessProfileCompleteForPublish,
@@ -1619,11 +1620,10 @@ export default function SupplierListings() {
                           <button
                             type="button"
                             onClick={() => {
-                              if (inventoryFamilyFromListing(listing) === 'stay') {
-                                openSupplierStayCalendar(listing.id);
-                              } else {
-                                openSupplierCalendar(listing.id);
-                              }
+                              const family = inventoryFamilyFromListing(listing);
+                              if (family === 'stay') openSupplierStayCalendar(listing.id);
+                              else if (family === 'rental') openSupplierRentalCalendar(listing.id);
+                              else openSupplierCalendar(listing.id);
                             }}
                             className="mt-1 text-[11px] font-semibold text-finland hover:underline"
                           >
@@ -1714,8 +1714,10 @@ export default function SupplierListings() {
           const menuListing = listings.find((l) => l.id === listingActionsMenuId);
           if (!menuListing) return null;
           const menuIsLive = menuListing.status !== 'draft';
-          const menuIsStay = inventoryFamilyFromListing(menuListing) === 'stay';
-          const menuIsTour = !menuIsStay;
+          const menuFamily = inventoryFamilyFromListing(menuListing);
+          const menuIsStay = menuFamily === 'stay';
+          const menuIsRental = menuFamily === 'rental';
+          const menuIsTour = !menuIsStay && !menuIsRental;
           const menuDraftPublish = !menuIsLive
             ? partnerListingDraftPublishSubtitle(menuListing)
             : null;
@@ -1805,11 +1807,9 @@ export default function SupplierListings() {
                   className={`${menuItemClass} items-center gap-2`}
                   onClick={() => {
                     closeListingActionsMenu();
-                    if (menuIsStay) {
-                      openSupplierStayCalendar(menuListing.id);
-                    } else {
-                      openSupplierCalendar(menuListing.id);
-                    }
+                    if (menuIsStay) openSupplierStayCalendar(menuListing.id);
+                    else if (menuIsRental) openSupplierRentalCalendar(menuListing.id);
+                    else openSupplierCalendar(menuListing.id);
                   }}
                 >
                   <CalendarDays className="h-3.5 w-3.5 shrink-0" aria-hidden />
