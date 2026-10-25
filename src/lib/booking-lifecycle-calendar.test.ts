@@ -1,12 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import {
   addCalendarDaysYmd,
+  lifecycleBookingIsRental,
   lifecycleBookingIsStay,
   lifecycleReminderAnchorYmd,
+  lifecycleRentalReturnYmd,
   lifecycleReviewCompletionYmd,
   lifecycleStayCheckOutYmd,
   resolveLifecycleTimezone,
   shouldSendExperienceReminder,
+  shouldSendRentalReturnReminder,
   shouldSendReviewRequest,
   ymdInTimeZone,
 } from './booking-lifecycle-calendar';
@@ -198,6 +201,36 @@ describe('booking-lifecycle-calendar', () => {
     expect(shouldSendExperienceReminder({ ...base, status: 'cancelled', payment_status: 'paid' }, now)).toBe(
       false
     );
+  });
+
+  it('rental is not a stay; pickup/return drive reminder and review', () => {
+    const rental = {
+      status: 'confirmed',
+      payment_status: 'paid',
+      booking_date: '2026-09-20',
+      check_out: '2026-09-22',
+      nights: 2,
+      purchase_snapshot: {
+        inventoryFamily: 'rental',
+        pickupAt: '2026-09-20T09:00:00.000Z',
+        returnAt: '2026-09-22T18:00:00.000Z',
+        departureTimezone: 'Europe/Helsinki',
+        capturedAt: 't',
+      },
+    };
+    expect(lifecycleBookingIsRental(rental)).toBe(true);
+    expect(lifecycleBookingIsStay(rental)).toBe(false);
+    expect(lifecycleReminderAnchorYmd(rental)).toBe('2026-09-20');
+    expect(lifecycleRentalReturnYmd(rental)).toBe('2026-09-22');
+    expect(lifecycleReviewCompletionYmd(rental)).toBe('2026-09-22');
+    // Day before pickup (Sep 19 Helsinki)
+    expect(shouldSendExperienceReminder(rental, Date.parse('2026-09-18T21:30:00.000Z'))).toBe(true);
+    // Day before return (Sep 21 Helsinki)
+    expect(shouldSendRentalReturnReminder(rental, Date.parse('2026-09-20T21:30:00.000Z'))).toBe(true);
+    expect(shouldSendRentalReturnReminder(rental, Date.parse('2026-09-18T21:30:00.000Z'))).toBe(false);
+    // Review day after return (Sep 23 Helsinki)
+    expect(shouldSendReviewRequest(rental, Date.parse('2026-09-22T21:30:00.000Z'))).toBe(true);
+    expect(shouldSendReviewRequest(rental, Date.parse('2026-09-20T21:30:00.000Z'))).toBe(false);
   });
 
   it('near-midnight tour: UTC date differs from Helsinki date', () => {

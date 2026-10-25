@@ -123,6 +123,7 @@ type Body = {
     | 'bookings_list'
     | 'booking_filter_options'
     | 'booking_ops_detail'
+    | 'rental_ops_exceptions'
     | 'finance_summary'
     | 'record_supplier_payout'
     | 'list_contact_inquiries'
@@ -432,6 +433,14 @@ serve(async (req) => {
         name: s.display_name || s.company_legal_name || 'Supplier',
       })),
     });
+  }
+
+  if (body.action === 'rental_ops_exceptions') {
+    const limit = Math.min(200, Math.max(1, Number(body.bookingPageSize) || 50));
+    const { data, error } = await admin.rpc('admin_list_rental_ops_exceptions', { p_limit: limit });
+    if (error) return json({ error: error.message }, 500);
+    const payload = data && typeof data === 'object' ? data : { ok: false, items: [], count: 0 };
+    return json(payload);
   }
 
   if (body.action === 'bookings_list') {

@@ -3,13 +3,15 @@
  *
  * Phase 1073: do NOT use UTC calendar days. Per booking:
  *   TZ = purchase_snapshot.departureTimezone (else Europe/Helsinki)
- *   Reminder: local day before tour departure / stay check-in (booking_date)
- *   Review:   local day after tour departure, or after stay CHECK-OUT
- *             (never after check-in alone)
+ *   Reminder: local day before tour departure / stay check-in / rental pickup
+ *   Rental return reminder: local day before returnAt (separate idempotency)
+ *   Review:   local day after tour departure, stay CHECK-OUT, or rental return
+ *             (never after check-in / pickup alone)
  *
  * Title / logistics come from purchase_snapshot via notify-customer-booking.
  * Idempotency: reminder_email_sent_at / review_request_email_sent_at columns
  * plus notify idempotencyKey — cron retries cannot double-send.
+ * Rental return: rental_booking_events.event_type = return_reminder_sent.
  *
  * Invoke with cron / GitHub Action:
  * Secrets: RESEND_API_KEY (via notify-customer-booking), SUPABASE_SERVICE_ROLE_KEY,
@@ -18,9 +20,11 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.4';
 import {
+  lifecycleBookingIsRental,
   lifecycleCandidateUtcWindow,
   lifecycleStayNightsCandidateUtcWindow,
   shouldSendExperienceReminder,
+  shouldSendRentalReturnReminder,
   shouldSendReviewRequest,
 } from '../_shared/booking-lifecycle-calendar.ts';
 
@@ -88,8 +92,10 @@ serve(async (req) => {
   const { fromYmd, toYmd } = lifecycleCandidateUtcWindow(nowMs);
 
   let remindersSent = 0;
+  let returnRemindersSent = 0;
   let reviewsSent = 0;
   let reminderCandidates = 0;
+  let returnReminderCandidates = 0;
   let reviewCandidates = 0;
   const errors: string[] = [];
 
@@ -156,6 +162,82 @@ serve(async (req) => {
       }
     } catch (e) {
       errors.push(`reminder ${row.id}: ${e instanceof Error ? e.message : 'fail'}`);
+    }
+  }
+
+  // Rental return reminders (day before returnAt). Separate from pickup reminder stamp.
+  const { data: returnRows, error: retErr } = await admin
+    .from('bookings')
+    .select(
+      'id, guest_email, guest_user_id, guest_name, booking_date, check_out, guests, booking_number, listing_id, purchase_snapshot, status, payment_status'
+    )
+    .eq('status', 'confirmed')
+    .eq('payment_status', 'paid')
+    .filter('purchase_snapshot->>inventoryFamily', 'eq', 'rental')
+    .not('check_out', 'is', null)
+    .gte('check_out', fromYmd)
+    .lte('check_out', toYmd)
+    .limit(500);
+
+  if (retErr) return json({ error: retErr.message }, 500);
+
+  const returnBookingIds = (returnRows ?? [])
+    .map((r) => (r && typeof r === 'object' && typeof (r as { id?: unknown }).id === 'string' ? (r as { id: string }).id : ''))
+    .filter(Boolean);
+  const alreadyReturned = new Set<string>();
+  if (returnBookingIds.length > 0) {
+    const { data: prior } = await admin
+      .from('rental_booking_events')
+      .select('booking_id')
+      .in('booking_id', returnBookingIds)
+      .eq('event_type', 'return_reminder_sent');
+    for (const row of prior ?? []) {
+      const id = String((row as { booking_id?: unknown }).booking_id ?? '');
+      if (id) alreadyReturned.add(id);
+    }
+  }
+
+  for (const row of returnRows ?? []) {
+    if (!lifecycleBookingIsRental(row)) continue;
+    if (alreadyReturned.has(row.id)) continue;
+    if (!shouldSendRentalReturnReminder(row, nowMs)) continue;
+    returnReminderCandidates += 1;
+    const email = await resolveGuestEmail(admin, row);
+    if (!email) continue;
+    try {
+      const res = await fetch(`${supabaseUrl}/functions/v1/notify-customer-booking`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          customerEmail: email,
+          bookingId: row.id,
+          emailKind: 'experience_reminder',
+          fieldDiffs: [{ label: 'Return', before: '—', after: 'Tomorrow (local)' }],
+          publicSiteUrl: publicSite,
+          idempotencyKey: `customer:rental_return_reminder:${row.id}`,
+        }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (res.ok && (body?.success || body?.skipped)) {
+        const { error: stampErr } = await admin.rpc('record_rental_booking_event', {
+          p_booking_id: row.id,
+          p_listing_id: row.listing_id,
+          p_event_type: 'return_reminder_sent',
+          p_actor_role: 'system',
+          p_actor_user_id: null,
+          p_payload: { kind: 'return_reminder' },
+        });
+        if (stampErr) {
+          errors.push(`return_reminder_stamp ${row.id}: ${stampErr.message}`);
+        } else {
+          returnRemindersSent += 1;
+          alreadyReturned.add(row.id);
+        }
+      } else {
+        errors.push(`return_reminder ${row.id}: ${body?.error ?? res.status}`);
+      }
+    } catch (e) {
+      errors.push(`return_reminder ${row.id}: ${e instanceof Error ? e.message : 'fail'}`);
     }
   }
 
@@ -281,8 +363,10 @@ serve(async (req) => {
     ok: true,
     candidateWindow: { fromYmd, toYmd },
     reminderCandidates,
+    returnReminderCandidates,
     reviewCandidates,
     remindersSent,
+    returnRemindersSent,
     reviewsSent,
     errors: errors.length ? errors : undefined,
   });

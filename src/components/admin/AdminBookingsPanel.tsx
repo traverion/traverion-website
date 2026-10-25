@@ -67,6 +67,19 @@ type ListResponse = {
   pageSize: number;
 };
 
+type RentalOpsException = {
+  exception_kind?: string;
+  entity_id?: string;
+  booking_id?: string | null;
+  listing_id?: string | null;
+  hold_status?: string | null;
+  booking_status?: string | null;
+  payment_status?: string | null;
+  hold_expires_at?: string | null;
+  observed_at?: string | null;
+  detail?: Record<string, unknown> | null;
+};
+
 const QUEUES: Array<[Queue, string]> = [
   ['all', 'All'],
   ['pending', 'Pending'],
@@ -146,6 +159,28 @@ export default function AdminBookingsPanel() {
   const [bookingId, setBookingId] = useState(initial.bookingId);
   const [suppliers, setSuppliers] = useState<Array<{ id: string; name: string }>>([]);
   const [listings, setListings] = useState<Array<{ id: string; title: string | null }>>([]);
+  const [rentalExceptions, setRentalExceptions] = useState<RentalOpsException[]>([]);
+  const [rentalExceptionsError, setRentalExceptionsError] = useState<string | null>(null);
+
+  const loadRentalExceptions = useCallback(async () => {
+    if (!isSupabaseConfigured()) return;
+    try {
+      const data = await invokeAdminEdgeFunction<{
+        ok?: boolean;
+        items?: RentalOpsException[];
+        count?: number;
+        error?: string;
+      }>({
+        action: 'rental_ops_exceptions',
+        bookingPageSize: 40,
+      });
+      setRentalExceptions(Array.isArray(data.items) ? data.items : []);
+      setRentalExceptionsError(data.error ?? null);
+    } catch (e) {
+      setRentalExceptions([]);
+      setRentalExceptionsError(e instanceof Error ? e.message : 'Could not load rental exceptions');
+    }
+  }, []);
 
   const load = useCallback(async () => {
     if (!isSupabaseConfigured()) return;
@@ -182,6 +217,10 @@ export default function AdminBookingsPanel() {
   useEffect(() => {
     if (isSupabaseConfigured()) void load();
   }, [load]);
+
+  useEffect(() => {
+    if (isSupabaseConfigured()) void loadRentalExceptions();
+  }, [loadRentalExceptions]);
 
   useEffect(() => {
     const id = window.setTimeout(() => setSearch(searchInput.trim()), 350);
@@ -251,7 +290,15 @@ export default function AdminBookingsPanel() {
               Marketplace bookings, newest first. Payment labels match travelers and suppliers.
             </p>
           </div>
-          <button type="button" className="tv-btn-secondary h-9 px-3 text-[13px]" disabled={loading} onClick={() => void load()}>
+          <button
+            type="button"
+            className="tv-btn-secondary h-9 px-3 text-[13px]"
+            disabled={loading}
+            onClick={() => {
+              void load();
+              void loadRentalExceptions();
+            }}
+          >
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Refresh'}
           </button>
         </div>
@@ -331,6 +378,42 @@ export default function AdminBookingsPanel() {
           <input className="tv-input text-sm" type="date" aria-label="Created to" value={createdTo} onChange={(e) => { setCreatedTo(e.target.value); setPage(1); }} />
         </div>
       </div>
+
+      {rentalExceptionsError ? (
+        <NoticeCallout title="Rental ops exceptions unavailable" tone="warn">
+          {rentalExceptionsError}
+        </NoticeCallout>
+      ) : null}
+      {rentalExceptions.length > 0 ? (
+        <div className="rounded-lg border border-[#fcd34d] bg-[#fffbeb] px-3 py-3">
+          <h3 className="text-[13px] font-bold text-[#92400e]">Rental ops exceptions ({rentalExceptions.length})</h3>
+          <p className="mt-1 text-[12px] text-[#a16207]">
+            Stuck holds, paid-but-unconfirmed, and failed refunds. Open the booking id to investigate.
+          </p>
+          <ul className="mt-2 max-h-40 space-y-1 overflow-y-auto text-[12px] text-[#78350f]">
+            {rentalExceptions.slice(0, 25).map((ex) => {
+              const bid = ex.booking_id || ex.entity_id || '';
+              return (
+                <li key={`${ex.exception_kind}-${ex.entity_id}`}>
+                  <button
+                    type="button"
+                    className="text-left font-semibold underline-offset-2 hover:underline"
+                    onClick={() => {
+                      if (bid) setBookingId(bid);
+                    }}
+                  >
+                    {ex.exception_kind || 'exception'}
+                  </button>
+                  <span className="text-[#a16207]">
+                    {' '}
+                    · {bid ? `${bid.slice(0, 8)}…` : '—'} · {ex.payment_status || ex.hold_status || '—'}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      ) : null}
 
       {error ? (
         <NoticeCallout title="Could not load bookings" tone="danger">

@@ -1,0 +1,167 @@
+{
+  "ok": true,
+  "phase": "rental_stripe_journey",
+  "startedAt": "2026-10-25T17:36:47.358Z",
+  "runId": "5bec18fe",
+  "safety": {
+    "rentalCheckoutEnabledSecret": false,
+    "listingStatus": "draft",
+    "stripeMode": "test"
+  },
+  "steps": [
+    {
+      "name": "stripe_test_key_ok",
+      "ok": true,
+      "at": "2026-10-25T17:36:47.360Z"
+    },
+    {
+      "name": "rental_checkout_flag_absent",
+      "ok": true,
+      "at": "2026-10-25T17:36:51.296Z"
+    },
+    {
+      "name": "fixture_listing_draft",
+      "ok": true,
+      "listingId": "987588b2…",
+      "at": "2026-10-25T17:36:57.692Z"
+    },
+    {
+      "name": "evaluate_availability",
+      "ok": true,
+      "available": 2,
+      "stock": 2,
+      "at": "2026-10-25T17:37:02.892Z"
+    },
+    {
+      "name": "claim_inventory_and_pending_booking",
+      "ok": true,
+      "bookingId": "739879b2…",
+      "holdId": "1d169f92…",
+      "at": "2026-10-25T17:37:09.380Z"
+    },
+    {
+      "name": "stripe_test_payment_completed",
+      "ok": true,
+      "payment_status": "succeeded",
+      "pi": "pi_3UUVM2C3BaJIHpM60levyO4j",
+      "syntheticSessionId": "cs_test_cert_rental_5bec18fe_739879b2",
+      "at": "2026-10-25T17:37:15.690Z"
+    },
+    {
+      "name": "promote_paid_checkout_booking",
+      "ok": true,
+      "via": "direct_promote_pi",
+      "result": {
+        "booking_id": "739879b2-8357-4d55-900a-664c663fc117",
+        "ok": true
+      },
+      "at": "2026-10-25T17:37:21.135Z"
+    },
+    {
+      "name": "booking_promoted_confirmed",
+      "ok": true,
+      "via": "direct_promote_pi",
+      "status": "confirmed",
+      "payment": "paid",
+      "at": "2026-10-25T17:37:24.286Z"
+    },
+    {
+      "name": "inventory_hold_confirmed",
+      "ok": true,
+      "status": "confirmed",
+      "at": "2026-10-25T17:37:26.908Z"
+    },
+    {
+      "name": "duplicate_promote_idempotent",
+      "ok": true,
+      "reason": "already_paid",
+      "at": "2026-10-25T17:37:29.768Z"
+    },
+    {
+      "name": "payment_events_recorded",
+      "ok": true,
+      "count": 0,
+      "types": [],
+      "at": "2026-10-25T17:37:32.787Z"
+    },
+    {
+      "name": "expire_stale_holds",
+      "ok": true,
+      "result": 1,
+      "at": "2026-10-25T17:37:38.923Z"
+    },
+    {
+      "name": "abandon_hold_released",
+      "ok": true,
+      "status": "expired",
+      "at": "2026-10-25T17:37:41.736Z"
+    },
+    {
+      "name": "abandon_booking_cancelled_unpaid",
+      "ok": true,
+      "at": "2026-10-25T17:37:44.423Z"
+    },
+    {
+      "name": "customer_cancel_released_hold",
+      "ok": true,
+      "holdStatus": "released",
+      "at": "2026-10-25T17:37:49.833Z"
+    },
+    {
+      "name": "refund_instruction_queued",
+      "ok": true,
+      "amountMinor": 2500,
+      "status": "ready",
+      "at": "2026-10-25T17:37:52.720Z"
+    },
+    {
+      "name": "stripe_refund_created",
+      "ok": true,
+      "refundId": "re_3UUVM2C3BaJIHpM60Z29VfNg",
+      "status": "succeeded",
+      "at": "2026-10-25T17:37:56.583Z"
+    },
+    {
+      "name": "stripe_refund_idempotent",
+      "ok": true,
+      "refundId": "re_3UUVM2C3BaJIHpM60Z29VfNg",
+      "at": "2026-10-25T17:37:56.767Z"
+    },
+    {
+      "name": "booking_marked_refunded",
+      "ok": true,
+      "at": "2026-10-25T17:37:59.852Z"
+    },
+    {
+      "name": "stripe_refund_verified",
+      "ok": true,
+      "id": "re_3UUVM2C3BaJIHpM60Z29VfNg",
+      "status": "succeeded",
+      "amount": 2500,
+      "at": "2026-10-25T17:38:00.070Z"
+    },
+    {
+      "name": "admin_exceptions_view",
+      "ok": true,
+      "rows": 0,
+      "at": "2026-10-25T17:38:03.262Z"
+    },
+    {
+      "name": "cleanup_disposable_fixtures",
+      "ok": true,
+      "listingId": "987588b2…",
+      "at": "2026-10-25T17:38:06.736Z"
+    }
+  ],
+  "errors": [],
+  "ids": {
+    "listingId": "987588b2-6bd1-4af6-b98c-ac7ac3d8f38b",
+    "bookingId": "739879b2-8357-4d55-900a-664c663fc117",
+    "holdId": "1d169f92-d143-4e08-b2fc-c5e8bbf0727d",
+    "checkoutSessionId": "cs_test_cert_rental_5bec18fe_739879b2",
+    "paymentIntentId": "pi_3UUVM2C3BaJIHpM60levyO4j",
+    "abandonBookingId": "bdef31c3-9376-4f70-8e24-f4bb35a1b2cf",
+    "refundId": "re_3UUVM2C3BaJIHpM60Z29VfNg"
+  },
+  "finishedAt": "2026-10-25T17:38:06.736Z"
+}
