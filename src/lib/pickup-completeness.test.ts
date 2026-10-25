@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  bookingIsRental,
   bookingIsStayNight,
   bookingNeedsPickupCopy,
   listingPickupCopyIncomplete,
@@ -33,6 +34,13 @@ describe('pickup completeness', () => {
     expect(bookingIsStayNight(stayNightsOnly)).toBe(true);
     expect(bookingIsStayNight({ ...tour, nights: 0 })).toBe(false);
     expect(bookingIsStayNight(tour)).toBe(false);
+    const rentalWithReturnDay = {
+      check_out: '2030-01-05',
+      nights: 2,
+      purchase_snapshot: { inventoryFamily: 'rental', checkOut: '2030-01-05' },
+    };
+    expect(bookingIsRental(rentalWithReturnDay)).toBe(true);
+    expect(bookingIsStayNight(rentalWithReturnDay)).toBe(false);
     expect(bookingNeedsPickupCopy(stayCol, '', '')).toBe(false);
     expect(bookingNeedsPickupCopy(stayNightsOnly, 'Meet', '')).toBe(false);
     expect(bookingNeedsPickupCopy(tour, 'Meet', '')).toBe(true);

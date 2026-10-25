@@ -26,6 +26,7 @@ export const PARTNER_APP_BASE = '/partner';
 
 export const PARTNER_CREATE_PATH = `${PARTNER_APP_BASE}/create`;
 export const PARTNER_RESERVATIONS_PATH = `${PARTNER_APP_BASE}/reservations`;
+export const PARTNER_RENTAL_BOOKINGS_PATH = `${PARTNER_APP_BASE}/rental-bookings`;
 /** Canonical Partner Support Center. */
 export const PARTNER_SUPPORT_PATH = `${PARTNER_APP_BASE}/support`;
 /** Legacy Help URL — redirect to {@link PARTNER_SUPPORT_PATH}. */

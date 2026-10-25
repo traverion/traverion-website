@@ -23,12 +23,22 @@ const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
  * Phase 1523: column / nights / purchased snapshot only — never notes-only check_out:
  * (planted keys must not flip tour cancel/refund to stay check-in math).
  */
+export function bookingIsRental(b: { purchase_snapshot?: unknown }): boolean {
+  const family =
+    b.purchase_snapshot && typeof b.purchase_snapshot === 'object'
+      ? (b.purchase_snapshot as { inventoryFamily?: unknown }).inventoryFamily
+      : null;
+  return family === 'rental';
+}
+
 export function bookingIsStayNight(b: {
   check_out?: string | null;
   special_requests?: string | null;
   nights?: number | null;
   purchase_snapshot?: unknown;
 }): boolean {
+  // Rentals reuse check_out for return-day accounting — never treat as stay nights (SQL 286).
+  if (bookingIsRental(b)) return false;
   const col = (b.check_out ?? '').trim();
   if (ISO_DATE.test(col)) return true;
   const nights = Math.floor(Number(b.nights ?? 0));

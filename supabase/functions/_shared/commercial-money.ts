@@ -23,3 +23,8 @@ export function toMinorUnits(major: number): number {
   if (!Number.isFinite(major) || major < 0) throw new Error('invalid_major_amount');
   return Math.round(major * 100);
 }
+
+export function fromMinorUnits(minor: number): number {
+  if (!Number.isInteger(minor)) throw new Error('minor_must_be_integer');
+  return minor / 100;
+}

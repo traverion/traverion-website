@@ -98,7 +98,7 @@ import { addCalendarDaysYmd } from '../../lib/booking-lifecycle-calendar';
 import { formatPartnerCheckoutHoldLabel, partnerUnpaidCheckoutHoldsInventory } from '../../lib/booking-hold';
 import { formatStayNightHuman } from '../../lib/stay-calendar';
 import { formatBookingDateDisplay } from '../../lib/booking-flow';
-import { bookingIsStayNight, partnerBookingHasPickupAttention, resolvePartnerPickupCopy } from '../../lib/pickup-completeness';
+import { bookingIsRental, bookingIsStayNight, partnerBookingHasPickupAttention, resolvePartnerPickupCopy } from '../../lib/pickup-completeness';
 import { parseListingExtras, materializedBookingOptions } from '../../types/listingExtras';
 import {
   applyPartnerBookingsDesk,
@@ -351,7 +351,7 @@ async function downloadBookingsCsv(
 export default function SupplierBookings({
   inventoryFamily,
 }: {
-  inventoryFamily?: 'tour' | 'stay';
+  inventoryFamily?: 'tour' | 'stay' | 'rental';
 } = {}) {
   const { user, isSupabase } = useSupplierAuth();
   const { role } = useSupplierRole();
@@ -523,32 +523,25 @@ export default function SupplierBookings({
     void load();
   }, [load]);
 
-  // Wrong-desk deep links (stay on Bookings / tour on Reservations) → correct section.
+  // Wrong-desk deep links → correct family section.
   useEffect(() => {
     if (!inventoryFamily || !highlightBookingId || loading) return;
     const booking = bookings.find((b) => b.id === highlightBookingId);
     if (!booking) return;
+    const isRental =
+      listingMeta[booking.listing_id]?.family === 'rental' || bookingIsRental(booking);
     const isStay =
-      listingMeta[booking.listing_id]?.family === 'stay' || bookingIsStayNight(booking);
-    if (inventoryFamily === 'tour' && isStay) {
-      navigateSupplierUrl(
-        partnerBookingDeskPathPreservingSearch({
-          isStay: true,
-          bookingId: highlightBookingId,
-          currentSearch: window.location.search,
-        })
-      );
-      return;
-    }
-    if (inventoryFamily === 'stay' && !isStay) {
-      navigateSupplierUrl(
-        partnerBookingDeskPathPreservingSearch({
-          isStay: false,
-          bookingId: highlightBookingId,
-          currentSearch: window.location.search,
-        })
-      );
-    }
+      !isRental &&
+      (listingMeta[booking.listing_id]?.family === 'stay' || bookingIsStayNight(booking));
+    const actualFamily: 'tour' | 'stay' | 'rental' = isRental ? 'rental' : isStay ? 'stay' : 'tour';
+    if (actualFamily === inventoryFamily) return;
+    navigateSupplierUrl(
+      partnerBookingDeskPathPreservingSearch({
+        family: actualFamily,
+        bookingId: highlightBookingId,
+        currentSearch: window.location.search,
+      })
+    );
   }, [inventoryFamily, highlightBookingId, bookings, listingMeta, loading]);
 
   useEffect(() => {
@@ -558,9 +551,14 @@ export default function SupplierBookings({
       // Legacy ?booking= → canonical /partner/bookings/:id (preserve other filters).
       const legacyId = (params.get('booking') ?? '').trim();
       if (legacyId && !window.location.pathname.includes(`/${legacyId}`)) {
-        const isStayPath = window.location.pathname.includes('/reservations');
+        const pathNow = window.location.pathname;
+        const legacyFamily: 'tour' | 'stay' | 'rental' = pathNow.includes('/rental-bookings')
+          ? 'rental'
+          : pathNow.includes('/reservations')
+            ? 'stay'
+            : 'tour';
         const next = partnerBookingDeskPath({
-          isStay: isStayPath,
+          family: legacyFamily,
           bookingId: legacyId,
           extraSearch: params,
         });
@@ -676,12 +674,18 @@ export default function SupplierBookings({
 
   const setSelectedBookingId = useCallback(
     (id: string | null) => {
-      const isStayPath =
-        inventoryFamily === 'stay' || window.location.pathname.includes('/reservations');
+      const path = window.location.pathname;
+      const family: 'tour' | 'stay' | 'rental' =
+        inventoryFamily ??
+        (path.includes('/rental-bookings')
+          ? 'rental'
+          : path.includes('/reservations')
+            ? 'stay'
+            : 'tour');
       const url = new URL(window.location.href);
       url.searchParams.delete('booking');
       const next = partnerBookingDeskPath({
-        isStay: isStayPath,
+        family,
         bookingId: id,
         extraSearch: url.searchParams,
       });
@@ -733,7 +737,11 @@ export default function SupplierBookings({
       highlightBookingId,
     }, {
       nowMs,
-      isStay: (b) => listingMeta[b.listing_id]?.family === 'stay' || bookingIsStayNight(b),
+      isStay: (b) =>
+        listingMeta[b.listing_id]?.family !== 'rental' &&
+        !bookingIsRental(b) &&
+        (listingMeta[b.listing_id]?.family === 'stay' || bookingIsStayNight(b)),
+      isRental: (b) => listingMeta[b.listing_id]?.family === 'rental' || bookingIsRental(b),
       pickupAttention: (b) => {
         if (opsFilter === 'pickup') {
           const meta = listingMeta[b.listing_id];
@@ -1020,8 +1028,10 @@ export default function SupplierBookings({
   };
 
   const isStayDesk = inventoryFamily === 'stay';
+  const isRentalDesk = inventoryFamily === 'rental';
 
   const stayDetailMode = Boolean(isStayDesk && highlightBookingId);
+  // Rentals reuse the tour ops detail shell (interval + handover fields in snapshot).
   const tourDetailMode = Boolean(!isStayDesk && highlightBookingId);
   const listHidden = stayDetailMode || tourDetailMode;
 
@@ -1033,9 +1043,13 @@ export default function SupplierBookings({
       <SupplierPageHero
         badge={null}
         sansTitle
-        title={isStayDesk ? 'Reservations' : 'Bookings'}
+        title={isStayDesk ? 'Reservations' : isRentalDesk ? 'Rental bookings' : 'Bookings'}
         description={
-          isStayDesk ? 'Guests, nights, and property decisions.' : 'Guests, departures, and booking details.'
+          isStayDesk
+            ? 'Guests, nights, and property decisions.'
+            : isRentalDesk
+              ? 'Customers, pickup windows, and rental handovers.'
+              : 'Guests, departures, and booking details.'
         }
         actions={
           bookings.length > 0 ? (
@@ -1283,11 +1297,19 @@ export default function SupplierBookings({
       ) : error ? null : bookings.length === 0 ? (
         <SupplierEmptyState
           icon={CalendarDays}
-          title={inventoryFamily === 'stay' ? 'No reservations yet' : 'No bookings yet'}
+          title={
+            inventoryFamily === 'stay'
+              ? 'No reservations yet'
+              : inventoryFamily === 'rental'
+                ? 'No rental bookings yet'
+                : 'No bookings yet'
+          }
           body={
             inventoryFamily === 'stay'
               ? 'No traveler has reserved a stay night yet. That is normal until a stay is live and someone checks out. When they do, reservations appear here.'
-              : 'No traveler has booked your tours yet. That is normal until a listing is live and someone checks out. When they do, bookings appear here.'
+              : inventoryFamily === 'rental'
+                ? 'Rental checkout is not open to travelers yet. When certified bookings complete, they will appear here with pickup and return details.'
+                : 'No traveler has booked your tours yet. That is normal until a listing is live and someone checks out. When they do, bookings appear here.'
           }
           action={
             <div className="flex flex-wrap gap-2">
@@ -2008,7 +2030,12 @@ export default function SupplierBookings({
             className="tour-ops-detail__back lux-flat"
             onClick={() => leaveBookingDetail(highlightBookingId)}
           >
-            ← {partnerInboxReturnMatches(highlightBookingId) ? 'Back to Inbox' : 'Back to bookings'}
+            ←{' '}
+            {partnerInboxReturnMatches(highlightBookingId)
+              ? 'Back to Inbox'
+              : isRentalDesk
+                ? 'Back to rental bookings'
+                : 'Back to bookings'}
           </button>
           <h1 className="tour-ops-detail__ref">Booking unavailable</h1>
           <p className="tour-ops-detail__muted mt-2">
@@ -2152,7 +2179,11 @@ export default function SupplierBookings({
                 }
                 cancelBlocked={Boolean(openCancel)}
                 backLabel={
-                  partnerInboxReturnMatches(booking.id) ? 'Back to Inbox' : 'Back to bookings'
+                  partnerInboxReturnMatches(booking.id)
+                    ? 'Back to Inbox'
+                    : isRentalDesk
+                      ? 'Back to rental bookings'
+                      : 'Back to bookings'
                 }
                 onBack={() => leaveBookingDetail(booking.id)}
                 onCopyReference={() => {

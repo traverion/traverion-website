@@ -107,4 +107,36 @@ describe('partner bookings desk', () => {
     expect(tourDesk.some((r) => r.id === 'stay-1')).toBe(false);
     expect(stayDesk.some((r) => r.id === 'tour-1')).toBe(false);
   });
+
+  it('keeps rentals on the rental desk only', () => {
+    const mixed = [
+      row({ id: 'tour-1', created_at: '2026-10-02T10:00:00.000Z', listing_id: 'tour-listing' }),
+      row({
+        id: 'rental-1',
+        created_at: '2026-10-04T10:00:00.000Z',
+        listing_id: 'rental-listing',
+        check_out: '2030-01-05',
+        nights: 2,
+        purchase_snapshot: { inventoryFamily: 'rental' },
+      }),
+    ];
+    const rentalIds = new Set(['rental-1']);
+    const rentalExtras = {
+      ...extras,
+      isStay: () => false,
+      isRental: (b: PartnerBookingsDeskRow) => rentalIds.has(b.id),
+    };
+    const tourDesk = applyPartnerBookingsDesk(
+      mixed,
+      { ...baseQuery, inventoryFamily: 'tour' },
+      rentalExtras
+    );
+    const rentalDesk = applyPartnerBookingsDesk(
+      mixed,
+      { ...baseQuery, inventoryFamily: 'rental' },
+      rentalExtras
+    );
+    expect(tourDesk.map((r) => r.id)).toEqual(['tour-1']);
+    expect(rentalDesk.map((r) => r.id)).toEqual(['rental-1']);
+  });
 });

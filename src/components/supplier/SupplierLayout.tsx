@@ -169,6 +169,7 @@ type SupplierSection =
   | 'reservations'
   | 'stay-calendar'
   | 'rental-calendar'
+  | 'rental-bookings'
   | 'inbox'
   | 'earnings'
   | 'verification'
@@ -219,6 +220,7 @@ const PATH_ALIASES: Record<string, SupplierSection> = {
   reservations: 'reservations',
   'stay-calendar': 'stay-calendar',
   'rental-calendar': 'rental-calendar',
+  'rental-bookings': 'rental-bookings',
   create: 'create',
   inbox: 'inbox',
   account: 'account-settings',
@@ -248,6 +250,7 @@ function pathForSection(s: SupplierSection): string {
   if (s === 'reservations') return PARTNER_RESERVATIONS_PATH;
   if (s === 'stay-calendar') return `${PARTNER_APP_BASE}/stay-calendar`;
   if (s === 'rental-calendar') return `${PARTNER_APP_BASE}/rental-calendar`;
+  if (s === 'rental-bookings') return `${PARTNER_APP_BASE}/rental-bookings`;
   if (s === 'support' || s === 'help') return PARTNER_SUPPORT_PATH;
   return `${PARTNER_APP_BASE}/${s}`;
 }
@@ -1266,6 +1269,7 @@ export default function SupplierLayout() {
                     {section === 'availability' && <SupplierAvailability />}
                     {section === 'bookings' && <SupplierBookings inventoryFamily="tour" />}
                     {section === 'reservations' && <SupplierBookings inventoryFamily="stay" />}
+                    {section === 'rental-bookings' && <SupplierBookings inventoryFamily="rental" />}
                     {section === 'stay-calendar' && <SupplierStayCalendar />}
                     {section === 'rental-calendar' && <SupplierRentalCalendar />}
                     {section === 'inbox' && <SupplierInbox />}

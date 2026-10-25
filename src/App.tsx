@@ -97,6 +97,7 @@ const TourDetails = lazy(() => import('./pages/TourDetails'));
 const Stays = lazy(() => import('./pages/Stays'));
 const StayDetails = lazy(() => import('./pages/StayDetails'));
 const ReservedInventoryPage = lazy(() => import('./pages/ReservedInventoryPage'));
+const RentalDetails = lazy(() => import('./pages/RentalDetails'));
 const SupplierLayout = lazy(() => import('./components/supplier/SupplierLayout'));
 const Home = lazy(() => import('./pages/Home'));
 
@@ -836,13 +837,21 @@ function App() {
           </div>
         );
       }
-      case 'inventory-reserved':
+      case 'inventory-reserved': {
+        const rentalDeep =
+          typeof window !== 'undefined'
+            ? window.location.pathname.match(/^\/rentals\/([0-9a-f-]{36})$/i)?.[1]
+            : null;
+        if (rentalDeep && destinationSlug === 'rental') {
+          return <RentalDetails listingId={rentalDeep} onNavigate={handleNavigate} />;
+        }
         return (
           <ReservedInventoryPage
             family={destinationSlug === 'rental' ? 'rental' : 'experience'}
             onNavigate={handleNavigate}
           />
         );
+      }
       case 'destination':
         return (
           <DestinationPage

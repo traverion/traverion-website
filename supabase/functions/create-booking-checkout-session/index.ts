@@ -47,6 +47,8 @@ import {
   travelerPickupAllowed,
 } from '../_shared/pickup-area.ts';
 import { createCheckoutTiming } from '../_shared/checkout-initiation-timing.ts';
+import { quoteRentalCheckoutLine } from '../_shared/rental-checkout-quote.ts';
+import { fromMinorUnits } from '../_shared/commercial-money.ts';
 
 type RequestBody = {
   bookingId?: string;
@@ -78,6 +80,15 @@ type RequestBody = {
   stayExtras?: unknown;
   /** Must be true for new checkout holds; resume by bookingId may omit. */
   checkoutConsentAccepted?: boolean;
+  /** Rental interval checkout (ignored unless listing inventoryFamily=rental). */
+  rental?: {
+    variantId?: string;
+    quantity?: number;
+    pickupAt?: string;
+    returnAt?: string;
+    durationCount?: number;
+    durationUnit?: 'hour' | 'day';
+  };
 };
 
 function json(body: unknown, status = 200): Response {
@@ -323,18 +334,30 @@ serve(async (req) => {
       participantMix = participantMixFromGuestBreakdown(row.guest_breakdown);
     } else {
       if (!listingId) return json({ success: false, error: 'listingId is required' }, 400);
-      if (!bookingDate || !/^\d{4}-\d{2}-\d{2}$/.test(bookingDate)) {
-        return json({ success: false, error: 'bookingDate must be YYYY-MM-DD' }, 400);
-      }
-      {
-        const [y, m, d] = bookingDate.split('-').map(Number);
-        const dt = new Date(Date.UTC(y, m - 1, d));
-        if (dt.getUTCFullYear() !== y || dt.getUTCMonth() !== m - 1 || dt.getUTCDate() !== d) {
-          return json({ success: false, error: 'bookingDate must be a real calendar date' }, 400);
+      const rentalIntent = body.rental && typeof body.rental === 'object';
+      if (rentalIntent) {
+        // Rental checkout uses pickup/return instants; seed bookingDate/guests after quote.
+        const pickupRaw = String(body.rental?.pickupAt ?? '').trim();
+        const pickupMs = Date.parse(pickupRaw);
+        if (!Number.isNaN(pickupMs)) {
+          bookingDate = new Date(pickupMs).toISOString().slice(0, 10);
         }
-      }
-      if (!Number.isFinite(guests) || guests < 1 || guests > 99) {
-        return json({ success: false, error: 'guests must be between 1 and 99' }, 400);
+        const qty = Number(body.rental?.quantity ?? guests);
+        if (Number.isFinite(qty) && qty >= 1) guests = Math.floor(qty);
+      } else {
+        if (!bookingDate || !/^\d{4}-\d{2}-\d{2}$/.test(bookingDate)) {
+          return json({ success: false, error: 'bookingDate must be YYYY-MM-DD' }, 400);
+        }
+        {
+          const [y, m, d] = bookingDate.split('-').map(Number);
+          const dt = new Date(Date.UTC(y, m - 1, d));
+          if (dt.getUTCFullYear() !== y || dt.getUTCMonth() !== m - 1 || dt.getUTCDate() !== d) {
+            return json({ success: false, error: 'bookingDate must be a real calendar date' }, 400);
+          }
+        }
+        if (!Number.isFinite(guests) || guests < 1 || guests > 99) {
+          return json({ success: false, error: 'guests must be between 1 and 99' }, 400);
+        }
       }
     }
 
@@ -448,6 +471,287 @@ serve(async (req) => {
       listingRow.listing_extras && typeof listingRow.listing_extras === 'object'
         ? (listingRow.listing_extras as { inventoryFamily?: unknown }).inventoryFamily
         : null;
+    if (body.rental && typeof body.rental === 'object' && extrasFamily !== 'rental') {
+      return json(
+        { success: false, error: 'Rental checkout fields do not apply to this listing.' },
+        400
+      );
+    }
+    // Rentals: claim + Stripe path exists behind RENTAL_CHECKOUT_ENABLED.
+    // Public publish remains blocked by mig 282 until explicit release approval.
+    if (extrasFamily === 'rental') {
+      const rentalCheckoutEnabled = (Deno.env.get('RENTAL_CHECKOUT_ENABLED') ?? '').trim() === '1';
+      if (!rentalCheckoutEnabled) {
+        return json(
+          {
+            success: false,
+            error:
+              'Rental checkout is not available yet. Traverion Rentals remains in controlled rollout.',
+          },
+          503
+        );
+      }
+
+      const rentalBody = body.rental ?? {};
+      const variantId = String(rentalBody.variantId ?? storedOptionId ?? '').trim();
+      const quantity = Number(rentalBody.quantity ?? guests);
+      const pickupAt = String(rentalBody.pickupAt ?? '').trim();
+      const returnAt = String(rentalBody.returnAt ?? '').trim();
+      const durationUnit =
+        rentalBody.durationUnit === 'hour' || rentalBody.durationUnit === 'day'
+          ? rentalBody.durationUnit
+          : null;
+      const durationCount = Number(rentalBody.durationCount ?? NaN);
+      if (!variantId) return json({ success: false, error: 'Choose a rental option.' }, 400);
+      if (!pickupAt || !returnAt || Number.isNaN(Date.parse(pickupAt)) || Number.isNaN(Date.parse(returnAt))) {
+        return json({ success: false, error: 'Choose valid pickup and return times.' }, 400);
+      }
+      if (Date.parse(returnAt) <= Date.parse(pickupAt)) {
+        return json({ success: false, error: 'Return must be after pickup.' }, 400);
+      }
+      if (!durationUnit || !(durationCount > 0)) {
+        return json({ success: false, error: 'Choose a valid rental duration.' }, 400);
+      }
+
+      const listingExtrasObj =
+        listingRow.listing_extras && typeof listingRow.listing_extras === 'object'
+          ? (listingRow.listing_extras as Record<string, unknown>)
+          : {};
+      const rentalExtras = listingExtrasObj.rental;
+
+      // Commission: freeze_booking_commercial_terms still authoritative at settle;
+      // quote uses standard plan bps for expected-total parity before freeze.
+      const commissionBps = 1500;
+      const rentalQuote = quoteRentalCheckoutLine({
+        rentalExtras,
+        variantId,
+        quantity: Math.floor(quantity),
+        durationCount,
+        durationUnit,
+        commissionBps,
+      });
+      if (!rentalQuote.ok) {
+        return json({ success: false, error: rentalQuote.error }, 400);
+      }
+
+      const totalAmountMajor = fromMinorUnits(rentalQuote.customerTotalMinor);
+      if (
+        typeof body.expectedTotal === 'number' &&
+        Number.isFinite(body.expectedTotal) &&
+        Math.round(body.expectedTotal * 100) !== rentalQuote.customerTotalMinor
+      ) {
+        return json(
+          {
+            success: false,
+            error: 'Price changed. Refresh and try again.',
+            expectedTotalMinor: rentalQuote.customerTotalMinor,
+          },
+          409
+        );
+      }
+
+      const currency = String(
+        (listingRow.price_currency as string | null) ?? body.currency ?? 'EUR'
+      )
+        .trim()
+        .toUpperCase()
+        .slice(0, 3) || 'EUR';
+      const listingTitle =
+        String(listingRow.title ?? body.listingTitle ?? 'Rental').trim() || 'Rental';
+      const holdMinutes = 60;
+      const holdExpiresAtIso = new Date(Date.now() + holdMinutes * 60_000).toISOString();
+      const holdExpiresAtUnix = checkoutHoldExpiresAtUnix(holdExpiresAtIso);
+      const idempotencyKey = [
+        'rental',
+        listingId,
+        variantId,
+        pickupAt,
+        returnAt,
+        String(rentalQuote.quantity),
+        user.id,
+      ].join(':');
+
+      const purchaseSnapshot = {
+        inventoryFamily: 'rental',
+        variantId: rentalQuote.variantId,
+        quantity: rentalQuote.quantity,
+        pickupAt,
+        returnAt,
+        durationCount: rentalQuote.durationCount,
+        durationUnit: rentalQuote.durationUnit,
+        unitMinor: rentalQuote.unitMinor,
+        customerTotalMinor: rentalQuote.customerTotalMinor,
+        commissionMinor: rentalQuote.commissionMinor,
+        supplierEarningsMinor: rentalQuote.supplierEarningsMinor,
+        commissionBps,
+        discountApplied: rentalQuote.discountApplied,
+        currency,
+        rentalOpsStatus: 'awaiting_pickup',
+        depositDisclosure: rentalQuote.depositDisclosure,
+        priceBreakdown: {
+          unitMinor: rentalQuote.unitMinor,
+          quantity: rentalQuote.quantity,
+          durationCount: rentalQuote.durationCount,
+          durationUnit: rentalQuote.durationUnit,
+          discountApplied: rentalQuote.discountApplied,
+        },
+      };
+
+      const claimed = await admin.rpc('claim_rental_checkout_booking', {
+        p_listing_id: listingId,
+        p_variant_id: variantId,
+        p_quantity: rentalQuote.quantity,
+        p_starts_at: pickupAt,
+        p_ends_at: returnAt,
+        p_guest_email: email,
+        p_guest_name: customerName?.trim() || null,
+        p_guest_user_id: user.id,
+        p_total_amount: totalAmountMajor,
+        p_currency: currency,
+        p_purchase_snapshot: purchaseSnapshot,
+        p_idempotency_key: idempotencyKey,
+        p_hold_expires_at: holdExpiresAtIso,
+        p_hold_ttl_minutes: holdMinutes,
+      });
+      if (claimed.error) {
+        return json({ success: false, error: claimed.error.message }, 500);
+      }
+      const claimRow = claimed.data as {
+        ok?: boolean;
+        booking_id?: string;
+        hold_id?: string;
+        error?: string;
+        available?: number;
+      } | null;
+      if (!claimRow || claimRow.ok !== true || !claimRow.booking_id) {
+        const conflict =
+          claimRow?.error === 'insufficient_stock' ||
+          claimRow?.error === 'hold_failed' ||
+          typeof claimRow?.available === 'number';
+        return json(
+          {
+            success: false,
+            error:
+              claimRow?.error === 'insufficient_stock'
+                ? 'Not enough rental inventory for those dates.'
+                : claimRow?.error ?? 'Could not reserve this rental.',
+            available: claimRow?.available,
+          },
+          conflict ? 409 : 400
+        );
+      }
+      targetBookingId = claimRow.booking_id;
+
+      const stripe = new Stripe(stripeSecret);
+      const amountMinor = rentalQuote.customerTotalMinor;
+      let session: Awaited<ReturnType<typeof stripe.checkout.sessions.create>>;
+      try {
+        session = await stripe.checkout.sessions.create({
+          mode: 'payment',
+          locale: 'en',
+          custom_text: {
+            submit: {
+              message:
+                'Traverion uses Stripe to process this payment. Your rental is confirmed only after payment succeeds.',
+            },
+          },
+          customer_email: email,
+          expires_at: holdExpiresAtUnix,
+          success_url: `${publicSiteUrl}${successPath}${
+            successPath.includes('?') ? '&' : '?'
+          }session_id={CHECKOUT_SESSION_ID}`,
+          cancel_url: `${publicSiteUrl}${appendBookingParam(cancelPath, targetBookingId)}`,
+          payment_method_types: ['card'],
+          line_items: [
+            {
+              quantity: 1,
+              price_data: {
+                currency: currency.toLowerCase(),
+                unit_amount: amountMinor,
+                product_data: {
+                  name: listingTitle,
+                  description: `Rental · ${rentalQuote.quantity} unit${
+                    rentalQuote.quantity === 1 ? '' : 's'
+                  } · ${rentalQuote.durationCount} ${rentalQuote.durationUnit}${
+                    rentalQuote.durationCount === 1 ? '' : 's'
+                  }`,
+                },
+              },
+            },
+          ],
+          metadata: {
+            booking_id: targetBookingId,
+            listing_id: listingId,
+            user_id: user.id,
+            booking_option_id: variantId,
+            quoted_total: String(totalAmountMajor),
+            inventory_family: 'rental',
+          },
+          payment_intent_data: {
+            metadata: {
+              booking_id: targetBookingId,
+              listing_id: listingId,
+              user_id: user.id,
+              inventory_family: 'rental',
+            },
+          },
+        });
+      } catch {
+        await admin.rpc('release_rental_inventory_hold', {
+          p_hold_id: claimRow.hold_id ?? null,
+          p_reason: 'stripe_session_create_failed',
+        }).catch(() => null);
+        return json({ success: false, error: 'Could not start payment. Try again.' }, 500);
+      }
+
+      const { data: updatedRows, error: updateError } = await admin
+        .from('bookings')
+        .update({
+          checkout_session_id: session.id,
+          payment_intent_id: null,
+          hold_expires_at: session.expires_at
+            ? new Date(session.expires_at * 1000).toISOString()
+            : holdExpiresAtIso,
+          purchase_snapshot: {
+            ...purchaseSnapshot,
+            holdId: claimRow.hold_id ?? null,
+            checkoutIdempotencyKey: idempotencyKey,
+          },
+          total_amount: totalAmountMajor,
+          currency,
+          payment_status: 'pending',
+          ...(customerName?.trim() ? { guest_name: customerName.trim() } : {}),
+        })
+        .eq('id', targetBookingId)
+        .in('payment_status', ['pending', 'failed'])
+        .neq('status', 'cancelled')
+        .select('id');
+
+      if (updateError || !(updatedRows ?? []).length) {
+        try {
+          await stripe.checkout.sessions.expire(session.id);
+        } catch {
+          // ignore
+        }
+        return json({ success: false, error: 'Checkout created but booking update failed' }, 500);
+      }
+
+      try {
+        await admin.rpc('freeze_booking_commercial_terms', { p_booking_id: targetBookingId });
+      } catch {
+        // Non-fatal; settle falls back.
+      }
+
+      timing.mark('stripeSessionMs');
+      return json({
+        success: true,
+        url: session.url,
+        sessionId: session.id,
+        bookingId: targetBookingId,
+        inventoryFamily: 'rental',
+        timing: timing.snapshot(),
+      });
+    }
     if (extrasFamily === 'stay' && targetBookingId) {
       // Phase 1539: column → nights → purchase_snapshot.checkOut (1524 parity with optionId 1536).
       const restored = resumeStayCheckoutDate({

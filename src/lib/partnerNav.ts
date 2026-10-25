@@ -36,6 +36,7 @@ export type PartnerNavSectionId =
   | 'reservations'
   | 'stay-calendar'
   | 'rental-calendar'
+  | 'rental-bookings'
   | 'inbox'
   | 'listings'
   | 'pickup'
@@ -144,8 +145,9 @@ export const PARTNER_NAV_STAYS_CHILDREN: PartnerSidebarChild[] = [
   { id: 'stay-calendar', label: 'Stay Calendar', icon: CalendarDays },
 ];
 
-/** Rental ops under Rentals (availability only — checkout still closed). */
+/** Rental ops under Rentals (calendar live; bookings desk ready for paid rentals). */
 export const PARTNER_NAV_RENTALS_CHILDREN: PartnerSidebarChild[] = [
+  { id: 'rental-bookings', label: 'Rental bookings', icon: Calendar },
   { id: 'rental-calendar', label: 'Rental calendar', icon: KeyRound },
 ];
 
@@ -216,6 +218,7 @@ export const PARTNER_SECTION_TITLES: Record<PartnerNavSectionId, string> = {
   reservations: 'Reservations',
   'stay-calendar': 'Stay Calendar',
   'rental-calendar': 'Rental calendar',
+  'rental-bookings': 'Rental bookings',
   inbox: 'Inbox',
   reviews: 'Reviews',
   discounts: 'Offers',
@@ -329,7 +332,10 @@ export const PARTNER_MORE_GROUPS: PartnerNavGroup[] = [
   {
     id: 'rentals',
     label: 'Rentals',
-    items: [{ id: 'rental-calendar', label: 'Rental calendar', icon: KeyRound }],
+    items: [
+      { id: 'rental-bookings', label: 'Rental bookings', icon: Calendar },
+      { id: 'rental-calendar', label: 'Rental calendar', icon: KeyRound },
+    ],
   },
   {
     id: 'business',

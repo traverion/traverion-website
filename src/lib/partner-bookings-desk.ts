@@ -34,7 +34,7 @@ export type PartnerBookingsDeskQuery = {
   listingId: string;
   ops: PartnerBookingsOps;
   sort: PartnerBookingsSort;
-  inventoryFamily?: 'tour' | 'stay';
+  inventoryFamily?: 'tour' | 'stay' | 'rental';
   highlightBookingId?: string | null;
 };
 
@@ -205,6 +205,7 @@ export function applyPartnerBookingsDesk<T extends PartnerBookingsDeskRow>(
   extras: {
     nowMs: number;
     isStay: (row: T) => boolean;
+    isRental?: (row: T) => boolean;
     pickupAttention: (row: T) => boolean;
     openCancel: (row: T) => boolean;
     title: (row: T) => string;
@@ -214,10 +215,12 @@ export function applyPartnerBookingsDesk<T extends PartnerBookingsDeskRow>(
   const q = query.search.trim().toLowerCase();
   const filtered = rows.filter((b) => {
     const isStay = extras.isStay(b);
-    // Strict separation: Bookings = tours/activities; Reservations = stays only.
+    const isRental = extras.isRental?.(b) ?? false;
+    // Strict separation: Bookings = tours; Reservations = stays; Rental bookings = rentals.
     // Wrong-desk deep links redirect in SupplierBookings (do not leak cross-family rows).
-    if (query.inventoryFamily === 'stay' && !isStay) return false;
-    if (query.inventoryFamily === 'tour' && isStay) return false;
+    if (query.inventoryFamily === 'stay' && (!isStay || isRental)) return false;
+    if (query.inventoryFamily === 'tour' && (isStay || isRental)) return false;
+    if (query.inventoryFamily === 'rental' && !isRental) return false;
     if (query.listingId && b.listing_id !== query.listingId) return false;
     if (query.status && (b.status ?? '').trim().toLowerCase() !== query.status) return false;
     if (!matchesPayment(b, query.payment)) return false;
