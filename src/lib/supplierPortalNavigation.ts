@@ -55,14 +55,15 @@ export function openSupplierListingEditor(
   navigateSupplierUrl(`${path}?${q.toString()}`);
 }
 
-/** Open Bookings or Reservations and optionally focus a specific booking row. */
+/** Open Bookings, Reservations, or Rental bookings and optionally focus a row. */
 export function openSupplierBooking(
   bookingId?: string,
-  opts?: { isStay?: boolean }
+  opts?: { isStay?: boolean; family?: 'tour' | 'stay' | 'rental' }
 ): void {
   navigateSupplierUrl(
     partnerBookingDeskPath({
       bookingId,
+      family: opts?.family ?? (opts?.isStay === true ? 'stay' : 'tour'),
       isStay: opts?.isStay === true,
     })
   );

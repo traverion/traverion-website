@@ -23,10 +23,11 @@ import {
 } from './tour-departure-cutoff.ts';
 import { stayRequestApprovalExpiresAtIso } from './stay-booking-method.ts';
 
-function listingKindFromExtras(extras: unknown): 'stay' | 'tour' {
+function listingKindFromExtras(extras: unknown): 'stay' | 'tour' | 'rental' {
   if (extras && typeof extras === 'object') {
     const family = (extras as { inventoryFamily?: unknown }).inventoryFamily;
     if (family === 'stay') return 'stay';
+    if (family === 'rental') return 'rental';
   }
   return 'tour';
 }
@@ -1171,16 +1172,21 @@ export async function promotePaidFromCheckoutSession(params: {
 
     // Phase 1532/1533: hold can outlive departure cutoff — re-assert before paid promote
     // (1531 live-clock parity with quote). Resolve option.startTime when snapshot omitted time.
-    const isStayListing = listingKindFromExtras(listingGate?.listing_extras) === 'stay';
-    const cutoffStartTimeHm = resolveTourDepartureHmForCutoff({
-      listingExtras: listingGate?.listing_extras,
-      bookingDate,
-      bookingOptionId,
-      frozenStartTimeHm: startTimeHm,
-    });
+    const listingKindGate = listingKindFromExtras(listingGate?.listing_extras);
+    const isStayListing = listingKindGate === 'stay';
+    const isRentalListing = listingKindGate === 'rental';
+    const cutoffStartTimeHm = isRentalListing
+      ? null
+      : resolveTourDepartureHmForCutoff({
+          listingExtras: listingGate?.listing_extras,
+          bookingDate,
+          bookingOptionId,
+          frozenStartTimeHm: startTimeHm,
+        });
     // Phase 1535: inventory assert must use the same HM as cutoff (not day-wide null).
+    // Rentals use interval holds — never apply tour departure cutoff.
     if (cutoffStartTimeHm) assertStartTimeHm = cutoffStartTimeHm;
-    if (!isStayListing && cutoffStartTimeHm) {
+    if (!isStayListing && !isRentalListing && cutoffStartTimeHm) {
       const extras =
         listingGate?.listing_extras && typeof listingGate.listing_extras === 'object'
           ? (listingGate.listing_extras as {

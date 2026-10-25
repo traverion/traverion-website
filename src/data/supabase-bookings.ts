@@ -308,6 +308,15 @@ export async function createBookingCheckoutSession(params: {
    * differs from the server quote (integer minor units).
    */
   expectedTotal?: number;
+  /** Rental interval checkout (ignored unless listing inventoryFamily=rental). */
+  rental?: {
+    variantId: string;
+    quantity: number;
+    pickupAt: string;
+    returnAt: string;
+    durationCount: number;
+    durationUnit: 'hour' | 'day';
+  };
 }): Promise<{
   success: boolean;
   checkoutUrl?: string;
@@ -353,6 +362,18 @@ export async function createBookingCheckoutSession(params: {
       checkoutConsentAccepted: params.checkoutConsentAccepted === true,
       ...(typeof params.expectedTotal === 'number' && Number.isFinite(params.expectedTotal)
         ? { expectedTotal: params.expectedTotal }
+        : {}),
+      ...(params.rental
+        ? {
+            rental: {
+              variantId: params.rental.variantId,
+              quantity: params.rental.quantity,
+              pickupAt: params.rental.pickupAt,
+              returnAt: params.rental.returnAt,
+              durationCount: params.rental.durationCount,
+              durationUnit: params.rental.durationUnit,
+            },
+          }
         : {}),
     },
   });

@@ -35,7 +35,7 @@ import { navigateSupplierUrl, openSupplierBooking } from '../../lib/supplierPort
 import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
 import { formatMoney, normalizeCurrency } from '../../lib/money';
 import { isCollectedBooking, isRefundDueBooking } from '../../lib/payment-states';
-import { bookingIsStayNight } from '../../lib/pickup-completeness';
+import { bookingIsRental, bookingIsStayNight } from '../../lib/pickup-completeness';
 import {
   isCollectedEarningKind,
   isPlatformCommissionKind,
@@ -1656,6 +1656,13 @@ export default function SupplierEarnings() {
                     paidBookings.find((b) => b.id === selectedEarning.bookingId) ??
                     refundDueBookings.find((b) => b.id === selectedEarning.bookingId);
                   openSupplierBooking(selectedEarning.bookingId, {
+                    family: booking
+                      ? bookingIsRental(booking)
+                        ? 'rental'
+                        : bookingIsStayNight(booking)
+                          ? 'stay'
+                          : 'tour'
+                      : 'tour',
                     isStay: booking ? bookingIsStayNight(booking) : false,
                   });
                 }}

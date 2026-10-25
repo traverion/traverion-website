@@ -14,7 +14,8 @@ import {
 import { formatBookingParticipantsLabel } from '../../lib/participant-mix';
 import { resolvePartnerArrivalDisplay } from '../../lib/partner-booking-logistics';
 import { partnerBookingLifecycleLabel } from '../../lib/partner-bookings-desk';
-import { bookingIsStayNight } from '../../lib/pickup-completeness';
+import { bookingIsRental, bookingIsStayNight } from '../../lib/pickup-completeness';
+import { parseRentalPurchaseSnapshot } from '../../lib/rental-booking-domain';
 import {
   displayListingTitleFromPurchase,
   displayOptionLabelFromPurchase,
@@ -72,7 +73,8 @@ export default function InboxBookingPanel({
   onClose,
   onWarmBooking,
 }: Props) {
-  const isStay = bookingIsStayNight(booking) || isStayRequestAwaitingHost(booking);
+  const isRental = bookingIsRental(booking);
+  const isStay = !isRental && (bookingIsStayNight(booking) || isStayRequestAwaitingHost(booking));
   const extras = listing ? parseListingExtras(listing.listingExtras) : null;
   const bookingOptions = extras
     ? materializedBookingOptions(extras.bookingOptions).map((o) => ({
@@ -103,21 +105,25 @@ export default function InboxBookingPanel({
   const guestName = booking.guest_name?.trim() || 'Traveler';
   const imageUrl = listingThumb(listing);
 
-  const arrival = !isStay
-    ? resolvePartnerArrivalDisplay({
-        purchaseSnapshot: booking.purchase_snapshot,
-        bookingOptionId: booking.booking_option_id,
-        specialRequests: booking.special_requests,
-        listingMeetingPoint: listing?.meetingPoint,
-        listingPickupInstructions: listing?.pickupInstructions,
-        bookingOptions,
-      })
-    : null;
+  const rentalSnap = isRental ? parseRentalPurchaseSnapshot(booking.purchase_snapshot) : null;
 
-  const dep = !isStay
-    ? partnerOpsDepartureDisplay(booking.purchase_snapshot, pgTimeToHm(booking.start_time))
-    : null;
-  const pickupHm = !isStay ? pgTimeToHm(booking.pickup_time) : null;
+  const arrival =
+    !isStay && !isRental
+      ? resolvePartnerArrivalDisplay({
+          purchaseSnapshot: booking.purchase_snapshot,
+          bookingOptionId: booking.booking_option_id,
+          specialRequests: booking.special_requests,
+          listingMeetingPoint: listing?.meetingPoint,
+          listingPickupInstructions: listing?.pickupInstructions,
+          bookingOptions,
+        })
+      : null;
+
+  const dep =
+    !isStay && !isRental
+      ? partnerOpsDepartureDisplay(booking.purchase_snapshot, pgTimeToHm(booking.start_time))
+      : null;
+  const pickupHm = !isStay && !isRental ? pgTimeToHm(booking.pickup_time) : null;
   const showPickupTime = Boolean(pickupHm && arrival?.fulfillment === 'pickup');
 
   const stay = isStay ? stayRangeFromBooking(booking) : null;
@@ -178,7 +184,38 @@ export default function InboxBookingPanel({
             </div>
           </div>
           <dl className="tv-inbox-booking__facts">
-            {isStay ? (
+            {isRental ? (
+              <>
+                <Fact label="Pickup">
+                  {rentalSnap?.pickupAt
+                    ? new Date(rentalSnap.pickupAt).toLocaleString(undefined, {
+                        dateStyle: 'medium',
+                        timeStyle: 'short',
+                      })
+                    : booking.booking_date
+                      ? formatBookingDateDisplay(booking.booking_date)
+                      : null}
+                </Fact>
+                <Fact label="Return">
+                  {rentalSnap?.returnAt
+                    ? new Date(rentalSnap.returnAt).toLocaleString(undefined, {
+                        dateStyle: 'medium',
+                        timeStyle: 'short',
+                      })
+                    : null}
+                </Fact>
+                <Fact label="Units">
+                  {rentalSnap?.quantity != null
+                    ? `${rentalSnap.quantity} unit${rentalSnap.quantity === 1 ? '' : 's'}`
+                    : null}
+                </Fact>
+                {optionLabel ? (
+                  <Fact label="Option">
+                    <span title={optionLabel}>{optionLabel}</span>
+                  </Fact>
+                ) : null}
+              </>
+            ) : isStay ? (
               <>
                 <Fact label="Check-in">
                   {stay

@@ -42,7 +42,7 @@ import {
 } from '../../lib/purchase-snapshot';
 import { partnerBookingNumberMatchesFilterQuery } from '../../lib/partner-bookings-search';
 import { partnerBookingLifecycleLabel } from '../../lib/partner-bookings-desk';
-import { bookingIsStayNight } from '../../lib/pickup-completeness';
+import { bookingIsRental, bookingIsStayNight } from '../../lib/pickup-completeness';
 import { stayRangeFromBooking } from '../../lib/stayOccupancy';
 import { materializedBookingOptions, parseListingExtras } from '../../types/listingExtras';
 import type { TourPackage } from '../../types/tour';
@@ -536,6 +536,11 @@ export default function SupplierInbox() {
       markPartnerPageTransition('forward');
       warmBookingDetails(booking);
       openSupplierBooking(booking.id, {
+        family: bookingIsRental(booking)
+          ? 'rental'
+          : bookingIsStayNight(booking) || isStayRequestAwaitingHost(booking)
+            ? 'stay'
+            : 'tour',
         isStay: bookingIsStayNight(booking) || isStayRequestAwaitingHost(booking),
       });
     },
@@ -543,6 +548,24 @@ export default function SupplierInbox() {
   );
 
   const activityWhen = (b: BookingRow) => {
+    if (bookingIsRental(b)) {
+      const snap = b.purchase_snapshot;
+      const pickup =
+        snap && typeof snap === 'object' && typeof (snap as { pickupAt?: unknown }).pickupAt === 'string'
+          ? String((snap as { pickupAt: string }).pickupAt)
+          : '';
+      const ret =
+        snap && typeof snap === 'object' && typeof (snap as { returnAt?: unknown }).returnAt === 'string'
+          ? String((snap as { returnAt: string }).returnAt)
+          : '';
+      if (pickup && ret) {
+        const p = new Date(pickup);
+        const r = new Date(ret);
+        if (!Number.isNaN(p.getTime()) && !Number.isNaN(r.getTime())) {
+          return `${formatBookingDateDisplay(p.toISOString().slice(0, 10))} → ${formatBookingDateDisplay(r.toISOString().slice(0, 10))}`;
+        }
+      }
+    }
     if (bookingIsStayNight(b)) {
       const stay = stayRangeFromBooking(b);
       if (stay) return `${formatStayNightHuman(stay.checkIn)} → ${formatStayNightHuman(stay.checkOut)}`;
@@ -846,6 +869,13 @@ export default function SupplierInbox() {
                   onClick={() => {
                     const row = bookings.find((b) => b.id === openId);
                     openSupplierBooking(openId, {
+                      family: row
+                        ? bookingIsRental(row)
+                          ? 'rental'
+                          : bookingIsStayNight(row) || isStayRequestAwaitingHost(row)
+                            ? 'stay'
+                            : 'tour'
+                        : 'tour',
                       isStay: row
                         ? bookingIsStayNight(row) || isStayRequestAwaitingHost(row)
                         : false,

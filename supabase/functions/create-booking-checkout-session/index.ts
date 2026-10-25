@@ -493,15 +493,37 @@ serve(async (req) => {
       }
 
       const rentalBody = body.rental ?? {};
-      const variantId = String(rentalBody.variantId ?? storedOptionId ?? '').trim();
-      const quantity = Number(rentalBody.quantity ?? guests);
-      const pickupAt = String(rentalBody.pickupAt ?? '').trim();
-      const returnAt = String(rentalBody.returnAt ?? '').trim();
-      const durationUnit =
-        rentalBody.durationUnit === 'hour' || rentalBody.durationUnit === 'day'
-          ? rentalBody.durationUnit
+      const resumeSnap =
+        resumePurchaseSnapshot && typeof resumePurchaseSnapshot === 'object'
+          ? (resumePurchaseSnapshot as Record<string, unknown>)
           : null;
-      const durationCount = Number(rentalBody.durationCount ?? NaN);
+      const variantId = String(
+        rentalBody.variantId ??
+          storedOptionId ??
+          (typeof resumeSnap?.variantId === 'string' ? resumeSnap.variantId : '')
+      ).trim();
+      const quantity = Number(
+        rentalBody.quantity ??
+          guests ??
+          (typeof resumeSnap?.quantity === 'number' ? resumeSnap.quantity : NaN)
+      );
+      const pickupAt = String(
+        rentalBody.pickupAt ?? (typeof resumeSnap?.pickupAt === 'string' ? resumeSnap.pickupAt : '')
+      ).trim();
+      const returnAt = String(
+        rentalBody.returnAt ?? (typeof resumeSnap?.returnAt === 'string' ? resumeSnap.returnAt : '')
+      ).trim();
+      const durationUnitRaw =
+        rentalBody.durationUnit ??
+        (resumeSnap?.durationUnit === 'hour' || resumeSnap?.durationUnit === 'day'
+          ? resumeSnap.durationUnit
+          : null);
+      const durationUnit =
+        durationUnitRaw === 'hour' || durationUnitRaw === 'day' ? durationUnitRaw : null;
+      const durationCount = Number(
+        rentalBody.durationCount ??
+          (typeof resumeSnap?.durationCount === 'number' ? resumeSnap.durationCount : NaN)
+      );
       if (!variantId) return json({ success: false, error: 'Choose a rental option.' }, 400);
       if (!pickupAt || !returnAt || Number.isNaN(Date.parse(pickupAt)) || Number.isNaN(Date.parse(returnAt))) {
         return json({ success: false, error: 'Choose valid pickup and return times.' }, 400);
@@ -745,11 +767,13 @@ serve(async (req) => {
       timing.mark('stripeSessionMs');
       return json({
         success: true,
-        url: session.url,
+        checkoutUrl: session.url,
         sessionId: session.id,
         bookingId: targetBookingId,
         inventoryFamily: 'rental',
-        timing: timing.snapshot(),
+        quotedTotal: totalAmountMajor,
+        currency,
+        timings: timing.snapshot(),
       });
     }
     if (extrasFamily === 'stay' && targetBookingId) {

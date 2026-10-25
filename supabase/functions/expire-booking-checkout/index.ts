@@ -64,7 +64,7 @@ serve(async (req) => {
     const { data: booking, error: bookingErr } = await admin
       .from('bookings')
       .select(
-        'id, status, payment_status, checkout_session_id, guest_email, guest_user_id, listing_id'
+        'id, status, payment_status, checkout_session_id, guest_email, guest_user_id, listing_id, purchase_snapshot'
       )
       .eq('id', bookingId)
       .maybeSingle();
@@ -132,6 +132,23 @@ serve(async (req) => {
       await stripe.checkout.sessions.expire(sessionId);
     } catch {
       // Already expired, completed, or unknown — still ack.
+    }
+
+    // Rental inventory: release hold when unpaid checkout is abandoned/cancelled.
+    // Cancel→status trigger also releases; this covers expire-before-cancel races.
+    const snapFam =
+      booking.purchase_snapshot && typeof booking.purchase_snapshot === 'object'
+        ? (booking.purchase_snapshot as { inventoryFamily?: unknown }).inventoryFamily
+        : null;
+    if (snapFam === 'rental') {
+      try {
+        await admin.rpc('release_rental_checkout_booking', {
+          p_booking_id: bookingId,
+          p_reason: 'checkout_expired',
+        });
+      } catch {
+        // Non-fatal — expire_stale_rental_holds / cancel trigger remain as backstops.
+      }
     }
 
     return json({

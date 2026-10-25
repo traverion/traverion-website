@@ -5,15 +5,20 @@
 
 import { splitGrossByCommissionBps } from './commercial-money.ts';
 
+type RentalPricingSlice = {
+  pricePerHourMinor?: unknown;
+  pricePerDayMinor?: unknown;
+  multiDayDiscountPercent?: unknown;
+  multiDayDiscountMinDays?: unknown;
+};
+
 type RentalVariant = {
   id?: unknown;
   quantity?: unknown;
-  pricing?: {
-    pricePerHourMinor?: unknown;
-    pricePerDayMinor?: unknown;
-    multiDayDiscountPercent?: unknown;
-    multiDayDiscountMinDays?: unknown;
-  };
+  /** Authoritative variant price override (matches client `pricingOverride`). */
+  pricingOverride?: RentalPricingSlice | null;
+  /** Legacy alias — prefer pricingOverride. */
+  pricing?: RentalPricingSlice;
 };
 
 type RentalExtras = {
@@ -22,11 +27,9 @@ type RentalExtras = {
   maxDurationHours?: unknown;
   minDurationDays?: unknown;
   maxDurationDays?: unknown;
-  sharedPricing?: {
-    multiDayDiscountPercent?: unknown;
-    multiDayDiscountMinDays?: unknown;
-  };
+  sharedPricing?: RentalPricingSlice;
   variants?: unknown;
+  depositDisclosure?: unknown;
   deposit?: { disclosure?: unknown; amountMinor?: unknown; type?: unknown };
 };
 
@@ -119,11 +122,18 @@ export function quoteRentalCheckoutLine(input: {
     if (input.durationCount > max) return { ok: false, error: `Maximum rental is ${max} days.` };
   }
 
-  const pricing = variant.pricing ?? {};
+  // Match client effectiveVariantPricing: override → shared (never silent null).
+  const override =
+    variant.pricingOverride && typeof variant.pricingOverride === 'object'
+      ? variant.pricingOverride
+      : variant.pricing && typeof variant.pricing === 'object'
+        ? variant.pricing
+        : {};
+  const shared = rental.sharedPricing ?? {};
   const unitMinor =
     input.durationUnit === 'hour'
-      ? asInt(pricing.pricePerHourMinor)
-      : asInt(pricing.pricePerDayMinor);
+      ? asInt(override.pricePerHourMinor) ?? asInt(shared.pricePerHourMinor)
+      : asInt(override.pricePerDayMinor) ?? asInt(shared.pricePerDayMinor);
   if (unitMinor == null || !(unitMinor > 0)) {
     return {
       ok: false,
@@ -131,11 +141,10 @@ export function quoteRentalCheckoutLine(input: {
     };
   }
 
-  const shared = rental.sharedPricing ?? {};
   const multiDayDiscountPercent =
-    asInt(pricing.multiDayDiscountPercent) ?? asInt(shared.multiDayDiscountPercent);
+    asInt(override.multiDayDiscountPercent) ?? asInt(shared.multiDayDiscountPercent);
   const multiDayDiscountMinDays =
-    asInt(pricing.multiDayDiscountMinDays) ?? asInt(shared.multiDayDiscountMinDays);
+    asInt(override.multiDayDiscountMinDays) ?? asInt(shared.multiDayDiscountMinDays);
 
   const customerTotalMinor = illustrativeTotalMinor({
     unitMinor,
@@ -154,9 +163,11 @@ export function quoteRentalCheckoutLine(input: {
   try {
     const split = splitGrossByCommissionBps(customerTotalMinor, input.commissionBps);
     const depositDisclosure =
-      typeof rental.deposit?.disclosure === 'string' && rental.deposit.disclosure.trim()
-        ? rental.deposit.disclosure.trim()
-        : null;
+      typeof rental.depositDisclosure === 'string' && rental.depositDisclosure.trim()
+        ? rental.depositDisclosure.trim()
+        : typeof rental.deposit?.disclosure === 'string' && rental.deposit.disclosure.trim()
+          ? rental.deposit.disclosure.trim()
+          : null;
     return {
       ok: true,
       variantId: input.variantId,
