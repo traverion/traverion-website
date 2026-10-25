@@ -3,7 +3,8 @@
  *
  * Families (do not collapse): tour, stay, rental, experience, package.
  * Live for travelers today: tour and stay.
- * Rentals: partner creator + draft persistence only — not on the traveler catalog or checkout yet.
+ * Rentals have their own catalog at /rentals. They stay out of the tour catalog.
+ * Publication (migration 282) and RENTAL_CHECKOUT_ENABLED still gate going live.
  *
  * `listings.experience_kind` (tour | ticket | transportation) is the operator format of a tour,
  * not the Experiences category. Do not rename that column.
@@ -140,7 +141,6 @@ export function reservedInventoryFamilyFromPath(
 ): Exclude<InventoryFamily, 'tour' | 'stay'> | null {
   const normalized = pathname.length > 1 && pathname.endsWith('/') ? pathname.slice(0, -1) : pathname;
   if (normalized === '/experiences') return 'experience';
-  if (normalized === '/rentals') return 'rental';
   return null;
 }
 

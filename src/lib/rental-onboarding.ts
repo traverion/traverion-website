@@ -5,6 +5,7 @@
 
 import type { RentalDetails } from '../types/rental';
 import { rentalCategoryConfig } from './rental-categories';
+import { isRentalCancellationPreset } from './rental-cancellation';
 import { rentalOperatingHoursIssue, rentalVariantComplete } from './rental-details';
 
 export const RENTAL_ONBOARDING_SCREENS = [
@@ -292,9 +293,12 @@ export function rentalStageBlocker(screenId: RentalOnboardingScreenId, check: Re
         if (!license) return 'Describe license or driver requirements for snowmobiles.';
       }
       return null;
+    case 'cancellation':
+      return isRentalCancellationPreset(r.cancellationPreset)
+        ? null
+        : 'Choose a cancellation policy.';
     case 'inclusions':
     case 'rules':
-    case 'cancellation':
     case 'deposit-info':
     case 'preview':
       return null;
@@ -331,6 +335,7 @@ export function rentalPublishBlockers(check: RentalOnboardingCheck): string[] {
   if (cfg?.id === 'snowmobiles' && !(r.requirements?.license || '').trim()) {
     out.push('Add snowmobile license / driver requirements.');
   }
+  if (!isRentalCancellationPreset(r.cancellationPreset)) out.push('Choose a cancellation policy.');
   return out;
 }
 
@@ -345,6 +350,7 @@ export function rentalScreenIndexForPublishLine(line: string): number {
   if (/option|variant|quantity|pricing|price/.test(text)) return rentalScreenIndex('options');
   if (/duration|hourly|daily/.test(text)) return rentalScreenIndex('duration');
   if (/snowmobile|license|requirement/.test(text)) return rentalScreenIndex('requirements');
+  if (/cancellation|policy/.test(text)) return rentalScreenIndex('cancellation');
   return rentalScreenIndex('publish');
 }
 

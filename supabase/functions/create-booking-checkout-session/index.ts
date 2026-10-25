@@ -81,6 +81,8 @@ type RequestBody = {
   stayExtras?: unknown;
   /** Must be true for new checkout holds; resume by bookingId may omit. */
   checkoutConsentAccepted?: boolean;
+  /** Read-only probe. Does not create a booking or a charge. */
+  intent?: string;
   /** Rental interval checkout (ignored unless listing inventoryFamily=rental). */
   rental?: {
     variantId?: string;
@@ -133,6 +135,17 @@ serve(async (req) => {
   }
   if (req.method !== 'POST') return json({ success: false, error: 'Method not allowed' }, 405);
 
+  let preBody: { intent?: string } = {};
+  try {
+    preBody = await req.json();
+  } catch {
+    preBody = {};
+  }
+  if (preBody.intent === 'rental_checkout_capability') {
+    const rentalCheckoutEnabled = (Deno.env.get('RENTAL_CHECKOUT_ENABLED') ?? '').trim() === '1';
+    return json({ success: true, rentalCheckoutEnabled });
+  }
+
   try {
     const timing = createCheckoutTiming();
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
@@ -160,10 +173,8 @@ serve(async (req) => {
       global: { headers: { Authorization: authHeader } },
     });
     // Auth + body parse are independent after Authorization is present.
-    const [authResult, body] = await Promise.all([
-      authedClient.auth.getUser(),
-      req.json() as Promise<Partial<RequestBody>>,
-    ]);
+    const body = preBody as Partial<RequestBody>;
+    const authResult = await authedClient.auth.getUser();
     timing.mark('authAndBodyMs');
     const { data: authData, error: authError } = authResult;
     if (authError || !authData?.user) {
@@ -612,12 +623,53 @@ serve(async (req) => {
         user.id,
       ].join(':');
 
+      const rentalRecord =
+        rentalExtras && typeof rentalExtras === 'object'
+          ? (rentalExtras as Record<string, unknown>)
+          : {};
+      const variantRow = Array.isArray(rentalRecord.variants)
+        ? rentalRecord.variants.find(
+            (row) => row && typeof row === 'object' && String((row as { id?: unknown }).id ?? '') === variantId
+          )
+        : null;
+      const variantName =
+        variantRow && typeof (variantRow as { name?: unknown }).name === 'string'
+          ? String((variantRow as { name?: unknown }).name).trim()
+          : '';
+      const pickupAddress =
+        typeof rentalRecord.pickupAddress === 'string' ? rentalRecord.pickupAddress.trim() : '';
+      const returnSameAsPickup = rentalRecord.returnSameAsPickup !== false;
+      const returnAddress = returnSameAsPickup
+        ? ''
+        : typeof rentalRecord.returnAddress === 'string'
+          ? rentalRecord.returnAddress.trim()
+          : '';
+      const cancellationPreset =
+        typeof rentalRecord.cancellationPreset === 'string' ? rentalRecord.cancellationPreset.trim() : '';
+      const cancellationCopy: Record<string, string> = {
+        flexible_24h:
+          'Flexible. Customers may request cancellation until 24 hours before pickup. Traverion does not issue automatic rental refunds.',
+        moderate_72h:
+          'Moderate. Customers may request cancellation until 72 hours before pickup. Traverion does not issue automatic rental refunds.',
+        firm_7d:
+          'Firm. Customers may request cancellation until 7 days before pickup. Traverion does not issue automatic rental refunds.',
+      };
+      const depositAmountMinor =
+        typeof rentalRecord.depositAmountMinor === 'number' && Number.isFinite(rentalRecord.depositAmountMinor)
+          ? Math.round(rentalRecord.depositAmountMinor)
+          : null;
+
       const purchaseSnapshot = {
         inventoryFamily: 'rental',
+        listingTitle,
         variantId: rentalQuote.variantId,
+        variantName: variantName || null,
         quantity: rentalQuote.quantity,
         pickupAt,
         returnAt,
+        pickupAddress: pickupAddress || null,
+        returnAddress: returnAddress || null,
+        returnSameAsPickup,
         durationCount: rentalQuote.durationCount,
         durationUnit: rentalQuote.durationUnit,
         unitMinor: rentalQuote.unitMinor,
@@ -628,6 +680,9 @@ serve(async (req) => {
         discountApplied: rentalQuote.discountApplied,
         currency,
         rentalOpsStatus: 'awaiting_pickup',
+        cancellationPreset: cancellationPreset || null,
+        cancellationLabel: cancellationCopy[cancellationPreset] ?? null,
+        depositAmountMinor,
         depositDisclosure: rentalQuote.depositDisclosure,
         priceBreakdown: {
           unitMinor: rentalQuote.unitMinor,

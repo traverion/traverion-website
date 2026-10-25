@@ -140,6 +140,13 @@ export function parsePathname(pathname: string, options?: ParsePathnameOptions):
   if (LEGACY_BROCHURE_PATHS.has(normalized)) {
     return { page: 'packages', destinationSlug: null };
   }
+  if (normalized === '/rentals') {
+    return { page: 'rentals', destinationSlug: null };
+  }
+  const rentalDeepLink = /^\/rentals\/([0-9a-f-]{36})$/i.exec(normalized);
+  if (rentalDeepLink) {
+    return { page: 'rental-details', destinationSlug: rentalDeepLink[1] };
+  }
   const reservedFamily = reservedInventoryFamilyFromPath(normalized);
   if (reservedFamily) {
     return { page: 'inventory-reserved', destinationSlug: reservedFamily };

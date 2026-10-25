@@ -259,7 +259,7 @@ export default function SupplierRentalCalendar() {
       <SupplierPageHero
         badge="Rentals"
         title="Rental calendar"
-        description="Block dates and review stock per option. Traveler booking stays closed until Rentals launches."
+        description="Block dates and review stock for each option. Traveler payment stays closed."
       />
 
       {error ? (

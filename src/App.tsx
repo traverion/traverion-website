@@ -19,6 +19,7 @@ import {
   clearOrganizationJsonLd,
 } from './lib/seo';
 import {
+  isTourListingDeepLinkPath,
   normalizePublicListingDeepLinkPathname,
   normalizeLegacyBrochurePathname,
   normalizeRetiredCartPathname,
@@ -98,6 +99,7 @@ const Stays = lazy(() => import('./pages/Stays'));
 const StayDetails = lazy(() => import('./pages/StayDetails'));
 const ReservedInventoryPage = lazy(() => import('./pages/ReservedInventoryPage'));
 const RentalDetails = lazy(() => import('./pages/RentalDetails'));
+const RentalsCatalog = lazy(() => import('./pages/RentalsCatalog'));
 const SupplierLayout = lazy(() => import('./components/supplier/SupplierLayout'));
 const Home = lazy(() => import('./pages/Home'));
 
@@ -413,6 +415,11 @@ function App() {
     }
     if (currentPage === 'packages') {
       normalizePublicListingDeepLinkPathname(window.location.pathname);
+      const path = window.location.pathname.replace(/\/$/, '') || '/';
+      if (path !== '/packages' && !isTourListingDeepLinkPath(path)) {
+        window.history.replaceState(window.history.state, '', '/packages');
+        return;
+      }
       const current = `${window.location.pathname}${window.location.search}`;
       const qs = new URLSearchParams(window.location.search).toString();
       const next = qs ? `/packages?${qs}` : '/packages';
@@ -428,10 +435,25 @@ function App() {
       }
       return;
     }
+    if (currentPage === 'rentals') {
+      if (window.location.pathname !== '/rentals') {
+        window.history.replaceState(window.history.state, '', '/rentals');
+      }
+      return;
+    }
+    if (currentPage === 'rental-details') {
+      const id =
+        destinationSlug && /^[0-9a-f-]{36}$/i.test(destinationSlug)
+          ? destinationSlug
+          : window.location.pathname.match(/^\/rentals\/([0-9a-f-]{36})$/i)?.[1];
+      if (id && window.location.pathname !== `/rentals/${id}`) {
+        window.history.replaceState(window.history.state, '', `/rentals/${id}`);
+      }
+      return;
+    }
     if (currentPage === 'inventory-reserved') {
-      const reservedPath = destinationSlug === 'rental' ? '/rentals' : '/experiences';
-      if (window.location.pathname !== reservedPath) {
-        window.history.replaceState({}, '', reservedPath);
+      if (window.location.pathname !== '/experiences') {
+        window.history.replaceState(window.history.state, '', '/experiences');
       }
       return;
     }
@@ -565,6 +587,14 @@ function App() {
       home: { title: '', description: 'Book tours and stays worldwide from independent operators. Cancellation follows each listing.' },
       packages: { title: 'Tours', description: 'Browse and book tours worldwide. Filter by destination, price, dates, and tags. Cancellation follows each listing.' },
       stays: { title: 'Stays', description: 'Apartments and rooms from independent operators. Cancellation follows each listing.' },
+      rentals: {
+        title: 'Rentals',
+        description: 'Rent bikes, winter clothing, skis, and outdoor equipment from independent operators.',
+      },
+      'rental-details': {
+        title: 'Rental',
+        description: 'Rental from an independent operator. Online payment stays closed until Traverion opens rental checkout.',
+      },
       auth: { title: 'Sign in', description: 'Sign in or create an account to manage your bookings.' },
       'reset-password': { title: 'Set a new password', description: 'Choose a new password for your Traverion traveler account.' },
       'email-confirmed': { title: 'Email confirmed', description: 'Your Traverion traveler email was verified.' },
@@ -588,11 +618,8 @@ function App() {
       'content-creator': { title: 'Content creators', description: 'Apply to collaborate with Traverion on travel content.' },
       destination: { title: 'Destination', description: 'Tours and stays in this destination from live operators.' },
       'inventory-reserved': {
-        title: destinationSlug === 'rental' ? 'Rentals' : 'Experiences',
-        description:
-          destinationSlug === 'rental'
-            ? 'Rentals are reserved for a later Traverion launch — partners can prepare listings in the portal.'
-            : 'Experiences is a reserved category, not mixed into Tours.',
+        title: 'Experiences',
+        description: 'Experiences is a reserved category, not mixed into Tours.',
       },
       'not-found': { title: 'Page not found', description: 'This address is not a Traverion page.' },
     };
@@ -601,7 +628,10 @@ function App() {
     else setPageMetaWithOg('Traverion', 'Tours and stays worldwide.');
 
     setRobotsNoIndex(
-      currentPage === 'booking-confirmed' || currentPage === 'reset-password' || currentPage === 'not-found'
+      currentPage === 'booking-confirmed' ||
+        currentPage === 'reset-password' ||
+        currentPage === 'not-found' ||
+        currentPage === 'rental-details'
     );
 
     const pathMap: Record<string, string> = {
@@ -614,10 +644,12 @@ function App() {
     const path =
       currentPage === 'destination'
         ? `/destinations/${destinationSlug || ''}`
+        : currentPage === 'rentals'
+          ? '/rentals'
+          : currentPage === 'rental-details'
+            ? `/rentals/${destinationSlug || ''}`
         : currentPage === 'inventory-reserved'
-          ? destinationSlug === 'rental'
-            ? '/rentals'
-            : '/experiences'
+          ? '/experiences'
           : currentPage === 'not-found'
             ? window.location.pathname
           : (pathMap[currentPage] ?? '/');
@@ -837,21 +869,37 @@ function App() {
           </div>
         );
       }
-      case 'inventory-reserved': {
-        const rentalDeep =
-          typeof window !== 'undefined'
-            ? window.location.pathname.match(/^\/rentals\/([0-9a-f-]{36})$/i)?.[1]
-            : null;
-        if (rentalDeep && destinationSlug === 'rental') {
-          return <RentalDetails listingId={rentalDeep} onNavigate={handleNavigate} />;
-        }
+      case 'rentals':
         return (
-          <ReservedInventoryPage
-            family={destinationSlug === 'rental' ? 'rental' : 'experience'}
-            onNavigate={handleNavigate}
+          <RentalsCatalog
+            onOpenListing={(id) => {
+              window.history.pushState({ traverionPage: 'rental-details' }, '', `/rentals/${id}`);
+              setDestinationSlug(id);
+              setCurrentPage('rental-details');
+            }}
           />
         );
+      case 'rental-details': {
+        const rentalId =
+          (destinationSlug && /^[0-9a-f-]{36}$/i.test(destinationSlug) ? destinationSlug : null) ??
+          (typeof window !== 'undefined'
+            ? window.location.pathname.match(/^\/rentals\/([0-9a-f-]{36})$/i)?.[1] ?? null
+            : null);
+        if (!rentalId) {
+          return (
+            <RentalsCatalog
+              onOpenListing={(id) => {
+                window.history.pushState({ traverionPage: 'rental-details' }, '', `/rentals/${id}`);
+                setDestinationSlug(id);
+                setCurrentPage('rental-details');
+              }}
+            />
+          );
+        }
+        return <RentalDetails listingId={rentalId} onNavigate={handleNavigate} />;
       }
+      case 'inventory-reserved':
+        return <ReservedInventoryPage family="experience" onNavigate={handleNavigate} />;
       case 'destination':
         return (
           <DestinationPage

@@ -80,6 +80,47 @@ type RentalOpsException = {
   detail?: Record<string, unknown> | null;
 };
 
+function rentalExceptionCopy(kind: string | undefined): { title: string; impact: string; recovery: string } {
+  switch (kind) {
+    case 'stuck_hold':
+      return {
+        title: 'Hold still marked active',
+        impact: 'Stock can stay reserved after the hold should have ended.',
+        recovery: 'The existing hold expiry releases it. This list does not refund or cancel.',
+      };
+    case 'pending_hold_expired':
+      return {
+        title: 'Unpaid hold has expired',
+        impact: 'The booking is still pending after the hold window.',
+        recovery: 'Confirm the hold row is expired before treating the dates as free.',
+      };
+    case 'paid_unconfirmed':
+      return {
+        title: 'Paid, not confirmed',
+        impact: 'Money was taken and the booking is not in the confirmed state.',
+        recovery: 'Open the booking and use the existing promotion or refund path. Do not charge again from here.',
+      };
+    case 'failed_refund':
+      return {
+        title: 'Refund did not finish',
+        impact: 'A cancellation expects money back and the refund is failed or stuck.',
+        recovery: 'Use the existing refund tool after checking the payment. This row does not send a refund.',
+      };
+    case 'earnings_missing':
+      return {
+        title: 'Earnings snapshot missing',
+        impact: 'The rental is confirmed and paid without a commercial snapshot.',
+        recovery: 'Replay uses the existing webhook repair. Do not create a second earning by hand from this list.',
+      };
+    default:
+      return {
+        title: 'Rental exception',
+        impact: 'This row needs a manual look.',
+        recovery: 'Open the booking. This list does not move money.',
+      };
+  }
+}
+
 const QUEUES: Array<[Queue, string]> = [
   ['all', 'All'],
   ['pending', 'Pending'],
@@ -388,13 +429,14 @@ export default function AdminBookingsPanel() {
         <div className="rounded-lg border border-[#fcd34d] bg-[#fffbeb] px-3 py-3">
           <h3 className="text-[13px] font-bold text-[#92400e]">Rental ops exceptions ({rentalExceptions.length})</h3>
           <p className="mt-1 text-[12px] text-[#a16207]">
-            Stuck holds, paid-but-unconfirmed, and failed refunds. Open the booking id to investigate.
+            Review holds, unpaid promotions, refunds, and missing earnings. Opening a row filters this list. It does not move money.
           </p>
-          <ul className="mt-2 max-h-40 space-y-1 overflow-y-auto text-[12px] text-[#78350f]">
+          <ul className="mt-2 max-h-64 space-y-2 overflow-y-auto text-[12px] text-[#78350f]">
             {rentalExceptions.slice(0, 25).map((ex) => {
               const bid = ex.booking_id || ex.entity_id || '';
+              const described = rentalExceptionCopy(ex.exception_kind);
               return (
-                <li key={`${ex.exception_kind}-${ex.entity_id}`}>
+                <li key={`${ex.exception_kind}-${ex.entity_id}`} className="rounded-md bg-white/70 px-2.5 py-2">
                   <button
                     type="button"
                     className="text-left font-semibold underline-offset-2 hover:underline"
@@ -402,12 +444,15 @@ export default function AdminBookingsPanel() {
                       if (bid) setBookingId(bid);
                     }}
                   >
-                    {ex.exception_kind || 'exception'}
+                    {described.title}
                   </button>
-                  <span className="text-[#a16207]">
-                    {' '}
-                    · {bid ? `${bid.slice(0, 8)}…` : '—'} · {ex.payment_status || ex.hold_status || '—'}
-                  </span>
+                  <p className="mt-0.5 text-[#a16207]">{described.impact}</p>
+                  <p className="mt-0.5">
+                    Booking {bid ? `${bid.slice(0, 8)}…` : '—'} · {ex.booking_status || '—'} ·{' '}
+                    {ex.payment_status || ex.hold_status || '—'}
+                    {ex.observed_at ? ` · ${ex.observed_at.slice(0, 16).replace('T', ' ')}` : ''}
+                  </p>
+                  <p className="mt-0.5">{described.recovery}</p>
                 </li>
               );
             })}

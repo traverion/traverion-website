@@ -20,6 +20,24 @@ describe('tour listing deep links', () => {
   });
 });
 
+describe('rental listing routes', () => {
+  const rentalId = 'a1b2c3d4-e5f6-4789-a012-3456789abcde';
+
+  it('opens the catalog at /rentals and the listing at /rentals/:id', () => {
+    expect(parsePathname('/rentals')).toEqual({ page: 'rentals', destinationSlug: null });
+    expect(parsePathname('/rentals/')).toEqual({ page: 'rentals', destinationSlug: null });
+    expect(parsePathname(`/rentals/${rentalId}`)).toEqual({
+      page: 'rental-details',
+      destinationSlug: rentalId,
+    });
+    expect(parsePathname(`/rentals/${rentalId}/`).destinationSlug).toBe(rentalId);
+  });
+
+  it('rejects a non-uuid rental path', () => {
+    expect(parsePathname('/rentals/not-a-listing').page).toBe('not-found');
+  });
+});
+
 describe('stay listing deep links', () => {
   it('treats /stay/<uuid> and /stays/<uuid> as the catalog deep-link, not 404', () => {
     expect(parsePathname(`/stay/${STAY_ID}`).page).toBe('stays');

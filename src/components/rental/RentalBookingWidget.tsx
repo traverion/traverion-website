@@ -15,6 +15,11 @@ import {
   todayLocalYmd,
 } from '../../lib/rental-booking-interval';
 import { evaluateRentalAvailabilityRpc } from '../../data/supabase-rental-availability';
+import { fetchRentalCheckoutCapability } from '../../data/rental-checkout-capability';
+import { createBookingCheckoutSession } from '../../data/supabase-bookings';
+import { useAuth } from '../../contexts/AuthContext';
+import { rentalCancellationCustomerText } from '../../lib/rental-cancellation';
+import { rentalDepositCustomerText } from '../../lib/rental-presentation';
 
 export type RentalBookingSelection = {
   variantId: string;
@@ -28,8 +33,8 @@ export type RentalBookingSelection = {
 
 type Props = {
   listingId: string;
+  listingTitle: string;
   rental: RentalDetails;
-  checkoutEnabled?: boolean;
   onSelectionChange?: (selection: RentalBookingSelection | null) => void;
 };
 
@@ -49,10 +54,15 @@ function defaultReturnHm(rental: RentalDetails): string {
 
 export default function RentalBookingWidget({
   listingId,
+  listingTitle,
   rental,
-  checkoutEnabled = false,
   onSelectionChange,
 }: Props) {
+  const { user, requestAuth } = useAuth();
+  const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [consent, setConsent] = useState(false);
+  const [paying, setPaying] = useState(false);
+  const [payError, setPayError] = useState<string | null>(null);
   const variants = rental.variants ?? [];
   const unit = defaultUnit(rental);
   const showUnitToggle = rental.durationMode === 'both';
@@ -66,6 +76,16 @@ export default function RentalBookingWidget({
   );
   const [pickupHm, setPickupHm] = useState(() => defaultPickupHm(rental));
   const [returnHm, setReturnHm] = useState(() => defaultReturnHm(rental));
+  useEffect(() => {
+    let cancelled = false;
+    void fetchRentalCheckoutCapability().then((open) => {
+      if (!cancelled) setCheckoutOpen(open);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const [availability, setAvailability] = useState<{
     loading: boolean;
     ok: boolean | null;
@@ -146,7 +166,7 @@ export default function RentalBookingWidget({
               ok: true,
               message:
                 typeof result.available === 'number'
-                  ? `${result.available} unit${result.available === 1 ? '' : 's'} available for this window`
+                  ? `${result.available} available for this window`
                   : 'Available for this window',
               available: result.available ?? null,
             });
@@ -176,6 +196,41 @@ export default function RentalBookingWidget({
     };
   }, [listingId, variantId, quantity, maxQty, interval]);
 
+  const continueToCheckout = async () => {
+    if (!checkoutOpen || !quote?.ok || !interval.ok || availability.ok === false || !consent) return;
+    if (!user) {
+      requestAuth({ intent: 'checkout', onSuccess: () => void continueToCheckout() });
+      return;
+    }
+    setPaying(true);
+    setPayError(null);
+    const qty = Math.min(Math.max(1, quantity), maxQty);
+    const result = await createBookingCheckoutSession({
+      listingId,
+      listingTitle,
+      bookingDate: startDate,
+      guests: qty,
+      checkoutConsentAccepted: true,
+      expectedTotal: Number((quote.customerTotalMinor / 100).toFixed(2)),
+      successPath: '/booking-confirmed',
+      cancelPath: `/rentals/${listingId}`,
+      rental: {
+        variantId,
+        quantity: qty,
+        pickupAt: interval.pickupAt,
+        returnAt: interval.returnAt,
+        durationCount: interval.durationCount,
+        durationUnit: interval.durationUnit,
+      },
+    });
+    setPaying(false);
+    if (!result.success || !result.checkoutUrl) {
+      setPayError(result.error || 'Checkout could not be opened.');
+      return;
+    }
+    window.location.assign(result.checkoutUrl);
+  };
+
   const minDate = todayLocalYmd();
   const unitPriceLabel =
     durationUnit === 'hour'
@@ -204,7 +259,7 @@ export default function RentalBookingWidget({
           >
             {variants.map((v) => (
               <option key={v.id} value={v.id}>
-                {v.name} · {v.quantity} unit{v.quantity === 1 ? '' : 's'}
+                {v.name} · {v.quantity} available
               </option>
             ))}
           </select>
@@ -218,8 +273,9 @@ export default function RentalBookingWidget({
               key={u}
               type="button"
               className={`tv-btn-ghost min-h-10 flex-1 text-sm ${
-                durationUnit === u ? 'ring-1 ring-[#073b83]/text-[#073b83]' : ''
+                durationUnit === u ? 'bg-[#073b83]/10 font-semibold text-[#073b83] ring-1 ring-[#073b83]' : ''
               }`}
+              aria-pressed={durationUnit === u}
               onClick={() => setDurationUnit(u)}
             >
               {u === 'day' ? 'Daily' : 'Hourly'}
@@ -283,7 +339,7 @@ export default function RentalBookingWidget({
       </div>
 
       <label className="block text-sm">
-        <span className="mb-1.5 block font-medium text-ink">Units</span>
+        <span className="mb-1.5 block font-medium text-ink">Quantity</span>
         <input
           type="number"
           min={1}
@@ -315,9 +371,9 @@ export default function RentalBookingWidget({
       {quote?.ok ? (
         <p className="text-sm text-ink">
           Total <span className="font-semibold">{formatMinorAsEuro(quote.customerTotalMinor)}</span>
-          {!checkoutEnabled ? (
-            <span className="text-ink-muted"> · preview</span>
-          ) : null}
+          <span className="text-ink-muted">
+            {checkoutOpen ? ' · confirmed again at checkout' : ' · estimate, nothing is charged'}
+          </span>
         </p>
       ) : quote && !quote.ok ? (
         <p className="text-sm text-[#9f1239]" role="alert">
@@ -338,36 +394,52 @@ export default function RentalBookingWidget({
         ) : null}
       </div>
 
-      {rental.depositRequired || rental.depositDisclosure ? (
-        <p className="rounded-xl bg-[#F4F6F8] px-3.5 py-2.5 text-xs leading-relaxed text-ink-muted">
-          Deposit:{' '}
-          {rental.depositDisclosure?.trim() ||
-            (rental.depositAmountMinor
-              ? `${formatMinorAsEuro(rental.depositAmountMinor)} collected at pickup (not charged online)`
-              : 'Collected at pickup — not charged online')}
-        </p>
+      <p className="rounded-xl bg-[#F4F6F8] px-3.5 py-2.5 text-xs leading-relaxed text-ink-muted">
+        {rentalDepositCustomerText(rental)}
+      </p>
+      <p className="text-xs leading-relaxed text-ink-muted">{rentalCancellationCustomerText(rental.cancellationPreset)}</p>
+      {rental.pickupAddress ? (
+        <p className="text-xs leading-relaxed text-ink-muted">Pickup: {rental.pickupAddress}</p>
       ) : null}
 
-      {!checkoutEnabled ? (
+      {checkoutOpen ? (
+        <label className="flex items-start gap-2 text-sm text-ink">
+          <input
+            type="checkbox"
+            className="mt-1"
+            checked={consent}
+            onChange={(event) => setConsent(event.target.checked)}
+          />
+          <span>I accept this cancellation window and Traverion’s terms. Rental refunds are not automatic.</span>
+        </label>
+      ) : (
         <div className="rounded-xl bg-[#F4F6F8] px-3.5 py-3 text-sm text-ink-muted" role="note">
           <p className="flex items-start gap-2">
             <Shield className="mt-0.5 h-4 w-4 shrink-0 text-[#073b83]" aria-hidden />
-            Online rental booking is not open yet. Dates, quotes, and availability checks work;
-            payment stays disabled until release approval.
+            Online payment for rentals is not open yet. You can review dates, times, and the price. Nothing is charged.
           </p>
         </div>
+      )}
+
+      {payError ? (
+        <p className="text-sm text-[#9f1239]" role="alert">
+          {payError}
+        </p>
       ) : null}
 
       <button
         type="button"
-        className="tv-btn-primary min-h-12 w-full font-semibold opacity-60"
-        disabled
+        className="tv-btn-primary min-h-12 w-full font-semibold disabled:opacity-60"
+        disabled={!checkoutOpen || paying || !consent || !quote?.ok || !interval.ok || availability.ok === false}
+        onClick={() => void continueToCheckout()}
       >
-        {checkoutEnabled ? 'Continue to checkout' : 'Booking unavailable'}
+        {paying ? 'Opening checkout…' : checkoutOpen ? 'Continue to checkout' : 'Payment not open yet'}
       </button>
       <p className="flex items-center justify-center gap-1.5 text-xs text-ink-muted">
         <CalendarDays className="h-3.5 w-3.5" aria-hidden />
-        Inventory engine is live — traveler checkout awaits certification.
+        {checkoutOpen
+          ? 'Checkout uses Traverion’s secure payment page.'
+          : 'The price above is for review only.'}
       </p>
     </div>
   );

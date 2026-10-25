@@ -59,7 +59,8 @@ describe('inventory families', () => {
   it('keeps experience and rental URLs reserved, and partner can create tour, stay, rental', () => {
     expect(reservedInventoryFamilyFromPath('/stays')).toBeNull();
     expect(reservedInventoryFamilyFromPath('/experiences')).toBe('experience');
-    expect(reservedInventoryFamilyFromPath('/rentals')).toBe('rental');
+    expect(reservedInventoryFamilyFromPath('/rentals')).toBeNull();
+    expect(reservedInventoryFamilyFromPath('/rentals/c2d25217-84f0-46d4-8eaa-83949143fa06')).toBeNull();
     expect(reservedInventoryFamilyFromPath('/packages')).toBeNull();
     expect(PARTNER_CREATE_INVENTORY.filter((o) => o.canCreate).map((o) => o.family)).toEqual([
       'tour',

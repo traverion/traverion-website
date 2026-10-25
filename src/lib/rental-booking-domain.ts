@@ -52,6 +52,15 @@ export type RentalPurchaseSnapshot = {
   priceBreakdown?: Record<string, unknown>;
   /** Informational only — Traverion does not collect online deposits unless implemented. */
   depositDisclosure?: string | null;
+  /** Frozen at purchase so later listing edits do not rewrite the trip. */
+  listingTitle?: string | null;
+  variantName?: string | null;
+  pickupAddress?: string | null;
+  returnAddress?: string | null;
+  returnSameAsPickup?: boolean;
+  cancellationPreset?: string | null;
+  cancellationLabel?: string | null;
+  depositAmountMinor?: number | null;
 };
 
 export type RentalBookingTransition =
@@ -136,6 +145,17 @@ export function parseRentalPurchaseSnapshot(raw: unknown): RentalPurchaseSnapsho
         : o.depositDisclosure === null
           ? null
           : undefined,
+    listingTitle: typeof o.listingTitle === 'string' ? o.listingTitle : null,
+    variantName: typeof o.variantName === 'string' ? o.variantName : null,
+    pickupAddress: typeof o.pickupAddress === 'string' ? o.pickupAddress : null,
+    returnAddress: typeof o.returnAddress === 'string' ? o.returnAddress : null,
+    returnSameAsPickup: o.returnSameAsPickup === false ? false : o.returnSameAsPickup === true ? true : undefined,
+    cancellationPreset: typeof o.cancellationPreset === 'string' ? o.cancellationPreset : null,
+    cancellationLabel: typeof o.cancellationLabel === 'string' ? o.cancellationLabel : null,
+    depositAmountMinor:
+      typeof o.depositAmountMinor === 'number' && Number.isFinite(o.depositAmountMinor)
+        ? Math.round(o.depositAmountMinor)
+        : null,
   };
 }
 

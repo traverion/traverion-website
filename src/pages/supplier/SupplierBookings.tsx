@@ -1072,6 +1072,15 @@ export default function SupplierBookings({
         actions={
           bookings.length > 0 ? (
           <div className="flex flex-wrap items-center justify-end gap-2">
+            {isRentalDesk ? (
+              <button
+                type="button"
+                className="tv-btn-ghost"
+                onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/money`)}
+              >
+                Earnings
+              </button>
+            ) : null}
             <button
               type="button"
               onClick={() => void load()}
@@ -2246,18 +2255,29 @@ export default function SupplierBookings({
                                       : 'Cancelled'}
                               </p>
                               {rentalSnap ? (
-                                <p className="text-[12px] leading-snug text-ink-muted">
-                                  {rentalSnap.quantity} unit{rentalSnap.quantity === 1 ? '' : 's'} ·{' '}
-                                  {new Date(rentalSnap.pickupAt).toLocaleString(undefined, {
-                                    dateStyle: 'medium',
-                                    timeStyle: 'short',
-                                  })}{' '}
-                                  →{' '}
-                                  {new Date(rentalSnap.returnAt).toLocaleString(undefined, {
-                                    dateStyle: 'medium',
-                                    timeStyle: 'short',
-                                  })}
-                                </p>
+                                <div className="space-y-1 text-[12px] leading-snug text-ink-muted">
+                                  <p>
+                                    {rentalSnap.variantName ? `${rentalSnap.variantName} · ` : ''}
+                                    {rentalSnap.quantity} item{rentalSnap.quantity === 1 ? '' : 's'} ·{' '}
+                                    {new Date(rentalSnap.pickupAt).toLocaleString(undefined, {
+                                      dateStyle: 'medium',
+                                      timeStyle: 'short',
+                                    })}{' '}
+                                    →{' '}
+                                    {new Date(rentalSnap.returnAt).toLocaleString(undefined, {
+                                      dateStyle: 'medium',
+                                      timeStyle: 'short',
+                                    })}
+                                  </p>
+                                  {rentalSnap.pickupAddress ? <p>Pickup: {rentalSnap.pickupAddress}</p> : null}
+                                  {rentalSnap.returnSameAsPickup === false && rentalSnap.returnAddress ? (
+                                    <p>Return: {rentalSnap.returnAddress}</p>
+                                  ) : rentalSnap.pickupAddress ? (
+                                    <p>Return: same place as pickup</p>
+                                  ) : null}
+                                  {rentalSnap.cancellationLabel ? <p>{rentalSnap.cancellationLabel}</p> : null}
+                                  {rentalSnap.depositDisclosure ? <p>Deposit: {rentalSnap.depositDisclosure}</p> : null}
+                                </div>
                               ) : null}
                               {canEditBookings && paidReady && ops === 'awaiting_pickup' ? (
                                 <button

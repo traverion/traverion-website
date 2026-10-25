@@ -15,6 +15,7 @@ import {
   Compass,
   Map,
   Home,
+  KeyRound,
 } from 'lucide-react';
 import {
   prefetchAccountPage,
@@ -210,17 +211,40 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
               <Home className="h-[0.9375rem] w-[0.9375rem] shrink-0" strokeWidth={2.35} aria-hidden />
               Stays
             </button>
+            <button
+              type="button"
+              onClick={() => onNavigate('rentals')}
+              aria-current={currentPage === 'rentals' || currentPage === 'rental-details' ? 'page' : undefined}
+              className={`tv-header-nav__item lux-flat ${
+                currentPage === 'rentals' || currentPage === 'rental-details' ? 'tv-header-nav__item--active' : ''
+              }`}
+            >
+              <KeyRound className="h-[0.9375rem] w-[0.9375rem] shrink-0" strokeWidth={2.35} aria-hidden />
+              Rentals
+            </button>
           </nav>
 
           <div className="flex items-center justify-end gap-1 sm:gap-1.5 justify-self-end" ref={userMenuRef}>
             <button
               type="button"
               className="lux-flat inline-flex h-10 w-10 items-center justify-center rounded-full text-ink transition-colors duration-150 hover:bg-black/[0.04] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-finland"
-              aria-label="Search tours"
+              aria-label={
+                currentPage === 'stays' || currentPage === 'stay-details'
+                  ? 'Search stays'
+                  : currentPage === 'rentals' || currentPage === 'rental-details'
+                    ? 'Search rentals'
+                    : 'Search tours'
+              }
               onClick={() => {
                 setIsMobileMenuOpen(false);
                 setIsUserMenuOpen(false);
-                onNavigate('packages');
+                onNavigate(
+                  currentPage === 'stays' || currentPage === 'stay-details'
+                    ? 'stays'
+                    : currentPage === 'rentals' || currentPage === 'rental-details'
+                      ? 'rentals'
+                      : 'packages'
+                );
               }}
             >
               <Search className="h-4 w-4" aria-hidden />
@@ -537,6 +561,20 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
               >
                 <Home className="h-[0.9375rem] w-[0.9375rem] shrink-0" strokeWidth={2.35} aria-hidden />
                 Stays
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  onNavigate('rentals');
+                  setIsMobileMenuOpen(false);
+                }}
+                aria-current={currentPage === 'rentals' || currentPage === 'rental-details' ? 'page' : undefined}
+                className={`tv-header-nav__item lux-flat w-full justify-start px-4 py-3 ${
+                  currentPage === 'rentals' || currentPage === 'rental-details' ? 'tv-header-nav__item--active' : ''
+                }`}
+              >
+                <KeyRound className="h-[0.9375rem] w-[0.9375rem] shrink-0" strokeWidth={2.35} aria-hidden />
+                Rentals
               </button>
               {!isSupabaseConfigured() && (
                 <div className="mx-2 px-4 py-3 rounded-xl bg-finland/[0.06] ring-1 ring-finland/15 text-sm text-ink-muted">

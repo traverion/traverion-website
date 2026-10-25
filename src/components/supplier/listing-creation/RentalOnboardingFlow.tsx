@@ -37,6 +37,7 @@ import { clampListingDescriptionInput, clampListingTitleInput, MAX_LISTING_DESCR
 import { LISTING_PHOTO_MAX, type ListingPhotoCropSettings } from '../../../lib/listingPhotoGrid';
 import { normalizeCurrency } from '../../../lib/money';
 import { travelerDestinationLabel } from '../../../lib/destination-place';
+import { RENTAL_CANCELLATION_PRESETS } from '../../../lib/rental-cancellation';
 import { RENTAL_CATEGORIES } from '../../../types/rental';
 import type {
   RentalCategoryId,
@@ -169,12 +170,6 @@ const HIGHLIGHT_SUGGESTIONS = [
   'Suitable for beginners',
   'Safety briefing included',
   'Family friendly',
-];
-
-const CANCELLATION_PRESETS: { id: string; title: string; body: string }[] = [
-  { id: 'flexible_24h', title: 'Flexible', body: 'Free cancellation until 24 hours before pickup.' },
-  { id: 'moderate_72h', title: 'Moderate', body: 'Free cancellation until 72 hours before pickup.' },
-  { id: 'firm_7d', title: 'Firm', body: 'Free cancellation until 7 days before pickup.' },
 ];
 
 const BUFFER_PRESETS = [0, 30, 60, 120, 240];
@@ -1585,7 +1580,7 @@ function CancellationStage({ ctx }: { ctx: Ctx }) {
   return (
     <div className="space-y-4">
       <div className="grid gap-2" role="group" aria-label="Cancellation policy">
-        {CANCELLATION_PRESETS.map((preset) => (
+        {RENTAL_CANCELLATION_PRESETS.map((preset) => (
           <StayChoice
             key={preset.id}
             pressed={rental.cancellationPreset === preset.id}
@@ -1597,8 +1592,7 @@ function CancellationStage({ ctx }: { ctx: Ctx }) {
         ))}
       </div>
       <StayHelp>
-        Saved with this draft for when rental bookings open. Cancellation refunds are not operational for rentals yet —
-        this is the policy customers will eventually see before paying.
+        Choose one window before you finish. Customers see this wording. Traverion does not issue automatic rental refunds.
       </StayHelp>
     </div>
   );
@@ -1838,7 +1832,7 @@ function PreviewStage({ ctx }: { ctx: Ctx }) {
   const reqs = Object.entries(rental.requirements ?? {}).filter(([, v]) => v.trim());
   const reqLabel = (key: string) => cfg?.requirementKeys.find((r) => r.key === key)?.label ?? key;
   const hours = hoursLines(rental);
-  const cancellation = CANCELLATION_PRESETS.find((p) => p.id === rental.cancellationPreset);
+  const cancellation = RENTAL_CANCELLATION_PRESETS.find((p) => p.id === rental.cancellationPreset);
   const place = travelerDestinationLabel(values.city, values.country);
   const description = values.description.trim();
   const intro = (rental.shortIntro || values.subtitle || '').trim();

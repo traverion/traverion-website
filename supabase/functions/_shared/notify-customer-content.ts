@@ -330,9 +330,13 @@ export function resolveBookingTiedContent(params: {
     ? undefined
     : isRental
       ? [
+          snapshotString(snap, 'variantName') ? `Option ${snapshotString(snap, 'variantName')}` : '',
+          snapshotNumber(snap, 'quantity') ? `Quantity ${snapshotNumber(snap, 'quantity')}` : '',
           rentalPickupIso ? `Pickup ${formatInstantInZone(rentalPickupIso, rentalZone)}` : '',
           rentalReturnIso ? `Return ${formatInstantInZone(rentalReturnIso, rentalZone)}` : '',
-          snapshotString(snap, 'variantId') ? `Option ${snapshotString(snap, 'variantId')}` : '',
+          snapshotString(snap, 'pickupAddress') ? `Collect at ${snapshotString(snap, 'pickupAddress')}` : '',
+          snapshotString(snap, 'returnAddress') ? `Return to ${snapshotString(snap, 'returnAddress')}` : '',
+          snapshotString(snap, 'cancellationLabel') ?? '',
         ]
           .filter(Boolean)
           .join(' — ') || undefined

@@ -356,6 +356,7 @@ describe('rental publish gate', () => {
           itemType: 'thermal_overall',
           durationMode: 'daily',
           pickupAddress: 'Rovaniemi depot',
+          cancellationPreset: 'flexible_24h',
           sharedPricing: { pricePerDayMinor: 2000 },
           creatorComplete: true,
           variants: [

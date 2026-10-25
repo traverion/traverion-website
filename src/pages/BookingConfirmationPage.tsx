@@ -358,7 +358,12 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
       if (!Number.isNaN(pick.getTime()) && !Number.isNaN(ret.getTime())) {
         const start = formatBookingDateDisplay(pick.toISOString().slice(0, 10));
         const end = formatBookingDateDisplay(ret.toISOString().slice(0, 10));
-        if (start && end) return `${start} → ${end}`;
+        if (start && end) {
+          const clock = (d: Date) =>
+            d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+          const option = rentalSnap.variantName?.trim();
+          return [option, `${start} ${clock(pick)} → ${end} ${clock(ret)}`].filter(Boolean).join(' · ');
+        }
       }
     }
     if (!booking?.booking_date) return '—';
@@ -805,8 +810,12 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
                   <h2 className="text-base font-bold leading-snug text-ink break-words [overflow-wrap:anywhere]">
                     {listingTitle || (stayCheckOut ? 'Your stay' : 'Your experience')}
                   </h2>
-                  {optionLabel ? (
-                    <p className="mt-0.5 text-sm text-ink-muted break-words [overflow-wrap:anywhere]">{optionLabel}</p>
+                  {(isRentalBooking && rentalSnap?.variantName) || optionLabel ? (
+                    <p className="mt-0.5 text-sm text-ink-muted break-words [overflow-wrap:anywhere]">
+                      {isRentalBooking && rentalSnap?.variantName
+                        ? `${rentalSnap.variantName}${rentalSnap.quantity ? ` · ${rentalSnap.quantity}` : ''}`
+                        : optionLabel}
+                    </p>
                   ) : null}
                 </div>
               </div>
@@ -814,8 +823,16 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
                     <div className="tv-confirm-fact">
                       <Calendar className="mt-0.5 h-4 w-4 shrink-0 text-ink-muted" aria-hidden />
                       <div className="min-w-0">
-                        <dt className="text-xs font-semibold text-ink-muted">{stayCheckOut ? 'Stay dates' : 'Date'}</dt>
+                        <dt className="text-xs font-semibold text-ink-muted">
+                          {isRentalBooking ? 'Pickup and return' : stayCheckOut ? 'Stay dates' : 'Date'}
+                        </dt>
                         <dd className="font-semibold text-ink break-words">{dateLabel}</dd>
+                        {isRentalBooking && rentalSnap?.pickupAddress ? (
+                          <dd className="text-ink-muted">{rentalSnap.pickupAddress}</dd>
+                        ) : null}
+                        {isRentalBooking && rentalSnap?.cancellationLabel ? (
+                          <dd className="text-ink-muted">{rentalSnap.cancellationLabel}</dd>
+                        ) : null}
                         {confirmationNightCount ? (
                           <dd className="text-ink-muted">
                             {confirmationNightCount} night{confirmationNightCount === 1 ? '' : 's'}

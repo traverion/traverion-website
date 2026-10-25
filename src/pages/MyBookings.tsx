@@ -680,7 +680,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
             <h1 id={TRIPS_HEADING_ID} className="tv-page-title">
               Trips
             </h1>
-            <p className="mt-2 text-sm text-ink-muted">Upcoming and past tours and stays you booked.</p>
+            <p className="mt-2 text-sm text-ink-muted">Upcoming and past tours, stays, and rentals you booked.</p>
           </header>
           <section aria-labelledby={TRIPS_HEADING_ID}>
           <div className="max-w-md tv-card p-5">
@@ -731,7 +731,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
               Trips
             </h1>
             <p className="mt-2 text-sm text-ink-muted leading-relaxed max-w-xl">
-              Manage upcoming, past, and cancelled tours and stays after you sign in.
+              Manage upcoming, past, and cancelled tours, stays, and rentals after you sign in.
             </p>
           </header>
           <section aria-labelledby={TRIPS_HEADING_ID}>
@@ -1089,6 +1089,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                 !b.pickup_time;
               const thumb = ops?.image ?? null;
               const placeLine = (() => {
+                if (rentalSnap?.pickupAddress?.trim()) return rentalSnap.pickupAddress.trim();
                 const snapAddr = displayCheckInAddressFromPurchase(
                   b.purchase_snapshot,
                   b.payment_status
@@ -1096,18 +1097,24 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                 if (snapAddr) return snapAddr;
                 return (ops?.city || ops?.destination || '').trim() || null;
               })();
-              const placeLabel = displayCheckInAddressFromPurchase(
-                b.purchase_snapshot,
-                b.payment_status
-              )
-                ? 'Check-in address'
-                : 'Place';
+              const placeLabel = rentalSnap?.pickupAddress?.trim()
+                ? 'Pickup'
+                : displayCheckInAddressFromPurchase(
+                      b.purchase_snapshot,
+                      b.payment_status
+                    )
+                  ? 'Check-in address'
+                  : 'Place';
               const dateLine = (() => {
                 if (rentalSnap?.pickupAt && rentalSnap.returnAt) {
                   const pick = new Date(rentalSnap.pickupAt);
                   const ret = new Date(rentalSnap.returnAt);
                   if (!Number.isNaN(pick.getTime()) && !Number.isNaN(ret.getTime())) {
-                    return `${formatBookingDateDisplay(pick.toISOString().slice(0, 10))} → ${formatBookingDateDisplay(ret.toISOString().slice(0, 10))}`;
+                    const fmt = (d: Date) =>
+                      d.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+                    const option = rentalSnap.variantName?.trim();
+                    const qty = `${rentalSnap.quantity} item${rentalSnap.quantity === 1 ? '' : 's'}`;
+                    return [option, qty, `${fmt(pick)} → ${fmt(ret)}`].filter(Boolean).join(' · ');
                   }
                 }
                 if (isStay) {
@@ -1136,13 +1143,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                 return n != null && n > 0 ? ` · ${n === 1 ? '1 night' : `${n} nights`}` : '';
               })();
               const timeBit = (() => {
-                if (isStay) return null;
-                if (rentalSnap?.pickupAt) {
-                  const pick = new Date(rentalSnap.pickupAt);
-                  if (!Number.isNaN(pick.getTime())) {
-                    return `${String(pick.getHours()).padStart(2, '0')}:${String(pick.getMinutes()).padStart(2, '0')}`;
-                  }
-                }
+                if (isStay || rentalSnap?.pickupAt) return null;
                 const live = b.start_time ? pgTimeToHm(b.start_time) : null;
                 const shown = displayStartTimeFromPurchase(b.purchase_snapshot, live);
                 if (!shown) return null;

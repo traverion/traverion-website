@@ -204,6 +204,7 @@ describe('rental publish readiness', () => {
       itemType: 'thermal_overall',
       durationMode: 'daily',
       pickupAddress: 'Rovaniemi depot, Main Street 1',
+      cancellationPreset: 'flexible_24h',
       sharedPricing: { pricePerDayMinor: 2000 },
       variants: [
         { id: 's', name: 'S', quantity: 8 },
