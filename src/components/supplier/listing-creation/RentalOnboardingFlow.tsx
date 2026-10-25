@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
-import { Pencil } from 'lucide-react';
+import { KeyRound, MoreHorizontal, Pencil, UserRound } from 'lucide-react';
 import {
   RENTAL_COMPLETION_GROUPS,
   RENTAL_ONBOARDING_SCREENS,
@@ -272,6 +272,24 @@ function itemTypeText(rental: RentalDetails): string {
 
 function variantAttributeText(variant: RentalVariant, cfg: RentalCategoryConfig | null): string {
   return rentalVariantMetaLine(variant, cfg?.variantAttributeKeys ?? []);
+}
+
+function variantSpecLine(variant: RentalVariant, cfg: RentalCategoryConfig | null): string {
+  const keys = cfg?.variantAttributeKeys ?? [];
+  const seen = new Set<string>();
+  const parts: string[] = [];
+  for (const key of keys) {
+    const value = (variant.attributes?.[key.key] ?? '').trim();
+    if (!value) continue;
+    seen.add(key.key);
+    parts.push(`${key.label}: ${value}`);
+  }
+  for (const [key, raw] of Object.entries(variant.attributes ?? {})) {
+    const value = raw.trim();
+    if (!value || seen.has(key)) continue;
+    parts.push(value);
+  }
+  return parts.join(' · ');
 }
 
 function galleryUrlsOf(values: Values): string[] {
@@ -1122,40 +1140,35 @@ function HoursStage({ ctx }: { ctx: Ctx }) {
 
 function CollectionStage({ ctx }: { ctx: Ctx }) {
   const { rental, patchRental } = ctx;
+  const staff = rental.staffAssisted === true;
+  const selfService = rental.staffAssisted === false;
+  const placeholder = staff
+    ? 'e.g. Meet staff at the counter. They fit the helmet and show how the lock works.'
+    : selfService
+      ? 'e.g. The lockbox is by the blue door. The code is shared after booking.'
+      : 'Where to meet, what to look for, and how the item is handed over.';
   return (
     <div className="space-y-4">
-      <StayField label="How customers receive the item" optional>
+      <div className="grid gap-2 sm:grid-cols-2" role="group" aria-label="Handover method">
+        <StayChoice pressed={staff} onClick={() => patchRental({ staffAssisted: true })} icon={<UserRound className="h-4 w-4" />}>
+          <span className="block">Staff handover</span>
+          <span className="stay-help mt-0.5 block font-normal">Someone hands the item to the customer.</span>
+        </StayChoice>
+        <StayChoice pressed={selfService} onClick={() => patchRental({ staffAssisted: false })} icon={<KeyRound className="h-4 w-4" />}>
+          <span className="block">Self-service pickup</span>
+          <span className="stay-help mt-0.5 block font-normal">Customers collect it without staff present.</span>
+        </StayChoice>
+      </div>
+      <StayField label="Handover instructions" optional>
         <textarea
           className="tv-input w-full resize-y py-2"
-          rows={4}
+          rows={3}
           maxLength={1000}
           value={rental.collectionNotes ?? ''}
-          placeholder="e.g. We fit the helmet, adjust the seat, and show how the lock works."
+          placeholder={placeholder}
           onChange={(e) => patchRental({ collectionNotes: e.target.value.slice(0, 1000) })}
         />
       </StayField>
-      <fieldset>
-        <legend className="stay-kicker">Handover</legend>
-        <div className="mt-2 flex flex-wrap gap-2">
-          <Pill pressed={rental.staffAssisted === true} onClick={() => patchRental({ staffAssisted: true })}>
-            Staff hand over the item
-          </Pill>
-          <Pill pressed={rental.staffAssisted === false} onClick={() => patchRental({ staffAssisted: false })}>
-            Self-service pickup
-          </Pill>
-        </div>
-      </fieldset>
-      <fieldset>
-        <legend className="stay-kicker">ID at pickup</legend>
-        <div className="mt-2 flex flex-wrap gap-2">
-          <Pill pressed={rental.idRequired === true} onClick={() => patchRental({ idRequired: true })}>
-            ID required
-          </Pill>
-          <Pill pressed={rental.idRequired === false} onClick={() => patchRental({ idRequired: false })}>
-            ID not required
-          </Pill>
-        </div>
-      </fieldset>
     </div>
   );
 }
@@ -1168,7 +1181,27 @@ function OptionsStage({ ctx }: { ctx: Ctx }) {
   const { rental, cfg, mode, currency, patchRental, editVariant } = ctx;
   const variants = rental.variants ?? [];
   const [confirmId, setConfirmId] = useState<string | null>(null);
+  const [menuId, setMenuId] = useState<string | null>(null);
   const canAdd = variants.length < MAX_VARIANTS;
+
+  useEffect(() => {
+    if (!menuId) return;
+    const close = (event: PointerEvent) => {
+      const target = event.target;
+      const root = document.getElementById(`rental-option-menu-${menuId}`);
+      if (target instanceof Node && root?.contains(target)) return;
+      setMenuId(null);
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setMenuId(null);
+    };
+    document.addEventListener('pointerdown', close);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('pointerdown', close);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [menuId]);
 
   const duplicate = (variant: RentalVariant) => {
     if (!canAdd) return;
@@ -1183,14 +1216,18 @@ function OptionsStage({ ctx }: { ctx: Ctx }) {
           const pricing = effectiveVariantPricing(rental, variant);
           const complete = rentalVariantComplete(variant, rental);
           const basicsOk = Boolean(variant.name.trim()) && variant.quantity >= 1;
-          const attrs = variantAttributeText(variant, cfg);
+          const specs = variantSpecLine(variant, cfg);
           const confirming = confirmId === variant.id;
+          const menuOpen = menuId === variant.id;
+          const name = variant.name.trim() || 'Untitled option';
+          const units = `${variant.quantity} ${variant.quantity === 1 ? 'unit' : 'units'} available`;
           return (
             <li key={variant.id} className="stay-panel space-y-3">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="truncate text-base font-semibold text-ink">{variant.name.trim() || 'Untitled option'}</p>
-                  <p className="text-sm text-ink-muted">{attrs || `${variant.quantity} ${variant.quantity === 1 ? 'unit' : 'units'}`}</p>
+                  <p className="truncate text-base font-semibold text-ink">{name}</p>
+                  <p className="mt-0.5 text-sm text-ink-muted">{units}</p>
+                  {specs ? <p className="mt-0.5 text-sm text-ink">{specs}</p> : null}
                 </div>
                 <span
                   className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${
@@ -1200,15 +1237,13 @@ function OptionsStage({ ctx }: { ctx: Ctx }) {
                   {complete ? 'Complete' : basicsOk ? 'Needs pricing' : 'Incomplete'}
                 </span>
               </div>
-              <p className="text-sm text-ink">
+              <p className="text-sm font-semibold text-ink">
                 {rentalPricingSummary(pricing, mode, currency)}
-                <span className="stay-help"> · {variant.pricingOverride ? 'Custom price' : 'Shared rate'}</span>
+                <span className="ml-1.5 font-normal text-ink-muted">{variant.pricingOverride ? 'Custom price' : 'Shared rate'}</span>
               </p>
               {confirming ? (
                 <div className="space-y-2 rounded-xl bg-[#fff7f7] p-3" role="alert">
-                  <p className="text-sm font-semibold text-[#9f1239]">
-                    Delete “{variant.name.trim() || 'this option'}”? This cannot be undone.
-                  </p>
+                  <p className="text-sm font-semibold text-[#9f1239]">Delete “{name}”? This cannot be undone.</p>
                   <div className="flex gap-2">
                     <button type="button" className="tv-btn-secondary min-h-11 px-4 text-sm font-semibold" onClick={() => setConfirmId(null)}>
                       Keep
@@ -1218,7 +1253,7 @@ function OptionsStage({ ctx }: { ctx: Ctx }) {
                       className="lc-btn-danger min-h-11 rounded-xl px-4 text-sm font-semibold"
                       onClick={() => {
                         setConfirmId(null);
-                        patchRental({ variants: variants.filter((v) => v.id !== variant.id) });
+                        patchRental({ variants: variants.filter((row) => row.id !== variant.id) });
                       }}
                     >
                       Delete option
@@ -1226,7 +1261,7 @@ function OptionsStage({ ctx }: { ctx: Ctx }) {
                   </div>
                 </div>
               ) : (
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <button type="button" className="tv-btn-primary min-h-11 px-4 text-sm font-semibold" onClick={() => editVariant(cloneVariant(variant), false)}>
                     Edit
                   </button>
@@ -1238,15 +1273,35 @@ function OptionsStage({ ctx }: { ctx: Ctx }) {
                   >
                     Duplicate
                   </button>
-                  <button
-                    type="button"
-                    className="lc-btn-danger min-h-11 rounded-xl px-4 text-sm font-semibold disabled:opacity-40"
-                    disabled={variants.length <= 1}
-                    title={variants.length <= 1 ? 'Keep at least one option' : undefined}
-                    onClick={() => setConfirmId(variant.id)}
-                  >
-                    Delete
-                  </button>
+                  <div className="relative" id={`rental-option-menu-${variant.id}`}>
+                    <button
+                      type="button"
+                      className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-[#E6EAF0] bg-white text-[#073b83]"
+                      aria-label={`More actions for ${name}`}
+                      aria-haspopup="menu"
+                      aria-expanded={menuOpen}
+                      onClick={() => setMenuId(menuOpen ? null : variant.id)}
+                    >
+                      <MoreHorizontal className="h-4 w-4" aria-hidden />
+                    </button>
+                    {menuOpen ? (
+                      <div role="menu" className="absolute right-0 z-20 mt-1 w-48 rounded-xl border border-[#E6EAF0] bg-white p-1 shadow-[0_8px_24px_rgba(15,23,42,0.08)]">
+                        <button
+                          type="button"
+                          role="menuitem"
+                          className="w-full rounded-lg px-3 py-2 text-left text-sm font-semibold text-[#9f1239] disabled:cursor-not-allowed disabled:opacity-40"
+                          disabled={variants.length <= 1}
+                          title={variants.length <= 1 ? 'Keep at least one option' : undefined}
+                          onClick={() => {
+                            setMenuId(null);
+                            setConfirmId(variant.id);
+                          }}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    ) : null}
+                  </div>
                 </div>
               )}
             </li>
@@ -1255,15 +1310,15 @@ function OptionsStage({ ctx }: { ctx: Ctx }) {
       </ul>
       <button
         type="button"
-        className="tv-btn-secondary min-h-11 w-full px-4 text-sm font-semibold"
+        className="flex min-h-11 w-full items-center justify-center rounded-xl border border-dashed border-[#073b83]/35 bg-white px-4 text-sm font-semibold text-[#073b83] disabled:cursor-not-allowed disabled:opacity-40"
         disabled={!canAdd}
         onClick={() => editVariant(createDefaultRentalVariant(variants.length === 0 ? 'Standard' : 'New option'), true)}
       >
-        + Add option
+        Add option
       </button>
       <StayHelp>
-        Each option is a separately tracked choice (for example Size M). The quantity is how many identical units of
-        that option you can rent at once — not a guest count. One option is enough for a single-product listing.
+        One standard option is enough. Add another when a size, model, or variant has its own stock. Quantity is how
+        many identical units of that option you can rent at once.
       </StayHelp>
     </div>
   );
@@ -1704,7 +1759,18 @@ function RequirementsStage({ ctx }: { ctx: Ctx }) {
   };
   return (
     <div className="space-y-4">
+      <div className="grid gap-2 sm:grid-cols-2" role="group" aria-label="Identification at pickup">
+        <StayChoice pressed={rental.idRequired === true} onClick={() => patchRental({ idRequired: true })}>
+          <span className="block">ID required at pickup</span>
+          <span className="stay-help mt-0.5 block font-normal">Customers bring a valid ID.</span>
+        </StayChoice>
+        <StayChoice pressed={rental.idRequired === false} onClick={() => patchRental({ idRequired: false })}>
+          <span className="block">No ID required</span>
+          <span className="stay-help mt-0.5 block font-normal">Identification is not part of this rental.</span>
+        </StayChoice>
+      </div>
       {cfg.requirementKeys.map((req) => {
+        if (req.key === 'idRequiredNote' && rental.idRequired !== true && !(reqs[req.key] ?? '').trim()) return null;
         const required = (cfg.id === 'snowmobiles' || cfg.id === 'vehicles') && req.key === 'license';
         return (
           <StayField key={req.key} label={req.label} optional={!required} required={required}>
@@ -1720,7 +1786,7 @@ function RequirementsStage({ ctx }: { ctx: Ctx }) {
         );
       })}
       <StayHelp>
-        Minimum age stays in this field only. Leave a line blank when it does not apply. Customers see what you fill in.
+        Identification is set here only. Leave a line blank when it does not apply. Customers see what you fill in.
       </StayHelp>
     </div>
   );

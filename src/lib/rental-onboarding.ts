@@ -91,7 +91,7 @@ export const RENTAL_ONBOARDING_SCREENS = [
     group: 'Pickup & return',
     part: '4 of 4',
     title: 'How does handover work?',
-    body: 'Staff or self-service, ID at pickup, and any practical instructions.',
+    body: 'Staff or self-service, then any practical instructions.',
   },
   {
     id: 'options',
