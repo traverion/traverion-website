@@ -275,8 +275,14 @@ function listingKindIsStay(kind: string | undefined): boolean {
   return String(kind ?? '').trim().toLowerCase() === 'stay';
 }
 
+function listingKindIsRental(kind: string | undefined): boolean {
+  return String(kind ?? '').trim().toLowerCase() === 'rental';
+}
+
 function confirmationListingLabel(kind: string | undefined): string {
-  return listingKindIsStay(kind) ? 'Stay' : 'Tour';
+  if (listingKindIsStay(kind)) return 'Stay';
+  if (listingKindIsRental(kind)) return 'Rental';
+  return 'Tour';
 }
 
 function paidReceiptLine(_kind: string | undefined): string {
@@ -293,6 +299,9 @@ function buildDetailRows(p: Payload): string {
   if (listingKindIsStay(p.listingKind) && p.bookingDate && /^\d{4}-\d{2}-\d{2}$/.test(checkOut)) {
     rows.push(detailRow('Check-in', p.bookingDate));
     rows.push(detailRow('Check-out', checkOut));
+  } else if (listingKindIsRental(p.listingKind) && p.bookingDate) {
+    rows.push(detailRow('Pickup', p.bookingDate));
+    if (/^\d{4}-\d{2}-\d{2}$/.test(checkOut)) rows.push(detailRow('Return', checkOut));
   } else if (p.bookingDate) {
     rows.push(detailRow('Date', p.bookingDate));
   }
@@ -352,7 +361,13 @@ function subjectForKind(
     case 'partial_refund_recorded':
       return withRef('A partial refund was recorded');
     case 'experience_reminder':
-      return withRef(isStay ? 'Your stay is coming up' : 'Your experience is coming up');
+      return withRef(
+        isStay
+          ? 'Your stay is coming up'
+          : String(listingKind ?? '').toLowerCase() === 'rental'
+            ? 'Your rental is coming up'
+            : 'Your experience is coming up'
+      );
     case 'review_request':
       return withRef(isStay ? 'How was your stay?' : 'How was your experience?');
     case 'checkout_payment_reversed':
@@ -362,7 +377,7 @@ function subjectForKind(
   }
 }
 
-serve(async (req) => {
+const handler = async (req: Request): Promise<Response> => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', {
       headers: {
@@ -929,10 +944,17 @@ serve(async (req) => {
       }
     } else if (kind === 'experience_reminder') {
       const isStay = String(listingKind ?? '').toLowerCase() === 'stay';
-      headline = isStay ? 'Your stay is coming up soon' : 'Your tour is coming up soon';
+      const isRental = String(listingKind ?? '').toLowerCase() === 'rental';
+      headline = isStay
+        ? 'Your stay is coming up soon'
+        : isRental
+          ? 'Your rental is coming up soon'
+          : 'Your tour is coming up soon';
       intro = isStay
         ? `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">Your stay at <strong>${escapeHtml(title)}</strong> is coming up soon. Details we have on file are below — check Trips for the latest.</p>`
-        : `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">Your tour <strong>${escapeHtml(title)}</strong> is coming up soon. Details we have on file are below — check Trips for the latest.</p>`;
+        : isRental
+          ? `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">Your rental <strong>${escapeHtml(title)}</strong> is coming up soon. Pickup and return times below are in the listing timezone.</p>`
+          : `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">Your tour <strong>${escapeHtml(title)}</strong> is coming up soon. Details we have on file are below — check Trips for the latest.</p>`;
       extraHtml = purchasedLogisticsExtraHtml({
         isStay,
         checkInAddress,
@@ -1135,4 +1157,11 @@ serve(async (req) => {
   } catch (e) {
     return json({ success: false, error: e instanceof Error ? e.message : 'Unknown error' }, 500);
   }
-});
+};
+
+const notifyListenPort = Number(Deno.env.get('NOTIFY_LISTEN_PORT') || '');
+if (Number.isFinite(notifyListenPort) && notifyListenPort > 0) {
+  serve(handler, { port: notifyListenPort });
+} else {
+  serve(handler);
+}

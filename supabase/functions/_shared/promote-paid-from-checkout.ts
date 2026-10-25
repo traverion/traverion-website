@@ -93,9 +93,23 @@ export async function notifyPaidBookingSideEffects(params: {
       .maybeSingle();
     booking = fallback.data as Record<string, unknown> | null;
   } else if (withStay.error || !booking) {
+    await admin.from('booking_payment_events').insert({
+      booking_id: bookingId,
+      event_id: `notify-side-effects-skip:${bookingId}`,
+      event_type: 'notify_side_effects_skipped',
+      payload: { reason: withStay.error?.message?.slice(0, 180) || 'booking_missing' },
+    });
     return;
   }
-  if (!booking?.listing_id) return;
+  if (!booking?.listing_id) {
+    await admin.from('booking_payment_events').insert({
+      booking_id: bookingId,
+      event_id: `notify-side-effects-skip:${bookingId}`,
+      event_type: 'notify_side_effects_skipped',
+      payload: { reason: 'listing_missing' },
+    });
+    return;
+  }
 
   let guestEmailResolved = String(booking.guest_email ?? '').trim().toLowerCase();
   if (!guestEmailResolved && booking.guest_user_id) {
@@ -135,6 +149,17 @@ export async function notifyPaidBookingSideEffects(params: {
   const paymentIntentId =
     typeof booking.payment_intent_id === 'string' ? booking.payment_intent_id : undefined;
 
+  await admin.from('booking_payment_events').insert({
+    booking_id: bookingId,
+    event_id: `notify-side-effects:${bookingId}`,
+    event_type: 'notify_side_effects_entered',
+    payload: {
+      hasGuestEmail: Boolean(guestEmailResolved),
+      hasSupplier: Boolean(listing?.supplier_id),
+      listingKind,
+    },
+  });
+
   if (listing?.supplier_id) {
     try {
       const res = await fetch(`${supabaseUrl}/functions/v1/notify-supplier-event`, {
@@ -155,6 +180,13 @@ export async function notifyPaidBookingSideEffects(params: {
           idempotencyKey: `supplier:new_booking:${bookingId}`,
         }),
       });
+      const supplierBody = (await res.text()).slice(0, 400);
+      await admin.from('booking_payment_events').insert({
+        booking_id: bookingId,
+        event_id: `notify-supplier-new-booking:${bookingId}`,
+        event_type: res.ok ? 'notify_supplier_result' : 'notify_supplier_failed',
+        payload: { status: res.status, body: supplierBody },
+      });
       if (!res.ok) {
         console.error(
           JSON.stringify({
@@ -163,7 +195,7 @@ export async function notifyPaidBookingSideEffects(params: {
             eventType: 'new_booking',
             bookingId,
             status: res.status,
-            body: (await res.text()).slice(0, 400),
+            body: supplierBody,
           })
         );
       }
@@ -204,6 +236,13 @@ export async function notifyPaidBookingSideEffects(params: {
           idempotencyKey: `customer:booking_confirmed_paid:${bookingId}`,
         }),
       });
+      const bodyText = (await res.text()).slice(0, 400);
+      await admin.from('booking_payment_events').insert({
+        booking_id: bookingId,
+        event_id: `notify-customer-confirmed:${bookingId}`,
+        event_type: res.ok ? 'notify_customer_result' : 'notify_customer_failed',
+        payload: { status: res.status, body: bodyText },
+      });
       if (!res.ok) {
         console.error(
           JSON.stringify({
@@ -212,7 +251,7 @@ export async function notifyPaidBookingSideEffects(params: {
             emailKind: 'booking_confirmed_paid',
             bookingId,
             status: res.status,
-            body: (await res.text()).slice(0, 400),
+            body: bodyText,
           })
         );
       }

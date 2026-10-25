@@ -112,6 +112,29 @@ function snapshotRecord(snapshot: unknown): Record<string, unknown> | null {
   return snapshot as Record<string, unknown>;
 }
 
+/** Experience-local clock for rental pickup/return. Falls back to UTC if the zone is invalid. */
+function formatInstantInZone(iso: string, timeZone: string | undefined): string {
+  const ms = Date.parse(iso);
+  if (!Number.isFinite(ms)) return iso;
+  const tz = (timeZone ?? '').trim() || 'Europe/Helsinki';
+  try {
+    const parts = new Intl.DateTimeFormat('en-GB', {
+      timeZone: tz,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hourCycle: 'h23',
+    }).formatToParts(new Date(ms));
+    const get = (type: string) => parts.find((part) => part.type === type)?.value ?? '';
+    const stamp = `${get('year')}-${get('month')}-${get('day')} ${get('hour')}:${get('minute')}`;
+    return stamp.includes('undefined') ? `${new Date(ms).toISOString().replace('T', ' ').slice(0, 16)} UTC` : `${stamp} ${tz}`;
+  } catch {
+    return `${new Date(ms).toISOString().replace('T', ' ').slice(0, 16)} UTC`;
+  }
+}
+
 function snapshotString(snapshot: unknown, key: string): string | undefined {
   const rec = snapshotRecord(snapshot);
   if (!rec) return undefined;
@@ -302,16 +325,13 @@ export function resolveBookingTiedContent(params: {
         .join(' ');
   const rentalPickupIso = isRental ? snapshotString(snap, 'pickupAt') : undefined;
   const rentalReturnIso = isRental ? snapshotString(snap, 'returnAt') : undefined;
+  const rentalZone = isRental ? snapshotString(snap, 'departureTimezone') || 'Europe/Helsinki' : undefined;
   const meetingPoint = isStay
     ? undefined
     : isRental
       ? [
-          rentalPickupIso
-            ? `Pickup ${new Date(rentalPickupIso).toISOString().replace('T', ' ').slice(0, 16)} UTC`
-            : '',
-          rentalReturnIso
-            ? `Return ${new Date(rentalReturnIso).toISOString().replace('T', ' ').slice(0, 16)} UTC`
-            : '',
+          rentalPickupIso ? `Pickup ${formatInstantInZone(rentalPickupIso, rentalZone)}` : '',
+          rentalReturnIso ? `Return ${formatInstantInZone(rentalReturnIso, rentalZone)}` : '',
           snapshotString(snap, 'variantId') ? `Option ${snapshotString(snap, 'variantId')}` : '',
         ]
           .filter(Boolean)

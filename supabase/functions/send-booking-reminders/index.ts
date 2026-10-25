@@ -75,6 +75,34 @@ serve(async (req) => {
   const bearer = auth.toLowerCase().startsWith('bearer ') ? auth.slice(7).trim() : '';
   if (bearer !== expected) return json({ error: 'Unauthorized' }, 401);
 
+  // Empty body and `{}` keep the scheduled full scan. A uuid list limits every
+  // query to those bookings so a certification run cannot email other guests.
+  const rawBody = await req.text();
+  let onlyBookingIds: string[] | null = null;
+  if (rawBody.trim()) {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(rawBody);
+    } catch {
+      return json({ error: 'Invalid JSON' }, 400);
+    }
+    const requested =
+      parsed && typeof parsed === 'object' && Array.isArray((parsed as { onlyBookingIds?: unknown }).onlyBookingIds)
+        ? (parsed as { onlyBookingIds: unknown[] }).onlyBookingIds
+        : null;
+    if (requested) {
+      const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (
+        requested.length < 1 ||
+        requested.length > 8 ||
+        requested.some((id) => typeof id !== 'string' || !uuid.test(id))
+      ) {
+        return json({ error: 'onlyBookingIds must be 1–8 booking uuids' }, 400);
+      }
+      onlyBookingIds = requested;
+    }
+  }
+
   const supabaseUrl = Deno.env.get('SUPABASE_URL');
   const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
   if (!supabaseUrl || !serviceKey) return json({ error: 'Missing Supabase env' }, 500);
@@ -86,6 +114,11 @@ serve(async (req) => {
     apikey: serviceKey,
     'Content-Type': 'application/json',
   };
+  // Production cron leaves this unset and calls the hosted notify function.
+  // An isolated certification process can point at a local notify server.
+  const notifyCustomerUrl = (
+    Deno.env.get('NOTIFY_CUSTOMER_URL') ?? `${supabaseUrl}/functions/v1/notify-customer-booking`
+  ).replace(/\/$/, '');
 
   const now = new Date();
   const nowMs = now.getTime();
@@ -100,7 +133,7 @@ serve(async (req) => {
   const errors: string[] = [];
 
   // Wide UTC window, then filter per booking experience-local calendar.
-  const { data: reminderRows, error: remErr } = await admin
+  let reminderQuery = admin
     .from('bookings')
     .select(
       'id, guest_email, guest_user_id, guest_name, booking_date, check_out, guests, booking_number, listing_id, pickup_time, start_time, purchase_snapshot, reminder_email_sent_at, status, payment_status'
@@ -109,8 +142,9 @@ serve(async (req) => {
     .eq('payment_status', 'paid')
     .is('reminder_email_sent_at', null)
     .gte('booking_date', fromYmd)
-    .lte('booking_date', toYmd)
-    .limit(500);
+    .lte('booking_date', toYmd);
+  if (onlyBookingIds) reminderQuery = reminderQuery.in('id', onlyBookingIds);
+  const { data: reminderRows, error: remErr } = await reminderQuery.limit(500);
 
   if (remErr) return json({ error: remErr.message }, 500);
 
@@ -130,7 +164,7 @@ serve(async (req) => {
       diffs.push({ label: 'Start time', before: '—', after: startHm });
     }
     try {
-      const res = await fetch(`${supabaseUrl}/functions/v1/notify-customer-booking`, {
+      const res = await fetch(notifyCustomerUrl, {
         method: 'POST',
         headers,
         body: JSON.stringify({
@@ -166,7 +200,7 @@ serve(async (req) => {
   }
 
   // Rental return reminders (day before returnAt). Separate from pickup reminder stamp.
-  const { data: returnRows, error: retErr } = await admin
+  let returnQuery = admin
     .from('bookings')
     .select(
       'id, guest_email, guest_user_id, guest_name, booking_date, check_out, guests, booking_number, listing_id, purchase_snapshot, status, payment_status'
@@ -176,8 +210,9 @@ serve(async (req) => {
     .filter('purchase_snapshot->>inventoryFamily', 'eq', 'rental')
     .not('check_out', 'is', null)
     .gte('check_out', fromYmd)
-    .lte('check_out', toYmd)
-    .limit(500);
+    .lte('check_out', toYmd);
+  if (onlyBookingIds) returnQuery = returnQuery.in('id', onlyBookingIds);
+  const { data: returnRows, error: retErr } = await returnQuery.limit(500);
 
   if (retErr) return json({ error: retErr.message }, 500);
 
@@ -205,14 +240,20 @@ serve(async (req) => {
     const email = await resolveGuestEmail(admin, row);
     if (!email) continue;
     try {
-      const res = await fetch(`${supabaseUrl}/functions/v1/notify-customer-booking`, {
+      const res = await fetch(notifyCustomerUrl, {
         method: 'POST',
         headers,
         body: JSON.stringify({
           customerEmail: email,
           bookingId: row.id,
           emailKind: 'experience_reminder',
-          fieldDiffs: [{ label: 'Return', before: '—', after: 'Tomorrow (local)' }],
+          fieldDiffs: [
+            {
+              label: 'Return',
+              before: '—',
+              after: String(row.check_out ?? '').slice(0, 10) || 'Tomorrow (local)',
+            },
+          ],
           publicSiteUrl: publicSite,
           idempotencyKey: `customer:rental_return_reminder:${row.id}`,
         }),
@@ -245,22 +286,23 @@ serve(async (req) => {
   // Fetch by booking_date window OR check_out window OR nights-only OR snapshot checkOut, then filter locally.
   const reviewSelect =
     'id, guest_email, guest_user_id, guest_name, booking_date, check_out, nights, special_requests, booking_number, listing_id, purchase_snapshot, review_request_email_sent_at, status, payment_status';
-  const { data: reviewByDeparture, error: revErr1 } = await admin
+  let reviewDepartureQuery = admin
     .from('bookings')
     .select(reviewSelect)
     .eq('status', 'confirmed')
     .eq('payment_status', 'paid')
     .is('review_request_email_sent_at', null)
     .gte('booking_date', fromYmd)
-    .lte('booking_date', toYmd)
-    .limit(500);
+    .lte('booking_date', toYmd);
+  if (onlyBookingIds) reviewDepartureQuery = reviewDepartureQuery.in('id', onlyBookingIds);
+  const { data: reviewByDeparture, error: revErr1 } = await reviewDepartureQuery.limit(500);
 
   if (revErr1) return json({ error: revErr1.message }, 500);
 
   // Phase 1332/1565/1567: wide stay windows for nights + stale short check_out columns.
   const stayNightsWindow = lifecycleStayNightsCandidateUtcWindow(nowMs);
 
-  const { data: reviewByCheckout, error: revErr2 } = await admin
+  let reviewCheckoutQuery = admin
     .from('bookings')
     .select(reviewSelect)
     .eq('status', 'confirmed')
@@ -270,14 +312,15 @@ serve(async (req) => {
     // Phase 1567: wide lookback on raw check_out so stale short columns still load
     // when true completion (1564 max) is in today’s review window.
     .gte('check_out', stayNightsWindow.fromYmd)
-    .lte('check_out', stayNightsWindow.toYmd)
-    .limit(500);
+    .lte('check_out', stayNightsWindow.toYmd);
+  if (onlyBookingIds) reviewCheckoutQuery = reviewCheckoutQuery.in('id', onlyBookingIds);
+  const { data: reviewByCheckout, error: revErr2 } = await reviewCheckoutQuery.limit(500);
 
   if (revErr2) return json({ error: revErr2.message }, 500);
 
   // Phase 1332/1565: nights stays need a wider check-in window (check-out = booking_date + nights).
   // Phase 1565: do not require check_out IS NULL — stale short column + longer nights must still load.
-  const { data: reviewByNights, error: revErr3 } = await admin
+  let reviewNightsQuery = admin
     .from('bookings')
     .select(reviewSelect)
     .eq('status', 'confirmed')
@@ -285,21 +328,23 @@ serve(async (req) => {
     .is('review_request_email_sent_at', null)
     .gte('nights', 1)
     .gte('booking_date', stayNightsWindow.fromYmd)
-    .lte('booking_date', stayNightsWindow.toYmd)
-    .limit(500);
+    .lte('booking_date', stayNightsWindow.toYmd);
+  if (onlyBookingIds) reviewNightsQuery = reviewNightsQuery.in('id', onlyBookingIds);
+  const { data: reviewByNights, error: revErr3 } = await reviewNightsQuery.limit(500);
 
   if (revErr3) return json({ error: revErr3.message }, 500);
 
   // Phase 1537/1565: snapshot checkOut in window — even when column/nights are set short (1564 max).
-  const { data: reviewBySnapCheckout, error: revErr4 } = await admin
+  let reviewSnapQuery = admin
     .from('bookings')
     .select(reviewSelect)
     .eq('status', 'confirmed')
     .eq('payment_status', 'paid')
     .is('review_request_email_sent_at', null)
     .filter('purchase_snapshot->>checkOut', 'gte', fromYmd)
-    .filter('purchase_snapshot->>checkOut', 'lte', toYmd)
-    .limit(500);
+    .filter('purchase_snapshot->>checkOut', 'lte', toYmd);
+  if (onlyBookingIds) reviewSnapQuery = reviewSnapQuery.in('id', onlyBookingIds);
+  const { data: reviewBySnapCheckout, error: revErr4 } = await reviewSnapQuery.limit(500);
 
   if (revErr4) return json({ error: revErr4.message }, 500);
 
@@ -326,7 +371,7 @@ serve(async (req) => {
     if (!email) continue;
     const bookingId = String(row.id ?? '');
     try {
-      const res = await fetch(`${supabaseUrl}/functions/v1/notify-customer-booking`, {
+      const res = await fetch(notifyCustomerUrl, {
         method: 'POST',
         headers,
         body: JSON.stringify({
@@ -362,6 +407,7 @@ serve(async (req) => {
   return json({
     ok: true,
     candidateWindow: { fromYmd, toYmd },
+    scopedToBookingIds: onlyBookingIds?.length ?? 0,
     reminderCandidates,
     returnReminderCandidates,
     reviewCandidates,

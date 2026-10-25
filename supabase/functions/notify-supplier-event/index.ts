@@ -593,7 +593,7 @@ function eventHtml(payload: Payload): string {
   });
 }
 
-serve(async (req) => {
+const handler = async (req: Request): Promise<Response> => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', {
       headers: {
@@ -1146,4 +1146,11 @@ serve(async (req) => {
   } catch (e) {
     return json({ success: false, error: e instanceof Error ? e.message : 'Unknown error' }, 500);
   }
-});
+};
+
+const notifyListenPort = Number(Deno.env.get('NOTIFY_LISTEN_PORT') || '');
+if (Number.isFinite(notifyListenPort) && notifyListenPort > 0) {
+  serve(handler, { port: notifyListenPort });
+} else {
+  serve(handler);
+}
