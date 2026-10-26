@@ -35,6 +35,12 @@ export function promotePaidCheckoutOutcome(
   if (reason === 'already_refunded') return { kind: 'already_refunded' };
   if (reason === 'cancelled') return { kind: 'cancelled' };
   if (reason === 'session_mismatch') return { kind: 'session_mismatch' };
+  if (reason === 'inventory_conflict') {
+    return {
+      kind: 'inventory_conflict',
+      message: String(data?.message ?? 'inventory_conflict'),
+    };
+  }
   return { kind: 'unpromoted', reason: reason || 'unknown' };
 }
 

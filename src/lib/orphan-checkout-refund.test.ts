@@ -8,6 +8,8 @@ describe('orphanSupersededCheckoutShouldRefund', () => {
         sessionPaymentStatus: 'paid',
         eventPaymentIntentId: 'pi_old',
         bookingPaymentIntentId: null,
+        eventCheckoutSessionId: 'cs_old',
+        bookingCheckoutSessionId: 'cs_new',
       })
     ).toBe(true);
     expect(
@@ -15,8 +17,22 @@ describe('orphanSupersededCheckoutShouldRefund', () => {
         sessionPaymentStatus: 'paid',
         eventPaymentIntentId: 'pi_old',
         bookingPaymentIntentId: 'pi_new',
+        eventCheckoutSessionId: 'cs_old',
+        bookingCheckoutSessionId: 'cs_new',
       })
     ).toBe(true);
+  });
+
+  it('does not refund the current checkout session even when booking PI is still null', () => {
+    expect(
+      orphanSupersededCheckoutShouldRefund({
+        sessionPaymentStatus: 'paid',
+        eventPaymentIntentId: 'pi_live',
+        bookingPaymentIntentId: null,
+        eventCheckoutSessionId: 'cs_live',
+        bookingCheckoutSessionId: 'cs_live',
+      })
+    ).toBe(false);
   });
 
   it('does not refund unpaid stale sessions', () => {
@@ -25,6 +41,8 @@ describe('orphanSupersededCheckoutShouldRefund', () => {
         sessionPaymentStatus: 'unpaid',
         eventPaymentIntentId: 'pi_old',
         bookingPaymentIntentId: null,
+        eventCheckoutSessionId: 'cs_old',
+        bookingCheckoutSessionId: 'cs_new',
       })
     ).toBe(false);
   });
@@ -35,6 +53,8 @@ describe('orphanSupersededCheckoutShouldRefund', () => {
         sessionPaymentStatus: 'paid',
         eventPaymentIntentId: 'pi_same',
         bookingPaymentIntentId: 'pi_same',
+        eventCheckoutSessionId: 'cs_a',
+        bookingCheckoutSessionId: 'cs_b',
       })
     ).toBe(false);
   });
@@ -45,6 +65,8 @@ describe('orphanSupersededCheckoutShouldRefund', () => {
         sessionPaymentStatus: 'paid',
         eventPaymentIntentId: null,
         bookingPaymentIntentId: 'pi_new',
+        eventCheckoutSessionId: 'cs_old',
+        bookingCheckoutSessionId: 'cs_new',
       })
     ).toBe(false);
   });

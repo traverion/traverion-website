@@ -87,6 +87,9 @@ tmp/
 temp/
 .vercel
 
+# Local staging cert secrets (project passwords, DB URLs)
+.local/
+
 # Supabase CLI local cache
 supabase/.temp/
 

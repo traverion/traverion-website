@@ -4,7 +4,7 @@ import Stripe from 'https://esm.sh/stripe@16.12.0?target=deno';
 import { staleCheckoutFailureShouldApply, stripeWebhookCanMarkPaidFrom } from './checkout-resume.ts';
 import { isMissingPostgresFunctionError } from './checkout-inventory-conflict.ts';
 import { promotePaidCheckoutOutcome } from './promote-paid-checkout.ts';
-import { checkoutPaidAmountAcceptable, checkoutPaidCurrencyMatches, rejectedCheckoutCaptureShouldRefund, unpromotedCheckoutCaptureShouldRefund } from './checkout-paid-amount.ts';
+import { checkoutPaidAmountAcceptable, checkoutPaidCurrencyMatches, rejectedCheckoutCaptureShouldRefund } from './checkout-paid-amount.ts';
 import { orphanSupersededCheckoutShouldRefund } from './orphan-checkout-refund.ts';
 import {
   cancelledCheckoutCaptureShouldRefund,
@@ -90,11 +90,11 @@ export async function notifyPaidBookingSideEffects(params: {
     .eq('id', bookingId)
     .maybeSingle();
   let booking = withStay.data as Record<string, unknown> | null;
-  if (withStay.error && /check_out/i.test(withStay.error.message)) {
+  if (withStay.error && /check_out|booking_number/i.test(withStay.error.message)) {
     const fallback = await admin
       .from('bookings')
       .select(
-        'listing_id, booking_date, guests, guest_name, guest_email, guest_user_id, booking_number, paid_at, payment_intent_id',
+        'listing_id, booking_date, guests, guest_name, guest_email, guest_user_id, paid_at, payment_intent_id',
       )
       .eq('id', bookingId)
       .maybeSingle();
@@ -722,6 +722,8 @@ export async function promotePaidFromCheckoutSession(params: {
         sessionPaymentStatus: session.payment_status,
         eventPaymentIntentId: paymentIntentId,
         bookingPaymentIntentId: existingBooking?.payment_intent_id ?? null,
+        eventCheckoutSessionId: session.id,
+        bookingCheckoutSessionId: existingBooking?.checkout_session_id ?? null,
       })
     ) {
       try {
@@ -1580,6 +1582,27 @@ export async function promotePaidFromCheckoutSession(params: {
   );
 
   if (promoteOutcome.kind === 'inventory_conflict') {
+    // Concurrent promote may have already confirmed the hold / marked paid.
+    const { data: paidRace } = await admin
+      .from('bookings')
+      .select('payment_status, checkout_session_id, payment_intent_id')
+      .eq('id', bookingId)
+      .maybeSingle();
+    const paidRaceStatus = String(paidRace?.payment_status ?? '')
+      .trim()
+      .toLowerCase();
+    if (paidRaceStatus === 'paid' || paidRaceStatus === 'refunded') {
+      await markProcessed('processed');
+      return json({
+        success: true,
+        duplicate: true,
+        alreadyPaid: paidRaceStatus === 'paid',
+        alreadyRefunded: paidRaceStatus === 'refunded',
+        reason: 'inventory_conflict_after_concurrent_paid_promote',
+        eventId: event.id,
+        bookingId,
+      });
+    }
     let inventoryRefunded = false;
     if (
       rejectedCheckoutCaptureShouldRefund({
@@ -1667,11 +1690,30 @@ export async function promotePaidFromCheckoutSession(params: {
   }
 
   if (promoteOutcome.kind !== 'promoted') {
-    const { data: again } = await admin
+    let { data: again } = await admin
       .from('bookings')
       .select('id, status, payment_status, checkout_session_id, payment_intent_id, currency')
       .eq('id', bookingId)
       .maybeSingle();
+    // update_race / unpromoted often means a concurrent promote is committing —
+    // re-read before issuing an automatic refund.
+    if (
+      promoteOutcome.kind === 'unpromoted' &&
+      String(again?.payment_status ?? '')
+        .trim()
+        .toLowerCase() !== 'paid' &&
+      String(again?.payment_status ?? '')
+        .trim()
+        .toLowerCase() !== 'refunded'
+    ) {
+      await new Promise((r) => setTimeout(r, 750));
+      const refreshed = await admin
+        .from('bookings')
+        .select('id, status, payment_status, checkout_session_id, payment_intent_id, currency')
+        .eq('id', bookingId)
+        .maybeSingle();
+      again = refreshed.data ?? again;
+    }
     const againPay = (again?.payment_status ?? '').toLowerCase();
     let unpromotedRefunded = false;
     let earnMessage: string | null = null;
@@ -1692,6 +1734,8 @@ export async function promotePaidFromCheckoutSession(params: {
           sessionPaymentStatus: session.payment_status,
           eventPaymentIntentId: paymentIntentId,
           bookingPaymentIntentId: again?.payment_intent_id ?? null,
+          eventCheckoutSessionId: session.id,
+          bookingCheckoutSessionId: again?.checkout_session_id ?? null,
         })
       ) {
         try {
@@ -1764,73 +1808,66 @@ export async function promotePaidFromCheckoutSession(params: {
         bookingId,
       });
     }
-    if (
-      unpromotedCheckoutCaptureShouldRefund({
-        sessionPaymentStatus: session.payment_status,
-        paymentIntentId,
-        bookingPaymentStatus: again?.payment_status ?? null,
-      })
-    ) {
-      try {
-        await stripe.refunds.create(
-          {
-            payment_intent: paymentIntentId as string,
-            reason: 'duplicate',
-          },
-          { idempotencyKey: `unpromoted-checkout-refund:${session.id}` }
-        );
-        unpromotedRefunded = true;
-        await admin.from('booking_payment_events').insert({
-          booking_id: bookingId,
-          event_id: event.id,
-          event_type: 'unpromoted_checkout_refund',
-          payment_intent_id: paymentIntentId,
-          checkout_session_id: session.id,
-          amount: amountPaid,
-          currency: String(again?.currency || session.currency || 'eur').toUpperCase(),
-          payload: {
-            reason: 'paid_update_matched_zero_rows',
-            bookingStatus: again?.status ?? null,
-            bookingPaymentStatus: again?.payment_status ?? null,
-            bookingCheckoutSessionId: again?.checkout_session_id ?? null,
-            stripeEventType: event.type,
-            promoteReason:
-              promoteOutcome.kind === 'unpromoted' ? promoteOutcome.reason : promoteOutcome.kind,
-          },
-        });
-        // Phase 1715: promote matched zero rows — reverse capture + email.
-        await notifyTravelerCheckoutCaptureReversed({
-          admin,
-          supabaseUrl,
-          serviceRoleKey,
-          existingBooking,
-          bookingId,
-          sessionId: session.id,
-          amountPaid,
-          currency: String(again?.currency || session.currency || 'eur').toUpperCase(),
-          reasonKey: 'unpromoted_checkout_refund',
-          fieldBefore: 'Checkout completed but the booking could not be marked paid',
-          fieldAfter: 'Stripe payment automatically reversed — no booking',
-          ensureCancelled: true,
-        });
-      } catch (refundErr) {
-        const msg = refundErr instanceof Error ? refundErr.message : String(refundErr);
-        if (!/already.?been.?refunded|charge_already_refunded/i.test(msg)) {
-          throw refundErr;
+    if (promoteOutcome.kind === 'session_mismatch') {
+      // Superseded session capture: only refund when orphan rules say so.
+      if (
+        orphanSupersededCheckoutShouldRefund({
+          sessionPaymentStatus: session.payment_status,
+          eventPaymentIntentId: paymentIntentId,
+          bookingPaymentIntentId: again?.payment_intent_id ?? null,
+          eventCheckoutSessionId: session.id,
+          bookingCheckoutSessionId: again?.checkout_session_id ?? null,
+        })
+      ) {
+        try {
+          await stripe.refunds.create(
+            {
+              payment_intent: paymentIntentId as string,
+              reason: 'duplicate',
+            },
+            { idempotencyKey: `orphan-checkout-refund:${session.id}` }
+          );
+          unpromotedRefunded = true;
+          await admin.from('booking_payment_events').insert({
+            booking_id: bookingId,
+            event_id: event.id,
+            event_type: 'orphan_checkout_refund',
+            payment_intent_id: paymentIntentId,
+            checkout_session_id: session.id,
+            amount: amountPaid,
+            currency: String(again?.currency || session.currency || 'eur').toUpperCase(),
+            payload: {
+              reason: 'session_mismatch_orphan',
+              stripeEventType: event.type,
+            },
+          });
+        } catch (refundErr) {
+          const msg = refundErr instanceof Error ? refundErr.message : String(refundErr);
+          if (!/already.?been.?refunded|charge_already_refunded/i.test(msg)) {
+            throw refundErr;
+          }
         }
       }
+      await markProcessed('processed');
+      return json({
+        success: true,
+        ignored: true,
+        reason: 'session_mismatch',
+        orphanRefunded: unpromotedRefunded,
+        eventId: event.id,
+        bookingId,
+      });
     }
-    await markProcessed('processed');
-    return json({
-      success: true,
-      ignored: true,
-      reason: stripeWebhookCanMarkPaidFrom(againPay || existingPay)
-        ? 'booking was not pending or failed'
-        : 'booking was not pending',
-      unpromotedRefunded,
-      eventId: event.id,
-      bookingId,
-    });
+
+    // Do not auto-refund ambiguous promote outcomes. Concurrent
+    // checkout.session.completed + payment_intent.succeeded was reversing the
+    // live PaymentIntent while the sibling handler marked the booking paid.
+    // Stripe will retry on 500; success-page reconcile remains the safety net.
+    const detail =
+      promoteOutcome.kind === 'unpromoted'
+        ? `unpromoted:${promoteOutcome.reason}`
+        : promoteOutcome.kind;
+    throw new Error(`promote did not confirm booking (${detail}) — retry`);
   }
 
   await admin.from('booking_payment_events').insert({

@@ -29,6 +29,7 @@ import {
   supplierEventRequiresDeclinedCancellation,
   supplierLifecycleNotifyAllowed,
 } from '../_shared/notify-lifecycle-gate.ts';
+import { isTransactionalEmailLogOnly } from '../_shared/transactional-email-mode.ts';
 
 type EventType =
   | 'new_booking'
@@ -607,7 +608,8 @@ const handler = async (req: Request): Promise<Response> => {
     const fromEmail = Deno.env.get('SUPPLIER_EMAIL_FROM') ?? 'Traverion <no-reply@traverion.com>';
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-    if (!apiKey) return json({ success: false, error: 'RESEND_API_KEY not configured' }, 500);
+    const logOnly = isTransactionalEmailLogOnly();
+    if (!apiKey && !logOnly) return json({ success: false, error: 'RESEND_API_KEY not configured' }, 500);
     if (!supabaseUrl || !serviceRoleKey) {
       return json({ success: false, error: 'SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY not configured' }, 500);
     }
@@ -1025,6 +1027,26 @@ const handler = async (req: Request): Promise<Response> => {
     });
     if (claim.action === 'skip') {
       return json({ success: true, skipped: true, reason: claim.reason, notified: 0, idempotencyKey });
+    }
+
+    if (logOnly) {
+      await recordTransactionalSend(admin, {
+        idempotencyKey,
+        channel: 'supplier',
+        templateKey: effectivePayload.eventType,
+        recipientEmail: null,
+        entityType: payload.bookingId ? 'booking' : 'supplier',
+        entityId: payload.bookingId ?? payload.supplierId,
+        status: 'skipped',
+        errorMessage: 'transactional_email_log_only',
+      });
+      return json({
+        success: true,
+        skipped: true,
+        reason: 'transactional_email_log_only',
+        notified: 0,
+        idempotencyKey,
+      });
     }
 
     // In-app bell notification (persisted). Same trusted path as email; unique on

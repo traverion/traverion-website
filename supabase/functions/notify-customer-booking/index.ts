@@ -34,6 +34,7 @@ import { authUserVerifiedEmail } from '../_shared/auth-verified-email.ts';
 import { notifyUnpaidCheckoutFromPaymentStatus } from '../_shared/notify-unpaid-checkout.ts';
 import { travelerOwnsCheckoutBooking } from '../_shared/booking-traveler-ownership.ts';
 import { resolveCustomerEmailIdempotencyKey } from '../_shared/transactional-idempotency-key.ts';
+import { isTransactionalEmailLogOnly } from '../_shared/transactional-email-mode.ts';
 import {
   customerEmailKindRequiresDeclinedCancellation,
   customerEmailKindRequiresOpenCancellationRequest,
@@ -391,7 +392,8 @@ const handler = async (req: Request): Promise<Response> => {
   try {
     const apiKey = Deno.env.get('RESEND_API_KEY');
     const fromEmail = Deno.env.get('CUSTOMER_BOOKING_EMAIL_FROM') ?? 'Traverion <no-reply@traverion.com>';
-    if (!apiKey) return json({ success: false, error: 'RESEND_API_KEY not configured' }, 500);
+    const logOnly = isTransactionalEmailLogOnly();
+    if (!apiKey && !logOnly) return json({ success: false, error: 'RESEND_API_KEY not configured' }, 500);
 
     const body = (await req.json()) as Payload;
     let to = String(body.customerEmail ?? '').trim().toLowerCase();
@@ -761,6 +763,28 @@ const handler = async (req: Request): Promise<Response> => {
       if (claim.action === 'skip') {
         return json({ success: true, skipped: true, reason: claim.reason, idempotencyKey });
       }
+    }
+
+    // Staging/cert: claim succeeded; do not call Resend or deliver to real inboxes.
+    if (logOnly) {
+      if (admin) {
+        await recordTransactionalSend(admin, {
+          idempotencyKey,
+          channel: 'customer',
+          templateKey: kind,
+          recipientEmail: to,
+          entityType: body.bookingId ? 'booking' : kind === 'traveler_welcome' ? 'consumer' : undefined,
+          entityId: body.bookingId ?? (kind === 'traveler_welcome' ? to : undefined),
+          status: 'skipped',
+          errorMessage: 'transactional_email_log_only',
+        });
+      }
+      return json({
+        success: true,
+        skipped: true,
+        reason: 'transactional_email_log_only',
+        idempotencyKey,
+      });
     }
 
     let diffs = allowCallerFieldDiffs

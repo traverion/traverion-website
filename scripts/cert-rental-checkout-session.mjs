@@ -1,26 +1,43 @@
 /**
  * Real Stripe TEST Checkout Session certification for Traverion Rentals.
  *
- * Isolated Deno serve of create-booking-checkout-session with
- * RENTAL_CHECKOUT_ENABLED=1 (process env only — never a hosted secret).
- * Payment completion hits the deployed stripe-webhook with Stripe's signature.
+ * Runs against an isolated staging Supabase project only.
+ * Payment completion is forwarded by `stripe listen` to the staging stripe-webhook
+ * so signatures are verified with the staging STRIPE_WEBHOOK_SECRET.
  *
  * Does not publish rentals, set the production flag, or email real customers.
  * Cert identities are *@example.com and are deleted at the end.
  *
+ * Required env (see .local/rental-cert-staging.env):
+ *   CERT_SUPABASE_PROJECT_REF, CERT_DATABASE_URL, CERT_SUPABASE_URL,
+ *   CERT_STRIPE_SECRET_KEY (sk_test), CERT_SUPABASE_ANON_KEY,
+ *   CERT_SUPABASE_SERVICE_ROLE_KEY
+ *
  *   node scripts/cert-rental-checkout-session.mjs
  */
-import { writeFileSync } from 'node:fs';
+import { writeFileSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
 import { randomBytes, randomUUID } from 'node:crypto';
-import { readFileSync } from 'node:fs';
+import {
+  PRODUCTION_PROJECT_REF,
+  loadCertEnv,
+  resolveCertTarget,
+} from './cert-rental-target-guard.mjs';
 
-const PROJECT = 'xcopqllkulxfkpunetbc';
-const SUPABASE_URL = `https://${PROJECT}.supabase.co`;
-const WEBHOOK_ENDPOINT = 'we_1TWkBwC3BaJIHpM6eVbY1DOc';
+const certEnv = loadCertEnv();
+const certTarget = resolveCertTarget(certEnv);
+const PROJECT = certTarget.projectRef;
+const SUPABASE_URL = certTarget.supabaseUrl;
+const DATABASE_URL = certTarget.databaseUrl;
+const STRIPE_SK = certTarget.stripeSecret;
+const WEBHOOK_ENDPOINT = 'staging-stripe-listen';
 const DENO = '/tmp/deno/bin/deno';
 const LOCAL_FN = 'http://127.0.0.1:8000';
+const USE_HOSTED_CHECKOUT = (certEnv.CERT_USE_HOSTED_CHECKOUT || '1').trim() !== '0';
+const CHECKOUT_FN = USE_HOSTED_CHECKOUT
+  ? `${SUPABASE_URL}/functions/v1/create-booking-checkout-session`
+  : `${LOCAL_FN}/`;
 const RUN_ID = randomUUID().slice(0, 8);
 const VARIANT = 'cert-unit';
 const LAST_VARIANT = 'cert-last';
@@ -41,10 +58,13 @@ const report = {
   runId: RUN_ID,
   environment: {
     project: PROJECT,
+    productionRefRejected: PRODUCTION_PROJECT_REF,
     stripeMode: 'test',
-    checkoutFunction: 'local_deno_RENTAL_CHECKOUT_ENABLED=1',
-    webhook: 'deployed stripe-webhook',
-    publicFlag: 'unset',
+    checkoutFunction: USE_HOSTED_CHECKOUT
+      ? 'staging_hosted_RENTAL_CHECKOUT_ENABLED=1'
+      : 'local_deno_RENTAL_CHECKOUT_ENABLED=1',
+    webhook: 'staging stripe-webhook via stripe listen',
+    publicFlag: 'unset_on_production',
   },
   safety: {},
   steps: [],
@@ -70,31 +90,49 @@ function loadDotEnv() {
 }
 
 function dbQuery(sql) {
+  if (DATABASE_URL.includes(PRODUCTION_PROJECT_REF)) {
+    throw new Error('ABORT: refusing production database URL inside dbQuery');
+  }
   const r = spawnSync(
     'npx',
-    ['supabase', 'db', 'query', '--linked', '--output', 'json', sql],
+    ['supabase', 'db', 'query', '--db-url', DATABASE_URL, '--output', 'json', sql],
     { encoding: 'utf8', cwd: resolve('.'), maxBuffer: 20 * 1024 * 1024 }
   );
   if (r.status !== 0) throw new Error(`db query failed: ${(r.stderr || r.stdout || '').slice(-1500)}`);
-  const out = r.stdout || '';
-  const start = out.indexOf('{');
-  if (start < 0) throw new Error(`no json in db output: ${out.slice(-500)}`);
-  return JSON.parse(out.slice(start));
+  const out = (r.stdout || '').trim();
+  // Anonymous DO / DML without RETURNING print status tags with no JSON payload.
+  if (!out || /^(DO|OK|UPDATE \d+|INSERT \d+( \d+)?|DELETE \d+|CREATE .+|ALTER .+|DROP .+)$/i.test(out)) {
+    return { rows: [] };
+  }
+  const objStart = out.indexOf('{');
+  const arrStart = out.indexOf('[');
+  if (objStart >= 0 && (arrStart < 0 || objStart < arrStart)) {
+    return JSON.parse(out.slice(objStart));
+  }
+  if (arrStart >= 0) {
+    return { rows: JSON.parse(out.slice(arrStart)) };
+  }
+  throw new Error(`no json in db output: ${out.slice(-500)}`);
 }
 
 function loadApiKeys() {
-  const r = spawnSync(
-    'npx',
-    ['supabase', 'projects', 'api-keys', '--project-ref', PROJECT, '-o', 'json'],
-    { encoding: 'utf8', cwd: resolve('.'), maxBuffer: 2 * 1024 * 1024 }
-  );
-  if (r.status !== 0) throw new Error(`api-keys failed: ${(r.stderr || '').slice(-400)}`);
-  const start = (r.stdout || '').indexOf('[');
-  if (start < 0) throw new Error('api-keys json missing');
-  const rows = JSON.parse(r.stdout.slice(start));
-  const anon = rows.find((k) => k.name === 'anon')?.api_key;
-  const service = rows.find((k) => k.name === 'service_role')?.api_key;
-  if (!anon || !service) throw new Error('anon or service_role key missing');
+  const anon = certEnv.CERT_SUPABASE_ANON_KEY;
+  const service = certEnv.CERT_SUPABASE_SERVICE_ROLE_KEY;
+  if (!anon || !service) {
+    const r = spawnSync(
+      'npx',
+      ['supabase', 'projects', 'api-keys', '--project-ref', PROJECT, '-o', 'json'],
+      { encoding: 'utf8', cwd: resolve('.'), maxBuffer: 2 * 1024 * 1024 }
+    );
+    if (r.status !== 0) throw new Error(`api-keys failed: ${(r.stderr || '').slice(-400)}`);
+    const start = (r.stdout || '').indexOf('[');
+    if (start < 0) throw new Error('api-keys json missing');
+    const rows = JSON.parse(r.stdout.slice(start));
+    return {
+      anon: rows.find((k) => k.name === 'anon')?.api_key,
+      service: rows.find((k) => k.name === 'service_role')?.api_key,
+    };
+  }
   return { anon, service };
 }
 
@@ -212,7 +250,7 @@ function rentalBody(listingId, pickupAt, returnAt, variantId, expectedTotal = 25
 }
 
 async function postCheckout(jwt, anon, body) {
-  const res = await fetch(`${LOCAL_FN}/`, {
+  const res = await fetch(CHECKOUT_FN, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${jwt}`,
@@ -253,7 +291,7 @@ async function pollBooking(id, pred, timeoutMs = 70000) {
   while (Date.now() - start < timeoutMs) {
     row = dbQuery(
       `select id::text, status, payment_status, amount_paid::text, total_amount::text, currency,
-              checkout_session_id, payment_intent_id, booking_number, public_reference,
+              checkout_session_id, payment_intent_id, public_reference,
               guest_email, hold_expires_at::text
        from public.bookings where id = '${id}'::uuid`
     ).rows?.[0];
@@ -311,7 +349,6 @@ BEGIN
   DELETE FROM public.bookings WHERE listing_id = v_listing;
   DELETE FROM public.listings WHERE id = v_listing;
 END $$;
-SELECT 'cleanup_ok' AS status;
 `);
 }
 
@@ -321,16 +358,49 @@ function writeReport() {
   console.log('report →', outPath);
 }
 
+async function isolateProductionStripeWebhooks(sk) {
+  // Shared Stripe TEST keys deliver every event to every enabled endpoint.
+  // Production Traverionapp must not observe staging cert Checkout Sessions.
+  const listed = await stripeGet(sk, '/webhook_endpoints?limit=100');
+  const disabled = [];
+  for (const endpoint of listed.data || []) {
+    const url = String(endpoint.url || '');
+    if (!url.includes(PRODUCTION_PROJECT_REF)) continue;
+    if (endpoint.status === 'disabled') continue;
+    await stripeForm(sk, `/webhook_endpoints/${endpoint.id}`, { disabled: true });
+    disabled.push(endpoint.id);
+  }
+  return disabled;
+}
+
+async function restoreStripeWebhooks(sk, endpointIds) {
+  for (const id of endpointIds || []) {
+    try {
+      await stripeForm(sk, `/webhook_endpoints/${id}`, { disabled: false });
+    } catch (err) {
+      console.error(`failed to restore webhook ${id}:`, err instanceof Error ? err.message : err);
+    }
+  }
+}
+
 async function run() {
-  const env = loadDotEnv();
-  const sk = env.STRIPE_SECRET_KEY || '';
-  const pk = env.VITE_STRIPE_PUBLISHABLE_KEY || '';
-  if (!sk.startsWith('sk_test_') || !pk.startsWith('pk_test_')) {
+  if (PROJECT === PRODUCTION_PROJECT_REF || SUPABASE_URL.includes(PRODUCTION_PROJECT_REF)) {
+    fail('target', new Error('ABORT: refusing production Traverionapp'));
+    writeReport();
+    process.exit(2);
+  }
+  const sk = STRIPE_SK;
+  if (!sk.startsWith('sk_test_')) {
     fail('stripe_mode', new Error('ABORT: Stripe keys must be test mode'));
     writeReport();
     process.exit(2);
   }
   const keys = loadApiKeys();
+  if (!keys.anon || !keys.service) {
+    fail('api_keys', new Error('staging anon/service keys missing'));
+    writeReport();
+    process.exit(2);
+  }
   const password = randomBytes(18).toString('base64url');
   const guestEmail = `cert-rental-guest-${RUN_ID}@example.com`;
   const guest2Email = `cert-rental-guest2-${RUN_ID}@example.com`;
@@ -338,18 +408,32 @@ async function run() {
   report.ids.guestEmail = guestEmail;
   report.ids.supplierEmail = supplierEmail;
 
-  const secrets = spawnSync(
+  // Production must stay closed. Staging cert requires the flag only on the staging project.
+  const prodSecrets = spawnSync(
+    'npx',
+    ['supabase', 'secrets', 'list', '--project-ref', PRODUCTION_PROJECT_REF],
+    { encoding: 'utf8', cwd: resolve('.') }
+  );
+  const prodListed = `${prodSecrets.stdout || ''}\n${prodSecrets.stderr || ''}`;
+  if (/RENTAL_CHECKOUT_ENABLED/i.test(prodListed)) {
+    fail('safety_flag', new Error('RENTAL_CHECKOUT_ENABLED is present on production — abort'));
+    writeReport();
+    process.exit(2);
+  }
+  step('production_rental_checkout_flag_absent');
+
+  const stagingSecrets = spawnSync(
     'npx',
     ['supabase', 'secrets', 'list', '--project-ref', PROJECT],
     { encoding: 'utf8', cwd: resolve('.') }
   );
-  const listed = `${secrets.stdout || ''}\n${secrets.stderr || ''}`;
-  if (/RENTAL_CHECKOUT_ENABLED/i.test(listed)) {
-    fail('safety_flag', new Error('RENTAL_CHECKOUT_ENABLED is present — abort'));
+  const stagingListed = `${stagingSecrets.stdout || ''}\n${stagingSecrets.stderr || ''}`;
+  if (!/RENTAL_CHECKOUT_ENABLED/i.test(stagingListed)) {
+    fail('staging_flag', new Error('staging RENTAL_CHECKOUT_ENABLED missing — abort'));
     writeReport();
     process.exit(2);
   }
-  step('rental_checkout_flag_absent');
+  step('staging_rental_checkout_flag_present');
 
   const before = dbQuery(`
     select
@@ -366,6 +450,18 @@ async function run() {
   }
   step('baseline_counts', before);
 
+  let disabledProdWebhooks = [];
+  try {
+    disabledProdWebhooks = await isolateProductionStripeWebhooks(sk);
+    if (disabledProdWebhooks.length) {
+      step('production_stripe_webhooks_isolated', { count: disabledProdWebhooks.length });
+    }
+  } catch (err) {
+    fail('production_stripe_webhook_isolation', err);
+    writeReport();
+    process.exit(2);
+  }
+
   let denoProc = null;
   let listingId = null;
   let guestId = null;
@@ -381,7 +477,22 @@ async function run() {
     dbQuery(`
       insert into public.supplier_profiles (id)
       values ('${supplierId}'::uuid)
-      on conflict (id) do nothing;
+      on conflict (id) do nothing
+      returning id::text as id;
+    `);
+    dbQuery(`
+      insert into public.supplier_commercial_terms (
+        supplier_id, plan_code, commission_bps, payout_cadence, effective_from, status, note
+      )
+      select '${supplierId}'::uuid, 'standard', 1500, 'monthly', now() - interval '1 day', 'active',
+             'cert staging terms'
+      where not exists (
+        select 1 from public.supplier_commercial_terms t
+        where t.supplier_id = '${supplierId}'::uuid
+          and t.status = 'active'
+          and t.effective_until is null
+      )
+      returning id::text as id;
     `);
     const guestJwt = await signIn(keys.anon, guestEmail, password);
     const guest2Jwt = await signIn(keys.anon, guest2Email, password);
@@ -434,7 +545,7 @@ async function run() {
     report.ids.listingId = listingId;
     step('fixture_listing_draft');
 
-    const gate = dbQuery(`
+    dbQuery(`
       do $$
       begin
         begin
@@ -448,12 +559,15 @@ async function run() {
           end if;
         end;
       end $$;
+    `);
+    const gate = dbQuery(`
       select status from public.listings where id = '${listingId}'::uuid;
     `);
     const gateStatus = gate.rows?.[0]?.status;
     if (gateStatus !== 'draft') throw new Error(`publish gate did not hold: ${gateStatus}`);
     step('publication_gate_282_blocks_publish', { status: gateStatus });
 
+    if (!USE_HOSTED_CHECKOUT) {
     denoProc = spawn(
       DENO,
       [
@@ -471,7 +585,7 @@ async function run() {
           SUPABASE_SERVICE_ROLE_KEY: keys.service,
           STRIPE_SECRET_KEY: sk,
           RENTAL_CHECKOUT_ENABLED: '1',
-          PUBLIC_SITE_URL: 'https://www.traverion.com',
+          PUBLIC_SITE_URL: 'http://127.0.0.1:5199',
         },
         stdio: ['ignore', 'pipe', 'pipe'],
       }
@@ -499,8 +613,11 @@ async function run() {
     }
     if (!up) throw new Error(`local checkout function did not boot: ${denoLog.slice(-800)}`);
     step('isolated_checkout_function_booted');
+    } else {
+      step('using_staging_hosted_checkout_function', { url: CHECKOUT_FN });
+    }
 
-    const hostedProbe = await fetch(
+    const stagingCap = await fetch(
       `${SUPABASE_URL}/functions/v1/create-booking-checkout-session`,
       {
         method: 'POST',
@@ -509,16 +626,47 @@ async function run() {
           apikey: keys.anon,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(rentalBody(listingId, ...DATES.paid, VARIANT)),
+        body: JSON.stringify({ intent: 'rental_checkout_capability' }),
       }
     );
-    const hostedJson = await hostedProbe.json().catch(() => ({}));
-    if (hostedJson.checkoutUrl || hostedJson.sessionId) {
-      throw new Error('production checkout returned a session while the flag is unset');
+    const stagingCapJson = await stagingCap.json().catch(() => ({}));
+    if (!(stagingCapJson.success === true && stagingCapJson.rentalCheckoutEnabled === true)) {
+      throw new Error(`staging capability probe failed: ${JSON.stringify(stagingCapJson)}`);
     }
-    step('production_checkout_still_blocked', {
-      http: hostedProbe.status,
-      error: hostedJson.error || null,
+    step('staging_capability_probe_open', stagingCapJson);
+
+    const prodCap = await fetch(
+      `https://${PRODUCTION_PROJECT_REF}.supabase.co/functions/v1/create-booking-checkout-session`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${guestJwt}`,
+          apikey: keys.anon,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ intent: 'rental_checkout_capability' }),
+      }
+    );
+    const prodCapJson = await prodCap.json().catch(() => ({}));
+    if (prodCapJson.rentalCheckoutEnabled === true) {
+      throw new Error('production capability probe returned rentalCheckoutEnabled true');
+    }
+    step('production_capability_probe_closed', {
+      http: prodCap.status,
+      rentalCheckoutEnabled: prodCapJson.rentalCheckoutEnabled ?? null,
+    });
+
+    const previewReject = await postCheckout(
+      guestJwt,
+      keys.anon,
+      rentalBody('00000000-0000-4000-8000-000000000001', DATES.paid[0], DATES.paid[1], VARIANT, 25)
+    );
+    if (previewReject.json?.success) {
+      throw new Error('preview fixture entered checkout');
+    }
+    step('preview_fixture_rejected', {
+      http: previewReject.status,
+      error: previewReject.json?.error || null,
     });
 
     const tamper = await postCheckout(
@@ -538,7 +686,7 @@ async function run() {
     );
     if (!first.json?.success || !first.json.sessionId || !first.json.bookingId) {
       throw new Error(
-        `checkout create failed: ${first.status} ${first.json?.error || ''} ${denoLog.slice(-600)}`
+        `checkout create failed: ${first.status} ${first.json?.error || ''}`
       );
     }
     const dup = await postCheckout(
@@ -563,12 +711,9 @@ async function run() {
     });
 
     if (first.json.sessionId !== sessionId) {
-      try {
-        await stripeForm(sk, `/checkout/sessions/${first.json.sessionId}/expire`, {});
-      } catch {
-        /* first session may already be unusable */
-      }
-      step('expired_superseded_session');
+      // Expire superseded session only after the live session is paid+promoted,
+      // so expire webhooks cannot race the successful PaymentIntent.
+      step('superseded_session_noted', { priorSessionId: first.json.sessionId });
     }
 
     const session = await stripeGet(sk, `/checkout/sessions/${sessionId}`);
@@ -587,6 +732,9 @@ async function run() {
 
     const paid = await completeHostedCheckout(sk, session);
     step('checkout_session_completed', { via: paid.via });
+
+    // Let signed webhooks promote first; reconcile is the success-page safety net.
+    await sleep(8000);
 
     const reconcile = await fetch(`${SUPABASE_URL}/functions/v1/reconcile-checkout-session`, {
       method: 'POST',
@@ -620,10 +768,18 @@ async function run() {
       status: booked.status,
       payment: booked.payment_status,
       amount: booked.amount_paid,
-      bookingNumber: booked.booking_number,
       publicReference: booked.public_reference,
       holdsConfirmed: confirmedHolds.length,
     });
+
+    if (first.json.sessionId && first.json.sessionId !== sessionId) {
+      try {
+        await stripeForm(sk, `/checkout/sessions/${first.json.sessionId}/expire`, {});
+      } catch {
+        /* may already be expired/unusable */
+      }
+      step('expired_superseded_session_after_paid');
+    }
 
     const reconcileAgain = await fetch(`${SUPABASE_URL}/functions/v1/reconcile-checkout-session`, {
       method: 'POST',
@@ -658,22 +814,33 @@ async function run() {
       );
     });
     const eventIds = related.map((evt) => evt.id);
-    let webhookRows = [];
-    if (eventIds.length) {
-      const idList = eventIds.map((id) => `'${id}'`).join(',');
-      webhookRows = dbQuery(
-        `select id, event_type, status from public.stripe_webhook_events where id in (${idList})`
-      ).rows;
-    }
     const completedEvt = related.find((evt) => evt.type === 'checkout.session.completed');
     if (!completedEvt) throw new Error('Stripe did not emit checkout.session.completed');
-    const completedRow = webhookRows.find((row) => row.id === completedEvt.id);
+
+    let webhookRows = [];
+    let completedRow = null;
+    const webhookWaitStarted = Date.now();
+    while (Date.now() - webhookWaitStarted < 90000) {
+      if (eventIds.length) {
+        const idList = eventIds.map((id) => `'${id}'`).join(',');
+        webhookRows = dbQuery(
+          `select id, event_type, status from public.stripe_webhook_events where id in (${idList})`
+        ).rows;
+      }
+      completedRow = webhookRows.find((row) => row.id === completedEvt.id);
+      if (completedRow && ['processed', 'ignored'].includes(completedRow.status)) break;
+      await sleep(2500);
+    }
     if (!completedRow || !['processed', 'ignored'].includes(completedRow.status)) {
-      const errRows = dbQuery(
-        `select id, event_type, status, left(coalesce(error_message,''), 300) as error_message
-         from public.stripe_webhook_events where id in (${eventIds.map((id) => `'${id}'`).join(',')})`
-      ).rows;
-      throw new Error(`webhook did not accept checkout.session.completed: ${JSON.stringify(errRows)}`);
+      const errRows = eventIds.length
+        ? dbQuery(
+            `select id, event_type, status, left(coalesce(error_message,''), 300) as error_message
+             from public.stripe_webhook_events where id in (${eventIds.map((id) => `'${id}'`).join(',')})`
+          ).rows
+        : [];
+      throw new Error(
+        `webhook did not accept checkout.session.completed (is stripe listen forwarding?): ${JSON.stringify(errRows)}`
+      );
     }
     step('signed_webhook_processed', {
       events: related.map((evt) => evt.type),
@@ -682,10 +849,17 @@ async function run() {
 
     if (completedEvt?.id) {
       try {
-        await stripeForm(sk, `/events/${completedEvt.id}/retry`, {
-          webhook_endpoint: WEBHOOK_ENDPOINT,
-        });
-        await sleep(4000);
+        // Replay via Stripe CLI resend (listen forwards again). Avoid Dashboard
+        // endpoint retry names that do not exist for stripe listen.
+        const resend = spawnSync(
+          'stripe',
+          ['events', 'resend', completedEvt.id, '--api-key', sk],
+          { encoding: 'utf8', cwd: resolve('.') }
+        );
+        if (resend.status !== 0) {
+          throw new Error(`stripe events resend failed: ${(resend.stderr || resend.stdout || '').slice(-300)}`);
+        }
+        await sleep(5000);
         const dupRow = dbQuery(
           `select status from public.stripe_webhook_events where id = '${completedEvt.id}'`
         ).rows?.[0];
@@ -696,7 +870,7 @@ async function run() {
         if (still?.payment_status !== 'paid' || holds !== 1) {
           throw new Error('duplicate webhook mutated the booking');
         }
-        step('duplicate_webhook_idempotent', { webhookStatus: dupRow?.status, holds });
+        step('duplicate_webhook_idempotent', { webhookStatus: dupRow?.status, holds, via: 'stripe_events_resend' });
       } catch (err) {
         fail('duplicate_webhook', err);
       }
@@ -823,27 +997,60 @@ async function run() {
     dbQuery(`
       update public.rental_inventory_holds
       set hold_expires_at = now() - interval '5 minutes'
-      where booking_id = '${delayed.json.bookingId}'::uuid and status = 'held';
+      where booking_id = '${delayed.json.bookingId}'::uuid and status = 'held'
+    `);
+    dbQuery(`
       update public.bookings
       set hold_expires_at = now() - interval '5 minutes'
-      where id = '${delayed.json.bookingId}'::uuid;
+      where id = '${delayed.json.bookingId}'::uuid
     `);
+    dbQuery(`select public.expire_stale_rental_holds('${listingId}'::uuid)`);
     const delayedSession = await stripeGet(sk, `/checkout/sessions/${delayed.json.sessionId}`);
-    const delayedPay = await completeHostedCheckout(sk, delayedSession);
+    await completeHostedCheckout(sk, delayedSession);
+    await sleep(3000);
+    // Success-page reconcile + webhook should refuse expired hold and reverse the capture.
+    await fetch(`${SUPABASE_URL}/functions/v1/reconcile-checkout-session`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${guestJwt}`,
+        apikey: keys.anon,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ sessionId: delayed.json.sessionId }),
+    });
+    const delayedPaidSession = await stripeGet(sk, `/checkout/sessions/${delayed.json.sessionId}`);
+    const delayedPi =
+      typeof delayedPaidSession.payment_intent === 'string'
+        ? delayedPaidSession.payment_intent
+        : delayedPaidSession.payment_intent?.id || null;
+    if (delayedPaidSession.payment_status !== 'paid' && !delayedPi) {
+      throw new Error(`delayed checkout did not capture: ${delayedPaidSession.payment_status}`);
+    }
+    let delayedRefund = null;
+    const refundWaitStarted = Date.now();
+    while (Date.now() - refundWaitStarted < 90000) {
+      if (delayedPi) {
+        const refunds = await stripeGet(sk, `/refunds?payment_intent=${delayedPi}&limit=5`);
+        delayedRefund = (refunds.data || []).find((r) => r.status === 'succeeded') || null;
+        if (delayedRefund) break;
+      }
+      await sleep(2500);
+    }
     const delayedRow = await pollBooking(delayed.json.bookingId, (row) => {
       return row.payment_status === 'refunded' || row.status === 'cancelled' || row.payment_status === 'failed';
-    });
+    }, 20000);
     const delayedStillPaid =
       delayedRow?.payment_status === 'paid' && delayedRow?.status === 'confirmed';
     if (delayedStillPaid) throw new Error('expired hold was confirmed after payment');
-    const delayedPi = delayedRow?.payment_intent_id;
-    let delayedRefund = null;
-    if (delayedPi) {
-      const refunds = await stripeGet(sk, `/refunds?payment_intent=${delayedPi}&limit=5`);
-      delayedRefund = (refunds.data || [])[0] || null;
-    }
     if (!delayedRefund || delayedRefund.status !== 'succeeded') {
-      throw new Error(`expired-hold payment was not refunded: ${JSON.stringify({ delayedRow, delayedRefund })}`);
+      throw new Error(
+        `expired-hold payment was not refunded: ${JSON.stringify({
+          delayedRow,
+          delayedRefund,
+          sessionPayment: delayedPaidSession.payment_status,
+          delayedPi,
+        })}`
+      );
     }
     step('delayed_payment_after_hold_expiry_refunded', {
       payment: delayedRow?.payment_status,
@@ -1094,6 +1301,32 @@ async function run() {
   } catch (err) {
     fail('journey', err);
     report.ok = false;
+    try {
+      if (report.ids.bookingId) {
+        report.failureEvidence = {
+          booking: dbQuery(
+            `select id::text, status, payment_status, checkout_session_id, payment_intent_id, amount_paid::text
+             from public.bookings where id = '${report.ids.bookingId}'::uuid`
+          ).rows?.[0],
+          holds: holdStatus(report.ids.bookingId),
+          paymentEvents: dbQuery(
+            `select event_type, left(coalesce(payload::text,''), 180) as payload
+             from public.booking_payment_events
+             where booking_id = '${report.ids.bookingId}'::uuid
+             order by created_at desc limit 12`
+          ).rows,
+          webhookEvents: dbQuery(
+            `select id, event_type, status, left(coalesce(error_message,''), 180) as error_message
+             from public.stripe_webhook_events
+             order by received_at desc nulls last limit 8`
+          ).rows,
+        };
+      }
+    } catch (evidenceErr) {
+      report.failureEvidence = {
+        error: evidenceErr instanceof Error ? evidenceErr.message : String(evidenceErr),
+      };
+    }
   } finally {
     if (denoProc && denoProc.exitCode == null) denoProc.kill('SIGTERM');
     try {
@@ -1110,16 +1343,28 @@ async function run() {
     } catch (err) {
       fail('cleanup_users', err);
     }
+    try {
+      if (disabledProdWebhooks.length) {
+        await restoreStripeWebhooks(sk, disabledProdWebhooks);
+        step('production_stripe_webhooks_restored', { count: disabledProdWebhooks.length });
+      }
+    } catch (err) {
+      fail('production_stripe_webhook_restore', err);
+    }
     const flagAfter = spawnSync(
       'npx',
-      ['supabase', 'secrets', 'list', '--project-ref', PROJECT],
+      ['supabase', 'secrets', 'list', '--project-ref', PRODUCTION_PROJECT_REF],
       { encoding: 'utf8', cwd: resolve('.') }
     );
-    report.safety.flagStillAbsent = !/RENTAL_CHECKOUT_ENABLED/i.test(
+    report.safety.productionFlagStillAbsent = !/RENTAL_CHECKOUT_ENABLED/i.test(
       `${flagAfter.stdout || ''}\n${flagAfter.stderr || ''}`
     );
+    report.safety.stagingProject = PROJECT;
     report.finishedAt = new Date().toISOString();
-    report.ok = report.ok && report.errors.length === 0 && report.safety.flagStillAbsent === true;
+    report.ok =
+      report.ok &&
+      report.errors.length === 0 &&
+      report.safety.productionFlagStillAbsent === true;
     writeReport();
     console.log(report.ok ? '\nPASS' : '\nFAIL');
     process.exit(report.ok ? 0 : 1);
