@@ -49,6 +49,10 @@ import {
 import { createCheckoutTiming } from '../_shared/checkout-initiation-timing.ts';
 import { quoteRentalCheckoutLine } from '../_shared/rental-checkout-quote.ts';
 import { rentalDraftCheckoutAllowed } from '../_shared/rental-checkout-listing-gate.ts';
+import {
+  authoritativeRentalWindow,
+  isReservedRentalPreviewId,
+} from '../_shared/rental-server-window.ts';
 import { fromMinorUnits } from '../_shared/commercial-money.ts';
 
 type RequestBody = {
@@ -507,6 +511,9 @@ serve(async (req) => {
     // Rentals: claim + Stripe path exists behind RENTAL_CHECKOUT_ENABLED.
     // Public publish remains blocked by mig 282 until explicit release approval.
     if (extrasFamily === 'rental') {
+      if (isReservedRentalPreviewId(listingId)) {
+        return json({ success: false, error: 'Development preview rentals cannot be booked.' }, 400);
+      }
       const rentalCheckoutEnabled = (Deno.env.get('RENTAL_CHECKOUT_ENABLED') ?? '').trim() === '1';
       if (!rentalCheckoutEnabled) {
         return json(
@@ -567,15 +574,67 @@ serve(async (req) => {
           ? (listingRow.listing_extras as Record<string, unknown>)
           : {};
       const rentalExtras = listingExtrasObj.rental;
+      const rentalRecordEarly =
+        rentalExtras && typeof rentalExtras === 'object'
+          ? (rentalExtras as Record<string, unknown>)
+          : {};
+      const rentalWindow = authoritativeRentalWindow({
+        timeZone: listingExtrasObj.departureTimezone,
+        operatingDays: rentalRecordEarly.operatingDays,
+        bookingNoticeHours: rentalRecordEarly.bookingNoticeHours,
+        durationMode: rentalRecordEarly.durationMode,
+        minDurationHours: rentalRecordEarly.minDurationHours,
+        maxDurationHours: rentalRecordEarly.maxDurationHours,
+        minDurationDays: rentalRecordEarly.minDurationDays,
+        maxDurationDays: rentalRecordEarly.maxDurationDays,
+        pickupAt,
+        returnAt,
+        durationUnit,
+      });
+      if (!rentalWindow.ok) {
+        return json({ success: false, error: rentalWindow.error }, 400);
+      }
+      if (durationCount !== rentalWindow.durationCount) {
+        return json(
+          {
+            success: false,
+            error: 'The rental length does not match the pickup and return times.',
+            durationCount: rentalWindow.durationCount,
+          },
+          409
+        );
+      }
 
-      // Commission: freeze_booking_commercial_terms still authoritative at settle;
-      // quote uses standard plan bps for expected-total parity before freeze.
-      const commissionBps = 1500;
+      if (!listingSupplierId) {
+        return json({ success: false, error: 'Supplier commercial terms are not configured for this rental.' }, 409);
+      }
+      const termsResult = await admin.rpc('supplier_active_commercial_terms', {
+        p_supplier_id: listingSupplierId,
+      });
+      const rawTerms = Array.isArray(termsResult.data) ? termsResult.data[0] : termsResult.data;
+      const terms =
+        rawTerms && typeof rawTerms === 'object'
+          ? (rawTerms as { id?: string | null; commission_bps?: number | null })
+          : null;
+      const commissionBps =
+        terms && typeof terms.commission_bps === 'number' ? Math.round(terms.commission_bps) : Number.NaN;
+      if (
+        termsResult.error ||
+        !terms?.id ||
+        !Number.isInteger(commissionBps) ||
+        commissionBps < 0 ||
+        commissionBps > 10000
+      ) {
+        return json(
+          { success: false, error: 'Supplier commercial terms are not configured for this rental.' },
+          409
+        );
+      }
       const rentalQuote = quoteRentalCheckoutLine({
         rentalExtras,
         variantId,
         quantity: Math.floor(quantity),
-        durationCount,
+        durationCount: rentalWindow.durationCount,
         durationUnit,
         commissionBps,
       });
@@ -860,9 +919,37 @@ serve(async (req) => {
       }
 
       try {
-        await admin.rpc('freeze_booking_commercial_terms', { p_booking_id: targetBookingId });
+        const frozen = await admin.rpc('freeze_booking_commercial_terms', { p_booking_id: targetBookingId });
+        const freezeRow = (Array.isArray(frozen.data) ? frozen.data[0] : frozen.data) as { ok?: boolean } | null;
+        if (frozen.error || !freezeRow || freezeRow.ok !== true) {
+          try {
+            await stripe.checkout.sessions.expire(session.id);
+          } catch {
+            // The session must not stay payable if commercial terms were not frozen.
+          }
+          await admin.rpc('release_rental_checkout_booking', {
+            p_booking_id: targetBookingId,
+            p_reason: 'commercial_terms_missing',
+          });
+          return json(
+            { success: false, error: 'Supplier commercial terms are not configured for this rental.' },
+            409
+          );
+        }
       } catch {
-        // Non-fatal; settle falls back.
+        try {
+          await stripe.checkout.sessions.expire(session.id);
+        } catch {
+          // ignore
+        }
+        await admin.rpc('release_rental_checkout_booking', {
+          p_booking_id: targetBookingId,
+          p_reason: 'commercial_terms_missing',
+        });
+        return json(
+          { success: false, error: 'Supplier commercial terms are not configured for this rental.' },
+          409
+        );
       }
 
       timing.mark('stripeSessionMs');

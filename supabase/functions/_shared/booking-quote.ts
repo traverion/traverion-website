@@ -641,7 +641,7 @@ export function listingHasUpcomingBookableSeason(
     listingExtras != null && typeof listingExtras === 'object' && !Array.isArray(listingExtras)
       ? (listingExtras as Record<string, unknown>)
       : {};
-  if (extras.inventoryFamily === 'stay') return true;
+  if (extras.inventoryFamily === 'stay' || extras.inventoryFamily === 'rental') return true;
   const today = todayIso ?? experienceTodayIsoForListing(extras.departureTimezone, nowMs);
   if (!ISO_DATE.test(today)) return true;
   const opts = parseOptions(listingExtras);
