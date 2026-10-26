@@ -31,6 +31,7 @@ begin
     'draft',
     jsonb_build_object(
       'inventoryFamily', 'rental',
+      'departureTimezone', 'Europe/Helsinki',
       'rental', jsonb_build_object(
         'bufferMinutes', 60,
         'durationMode', 'daily',

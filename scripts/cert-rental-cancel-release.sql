@@ -29,6 +29,7 @@ begin
     'EUR',
     jsonb_build_object(
       'inventoryFamily', 'rental',
+      'departureTimezone', 'Europe/Helsinki',
       'rental', jsonb_build_object(
         'durationMode', 'daily',
         'variants', jsonb_build_array(
@@ -59,6 +60,7 @@ begin
     'pending', 'pending', 10, 'EUR', 'cert-v',
     jsonb_build_object(
       'inventoryFamily', 'rental',
+      'departureTimezone', 'Europe/Helsinki',
       'holdId', v_hold,
       'variantId', 'cert-v',
       'quantity', 1,

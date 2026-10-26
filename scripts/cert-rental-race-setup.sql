@@ -14,6 +14,7 @@ select
   'draft',
   jsonb_build_object(
     'inventoryFamily', 'rental',
+    'departureTimezone', 'Europe/Helsinki',
     'rental', jsonb_build_object(
       'bufferMinutes', 0,
       'durationMode', 'daily',

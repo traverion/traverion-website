@@ -238,6 +238,7 @@ ins AS (
     'EUR',
     jsonb_build_object(
       'inventoryFamily', 'rental',
+      'departureTimezone', 'Europe/Helsinki',
       'rental', jsonb_build_object(
         'durationMode', 'daily',
         'variants', jsonb_build_array(

@@ -47,6 +47,11 @@ begin
   from public.listings
   where id = p_listing_id;
 
+  -- Tours and stays do not use this guard. Leave their checkout functions untouched.
+  if coalesce(nullif(trim(v_extras->>'inventoryFamily'), ''), 'tour') is distinct from 'rental' then
+    return null;
+  end if;
+
   v_rental := coalesce(v_extras->'rental', '{}'::jsonb);
   v_tz := nullif(trim(coalesce(v_extras->>'departureTimezone', '')), '');
   if v_tz is null then
