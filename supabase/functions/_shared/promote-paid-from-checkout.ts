@@ -30,6 +30,11 @@ import {
   type PaidNotifyChannel,
   type PaidNotifyResult,
 } from './paid-booking-notify.ts';
+import {
+  metadataProjectRef,
+  resolveExpectedTraverionProjectRef,
+  stripeEventOwnershipDecision,
+} from './stripe-environment-guard.ts';
 
 function listingKindFromExtras(extras: unknown): 'stay' | 'tour' | 'rental' {
   if (extras && typeof extras === 'object') {
@@ -606,6 +611,32 @@ export async function promotePaidFromCheckoutSession(params: {
   } else if (withStay.error) {
     throw new Error(withStay.error.message);
   }
+
+  // Permanent Stripe env isolation: never promote/refund when this event belongs
+  // to another Supabase project (shared TEST account fan-out) or the booking is
+  // absent here. Fail closed — ignore, do not mutate Stripe money.
+  const expectedProjectRef = resolveExpectedTraverionProjectRef({
+    traverionSupabaseProjectRef: Deno.env.get('TRAVERION_SUPABASE_PROJECT_REF'),
+    supabaseUrl,
+  });
+  const ownership = stripeEventOwnershipDecision({
+    expectedProjectRef,
+    metadataProjectRef: metadataProjectRef(session.metadata ?? null),
+    bookingFound: Boolean(existingBooking?.id),
+  });
+  if (ownership.action === 'ignore') {
+    await markProcessed('ignored', ownership.reason);
+    return json({
+      success: true,
+      ignored: true,
+      reason: ownership.reason,
+      eventId: event.id,
+      bookingId,
+      expectedProjectRef,
+      metadataProjectRef: metadataProjectRef(session.metadata ?? null),
+    });
+  }
+
   const existingPay = String(existingBooking?.payment_status ?? '').toLowerCase();
   const existingApproval = String(existingBooking?.approval_status ?? '').toLowerCase();
   if (existingPay === 'authorized') {

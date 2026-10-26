@@ -5,7 +5,10 @@
  * Payment completion is forwarded by `stripe listen` to the staging stripe-webhook
  * so signatures are verified with the staging STRIPE_WEBHOOK_SECRET.
  *
- * Does not publish rentals, set the production flag, or email real customers.
+ * Does not publish rentals, set the production flag, email real customers,
+ * or disable production Stripe webhook endpoints. Cross-environment isolation
+ * is enforced by traverion_supabase_project_ref metadata + fail-closed webhook
+ * ownership checks (and preferably separate Stripe test accounts per project).
  * Cert identities are *@example.com and are deleted at the end.
  *
  * Required env (see .local/rental-cert-staging.env):
@@ -358,29 +361,27 @@ function writeReport() {
   console.log('report →', outPath);
 }
 
-async function isolateProductionStripeWebhooks(sk) {
-  // Shared Stripe TEST keys deliver every event to every enabled endpoint.
-  // Production Traverionapp must not observe staging cert Checkout Sessions.
+/**
+ * Permanent isolation must never disable production webhooks.
+ * Shared Stripe TEST accounts rely on fail-closed ownership checks in
+ * stripe-webhook / promote-paid-from-checkout instead.
+ */
+async function assertProductionWebhooksRemainEnabled(sk) {
   const listed = await stripeGet(sk, '/webhook_endpoints?limit=100');
-  const disabled = [];
-  for (const endpoint of listed.data || []) {
-    const url = String(endpoint.url || '');
-    if (!url.includes(PRODUCTION_PROJECT_REF)) continue;
-    if (endpoint.status === 'disabled') continue;
-    await stripeForm(sk, `/webhook_endpoints/${endpoint.id}`, { disabled: true });
-    disabled.push(endpoint.id);
+  const prod = (listed.data || []).filter((endpoint) =>
+    String(endpoint.url || '').includes(PRODUCTION_PROJECT_REF)
+  );
+  const disabled = prod.filter((endpoint) => endpoint.status === 'disabled');
+  if (disabled.length) {
+    throw new Error(
+      `ABORT: production Stripe webhook(s) are disabled (${disabled.map((e) => e.id).join(', ')}). Cert must not disable them; re-enable manually.`
+    );
   }
-  return disabled;
-}
-
-async function restoreStripeWebhooks(sk, endpointIds) {
-  for (const id of endpointIds || []) {
-    try {
-      await stripeForm(sk, `/webhook_endpoints/${id}`, { disabled: false });
-    } catch (err) {
-      console.error(`failed to restore webhook ${id}:`, err instanceof Error ? err.message : err);
-    }
-  }
+  return prod.map((endpoint) => ({
+    id: endpoint.id,
+    status: endpoint.status,
+    url: endpoint.url,
+  }));
 }
 
 async function run() {
@@ -450,14 +451,14 @@ async function run() {
   }
   step('baseline_counts', before);
 
-  let disabledProdWebhooks = [];
   try {
-    disabledProdWebhooks = await isolateProductionStripeWebhooks(sk);
-    if (disabledProdWebhooks.length) {
-      step('production_stripe_webhooks_isolated', { count: disabledProdWebhooks.length });
-    }
+    const prodHooks = await assertProductionWebhooksRemainEnabled(sk);
+    step('production_stripe_webhooks_remain_enabled', {
+      count: prodHooks.length,
+      ids: prodHooks.map((h) => h.id),
+    });
   } catch (err) {
-    fail('production_stripe_webhook_isolation', err);
+    fail('production_stripe_webhook_guard', err);
     writeReport();
     process.exit(2);
   }
@@ -724,10 +725,16 @@ async function run() {
     if (session.metadata?.booking_id !== bookingId || session.metadata?.inventory_family !== 'rental') {
       throw new Error('session metadata mismatch');
     }
+    if (session.metadata?.traverion_supabase_project_ref !== PROJECT) {
+      throw new Error(
+        `session missing env stamp: expected ${PROJECT}, got ${session.metadata?.traverion_supabase_project_ref}`
+      );
+    }
     step('stripe_checkout_session_test_mode', {
       amount_total: session.amount_total,
       currency: session.currency,
       mode: session.mode,
+      projectRef: session.metadata.traverion_supabase_project_ref,
     });
 
     const paid = await completeHostedCheckout(sk, session);
@@ -771,6 +778,30 @@ async function run() {
       publicReference: booked.public_reference,
       holdsConfirmed: confirmedHolds.length,
     });
+
+    // Cross-env isolation: production webhook may receive the same TEST event
+    // (shared Stripe account). It must ignore — never refund this PI.
+    const paidPi =
+      typeof session.payment_intent === 'string'
+        ? session.payment_intent
+        : session.payment_intent?.id || booked.payment_intent_id;
+    await sleep(12000);
+    if (paidPi) {
+      const refundsAfterFanout = await stripeGet(sk, `/refunds?payment_intent=${paidPi}&limit=5`);
+      const refundCount = (refundsAfterFanout.data || []).length;
+      if (refundCount > 0) {
+        throw new Error(
+          `cross-env isolation failed: PaymentIntent ${paidPi} was refunded (${refundCount}) — production webhook must ignore foreign bookings`
+        );
+      }
+      const stillPaid = dbQuery(
+        `select payment_status, status from public.bookings where id = '${bookingId}'::uuid`
+      ).rows?.[0];
+      if (stillPaid?.payment_status !== 'paid' || stillPaid?.status !== 'confirmed') {
+        throw new Error(`booking demoted after cross-env wait: ${JSON.stringify(stillPaid)}`);
+      }
+    }
+    step('cross_env_no_production_refund', { paymentIntentId: paidPi || null });
 
     if (first.json.sessionId && first.json.sessionId !== sessionId) {
       try {
@@ -1344,12 +1375,12 @@ async function run() {
       fail('cleanup_users', err);
     }
     try {
-      if (disabledProdWebhooks.length) {
-        await restoreStripeWebhooks(sk, disabledProdWebhooks);
-        step('production_stripe_webhooks_restored', { count: disabledProdWebhooks.length });
-      }
+      const prodHooksAfter = await assertProductionWebhooksRemainEnabled(sk);
+      step('production_stripe_webhooks_still_enabled_after_cert', {
+        count: prodHooksAfter.length,
+      });
     } catch (err) {
-      fail('production_stripe_webhook_restore', err);
+      fail('production_stripe_webhook_post_guard', err);
     }
     const flagAfter = spawnSync(
       'npx',

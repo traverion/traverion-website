@@ -70,4 +70,16 @@ describe('orphanSupersededCheckoutShouldRefund', () => {
       })
     ).toBe(false);
   });
+
+  it('does not refund when booking has no session/PI identity (foreign env / missing row)', () => {
+    expect(
+      orphanSupersededCheckoutShouldRefund({
+        sessionPaymentStatus: 'paid',
+        eventPaymentIntentId: 'pi_foreign',
+        bookingPaymentIntentId: null,
+        eventCheckoutSessionId: 'cs_foreign',
+        bookingCheckoutSessionId: null,
+      })
+    ).toBe(false);
+  });
 });

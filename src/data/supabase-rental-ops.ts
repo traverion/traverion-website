@@ -12,6 +12,7 @@ export async function setRentalOpsStatus(
   bookingId: string,
   opsStatus: RentalOpsStatus
 ): Promise<SetRentalOpsResult> {
+  if (!supabase) return { ok: false, error: 'Supabase not configured' };
   const { data, error } = await supabase.rpc('set_rental_ops_status', {
     p_booking_id: bookingId,
     p_ops_status: opsStatus,

@@ -2444,7 +2444,7 @@ export default function RentalOnboardingFlow(props: Props) {
 
   const variantCount = rental.variants?.length ?? 0;
   useEffect(() => {
-    if ((id === 'options' || id === 'pricing-overrides') && variantCount === 0) {
+    if (id === 'options' && variantCount === 0) {
       const { values: v, onChange: change } = latest.current;
       change({ rental: ensureRentalHasDefaultVariant(v.rental) });
     }

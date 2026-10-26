@@ -69,6 +69,7 @@ export async function fetchRentalAvailabilityBlocks(
   rangeStartIso: string,
   rangeEndIso: string
 ): Promise<RentalAvailabilityBlockRow[]> {
+  if (!supabase) throw new Error('Supabase not configured');
   const { data, error } = await supabase
     .from('rental_availability_blocks')
     .select('id, listing_id, variant_id, starts_at, ends_at, note, created_at')
@@ -85,6 +86,7 @@ export async function fetchRentalInventoryHolds(
   rangeStartIso: string,
   rangeEndIso: string
 ): Promise<RentalInventoryHoldRow[]> {
+  if (!supabase) throw new Error('Supabase not configured');
   const { data, error } = await supabase
     .from('rental_inventory_holds')
     .select(
@@ -112,6 +114,7 @@ export async function createRentalAvailabilityBlock(input: {
   note?: string | null;
   createdBy?: string | null;
 }): Promise<RentalAvailabilityBlockRow> {
+  if (!supabase) throw new Error('Supabase not configured');
   const start = Date.parse(input.startsAtIso);
   const end = Date.parse(input.endsAtIso);
   if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) {
@@ -134,6 +137,7 @@ export async function createRentalAvailabilityBlock(input: {
 }
 
 export async function deleteRentalAvailabilityBlock(blockId: string): Promise<void> {
+  if (!supabase) throw new Error('Supabase not configured');
   const { error } = await supabase.from('rental_availability_blocks').delete().eq('id', blockId);
   if (error) throw error;
 }
@@ -147,6 +151,7 @@ export async function evaluateRentalAvailabilityRpc(input: {
   endsAtIso: string;
   excludeHoldId?: string | null;
 }): Promise<RentalEvaluateRpcResult> {
+  if (!supabase) throw new Error('Supabase not configured');
   const { data, error } = await supabase.rpc('evaluate_rental_availability', {
     p_listing_id: input.listingId,
     p_variant_id: input.variantId,
@@ -165,6 +170,7 @@ export async function fetchRentalVariantReservedQuantity(
   startsAtIso?: string | null,
   endsAtIso?: string | null
 ): Promise<number> {
+  if (!supabase) throw new Error('Supabase not configured');
   const { data, error } = await supabase.rpc('rental_variant_reserved_quantity', {
     p_listing_id: listingId,
     p_variant_id: variantId,

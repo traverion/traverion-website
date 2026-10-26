@@ -13,6 +13,11 @@ import { paymentIntentSucceededShouldPromote } from '../_shared/checkout-pi-succ
 import { promotePaidFromCheckoutSession, notifyTravelerCheckoutCaptureReversed } from '../_shared/promote-paid-from-checkout.ts';
 import { isStripeTestSecretKey, stripeLiveSecretBlockedMessage } from '../_shared/stripe-test-only.ts';
 import { mirrorConnectAccount } from '../_shared/connect-account-mirror.ts';
+import {
+  metadataProjectRef,
+  resolveExpectedTraverionProjectRef,
+  stripeEventOwnershipDecision,
+} from '../_shared/stripe-environment-guard.ts';
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -249,6 +254,24 @@ serve(async (req) => {
           .select('id, payment_status, checkout_session_id, payment_intent_id')
           .eq('id', bookingId)
           .maybeSingle();
+        const failOwnership = stripeEventOwnershipDecision({
+          expectedProjectRef: resolveExpectedTraverionProjectRef({
+            traverionSupabaseProjectRef: Deno.env.get('TRAVERION_SUPABASE_PROJECT_REF'),
+            supabaseUrl,
+          }),
+          metadataProjectRef: metadataProjectRef(pi.metadata ?? null),
+          bookingFound: Boolean(failedBooking?.id),
+        });
+        if (failOwnership.action === 'ignore') {
+          await markProcessed('ignored', failOwnership.reason);
+          return json({
+            success: true,
+            ignored: true,
+            reason: failOwnership.reason,
+            eventId: event.id,
+            bookingId,
+          });
+        }
         if ((failedBooking?.payment_status ?? '').toLowerCase() === 'paid') {
           await markProcessed('processed');
           return json({ success: true, ignored: true, alreadyPaid: true, bookingId });

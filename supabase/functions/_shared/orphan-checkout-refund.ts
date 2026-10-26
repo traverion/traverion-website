@@ -21,6 +21,9 @@ export function orphanSupersededCheckoutShouldRefund(params: {
   if (eventCs && bookCs && eventCs === bookCs) return false;
 
   const bookPi = String(params.bookingPaymentIntentId ?? '').trim();
+  // Without a booking-side session/PI identity this is not a superseded orphan —
+  // often a foreign-environment event where the booking row is absent. Never refund.
+  if (!bookCs && !bookPi) return false;
   if (bookPi && eventPi === bookPi) return false;
 
   return true;

@@ -523,6 +523,8 @@ export default function RentalsCatalog({ onOpenListing, onNavigate }: Props) {
                   tour={row.listing}
                   index={index}
                   onSelect={() => onOpenListing(row.listing.id)}
+                  discountsByListing={null}
+                  tagLabels={{}}
                   rentalBrowse={{
                     badge: rentalCategoryTitle(row.rental),
                     meta: durationMeta(row.rental),

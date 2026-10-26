@@ -429,7 +429,10 @@ export default function RentalOptionEditor({
                   onChange={(e) => patch({ description: e.target.value.slice(0, 500) })}
                 />
               </StayField>
-              <details className="rounded-xl border border-[#E6EAF0] bg-white px-3 py-2" defaultOpen={Boolean(variant.availabilityOverrideNote?.trim())}>
+              <details
+                className="rounded-xl border border-[#E6EAF0] bg-white px-3 py-2"
+                {...(variant.availabilityOverrideNote?.trim() ? { open: true as const } : {})}
+              >
                 <summary className="cursor-pointer py-1 text-sm font-semibold text-ink">Advanced notes</summary>
                 <div className="pb-1 pt-3">
                   <StayField label="Notes for this option" optional>

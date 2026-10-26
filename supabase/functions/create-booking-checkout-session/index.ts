@@ -31,6 +31,10 @@ import {
 } from '../_shared/purchase-snapshot.ts';
 import { resolveStayCancellationForSnapshot } from '../_shared/stay-cancellation-preset.ts';
 import { isStripeTestSecretKey, stripeLiveSecretBlockedMessage } from '../_shared/stripe-test-only.ts';
+import {
+  checkoutEnvironmentMetadata,
+  resolveExpectedTraverionProjectRef,
+} from '../_shared/stripe-environment-guard.ts';
 import { authUserVerifiedEmail } from '../_shared/auth-verified-email.ts';
 import { resolveCheckoutSiteUrl } from '../_shared/checkout-return-origin.ts';
 import { isMissingPostgresFunctionError } from '../_shared/checkout-inventory-conflict.ts';
@@ -169,6 +173,12 @@ serve(async (req) => {
     if (!isStripeTestSecretKey(stripeSecret)) {
       return json({ success: false, error: stripeLiveSecretBlockedMessage() }, 503);
     }
+    const envStamp = checkoutEnvironmentMetadata(
+      resolveExpectedTraverionProjectRef({
+        traverionSupabaseProjectRef: Deno.env.get('TRAVERION_SUPABASE_PROJECT_REF'),
+        supabaseUrl,
+      })
+    );
 
     const authHeader = req.headers.get('Authorization') ?? '';
     if (!authHeader) return json({ success: false, error: 'Missing Authorization header' }, 401);
@@ -860,6 +870,7 @@ serve(async (req) => {
             booking_option_id: variantId,
             quoted_total: String(totalAmountMajor),
             inventory_family: 'rental',
+            ...envStamp,
           },
           payment_intent_data: {
             metadata: {
@@ -867,6 +878,7 @@ serve(async (req) => {
               listing_id: listingId,
               user_id: user.id,
               inventory_family: 'rental',
+              ...envStamp,
             },
           },
         });
@@ -1608,6 +1620,7 @@ serve(async (req) => {
         booking_option_id: quote.optionId ?? '',
         quoted_total: String(totalAmount),
         stay_request_to_book: isStayRequestToBook ? '1' : '0',
+        ...envStamp,
       },
       payment_intent_data: {
         ...(isStayRequestToBook ? { capture_method: 'manual' as const } : {}),
@@ -1616,6 +1629,7 @@ serve(async (req) => {
           listing_id: listingId,
           user_id: user.id,
           stay_request_to_book: isStayRequestToBook ? '1' : '0',
+          ...envStamp,
         },
       },
     });
