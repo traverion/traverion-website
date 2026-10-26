@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { isRentalDevPreviewId } from '../lib/rental-dev-preview';
 import { appStripeIsTestMode } from '../lib/money';
 import { stripeLivePublishableBlockedMessage } from '../lib/stripe-test-only';
 import { localYmd } from '../lib/local-ymd';
@@ -330,6 +331,9 @@ export async function createBookingCheckoutSession(params: {
   timings?: Record<string, number>;
 }> {
   if (!supabase) return { success: false, error: 'Supabase not configured' };
+  if (isRentalDevPreviewId(params.listingId)) {
+    return { success: false, error: 'Development preview rentals cannot be booked.' };
+  }
   if (!appStripeIsTestMode()) {
     return { success: false, error: stripeLivePublishableBlockedMessage() };
   }

@@ -41,7 +41,7 @@ export default function RentalPhotoGallery({ photos, title }: Props) {
         <div className={`grid gap-1 ${side.length > 0 ? 'sm:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]' : ''}`}>
           <button
             type="button"
-            className="group relative block min-h-0 text-left"
+            className="group relative block min-h-0 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#073b83]"
             onClick={() => {
               setIndex(0);
               setOpen(true);

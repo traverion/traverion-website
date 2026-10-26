@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { KeyRound, Search, X } from 'lucide-react';
 import { fetchAllListings } from '../data/supabase-listings';
+import { isRentalDevPreviewId, loadRentalDevPreviews } from '../lib/rental-dev-preview';
 import { inventoryFamilyFromListing } from '../lib/inventory';
 import { RENTAL_CATEGORY_CONFIG } from '../lib/rental-categories';
 import { normalizeRentalDetails } from '../lib/rental-details';
@@ -138,16 +139,18 @@ export default function RentalsCatalog({ onOpenListing, onNavigate }: Props) {
       setError(null);
       try {
         const listings = await fetchAllListings();
+        const previews = await loadRentalDevPreviews();
         if (cancelled) return;
-        const next = listings
-          .filter(
-            (listing) =>
-              listing.status === 'published' && inventoryFamilyFromListing(listing) === 'rental'
-          )
-          .map((listing) => ({
-            listing,
-            rental: normalizeRentalDetails(listing.listingExtras),
-          }));
+        const published = listings.filter(
+          (listing) => listing.status === 'published' && inventoryFamilyFromListing(listing) === 'rental'
+        );
+        const seen = new Set(published.map((listing) => listing.id));
+        const next: Row[] = [];
+        for (const listing of [...published, ...previews.filter((row) => !seen.has(row.id))]) {
+          const rental =
+            normalizeRentalDetails(listing.listingExtras?.rental) ?? normalizeRentalDetails(listing.listingExtras);
+          if (rental) next.push({ listing, rental });
+        }
         setRows(next);
       } catch (err) {
         if (!cancelled) setError(err instanceof Error ? err.message : 'Rentals could not be loaded.');
@@ -468,6 +471,11 @@ export default function RentalsCatalog({ onOpenListing, onNavigate }: Props) {
           ) : null
         }
       >
+        {rows.some((row) => isRentalDevPreviewId(row.listing.id)) ? (
+          <p className="mb-4 rounded-xl bg-[#F4F6F8] px-3.5 py-2.5 text-sm text-ink-muted" role="note">
+            Development preview. These sample rentals stay on this computer. They are not public listings and cannot be booked.
+          </p>
+        ) : null}
         {loading ? (
           <SkeletonCardGrid count={8} />
         ) : error ? (
@@ -519,6 +527,7 @@ export default function RentalsCatalog({ onOpenListing, onNavigate }: Props) {
                     badge: rentalCategoryTitle(row.rental),
                     meta: durationMeta(row.rental),
                     priceLabel: from?.label ?? null,
+                    preview: isRentalDevPreviewId(row.listing.id),
                   }}
                 />
               );

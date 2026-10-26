@@ -3,6 +3,9 @@
  * Durations and limits stay listing-authoritative (rental-quote / rental-details).
  */
 
+import { noticeSatisfied } from './rental-availability';
+import type { RentalOperatingDay, RentalWeekday } from '../types/rental';
+
 export type RentalIntervalSelection = {
   startDate: string;
   endDate: string;
@@ -121,4 +124,73 @@ export function todayLocalYmd(now = new Date()): string {
   const m = String(now.getMonth() + 1).padStart(2, '0');
   const d = String(now.getDate()).padStart(2, '0');
   return `${y}-${m}-${d}`;
+}
+
+const WEEKDAY_BY_JS_DAY: RentalWeekday[] = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+
+function weekdayOfYmd(ymd: string): RentalWeekday | null {
+  if (!YMD.test(ymd)) return null;
+  const [y, m, d] = ymd.split('-').map(Number);
+  const dt = new Date(y!, m! - 1, d!);
+  if (dt.getFullYear() !== y || dt.getMonth() !== m! - 1 || dt.getDate() !== d) return null;
+  return WEEKDAY_BY_JS_DAY[dt.getDay()] ?? null;
+}
+
+function hmMinutes(hm: string): number | null {
+  const time = normalizeHm(hm, '');
+  if (!HM.test(time)) return null;
+  const [h, m] = time.split(':').map(Number);
+  return h! * 60 + m!;
+}
+
+function dayWindowIssue(
+  day: RentalOperatingDay | undefined,
+  hm: string,
+  kind: 'pickup' | 'return'
+): string | null {
+  const label = kind === 'pickup' ? 'Pickup' : 'Return';
+  if (!day?.open) return `${label} is outside the opening days.`;
+  const minutes = hmMinutes(hm);
+  const earliest = hmMinutes(kind === 'pickup' ? day.earliestPickupHm ?? '' : day.earliestReturnHm ?? '');
+  const latest = hmMinutes(kind === 'pickup' ? day.latestPickupHm ?? '' : day.latestReturnHm ?? '');
+  if (minutes == null || earliest == null || latest == null) return null;
+  if (minutes < earliest || minutes > latest) {
+    const from = kind === 'pickup' ? day.earliestPickupHm : day.earliestReturnHm;
+    const until = kind === 'pickup' ? day.latestPickupHm : day.latestReturnHm;
+    return `${label} time must be between ${from} and ${until}.`;
+  }
+  return null;
+}
+
+/**
+ * Opening hours and booking notice for a traveler selection.
+ * Does not reserve stock. Empty schedules are not treated as closed.
+ */
+export function rentalScheduleIssue(input: {
+  operatingDays?: RentalOperatingDay[];
+  bookingNoticeHours?: number | null;
+  startDate: string;
+  endDate: string;
+  pickupHm: string;
+  returnHm: string;
+  pickupAtIso?: string;
+  nowMs?: number;
+}): string | null {
+  const days = input.operatingDays ?? [];
+  if (days.length > 0) {
+    const pickupDay = days.find((day) => day.day === weekdayOfYmd(input.startDate));
+    const returnDay = days.find((day) => day.day === weekdayOfYmd(input.endDate));
+    const pickupIssue = dayWindowIssue(pickupDay, input.pickupHm, 'pickup');
+    if (pickupIssue) return pickupIssue;
+    const returnIssue = dayWindowIssue(returnDay, input.returnHm, 'return');
+    if (returnIssue) return returnIssue;
+  }
+  const noticeHours = input.bookingNoticeHours ?? 0;
+  if (noticeHours > 0 && input.pickupAtIso) {
+    const pickupMs = Date.parse(input.pickupAtIso);
+    if (Number.isFinite(pickupMs) && !noticeSatisfied(pickupMs, input.nowMs ?? Date.now(), noticeHours)) {
+      return `Book at least ${noticeHours} hour${noticeHours === 1 ? '' : 's'} before pickup.`;
+    }
+  }
+  return null;
 }

@@ -10,6 +10,7 @@ import RentalPhotoGallery from '../components/rental/RentalPhotoGallery';
 import ErrorState from '../components/ErrorState';
 import { useAuth } from '../contexts/AuthContext';
 import { fetchListingById } from '../data/supabase-listings';
+import { isRentalDevPreviewId, loadRentalDevPreviews } from '../lib/rental-dev-preview';
 import { inventoryFamilyFromListing } from '../lib/inventory';
 import { rentalCancellationCustomerText } from '../lib/rental-cancellation';
 import { effectiveVariantPricing, normalizeRentalDetails, rentalCustomerSkillSuitability } from '../lib/rental-details';
@@ -19,6 +20,7 @@ import {
   rentalDurationCustomerText,
   rentalHoursLines,
   rentalItemLabel,
+  rentalFromPrice,
   rentalOptionRateLabel,
   rentalRequirementLabel,
   rentalSpecLabel,
@@ -59,6 +61,7 @@ export default function RentalDetails({ listingId, onNavigate }: Props) {
   const { user, loading: authLoading } = useAuth();
   const [listing, setListing] = useState<TourPackage | null>(null);
   const [draftPreview, setDraftPreview] = useState(false);
+  const [devPreview, setDevPreview] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -69,7 +72,22 @@ export default function RentalDetails({ listingId, onNavigate }: Props) {
       setLoading(true);
       setError(null);
       setDraftPreview(false);
+      setDevPreview(false);
       try {
+        if (isRentalDevPreviewId(listingId)) {
+          const previews = await loadRentalDevPreviews();
+          const preview = previews.find((row) => row.id === listingId) ?? null;
+          if (cancelled) return;
+          if (!preview) {
+            setListing(null);
+            setError('This rental is not available.');
+            return;
+          }
+          setDevPreview(true);
+          setListing(preview);
+          document.title = `${preview.title} · Rentals · Traverion`;
+          return;
+        }
         const row = await fetchListingById(listingId);
         if (cancelled) return;
         if (!row || inventoryFamilyFromListing(row) !== 'rental') {
@@ -137,6 +155,7 @@ export default function RentalDetails({ listingId, onNavigate }: Props) {
       listing={listing}
       rental={rental}
       draftPreview={draftPreview}
+      devPreview={devPreview}
       onNavigate={onNavigate}
     />
   );
@@ -146,11 +165,13 @@ function RentalBody({
   listing,
   rental,
   draftPreview,
+  devPreview,
   onNavigate,
 }: {
   listing: TourPackage;
   rental: RentalModel;
   draftPreview: boolean;
+  devPreview: boolean;
   onNavigate: (page: string) => void;
 }) {
   const photos = photoList(listing);
@@ -161,7 +182,9 @@ function RentalBody({
   const hours = rentalHoursLines(rental.operatingDays);
   const returnPoint = rentalReturnPoint(rental);
   const variants = rental.variants ?? [];
+  const [variantId, setVariantId] = useState(variants[0]?.id ?? '');
   const highlights = (rental.highlights?.length ? rental.highlights : listing.highlights) ?? [];
+  const fromPrice = rentalFromPrice(rental);
 
   return (
     <div className="min-h-screen bg-paper text-ink tv-page pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] lg:pb-0">
@@ -175,6 +198,11 @@ function RentalBody({
             All rentals
           </button>
         </nav>
+        {devPreview ? (
+          <p className="mt-4 rounded-xl bg-[#F4F6F8] px-3.5 py-2.5 text-sm text-ink" role="note">
+            Development preview. This sample is not a public listing, and it cannot be booked or paid for.
+          </p>
+        ) : null}
         {draftPreview ? (
           <p className="mt-4 rounded-xl bg-[#F4F6F8] px-3.5 py-2.5 text-sm text-ink" role="note">
             Draft preview. Travelers cannot see this listing, and it cannot be booked until Traverion publishes rentals.
@@ -224,20 +252,35 @@ function RentalBody({
 
             {variants.length > 0 ? (
               <Section title="Options">
-                <ul className="space-y-2">
+                <div id="rental-options" role="radiogroup" aria-label="Rental option" className="grid gap-2 sm:grid-cols-2">
                   {variants.map((variant) => {
+                    const selected = variant.id === variantId;
                     const rates = rentalOptionRateLabel(rental, effectiveVariantPricing(rental, variant));
+                    const specs = Object.values(variant.attributes ?? {}).filter(Boolean).join(' · ');
                     return (
-                    <li key={variant.id} className="rounded-xl bg-[#F7F8FA] px-3.5 py-3">
-                      <p className="text-sm font-semibold text-ink">{variant.name}</p>
-                      <p className="mt-0.5 text-sm text-ink-muted">
-                        {variant.quantity} available
-                        {rates ? ` · ${rates}` : ''}
-                      </p>
-                    </li>
+                      <button
+                        key={variant.id}
+                        type="button"
+                        role="radio"
+                        aria-checked={selected}
+                        className={`rounded-xl px-3.5 py-3 text-left transition ${
+                          selected
+                            ? 'bg-white shadow-sm ring-2 ring-[#073b83]'
+                            : 'bg-[#F7F8FA] ring-1 ring-transparent hover:bg-white hover:ring-black/[0.08]'
+                        }`}
+                        onClick={() => setVariantId(variant.id)}
+                      >
+                        <span className="flex items-start justify-between gap-3">
+                          <span className="text-sm font-semibold text-ink">{variant.name}</span>
+                          {rates ? <span className="shrink-0 text-sm font-semibold text-ink">{rates}</span> : null}
+                        </span>
+                        <span className="mt-1 block text-xs text-ink-muted">
+                          {variant.quantity} in stock{specs ? ` · ${specs}` : ''}
+                        </span>
+                      </button>
                     );
                   })}
-                </ul>
+                </div>
               </Section>
             ) : null}
 
@@ -422,14 +465,21 @@ function RentalBody({
             className="tv-booking-sticky tv-booking-sticky--fit scroll-mt-28 h-fit lg:sticky lg:top-[calc(4.75rem+env(safe-area-inset-top,0px))]"
           >
             <div className="rounded-2xl bg-white p-5 shadow-[0_8px_30px_rgb(15_23_42/0.06)] ring-1 ring-[#E6EAF0]">
-              <RentalBookingWidget listingId={listing.id} listingTitle={listing.title} rental={rental} />
+              <RentalBookingWidget
+                listingId={listing.id}
+                listingTitle={listing.title}
+                rental={rental}
+                variantId={variantId}
+                onVariantIdChange={setVariantId}
+                hideOptionPicker
+              />
             </div>
           </aside>
         </div>
       </div>
       <div className="fixed inset-x-0 bottom-0 z-30 border-t border-black/[0.06] bg-white px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] lg:hidden">
         <a href="#rental-booking" className="tv-btn-primary flex min-h-12 w-full items-center justify-center font-semibold">
-          Review rental
+          {fromPrice ? `From ${fromPrice.label}` : 'Review rental'}
         </a>
       </div>
     </div>
@@ -438,9 +488,9 @@ function RentalBody({
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <section className="rounded-2xl bg-white p-5 shadow-[0_1px_2px_rgb(15_23_42/0.04)] ring-1 ring-[#E6EAF0] sm:p-6">
-      <h2 className="font-display text-xl font-semibold text-ink">{title}</h2>
-      <div className="mt-2.5">{children}</div>
+    <section className="border-t border-black/[0.06] pt-6">
+      <h2 className="font-display text-xl font-semibold tracking-tight text-ink">{title}</h2>
+      <div className="mt-3">{children}</div>
     </section>
   );
 }

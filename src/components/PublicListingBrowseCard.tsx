@@ -54,6 +54,8 @@ export type PublicListingBrowseCardProps = {
     badge: string;
     meta: string;
     priceLabel: string | null;
+    /** Development fixture. Never a public rating or a live hold. */
+    preview?: boolean;
   } | null;
 };
 
@@ -222,6 +224,11 @@ export const PublicListingBrowseCard = memo(function PublicListingBrowseCard({
             ) : propertyType ? (
               <span className="rounded-md bg-white/95 px-2 py-0.5 text-[11px] font-semibold text-ink ring-1 ring-black/[0.04]">
                 {propertyType}
+              </span>
+            ) : null}
+            {isRental && rentalBrowse.preview ? (
+              <span className="rounded-md bg-white/95 px-2 py-0.5 text-[11px] font-semibold text-[#073b83] ring-1 ring-black/[0.04]">
+                Preview
               </span>
             ) : null}
             {!isRental && listingShowsFreeCancellation(tour) ? (

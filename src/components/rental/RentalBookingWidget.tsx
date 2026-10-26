@@ -6,13 +6,20 @@ import { useEffect, useMemo, useState } from 'react';
 import { CalendarDays, Clock, Loader2, Shield } from 'lucide-react';
 import type { RentalDetails, RentalVariant } from '../../types/rental';
 import { effectiveVariantPricing, formatMinorAsEuro } from '../../lib/rental-details';
-import { rentalMapHref, rentalReturnPoint } from '../../lib/rental-presentation';
+import {
+  rentalDepositCustomerText,
+  rentalMapHref,
+  rentalOptionRateLabel,
+  rentalReturnPoint,
+} from '../../lib/rental-presentation';
+import { isRentalDevPreviewId } from '../../lib/rental-dev-preview';
 import { quoteRentalLine } from '../../lib/rental-quote';
 import { COMMERCIAL_PLANS } from '../../lib/commercial-money';
 import {
   addDaysYmd,
   buildRentalInterval,
   normalizeHm,
+  rentalScheduleIssue,
   todayLocalYmd,
 } from '../../lib/rental-booking-interval';
 import { evaluateRentalAvailabilityRpc } from '../../data/supabase-rental-availability';
@@ -20,7 +27,6 @@ import { fetchRentalCheckoutCapability } from '../../data/rental-checkout-capabi
 import { createBookingCheckoutSession } from '../../data/supabase-bookings';
 import { useAuth } from '../../contexts/AuthContext';
 import { rentalCancellationCustomerText } from '../../lib/rental-cancellation';
-import { rentalDepositCustomerText } from '../../lib/rental-presentation';
 
 export type RentalBookingSelection = {
   variantId: string;
@@ -37,6 +43,10 @@ type Props = {
   listingTitle: string;
   rental: RentalDetails;
   onSelectionChange?: (selection: RentalBookingSelection | null) => void;
+  /** When set, option cards outside the sidebar own the selection. */
+  variantId?: string;
+  onVariantIdChange?: (variantId: string) => void;
+  hideOptionPicker?: boolean;
 };
 
 function defaultUnit(rental: RentalDetails): 'hour' | 'day' {
@@ -58,6 +68,9 @@ export default function RentalBookingWidget({
   listingTitle,
   rental,
   onSelectionChange,
+  variantId: controlledVariantId,
+  onVariantIdChange,
+  hideOptionPicker = false,
 }: Props) {
   const { user, requestAuth } = useAuth();
   const [checkoutOpen, setCheckoutOpen] = useState(false);
@@ -70,7 +83,12 @@ export default function RentalBookingWidget({
   const unit = defaultUnit(rental);
   const showUnitToggle = rental.durationMode === 'both';
 
-  const [variantId, setVariantId] = useState(variants[0]?.id ?? '');
+  const [uncontrolledVariantId, setUncontrolledVariantId] = useState(variants[0]?.id ?? '');
+  const variantId = controlledVariantId ?? uncontrolledVariantId;
+  const setVariantId = (nextId: string) => {
+    onVariantIdChange?.(nextId);
+    if (controlledVariantId == null) setUncontrolledVariantId(nextId);
+  };
   const [quantity, setQuantity] = useState(1);
   const [durationUnit, setDurationUnit] = useState<'hour' | 'day'>(unit);
   const [startDate, setStartDate] = useState(() => todayLocalYmd());
@@ -81,13 +99,17 @@ export default function RentalBookingWidget({
   const [returnHm, setReturnHm] = useState(() => defaultReturnHm(rental));
   useEffect(() => {
     let cancelled = false;
+    if (isRentalDevPreviewId(listingId)) {
+      setCheckoutOpen(false);
+      return;
+    }
     void fetchRentalCheckoutCapability().then((open) => {
       if (!cancelled) setCheckoutOpen(open);
     });
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [listingId]);
 
   const [availability, setAvailability] = useState<{
     loading: boolean;
@@ -121,8 +143,22 @@ export default function RentalBookingWidget({
     [startDate, endDate, pickupHm, returnHm, durationUnit]
   );
 
+  const scheduleIssue = useMemo(() => {
+    if (!interval.ok) return null;
+    return rentalScheduleIssue({
+      operatingDays: rental.operatingDays,
+      bookingNoticeHours: rental.bookingNoticeHours,
+      startDate,
+      endDate,
+      pickupHm,
+      returnHm,
+      pickupAtIso: interval.pickupAt,
+    });
+  }, [interval, rental.operatingDays, rental.bookingNoticeHours, startDate, endDate, pickupHm, returnHm]);
+
   const quote = useMemo(() => {
     if (!rental || !variantId || !interval.ok) return null;
+    if (scheduleIssue) return { ok: false as const, error: scheduleIssue };
     return quoteRentalLine({
       rental,
       variantId,
@@ -131,7 +167,7 @@ export default function RentalBookingWidget({
       unit: interval.durationUnit,
       commissionBps: COMMERCIAL_PLANS.standard.commissionBps,
     });
-  }, [rental, variantId, quantity, maxQty, interval]);
+  }, [rental, variantId, quantity, maxQty, interval, scheduleIssue]);
 
   useEffect(() => {
     if (!interval.ok || !variantId || !quote?.ok) {
@@ -150,8 +186,17 @@ export default function RentalBookingWidget({
   }, [interval, variantId, quantity, maxQty, quote, onSelectionChange]);
 
   useEffect(() => {
-    if (!interval.ok || !variantId) {
+    if (!interval.ok || !variantId || !quote?.ok) {
       setAvailability({ loading: false, ok: null, message: null, available: null });
+      return;
+    }
+    if (isRentalDevPreviewId(listingId)) {
+      setAvailability({
+        loading: false,
+        ok: true,
+        message: `${maxQty} configured for this option. Nothing is reserved.`,
+        available: maxQty,
+      });
       return;
     }
     let cancelled = false;
@@ -173,8 +218,8 @@ export default function RentalBookingWidget({
               ok: true,
               message:
                 typeof result.available === 'number'
-                  ? `${result.available} available for this window`
-                  : 'Available for this window',
+                  ? `${result.available} free in this window. Nothing is reserved.`
+                  : 'This window passed the server check. Nothing is reserved.',
               available: result.available ?? null,
             });
           } else {
@@ -191,7 +236,7 @@ export default function RentalBookingWidget({
           setAvailability({
             loading: false,
             ok: null,
-            message: 'Availability will be confirmed at checkout.',
+            message: 'Live availability could not be checked. Nothing is reserved.',
             available: null,
           });
         }
@@ -201,9 +246,13 @@ export default function RentalBookingWidget({
       cancelled = true;
       window.clearTimeout(handle);
     };
-  }, [listingId, variantId, quantity, maxQty, interval]);
+  }, [listingId, variantId, quantity, maxQty, interval, quote]);
 
   const continueToCheckout = async () => {
+    if (isRentalDevPreviewId(listingId)) {
+      setPayError('Development preview rentals cannot be booked.');
+      return;
+    }
     if (!checkoutOpen || !quote?.ok || !interval.ok || availability.ok === false || !consent) return;
     if (!user) {
       requestAuth({ intent: 'checkout', onSuccess: () => void continueToCheckout() });
@@ -254,29 +303,48 @@ export default function RentalBookingWidget({
             / {durationUnit === 'hour' ? 'hour' : 'day'} · per unit
           </span>
         </p>
+        {hideOptionPicker && selected ? (
+          <p className="mt-1 text-sm text-ink-muted">
+            {selected.name}{' '}
+            <a href="#rental-options" className="font-semibold text-[#073b83]">
+              Change
+            </a>
+          </p>
+        ) : null}
       </div>
 
-      {variants.length > 0 ? (
-        <label className="block text-sm">
-          <span className="mb-1.5 block font-medium text-ink">Option</span>
-          <select
-            className="tv-input w-full"
-            value={variantId}
-            onChange={(e) => {
-              const nextId = e.target.value;
-              setVariantId(nextId);
-              const next = variants.find((item) => item.id === nextId);
-              setQuantity((current) => Math.min(next?.quantity ?? 1, Math.max(1, current)));
-              setReviewing(false);
-            }}
-          >
-            {variants.map((v) => (
-              <option key={v.id} value={v.id}>
-                {v.name} · {v.quantity} available
-              </option>
-            ))}
-          </select>
-        </label>
+      {!hideOptionPicker && variants.length > 0 ? (
+        <div role="radiogroup" aria-label="Rental option" className="space-y-2">
+          {variants.map((item) => {
+            const selectedOption = item.id === (selected?.id ?? variantId);
+            const rates = rentalOptionRateLabel(rental, effectiveVariantPricing(rental, item));
+            const specs = Object.values(item.attributes ?? {}).filter(Boolean).join(' · ');
+            return (
+              <button
+                key={item.id}
+                type="button"
+                role="radio"
+                aria-checked={selectedOption}
+                className={`flex w-full items-start justify-between gap-3 rounded-xl px-3 py-2.5 text-left transition ${
+                  selectedOption
+                    ? 'bg-white shadow-sm ring-2 ring-[#073b83]'
+                    : 'bg-[#F7F8FA] ring-1 ring-transparent hover:bg-white hover:ring-black/[0.08]'
+                }`}
+                onClick={() => {
+                  setVariantId(item.id);
+                  setQuantity((current) => Math.min(item.quantity || 1, Math.max(1, current)));
+                }}
+              >
+                <span>
+                  <span className="block text-sm font-semibold text-ink">{item.name}</span>
+                  {specs ? <span className="mt-0.5 block text-xs text-ink-muted">{specs}</span> : null}
+                  <span className="mt-0.5 block text-xs text-ink-muted">{item.quantity} in stock</span>
+                </span>
+                {rates ? <span className="shrink-0 text-sm font-semibold text-ink">{rates}</span> : null}
+              </button>
+            );
+          })}
+        </div>
       ) : null}
 
       {showUnitToggle ? (
@@ -377,13 +445,20 @@ export default function RentalBookingWidget({
           <span className="font-medium text-ink">
             {interval.durationCount} {interval.durationUnit}
             {interval.durationCount === 1 ? '' : 's'}
+            {interval.durationUnit === 'day' ? ' · calendar days' : ''}
           </span>
+        </p>
+      ) : null}
+
+      {(rental.bufferMinutes ?? 0) > 0 ? (
+        <p className="text-xs leading-relaxed text-ink-muted">
+          {rental.bufferMinutes} minutes are kept after return before the next rental. This does not reserve the item.
         </p>
       ) : null}
 
       {quote?.ok ? (
         <p className="text-sm text-ink">
-          Total <span className="font-semibold">{formatMinorAsEuro(quote.customerTotalMinor)}</span>
+          Estimated total <span className="font-semibold">{formatMinorAsEuro(quote.customerTotalMinor)}</span>
           <span className="text-ink-muted">
             {checkoutOpen ? ' · confirmed again at checkout' : ' · estimate, nothing is charged'}
           </span>
