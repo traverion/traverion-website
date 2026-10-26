@@ -67,7 +67,7 @@ export default function StayNightPicker({
   const [hoverIso, setHoverIso] = useState<string | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const anchorRef = useRef<HTMLDivElement>(null);
-  const panelRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement | null>(null);
   /** ~6-week month + chrome — used for flip/clamp, not to force an inner scroll. */
   const measuredHeightRef = useRef(520);
   const panelId = useId();

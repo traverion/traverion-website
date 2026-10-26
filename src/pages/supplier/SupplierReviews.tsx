@@ -516,7 +516,7 @@ export default function SupplierReviews() {
       </div>
 
       {!canReply ? (
-        <NoticeCallout tone="info">
+        <NoticeCallout title="View only" tone="info">
           Your role can view reviews but cannot publish replies. Ask an owner, manager, or ops teammate.
         </NoticeCallout>
       ) : null}

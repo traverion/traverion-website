@@ -209,7 +209,9 @@ export default function StayOnboardingFlow(props: Props) {
         {id === 'rooms' ? <RoomsStage areas={areas} maxGuests={props.values.stayMaxGuests} onChange={writeAreas} /> : null}
         {id === 'description' ? <DescriptionStage {...props} /> : null}
         {id === 'highlights' ? <HighlightsStage {...props} /> : null}
-        {id === 'booking-method' ? <BookingMethodStage values={values} onChange={onChange} /> : null}
+        {id === 'booking-method' ? (
+          <BookingMethodStage values={props.values} onChange={props.onChange} />
+        ) : null}
         {id === 'booking-times' ? <BookingTimesStage {...props} option={option} /> : null}
         {id === 'booking-cutoff' ? <CutoffStage option={option} writeOption={writeOption} /> : null}
         {id === 'availability' ? <AvailabilityStage {...props} option={option} writeOption={writeOption} /> : null}
@@ -818,7 +820,13 @@ function HighlightsStage({ values, onChange }: Props) {
   );
 }
 
-function BookingMethodStage({ values, onChange }: Props) {
+function BookingMethodStage({
+  values,
+  onChange,
+}: {
+  values: Values;
+  onChange: (patch: Partial<Values>) => void;
+}) {
   return (
     <div className="space-y-3" aria-labelledby="stay-booking-method-title">
       <p id="stay-booking-method-title" className="sr-only">

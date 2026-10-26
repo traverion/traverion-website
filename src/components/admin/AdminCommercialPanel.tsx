@@ -487,6 +487,52 @@ export default function AdminCommercialPanel() {
         )}
       </div>
 
+      <div className="tv-card p-4 sm:p-5 space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="font-display text-lg text-ink tracking-tight">Payout exceptions</h2>
+          <button
+            type="button"
+            onClick={() => void loadPeriods()}
+            disabled={periodsLoading || !isSupabaseConfigured()}
+            className="tv-btn-ghost text-sm disabled:opacity-50"
+          >
+            Refresh
+          </button>
+        </div>
+        <p className="text-sm text-ink-muted">
+          Open Connect transfer / bank payout exceptions. Resolving one supplier does not pause others.
+          Routine TEST transfers never require admin approval.
+        </p>
+        {exceptions.length === 0 ? (
+          <p className="text-sm text-ink-muted">No open exceptions.</p>
+        ) : (
+          <ul className="divide-y divide-black/[0.06] border border-black/[0.06] rounded-lg overflow-hidden">
+            {exceptions.map((ex) => (
+              <li key={ex.id} className="flex flex-wrap items-start justify-between gap-3 px-3 py-2.5 text-sm">
+                <div className="min-w-0">
+                  <p className="font-semibold text-ink">{ex.reason_code}</p>
+                  <p className="text-xs text-ink-muted mt-0.5">
+                    {ex.supplier_id ? `Supplier ${ex.supplier_id.slice(0, 8)}…` : 'Platform'}
+                    {ex.payout_period_id ? ` · period ${ex.payout_period_id.slice(0, 8)}…` : ''}
+                    {' · '}
+                    {new Date(ex.created_at).toLocaleString()}
+                  </p>
+                  {ex.detail ? <p className="text-xs text-ink-muted mt-1 break-all">{ex.detail}</p> : null}
+                </div>
+                <button
+                  type="button"
+                  className="tv-btn-secondary text-xs shrink-0 disabled:opacity-50"
+                  disabled={busy}
+                  onClick={() => void resolveException(ex.id)}
+                >
+                  Resolve
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
       <BookingFinancialInvestigation />
     </div>
   );
@@ -790,52 +836,6 @@ function BookingFinancialInvestigation() {
           </details>
         </div>
       ) : null}
-
-      <div className="tv-card p-4 sm:p-5 space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="font-display text-lg text-ink tracking-tight">Payout exceptions</h2>
-          <button
-            type="button"
-            onClick={() => void loadPeriods()}
-            disabled={periodsLoading || !isSupabaseConfigured()}
-            className="tv-btn-ghost text-sm disabled:opacity-50"
-          >
-            Refresh
-          </button>
-        </div>
-        <p className="text-sm text-ink-muted">
-          Open Connect transfer / bank payout exceptions. Resolving one supplier does not pause others.
-          Routine TEST transfers never require admin approval.
-        </p>
-        {exceptions.length === 0 ? (
-          <p className="text-sm text-ink-muted">No open exceptions.</p>
-        ) : (
-          <ul className="divide-y divide-black/[0.06] border border-black/[0.06] rounded-lg overflow-hidden">
-            {exceptions.map((ex) => (
-              <li key={ex.id} className="flex flex-wrap items-start justify-between gap-3 px-3 py-2.5 text-sm">
-                <div className="min-w-0">
-                  <p className="font-semibold text-ink">{ex.reason_code}</p>
-                  <p className="text-xs text-ink-muted mt-0.5">
-                    {ex.supplier_id ? `Supplier ${ex.supplier_id.slice(0, 8)}…` : 'Platform'}
-                    {ex.payout_period_id ? ` · period ${ex.payout_period_id.slice(0, 8)}…` : ''}
-                    {' · '}
-                    {new Date(ex.created_at).toLocaleString()}
-                  </p>
-                  {ex.detail ? <p className="text-xs text-ink-muted mt-1 break-all">{ex.detail}</p> : null}
-                </div>
-                <button
-                  type="button"
-                  className="tv-btn-secondary text-xs shrink-0 disabled:opacity-50"
-                  disabled={busy}
-                  onClick={() => void resolveException(ex.id)}
-                >
-                  Resolve
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
     </div>
   );
 }

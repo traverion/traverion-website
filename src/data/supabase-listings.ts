@@ -85,7 +85,6 @@ const defaultItinerary = [
   { day: 1, title: 'Tour', description: '', meals: 'None', location: '', activities: ['Tour'] },
 ];
 const defaultIncludes = ['Guide', 'As described'];
-const defaultExcludes = ['Personal expenses'];
 
 /** Map DB row to TourPackage for the app. */
 export function rowToTourPackage(row: ListingRow): TourPackage {

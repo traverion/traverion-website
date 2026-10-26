@@ -53,11 +53,11 @@ export default function PartnerCreateListingPage() {
       />
 
       {!roleReady ? (
-        <NoticeCallout tone="info" className="mb-4">
+        <NoticeCallout title="Checking role" tone="info" className="mb-4">
           Checking your workspace role…
         </NoticeCallout>
       ) : !canCreate ? (
-        <NoticeCallout tone="info" className="mb-4">
+        <NoticeCallout title="View only" tone="info" className="mb-4">
           Your role can view listings but cannot create new ones. Ask an owner, manager, or ops teammate.
         </NoticeCallout>
       ) : null}

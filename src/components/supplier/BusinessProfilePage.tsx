@@ -429,7 +429,7 @@ export default function BusinessProfilePage(p: BusinessProfilePageProps) {
           <StatusChip tone={payChip.tone}>{payChip.label}</StatusChip>
         </div>
         {!canEditProfile ? (
-          <NoticeCallout tone="info" className="mt-4">
+          <NoticeCallout title="View only" tone="info" className="mt-4">
             Your role can view business profile details but cannot change company or legal settings.
           </NoticeCallout>
         ) : null}

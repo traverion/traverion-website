@@ -557,7 +557,7 @@ export default function SupplierStayCalendar() {
       ) : (
         <>
           {!canEdit ? (
-            <NoticeCallout tone="info" className="mb-3">
+            <NoticeCallout title="View only" tone="info" className="mb-3">
               Your role can view this calendar but cannot change blocks. Ask an owner, manager, or ops teammate.
             </NoticeCallout>
           ) : null}

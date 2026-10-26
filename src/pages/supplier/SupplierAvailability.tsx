@@ -1350,7 +1350,7 @@ export default function SupplierAvailability() {
           ) : null}
 
           {!canEditCalendar ? (
-            <NoticeCallout tone="info" className="mb-3">
+            <NoticeCallout title="View only" tone="info" className="mb-3">
               Your role can view this calendar but cannot change capacity or blocks. Ask an owner, manager, or ops teammate.
             </NoticeCallout>
           ) : null}
@@ -1680,7 +1680,7 @@ export default function SupplierAvailability() {
           ) : null}
 
           {stayCalendar && view !== 'month' ? (
-            <NoticeCallout tone="info" className="mb-3">
+            <NoticeCallout title="Use month view" tone="info" className="mb-3">
               Stay listings use the Month view for night inventory. Switch to Month to manage blocks.
             </NoticeCallout>
           ) : null}

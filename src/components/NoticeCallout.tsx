@@ -14,16 +14,18 @@ export default function NoticeCallout({
   children,
   tone = 'info',
   action,
+  className,
 }: {
   title: string;
   children?: ReactNode;
   tone?: Tone;
   action?: ReactNode;
+  className?: string;
 }) {
   const assertive = tone === 'danger' || tone === 'warn';
   return (
     <div
-      className={TONE[tone]}
+      className={[TONE[tone], className].filter(Boolean).join(' ')}
       role={assertive ? 'alert' : 'status'}
       aria-live={assertive ? 'assertive' : 'polite'}
     >

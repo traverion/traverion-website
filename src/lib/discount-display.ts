@@ -7,7 +7,7 @@ import {
   getValidDiscount,
 } from '../data/supabase-discounts';
 import { pickHeadlineOption, pricedNamesFromBookingOptions } from './headline-price';
-import { formatMoney, normalizeCurrency } from './money';
+import { normalizeCurrency } from './money';
 import { localYmd } from './local-ymd';
 import { experienceTodayIsoForListing } from './booking-quote';
 import { listingIsFamily } from './inventory';

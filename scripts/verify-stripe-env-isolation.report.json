@@ -1,0 +1,63 @@
+{
+  "ok": true,
+  "startedAt": "2026-10-26T22:34:08.620Z",
+  "checks": [
+    {
+      "name": "stripe_test_mode",
+      "pass": true,
+      "detail": "sk_test_"
+    },
+    {
+      "name": "staging_target",
+      "pass": true,
+      "detail": "gedktutbpfwnstcbffsc"
+    },
+    {
+      "name": "foreign_project_ignored",
+      "pass": true,
+      "detail": {
+        "action": "ignore",
+        "reason": "foreign_project_ref"
+      }
+    },
+    {
+      "name": "missing_booking_ignored",
+      "pass": true,
+      "detail": {
+        "action": "ignore",
+        "reason": "booking_not_in_this_environment"
+      }
+    },
+    {
+      "name": "owned_accepted",
+      "pass": true,
+      "detail": {
+        "action": "accept",
+        "reason": "owned"
+      }
+    },
+    {
+      "name": "staging_url_parses",
+      "pass": true,
+      "detail": {
+        "parsed": "gedktutbpfwnstcbffsc",
+        "expected": "gedktutbpfwnstcbffsc"
+      }
+    },
+    {
+      "name": "production_rental_checkout_absent",
+      "pass": true,
+      "detail": "RENTAL_CHECKOUT_ENABLED must stay unset on production"
+    },
+    {
+      "name": "production_webhooks_enabled",
+      "pass": true,
+      "detail": {
+        "count": 1,
+        "disabled": []
+      }
+    }
+  ],
+  "errors": [],
+  "finishedAt": "2026-10-26T22:34:11.681Z"
+}

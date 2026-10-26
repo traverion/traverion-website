@@ -136,7 +136,7 @@ function GroupChildren({
       role="group"
       aria-labelledby={`partner-nav-group-btn-${group.id}`}
       className={`partner-nav-group-panel ${open ? 'partner-nav-group-panel--open' : ''}`}
-      inert={!open ? true : undefined}
+      {...(!open ? { inert: true } : {})}
     >
       <div className="partner-nav-group-panel__inner">
         <ul className="mb-1 mt-0.5 space-y-0.5 pb-1">

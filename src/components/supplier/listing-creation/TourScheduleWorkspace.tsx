@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, type ReactNode, type RefObject } from 'react';
+import { useEffect, useId, useRef, type ReactNode, type Ref } from 'react';
 import { createPortal } from 'react-dom';
 import type { ListingBookingOption, ListingOptionSchedule } from '../../../types/listingExtras';
 import BookingOptionEditor from '../BookingOptionEditor';
@@ -555,7 +555,7 @@ function ScheduleReview({
   formatAmount,
   onEdit,
 }: {
-  headingRef: RefObject<HTMLHeadingElement | null>;
+  headingRef: Ref<HTMLHeadingElement>;
   schedule: ListingOptionSchedule;
   option: ListingBookingOption;
   formatAmount: (n: number) => string;

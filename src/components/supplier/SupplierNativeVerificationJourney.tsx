@@ -129,11 +129,49 @@ function submittedKey(userId: string) {
   return `tv-verify-submitted:v1:${userId}`;
 }
 
+const SCREEN_IDS: readonly ScreenId[] = [
+  'biz_structure',
+  'biz_legal',
+  'biz_reg',
+  'biz_address',
+  'biz_contact',
+  'rep_identity',
+  'rep_contact',
+  'rep_dob',
+  'rep_role',
+  'own_intro',
+  'own_people',
+  'agree_info',
+  'agree_accept',
+  'id_status',
+  'bank_replace',
+  'bank_details',
+  'bank_confirm',
+  'review_summary',
+  'review_done',
+];
+
+function isScreenId(value: unknown): value is ScreenId {
+  return typeof value === 'string' && (SCREEN_IDS as readonly string[]).includes(value);
+}
+
+/** Migrate legacy draft screen ids (e.g. bank_country → bank_details). */
+function normalizeDraftScreen(raw: unknown): ScreenId {
+  if (raw === 'bank_country') return 'bank_details';
+  if (isScreenId(raw)) return raw;
+  return 'biz_structure';
+}
+
 function loadDraft(userId: string): DraftPayload | null {
   try {
     const raw = sessionStorage.getItem(draftKey(userId));
     if (!raw) return null;
-    return JSON.parse(raw) as DraftPayload;
+    const parsed = JSON.parse(raw) as Partial<DraftPayload> & { screen?: unknown };
+    if (!parsed || typeof parsed !== 'object') return null;
+    return {
+      ...(parsed as DraftPayload),
+      screen: normalizeDraftScreen(parsed.screen),
+    };
   } catch {
     return null;
   }
@@ -409,10 +447,7 @@ export default function SupplierNativeVerificationJourney({
 
   const [phase, setPhase] = useState<VerificationWorkspacePhase>(() => initialPhase);
 
-  const [screen, setScreen] = useState<ScreenId>(() => {
-    if (draft?.screen && draft.screen !== 'bank_country') return draft.screen;
-    return 'biz_structure';
-  });
+  const [screen, setScreen] = useState<ScreenId>(() => draft?.screen ?? 'biz_structure');
   const [direction, setDirection] = useState<'forward' | 'back'>('forward');
   const [busy, setBusy] = useState(false);
   const [bootBusy, setBootBusy] = useState(true);
@@ -552,7 +587,7 @@ export default function SupplierNativeVerificationJourney({
       } else if (initialFocus === 'bank' && nextPhase === 'wizard') {
         setBankOnlyEdit(false);
         const d = loadDraft(userId);
-        setScreen(d?.screen && d.screen !== 'bank_country' ? d.screen : 'bank_details');
+        setScreen(d?.screen ?? 'bank_details');
         setPhase('wizard');
       } else {
         setPhase(nextPhase);

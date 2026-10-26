@@ -109,7 +109,7 @@ export default function AdminSupportCasesPanel() {
         </button>
       </div>
 
-      {error ? <NoticeCallout title="Could not load" tone="bad">{error}</NoticeCallout> : null}
+      {error ? <NoticeCallout title="Could not load" tone="danger">{error}</NoticeCallout> : null}
       {actionMsg ? <NoticeCallout title="Update" tone="info">{actionMsg}</NoticeCallout> : null}
 
       {loading && items.length === 0 ? (

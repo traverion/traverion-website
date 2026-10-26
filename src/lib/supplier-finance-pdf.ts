@@ -174,7 +174,10 @@ export function statementPdf(lines: string[]): Uint8Array {
 }
 
 export function downloadPdf(filename: string, bytes: Uint8Array): void {
-  const blob = new Blob([bytes], { type: 'application/pdf' });
+  // Copy into a fresh ArrayBuffer-backed view — BlobPart rejects SharedArrayBuffer views.
+  const copy = new Uint8Array(bytes.byteLength);
+  copy.set(bytes);
+  const blob = new Blob([copy], { type: 'application/pdf' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
@@ -184,7 +187,9 @@ export function downloadPdf(filename: string, bytes: Uint8Array): void {
 }
 
 export function openPdf(bytes: Uint8Array): void {
-  const blob = new Blob([bytes], { type: 'application/pdf' });
+  const copy = new Uint8Array(bytes.byteLength);
+  copy.set(bytes);
+  const blob = new Blob([copy], { type: 'application/pdf' });
   const url = URL.createObjectURL(blob);
   window.open(url, '_blank', 'noopener,noreferrer');
   window.setTimeout(() => URL.revokeObjectURL(url), 60_000);

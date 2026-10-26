@@ -71,7 +71,6 @@ import { stayArrivalMethodLabel } from '../lib/stay-arrival';
 import { ListingReviewsModal } from '../components/ListingReviewsModal';
 import NoticeCallout from '../components/NoticeCallout';
 import { USER_ERROR, userFacingError } from '../lib/userFacingError';
-import { STAY_REQUEST_APPROVAL_HOURS } from '../lib/stay-booking-method';
 import { stayAmenityDisplayList } from '../lib/stay-amenities';
 import { stayStickyBookCtaLabel } from '../lib/stay-sticky-cta';
 import { stayQuoteFailureFocusTarget } from '../lib/stay-quote-failure-focus';
@@ -1208,7 +1207,8 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
               </section>
             ) : null}
 
-            {s?.exteriorCamera || (s?.safetyConsiderations?.length ?? 0) > 0 || s?.safetyNote ? (
+            {s &&
+            (s.exteriorCamera || (s.safetyConsiderations?.length ?? 0) > 0 || s.safetyNote) ? (
               <section className="border-t border-black/[0.08] pt-8">
                 <h2 className="tv-section-heading mb-3 flex items-center gap-2">
                   <Shield className="h-4 w-4 text-finland" aria-hidden strokeWidth={2} />

@@ -303,7 +303,7 @@ export default function SupplierDiscountsOffers() {
       const head = group[0];
       if (head) {
         const others = rows
-          .filter((row) => row.listing.id === head.listing_id && !row.deleted_at)
+          .filter((row) => row.listing.id === head.listing_id && !row.discount.deleted_at)
           .map((row) => row.discount);
         const ignore = group.map((row) => row.id);
         const optionIds = group

@@ -296,6 +296,8 @@ export default function StayBookingConfirm({ stay, initial, onBackToListing }: P
       setPayError(LISTING_SELF_BOOK_BLOCKED);
       return;
     }
+    // Phase 1704: hydrate session into userRef before resume — auth onSuccess can
+    // fire before React `user` updates, so do not rely on stale closure alone.
     if (isSupabaseConfigured() && !userRef.current) {
       requestAuth({
         intent: 'checkout',

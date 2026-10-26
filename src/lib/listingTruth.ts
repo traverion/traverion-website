@@ -21,7 +21,8 @@ export function listingShowsFreeCancellation(input: {
   if (input.listingExtras != null) {
     const preset = parseListingExtras(input.listingExtras).cancellationPreset;
     if (preset === 'non_refundable') return false;
-    if (isStayCancellationPreset(preset) && preset !== 'non_refundable') return true;
+    // After excluding non_refundable, any remaining stay preset is a free-cancel window.
+    if (isStayCancellationPreset(preset)) return true;
   }
   const policy = (input.cancellationPolicy ?? '').trim();
   // Empty policy is unknown — do not advertise free cancellation by default.
