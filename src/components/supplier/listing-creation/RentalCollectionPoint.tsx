@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Loader2, MapPin } from 'lucide-react';
+import { computeAnchoredActionMenuBox } from '../../../lib/anchored-popover';
 import { autocompleteAddresses, placesSearchConfigured, resolveAddress, type PlaceSuggestion } from '../../../lib/places-client';
 import RentalCollectionMap from './RentalCollectionMap';
 
@@ -56,7 +57,19 @@ export default function RentalCollectionPoint({
       const el = inputRef.current;
       if (!el) return;
       const rect = el.getBoundingClientRect();
-      setMenuBox({ top: rect.bottom + 4, left: rect.left, width: rect.width });
+      const rowCount = Math.max(suggestions.length, empty || loading ? 1 : 0);
+      const estimatedHeight = Math.min(280, Math.max(48, rowCount * 56 + 8));
+      const box = computeAnchoredActionMenuBox({
+        anchorRect: rect,
+        viewportWidth: window.innerWidth,
+        viewportHeight: window.innerHeight,
+        preferredWidth: rect.width,
+        estimatedHeight,
+        align: 'start',
+        gap: 4,
+        edge: 8,
+      });
+      setMenuBox({ top: box.top, left: box.left, width: box.width });
     }
     place();
     window.addEventListener('scroll', place, true);

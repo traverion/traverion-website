@@ -1,6 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import type { ReactNode } from 'react';
 import type { LucideIcon } from 'lucide-react';
+import { computeAnchoredActionMenuBox } from '../../../lib/anchored-popover';
 import {
   Aperture,
   Bike,
@@ -1484,23 +1486,72 @@ function rentalOptionStatusBadge(variant: RentalVariant, rental: RentalDetails):
   return { complete: true, label: 'Complete' };
 }
 
+const RENTAL_OPTION_MENU_WIDTH = 184;
+const RENTAL_OPTION_MENU_HEIGHT = 104;
+
 function OptionsStage({ ctx }: { ctx: Ctx }) {
   const { rental, cfg, currency, patchRental, editVariant } = ctx;
   const variants = rental.variants ?? [];
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [menuId, setMenuId] = useState<string | null>(null);
+  const [menuBox, setMenuBox] = useState<{ top: number; left: number; width: number } | null>(null);
+  const menuTriggerRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
+  const menuPanelRef = useRef<HTMLDivElement | null>(null);
   const canAdd = variants.length < MAX_VARIANTS;
+  const menuVariant = menuId ? variants.find((row) => row.id === menuId) ?? null : null;
+
+  const closeMenu = useCallback(() => {
+    setMenuId(null);
+    setMenuBox(null);
+  }, []);
+
+  const updateMenuPosition = useCallback(() => {
+    if (!menuId) return;
+    const trigger = menuTriggerRefs.current.get(menuId);
+    if (!trigger) return;
+    const next = computeAnchoredActionMenuBox({
+      anchorRect: trigger.getBoundingClientRect(),
+      viewportWidth: window.innerWidth,
+      viewportHeight: window.innerHeight,
+      preferredWidth: RENTAL_OPTION_MENU_WIDTH,
+      estimatedHeight: RENTAL_OPTION_MENU_HEIGHT,
+      align: 'end',
+      gap: 6,
+      edge: 8,
+    });
+    setMenuBox({ top: next.top, left: next.left, width: next.width });
+  }, [menuId]);
+
+  useLayoutEffect(() => {
+    if (!menuId) {
+      setMenuBox(null);
+      return;
+    }
+    updateMenuPosition();
+    window.addEventListener('resize', updateMenuPosition);
+    window.addEventListener('scroll', updateMenuPosition, true);
+    return () => {
+      window.removeEventListener('resize', updateMenuPosition);
+      window.removeEventListener('scroll', updateMenuPosition, true);
+    };
+  }, [menuId, updateMenuPosition]);
 
   useEffect(() => {
     if (!menuId) return;
     const close = (event: PointerEvent) => {
       const target = event.target;
-      const root = document.getElementById(`rental-option-menu-${menuId}`);
-      if (target instanceof Node && root?.contains(target)) return;
-      setMenuId(null);
+      if (!(target instanceof Node)) return;
+      if (menuPanelRef.current?.contains(target)) return;
+      const trigger = menuTriggerRefs.current.get(menuId);
+      if (trigger?.contains(target)) return;
+      closeMenu();
     };
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setMenuId(null);
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        closeMenu();
+        menuTriggerRefs.current.get(menuId)?.focus();
+      }
     };
     document.addEventListener('pointerdown', close);
     document.addEventListener('keydown', onKey);
@@ -1508,17 +1559,17 @@ function OptionsStage({ ctx }: { ctx: Ctx }) {
       document.removeEventListener('pointerdown', close);
       document.removeEventListener('keydown', onKey);
     };
-  }, [menuId]);
+  }, [closeMenu, menuId]);
 
   const openEdit = (variant: RentalVariant) => {
-    setMenuId(null);
+    closeMenu();
     setConfirmId(null);
     editVariant(cloneVariant(variant), false);
   };
 
   const duplicate = (variant: RentalVariant) => {
     if (!canAdd) return;
-    setMenuId(null);
+    closeMenu();
     const copy = cloneVariant(variant);
     editVariant({ ...copy, id: newRentalVariantId(), name: `${variant.name} copy`.slice(0, 80) }, true);
   };
@@ -1610,44 +1661,26 @@ function OptionsStage({ ctx }: { ctx: Ctx }) {
                     >
                       Edit
                     </button>
-                    <div className="relative ml-auto" id={`rental-option-menu-${variant.id}`}>
+                    <div className="ml-auto">
                       <button
                         type="button"
                         className="rental-option-card__menu-btn"
                         aria-label={`More actions for ${name}`}
                         aria-haspopup="menu"
                         aria-expanded={menuOpen}
-                        onClick={() => setMenuId(menuOpen ? null : variant.id)}
+                        aria-controls={menuOpen ? 'rental-option-actions-menu' : undefined}
+                        data-rental-option-menu-trigger={variant.id}
+                        ref={(node) => {
+                          if (node) menuTriggerRefs.current.set(variant.id, node);
+                          else menuTriggerRefs.current.delete(variant.id);
+                        }}
+                        onClick={() => {
+                          if (menuOpen) closeMenu();
+                          else setMenuId(variant.id);
+                        }}
                       >
                         <MoreHorizontal className="h-4 w-4" aria-hidden />
                       </button>
-                      {menuOpen ? (
-                        <div role="menu" className="rental-option-card__menu">
-                          <button
-                            type="button"
-                            role="menuitem"
-                            className="rental-option-card__menu-item"
-                            disabled={!canAdd}
-                            title={!canAdd ? 'Maximum number of options reached' : undefined}
-                            onClick={() => duplicate(variant)}
-                          >
-                            Duplicate
-                          </button>
-                          <button
-                            type="button"
-                            role="menuitem"
-                            className="rental-option-card__menu-item rental-option-card__menu-item--danger"
-                            disabled={variants.length <= 1}
-                            title={variants.length <= 1 ? 'Keep at least one option' : undefined}
-                            onClick={() => {
-                              setMenuId(null);
-                              setConfirmId(variant.id);
-                            }}
-                          >
-                            Delete
-                          </button>
-                        </div>
-                      ) : null}
                     </div>
                   </div>
                 )}
@@ -1660,7 +1693,10 @@ function OptionsStage({ ctx }: { ctx: Ctx }) {
         type="button"
         className="rental-option-add"
         disabled={!canAdd}
-        onClick={() => editVariant(createDefaultRentalVariant(variants.length === 0 ? 'Standard' : 'New option'), true)}
+        onClick={() => {
+          closeMenu();
+          editVariant(createDefaultRentalVariant(variants.length === 0 ? 'Standard' : 'New option'), true);
+        }}
       >
         Add option
       </button>
@@ -1668,6 +1704,44 @@ function OptionsStage({ ctx }: { ctx: Ctx }) {
         One standard option is enough. Add another when a size, model, or variant has its own stock. Quantity is how
         many identical units of that option you can rent at once.
       </StayHelp>
+      {menuVariant && menuBox && typeof document !== 'undefined'
+        ? createPortal(
+            <div
+              ref={menuPanelRef}
+              id="rental-option-actions-menu"
+              role="menu"
+              data-rental-option-menu
+              aria-label={`Actions for ${menuVariant.name.trim() || 'Untitled option'}`}
+              className="rental-option-card__menu"
+              style={{ top: menuBox.top, left: menuBox.left, width: menuBox.width }}
+            >
+              <button
+                type="button"
+                role="menuitem"
+                className="rental-option-card__menu-item"
+                disabled={!canAdd}
+                title={!canAdd ? 'Maximum number of options reached' : undefined}
+                onClick={() => duplicate(menuVariant)}
+              >
+                Duplicate
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                className="rental-option-card__menu-item rental-option-card__menu-item--danger"
+                disabled={variants.length <= 1}
+                title={variants.length <= 1 ? 'Keep at least one option' : undefined}
+                onClick={() => {
+                  closeMenu();
+                  setConfirmId(menuVariant.id);
+                }}
+              >
+                Delete
+              </button>
+            </div>,
+            document.body,
+          )
+        : null}
     </div>
   );
 }

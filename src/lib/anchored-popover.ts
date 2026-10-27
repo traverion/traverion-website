@@ -81,3 +81,64 @@ export function computeAnchoredPopoverBox(params: {
     maxHeight,
   };
 }
+
+/**
+ * Compact action / suggestion menu box in viewport coordinates.
+ * Always stays a fixed popover (no mobile sheet). Flips above when space below
+ * is insufficient. Use align: 'end' for kebab menus tied to a trigger's right edge.
+ */
+export type AnchoredActionMenuBox = {
+  top: number;
+  left: number;
+  width: number;
+  placement: 'below' | 'above';
+};
+
+export function computeAnchoredActionMenuBox(params: {
+  anchorRect: AnchorRectLike;
+  viewportWidth: number;
+  viewportHeight: number;
+  preferredWidth: number;
+  estimatedHeight: number;
+  align?: 'start' | 'end';
+  edge?: number;
+  gap?: number;
+}): AnchoredActionMenuBox {
+  const edge = params.edge ?? 8;
+  const gap = params.gap ?? 6;
+  const align = params.align ?? 'end';
+  const width = Math.min(Math.max(1, params.preferredWidth), Math.max(1, params.viewportWidth - edge * 2));
+
+  let left =
+    align === 'end' ? params.anchorRect.right - width : params.anchorRect.left;
+  if (left + width > params.viewportWidth - edge) {
+    left = Math.max(edge, params.viewportWidth - width - edge);
+  }
+  if (left < edge) left = edge;
+
+  const height = Math.max(1, params.estimatedHeight);
+  const spaceBelow = params.viewportHeight - params.anchorRect.bottom - gap - edge;
+  const spaceAbove = params.anchorRect.top - gap - edge;
+
+  let placement: 'below' | 'above';
+  if (spaceBelow >= height) placement = 'below';
+  else if (spaceAbove >= height) placement = 'above';
+  else placement = spaceBelow >= spaceAbove ? 'below' : 'above';
+
+  if (placement === 'below') {
+    const top = params.anchorRect.bottom + gap;
+    return {
+      top: Math.min(top, Math.max(edge, params.viewportHeight - edge - height)),
+      left,
+      width,
+      placement,
+    };
+  }
+
+  return {
+    top: Math.max(edge, params.anchorRect.top - gap - height),
+    left,
+    width,
+    placement,
+  };
+}

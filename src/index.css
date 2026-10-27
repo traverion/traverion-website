@@ -14063,20 +14063,18 @@ details:not([open]) > :not(summary) {
   outline-offset: 2px;
 }
 
-.rental-creator .rental-option-card__menu {
-  position: absolute;
-  right: 0;
-  z-index: 20;
-  margin-top: 0.35rem;
-  width: 11.5rem;
+/* Portaled to document.body — keep selectors global so styles apply outside .rental-creator. */
+.rental-option-card__menu {
+  position: fixed;
+  z-index: 80;
   padding: 0.3rem;
   border-radius: 0.85rem;
-  border: 1px solid var(--rental-border);
+  border: 1px solid #e6eaf0;
   background: #ffffff;
   box-shadow: 0 8px 28px rgb(15 23 42 / 0.1);
 }
 
-.rental-creator .rental-option-card__menu-item {
+.rental-option-card__menu-item {
   display: block;
   width: 100%;
   border-radius: 0.65rem;
@@ -14084,23 +14082,23 @@ details:not([open]) > :not(summary) {
   text-align: left;
   font-size: 0.875rem;
   font-weight: 600;
-  color: var(--rental-ink);
+  color: #0f172a;
   background: transparent;
 }
 
-.rental-creator .rental-option-card__menu-item:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--rental-accent) 6%, #ffffff);
+.rental-option-card__menu-item:hover:not(:disabled) {
+  background: color-mix(in srgb, #073b83 6%, #ffffff);
 }
 
-.rental-creator .rental-option-card__menu-item--danger {
+.rental-option-card__menu-item--danger {
   color: #9f1239;
 }
 
-.rental-creator .rental-option-card__menu-item--danger:hover:not(:disabled) {
+.rental-option-card__menu-item--danger:hover:not(:disabled) {
   background: #fff1f2;
 }
 
-.rental-creator .rental-option-card__menu-item:disabled {
+.rental-option-card__menu-item:disabled {
   cursor: not-allowed;
   opacity: 0.4;
 }
