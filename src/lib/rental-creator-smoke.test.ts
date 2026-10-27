@@ -1,5 +1,5 @@
 /**
- * Creator UI smoke (logic-level): 21-screen journey, draft resume, validations.
+ * Creator UI smoke (logic-level): 22-screen journey, draft resume, validations.
  * Complements browser smoke; does not require a running Vite session.
  */
 import { describe, expect, it } from 'vitest';
@@ -56,25 +56,30 @@ function baseCheck(overrides: Partial<RentalOnboardingCheck> = {}): RentalOnboar
   };
 }
 
-describe('rental creator 21-screen smoke', () => {
-  it('exposes exactly 21 screens with category, item type, and highlights separated', () => {
-    expect(RENTAL_ONBOARDING_SCREENS).toHaveLength(21);
+describe('rental creator 22-screen smoke', () => {
+  it('exposes exactly 22 screens with pickup and return separated', () => {
+    expect(RENTAL_ONBOARDING_SCREENS).toHaveLength(22);
     const ids = RENTAL_ONBOARDING_SCREENS.map((s) => s.id);
-    expect(new Set(ids).size).toBe(21);
+    expect(new Set(ids).size).toBe(22);
     expect(ids[0]).toBe('basics-category');
     expect(ids[1]).toBe('basics-item');
     expect(ids[4]).toBe('basics-description');
     expect(ids[5]).toBe('basics-highlights');
+    expect(ids).toContain('pickup-location');
+    expect(ids).toContain('return-location');
+    expect(ids.indexOf('return-location')).toBe(ids.indexOf('pickup-location') + 1);
     expect(ids.at(-1)).toBe('publish');
   });
 
-  it('resumes interim and legacy draft screen ids onto the 21-screen journey', () => {
+  it('resumes interim and legacy draft screen ids onto the 22-screen journey', () => {
     expect(resolveRentalScreenId('basics-item')).toBe('basics-item');
     expect(resolveRentalScreenId('item-type')).toBe('basics-item');
     expect(resolveRentalScreenId('category')).toBe('basics-category');
     expect(resolveRentalScreenId('basics-highlights')).toBe('basics-highlights');
     expect(resolveRentalScreenId('highlights')).toBe('basics-highlights');
-    expect(resolveRentalScreenId('return-location')).toBe('pickup-location');
+    expect(resolveRentalScreenId('return-location')).toBe('return-location');
+    expect(resolveRentalScreenId('return')).toBe('return-location');
+    expect(resolveRentalScreenId('pickup')).toBe('pickup-location');
     expect(resolveRentalScreenId('daily-counting')).toBe('duration');
     expect(resolveRentalScreenId('accessibility')).toBe('requirements');
     expect(resolveRentalScreenId('suitability')).toBe('requirements');
@@ -126,7 +131,15 @@ describe('rental creator 21-screen smoke', () => {
     ).toMatch(/name|unit/i);
     expect(rentalStageBlocker('options', baseCheck())).toBeNull();
     expect(rentalStageBlocker('duration', baseCheck())).toBeNull();
+    expect(rentalStageBlocker('pickup-location', empty)).toMatch(/pickup/i);
     expect(rentalStageBlocker('pickup-location', baseCheck())).toBeNull();
+    expect(rentalStageBlocker('return-location', baseCheck())).toBeNull();
+    expect(
+      rentalStageBlocker('return-location', {
+        ...baseCheck(),
+        rental: { ...baseCheck().rental, returnSameAsPickup: false, returnAddress: '' },
+      }),
+    ).toMatch(/return address/i);
   });
 
   it('walks every screen blocker without throwing for a complete draft', () => {

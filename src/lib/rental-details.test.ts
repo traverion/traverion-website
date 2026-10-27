@@ -383,8 +383,8 @@ describe('skill suitability', () => {
 });
 
 describe('legacy rental screen aliases', () => {
-  it('maps retired 33-step and interim 26-step ids onto the 21-screen journey', () => {
-    expect(RENTAL_ONBOARDING_SCREENS).toHaveLength(21);
+  it('maps retired 33-step and interim 26-step ids onto the 22-screen journey', () => {
+    expect(RENTAL_ONBOARDING_SCREENS).toHaveLength(22);
     expect(resolveRentalScreenId('gallery')).toBe('photos');
     expect(resolveRentalScreenId('buffers')).toBe('booking-rules');
     expect(resolveRentalScreenId('availability-summary')).toBe('duration');
@@ -397,7 +397,8 @@ describe('legacy rental screen aliases', () => {
     expect(resolveRentalScreenId('collection')).toBe('handover');
     expect(resolveRentalScreenId('highlights')).toBe('basics-highlights');
     expect(resolveRentalScreenId('basics-highlights')).toBe('basics-highlights');
-    expect(resolveRentalScreenId('return-location')).toBe('pickup-location');
+    expect(resolveRentalScreenId('return-location')).toBe('return-location');
+    expect(resolveRentalScreenId('return')).toBe('return-location');
     expect(resolveRentalScreenId('accessibility')).toBe('requirements');
     expect(resolveRentalScreenId('suitability')).toBe('requirements');
     expect(resolveRentalScreenId('restrictions')).toBe('inclusions');
@@ -464,8 +465,9 @@ describe('rental collection points', () => {
     expect(rental.pickupLng).toBeUndefined();
     expect(rental.returnAddress).toBe('Airport desk');
     expect(rentalStageBlocker('pickup-location', { rental, title: '', description: '', city: '', country: '', galleryCount: 0, experienceLanguage: 'en' })).toBeNull();
+    expect(rentalStageBlocker('return-location', { rental, title: '', description: '', city: '', country: '', galleryCount: 0, experienceLanguage: 'en' })).toBeNull();
     expect(
-      rentalStageBlocker('pickup-location', {
+      rentalStageBlocker('return-location', {
         rental: { ...rental, returnAddress: '' },
         title: '',
         description: '',

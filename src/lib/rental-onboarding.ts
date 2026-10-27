@@ -1,5 +1,5 @@
 /**
- * Rental Creator screens — streamlined journey (21 screens).
+ * Rental Creator screens — streamlined journey (22 screens).
  * Split-out screens from interim 26-step work remap via LEGACY_RENTAL_SCREEN_ALIASES
  * so saved drafts resume without data loss.
  */
@@ -74,21 +74,28 @@ export const RENTAL_ONBOARDING_SCREENS = [
   {
     id: 'pickup-location',
     group: 'Pickup & return',
-    part: '1 of 3',
-    title: 'Pickup and return place',
-    body: 'Where customers collect the rental, and where they return it.',
+    part: '1 of 4',
+    title: 'Pickup place',
+    body: 'Where customers collect the rental.',
+  },
+  {
+    id: 'return-location',
+    group: 'Pickup & return',
+    part: '2 of 4',
+    title: 'Return place',
+    body: 'Where customers bring the rental back. Use the same spot as pickup, or set a different place.',
   },
   {
     id: 'hours',
     group: 'Pickup & return',
-    part: '2 of 3',
+    part: '3 of 4',
     title: 'Pickup and return hours',
     body: 'Choose the open days, then set one pickup window and one return window.',
   },
   {
     id: 'handover',
     group: 'Pickup & return',
-    part: '3 of 3',
+    part: '4 of 4',
     title: 'How does handover work?',
     body: 'Staff or self-service, then any practical instructions.',
   },
@@ -168,7 +175,7 @@ export type RentalOnboardingScreenId = (typeof RENTAL_ONBOARDING_SCREENS)[number
 
 /**
  * Maps retired screen ids (33-step registry and interim 26-step splits)
- * onto the current 21-screen journey so drafts resume correctly.
+ * onto the current 22-screen journey so drafts resume correctly.
  */
 export const LEGACY_RENTAL_SCREEN_ALIASES: Record<string, RentalOnboardingScreenId> = {
   category: 'basics-category',
@@ -183,8 +190,7 @@ export const LEGACY_RENTAL_SCREEN_ALIASES: Record<string, RentalOnboardingScreen
   gallery: 'photos',
   'pickup-handover': 'pickup-location',
   pickup: 'pickup-location',
-  return: 'pickup-location',
-  'return-location': 'pickup-location',
+  return: 'return-location',
   collection: 'handover',
   'duration-mode': 'duration',
   'duration-limits': 'duration',
@@ -277,7 +283,10 @@ export function rentalStageBlocker(screenId: RentalOnboardingScreenId, check: Re
       return null;
     }
     case 'pickup-location':
-      if ((r.pickupAddress || '').trim().length < 5) return 'Add a pickup address or meeting place.';
+      return (r.pickupAddress || '').trim().length >= 5
+        ? null
+        : 'Add a pickup address or meeting place.';
+    case 'return-location':
       if (r.returnSameAsPickup === false && (r.returnAddress || '').trim().length < 5) {
         return 'Add a return address, or choose same as pickup.';
       }
@@ -346,6 +355,9 @@ export function rentalPublishBlockers(check: RentalOnboardingCheck): string[] {
   if (!(check.city || '').trim() || !(check.country || '').trim()) out.push('Add city and country.');
   if (check.galleryCount < 3) out.push('Add at least 3 photos.');
   if (!(r.pickupAddress || '').trim()) out.push('Add pickup location.');
+  if (r.returnSameAsPickup === false && !(r.returnAddress || '').trim()) {
+    out.push('Add a return address, or choose same as pickup.');
+  }
   const variants = r.variants ?? [];
   if (variants.length < 1) out.push('Add at least one rental option.');
   for (const v of variants) {
@@ -373,7 +385,8 @@ export function rentalScreenIndexForPublishLine(line: string): number {
   if (/city|country|location|language/.test(text)) return rentalScreenIndex('basics-location');
   if (/handover/.test(text)) return rentalScreenIndex('handover');
   if (/hours/.test(text)) return rentalScreenIndex('hours');
-  if (/return address|return location|pickup|return/.test(text)) return rentalScreenIndex('pickup-location');
+  if (/return address|return location|same as pickup/.test(text)) return rentalScreenIndex('return-location');
+  if (/pickup|return/.test(text)) return rentalScreenIndex('pickup-location');
   if (/option|variant|quantity|pricing|price/.test(text)) return rentalScreenIndex('options');
   if (/duration|hourly|daily/.test(text)) return rentalScreenIndex('duration');
   if (/snowmobile|license|requirement|accessib|suitab/.test(text)) return rentalScreenIndex('requirements');
@@ -404,7 +417,11 @@ export const RENTAL_COMPLETION_GROUPS: {
   { id: 'photos', label: 'Photos', screens: ['photos'] },
   { id: 'options', label: 'Rental options', screens: ['options'] },
   { id: 'pricing', label: 'Availability', screens: ['duration', 'booking-rules'] },
-  { id: 'pickup', label: 'Pickup and return', screens: ['pickup-location', 'hours', 'handover'] },
+  {
+    id: 'pickup',
+    label: 'Pickup and return',
+    screens: ['pickup-location', 'return-location', 'hours', 'handover'],
+  },
   {
     id: 'guest',
     label: 'Guest information and policies',

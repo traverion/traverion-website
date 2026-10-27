@@ -998,10 +998,10 @@ function collectionBias(values: Values): { lat: number; lng: number } | null {
 function PickupStage({ ctx }: { ctx: Ctx }) {
   const { rental, patchRental, values } = ctx;
   return (
-    <div className="space-y-4">
+    <div className="rental-place-stage">
       <RentalCollectionPoint
         id="rental-pickup-address"
-        label="Collection address"
+        label="Pickup address"
         address={rental.pickupAddress ?? ''}
         lat={rental.pickupLat}
         lng={rental.pickupLng}
@@ -1036,31 +1036,68 @@ function PickupStage({ ctx }: { ctx: Ctx }) {
 }
 
 function ReturnStage({ ctx }: { ctx: Ctx }) {
-  const { rental, patchRental, values } = ctx;
+  const { rental, patchRental, values, goTo } = ctx;
   const same = rental.returnSameAsPickup !== false;
+  const pickupAddress = rental.pickupAddress?.trim() || '';
+  const hasPickupPin = typeof rental.pickupLat === 'number' && typeof rental.pickupLng === 'number';
+
   return (
-    <div className="space-y-4">
-      <div className="grid gap-2 sm:grid-cols-2" role="group" aria-label="Return location">
-        <StayChoice pressed={same} onClick={() => patchRental({ returnSameAsPickup: true })}>
-          Same as pickup location
-        </StayChoice>
-        <StayChoice pressed={!same} onClick={() => patchRental({ returnSameAsPickup: false })}>
-          A different place
-        </StayChoice>
+    <div className="rental-place-stage">
+      <div className="rental-return-choice-grid" role="group" aria-label="Return location">
+        <button
+          type="button"
+          aria-pressed={same}
+          className={`rental-return-choice ${same ? 'rental-return-choice--selected' : ''}`}
+          onClick={() => patchRental({ returnSameAsPickup: true })}
+        >
+          <span className="rental-return-choice__title">Same as pickup location</span>
+          <span className="rental-return-choice__desc">
+            Customers return to the pickup address and pin you already set.
+          </span>
+        </button>
+        <button
+          type="button"
+          aria-pressed={!same}
+          className={`rental-return-choice ${!same ? 'rental-return-choice--selected' : ''}`}
+          onClick={() => patchRental({ returnSameAsPickup: false })}
+        >
+          <span className="rental-return-choice__title">A different place</span>
+          <span className="rental-return-choice__desc">
+            Set a separate return address, map pin, and instructions.
+          </span>
+        </button>
       </div>
+
       {same ? (
-        <div className="space-y-3">
-          <p className="text-sm text-ink">
-            <span className="font-semibold">Pickup address: </span>
-            {rental.pickupAddress?.trim() || 'Add the pickup address on the previous screen.'}
-          </p>
-          {typeof rental.pickupLat === 'number' && typeof rental.pickupLng === 'number' ? (
-            <RentalCollectionMap lat={rental.pickupLat} lng={rental.pickupLng} label="Return uses the pickup point" />
+        <section className="rental-return-same" aria-label="Return uses pickup location">
+          <div className="rental-return-same__copy">
+            <p className="rental-return-same__label">Return uses</p>
+            <p className="rental-return-same__address">
+              {pickupAddress || 'Add the pickup address on the previous screen.'}
+            </p>
+            {!pickupAddress ? (
+              <button
+                type="button"
+                className="mt-1 min-h-11 text-sm font-semibold text-finland"
+                onClick={() => goTo('pickup-location')}
+              >
+                Edit pickup place
+              </button>
+            ) : null}
+          </div>
+          {hasPickupPin ? (
+            <RentalCollectionMap
+              lat={rental.pickupLat!}
+              lng={rental.pickupLng!}
+              label="Return uses the pickup point"
+            />
           ) : null}
-          <StayHelp>Customers return the item here. Move the pin on the pickup screen.</StayHelp>
-        </div>
+          <StayHelp>
+            The pickup address and coordinates are used automatically. Change them on the pickup screen if needed.
+          </StayHelp>
+        </section>
       ) : (
-        <>
+        <div className="rental-place-stage">
           <RentalCollectionPoint
             id="rental-return-address"
             label="Return address"
@@ -1093,7 +1130,7 @@ function ReturnStage({ ctx }: { ctx: Ctx }) {
               onChange={(e) => patchRental({ returnInstructions: e.target.value.slice(0, 1000) })}
             />
           </StayField>
-        </>
+        </div>
       )}
     </div>
   );
@@ -2675,6 +2712,7 @@ export default function RentalOnboardingFlow(props: Props) {
     id === 'hours' ||
     id === 'options' ||
     id === 'pickup-location' ||
+    id === 'return-location' ||
     id === 'handover' ||
     id === 'duration' ||
     id === 'booking-rules' ||
@@ -2723,12 +2761,10 @@ export default function RentalOnboardingFlow(props: Props) {
       body = <PhotosStage ctx={ctx} review={false} />;
       break;
     case 'pickup-location':
-      body = (
-        <div className="space-y-8">
-          <PickupStage ctx={ctx} />
-          <ReturnStage ctx={ctx} />
-        </div>
-      );
+      body = <PickupStage ctx={ctx} />;
+      break;
+    case 'return-location':
+      body = <ReturnStage ctx={ctx} />;
       break;
     case 'handover':
       body = <CollectionStage ctx={ctx} />;
