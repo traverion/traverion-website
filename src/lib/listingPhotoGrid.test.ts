@@ -3,10 +3,13 @@ import { LISTING_PLACEHOLDER_IMAGE } from './listingQualityScore';
 import {
   compactPhotoSlotsAndLabels,
   listingHeroImageSrc,
+  listingPersistedPhotoCount,
+  photoSlotsFromTourPackage,
   reorderFilledPhotos,
   remainingListingPhotoSlots,
   takeListingPhotoFiles,
 } from './listingPhotoGrid';
+import type { TourPackage } from '../types/tour';
 
 describe('listingHeroImageSrc', () => {
   it('returns null for empty or stock placeholder URLs', () => {
@@ -57,6 +60,26 @@ describe('photo reorder and cover', () => {
 
     const next = reorderFilledPhotos(slots, labels, 2, 0, originals);
     expect(next.originals.slice(0, 3)).toEqual(['b-master.jpg', 'cover-master.jpg', 'a-master.jpg']);
+  });
+});
+
+describe('persisted photo count (cover + gallery)', () => {
+  it('counts cover image plus galleryImageUrls as total photos', () => {
+    const listing = {
+      image: 'https://cdn.example.com/cover.jpg',
+      listingExtras: {
+        galleryImageUrls: [
+          'https://cdn.example.com/a.jpg',
+          'https://cdn.example.com/b.jpg',
+        ],
+      },
+    } as TourPackage;
+    expect(listingPersistedPhotoCount(listing)).toBe(3);
+    expect(photoSlotsFromTourPackage(listing).slice(0, 3)).toEqual([
+      'https://cdn.example.com/cover.jpg',
+      'https://cdn.example.com/a.jpg',
+      'https://cdn.example.com/b.jpg',
+    ]);
   });
 });
 

@@ -51,7 +51,11 @@ import {
   upsertRentalVariant,
 } from '../../../lib/rental-details';
 import { clampListingDescriptionInput, clampListingTitleInput, MAX_LISTING_DESCRIPTION_LENGTH, MAX_LISTING_TITLE_LENGTH } from '../../../lib/listingQualityScore';
-import { LISTING_PHOTO_MAX, type ListingPhotoCropSettings } from '../../../lib/listingPhotoGrid';
+import {
+  LISTING_PHOTO_MAX,
+  RENTAL_PHOTO_MIN,
+  type ListingPhotoCropSettings,
+} from '../../../lib/listingPhotoGrid';
 import { normalizeCurrency } from '../../../lib/money';
 import { travelerDestinationLabel } from '../../../lib/destination-place';
 import { RENTAL_CANCELLATION_PRESETS } from '../../../lib/rental-cancellation';
@@ -119,6 +123,8 @@ type Props = {
   userId?: string | null;
   /** Defaults to Boolean(userId). */
   uploadsEnabled?: boolean;
+  /** True while photo upload/replace/remove is in flight — Finish must wait. */
+  onPhotosBusyChange?: (busy: boolean) => void;
 };
 
 type Ctx = {
@@ -781,12 +787,14 @@ function PhotosStage({ ctx, review }: { ctx: Ctx; review: boolean }) {
     <div className="space-y-3">
       <ListingImageFields
         presentation="stay"
+        minPhotos={RENTAL_PHOTO_MIN}
         photoSlots={values.photoSlots}
         photoSlotLabels={values.photoSlotLabels}
         photoOriginalUrls={values.photoOriginalUrls}
         photoCropSettings={values.photoCropSettings}
         userId={props.userId}
         uploadsEnabled={uploadsEnabled}
+        onBusyChange={props.onPhotosBusyChange}
         onPhotosChange={({ slots, labels, originals, crops }: ListingPhotosValue) =>
           patch({
             photoSlots: slots,
@@ -797,8 +805,8 @@ function PhotosStage({ ctx, review }: { ctx: Ctx; review: boolean }) {
         }
       />
       <StayHelp>
-        {count < 3
-          ? `Add at least three photos to continue (${count} so far, up to ${LISTING_PHOTO_MAX}). The first photo is the cover.`
+        {count < RENTAL_PHOTO_MIN
+          ? `Add at least ${RENTAL_PHOTO_MIN} photos to continue (${count} so far, up to ${LISTING_PHOTO_MAX}). The first photo is the cover.`
           : review
             ? `You have ${count} photos. The first photo is the cover. Use the arrows or menu on a photo to reorder, crop, or remove it.`
             : `You have ${count} photos. The first photo is the cover.`}

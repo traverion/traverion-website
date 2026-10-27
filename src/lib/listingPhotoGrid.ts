@@ -14,6 +14,8 @@ export const LISTING_PHOTO_GRID_COLS = 4;
 export const LISTING_PHOTO_GRID_ROWS = 3;
 export const LISTING_PHOTO_GRID_SLOTS = LISTING_PHOTO_GRID_COLS * LISTING_PHOTO_GRID_ROWS;
 export const LISTING_PHOTO_MIN = 4;
+/** Rentals require three photos (cover + gallery), not the tour publish minimum of four. */
+export const RENTAL_PHOTO_MIN = 3;
 export const LISTING_PHOTO_MAX = 12;
 
 export type ListingPhotoFileReject = { name: string; reason: string };
@@ -190,4 +192,12 @@ export function photoSlotsFromTourPackage(tour: TourPackage): string[] {
     slots[i++] = u;
   }
   return slots;
+}
+
+/**
+ * Total persisted photos: cover (`image`) plus `galleryImageUrls`.
+ * Saving splits ordered slots into cover + gallery, so gallery length alone undercounts.
+ */
+export function listingPersistedPhotoCount(tour: TourPackage): number {
+  return orderedPhotoUrls(photoSlotsFromTourPackage(tour)).length;
 }

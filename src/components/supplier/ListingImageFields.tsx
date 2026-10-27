@@ -50,6 +50,10 @@ type ListingImageFieldsProps = {
   userId: string | null | undefined;
   uploadsEnabled: boolean;
   presentation?: 'default' | 'stay';
+  /** Override publish minimum (tours use LISTING_PHOTO_MIN; rentals use RENTAL_PHOTO_MIN). */
+  minPhotos?: number;
+  /** True while an upload/replace/remove storage call is in flight. */
+  onBusyChange?: (busy: boolean) => void;
 };
 
 type PhotoIssue = { name: string; message: string; retryFiles?: File[] };
@@ -74,8 +78,11 @@ export default function ListingImageFields({
   userId,
   uploadsEnabled,
   presentation = 'default',
+  minPhotos = LISTING_PHOTO_MIN,
+  onBusyChange,
 }: ListingImageFieldsProps) {
   const stayGallery = presentation === 'stay';
+  const photoMin = Number.isFinite(minPhotos) && minPhotos > 0 ? Math.floor(minPhotos) : LISTING_PHOTO_MIN;
   const slots = normalizePhotoSlots(photoSlots);
   const labels = normalizePhotoSlotLabels(photoSlotLabels);
   const originals = normalizePhotoOriginalUrls(photoOriginalUrls);
@@ -126,6 +133,13 @@ export default function ListingImageFields({
     if (menuIndex == null) return;
     if (menuIndex >= filledCount) closeMenu();
   }, [menuIndex, filledCount]);
+
+  useEffect(() => {
+    onBusyChange?.(busy);
+    return () => {
+      if (busy) onBusyChange?.(false);
+    };
+  }, [busy, onBusyChange]);
 
   const openPicker = (replaceIndex: number | null) => {
     if (!uploadsEnabled || !userId || busy) return;
@@ -386,9 +400,9 @@ export default function ListingImageFields({
   const countLabel = `${filledCount}/${LISTING_PHOTO_MAX}`;
   const progressHint =
     filledCount === 0
-      ? `${LISTING_PHOTO_MIN}–${LISTING_PHOTO_MAX} required to publish`
-      : filledCount < LISTING_PHOTO_MIN
-        ? `${LISTING_PHOTO_MIN - filledCount} more for publish`
+      ? `${photoMin}–${LISTING_PHOTO_MAX} required to publish`
+      : filledCount < photoMin
+        ? `${photoMin - filledCount} more for publish`
         : 'Ready for publish';
 
   const menuItems = (index: number) => {
@@ -528,7 +542,7 @@ export default function ListingImageFields({
             {busy ? uploadLabel || 'Uploading…' : 'Add photos'}
           </span>
           <span className="partner-meta tabular-nums">
-            {LISTING_PHOTO_MIN}–{LISTING_PHOTO_MAX} · under {LISTING_IMAGE_MAX_MB} MB · HEIC OK
+            {photoMin}–{LISTING_PHOTO_MAX} · under {LISTING_IMAGE_MAX_MB} MB · HEIC OK
           </span>
         </button>
       ) : (

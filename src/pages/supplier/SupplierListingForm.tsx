@@ -1676,6 +1676,7 @@ export default function SupplierListingForm({
   const [rentalStage, setRentalStage] = useState(0);
   const [rentalStageDir, setRentalStageDir] = useState<'forward' | 'back'>('forward');
   const [rentalStageAttempted, setRentalStageAttempted] = useState(false);
+  const [rentalPhotosBusy, setRentalPhotosBusy] = useState(false);
   const [rentalReturnStage, setRentalReturnStage] = useState<number | null>(null);
   const [rentalCommissionBps, setRentalCommissionBps] = useState<number | null>(null);
   const rentalStageHydrated = useRef(false);
@@ -4316,6 +4317,10 @@ export default function SupplierListingForm({
                     type="button"
                     onClick={() => {
                       if (isRentalForm) {
+                        if (rentalPhotosBusy) {
+                          setRentalStageAttempted(true);
+                          return;
+                        }
                         if (rentalOnboardingBlocker) {
                           setRentalStageAttempted(true);
                           return;
@@ -4346,7 +4351,7 @@ export default function SupplierListingForm({
                     }}
                     disabled={
                       (isRentalForm
-                        ? Boolean(rentalOnboardingBlocker)
+                        ? Boolean(rentalOnboardingBlocker) || rentalPhotosBusy
                         : isStayForm
                         ? Boolean(stayOnboardingBlocker)
                         : tourBasicsGuided
@@ -4385,24 +4390,45 @@ export default function SupplierListingForm({
                   <button
                     type="button"
                     onClick={() => {
+                      if (rentalPhotosBusy) {
+                        setRentalStageAttempted(true);
+                        setPublishBlockers([
+                          'Wait for photo uploads to finish, then try again. Uploaded photos are kept.',
+                        ]);
+                        return;
+                      }
                       const issues = rentalPublishBlockers(rentalOnboardingCheck);
                       if (issues.length > 0) {
                         setRentalStageAttempted(true);
                         setPublishBlockers(issues);
                         return;
                       }
-                      setForm((current) => ({
-                        ...current,
-                        rental: { ...(current.rental ?? emptyRentalDetails()), creatorComplete: true },
+                      // Sync formRef before runSubmit — setState alone would race and drop creatorComplete.
+                      const nextForm: ListingFormState = {
+                        ...formRef.current,
+                        rental: {
+                          ...(formRef.current.rental ?? emptyRentalDetails()),
+                          creatorComplete: true,
+                        },
                         status: 'draft',
-                      }));
+                      };
+                      formRef.current = nextForm;
+                      setForm(nextForm);
                       void runSubmit('draft', { closeOnSuccess: true, bypassLastStepArm: true });
                     }}
-                    disabled={submitting || draftCloseBusy || shellExiting}
-                    title="Saves a complete rental draft. Travelers cannot book rentals yet."
+                    disabled={submitting || draftCloseBusy || shellExiting || rentalPhotosBusy}
+                    title={
+                      rentalPhotosBusy
+                        ? 'Wait for photo uploads to finish'
+                        : 'Saves a complete rental draft. Travelers cannot book rentals yet.'
+                    }
                     className="stay-nav-btn stay-nav-btn--end touch-manipulation tv-btn-primary !min-h-11 disabled:opacity-50"
                   >
-                    {submitting || shellExiting ? 'Saving…' : 'Finish rental setup'}
+                    {submitting || shellExiting
+                      ? 'Saving…'
+                      : rentalPhotosBusy
+                        ? 'Uploading photos…'
+                        : 'Finish rental setup'}
                   </button>
                 ) : (
                   <button
@@ -4421,7 +4447,9 @@ export default function SupplierListingForm({
               ? (() => {
                   const hint = isRentalForm
                     ? rentalStageAttempted
-                      ? rentalOnboardingBlocker
+                      ? rentalPhotosBusy
+                        ? 'Wait for photo uploads to finish before continuing.'
+                        : rentalOnboardingBlocker
                       : null
                     : isStayForm
                     ? stayStageAttempted
@@ -4512,6 +4540,7 @@ export default function SupplierListingForm({
                 listingCurrency={listingCurrency}
                 userId={user?.id}
                 uploadsEnabled={isSupabaseConfigured() && !!user?.id}
+                onPhotosBusyChange={setRentalPhotosBusy}
               />
             </Suspense>
           ) : isStayForm ? (

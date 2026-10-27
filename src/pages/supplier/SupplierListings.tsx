@@ -82,9 +82,6 @@ import {
 } from '../../lib/booking-confirmation-copy';
 import { listingHeroImageSrc } from '../../lib/listingPhotoGrid';
 import { formatMoney } from '../../lib/money';
-import { catalogHeadlineAmount } from '../../lib/discount-display';
-import { pickHeadlineOption } from '../../lib/headline-price';
-import { materializedBookingOptions, parseListingExtras } from '../../types/listingExtras';
 import { inventoryFamilyFromListing, PARTNER_CREATE_INVENTORY } from '../../lib/inventory';
 import {
   filterPartnerListings,
@@ -92,8 +89,7 @@ import {
   type PartnerListingsSort,
   parsePartnerListingsTypeFilter,
   parsePartnerListingsWorkspaceFilter,
-  partnerListingExperienceKind,
-  partnerListingTypeLabel,
+  partnerListingCommerceSummary,
   partnerListingsTypeCounts,
   partnerListingsVisibleTypeFilters,
   partnerListingsVisibleWorkspaceFilters,
@@ -1528,15 +1524,13 @@ export default function SupplierListings() {
               const isLive = listing.status !== 'draft';
               const family = inventoryFamilyFromListing(listing);
               const isStay = family === 'stay';
-              const typeKind = partnerListingExperienceKind(listing);
-              const typeLabel = partnerListingTypeLabel(typeKind);
+              const commerce = partnerListingCommerceSummary(listing);
+              const typeLabel = commerce.typeLabel;
               const currency = listing.price?.currency ?? 'EUR';
-              const from = catalogHeadlineAmount(listing);
-              const money = from == null || from <= 0 ? null : formatMoney(from, currency);
-              const opts = materializedBookingOptions(
-                parseListingExtras(listing.listingExtras).bookingOptions
-              );
-              const qualifier = pickHeadlineOption(opts).qualifier;
+              const money =
+                commerce.amount == null || commerce.amount <= 0
+                  ? null
+                  : formatMoney(commerce.amount, currency);
               const place = [listing.city, listing.country ?? listing.destination]
                 .filter(Boolean)
                 .join(', ');
@@ -1607,8 +1601,10 @@ export default function SupplierListings() {
                         <p className="mt-0.5 hidden text-[11.5px] font-medium text-ink-faint sm:block lg:hidden">
                           {typeLabel}
                           {money ? ` · From ${money}` : ' · Price not set'}
-                          {!isStay && opts.length > 0
-                            ? ` · ${opts.length} option${opts.length === 1 ? '' : 's'}`
+                          {family === 'rental' || family === 'tour'
+                            ? commerce.optionsLine.startsWith('No ')
+                              ? ''
+                              : ` · ${commerce.optionsLine}`
                             : ''}
                         </p>
                         {readinessLine ? (
@@ -1652,22 +1648,14 @@ export default function SupplierListings() {
                           <>
                             From {money}
                             <span className="font-medium text-ink-muted">
-                              {qualifier && !isStay ? ` / ${qualifier}` : isStay ? ' / night' : ''}
+                              {commerce.qualifier ? ` / ${commerce.qualifier}` : ''}
                             </span>
                           </>
                         ) : (
                           <span className="font-medium text-ink-muted">Price not set</span>
                         )}
                       </p>
-                      {!isStay ? (
-                        <p className="mt-0.5 text-[12px] text-ink-muted">
-                          {opts.length > 0
-                            ? `${opts.length} booking option${opts.length === 1 ? '' : 's'}`
-                            : 'No booking options'}
-                        </p>
-                      ) : (
-                        <p className="mt-0.5 text-[12px] text-ink-muted">Stay · nightly</p>
-                      )}
+                      <p className="mt-0.5 text-[12px] text-ink-muted">{commerce.optionsLine}</p>
                     </div>
 
                     <div className="tv-ops-listing-row__actions flex shrink-0 items-center justify-end gap-1.5 border-t border-black/[0.06] pt-2.5 lg:border-t-0 lg:pt-0">
@@ -1690,7 +1678,9 @@ export default function SupplierListings() {
                         disabled={!canEditListings}
                         aria-expanded={listingActionsMenuId === listing.id}
                         aria-haspopup="menu"
-                        aria-label={isStay ? 'Stay actions' : 'Tour actions'}
+                        aria-label={
+                          isStay ? 'Stay actions' : family === 'rental' ? 'Rental actions' : 'Tour actions'
+                        }
                         className="tv-ops-listing-row__menu lux-flat inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-ink-muted hover:bg-black/[0.05] hover:text-ink disabled:opacity-40"
                       >
                         <MoreHorizontal className="h-4 w-4" aria-hidden />
@@ -1764,7 +1754,9 @@ export default function SupplierListings() {
               <div
                 role="menu"
                 data-listing-actions-menu
-                aria-label={menuIsStay ? 'Stay actions' : 'Tour actions'}
+                aria-label={
+                  menuIsStay ? 'Stay actions' : menuIsRental ? 'Rental actions' : 'Tour actions'
+                }
                 tabIndex={-1}
                 onKeyDown={onMenuKeyDown}
                 className="fixed z-[70] rounded-xl bg-paper-raised py-1 shadow-soft-lg ring-1 ring-black/[0.08] origin-top-right motion-safe:animate-slide-down"

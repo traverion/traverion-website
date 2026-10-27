@@ -32,6 +32,7 @@ import { stayBedCount } from './stay-beds';
 import { activeStayOptions } from './stay-options';
 import { rentalPublishBlockers } from './rental-onboarding';
 import { emptyRentalDetails, normalizeRentalDetails } from './rental-details';
+import { listingPersistedPhotoCount } from './listingPhotoGrid';
 
 function optionPublishIssues(
   o: ListingBookingOption,
@@ -119,9 +120,8 @@ export function getListingPublishBlockers(
   // Rentals are never publicly bookable yet — always block “publish” with a clear readiness message.
   if (isRental) {
     const rental = normalizeRentalDetails(listing.listingExtras?.rental) ?? emptyRentalDetails();
-    const galleryCount = (listing.listingExtras?.galleryImageUrls ?? [])
-      .map((u) => String(u).trim())
-      .filter(Boolean).length;
+    // Cover is stored on `image`; remaining slots on galleryImageUrls — count both.
+    const galleryCount = listingPersistedPhotoCount(listing);
     const creatorBlockers = rentalPublishBlockers({
       title: listing.title ?? '',
       subtitle: listing.subtitle ?? '',

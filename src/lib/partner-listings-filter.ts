@@ -1,9 +1,19 @@
 import { inventoryFamilyFromListing, type InventoryListingSlice } from './inventory';
+import { catalogHeadlineAmount } from './discount-display';
+import { pickHeadlineOption } from './headline-price';
+import {
+  emptyRentalDetails,
+  normalizeRentalDetails,
+  rentalLowestDayPriceMinor,
+  rentalLowestHourPriceMinor,
+} from './rental-details';
+import { materializedBookingOptions, parseListingExtras } from '../types/listingExtras';
+import type { TourPackage } from '../types/tour';
 
 export type PartnerListingsWorkspaceFilter = 'all' | 'tour' | 'stay' | 'draft' | 'published';
 
 /** Experience / inventory type chips — only show when supported by data. */
-export type PartnerListingsTypeFilter = 'all' | 'tour' | 'ticket' | 'transportation' | 'stay';
+export type PartnerListingsTypeFilter = 'all' | 'tour' | 'ticket' | 'transportation' | 'stay' | 'rental';
 
 export function parsePartnerListingsWorkspaceFilter(raw: string | null | undefined): PartnerListingsWorkspaceFilter {
   if (raw === 'tour' || raw === 'stay' || raw === 'draft' || raw === 'published') return raw;
@@ -11,14 +21,24 @@ export function parsePartnerListingsWorkspaceFilter(raw: string | null | undefin
 }
 
 export function parsePartnerListingsTypeFilter(raw: string | null | undefined): PartnerListingsTypeFilter {
-  if (raw === 'tour' || raw === 'ticket' || raw === 'transportation' || raw === 'stay') return raw;
+  if (
+    raw === 'tour' ||
+    raw === 'ticket' ||
+    raw === 'transportation' ||
+    raw === 'stay' ||
+    raw === 'rental'
+  ) {
+    return raw;
+  }
   return 'all';
 }
 
 export function partnerListingExperienceKind(
   listing: InventoryListingSlice & { experienceKind?: string | null }
-): 'tour' | 'ticket' | 'transportation' | 'stay' {
-  if (inventoryFamilyFromListing(listing) === 'stay') return 'stay';
+): 'tour' | 'ticket' | 'transportation' | 'stay' | 'rental' {
+  const family = inventoryFamilyFromListing(listing);
+  if (family === 'stay') return 'stay';
+  if (family === 'rental') return 'rental';
   const kind = (listing.experienceKind ?? 'tour').toString().trim().toLowerCase();
   if (kind === 'ticket') return 'ticket';
   if (kind === 'transportation' || kind === 'transport') return 'transportation';
@@ -111,6 +131,7 @@ export function partnerListingsTypeCounts(
     ticket: 0,
     transportation: 0,
     stay: 0,
+    rental: 0,
   };
   for (const listing of listings) {
     counts[partnerListingExperienceKind(listing)] += 1;
@@ -140,6 +161,7 @@ const TYPE_FILTER_ORDER: PartnerListingsTypeFilter[] = [
   'ticket',
   'transportation',
   'stay',
+  'rental',
 ];
 
 export function partnerListingsVisibleTypeFilters(
@@ -147,6 +169,86 @@ export function partnerListingsVisibleTypeFilters(
   current: PartnerListingsTypeFilter
 ): PartnerListingsTypeFilter[] {
   return TYPE_FILTER_ORDER.filter((id) => id === 'all' || counts[id] > 0 || current === id);
+}
+
+/** Commercial column for partner listing cards — family-aware (tour options vs rental variants). */
+export type PartnerListingCommerceSummary = {
+  typeLabel: string;
+  amount: number | null;
+  /** Unit label after the price: day / hour / night / tour qualifier. */
+  qualifier: string | null;
+  /** Second line under the price (options, units, stay nightly). */
+  optionsLine: string;
+};
+
+export function partnerListingCommerceSummary(
+  listing: InventoryListingSlice & {
+    experienceKind?: string | null;
+    price?: { startingFrom?: number; currency?: string } | null;
+    listingExtras?: unknown;
+  }
+): PartnerListingCommerceSummary {
+  const family = inventoryFamilyFromListing(listing);
+  const typeLabel = partnerListingTypeLabel(partnerListingExperienceKind(listing));
+
+  if (family === 'rental') {
+    const extras = parseListingExtras(listing.listingExtras);
+    const rental = normalizeRentalDetails(extras.rental) ?? emptyRentalDetails();
+    const variants = (rental.variants ?? []).filter((v) => (v.name ?? '').trim());
+    const units = variants.reduce(
+      (sum, v) => sum + (Number.isFinite(v.quantity) ? Math.max(0, v.quantity) : 0),
+      0
+    );
+    const mode = rental.durationMode ?? 'daily';
+    const minor =
+      mode === 'hourly' ? rentalLowestHourPriceMinor(rental) : rentalLowestDayPriceMinor(rental);
+    const fromMinor = minor != null && minor > 0 ? minor / 100 : null;
+    const fromStored =
+      typeof listing.price?.startingFrom === 'number' && listing.price.startingFrom > 0
+        ? listing.price.startingFrom
+        : null;
+    const amount = fromMinor ?? fromStored;
+    const optionPart =
+      variants.length > 0
+        ? `${variants.length} rental option${variants.length === 1 ? '' : 's'}`
+        : 'No rental options';
+    const unitsPart =
+      variants.length > 0 && units > 0 ? ` · ${units} unit${units === 1 ? '' : 's'}` : '';
+    return {
+      typeLabel,
+      amount,
+      qualifier: mode === 'hourly' ? 'hour' : 'day',
+      optionsLine: `${optionPart}${unitsPart}`,
+    };
+  }
+
+  if (family === 'stay') {
+    const amount =
+      typeof listing.price?.startingFrom === 'number' && listing.price.startingFrom > 0
+        ? listing.price.startingFrom
+        : null;
+    return {
+      typeLabel,
+      amount,
+      qualifier: 'night',
+      optionsLine: 'Stay · nightly',
+    };
+  }
+
+  const tour = listing as TourPackage;
+  const from = catalogHeadlineAmount(tour);
+  const amount = from > 0 ? from : null;
+  const opts = materializedBookingOptions(parseListingExtras(listing.listingExtras).bookingOptions);
+  const qualifier = pickHeadlineOption(opts).qualifier ?? null;
+  return {
+    typeLabel,
+    amount,
+    qualifier,
+    optionsLine:
+      opts.length > 0
+        ? `${opts.length} booking option${opts.length === 1 ? '' : 's'}`
+        : 'No booking options',
+  };
 }
 
 export type PartnerListingsSort =
@@ -217,6 +319,7 @@ export function partnerListingTypeLabel(kind: PartnerListingsTypeFilter): string
   if (kind === 'ticket') return 'Ticket';
   if (kind === 'transportation') return 'Transport';
   if (kind === 'stay') return 'Stay';
+  if (kind === 'rental') return 'Rental';
   if (kind === 'tour') return 'Tour';
   return 'All types';
 }
