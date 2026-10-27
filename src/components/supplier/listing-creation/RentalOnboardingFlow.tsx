@@ -2494,21 +2494,23 @@ export default function RentalOnboardingFlow(props: Props) {
     id === 'hours' ||
     id === 'options' ||
     id === 'pickup-location' ||
-    id === 'return-location' ||
     id === 'handover' ||
     id === 'duration' ||
-    id === 'daily-counting' ||
-    id === 'booking-rules';
+    id === 'booking-rules' ||
+    id === 'requirements' ||
+    id === 'inclusions';
 
   const showBack = props.returnStage != null && props.stage !== props.returnStage;
 
   let body: ReactNode = null;
   switch (id) {
     case 'basics-category':
-      body = <CategoryStage ctx={ctx} />;
-      break;
-    case 'basics-item':
-      body = <ItemTypeStage ctx={ctx} />;
+      body = (
+        <div className="space-y-8">
+          <CategoryStage ctx={ctx} />
+          {rental.category ? <ItemTypeStage ctx={ctx} /> : null}
+        </div>
+      );
       break;
     case 'basics-location':
       body = (
@@ -2530,10 +2532,15 @@ export default function RentalOnboardingFlow(props: Props) {
       );
       break;
     case 'basics-description':
-      body = <DescriptionStage ctx={ctx} />;
-      break;
-    case 'basics-highlights':
-      body = <HighlightsStage ctx={ctx} />;
+      body = (
+        <div className="space-y-8">
+          <DescriptionStage ctx={ctx} />
+          <div className="space-y-2">
+            <p className="stay-kicker">Highlights</p>
+            <HighlightsStage ctx={ctx} />
+          </div>
+        </div>
+      );
       break;
     case 'basics-specs':
       body = <SpecsStage ctx={ctx} />;
@@ -2542,10 +2549,12 @@ export default function RentalOnboardingFlow(props: Props) {
       body = <PhotosStage ctx={ctx} review={false} />;
       break;
     case 'pickup-location':
-      body = <PickupStage ctx={ctx} />;
-      break;
-    case 'return-location':
-      body = <ReturnStage ctx={ctx} />;
+      body = (
+        <div className="space-y-8">
+          <PickupStage ctx={ctx} />
+          <ReturnStage ctx={ctx} />
+        </div>
+      );
       break;
     case 'handover':
       body = <CollectionStage ctx={ctx} />;
@@ -2558,14 +2567,12 @@ export default function RentalOnboardingFlow(props: Props) {
       break;
     case 'duration':
       body = (
-        <div className="space-y-6">
+        <div className="space-y-8">
           <DurationModeStage ctx={ctx} />
           <DurationLimitsStage ctx={ctx} />
+          <DailyRulesStage ctx={ctx} />
         </div>
       );
-      break;
-    case 'daily-counting':
-      body = <DailyRulesStage ctx={ctx} />;
       break;
     case 'booking-rules':
       body = (
@@ -2594,19 +2601,21 @@ export default function RentalOnboardingFlow(props: Props) {
       );
       break;
     case 'requirements':
-      body = <RequirementsStage ctx={ctx} />;
-      break;
-    case 'accessibility':
-      body = <AccessibilityStage ctx={ctx} />;
-      break;
-    case 'suitability':
-      body = <SuitabilityStage ctx={ctx} />;
-      break;
-    case 'restrictions':
-      body = <RestrictionsStage ctx={ctx} />;
+      body = (
+        <div className="space-y-8">
+          <RequirementsStage ctx={ctx} />
+          <AccessibilityStage ctx={ctx} />
+          <SuitabilityStage ctx={ctx} />
+        </div>
+      );
       break;
     case 'inclusions':
-      body = <InclusionsStage ctx={ctx} />;
+      body = (
+        <div className="space-y-8">
+          <InclusionsStage ctx={ctx} />
+          <RestrictionsStage ctx={ctx} />
+        </div>
+      );
       break;
     case 'rules':
       body = <RulesStage ctx={ctx} />;

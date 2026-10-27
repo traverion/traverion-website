@@ -383,17 +383,24 @@ describe('skill suitability', () => {
 });
 
 describe('legacy rental screen aliases', () => {
-  it('maps retired 33-step ids onto the simplified journey', () => {
+  it('maps retired 33-step and interim 26-step ids onto the 19-screen journey', () => {
+    expect(RENTAL_ONBOARDING_SCREENS).toHaveLength(19);
     expect(resolveRentalScreenId('gallery')).toBe('photos');
     expect(resolveRentalScreenId('buffers')).toBe('booking-rules');
     expect(resolveRentalScreenId('availability-summary')).toBe('duration');
     expect(resolveRentalScreenId('basics-title')).toBe('basics-title');
     expect(resolveRentalScreenId('pickup-handover')).toBe('pickup-location');
-    expect(resolveRentalScreenId('item-type')).toBe('basics-item');
-    expect(resolveRentalScreenId('daily-rules')).toBe('daily-counting');
+    expect(resolveRentalScreenId('item-type')).toBe('basics-category');
+    expect(resolveRentalScreenId('basics-item')).toBe('basics-category');
+    expect(resolveRentalScreenId('daily-rules')).toBe('duration');
+    expect(resolveRentalScreenId('daily-counting')).toBe('duration');
     expect(resolveRentalScreenId('collection')).toBe('handover');
-    expect(resolveRentalScreenId('highlights')).toBe('basics-highlights');
-    expect(resolveRentalScreenId('basics-description')).toBe('basics-description');
+    expect(resolveRentalScreenId('highlights')).toBe('basics-description');
+    expect(resolveRentalScreenId('basics-highlights')).toBe('basics-description');
+    expect(resolveRentalScreenId('return-location')).toBe('pickup-location');
+    expect(resolveRentalScreenId('accessibility')).toBe('requirements');
+    expect(resolveRentalScreenId('suitability')).toBe('requirements');
+    expect(resolveRentalScreenId('restrictions')).toBe('inclusions');
     expect(resolveRentalScreenId('pricing')).toBe('options');
     expect(resolveRentalScreenId('multi-day')).toBe('options');
     expect(resolveRentalScreenId('earnings')).toBe('options');
@@ -401,20 +408,16 @@ describe('legacy rental screen aliases', () => {
     expect(Object.keys(LEGACY_RENTAL_SCREEN_ALIASES).length).toBeGreaterThan(10);
   });
 
-  it('places highlights immediately after the description in Basics', () => {
+  it('keeps a five-step Basics group with description+highlights merged', () => {
     const ids = RENTAL_ONBOARDING_SCREENS.filter((screen) => screen.group === 'Basics').map((screen) => screen.id);
     expect(ids).toEqual([
       'basics-category',
-      'basics-item',
       'basics-location',
       'basics-title',
       'basics-description',
-      'basics-highlights',
       'basics-specs',
     ]);
-    expect(rentalScreenIndex('basics-highlights')).toBe(rentalScreenIndex('basics-description') + 1);
-    expect(RENTAL_ONBOARDING_SCREENS[rentalScreenIndex('basics-description')].part).toBe('5 of 7');
-    expect(RENTAL_ONBOARDING_SCREENS[rentalScreenIndex('basics-highlights')].part).toBe('6 of 7');
+    expect(RENTAL_ONBOARDING_SCREENS[rentalScreenIndex('basics-description')].part).toBe('4 of 5');
     const check = {
       title: 'Thermal overall rental',
       subtitle: 'Warm overalls for a day outside.',
@@ -427,8 +430,13 @@ describe('legacy rental screen aliases', () => {
       rental: emptyRentalDetails(),
     };
     expect(rentalStageBlocker('basics-description', check)).toMatch(/40/);
-    expect(rentalStageBlocker('basics-highlights', { ...check, description: 'Warm thermal overalls for Arctic conditions, sized for a full day outside.' })).toBeNull();
-    expect(rentalScreenIndexForPublishLine('Add a highlight')).toBe(rentalScreenIndex('basics-highlights'));
+    expect(
+      rentalStageBlocker('basics-description', {
+        ...check,
+        description: 'Warm thermal overalls for Arctic conditions, sized for a full day outside.',
+      })
+    ).toBeNull();
+    expect(rentalScreenIndexForPublishLine('Add a highlight')).toBe(rentalScreenIndex('basics-description'));
     expect(rentalHighlightSuggestions('bikes')).toContain('Helmet included');
     expect(rentalHighlightSuggestions('cameras_electronics')).toContain('Battery included');
     expect(rentalHighlightSuggestions('bikes').join(' ')).not.toMatch(/family friendly/i);
@@ -452,7 +460,17 @@ describe('rental collection points', () => {
     expect(rental.pickupLng).toBeUndefined();
     expect(rental.returnAddress).toBe('Airport desk');
     expect(rentalStageBlocker('pickup-location', { rental, title: '', description: '', city: '', country: '', galleryCount: 0, experienceLanguage: 'en' })).toBeNull();
-    expect(rentalStageBlocker('return-location', { rental, title: '', description: '', city: '', country: '', galleryCount: 0, experienceLanguage: 'en' })).toBeNull();
+    expect(
+      rentalStageBlocker('pickup-location', {
+        rental: { ...rental, returnAddress: '' },
+        title: '',
+        description: '',
+        city: '',
+        country: '',
+        galleryCount: 0,
+        experienceLanguage: 'en',
+      })
+    ).toMatch(/return address/i);
   });
 
   it('sets the address and pin together, then lets the marker move without rewriting the address', () => {

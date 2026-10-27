@@ -1,6 +1,7 @@
 /**
- * Rental Creator screens — focused journey (~19 screens).
- * Legacy screen IDs from the 33-step registry remap via LEGACY_RENTAL_SCREEN_ALIASES.
+ * Rental Creator screens — streamlined journey (19 screens).
+ * Split-out screens from interim 26-step work remap via LEGACY_RENTAL_SCREEN_ALIASES
+ * so saved drafts resume on the merged screen without data loss.
  */
 
 import type { RentalDetails } from '../types/rental';
@@ -17,49 +18,35 @@ export const RENTAL_ONBOARDING_SCREENS = [
   {
     id: 'basics-category',
     group: 'Basics',
-    part: '1 of 7',
+    part: '1 of 5',
     title: 'What are you renting out?',
-    body: 'Choose the category that matches the product. Item type is the next step.',
-  },
-  {
-    id: 'basics-item',
-    group: 'Basics',
-    part: '2 of 7',
-    title: 'Which item type is it?',
-    body: 'Pick the closest type. Use “Something else” when none of the names fit.',
+    body: 'Choose the category and the closest item type.',
   },
   {
     id: 'basics-location',
     group: 'Basics',
-    part: '3 of 7',
+    part: '2 of 5',
     title: 'Where is your rental?',
     body: 'Destination, time zone, and the language you write the listing in.',
   },
   {
     id: 'basics-title',
     group: 'Basics',
-    part: '4 of 7',
+    part: '3 of 5',
     title: 'Name your rental',
     body: 'A clear title and a short introduction for search and cards.',
   },
   {
     id: 'basics-description',
     group: 'Basics',
-    part: '5 of 7',
+    part: '4 of 5',
     title: 'Describe the rental',
-    body: 'The full description customers read on the listing.',
-  },
-  {
-    id: 'basics-highlights',
-    group: 'Basics',
-    part: '6 of 7',
-    title: 'Highlights',
-    body: 'Short points customers can scan. Only highlights you add are saved.',
+    body: 'The full description, then short highlights customers can scan.',
   },
   {
     id: 'basics-specs',
     group: 'Basics',
-    part: '7 of 7',
+    part: '5 of 5',
     title: 'Shared specifications',
     body: 'Facts that apply to every option. Sizes and models that differ belong in options.',
   },
@@ -73,28 +60,21 @@ export const RENTAL_ONBOARDING_SCREENS = [
   {
     id: 'pickup-location',
     group: 'Pickup & return',
-    part: '1 of 4',
-    title: 'Where do customers collect it?',
-    body: 'The pickup address or meeting place.',
-  },
-  {
-    id: 'return-location',
-    group: 'Pickup & return',
-    part: '2 of 4',
-    title: 'Where do they return it?',
-    body: 'Same place as pickup, or a different return point.',
+    part: '1 of 3',
+    title: 'Pickup and return place',
+    body: 'Where customers collect the rental, and where they return it.',
   },
   {
     id: 'hours',
     group: 'Pickup & return',
-    part: '3 of 4',
+    part: '2 of 3',
     title: 'Pickup and return hours',
     body: 'Choose the open days, then set one pickup window and one return window.',
   },
   {
     id: 'handover',
     group: 'Pickup & return',
-    part: '4 of 4',
+    part: '3 of 3',
     title: 'How does handover work?',
     body: 'Staff or self-service, then any practical instructions.',
   },
@@ -108,77 +88,49 @@ export const RENTAL_ONBOARDING_SCREENS = [
   {
     id: 'duration',
     group: 'Availability & duration',
-    part: '1 of 3',
+    part: '1 of 2',
     title: 'How long can it be rented?',
-    body: 'Hourly, daily, or both, then the shortest and longest rental you accept.',
-  },
-  {
-    id: 'daily-counting',
-    group: 'Availability & duration',
-    part: '2 of 3',
-    title: 'How is a day counted?',
-    body: 'A rental day runs from the pickup date to the return date, during your opening hours.',
+    body: 'Hourly, daily, or both, length limits, and how a rental day is counted.',
   },
   {
     id: 'booking-rules',
     group: 'Availability & duration',
-    part: '3 of 3',
+    part: '2 of 2',
     title: 'Notice and preparation',
     body: 'Notice is how far ahead a customer must book. Preparation is the buffer between two rentals.',
   },
   {
     id: 'requirements',
     group: 'Guest information',
-    part: '1 of 8',
-    title: 'Customer requirements',
-    body: 'Age, identification, licence, and experience. One place for each.',
-  },
-  {
-    id: 'accessibility',
-    group: 'Guest information',
-    part: '2 of 8',
-    title: 'Accessibility',
-    body: 'Access at the pickup place. This is not the same as how demanding the product is.',
-  },
-  {
-    id: 'suitability',
-    group: 'Guest information',
-    part: '3 of 8',
-    title: 'Suitability',
-    body: 'Difficulty, skill, and who the rental is for or not for. Say each thing once.',
+    part: '1 of 5',
+    title: 'Who can book',
+    body: 'Age, identification, licence, experience, accessibility, and suitability.',
   },
   {
     id: 'inclusions',
     group: 'Guest information',
-    part: '4 of 8',
-    title: "What's included?",
-    body: 'Items provided with the rental at no extra charge.',
-  },
-  {
-    id: 'restrictions',
-    group: 'Guest information',
-    part: '5 of 8',
-    title: 'Restrictions',
-    body: 'Uses you do not allow. Customers see these before booking opens.',
+    part: '2 of 5',
+    title: "What's included and restricted",
+    body: 'Items provided with the rental, and uses you do not allow.',
   },
   {
     id: 'rules',
     group: 'Guest information',
-    part: '6 of 8',
+    part: '3 of 5',
     title: 'Rental rules',
     body: 'Permitted use, return condition, cleaning, damage, and late returns.',
   },
   {
     id: 'cancellation',
     group: 'Guest information',
-    part: '7 of 8',
+    part: '4 of 5',
     title: 'Cancellation policy',
     body: 'The window customers may request cancellation. Traverion does not issue automatic rental refunds.',
   },
   {
     id: 'deposit-info',
     group: 'Guest information',
-    part: '8 of 8',
+    part: '5 of 5',
     title: 'Deposits and insurance',
     body: 'Terms you manage yourself. Traverion does not collect deposits or handle insurance claims.',
   },
@@ -200,25 +152,32 @@ export const RENTAL_ONBOARDING_SCREENS = [
 
 export type RentalOnboardingScreenId = (typeof RENTAL_ONBOARDING_SCREENS)[number]['id'];
 
-/** Maps retired 33-step screen ids → current screen ids so drafts resume correctly. */
+/**
+ * Maps retired screen ids (33-step registry and interim 26-step splits)
+ * onto the current 19-screen journey so drafts resume correctly.
+ */
 export const LEGACY_RENTAL_SCREEN_ALIASES: Record<string, RentalOnboardingScreenId> = {
   category: 'basics-category',
-  'item-type': 'basics-item',
+  'item-type': 'basics-category',
+  'basics-item': 'basics-category',
   location: 'basics-location',
   language: 'basics-location',
   title: 'basics-title',
   intro: 'basics-title',
   description: 'basics-description',
-  highlights: 'basics-highlights',
+  highlights: 'basics-description',
+  'basics-highlights': 'basics-description',
   specs: 'basics-specs',
   gallery: 'photos',
   'pickup-handover': 'pickup-location',
   pickup: 'pickup-location',
-  return: 'return-location',
+  return: 'pickup-location',
+  'return-location': 'pickup-location',
   collection: 'handover',
   'duration-mode': 'duration',
   'duration-limits': 'duration',
-  'daily-rules': 'daily-counting',
+  'daily-rules': 'duration',
+  'daily-counting': 'duration',
   buffers: 'booking-rules',
   notice: 'booking-rules',
   'availability-summary': 'duration',
@@ -226,6 +185,9 @@ export const LEGACY_RENTAL_SCREEN_ALIASES: Record<string, RentalOnboardingScreen
   'multi-day': 'options',
   'pricing-overrides': 'options',
   earnings: 'options',
+  accessibility: 'requirements',
+  suitability: 'requirements',
+  restrictions: 'inclusions',
 };
 
 export function rentalScreenIndex(id: string): number {
@@ -263,9 +225,7 @@ export function rentalStageBlocker(screenId: RentalOnboardingScreenId, check: Re
   const r = check.rental;
 
   switch (screenId) {
-    case 'basics-category':
-      return r.category ? null : 'Choose a rental category to continue.';
-    case 'basics-item': {
+    case 'basics-category': {
       if (!r.category) return 'Choose a rental category to continue.';
       if (r.itemType === 'custom') {
         return (r.customItemType ?? '').trim() ? null : 'Enter a custom item type.';
@@ -288,7 +248,6 @@ export function rentalStageBlocker(screenId: RentalOnboardingScreenId, check: Re
       return (check.description || '').trim().length >= 40
         ? null
         : 'Add a description of at least 40 characters.';
-    case 'basics-highlights':
     case 'basics-specs':
       return null;
     case 'photos': {
@@ -297,17 +256,12 @@ export function rentalStageBlocker(screenId: RentalOnboardingScreenId, check: Re
       return null;
     }
     case 'pickup-location':
-      return (r.pickupAddress || '').trim().length < 5 ? 'Add a pickup address or meeting place.' : null;
-    case 'return-location':
+      if ((r.pickupAddress || '').trim().length < 5) return 'Add a pickup address or meeting place.';
       if (r.returnSameAsPickup === false && (r.returnAddress || '').trim().length < 5) {
         return 'Add a return address, or choose same as pickup.';
       }
       return null;
     case 'handover':
-    case 'daily-counting':
-    case 'accessibility':
-    case 'suitability':
-    case 'restrictions':
       return null;
     case 'hours': {
       const open = (r.operatingDays ?? []).some((d) => d.open);
@@ -344,9 +298,7 @@ export function rentalStageBlocker(screenId: RentalOnboardingScreenId, check: Re
       }
       return null;
     case 'cancellation':
-      return isRentalCancellationPreset(r.cancellationPreset)
-        ? null
-        : 'Choose a cancellation policy.';
+      return isRentalCancellationPreset(r.cancellationPreset) ? null : 'Choose a cancellation policy.';
     case 'inclusions':
     case 'rules':
     case 'deposit-info':
@@ -392,18 +344,17 @@ export function rentalPublishBlockers(check: RentalOnboardingCheck): string[] {
 export function rentalScreenIndexForPublishLine(line: string): number {
   const text = line.toLowerCase();
   if (/photo|gallery|image/.test(text)) return rentalScreenIndex('photos');
-  if (/item type/.test(text)) return rentalScreenIndex('basics-item');
-  if (/categor/.test(text)) return rentalScreenIndex('basics-category');
+  if (/item type|categor/.test(text)) return rentalScreenIndex('basics-category');
   if (/title|introduction/.test(text)) return rentalScreenIndex('basics-title');
-  if (/highlight/.test(text)) return rentalScreenIndex('basics-highlights');
-  if (/description/.test(text)) return rentalScreenIndex('basics-description');
+  if (/highlight|description/.test(text)) return rentalScreenIndex('basics-description');
   if (/city|country|location|language/.test(text)) return rentalScreenIndex('basics-location');
-  if (/handover|hours/.test(text)) return rentalScreenIndex('handover');
-  if (/return address|return location/.test(text)) return rentalScreenIndex('return-location');
-  if (/pickup|return/.test(text)) return rentalScreenIndex('pickup-location');
+  if (/handover/.test(text)) return rentalScreenIndex('handover');
+  if (/hours/.test(text)) return rentalScreenIndex('hours');
+  if (/return address|return location|pickup|return/.test(text)) return rentalScreenIndex('pickup-location');
   if (/option|variant|quantity|pricing|price/.test(text)) return rentalScreenIndex('options');
   if (/duration|hourly|daily/.test(text)) return rentalScreenIndex('duration');
-  if (/snowmobile|license|requirement/.test(text)) return rentalScreenIndex('requirements');
+  if (/snowmobile|license|requirement|accessib|suitab/.test(text)) return rentalScreenIndex('requirements');
+  if (/restriction|included|inclusion/.test(text)) return rentalScreenIndex('inclusions');
   if (/cancellation|policy/.test(text)) return rentalScreenIndex('cancellation');
   return rentalScreenIndex('publish');
 }
@@ -417,15 +368,15 @@ export const RENTAL_COMPLETION_GROUPS: {
   {
     id: 'details',
     label: 'Listing details',
-    screens: ['basics-category', 'basics-item', 'basics-location', 'basics-title', 'basics-description', 'basics-highlights', 'basics-specs'],
+    screens: ['basics-category', 'basics-location', 'basics-title', 'basics-description', 'basics-specs'],
   },
   { id: 'photos', label: 'Photos', screens: ['photos'] },
   { id: 'options', label: 'Rental options', screens: ['options'] },
-  { id: 'pricing', label: 'Availability', screens: ['duration', 'daily-counting', 'booking-rules'] },
-  { id: 'pickup', label: 'Pickup and return', screens: ['pickup-location', 'return-location', 'hours', 'handover'] },
+  { id: 'pricing', label: 'Availability', screens: ['duration', 'booking-rules'] },
+  { id: 'pickup', label: 'Pickup and return', screens: ['pickup-location', 'hours', 'handover'] },
   {
     id: 'guest',
     label: 'Guest information and policies',
-    screens: ['requirements', 'accessibility', 'suitability', 'inclusions', 'restrictions', 'rules', 'cancellation', 'deposit-info'],
+    screens: ['requirements', 'inclusions', 'rules', 'cancellation', 'deposit-info'],
   },
 ];

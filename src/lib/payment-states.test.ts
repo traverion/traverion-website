@@ -149,7 +149,7 @@ describe('payment states', () => {
     expect(
       partnerCollectedAmountCaption({ status: 'confirmed', payment_status: 'paid', amount_paid: 189 })
     ).toBe('Paid');
-    expect(REFUND_DUE_MANUAL_COPY.toLowerCase()).toContain('does not send stripe refunds automatically');
+    expect(REFUND_DUE_MANUAL_COPY.toLowerCase()).toContain('queues an automatic stripe refund');
   });
 
   it('sums outstanding Refund due separately from collected revenue', () => {

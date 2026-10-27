@@ -429,12 +429,19 @@ async function run() {
     { encoding: 'utf8', cwd: resolve('.') }
   );
   const stagingListed = `${stagingSecrets.stdout || ''}\n${stagingSecrets.stderr || ''}`;
-  if (!/RENTAL_CHECKOUT_ENABLED/i.test(stagingListed)) {
-    fail('staging_flag', new Error('staging RENTAL_CHECKOUT_ENABLED missing — abort'));
+  const stagingFlagPresent = /RENTAL_CHECKOUT_ENABLED/i.test(stagingListed);
+  if (USE_HOSTED_CHECKOUT && !stagingFlagPresent) {
+    fail(
+      'staging_flag',
+      new Error(
+        'staging RENTAL_CHECKOUT_ENABLED missing for hosted checkout — set it on staging only, or CERT_USE_HOSTED_CHECKOUT=0 for local Deno'
+      )
+    );
     writeReport();
     process.exit(2);
   }
-  step('staging_rental_checkout_flag_present');
+  if (stagingFlagPresent) step('staging_rental_checkout_flag_present');
+  else step('staging_rental_checkout_flag_absent_using_local_deno');
 
   const before = dbQuery(`
     select
