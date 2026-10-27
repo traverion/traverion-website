@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react';
-import { CheckCircle2, ChevronLeft, CircleAlert } from 'lucide-react';
+import { AlertCircle, CheckCircle2, ChevronLeft } from 'lucide-react';
 import { rentalCategoryConfig } from '../../../lib/rental-categories';
 import { formatBpsAsPercent, splitGrossByCommissionBps } from '../../../lib/commercial-money';
 import {
@@ -601,7 +601,7 @@ export default function RentalOptionEditor({
                 {complete ? (
                   <CheckCircle2 className="h-5 w-5 shrink-0" aria-hidden />
                 ) : (
-                  <CircleAlert className="h-5 w-5 shrink-0" aria-hidden />
+                  <AlertCircle className="h-5 w-5 shrink-0" aria-hidden />
                 )}
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-ink">
