@@ -59,6 +59,14 @@ function dbQuery(sql) {
 }
 
 function loadApiKeys() {
+  const env = { ...loadDotEnv(), ...process.env };
+  // Prefer local env keys so certification works when the CLI is logged into
+  // a non-Traverion org (Management API returns 403 for Traverion refs).
+  const fromEnvAnon = env.SUPABASE_ANON_KEY || env.VITE_SUPABASE_ANON_KEY;
+  const fromEnvService = env.SUPABASE_SERVICE_ROLE_KEY;
+  if (fromEnvAnon && fromEnvService) {
+    return { anon: fromEnvAnon, service: fromEnvService };
+  }
   const r = spawnSync(
     'npx',
     ['supabase', 'projects', 'api-keys', '--project-ref', PROJECT, '-o', 'json'],

@@ -409,27 +409,37 @@ async function run() {
   report.ids.guestEmail = guestEmail;
   report.ids.supplierEmail = supplierEmail;
 
-  // Production must stay closed. Staging cert requires the flag only on the staging project.
-  const prodSecrets = spawnSync(
-    'npx',
-    ['supabase', 'secrets', 'list', '--project-ref', PRODUCTION_PROJECT_REF],
-    { encoding: 'utf8', cwd: resolve('.') }
+  // Prefer edge capability probes over Management API secrets list.
+  // Management API 403s when the CLI is logged into a non-Traverion org; the
+  // public capability intent does not require platform admin privileges.
+  async function probeRentalCheckoutFlag(baseUrl, anonKey) {
+    const res = await fetch(`${baseUrl.replace(/\/$/, '')}/functions/v1/create-booking-checkout-session`, {
+      method: 'POST',
+      headers: {
+        apikey: anonKey || keys.anon,
+        Authorization: `Bearer ${anonKey || keys.anon}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ intent: 'rental_checkout_capability' }),
+    });
+    const json = await res.json().catch(() => ({}));
+    return { http: res.status, enabled: json?.rentalCheckoutEnabled === true, json };
+  }
+
+  const prodAnon = certEnv.VITE_SUPABASE_ANON_KEY || certEnv.PROD_SUPABASE_ANON_KEY || keys.anon;
+  const prodProbe = await probeRentalCheckoutFlag(
+    `https://${PRODUCTION_PROJECT_REF}.supabase.co`,
+    prodAnon
   );
-  const prodListed = `${prodSecrets.stdout || ''}\n${prodSecrets.stderr || ''}`;
-  if (/RENTAL_CHECKOUT_ENABLED/i.test(prodListed)) {
-    fail('safety_flag', new Error('RENTAL_CHECKOUT_ENABLED is present on production — abort'));
+  if (prodProbe.enabled) {
+    fail('safety_flag', new Error('RENTAL_CHECKOUT_ENABLED is active on production — abort'));
     writeReport();
     process.exit(2);
   }
-  step('production_rental_checkout_flag_absent');
+  step('production_rental_checkout_flag_absent', { via: 'capability_probe', http: prodProbe.http });
 
-  const stagingSecrets = spawnSync(
-    'npx',
-    ['supabase', 'secrets', 'list', '--project-ref', PROJECT],
-    { encoding: 'utf8', cwd: resolve('.') }
-  );
-  const stagingListed = `${stagingSecrets.stdout || ''}\n${stagingSecrets.stderr || ''}`;
-  const stagingFlagPresent = /RENTAL_CHECKOUT_ENABLED/i.test(stagingListed);
+  const stagingProbe = await probeRentalCheckoutFlag(SUPABASE_URL, keys.anon);
+  const stagingFlagPresent = stagingProbe.enabled === true;
   if (USE_HOSTED_CHECKOUT && !stagingFlagPresent) {
     fail(
       'staging_flag',
@@ -440,8 +450,8 @@ async function run() {
     writeReport();
     process.exit(2);
   }
-  if (stagingFlagPresent) step('staging_rental_checkout_flag_present');
-  else step('staging_rental_checkout_flag_absent_using_local_deno');
+  if (stagingFlagPresent) step('staging_rental_checkout_flag_present', { via: 'capability_probe', http: stagingProbe.http });
+  else step('staging_rental_checkout_flag_absent_using_local_deno', { via: 'capability_probe', http: stagingProbe.http });
 
   const before = dbQuery(`
     select
@@ -1389,14 +1399,19 @@ async function run() {
     } catch (err) {
       fail('production_stripe_webhook_post_guard', err);
     }
-    const flagAfter = spawnSync(
-      'npx',
-      ['supabase', 'secrets', 'list', '--project-ref', PRODUCTION_PROJECT_REF],
-      { encoding: 'utf8', cwd: resolve('.') }
-    );
-    report.safety.productionFlagStillAbsent = !/RENTAL_CHECKOUT_ENABLED/i.test(
-      `${flagAfter.stdout || ''}\n${flagAfter.stderr || ''}`
-    );
+    try {
+      const prodAfter = await probeRentalCheckoutFlag(
+        `https://${PRODUCTION_PROJECT_REF}.supabase.co`,
+        certEnv.VITE_SUPABASE_ANON_KEY || certEnv.PROD_SUPABASE_ANON_KEY || keys.anon
+      );
+      report.safety.productionFlagStillAbsent = prodAfter.enabled !== true;
+      report.safety.productionFlagProbe = { http: prodAfter.http, enabled: prodAfter.enabled };
+    } catch (err) {
+      report.safety.productionFlagStillAbsent = false;
+      report.errors.push(
+        `production_flag_reprobe: ${err instanceof Error ? err.message : String(err)}`
+      );
+    }
     report.safety.stagingProject = PROJECT;
     report.finishedAt = new Date().toISOString();
     report.ok =
