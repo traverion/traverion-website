@@ -2,7 +2,7 @@
 
 **Date:** 2026-10-27  
 **Baseline:** `6ee0e3ed`  
-**This delivery commit:** _(filled after push)_  
+**This delivery commit:** `615c0ccb847f945e45567dbd62a3d8889fe11f5c`  
 **Production:** `xcopqllkulxfkpunetbc` — `RENTAL_CHECKOUT_ENABLED` remains **OFF** (capability probe)  
 **Staging:** `gedktutbpfwnstcbffsc` — hosted checkout flag **ON** (capability probe)  
 **Publication gate 282:** intact (cert fixtures stayed draft)
