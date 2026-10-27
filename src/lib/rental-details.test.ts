@@ -391,18 +391,20 @@ describe('skill suitability', () => {
 });
 
 describe('legacy rental screen aliases', () => {
-  it('maps retired 33-step and interim 26-step ids onto the 22-screen journey', () => {
-    expect(RENTAL_ONBOARDING_SCREENS).toHaveLength(22);
+  it('maps retired 33-step and interim 26-step ids onto the 23-screen journey', () => {
+    expect(RENTAL_ONBOARDING_SCREENS).toHaveLength(23);
     expect(resolveRentalScreenId('gallery')).toBe('photos');
     expect(resolveRentalScreenId('buffers')).toBe('booking-rules');
     expect(resolveRentalScreenId('availability-summary')).toBe('duration');
     expect(resolveRentalScreenId('basics-title')).toBe('basics-title');
-    expect(resolveRentalScreenId('pickup-handover')).toBe('pickup-location');
+    expect(resolveRentalScreenId('pickup-handover')).toBe('pickup-handover');
+    expect(resolveRentalScreenId('return-handover')).toBe('return-handover');
     expect(resolveRentalScreenId('item-type')).toBe('basics-item');
     expect(resolveRentalScreenId('basics-item')).toBe('basics-item');
     expect(resolveRentalScreenId('daily-rules')).toBe('duration');
     expect(resolveRentalScreenId('daily-counting')).toBe('duration');
-    expect(resolveRentalScreenId('collection')).toBe('handover');
+    expect(resolveRentalScreenId('collection')).toBe('pickup-handover');
+    expect(resolveRentalScreenId('handover')).toBe('pickup-handover');
     expect(resolveRentalScreenId('highlights')).toBe('basics-highlights');
     expect(resolveRentalScreenId('basics-highlights')).toBe('basics-highlights');
     expect(resolveRentalScreenId('return-location')).toBe('return-location');
@@ -567,6 +569,8 @@ describe('rental publish readiness', () => {
       itemType: 'thermal_overall',
       durationMode: 'daily',
       pickupAddress: 'Rovaniemi depot, Main Street 1',
+      staffAssisted: true,
+      returnStaffAssisted: false,
       cancellationPreset: 'flexible_24h',
       sharedPricing: { pricePerDayMinor: 2000 },
       variants: [

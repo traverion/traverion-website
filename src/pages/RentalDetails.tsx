@@ -22,8 +22,10 @@ import {
   rentalItemLabel,
   rentalFromPrice,
   rentalOptionRateLabel,
+  rentalPickupHandoverLabel,
   rentalRequirementLabel,
   rentalSpecLabel,
+  rentalReturnHandoverLabel,
   rentalReturnPoint,
 } from '../lib/rental-presentation';
 import { supabase } from '../lib/supabase';
@@ -394,7 +396,13 @@ function RentalBody({
                 <div>
                   <dt className="font-semibold text-ink">Pickup</dt>
                   <dd className="mt-0.5 text-ink-muted">{rental.pickupAddress || 'The operator shares the pickup place after booking.'}</dd>
+                  {rentalPickupHandoverLabel(rental) ? (
+                    <dd className="mt-1 text-ink-muted">{rentalPickupHandoverLabel(rental)}</dd>
+                  ) : null}
                   {rental.pickupInstructions ? <dd className="mt-1 text-ink-muted">{rental.pickupInstructions}</dd> : null}
+                  {rental.collectionNotes?.trim() ? (
+                    <dd className="mt-1 text-ink-muted">{rental.collectionNotes.trim()}</dd>
+                  ) : null}
                 </div>
                 <div>
                   <dt className="font-semibold text-ink">Return</dt>
@@ -405,8 +413,14 @@ function RentalBody({
                         : 'Same place as pickup'
                       : returnPoint.address || 'The operator shares the return place after booking.'}
                   </dd>
+                  {rentalReturnHandoverLabel(rental) ? (
+                    <dd className="mt-1 text-ink-muted">{rentalReturnHandoverLabel(rental)}</dd>
+                  ) : null}
                   {!returnPoint.sameAsPickup && rental.returnInstructions ? (
                     <dd className="mt-1 text-ink-muted">{rental.returnInstructions}</dd>
+                  ) : null}
+                  {rental.returnCollectionNotes?.trim() ? (
+                    <dd className="mt-1 text-ink-muted">{rental.returnCollectionNotes.trim()}</dd>
                   ) : null}
                 </div>
               </dl>

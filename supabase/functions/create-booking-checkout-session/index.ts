@@ -726,6 +726,16 @@ serve(async (req) => {
         : typeof rentalRecord.returnInstructions === 'string'
           ? rentalRecord.returnInstructions.trim()
           : '';
+      const staffAssisted =
+        typeof rentalRecord.staffAssisted === 'boolean' ? rentalRecord.staffAssisted : null;
+      const collectionNotes =
+        typeof rentalRecord.collectionNotes === 'string' ? rentalRecord.collectionNotes.trim() : '';
+      const returnStaffAssisted =
+        typeof rentalRecord.returnStaffAssisted === 'boolean' ? rentalRecord.returnStaffAssisted : null;
+      const returnCollectionNotes =
+        typeof rentalRecord.returnCollectionNotes === 'string'
+          ? rentalRecord.returnCollectionNotes.trim()
+          : '';
       const cancellationPreset =
         typeof rentalRecord.cancellationPreset === 'string' ? rentalRecord.cancellationPreset.trim() : '';
       const cancellationCopy: Record<string, string> = {
@@ -753,10 +763,14 @@ serve(async (req) => {
         pickupLat,
         pickupLng,
         pickupInstructions: pickupInstructions || null,
+        staffAssisted,
+        collectionNotes: collectionNotes || null,
         returnAddress: returnAddress || null,
         returnLat,
         returnLng,
         returnInstructions: returnInstructions || null,
+        returnStaffAssisted,
+        returnCollectionNotes: returnCollectionNotes || null,
         returnSameAsPickup,
         durationCount: rentalQuote.durationCount,
         durationUnit: rentalQuote.durationUnit,

@@ -112,7 +112,11 @@ import RentalOptionEditor, {
 import { StayChoice, StayField, StayHelp } from './StayCreatorUi';
 import RentalCollectionPoint from './RentalCollectionPoint';
 import RentalCollectionMap from './RentalCollectionMap';
-import { rentalReturnPoint } from '../../../lib/rental-presentation';
+import {
+  rentalPickupHandoverLabel,
+  rentalReturnHandoverLabel,
+  rentalReturnPoint,
+} from '../../../lib/rental-presentation';
 
 export type RentalFormSlice = {
   title: string;
@@ -1358,7 +1362,7 @@ function HoursStage({ ctx }: { ctx: Ctx }) {
   );
 }
 
-function CollectionStage({ ctx }: { ctx: Ctx }) {
+function PickupHandoverStage({ ctx }: { ctx: Ctx }) {
   const { rental, patchRental } = ctx;
   const staff = rental.staffAssisted === true;
   const selfService = rental.staffAssisted === false;
@@ -1368,18 +1372,38 @@ function CollectionStage({ ctx }: { ctx: Ctx }) {
       ? 'e.g. The lockbox is by the blue door. The code is shared after booking.'
       : 'Where to meet, what to look for, and how the item is handed over.';
   return (
-    <div className="space-y-4">
-      <div className="grid gap-2 sm:grid-cols-2" role="group" aria-label="Handover method">
-        <StayChoice pressed={staff} onClick={() => patchRental({ staffAssisted: true })} icon={<UserRound className="h-4 w-4" />}>
-          <span className="block">Staff handover</span>
-          <span className="stay-help mt-0.5 block font-normal">Someone hands the item to the customer.</span>
-        </StayChoice>
-        <StayChoice pressed={selfService} onClick={() => patchRental({ staffAssisted: false })} icon={<KeyRound className="h-4 w-4" />}>
-          <span className="block">Self-service pickup</span>
-          <span className="stay-help mt-0.5 block font-normal">Customers collect it without staff present.</span>
-        </StayChoice>
+    <div className="rental-handover-stage">
+      <div className="rental-handover-choice-grid" role="group" aria-label="Pickup handover method">
+        <button
+          type="button"
+          aria-pressed={staff}
+          className={`rental-handover-choice ${staff ? 'rental-handover-choice--selected' : ''}`}
+          onClick={() => patchRental({ staffAssisted: true })}
+        >
+          <span className="rental-handover-choice__icon" aria-hidden>
+            <UserRound className="h-5 w-5" strokeWidth={1.75} />
+          </span>
+          <span className="rental-handover-choice__body">
+            <span className="rental-handover-choice__title">Staff handover</span>
+            <span className="rental-handover-choice__desc">Someone hands the item to the customer.</span>
+          </span>
+        </button>
+        <button
+          type="button"
+          aria-pressed={selfService}
+          className={`rental-handover-choice ${selfService ? 'rental-handover-choice--selected' : ''}`}
+          onClick={() => patchRental({ staffAssisted: false })}
+        >
+          <span className="rental-handover-choice__icon" aria-hidden>
+            <KeyRound className="h-5 w-5" strokeWidth={1.75} />
+          </span>
+          <span className="rental-handover-choice__body">
+            <span className="rental-handover-choice__title">Self-service pickup</span>
+            <span className="rental-handover-choice__desc">Customers collect it without staff present.</span>
+          </span>
+        </button>
       </div>
-      <StayField label="Handover instructions" optional>
+      <StayField label="Pickup instructions" optional>
         <textarea
           className="tv-input w-full resize-y py-2"
           rows={3}
@@ -1387,6 +1411,61 @@ function CollectionStage({ ctx }: { ctx: Ctx }) {
           value={rental.collectionNotes ?? ''}
           placeholder={placeholder}
           onChange={(e) => patchRental({ collectionNotes: e.target.value.slice(0, 1000) })}
+        />
+      </StayField>
+    </div>
+  );
+}
+
+function ReturnHandoverStage({ ctx }: { ctx: Ctx }) {
+  const { rental, patchRental } = ctx;
+  const staff = rental.returnStaffAssisted === true;
+  const selfService = rental.returnStaffAssisted === false;
+  const placeholder = staff
+    ? 'e.g. Return to the desk. Staff check the item and release the deposit hold.'
+    : selfService
+      ? 'e.g. Lock it in the return bay and drop the key in the box marked Returns.'
+      : 'Where to leave the item and what happens at return.';
+  return (
+    <div className="rental-handover-stage">
+      <div className="rental-handover-choice-grid" role="group" aria-label="Return handover method">
+        <button
+          type="button"
+          aria-pressed={staff}
+          className={`rental-handover-choice ${staff ? 'rental-handover-choice--selected' : ''}`}
+          onClick={() => patchRental({ returnStaffAssisted: true })}
+        >
+          <span className="rental-handover-choice__icon" aria-hidden>
+            <UserRound className="h-5 w-5" strokeWidth={1.75} />
+          </span>
+          <span className="rental-handover-choice__body">
+            <span className="rental-handover-choice__title">Staff return</span>
+            <span className="rental-handover-choice__desc">Someone receives the item from the customer.</span>
+          </span>
+        </button>
+        <button
+          type="button"
+          aria-pressed={selfService}
+          className={`rental-handover-choice ${selfService ? 'rental-handover-choice--selected' : ''}`}
+          onClick={() => patchRental({ returnStaffAssisted: false })}
+        >
+          <span className="rental-handover-choice__icon" aria-hidden>
+            <KeyRound className="h-5 w-5" strokeWidth={1.75} />
+          </span>
+          <span className="rental-handover-choice__body">
+            <span className="rental-handover-choice__title">Self-service return</span>
+            <span className="rental-handover-choice__desc">Customers return it without staff present.</span>
+          </span>
+        </button>
+      </div>
+      <StayField label="Return instructions" optional>
+        <textarea
+          className="tv-input w-full resize-y py-2"
+          rows={3}
+          maxLength={1000}
+          value={rental.returnCollectionNotes ?? ''}
+          placeholder={placeholder}
+          onChange={(e) => patchRental({ returnCollectionNotes: e.target.value.slice(0, 1000) })}
         />
       </StayField>
     </div>
@@ -2385,11 +2464,19 @@ function PreviewStage({ ctx }: { ctx: Ctx }) {
                   ))}
                 </ul>
               ) : null}
-              {rental.collectionNotes?.trim() ? <p className="text-ink-muted">{rental.collectionNotes.trim()}</p> : null}
-              {rental.staffAssisted != null ? (
-                <p className="text-ink-muted">
-                  {rental.staffAssisted ? 'Staff hand over the item' : 'Self-service pickup'}
+              {rentalPickupHandoverLabel(rental) ? (
+                <p>
+                  <span className="font-semibold">Pickup handover:</span> {rentalPickupHandoverLabel(rental)}
                 </p>
+              ) : null}
+              {rental.collectionNotes?.trim() ? <p className="text-ink-muted">{rental.collectionNotes.trim()}</p> : null}
+              {rentalReturnHandoverLabel(rental) ? (
+                <p>
+                  <span className="font-semibold">Return handover:</span> {rentalReturnHandoverLabel(rental)}
+                </p>
+              ) : null}
+              {rental.returnCollectionNotes?.trim() ? (
+                <p className="text-ink-muted">{rental.returnCollectionNotes.trim()}</p>
               ) : null}
             </div>
           </PreviewSection>
@@ -2722,7 +2809,8 @@ export default function RentalOnboardingFlow(props: Props) {
     id === 'options' ||
     id === 'pickup-location' ||
     id === 'return-location' ||
-    id === 'handover' ||
+    id === 'pickup-handover' ||
+    id === 'return-handover' ||
     id === 'duration' ||
     id === 'booking-rules' ||
     id === 'requirements' ||
@@ -2775,8 +2863,11 @@ export default function RentalOnboardingFlow(props: Props) {
     case 'return-location':
       body = <ReturnStage ctx={ctx} />;
       break;
-    case 'handover':
-      body = <CollectionStage ctx={ctx} />;
+    case 'pickup-handover':
+      body = <PickupHandoverStage ctx={ctx} />;
+      break;
+    case 'return-handover':
+      body = <ReturnHandoverStage ctx={ctx} />;
       break;
     case 'hours':
       body = <HoursStage ctx={ctx} />;

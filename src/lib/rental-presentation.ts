@@ -78,6 +78,18 @@ export function rentalRequirementLabel(rental: RentalDetails, key: string): stri
   return rentalCategoryConfig(rental.category)?.requirementKeys.find((row) => row.key === key)?.label ?? 'Requirement';
 }
 
+export function rentalPickupHandoverLabel(source: { staffAssisted?: boolean | null }): string | null {
+  if (source.staffAssisted === true) return 'Staff handover';
+  if (source.staffAssisted === false) return 'Self-service pickup';
+  return null;
+}
+
+export function rentalReturnHandoverLabel(source: { returnStaffAssisted?: boolean | null }): string | null {
+  if (source.returnStaffAssisted === true) return 'Staff return';
+  if (source.returnStaffAssisted === false) return 'Self-service return';
+  return null;
+}
+
 export function rentalHoursLines(days: RentalOperatingDay[] | undefined): string[] {
   return (days ?? [])
     .filter((day) => day.open)

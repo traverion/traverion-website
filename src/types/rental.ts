@@ -92,9 +92,15 @@ export type RentalDetails = {
   returnLat?: number | null;
   returnLng?: number | null;
   operatingDays?: RentalOperatingDay[];
+  /** Pickup handover instructions (method screen). Distinct from pickupInstructions (place). */
   collectionNotes?: string;
   idRequired?: boolean;
+  /** Pickup handover method: true = staff, false = self-service. */
   staffAssisted?: boolean;
+  /** Return handover method: true = staff, false = self-service. */
+  returnStaffAssisted?: boolean;
+  /** Return handover instructions (method screen). Distinct from returnInstructions (place). */
+  returnCollectionNotes?: string;
   durationMode?: RentalDurationMode;
   minDurationHours?: number | null;
   maxDurationHours?: number | null;

@@ -183,6 +183,10 @@ export function normalizeRentalDetails(raw: unknown): RentalDetails | undefined 
   if (typeof o.collectionNotes === 'string') out.collectionNotes = o.collectionNotes.trim().slice(0, 1000);
   if (typeof o.idRequired === 'boolean') out.idRequired = o.idRequired;
   if (typeof o.staffAssisted === 'boolean') out.staffAssisted = o.staffAssisted;
+  if (typeof o.returnStaffAssisted === 'boolean') out.returnStaffAssisted = o.returnStaffAssisted;
+  if (typeof o.returnCollectionNotes === 'string') {
+    out.returnCollectionNotes = o.returnCollectionNotes.trim().slice(0, 1000);
+  }
   if (o.durationMode === 'hourly' || o.durationMode === 'daily' || o.durationMode === 'both') {
     out.durationMode = o.durationMode;
   }

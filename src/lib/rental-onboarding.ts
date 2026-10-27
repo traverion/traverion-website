@@ -1,5 +1,5 @@
 /**
- * Rental Creator screens — streamlined journey (22 screens).
+ * Rental Creator screens — streamlined journey (23 screens).
  * Split-out screens from interim 26-step work remap via LEGACY_RENTAL_SCREEN_ALIASES
  * so saved drafts resume without data loss.
  */
@@ -74,30 +74,37 @@ export const RENTAL_ONBOARDING_SCREENS = [
   {
     id: 'pickup-location',
     group: 'Pickup & return',
-    part: '1 of 4',
+    part: '1 of 5',
     title: 'Pickup place',
     body: 'Where customers collect the rental.',
   },
   {
     id: 'return-location',
     group: 'Pickup & return',
-    part: '2 of 4',
+    part: '2 of 5',
     title: 'Return place',
     body: 'Where customers bring the rental back. Use the same spot as pickup, or set a different place.',
   },
   {
     id: 'hours',
     group: 'Pickup & return',
-    part: '3 of 4',
+    part: '3 of 5',
     title: 'Pickup and return hours',
     body: 'Choose the open days, then set one pickup window and one return window.',
   },
   {
-    id: 'handover',
+    id: 'pickup-handover',
     group: 'Pickup & return',
-    part: '4 of 4',
-    title: 'How does handover work?',
-    body: 'Staff or self-service, then any practical instructions.',
+    part: '4 of 5',
+    title: 'Pickup handover',
+    body: 'How customers receive the rental at pickup.',
+  },
+  {
+    id: 'return-handover',
+    group: 'Pickup & return',
+    part: '5 of 5',
+    title: 'Return handover',
+    body: 'How customers hand the rental back at return.',
   },
   {
     id: 'options',
@@ -175,7 +182,7 @@ export type RentalOnboardingScreenId = (typeof RENTAL_ONBOARDING_SCREENS)[number
 
 /**
  * Maps retired screen ids (33-step registry and interim 26-step splits)
- * onto the current 22-screen journey so drafts resume correctly.
+ * onto the current 23-screen journey so drafts resume correctly.
  */
 export const LEGACY_RENTAL_SCREEN_ALIASES: Record<string, RentalOnboardingScreenId> = {
   category: 'basics-category',
@@ -188,10 +195,10 @@ export const LEGACY_RENTAL_SCREEN_ALIASES: Record<string, RentalOnboardingScreen
   highlights: 'basics-highlights',
   specs: 'basics-specs',
   gallery: 'photos',
-  'pickup-handover': 'pickup-location',
   pickup: 'pickup-location',
   return: 'return-location',
-  collection: 'handover',
+  collection: 'pickup-handover',
+  handover: 'pickup-handover',
   'duration-mode': 'duration',
   'duration-limits': 'duration',
   'daily-rules': 'duration',
@@ -291,8 +298,14 @@ export function rentalStageBlocker(screenId: RentalOnboardingScreenId, check: Re
         return 'Add a return address, or choose same as pickup.';
       }
       return null;
-    case 'handover':
-      return null;
+    case 'pickup-handover':
+      return r.staffAssisted === true || r.staffAssisted === false
+        ? null
+        : 'Choose staff handover or self-service pickup.';
+    case 'return-handover':
+      return r.returnStaffAssisted === true || r.returnStaffAssisted === false
+        ? null
+        : 'Choose staff return or self-service return.';
     case 'hours': {
       const open = (r.operatingDays ?? []).some((d) => d.open);
       if (!open) return 'Select at least one operating day.';
@@ -358,6 +371,12 @@ export function rentalPublishBlockers(check: RentalOnboardingCheck): string[] {
   if (r.returnSameAsPickup === false && !(r.returnAddress || '').trim()) {
     out.push('Add a return address, or choose same as pickup.');
   }
+  if (r.staffAssisted !== true && r.staffAssisted !== false) {
+    out.push('Choose a pickup handover method.');
+  }
+  if (r.returnStaffAssisted !== true && r.returnStaffAssisted !== false) {
+    out.push('Choose a return handover method.');
+  }
   const variants = r.variants ?? [];
   if (variants.length < 1) out.push('Add at least one rental option.');
   for (const v of variants) {
@@ -383,7 +402,13 @@ export function rentalScreenIndexForPublishLine(line: string): number {
   if (/highlight/.test(text)) return rentalScreenIndex('basics-highlights');
   if (/description/.test(text)) return rentalScreenIndex('basics-description');
   if (/city|country|location|language/.test(text)) return rentalScreenIndex('basics-location');
-  if (/handover/.test(text)) return rentalScreenIndex('handover');
+  if (/return handover|staff return|self-service return/.test(text)) {
+    return rentalScreenIndex('return-handover');
+  }
+  if (/pickup handover|staff handover|self-service pickup|handover method/.test(text)) {
+    return rentalScreenIndex('pickup-handover');
+  }
+  if (/handover/.test(text)) return rentalScreenIndex('pickup-handover');
   if (/hours/.test(text)) return rentalScreenIndex('hours');
   if (/return address|return location|same as pickup/.test(text)) return rentalScreenIndex('return-location');
   if (/pickup|return/.test(text)) return rentalScreenIndex('pickup-location');
@@ -420,7 +445,7 @@ export const RENTAL_COMPLETION_GROUPS: {
   {
     id: 'pickup',
     label: 'Pickup and return',
-    screens: ['pickup-location', 'return-location', 'hours', 'handover'],
+    screens: ['pickup-location', 'return-location', 'hours', 'pickup-handover', 'return-handover'],
   },
   {
     id: 'guest',

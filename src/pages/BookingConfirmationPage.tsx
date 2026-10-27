@@ -5,7 +5,11 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { CheckCircle, Calendar, Users, LogIn, Copy, Check, Printer, MapPin, Clock } from 'lucide-react';
 import RentalCollectionMap from '../components/supplier/listing-creation/RentalCollectionMap';
-import { rentalReturnPoint } from '../lib/rental-presentation';
+import {
+  rentalPickupHandoverLabel,
+  rentalReturnHandoverLabel,
+  rentalReturnPoint,
+} from '../lib/rental-presentation';
 import { Skeleton } from '../components/ui/Skeleton';
 import ErrorState from '../components/ErrorState';
 import { USER_ERROR, userFacingError } from '../lib/userFacingError';
@@ -838,8 +842,20 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
                             Return: {rentalReturn.sameAsPickup ? `same place · ${rentalReturn.address}` : rentalReturn.address}
                           </dd>
                         ) : null}
+                        {isRentalBooking && rentalPickupHandoverLabel(rentalSnap ?? {}) ? (
+                          <dd className="text-ink-muted">Pickup: {rentalPickupHandoverLabel(rentalSnap ?? {})}</dd>
+                        ) : null}
+                        {isRentalBooking && rentalSnap?.collectionNotes ? (
+                          <dd className="text-ink-muted">{rentalSnap.collectionNotes}</dd>
+                        ) : null}
                         {isRentalBooking && rentalSnap?.pickupInstructions ? (
                           <dd className="text-ink-muted">{rentalSnap.pickupInstructions}</dd>
+                        ) : null}
+                        {isRentalBooking && rentalReturnHandoverLabel(rentalSnap ?? {}) ? (
+                          <dd className="text-ink-muted">Return: {rentalReturnHandoverLabel(rentalSnap ?? {})}</dd>
+                        ) : null}
+                        {isRentalBooking && rentalSnap?.returnCollectionNotes ? (
+                          <dd className="text-ink-muted">{rentalSnap.returnCollectionNotes}</dd>
                         ) : null}
                         {isRentalBooking && !rentalReturn?.sameAsPickup && rentalSnap?.returnInstructions ? (
                           <dd className="text-ink-muted">{rentalSnap.returnInstructions}</dd>

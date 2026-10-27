@@ -1,5 +1,5 @@
 /**
- * Creator UI smoke (logic-level): 22-screen journey, draft resume, validations.
+ * Creator UI smoke (logic-level): 23-screen journey, draft resume, validations.
  * Complements browser smoke; does not require a running Vite session.
  */
 import { describe, expect, it } from 'vitest';
@@ -30,6 +30,8 @@ function baseCheck(overrides: Partial<RentalOnboardingCheck> = {}): RentalOnboar
       shortIntro: 'Fatbikes ready for snow trails.',
       pickupAddress: 'Koskikatu 1, Rovaniemi',
       returnSameAsPickup: true,
+      staffAssisted: true,
+      returnStaffAssisted: true,
       durationMode: 'daily',
       minDurationDays: 1,
       maxDurationDays: 7,
@@ -56,22 +58,25 @@ function baseCheck(overrides: Partial<RentalOnboardingCheck> = {}): RentalOnboar
   };
 }
 
-describe('rental creator 22-screen smoke', () => {
-  it('exposes exactly 22 screens with pickup and return separated', () => {
-    expect(RENTAL_ONBOARDING_SCREENS).toHaveLength(22);
+describe('rental creator 23-screen smoke', () => {
+  it('exposes exactly 23 screens with pickup and return handover separated', () => {
+    expect(RENTAL_ONBOARDING_SCREENS).toHaveLength(23);
     const ids = RENTAL_ONBOARDING_SCREENS.map((s) => s.id);
-    expect(new Set(ids).size).toBe(22);
+    expect(new Set(ids).size).toBe(23);
     expect(ids[0]).toBe('basics-category');
     expect(ids[1]).toBe('basics-item');
     expect(ids[4]).toBe('basics-description');
     expect(ids[5]).toBe('basics-highlights');
     expect(ids).toContain('pickup-location');
     expect(ids).toContain('return-location');
+    expect(ids).toContain('pickup-handover');
+    expect(ids).toContain('return-handover');
     expect(ids.indexOf('return-location')).toBe(ids.indexOf('pickup-location') + 1);
+    expect(ids.indexOf('return-handover')).toBe(ids.indexOf('pickup-handover') + 1);
     expect(ids.at(-1)).toBe('publish');
   });
 
-  it('resumes interim and legacy draft screen ids onto the 22-screen journey', () => {
+  it('resumes interim and legacy draft screen ids onto the 23-screen journey', () => {
     expect(resolveRentalScreenId('basics-item')).toBe('basics-item');
     expect(resolveRentalScreenId('item-type')).toBe('basics-item');
     expect(resolveRentalScreenId('category')).toBe('basics-category');
@@ -80,6 +85,10 @@ describe('rental creator 22-screen smoke', () => {
     expect(resolveRentalScreenId('return-location')).toBe('return-location');
     expect(resolveRentalScreenId('return')).toBe('return-location');
     expect(resolveRentalScreenId('pickup')).toBe('pickup-location');
+    expect(resolveRentalScreenId('handover')).toBe('pickup-handover');
+    expect(resolveRentalScreenId('collection')).toBe('pickup-handover');
+    expect(resolveRentalScreenId('pickup-handover')).toBe('pickup-handover');
+    expect(resolveRentalScreenId('return-handover')).toBe('return-handover');
     expect(resolveRentalScreenId('daily-counting')).toBe('duration');
     expect(resolveRentalScreenId('accessibility')).toBe('requirements');
     expect(resolveRentalScreenId('suitability')).toBe('requirements');
@@ -140,6 +149,10 @@ describe('rental creator 22-screen smoke', () => {
         rental: { ...baseCheck().rental, returnSameAsPickup: false, returnAddress: '' },
       }),
     ).toMatch(/return address/i);
+    expect(rentalStageBlocker('pickup-handover', empty)).toMatch(/staff handover|self-service pickup/i);
+    expect(rentalStageBlocker('pickup-handover', baseCheck())).toBeNull();
+    expect(rentalStageBlocker('return-handover', empty)).toMatch(/staff return|self-service return/i);
+    expect(rentalStageBlocker('return-handover', baseCheck())).toBeNull();
   });
 
   it('walks every screen blocker without throwing for a complete draft', () => {

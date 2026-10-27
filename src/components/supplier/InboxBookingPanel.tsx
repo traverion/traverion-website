@@ -17,6 +17,10 @@ import { partnerBookingLifecycleLabel } from '../../lib/partner-bookings-desk';
 import { bookingIsRental, bookingIsStayNight } from '../../lib/pickup-completeness';
 import { parseRentalPurchaseSnapshot } from '../../lib/rental-booking-domain';
 import {
+  rentalPickupHandoverLabel,
+  rentalReturnHandoverLabel,
+} from '../../lib/rental-presentation';
+import {
   displayListingTitleFromPurchase,
   displayOptionLabelFromPurchase,
   displayStayCheckInTimeFromPurchase,
@@ -208,6 +212,12 @@ export default function InboxBookingPanel({
                   {rentalSnap?.quantity != null
                     ? `${rentalSnap.quantity} unit${rentalSnap.quantity === 1 ? '' : 's'}`
                     : null}
+                </Fact>
+                <Fact label="Pickup method">
+                  {rentalPickupHandoverLabel(rentalSnap ?? {})}
+                </Fact>
+                <Fact label="Return method">
+                  {rentalReturnHandoverLabel(rentalSnap ?? {})}
                 </Fact>
                 {optionLabel ? (
                   <Fact label="Option">
