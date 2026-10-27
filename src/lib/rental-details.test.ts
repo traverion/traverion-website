@@ -383,15 +383,15 @@ describe('skill suitability', () => {
 });
 
 describe('legacy rental screen aliases', () => {
-  it('maps retired 33-step and interim 26-step ids onto the 19-screen journey', () => {
-    expect(RENTAL_ONBOARDING_SCREENS).toHaveLength(19);
+  it('maps retired 33-step and interim 26-step ids onto the 20-screen journey', () => {
+    expect(RENTAL_ONBOARDING_SCREENS).toHaveLength(20);
     expect(resolveRentalScreenId('gallery')).toBe('photos');
     expect(resolveRentalScreenId('buffers')).toBe('booking-rules');
     expect(resolveRentalScreenId('availability-summary')).toBe('duration');
     expect(resolveRentalScreenId('basics-title')).toBe('basics-title');
     expect(resolveRentalScreenId('pickup-handover')).toBe('pickup-location');
-    expect(resolveRentalScreenId('item-type')).toBe('basics-category');
-    expect(resolveRentalScreenId('basics-item')).toBe('basics-category');
+    expect(resolveRentalScreenId('item-type')).toBe('basics-item');
+    expect(resolveRentalScreenId('basics-item')).toBe('basics-item');
     expect(resolveRentalScreenId('daily-rules')).toBe('duration');
     expect(resolveRentalScreenId('daily-counting')).toBe('duration');
     expect(resolveRentalScreenId('collection')).toBe('handover');
@@ -408,16 +408,17 @@ describe('legacy rental screen aliases', () => {
     expect(Object.keys(LEGACY_RENTAL_SCREEN_ALIASES).length).toBeGreaterThan(10);
   });
 
-  it('keeps a five-step Basics group with description+highlights merged', () => {
+  it('keeps a six-step Basics group with category and item type separated', () => {
     const ids = RENTAL_ONBOARDING_SCREENS.filter((screen) => screen.group === 'Basics').map((screen) => screen.id);
     expect(ids).toEqual([
       'basics-category',
+      'basics-item',
       'basics-location',
       'basics-title',
       'basics-description',
       'basics-specs',
     ]);
-    expect(RENTAL_ONBOARDING_SCREENS[rentalScreenIndex('basics-description')].part).toBe('4 of 5');
+    expect(RENTAL_ONBOARDING_SCREENS[rentalScreenIndex('basics-description')].part).toBe('5 of 6');
     const check = {
       title: 'Thermal overall rental',
       subtitle: 'Warm overalls for a day outside.',

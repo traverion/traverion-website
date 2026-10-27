@@ -1,7 +1,7 @@
 /**
- * Rental Creator screens — streamlined journey (19 screens).
+ * Rental Creator screens — streamlined journey (20 screens).
  * Split-out screens from interim 26-step work remap via LEGACY_RENTAL_SCREEN_ALIASES
- * so saved drafts resume on the merged screen without data loss.
+ * so saved drafts resume without data loss.
  */
 
 import type { RentalDetails } from '../types/rental';
@@ -18,35 +18,42 @@ export const RENTAL_ONBOARDING_SCREENS = [
   {
     id: 'basics-category',
     group: 'Basics',
-    part: '1 of 5',
+    part: '1 of 6',
     title: 'What are you renting out?',
-    body: 'Choose the category and the closest item type.',
+    body: 'Choose the category that best matches your rental.',
+  },
+  {
+    id: 'basics-item',
+    group: 'Basics',
+    part: '2 of 6',
+    title: 'Which item type?',
+    body: 'Pick the closest match for this category. You can refine details later.',
   },
   {
     id: 'basics-location',
     group: 'Basics',
-    part: '2 of 5',
+    part: '3 of 6',
     title: 'Where is your rental?',
     body: 'Destination, time zone, and the language you write the listing in.',
   },
   {
     id: 'basics-title',
     group: 'Basics',
-    part: '3 of 5',
+    part: '4 of 6',
     title: 'Name your rental',
     body: 'A clear title and a short introduction for search and cards.',
   },
   {
     id: 'basics-description',
     group: 'Basics',
-    part: '4 of 5',
+    part: '5 of 6',
     title: 'Describe the rental',
     body: 'The full description, then short highlights customers can scan.',
   },
   {
     id: 'basics-specs',
     group: 'Basics',
-    part: '5 of 5',
+    part: '6 of 6',
     title: 'Shared specifications',
     body: 'Facts that apply to every option. Sizes and models that differ belong in options.',
   },
@@ -154,12 +161,11 @@ export type RentalOnboardingScreenId = (typeof RENTAL_ONBOARDING_SCREENS)[number
 
 /**
  * Maps retired screen ids (33-step registry and interim 26-step splits)
- * onto the current 19-screen journey so drafts resume correctly.
+ * onto the current 20-screen journey so drafts resume correctly.
  */
 export const LEGACY_RENTAL_SCREEN_ALIASES: Record<string, RentalOnboardingScreenId> = {
   category: 'basics-category',
-  'item-type': 'basics-category',
-  'basics-item': 'basics-category',
+  'item-type': 'basics-item',
   location: 'basics-location',
   language: 'basics-location',
   title: 'basics-title',
@@ -225,12 +231,19 @@ export function rentalStageBlocker(screenId: RentalOnboardingScreenId, check: Re
   const r = check.rental;
 
   switch (screenId) {
-    case 'basics-category': {
-      if (!r.category) return 'Choose a rental category to continue.';
+    case 'basics-category':
+      return r.category ? null : 'Choose a rental category to continue.';
+    case 'basics-item': {
+      if (!r.category) return 'Choose a rental category first.';
+      const cfg = rentalCategoryConfig(r.category);
       if (r.itemType === 'custom') {
+        if (!cfg?.allowCustomItemType) return 'Choose an item type.';
         return (r.customItemType ?? '').trim() ? null : 'Enter a custom item type.';
       }
-      return r.itemType ? null : 'Choose an item type.';
+      if (!r.itemType || !cfg?.itemTypes.some((t) => t.id === r.itemType)) {
+        return 'Choose an item type.';
+      }
+      return null;
     }
     case 'basics-location':
       if (!(check.city || '').trim()) return 'Add a city.';
@@ -344,7 +357,8 @@ export function rentalPublishBlockers(check: RentalOnboardingCheck): string[] {
 export function rentalScreenIndexForPublishLine(line: string): number {
   const text = line.toLowerCase();
   if (/photo|gallery|image/.test(text)) return rentalScreenIndex('photos');
-  if (/item type|categor/.test(text)) return rentalScreenIndex('basics-category');
+  if (/item type/.test(text)) return rentalScreenIndex('basics-item');
+  if (/categor/.test(text)) return rentalScreenIndex('basics-category');
   if (/title|introduction/.test(text)) return rentalScreenIndex('basics-title');
   if (/highlight|description/.test(text)) return rentalScreenIndex('basics-description');
   if (/city|country|location|language/.test(text)) return rentalScreenIndex('basics-location');
@@ -368,7 +382,14 @@ export const RENTAL_COMPLETION_GROUPS: {
   {
     id: 'details',
     label: 'Listing details',
-    screens: ['basics-category', 'basics-location', 'basics-title', 'basics-description', 'basics-specs'],
+    screens: [
+      'basics-category',
+      'basics-item',
+      'basics-location',
+      'basics-title',
+      'basics-description',
+      'basics-specs',
+    ],
   },
   { id: 'photos', label: 'Photos', screens: ['photos'] },
   { id: 'options', label: 'Rental options', screens: ['options'] },

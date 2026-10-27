@@ -1,8 +1,9 @@
 /**
- * Creator UI smoke (logic-level): 19-screen journey, draft resume, validations.
+ * Creator UI smoke (logic-level): 20-screen journey, draft resume, validations.
  * Complements browser smoke; does not require a running Vite session.
  */
 import { describe, expect, it } from 'vitest';
+import { applyRentalCategoryChange } from './rental-categories';
 import { emptyRentalDetails } from './rental-details';
 import {
   RENTAL_ONBOARDING_SCREENS,
@@ -25,7 +26,7 @@ function baseCheck(overrides: Partial<RentalOnboardingCheck> = {}): RentalOnboar
     rental: {
       ...emptyRentalDetails(),
       category: 'bikes',
-      itemType: 'fatbike',
+      itemType: 'fat_bike',
       shortIntro: 'Fatbikes ready for snow trails.',
       pickupAddress: 'Koskikatu 1, Rovaniemi',
       returnSameAsPickup: true,
@@ -55,17 +56,20 @@ function baseCheck(overrides: Partial<RentalOnboardingCheck> = {}): RentalOnboar
   };
 }
 
-describe('rental creator 19-screen smoke', () => {
-  it('exposes exactly 19 screens with no dead-end gaps', () => {
-    expect(RENTAL_ONBOARDING_SCREENS).toHaveLength(19);
+describe('rental creator 20-screen smoke', () => {
+  it('exposes exactly 20 screens with category and item type separated', () => {
+    expect(RENTAL_ONBOARDING_SCREENS).toHaveLength(20);
     const ids = RENTAL_ONBOARDING_SCREENS.map((s) => s.id);
-    expect(new Set(ids).size).toBe(19);
+    expect(new Set(ids).size).toBe(20);
     expect(ids[0]).toBe('basics-category');
+    expect(ids[1]).toBe('basics-item');
     expect(ids.at(-1)).toBe('publish');
   });
 
-  it('resumes interim and legacy draft screen ids onto the merged journey', () => {
-    expect(resolveRentalScreenId('basics-item')).toBe('basics-category');
+  it('resumes interim and legacy draft screen ids onto the 20-screen journey', () => {
+    expect(resolveRentalScreenId('basics-item')).toBe('basics-item');
+    expect(resolveRentalScreenId('item-type')).toBe('basics-item');
+    expect(resolveRentalScreenId('category')).toBe('basics-category');
     expect(resolveRentalScreenId('basics-highlights')).toBe('basics-description');
     expect(resolveRentalScreenId('return-location')).toBe('pickup-location');
     expect(resolveRentalScreenId('daily-counting')).toBe('duration');
@@ -74,8 +78,9 @@ describe('rental creator 19-screen smoke', () => {
     expect(resolveRentalScreenId('restrictions')).toBe('inclusions');
     expect(resolveRentalScreenId('pricing')).toBe('options');
     expect(rentalScreenIndexFromStorage('basics-highlights')).toBe(
-      RENTAL_ONBOARDING_SCREENS.findIndex((s) => s.id === 'basics-description')
+      RENTAL_ONBOARDING_SCREENS.findIndex((s) => s.id === 'basics-description'),
     );
+    expect(rentalScreenIndexFromStorage('item-type')).toBe(1);
   });
 
   it('blocks incomplete early steps and clears when required fields are present', () => {
@@ -90,13 +95,27 @@ describe('rental creator 19-screen smoke', () => {
     });
     expect(rentalStageBlocker('basics-category', empty)).toMatch(/category/i);
     expect(rentalStageBlocker('basics-category', baseCheck())).toBeNull();
+    expect(rentalStageBlocker('basics-item', empty)).toMatch(/category/i);
+    expect(
+      rentalStageBlocker('basics-item', {
+        ...baseCheck(),
+        rental: { ...baseCheck().rental, itemType: undefined },
+      }),
+    ).toMatch(/item type/i);
+    expect(
+      rentalStageBlocker('basics-item', {
+        ...baseCheck(),
+        rental: { ...baseCheck().rental, itemType: 'winter_jacket' },
+      }),
+    ).toMatch(/item type/i);
+    expect(rentalStageBlocker('basics-item', baseCheck())).toBeNull();
     expect(rentalStageBlocker('photos', { ...baseCheck(), galleryCount: 1 })).toMatch(/3 photos/i);
     expect(rentalStageBlocker('photos', baseCheck())).toBeNull();
     expect(
       rentalStageBlocker('options', {
         ...baseCheck(),
         rental: { ...baseCheck().rental, variants: [{ id: 'x', name: '', quantity: 0 }] },
-      })
+      }),
     ).toMatch(/name|unit/i);
     expect(rentalStageBlocker('options', baseCheck())).toBeNull();
     expect(rentalStageBlocker('duration', baseCheck())).toBeNull();
@@ -108,5 +127,19 @@ describe('rental creator 19-screen smoke', () => {
     for (const screen of RENTAL_ONBOARDING_SCREENS) {
       expect(() => rentalStageBlocker(screen.id, check)).not.toThrow();
     }
+  });
+
+  it('resets incompatible item types when the category changes', () => {
+    const fromBikes = applyRentalCategoryChange(baseCheck().rental, 'winter_clothing');
+    expect(fromBikes.category).toBe('winter_clothing');
+    expect(fromBikes.itemType).toBeUndefined();
+    expect(fromBikes.customItemType).toBeUndefined();
+
+    const keepCompatible = applyRentalCategoryChange(
+      { ...baseCheck().rental, itemType: 'custom', customItemType: 'Cargo e-bike' },
+      'vehicles',
+    );
+    expect(keepCompatible.itemType).toBe('custom');
+    expect(keepCompatible.customItemType).toBe('Cargo e-bike');
   });
 });

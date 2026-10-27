@@ -1,6 +1,32 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
-import { KeyRound, MoreHorizontal, Pencil, UserRound } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
+import {
+  Aperture,
+  Bike,
+  Bus,
+  Camera,
+  Car,
+  CircleDot,
+  Footprints,
+  Gauge,
+  KeyRound,
+  Layers,
+  MoreHorizontal,
+  Mountain,
+  MountainSnow,
+  Package,
+  Pencil,
+  Plane,
+  Shirt,
+  Snowflake,
+  Tent,
+  Truck,
+  UserRound,
+  Video,
+  Watch,
+  Zap,
+} from 'lucide-react';
 import {
   RENTAL_COMPLETION_GROUPS,
   RENTAL_ONBOARDING_SCREENS,
@@ -14,6 +40,7 @@ import {
 } from '../../../lib/rental-onboarding';
 import {
   RENTAL_CATEGORY_CONFIG,
+  applyRentalCategoryChange,
   rentalCategoryConfig,
   rentalHighlightSuggestions,
   rentalItemTypeLabel,
@@ -347,7 +374,7 @@ function MissingCategory({ ctx }: { ctx: Ctx }) {
   return (
     <section className="stay-panel space-y-2">
       <p className="text-sm text-ink">Choose a rental category first so we can show the right fields.</p>
-      <button type="button" className="min-h-11 text-sm font-semibold text-finland" onClick={() => ctx.goTo('category')}>
+      <button type="button" className="min-h-11 text-sm font-semibold text-finland" onClick={() => ctx.goTo('basics-category')}>
         Choose category
       </button>
     </section>
@@ -479,54 +506,77 @@ function ChipEditor({
 /* Getting started                                                     */
 /* ------------------------------------------------------------------ */
 
+const CATEGORY_ICONS: Record<RentalCategoryId, LucideIcon> = {
+  bikes: Bike,
+  winter_clothing: Snowflake,
+  skis_snowboards: MountainSnow,
+  snowmobiles: Gauge,
+  outdoor_equipment: Tent,
+  cameras_electronics: Camera,
+  clothing_accessories: Shirt,
+  vehicles: Car,
+};
+
+const ITEM_TYPE_ICONS: Record<string, LucideIcon> = {
+  electric_bike: Zap,
+  standard_bicycle: Bike,
+  fat_bike: CircleDot,
+  mountain_bike: Mountain,
+  thermal_overall: Shirt,
+  winter_jacket: Shirt,
+  winter_boots: Footprints,
+  clothing_set: Layers,
+  skis: Mountain,
+  snowboard: MountainSnow,
+  ski_boots: Footprints,
+  complete_set: Package,
+  snowmobile: Gauge,
+  recreational_vehicle: Car,
+  snowshoes: Footprints,
+  camping: Tent,
+  other: Package,
+  camera: Camera,
+  lens: Aperture,
+  drone: Plane,
+  action_camera: Video,
+  jacket: Shirt,
+  footwear: Footprints,
+  accessory: Watch,
+  outfit: Layers,
+  car: Car,
+  atv: Truck,
+  van: Bus,
+  custom: MoreHorizontal,
+};
+
 function CategoryStage({ ctx }: { ctx: Ctx }) {
   const { rental, patchRental } = ctx;
   const choose = (id: RentalCategoryId) => {
     if (rental.category === id) return;
-    const nextCfg = RENTAL_CATEGORY_CONFIG[id];
-    const attrKeys = new Set(nextCfg.variantAttributeKeys.map((a) => a.key));
-    const specKeys = new Set(nextCfg.listingSpecKeys.map((s) => s.key));
-    const reqKeys = new Set(nextCfg.requirementKeys.map((r) => r.key));
-    const keepItem =
-      rental.itemType === 'custom' && nextCfg.allowCustomItemType
-        ? 'custom'
-        : nextCfg.itemTypes.some((t) => t.id === rental.itemType)
-          ? rental.itemType
-          : undefined;
-    const variants = (rental.variants ?? []).map((v) => ({
-      ...v,
-      attributes: Object.fromEntries(Object.entries(v.attributes ?? {}).filter(([k]) => attrKeys.has(k))),
-    }));
-    patchRental({
-      category: id,
-      itemType: keepItem,
-      customItemType: keepItem === 'custom' ? rental.customItemType : undefined,
-      specifications: Object.fromEntries(
-        Object.entries(rental.specifications ?? {}).filter(
-          ([k, v]) => k !== 'skillLevel' && specKeys.has(k) && String(v).trim(),
-        )
-      ),
-      skillSuitability: (rental.skillSuitability ?? rental.specifications?.skillLevel ?? '').trim() || undefined,
-      requirements: Object.fromEntries(
-        Object.entries(rental.requirements ?? {}).filter(([k, v]) => reqKeys.has(k) && String(v).trim())
-      ),
-      variants,
-      difficulty: nextCfg.difficultyApplies
-        ? rental.difficulty === 'not_applicable'
-          ? null
-          : rental.difficulty
-        : 'not_applicable',
-    });
+    patchRental(applyRentalCategoryChange(rental, id));
   };
   return (
-    <div className="grid gap-2" role="group" aria-label="Rental category">
+    <div className="rental-category-grid" role="group" aria-label="Rental category">
       {RENTAL_CATEGORIES.map((id) => {
         const cfg = RENTAL_CATEGORY_CONFIG[id];
+        const Icon = CATEGORY_ICONS[id];
+        const selected = rental.category === id;
         return (
-          <StayChoice key={id} pressed={rental.category === id} onClick={() => choose(id)}>
-            <span className="block">{cfg.title}</span>
-            <span className="stay-help mt-0.5 block font-normal">{cfg.description}</span>
-          </StayChoice>
+          <button
+            key={id}
+            type="button"
+            aria-pressed={selected}
+            onClick={() => choose(id)}
+            className={`rental-category-card ${selected ? 'rental-category-card--selected' : ''}`}
+          >
+            <span className="rental-category-card__icon" aria-hidden>
+              <Icon className="h-6 w-6" strokeWidth={1.75} />
+            </span>
+            <span className="rental-category-card__body">
+              <span className="rental-category-card__title">{cfg.title}</span>
+              <span className="rental-category-card__desc">{cfg.description}</span>
+            </span>
+          </button>
         );
       })}
     </div>
@@ -537,21 +587,41 @@ function ItemTypeStage({ ctx }: { ctx: Ctx }) {
   const { cfg, rental, patchRental } = ctx;
   if (!cfg) return <MissingCategory ctx={ctx} />;
   return (
-    <div className="space-y-4">
-      <div className="grid gap-2 sm:grid-cols-2" role="group" aria-label="Item type">
-        {cfg.itemTypes.map((type) => (
-          <StayChoice
-            key={type.id}
-            pressed={rental.itemType === type.id}
-            onClick={() => patchRental({ itemType: type.id, customItemType: undefined })}
-          >
-            {type.label}
-          </StayChoice>
-        ))}
+    <div className="space-y-5">
+      <p className="rental-item-type-context">
+        For <span className="font-semibold text-ink">{cfg.title}</span>
+      </p>
+      <div className="rental-item-type-grid" role="group" aria-label="Item type">
+        {cfg.itemTypes.map((type) => {
+          const Icon = ITEM_TYPE_ICONS[type.id] ?? Package;
+          const selected = rental.itemType === type.id;
+          return (
+            <button
+              key={type.id}
+              type="button"
+              aria-pressed={selected}
+              onClick={() => patchRental({ itemType: type.id, customItemType: undefined })}
+              className={`rental-item-type-card ${selected ? 'rental-item-type-card--selected' : ''}`}
+            >
+              <span className="rental-item-type-card__icon" aria-hidden>
+                <Icon className="h-5 w-5" strokeWidth={1.75} />
+              </span>
+              <span className="rental-item-type-card__label">{type.label}</span>
+            </button>
+          );
+        })}
         {cfg.allowCustomItemType ? (
-          <StayChoice pressed={rental.itemType === 'custom'} onClick={() => patchRental({ itemType: 'custom' })}>
-            Something else
-          </StayChoice>
+          <button
+            type="button"
+            aria-pressed={rental.itemType === 'custom'}
+            onClick={() => patchRental({ itemType: 'custom' })}
+            className={`rental-item-type-card ${rental.itemType === 'custom' ? 'rental-item-type-card--selected' : ''}`}
+          >
+            <span className="rental-item-type-card__icon" aria-hidden>
+              <MoreHorizontal className="h-5 w-5" strokeWidth={1.75} />
+            </span>
+            <span className="rental-item-type-card__label">Something else</span>
+          </button>
         ) : null}
       </div>
       {rental.itemType === 'custom' ? (
@@ -2495,8 +2565,11 @@ export default function RentalOnboardingFlow(props: Props) {
   };
 
   const previewWide = id === 'preview' || id === 'publish';
+  const categoryWide = id === 'basics-category';
   const wide =
     previewWide ||
+    categoryWide ||
+    id === 'basics-item' ||
     id === 'photos' ||
     id === 'hours' ||
     id === 'options' ||
@@ -2512,12 +2585,10 @@ export default function RentalOnboardingFlow(props: Props) {
   let body: ReactNode = null;
   switch (id) {
     case 'basics-category':
-      body = (
-        <div className="space-y-8">
-          <CategoryStage ctx={ctx} />
-          {rental.category ? <ItemTypeStage ctx={ctx} /> : null}
-        </div>
-      );
+      body = <CategoryStage ctx={ctx} />;
+      break;
+    case 'basics-item':
+      body = <ItemTypeStage ctx={ctx} />;
       break;
     case 'basics-location':
       body = (
@@ -2645,9 +2716,9 @@ export default function RentalOnboardingFlow(props: Props) {
     <>
     <div
       key={props.stage}
-      className={`stay-creator rental-creator mx-auto w-full ${previewWide ? 'max-w-[72rem]' : wide ? 'max-w-3xl' : 'max-w-xl'} ${
-        props.direction === 'back' ? 'stay-stage-back' : 'stay-stage-forward'
-      }`}
+      className={`stay-creator rental-creator mx-auto w-full ${
+        previewWide ? 'max-w-[72rem]' : categoryWide ? 'max-w-5xl' : wide ? 'max-w-3xl' : 'max-w-xl'
+      } ${props.direction === 'back' ? 'stay-stage-back' : 'stay-stage-forward'}`}
     >
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">

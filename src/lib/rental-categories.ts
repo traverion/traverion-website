@@ -1,4 +1,4 @@
-import type { RentalCategoryId } from '../types/rental';
+import type { RentalCategoryId, RentalDetails } from '../types/rental';
 
 export type RentalCategoryConfig = {
   id: RentalCategoryId;
@@ -251,4 +251,48 @@ export function rentalItemTypeLabel(category: RentalCategoryId | undefined, item
   const cfg = RENTAL_CATEGORY_CONFIG[category];
   const hit = cfg.itemTypes.find((t) => t.id === itemType);
   return hit?.label ?? itemType;
+}
+
+/**
+ * Switching category keeps compatible item types and drops fields that no longer
+ * belong to the destination category (specs, requirements, option attributes).
+ */
+export function applyRentalCategoryChange(
+  rental: RentalDetails,
+  id: RentalCategoryId,
+): Partial<RentalDetails> {
+  const nextCfg = RENTAL_CATEGORY_CONFIG[id];
+  const attrKeys = new Set(nextCfg.variantAttributeKeys.map((a) => a.key));
+  const specKeys = new Set(nextCfg.listingSpecKeys.map((s) => s.key));
+  const reqKeys = new Set(nextCfg.requirementKeys.map((r) => r.key));
+  const keepItem =
+    rental.itemType === 'custom' && nextCfg.allowCustomItemType
+      ? 'custom'
+      : nextCfg.itemTypes.some((t) => t.id === rental.itemType)
+        ? rental.itemType
+        : undefined;
+  const variants = (rental.variants ?? []).map((v) => ({
+    ...v,
+    attributes: Object.fromEntries(Object.entries(v.attributes ?? {}).filter(([k]) => attrKeys.has(k))),
+  }));
+  return {
+    category: id,
+    itemType: keepItem,
+    customItemType: keepItem === 'custom' ? rental.customItemType : undefined,
+    specifications: Object.fromEntries(
+      Object.entries(rental.specifications ?? {}).filter(
+        ([k, v]) => k !== 'skillLevel' && specKeys.has(k) && String(v).trim(),
+      ),
+    ),
+    skillSuitability: (rental.skillSuitability ?? rental.specifications?.skillLevel ?? '').trim() || undefined,
+    requirements: Object.fromEntries(
+      Object.entries(rental.requirements ?? {}).filter(([k, v]) => reqKeys.has(k) && String(v).trim()),
+    ),
+    variants,
+    difficulty: nextCfg.difficultyApplies
+      ? rental.difficulty === 'not_applicable'
+        ? null
+        : rental.difficulty
+      : 'not_applicable',
+  };
 }
