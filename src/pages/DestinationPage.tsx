@@ -78,6 +78,7 @@ export default function DestinationPage({ slug, onTourSelect, onBack, onNavigate
       // Phase 1263: hide season-ended tours (Packages/sitemap 1260/1261 parity).
       if (
         inventoryFamilyFromListing(t) !== 'stay' &&
+        inventoryFamilyFromListing(t) !== 'rental' &&
         !listingHasUpcomingBookableSeason(t)
       ) {
         return false;
@@ -92,6 +93,7 @@ export default function DestinationPage({ slug, onTourSelect, onBack, onNavigate
 
   const tourListings = useMemo(() => filterCatalogByFamily(listings, 'tour'), [listings]);
   const stayListings = useMemo(() => filterCatalogByFamily(listings, 'stay'), [listings]);
+  const rentalListings = useMemo(() => filterCatalogByFamily(listings, 'rental'), [listings]);
 
   const listingIdsForReviews = useMemo(
     () => listings.map((t) => t.id).filter(isSupabaseListingId),
@@ -143,13 +145,17 @@ export default function DestinationPage({ slug, onTourSelect, onBack, onNavigate
     if (!label) return;
     setPageMetaWithOg(
       label,
-      `Tours and stays in ${label}. ${tourListings.length} tour${tourListings.length !== 1 ? 's' : ''}${
+      `Tours, stays, and rentals in ${label}. ${tourListings.length} tour${tourListings.length !== 1 ? 's' : ''}${
         stayListings.length > 0
           ? `, ${stayListings.length} stay${stayListings.length !== 1 ? 's' : ''}`
           : ''
+      }${
+        rentalListings.length > 0
+          ? `, ${rentalListings.length} rental${rentalListings.length !== 1 ? 's' : ''}`
+          : ''
       }.`
     );
-  }, [label, tourListings.length, stayListings.length]);
+  }, [label, tourListings.length, stayListings.length, rentalListings.length]);
 
   const heroSrc = useMemo(
     () => destinationCoverSrc(slug, { candidates: listings.map((l) => l.image) }),
@@ -172,10 +178,13 @@ export default function DestinationPage({ slug, onTourSelect, onBack, onNavigate
       stayListings.length > 0
         ? `${stayListings.length} ${stayListings.length === 1 ? 'stay' : 'stays'}`
         : null,
+      rentalListings.length > 0
+        ? `${rentalListings.length} ${rentalListings.length === 1 ? 'rental' : 'rentals'}`
+        : null,
     ]
       .filter(Boolean)
       .join(' · ');
-  }, [tourListings.length, stayListings.length]);
+  }, [tourListings.length, stayListings.length, rentalListings.length]);
 
   if (!slug) {
     if (onNavigate) onNavigate('packages');
@@ -241,7 +250,7 @@ export default function DestinationPage({ slug, onTourSelect, onBack, onNavigate
             <Skeleton className="mt-2.5 h-4 w-40 bg-white/20" />
           ) : listings.length > 0 ? (
             <p className="mt-2.5 max-w-xl text-sm text-white/85 sm:text-base">
-              Discover tours and stays in {label}
+              Discover tours, stays, and rentals in {label}
               {countLine ? ` · ${countLine}` : ''}.
             </p>
           ) : (
@@ -433,6 +442,57 @@ export default function DestinationPage({ slug, onTourSelect, onBack, onNavigate
                     Browse all stays
                   </button>
                 ) : null}
+              </section>
+            ) : null}
+            {rentalListings.length > 0 ? (
+              <section aria-labelledby="destination-rentals-heading">
+                <div className="mb-5 flex flex-wrap items-end justify-between gap-2">
+                  <div>
+                    <h2
+                      id="destination-rentals-heading"
+                      className="font-sans text-2xl font-bold tracking-tight text-ink sm:text-3xl"
+                    >
+                      Rentals
+                    </h2>
+                    <p className="mt-1 text-sm text-ink-muted">
+                      {rentalListings.length}{' '}
+                      {rentalListings.length === 1 ? 'rental' : 'rentals'} in {label}
+                    </p>
+                  </div>
+                  {onNavigate ? (
+                    <button
+                      type="button"
+                      onClick={() => onNavigate('rentals')}
+                      className="tv-section-cta lux-flat text-sm"
+                    >
+                      All rentals
+                    </button>
+                  ) : null}
+                </div>
+                <div className={MARKETPLACE_BROWSE_GRID_CLASS}>
+                  {rentalListings.map((rental, index) => (
+                    <PublicListingBrowseCard
+                      key={rental.id}
+                      tour={rental}
+                      index={index}
+                      onSelect={() => onTourSelect(rental)}
+                      discountsByListing={discountsForDestinationCatalog}
+                      reviewAggregate={reviewAggregates.get(rental.id)}
+                      tagLabels={TAG_LABELS}
+                      size="compact"
+                      showTagPills={false}
+                      wishlist={
+                        wishlist.enabled && wishlist.heartsKnown
+                          ? {
+                              saved: wishlist.isSaved(rental.id),
+                              busy: wishlist.busyId === rental.id,
+                              onToggle: () => wishlist.toggle(rental.id),
+                            }
+                          : null
+                      }
+                    />
+                  ))}
+                </div>
               </section>
             ) : null}
           </div>

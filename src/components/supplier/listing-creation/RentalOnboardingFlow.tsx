@@ -2315,16 +2315,16 @@ function PreviewStage({ ctx }: { ctx: Ctx }) {
           ) : null}
 
           <section className="rounded-xl bg-[#F8FAFC] px-3.5 py-3 ring-1 ring-[#E6EAF0]" aria-label="Booking status">
-            <p className="text-sm font-semibold text-ink">Booking stays closed</p>
+            <p className="text-sm font-semibold text-ink">Partner preview</p>
             <p className="mt-1 text-sm text-ink-muted">
-              This preview does not take payment. Online rental checkout stays closed until Traverion opens it.
+              This preview does not take payment. After you publish, travelers can book on the public rental page.
             </p>
             <button
               type="button"
               disabled
               className="tv-btn-primary mt-3 min-h-11 w-full cursor-not-allowed px-4 text-sm font-semibold opacity-50"
             >
-              Booking unavailable
+              Preview only
             </button>
           </section>
         </div>
@@ -2364,7 +2364,7 @@ function PublishStage({ ctx, check }: { ctx: Ctx; check: RentalOnboardingCheck }
           </p>
           <p className={`mt-1 text-sm font-semibold ${ready ? 'text-[#073b83]' : 'text-[#9f1239]'}`} role="status">
             {ready
-              ? 'Setup complete — ready to save as a finished draft'
+              ? 'Setup complete — ready to publish'
               : `${issues.length} item${issues.length === 1 ? '' : 's'} still need${issues.length === 1 ? 's' : ''} attention`}
           </p>
         </div>
@@ -2372,10 +2372,9 @@ function PublishStage({ ctx, check }: { ctx: Ctx; check: RentalOnboardingCheck }
 
       {ready ? (
         <section className="stay-panel space-y-2" aria-label="Completion confirmation">
-          <p className="text-sm font-semibold text-ink">Everything required for this draft is filled in.</p>
+          <p className="text-sm font-semibold text-ink">Everything required to publish is filled in.</p>
           <p className="text-sm text-ink-muted">
-            Finishing setup saves your draft. The listing stays unpublished, and travelers cannot book until Traverion
-            Rentals launches.
+            Publish makes this rental visible to travelers. You can still save a draft and return later.
           </p>
         </section>
       ) : (
@@ -2422,10 +2421,10 @@ function PublishStage({ ctx, check }: { ctx: Ctx; check: RentalOnboardingCheck }
       </section>
 
       <section className="stay-panel space-y-1" aria-label="Booking status">
-        <p className="stay-kicker">Before you finish</p>
+        <p className="stay-kicker">Before you publish</p>
         <p className="text-sm leading-relaxed text-ink">
-          Finish rental setup saves a complete draft only. Travelers cannot book rentals yet, and your listing stays
-          unpublished until Traverion Rentals launches.
+          Publishing lists this rental for travelers with your options, pricing, and pickup details. Keep it as a draft
+          until you are ready.
         </p>
       </section>
     </div>

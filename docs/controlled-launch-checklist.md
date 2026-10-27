@@ -1,6 +1,8 @@
 # Traverion Rentals — Controlled Launch Checklist
 
-Rental **publication** (migration 282) and production **`RENTAL_CHECKOUT_ENABLED`** stay off until each gate below is explicitly authorized.
+Owner authorization for production activation was granted 2026-10-27. App/migration code to lift gate 282 ships as migration **291**. Production secret set + `db push` still require Traverion org CLI privileges (see `scripts/cert-rental-production-launch-report.md`).
+
+~~Rental **publication** (migration 282) and production **`RENTAL_CHECKOUT_ENABLED`** stay off until each gate below is explicitly authorized.~~
 
 ## Pre-flight (no activation)
 

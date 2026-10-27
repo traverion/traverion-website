@@ -24,12 +24,12 @@ describe('inventory families', () => {
     expect(INVENTORY_AVAILABILITY_UNIT.experience).toBe('experience_slot');
   });
 
-  it('only publishes tours and stays to travelers', () => {
-    expect([...LIVE_INVENTORY_FAMILIES]).toEqual(['tour', 'stay']);
+  it('publishes tours, stays, and rentals to travelers', () => {
+    expect([...LIVE_INVENTORY_FAMILIES]).toEqual(['tour', 'stay', 'rental']);
     expect(listingIsOnTravelerCatalog({})).toBe(true);
     expect(listingIsOnTravelerCatalog({ isHolidayPackage: true })).toBe(false);
     expect(listingIsOnTravelerCatalog({ listingExtras: { inventoryFamily: 'stay' } })).toBe(true);
-    expect(listingIsOnTravelerCatalog({ listingExtras: { inventoryFamily: 'rental' } })).toBe(false);
+    expect(listingIsOnTravelerCatalog({ listingExtras: { inventoryFamily: 'rental' } })).toBe(true);
     expect(listingIsOnTravelerCatalog({ listingExtras: { inventoryFamily: 'experience' } })).toBe(false);
   });
 
@@ -53,7 +53,7 @@ describe('inventory families', () => {
         { id: 'r', listingExtras: { inventoryFamily: 'rental' } },
         { id: 'e', listingExtras: { inventoryFamily: 'experience' } },
       ]).map((l) => (l as { id: string }).id),
-    ).toEqual(['t', 's']);
+    ).toEqual(['t', 's', 'r']);
   });
 
   it('keeps experience and rental URLs reserved, and partner can create tour, stay, rental', () => {

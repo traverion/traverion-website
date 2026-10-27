@@ -2927,11 +2927,7 @@ export default function SupplierListingForm({
         // Capture at click time so the payload matches what the supplier intended to save.
         // After await, merge only status into the latest form so mid-save edits are kept.
         const savedSnapshot = formRef.current;
-        // Rentals cannot go live until traveler booking ships — always persist as draft.
-        const effectiveStatus: 'draft' | 'published' =
-          savedSnapshot.inventoryFamily === 'rental' || createFamily === 'rental'
-            ? 'draft'
-            : targetStatus;
+        const effectiveStatus: 'draft' | 'published' = targetStatus;
         const listing = buildListingFromForm(
           { ...savedSnapshot, status: effectiveStatus },
           editingId ?? undefined
@@ -4410,25 +4406,25 @@ export default function SupplierListingForm({
                           ...(formRef.current.rental ?? emptyRentalDetails()),
                           creatorComplete: true,
                         },
-                        status: 'draft',
+                        status: 'published',
                       };
                       formRef.current = nextForm;
                       setForm(nextForm);
-                      void runSubmit('draft', { closeOnSuccess: true, bypassLastStepArm: true });
+                      void runSubmit('published', { closeOnSuccess: true, bypassLastStepArm: true });
                     }}
                     disabled={submitting || draftCloseBusy || shellExiting || rentalPhotosBusy}
                     title={
                       rentalPhotosBusy
                         ? 'Wait for photo uploads to finish'
-                        : 'Saves a complete rental draft. Travelers cannot book rentals yet.'
+                        : publishButtonTitle || 'Publish this rental for travelers'
                     }
                     className="stay-nav-btn stay-nav-btn--end touch-manipulation tv-btn-primary !min-h-11 disabled:opacity-50"
                   >
                     {submitting || shellExiting
-                      ? 'Saving…'
+                      ? 'Publishing…'
                       : rentalPhotosBusy
                         ? 'Uploading photos…'
-                        : 'Finish rental setup'}
+                        : 'Publish rental'}
                   </button>
                 ) : (
                   <button

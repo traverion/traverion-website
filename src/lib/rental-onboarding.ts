@@ -145,8 +145,8 @@ export const RENTAL_ONBOARDING_SCREENS = [
     id: 'publish',
     group: 'Completion',
     part: '2 of 2',
-    title: 'Finish rental setup',
-    body: 'Save a finished draft. The listing stays unpublished and payment stays closed.',
+    title: 'Publish rental',
+    body: 'Publish when ready so travelers can discover and book this rental.',
   },
 ] as const;
 

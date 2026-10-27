@@ -593,7 +593,7 @@ function App() {
       },
       'rental-details': {
         title: 'Rental',
-        description: 'Rental from an independent operator. Online payment stays closed until Traverion opens rental checkout.',
+        description: 'Rent equipment from an independent operator. Cancellation follows each listing.',
       },
       auth: { title: 'Sign in', description: 'Sign in or create an account to manage your bookings.' },
       'reset-password': { title: 'Set a new password', description: 'Choose a new password for your Traverion traveler account.' },
@@ -630,8 +630,7 @@ function App() {
     setRobotsNoIndex(
       currentPage === 'booking-confirmed' ||
         currentPage === 'reset-password' ||
-        currentPage === 'not-found' ||
-        currentPage === 'rental-details'
+        currentPage === 'not-found'
     );
 
     const pathMap: Record<string, string> = {
@@ -749,6 +748,33 @@ function App() {
       }
       return;
     }
+    if (listingIsFamily(tour, 'rental')) {
+      if (
+        tour.title &&
+        !listingDetailVisibleToTraveler({ familyMatches: true, status: tour.status })
+      ) {
+        return;
+      }
+      setSelectedTour(tour);
+      setDestinationSlug(tour.id);
+      setCurrentPage('rental-details');
+      window.history.pushState({ traverionPage: 'rental-details' }, '', `/rentals/${tour.id}`);
+      if (!tour.title) {
+        void getListingByIdAsync(tour.id).then((full) => {
+          if (
+            !full ||
+            !listingDetailVisibleToTraveler({
+              familyMatches: listingIsFamily(full, 'rental'),
+              status: full.status,
+            })
+          ) {
+            return;
+          }
+          setSelectedTour(full);
+        });
+      }
+      return;
+    }
     if (!tour.title) {
       void getListingByIdAsync(tour.id).then((full) => {
         if (!full) return;
@@ -760,6 +786,18 @@ function App() {
           }
           setSelectedTour(full);
           setCurrentPage('stay-details');
+          return;
+        }
+        if (listingIsFamily(full, 'rental')) {
+          if (
+            !listingDetailVisibleToTraveler({ familyMatches: true, status: full.status })
+          ) {
+            return;
+          }
+          setSelectedTour(full);
+          setDestinationSlug(full.id);
+          setCurrentPage('rental-details');
+          window.history.pushState({ traverionPage: 'rental-details' }, '', `/rentals/${full.id}`);
           return;
         }
         if (
@@ -778,7 +816,7 @@ function App() {
     }
     if (
       !listingDetailVisibleToTraveler({
-        familyMatches: listingIsOnTravelerCatalog(tour),
+        familyMatches: listingIsFamily(tour, 'tour'),
         status: tour.status,
       }) ||
       !listingHasUpcomingBookableSeason(tour)

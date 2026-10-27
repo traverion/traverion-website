@@ -1,7 +1,7 @@
 /**
  * Rental checkout stays behind RENTAL_CHECKOUT_ENABLED.
- * Migration 282 keeps rental listings unpublished, so a paid Checkout Session
- * for a draft rental must confirm. Tours and stays still require published.
+ * Published rentals book like tours/stays. Draft rental checkout remains allowed
+ * only when the capability flag is on (cert / pilot paths).
  */
 
 export function rentalDraftCheckoutAllowed(input: {

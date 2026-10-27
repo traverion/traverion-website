@@ -407,8 +407,8 @@ serve(async (req) => {
     // treated as bookable -- see src/lib/booking-quote.ts's
     // isListingBookable for the full explanation (migration-082
     // verification bypass).
-    // Rentals cannot be published (migration 282). Draft checkout is allowed
-    // only when RENTAL_CHECKOUT_ENABLED=1. The production secret stays unset.
+    // Published rentals book normally. Draft rental checkout is allowed only when
+    // RENTAL_CHECKOUT_ENABLED=1 (capability probe / emergency kill-switch).
     if (
       listingStatus !== 'published' &&
       !rentalDraftCheckoutAllowed({

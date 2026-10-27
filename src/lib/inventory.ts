@@ -2,9 +2,8 @@
  * Traveler inventory families vs operator listing rows.
  *
  * Families (do not collapse): tour, stay, rental, experience, package.
- * Live for travelers today: tour and stay.
+ * Live for travelers today: tour, stay, and rental.
  * Rentals have their own catalog at /rentals. They stay out of the tour catalog.
- * Publication (migration 282) and RENTAL_CHECKOUT_ENABLED still gate going live.
  *
  * `listings.experience_kind` (tour | ticket | transportation) is the operator format of a tour,
  * not the Experiences category. Do not rename that column.
@@ -17,7 +16,7 @@
 export const INVENTORY_FAMILIES = ['tour', 'stay', 'rental', 'experience', 'package'] as const;
 export type InventoryFamily = (typeof INVENTORY_FAMILIES)[number];
 
-export const LIVE_INVENTORY_FAMILIES = ['tour', 'stay'] as const;
+export const LIVE_INVENTORY_FAMILIES = ['tour', 'stay', 'rental'] as const;
 export type LiveInventoryFamily = (typeof LIVE_INVENTORY_FAMILIES)[number];
 
 export type InventoryAvailabilityUnit =
@@ -78,7 +77,7 @@ export function availabilityUnitForListing(listing: InventoryListingSlice): Inve
   return INVENTORY_AVAILABILITY_UNIT[inventoryFamilyFromListing(listing)];
 }
 
-/** Traveler catalog for live families (tours and stays). */
+/** Traveler catalog for live families (tours, stays, and rentals). */
 export function listingIsOnTravelerCatalog(listing: InventoryListingSlice): boolean {
   return isInventoryFamilyLive(inventoryFamilyFromListing(listing));
 }

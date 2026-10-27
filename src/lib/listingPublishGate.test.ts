@@ -366,12 +366,13 @@ describe('rental publish gate', () => {
     },
   } as TourPackage;
 
-  it('never allows rentals to become ready for travelers', () => {
+  it('allows complete rentals to become ready for travelers', () => {
     const blockers = getListingPublishBlockers(rentalBase);
-    expect(blockers.some((b) => /public rental bookings are not available/i.test(b))).toBe(true);
+    expect(blockers.some((b) => /public rental bookings are not available/i.test(b))).toBe(false);
+    expect(blockers).toEqual([]);
     const draft = partnerListingDraftPublishSubtitle(rentalBase);
-    expect(draft.readyToPublish).toBe(false);
-    expect(draft.subtitle).toMatch(/Rentals launches/i);
+    expect(draft.readyToPublish).toBe(true);
+    expect(draft.subtitle).toMatch(/Ready for travelers/i);
   });
 
   it('counts cover plus gallery toward the 3-photo rental bar', () => {
@@ -385,7 +386,7 @@ describe('rental publish gate', () => {
     } as TourPackage;
     const blockers = getListingPublishBlockers(threePersisted);
     expect(blockers.some((b) => /at least 3 photos/i.test(b))).toBe(false);
-    expect(blockers.some((b) => /public rental bookings are not available/i.test(b))).toBe(true);
+    expect(blockers).toEqual([]);
   });
 
   it('still blocks when cover plus gallery is under three', () => {

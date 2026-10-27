@@ -117,7 +117,6 @@ export function getListingPublishBlockers(
   const out: string[] = [];
   const isStay = listing.listingExtras?.inventoryFamily === 'stay';
   const isRental = listing.listingExtras?.inventoryFamily === 'rental';
-  // Rentals are never publicly bookable yet — always block “publish” with a clear readiness message.
   if (isRental) {
     const rental = normalizeRentalDetails(listing.listingExtras?.rental) ?? emptyRentalDetails();
     // Cover is stored on `image`; remaining slots on galleryImageUrls — count both.
@@ -135,9 +134,6 @@ export function getListingPublishBlockers(
       rental,
     });
     out.push(...creatorBlockers);
-    out.push(
-      'Public rental bookings are not available yet. Mark the listing ready in the partner portal — travelers cannot book until Traverion Rentals launches.'
-    );
     return out;
   }
   const title = listing.title?.trim() ?? '';
@@ -332,26 +328,6 @@ export function partnerListingDraftPublishSubtitle(
   nowMs?: number
 ): { blockers: string[]; subtitle: string; readyToPublish: boolean } {
   const blockers = getListingPublishBlockers(listing, todayIso, nowMs);
-  if (listing.listingExtras?.inventoryFamily === 'rental') {
-    const rental = listing.listingExtras?.rental;
-    const contentReady =
-      Boolean(rental?.creatorComplete) &&
-      blockers.every((b) => /public rental bookings are not available/i.test(b));
-    if (contentReady) {
-      return {
-        blockers,
-        subtitle: 'Ready — public bookings open when Rentals launches',
-        readyToPublish: false,
-      };
-    }
-    const actionable = blockers.filter((b) => !/public rental bookings are not available/i.test(b));
-    const first = actionable[0] ?? blockers[0] ?? 'Finish required fields';
-    return {
-      blockers,
-      subtitle: `${actionable.length || blockers.length} before ready · ${first}`,
-      readyToPublish: false,
-    };
-  }
   if (blockers.length === 0) {
     return { blockers, subtitle: 'Ready for travelers', readyToPublish: true };
   }
