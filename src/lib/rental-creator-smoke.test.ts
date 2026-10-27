@@ -1,5 +1,5 @@
 /**
- * Creator UI smoke (logic-level): 20-screen journey, draft resume, validations.
+ * Creator UI smoke (logic-level): 21-screen journey, draft resume, validations.
  * Complements browser smoke; does not require a running Vite session.
  */
 import { describe, expect, it } from 'vitest';
@@ -56,21 +56,24 @@ function baseCheck(overrides: Partial<RentalOnboardingCheck> = {}): RentalOnboar
   };
 }
 
-describe('rental creator 20-screen smoke', () => {
-  it('exposes exactly 20 screens with category and item type separated', () => {
-    expect(RENTAL_ONBOARDING_SCREENS).toHaveLength(20);
+describe('rental creator 21-screen smoke', () => {
+  it('exposes exactly 21 screens with category, item type, and highlights separated', () => {
+    expect(RENTAL_ONBOARDING_SCREENS).toHaveLength(21);
     const ids = RENTAL_ONBOARDING_SCREENS.map((s) => s.id);
-    expect(new Set(ids).size).toBe(20);
+    expect(new Set(ids).size).toBe(21);
     expect(ids[0]).toBe('basics-category');
     expect(ids[1]).toBe('basics-item');
+    expect(ids[4]).toBe('basics-description');
+    expect(ids[5]).toBe('basics-highlights');
     expect(ids.at(-1)).toBe('publish');
   });
 
-  it('resumes interim and legacy draft screen ids onto the 20-screen journey', () => {
+  it('resumes interim and legacy draft screen ids onto the 21-screen journey', () => {
     expect(resolveRentalScreenId('basics-item')).toBe('basics-item');
     expect(resolveRentalScreenId('item-type')).toBe('basics-item');
     expect(resolveRentalScreenId('category')).toBe('basics-category');
-    expect(resolveRentalScreenId('basics-highlights')).toBe('basics-description');
+    expect(resolveRentalScreenId('basics-highlights')).toBe('basics-highlights');
+    expect(resolveRentalScreenId('highlights')).toBe('basics-highlights');
     expect(resolveRentalScreenId('return-location')).toBe('pickup-location');
     expect(resolveRentalScreenId('daily-counting')).toBe('duration');
     expect(resolveRentalScreenId('accessibility')).toBe('requirements');
@@ -78,12 +81,12 @@ describe('rental creator 20-screen smoke', () => {
     expect(resolveRentalScreenId('restrictions')).toBe('inclusions');
     expect(resolveRentalScreenId('pricing')).toBe('options');
     expect(rentalScreenIndexFromStorage('basics-highlights')).toBe(
-      RENTAL_ONBOARDING_SCREENS.findIndex((s) => s.id === 'basics-description'),
+      RENTAL_ONBOARDING_SCREENS.findIndex((s) => s.id === 'basics-highlights'),
     );
     expect(rentalScreenIndexFromStorage('item-type')).toBe(1);
   });
 
-  it('blocks incomplete early steps and clears when required fields are present', () => {
+  it('blocks incomplete early steps and keeps highlights optional', () => {
     const empty = baseCheck({
       title: '',
       subtitle: '',
@@ -109,6 +112,10 @@ describe('rental creator 20-screen smoke', () => {
       }),
     ).toMatch(/item type/i);
     expect(rentalStageBlocker('basics-item', baseCheck())).toBeNull();
+    expect(rentalStageBlocker('basics-description', empty)).toMatch(/40/);
+    expect(rentalStageBlocker('basics-description', baseCheck())).toBeNull();
+    expect(rentalStageBlocker('basics-highlights', { ...baseCheck(), highlights: [] })).toBeNull();
+    expect(rentalStageBlocker('basics-highlights', baseCheck())).toBeNull();
     expect(rentalStageBlocker('photos', { ...baseCheck(), galleryCount: 1 })).toMatch(/3 photos/i);
     expect(rentalStageBlocker('photos', baseCheck())).toBeNull();
     expect(

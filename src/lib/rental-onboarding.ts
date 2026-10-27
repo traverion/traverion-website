@@ -1,5 +1,5 @@
 /**
- * Rental Creator screens — streamlined journey (20 screens).
+ * Rental Creator screens — streamlined journey (21 screens).
  * Split-out screens from interim 26-step work remap via LEGACY_RENTAL_SCREEN_ALIASES
  * so saved drafts resume without data loss.
  */
@@ -18,42 +18,49 @@ export const RENTAL_ONBOARDING_SCREENS = [
   {
     id: 'basics-category',
     group: 'Basics',
-    part: '1 of 6',
+    part: '1 of 7',
     title: 'What are you renting out?',
     body: 'Choose the category that best matches your rental.',
   },
   {
     id: 'basics-item',
     group: 'Basics',
-    part: '2 of 6',
+    part: '2 of 7',
     title: 'Which item type?',
     body: 'Pick the closest match for this category. You can refine details later.',
   },
   {
     id: 'basics-location',
     group: 'Basics',
-    part: '3 of 6',
+    part: '3 of 7',
     title: 'Where is your rental?',
     body: 'Destination, time zone, and the language you write the listing in.',
   },
   {
     id: 'basics-title',
     group: 'Basics',
-    part: '4 of 6',
+    part: '4 of 7',
     title: 'Name your rental',
     body: 'A clear title and a short introduction for search and cards.',
   },
   {
     id: 'basics-description',
     group: 'Basics',
-    part: '5 of 6',
+    part: '5 of 7',
     title: 'Describe the rental',
-    body: 'The full description, then short highlights customers can scan.',
+    body: 'Write a clear description of what customers are renting.',
+  },
+  {
+    id: 'basics-highlights',
+    group: 'Basics',
+    part: '6 of 7',
+    title: 'Add highlights',
+    body: 'Optional short points customers can scan. Only add what is true for this rental.',
   },
   {
     id: 'basics-specs',
     group: 'Basics',
-    part: '6 of 6',
+    part: '7 of 7',
     title: 'Shared specifications',
     body: 'Facts that apply to every option. Sizes and models that differ belong in options.',
   },
@@ -161,7 +168,7 @@ export type RentalOnboardingScreenId = (typeof RENTAL_ONBOARDING_SCREENS)[number
 
 /**
  * Maps retired screen ids (33-step registry and interim 26-step splits)
- * onto the current 20-screen journey so drafts resume correctly.
+ * onto the current 21-screen journey so drafts resume correctly.
  */
 export const LEGACY_RENTAL_SCREEN_ALIASES: Record<string, RentalOnboardingScreenId> = {
   category: 'basics-category',
@@ -171,8 +178,7 @@ export const LEGACY_RENTAL_SCREEN_ALIASES: Record<string, RentalOnboardingScreen
   title: 'basics-title',
   intro: 'basics-title',
   description: 'basics-description',
-  highlights: 'basics-description',
-  'basics-highlights': 'basics-description',
+  highlights: 'basics-highlights',
   specs: 'basics-specs',
   gallery: 'photos',
   'pickup-handover': 'pickup-location',
@@ -261,6 +267,8 @@ export function rentalStageBlocker(screenId: RentalOnboardingScreenId, check: Re
       return (check.description || '').trim().length >= 40
         ? null
         : 'Add a description of at least 40 characters.';
+    case 'basics-highlights':
+      return null;
     case 'basics-specs':
       return null;
     case 'photos': {
@@ -360,7 +368,8 @@ export function rentalScreenIndexForPublishLine(line: string): number {
   if (/item type/.test(text)) return rentalScreenIndex('basics-item');
   if (/categor/.test(text)) return rentalScreenIndex('basics-category');
   if (/title|introduction/.test(text)) return rentalScreenIndex('basics-title');
-  if (/highlight|description/.test(text)) return rentalScreenIndex('basics-description');
+  if (/highlight/.test(text)) return rentalScreenIndex('basics-highlights');
+  if (/description/.test(text)) return rentalScreenIndex('basics-description');
   if (/city|country|location|language/.test(text)) return rentalScreenIndex('basics-location');
   if (/handover/.test(text)) return rentalScreenIndex('handover');
   if (/hours/.test(text)) return rentalScreenIndex('hours');
@@ -388,6 +397,7 @@ export const RENTAL_COMPLETION_GROUPS: {
       'basics-location',
       'basics-title',
       'basics-description',
+      'basics-highlights',
       'basics-specs',
     ],
   },

@@ -383,8 +383,8 @@ describe('skill suitability', () => {
 });
 
 describe('legacy rental screen aliases', () => {
-  it('maps retired 33-step and interim 26-step ids onto the 20-screen journey', () => {
-    expect(RENTAL_ONBOARDING_SCREENS).toHaveLength(20);
+  it('maps retired 33-step and interim 26-step ids onto the 21-screen journey', () => {
+    expect(RENTAL_ONBOARDING_SCREENS).toHaveLength(21);
     expect(resolveRentalScreenId('gallery')).toBe('photos');
     expect(resolveRentalScreenId('buffers')).toBe('booking-rules');
     expect(resolveRentalScreenId('availability-summary')).toBe('duration');
@@ -395,8 +395,8 @@ describe('legacy rental screen aliases', () => {
     expect(resolveRentalScreenId('daily-rules')).toBe('duration');
     expect(resolveRentalScreenId('daily-counting')).toBe('duration');
     expect(resolveRentalScreenId('collection')).toBe('handover');
-    expect(resolveRentalScreenId('highlights')).toBe('basics-description');
-    expect(resolveRentalScreenId('basics-highlights')).toBe('basics-description');
+    expect(resolveRentalScreenId('highlights')).toBe('basics-highlights');
+    expect(resolveRentalScreenId('basics-highlights')).toBe('basics-highlights');
     expect(resolveRentalScreenId('return-location')).toBe('pickup-location');
     expect(resolveRentalScreenId('accessibility')).toBe('requirements');
     expect(resolveRentalScreenId('suitability')).toBe('requirements');
@@ -408,7 +408,7 @@ describe('legacy rental screen aliases', () => {
     expect(Object.keys(LEGACY_RENTAL_SCREEN_ALIASES).length).toBeGreaterThan(10);
   });
 
-  it('keeps a six-step Basics group with category and item type separated', () => {
+  it('keeps a seven-step Basics group with description and highlights separated', () => {
     const ids = RENTAL_ONBOARDING_SCREENS.filter((screen) => screen.group === 'Basics').map((screen) => screen.id);
     expect(ids).toEqual([
       'basics-category',
@@ -416,9 +416,11 @@ describe('legacy rental screen aliases', () => {
       'basics-location',
       'basics-title',
       'basics-description',
+      'basics-highlights',
       'basics-specs',
     ]);
-    expect(RENTAL_ONBOARDING_SCREENS[rentalScreenIndex('basics-description')].part).toBe('5 of 6');
+    expect(RENTAL_ONBOARDING_SCREENS[rentalScreenIndex('basics-description')].part).toBe('5 of 7');
+    expect(RENTAL_ONBOARDING_SCREENS[rentalScreenIndex('basics-highlights')].part).toBe('6 of 7');
     const check = {
       title: 'Thermal overall rental',
       subtitle: 'Warm overalls for a day outside.',
@@ -437,7 +439,8 @@ describe('legacy rental screen aliases', () => {
         description: 'Warm thermal overalls for Arctic conditions, sized for a full day outside.',
       })
     ).toBeNull();
-    expect(rentalScreenIndexForPublishLine('Add a highlight')).toBe(rentalScreenIndex('basics-description'));
+    expect(rentalStageBlocker('basics-highlights', { ...check, highlights: [] })).toBeNull();
+    expect(rentalScreenIndexForPublishLine('Add a highlight')).toBe(rentalScreenIndex('basics-highlights'));
     expect(rentalHighlightSuggestions('bikes')).toContain('Helmet included');
     expect(rentalHighlightSuggestions('cameras_electronics')).toContain('Battery included');
     expect(rentalHighlightSuggestions('bikes').join(' ')).not.toMatch(/family friendly/i);

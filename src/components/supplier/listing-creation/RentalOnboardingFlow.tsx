@@ -18,6 +18,7 @@ import {
   Package,
   Pencil,
   Plane,
+  Plus,
   Shirt,
   Snowflake,
   Tent,
@@ -25,6 +26,7 @@ import {
   UserRound,
   Video,
   Watch,
+  X,
   Zap,
 } from 'lucide-react';
 import {
@@ -799,21 +801,119 @@ function DescriptionStage({ ctx }: { ctx: Ctx }) {
 
 function HighlightsStage({ ctx }: { ctx: Ctx }) {
   const { values, rental, patch } = ctx;
+  const [draft, setDraft] = useState('');
   const items = values.highlights.map((line) => line.trim()).filter(Boolean);
+  const suggestions = rentalHighlightSuggestions(rental.category);
+  const has = (label: string) => items.some((line) => line.toLowerCase() === label.toLowerCase());
+  const save = (next: string[]) => patch({ highlights: next, rental: { ...rental, highlights: next } });
+  const toggle = (label: string) => {
+    save(has(label) ? items.filter((line) => line.toLowerCase() !== label.toLowerCase()) : [...items, label].slice(0, MAX_HIGHLIGHTS));
+  };
+  const addCustom = () => {
+    const value = draft.trim().slice(0, 80);
+    setDraft('');
+    if (!value || has(value) || items.length >= MAX_HIGHLIGHTS) return;
+    save([...items, value]);
+  };
+  const open = suggestions.filter((label) => !has(label));
+  const atMax = items.length >= MAX_HIGHLIGHTS;
+
   return (
-    <ChipEditor
-      items={items}
-      suggestions={rentalHighlightSuggestions(rental.category)}
-      max={MAX_HIGHLIGHTS}
-      placeholder="Add your own highlight"
-      addLabel="Add a highlight"
-      emptyHelp={
-        rental.category
-          ? 'Optional. Tap a suggestion only if it is true for this rental, or write your own. Nothing is saved until you add it.'
-          : 'Optional. Choose a category first to see relevant ideas, or write your own highlight.'
-      }
-      onChange={(next) => patch({ highlights: next, rental: { ...rental, highlights: next } })}
-    />
+    <div className="rental-highlights">
+      <section className="rental-highlights__section" aria-labelledby="rental-highlights-added">
+        <div className="rental-highlights__heading">
+          <h4 id="rental-highlights-added" className="rental-highlights__title">
+            Your highlights
+          </h4>
+          <p className="rental-highlights__count">
+            {items.length}/{MAX_HIGHLIGHTS}
+          </p>
+        </div>
+        {items.length > 0 ? (
+          <ul className="rental-highlights__added">
+            {items.map((line) => (
+              <li key={line}>
+                <button
+                  type="button"
+                  aria-label={`Remove ${line}`}
+                  className="rental-highlight-chip rental-highlight-chip--active"
+                  onClick={() => toggle(line)}
+                >
+                  <span className="rental-highlight-chip__label">{line}</span>
+                  <X className="rental-highlight-chip__icon" strokeWidth={2} aria-hidden />
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="rental-highlights__empty">
+            Optional. Add short points that help customers decide — nothing is saved until you add it.
+          </p>
+        )}
+      </section>
+
+      {open.length > 0 ? (
+        <section className="rental-highlights__section" aria-labelledby="rental-highlights-suggestions">
+          <div className="rental-highlights__heading">
+            <h4 id="rental-highlights-suggestions" className="rental-highlights__title">
+              Suggestions
+            </h4>
+            <p className="rental-highlights__hint">Tap only what is true for this rental</p>
+          </div>
+          <ul className="rental-highlights__suggestions">
+            {open.map((label) => (
+              <li key={label}>
+                <button
+                  type="button"
+                  className="rental-highlight-suggest"
+                  disabled={atMax}
+                  onClick={() => toggle(label)}
+                >
+                  <span className="rental-highlight-suggest__icon" aria-hidden>
+                    <Plus className="h-3.5 w-3.5" strokeWidth={2.25} />
+                  </span>
+                  <span className="rental-highlight-suggest__label">{label}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
+      <section className="rental-highlights__section" aria-labelledby="rental-highlights-custom">
+        <div className="rental-highlights__heading">
+          <h4 id="rental-highlights-custom" className="rental-highlights__title">
+            Write your own
+          </h4>
+        </div>
+        <div className="rental-highlights__custom">
+          <input
+            className="tv-input w-full"
+            value={draft}
+            maxLength={80}
+            placeholder="e.g. Studded tires for icy roads"
+            aria-label="Add a highlight"
+            disabled={atMax}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                addCustom();
+              }
+            }}
+          />
+          <button
+            type="button"
+            className="tv-btn-secondary min-h-11 shrink-0 px-4 text-sm font-semibold"
+            disabled={!draft.trim() || atMax}
+            onClick={addCustom}
+          >
+            Add
+          </button>
+        </div>
+        {atMax ? <StayHelp>You have reached the maximum of {MAX_HIGHLIGHTS} highlights.</StayHelp> : null}
+      </section>
+    </div>
   );
 }
 
@@ -2570,6 +2670,7 @@ export default function RentalOnboardingFlow(props: Props) {
     previewWide ||
     categoryWide ||
     id === 'basics-item' ||
+    id === 'basics-highlights' ||
     id === 'photos' ||
     id === 'hours' ||
     id === 'options' ||
@@ -2610,15 +2711,10 @@ export default function RentalOnboardingFlow(props: Props) {
       );
       break;
     case 'basics-description':
-      body = (
-        <div className="space-y-8">
-          <DescriptionStage ctx={ctx} />
-          <div className="space-y-2">
-            <p className="stay-kicker">Highlights</p>
-            <HighlightsStage ctx={ctx} />
-          </div>
-        </div>
-      );
+      body = <DescriptionStage ctx={ctx} />;
+      break;
+    case 'basics-highlights':
+      body = <HighlightsStage ctx={ctx} />;
       break;
     case 'basics-specs':
       body = <SpecsStage ctx={ctx} />;
