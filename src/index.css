@@ -13642,6 +13642,168 @@ details:not([open]) > :not(summary) {
   }
 }
 
+.rental-creator .rental-hours-days {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0.35rem;
+}
+
+@media (min-width: 640px) {
+  .rental-creator .rental-hours-days {
+    gap: 0.5rem;
+  }
+}
+
+.rental-creator .rental-hours-day {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.75rem;
+  padding: 0.35rem 0.2rem;
+  border-radius: 0.85rem;
+  border: 1px solid var(--rental-border);
+  background: #ffffff;
+  color: var(--rental-ink);
+  font-size: 0.75rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  box-shadow: 0 1px 2px rgb(15 23 42 / 0.03);
+  transition:
+    border-color 160ms ease,
+    background-color 160ms ease,
+    color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+@media (min-width: 640px) {
+  .rental-creator .rental-hours-day {
+    font-size: 0.8125rem;
+  }
+}
+
+.rental-creator .rental-hours-day:hover {
+  border-color: color-mix(in srgb, var(--rental-accent) 28%, var(--rental-border));
+}
+
+.rental-creator .rental-hours-day:focus-visible {
+  outline: 2px solid var(--rental-accent);
+  outline-offset: 2px;
+}
+
+.rental-creator .rental-hours-day--selected {
+  border-color: var(--rental-accent);
+  background: var(--rental-accent);
+  color: #ffffff;
+  box-shadow: 0 1px 3px rgb(7 59 131 / 0.28);
+}
+
+.rental-creator .rental-hours-day--custom .rental-hours-day__dot {
+  position: absolute;
+  top: 0.35rem;
+  right: 0.35rem;
+  width: 0.35rem;
+  height: 0.35rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, #ffffff 85%, var(--rental-accent));
+}
+
+.rental-creator .rental-hours-day:not(.rental-hours-day--selected).rental-hours-day--custom .rental-hours-day__dot {
+  background: var(--rental-accent);
+}
+
+.rental-creator .rental-hours-custom-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.rental-creator .rental-hours-custom-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.7rem 0.85rem;
+  border-radius: 0.85rem;
+  border: 1px solid color-mix(in srgb, var(--rental-accent) 18%, var(--rental-border));
+  background: color-mix(in srgb, var(--rental-accent) 4%, #ffffff);
+}
+
+.rental-creator .rental-hours-custom-badge {
+  display: inline-flex;
+  margin-left: 0.4rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--rental-accent) 12%, #ffffff);
+  color: var(--rental-accent);
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  vertical-align: middle;
+}
+
+.rental-creator .rental-hours-custom-panel {
+  border-radius: 1rem;
+  border: 1px solid var(--rental-border);
+  background: #ffffff;
+  padding: 0.55rem 0.85rem 0.7rem;
+  box-shadow: 0 1px 2px rgb(15 23 42 / 0.03);
+}
+
+.rental-creator .rental-hours-custom-summary {
+  cursor: pointer;
+  list-style: none;
+  padding: 0.35rem 0;
+  font-size: 0.9rem;
+  font-weight: 650;
+  color: var(--rental-ink);
+}
+
+.rental-creator .rental-hours-custom-summary::-webkit-details-marker {
+  display: none;
+}
+
+.rental-creator .rental-hours-apply-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.rental-creator .rental-hours-apply-chip {
+  min-height: 2.25rem;
+  min-width: 2.75rem;
+  padding: 0.35rem 0.65rem;
+  border-radius: 999px;
+  border: 1px solid var(--rental-border);
+  background: #ffffff;
+  color: var(--rental-ink);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  transition: border-color 160ms ease, background-color 160ms ease, color 160ms ease;
+}
+
+.rental-creator .rental-hours-apply-chip:hover {
+  border-color: color-mix(in srgb, var(--rental-accent) 28%, var(--rental-border));
+}
+
+.rental-creator .rental-hours-apply-chip--selected,
+.rental-creator .rental-hours-apply-chip[aria-pressed='true'] {
+  border-color: var(--rental-accent);
+  background: var(--rental-accent-soft);
+  color: var(--rental-accent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rental-creator .rental-hours-day,
+  .rental-creator .rental-hours-apply-chip {
+    transition: none;
+  }
+}
+
 .rental-creator .stay-title {
   font-size: clamp(1.4rem, 2.5vw, 1.75rem);
   font-weight: 650;

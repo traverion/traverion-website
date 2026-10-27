@@ -3,6 +3,7 @@ import { rentalFromPrice, rentalReturnPoint } from './rental-presentation';
 import {
   clearRentalDepositAmounts,
   createDefaultRentalVariant,
+  applyRentalDayHoursToDays,
   applyRentalStandardHours,
   copyRentalDayHours,
   defaultRentalOperatingDays,
@@ -145,6 +146,11 @@ describe('rental details', () => {
 });
 
 describe('rental display helpers', () => {
+  it('starts new listings with every operating day closed', () => {
+    expect(defaultRentalOperatingDays().every((day) => day.open === false)).toBe(true);
+    expect(emptyRentalDetails().operatingDays?.every((day) => day.open === false)).toBe(true);
+  });
+
   it('groups identical operating hours across consecutive days', () => {
     const days = defaultRentalOperatingDays().map((d) => ({
       ...d,
@@ -165,7 +171,7 @@ describe('rental display helpers', () => {
         ? { ...day, open: true, earliestPickupHm: '10:00', latestPickupHm: '14:00', earliestReturnHm: '10:00', latestReturnHm: '15:00' }
         : day.day === 'sun'
           ? { ...day, open: false, earliestPickupHm: '12:00', latestPickupHm: '16:00' }
-          : day,
+          : { ...day, open: true },
     );
     expect(rentalStandardHours(saved)).toMatchObject({ earliestPickupHm: '09:00', latestPickupHm: '17:00' });
     expect(rentalHourExceptions(saved).map((day) => day.day)).toEqual(['sat']);
@@ -182,7 +188,9 @@ describe('rental display helpers', () => {
     expect(opened.find((day) => day.day === 'sun')).toMatchObject({ open: true, earliestPickupHm: '08:00' });
     const copied = copyRentalDayHours(opened, 'sat', 'fri');
     expect(copied.find((day) => day.day === 'fri')?.latestPickupHm).toBe('14:00');
-    const custom = setRentalDayHours(copied, 'mon', {
+    const applied = applyRentalDayHoursToDays(copied, 'sat', ['thu']);
+    expect(applied.find((day) => day.day === 'thu')?.latestPickupHm).toBe('14:00');
+    const custom = setRentalDayHours(applied, 'mon', {
       earliestPickupHm: '11:00',
       latestPickupHm: '13:00',
       earliestReturnHm: '11:00',

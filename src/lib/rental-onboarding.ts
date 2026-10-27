@@ -295,7 +295,7 @@ export function rentalStageBlocker(screenId: RentalOnboardingScreenId, check: Re
       return null;
     case 'hours': {
       const open = (r.operatingDays ?? []).some((d) => d.open);
-      if (!open) return 'Open at least one day for pickup and return.';
+      if (!open) return 'Select at least one operating day.';
       return rentalOperatingHoursIssue(r.operatingDays);
     }
     case 'options': {

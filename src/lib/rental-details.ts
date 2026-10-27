@@ -10,10 +10,11 @@ import { newListingCreationId } from './listing-creation-persist';
 
 const WEEKDAYS: RentalWeekday[] = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
 
+/** New listings start with every day closed so suppliers choose operating days explicitly. */
 export function defaultRentalOperatingDays(): RentalOperatingDay[] {
   return WEEKDAYS.map((day) => ({
     day,
-    open: day !== 'sun',
+    open: false,
     earliestPickupHm: '09:00',
     latestPickupHm: '17:00',
     earliestReturnHm: '09:00',
@@ -585,6 +586,20 @@ export function copyRentalDayHours(
   const source = days.find((day) => day.day === from);
   if (!source) return days;
   return setRentalDayHours(days, to, rentalHoursWindow(source));
+}
+
+/** Apply one day's pickup/return window onto other selected days (opens them if needed). */
+export function applyRentalDayHoursToDays(
+  days: RentalOperatingDay[],
+  sourceDayId: RentalWeekday,
+  targetDayIds: RentalWeekday[],
+): RentalOperatingDay[] {
+  const source = days.find((day) => day.day === sourceDayId);
+  if (!source) return days;
+  const window = rentalHoursWindow(source);
+  const targets = new Set(targetDayIds.filter((id) => id !== sourceDayId));
+  if (targets.size === 0) return days;
+  return days.map((day) => (targets.has(day.day) ? { ...day, open: true, ...window } : day));
 }
 
 export function resetRentalHourOverrides(days: RentalOperatingDay[]): RentalOperatingDay[] {

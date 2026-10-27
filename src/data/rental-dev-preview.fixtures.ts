@@ -11,7 +11,10 @@ const photo = (id: string) =>
   `https://images.unsplash.com/${id}?auto=format&fit=crop&w=1600&q=80`;
 
 function days(patch?: (day: RentalOperatingDay) => RentalOperatingDay): RentalOperatingDay[] {
-  return defaultRentalOperatingDays().map((day) => (patch ? patch(day) : day));
+  return defaultRentalOperatingDays().map((day) => {
+    const base = { ...day, open: day.day !== 'sun' };
+    return patch ? patch(base) : base;
+  });
 }
 
 function listing(

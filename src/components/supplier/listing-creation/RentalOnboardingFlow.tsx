@@ -52,8 +52,8 @@ import {
 import {
   applyRentalAddressSelection,
   applyRentalCollectionPin,
+  applyRentalDayHoursToDays,
   applyRentalStandardHours,
-  copyRentalDayHours,
   rentalHourExceptions,
   rentalHoursWindow,
   rentalOperatingHoursIssue,
@@ -1183,45 +1183,58 @@ function HoursStage({ ctx }: { ctx: Ctx }) {
   const days = fullOperatingDays(rental);
   const standard = rentalStandardHours(days);
   const exceptions = rentalHourExceptions(days);
+  const exceptionDays = new Set(exceptions.map((day) => day.day));
   const issue = rentalOperatingHoursIssue(days);
-  const openCount = days.filter((day) => day.open).length;
+  const openDays = days.filter((day) => day.open);
+  const openCount = openDays.length;
+  const firstOpen = openDays[0]?.day ?? 'mon';
   const [customDay, setCustomDay] = useState<RentalWeekday>('mon');
-  const [copyFrom, setCopyFrom] = useState<RentalWeekday>('mon');
-  const [copyTo, setCopyTo] = useState<RentalWeekday>('sat');
-  const selected = days.find((day) => day.day === customDay) ?? days[0];
+  const [applyTargets, setApplyTargets] = useState<RentalWeekday[]>([]);
+  const effectiveCustomDay = openDays.some((day) => day.day === customDay) ? customDay : firstOpen;
+  const selected = days.find((day) => day.day === effectiveCustomDay) ?? days[0];
+  const applyCandidates = openDays.filter((day) => day.day !== effectiveCustomDay);
+  const selectedApplyTargets = applyTargets.filter((dayId) =>
+    applyCandidates.some((day) => day.day === dayId),
+  );
   const save = (operatingDays: RentalOperatingDay[]) => patchRental({ operatingDays });
 
+  const toggleApplyTarget = (dayId: RentalWeekday) => {
+    setApplyTargets((prev) => (prev.includes(dayId) ? prev.filter((id) => id !== dayId) : [...prev, dayId]));
+  };
+
   return (
-    <div className="space-y-4">
+    <div className="rental-hours-stage space-y-5">
       <div>
         <p className="stay-field">Operating days</p>
-        <div className="mt-1.5 grid grid-cols-7 gap-1 sm:gap-1.5" role="group" aria-label="Operating days">
-          {days.map((day) => (
-            <button
-              key={day.day}
-              type="button"
-              aria-pressed={day.open}
-              aria-label={`${DAY_LABELS[day.day]} ${day.open ? 'open' : 'closed'}`}
-              className={`min-h-11 rounded-xl px-0.5 text-xs font-semibold sm:text-sm ${
-                day.open
-                  ? 'bg-[#073b83] text-white'
-                  : 'border border-[#E6EAF0] bg-white text-ink'
-              }`}
-              onClick={() => save(toggleRentalOperatingDay(days, day.day))}
-            >
-              {DAY_CHIP[day.day]}
-            </button>
-          ))}
+        <div className="rental-hours-days mt-1.5" role="group" aria-label="Operating days">
+          {days.map((day) => {
+            const custom = exceptionDays.has(day.day);
+            return (
+              <button
+                key={day.day}
+                type="button"
+                aria-pressed={day.open}
+                aria-label={`${DAY_LABELS[day.day]} ${day.open ? 'open' : 'closed'}${custom ? ', custom hours' : ''}`}
+                className={`rental-hours-day ${day.open ? 'rental-hours-day--selected' : ''} ${custom ? 'rental-hours-day--custom' : ''}`}
+                onClick={() => save(toggleRentalOperatingDay(days, day.day))}
+              >
+                <span>{DAY_CHIP[day.day]}</span>
+                {custom ? <span className="rental-hours-day__dot" aria-hidden /> : null}
+              </button>
+            );
+          })}
         </div>
         <StayHelp>
-          {openCount === 0 ? 'Select at least one open day.' : `${openCount} open ${openCount === 1 ? 'day' : 'days'}. Closed days stay off the booking calendar.`}
+          {openCount === 0
+            ? 'Select at least one operating day.'
+            : `${openCount} selected ${openCount === 1 ? 'day' : 'days'}. Closed days stay off the booking calendar.`}
         </StayHelp>
       </div>
 
       <section className="stay-panel space-y-3" aria-label="Standard hours">
         <div>
           <p className="text-sm font-semibold text-ink">Standard hours</p>
-          <p className="stay-help">Pickup and return windows for every selected day, unless a day is customized below.</p>
+          <p className="stay-help">Applied to every selected day, unless a day is customized below.</p>
         </div>
         <HoursWindowFields
           window={standard}
@@ -1232,16 +1245,14 @@ function HoursStage({ ctx }: { ctx: Ctx }) {
       </section>
 
       {exceptions.length > 0 ? (
-        <ul className="space-y-1.5" aria-label="Custom days">
+        <ul className="rental-hours-custom-list" aria-label="Days with custom hours">
           {exceptions.map((day) => {
             const hours = rentalHoursWindow(day);
             return (
-              <li
-                key={day.day}
-                className="flex items-center justify-between gap-3 rounded-xl border border-[#E6EAF0] bg-white px-3 py-2 text-sm"
-              >
-                <p className="min-w-0 text-ink">
-                  <span className="font-semibold">{DAY_LABELS[day.day]}</span>
+              <li key={day.day} className="rental-hours-custom-item">
+                <p className="min-w-0 text-sm text-ink">
+                  <span className="font-semibold text-[#073b83]">{DAY_LABELS[day.day]}</span>
+                  <span className="rental-hours-custom-badge">Custom</span>
                   <span className="text-ink-muted">
                     {' '}
                     · Pickup {hours.earliestPickupHm}–{hours.latestPickupHm} · Return {hours.earliestReturnHm}–{hours.latestReturnHm}
@@ -1252,7 +1263,7 @@ function HoursStage({ ctx }: { ctx: Ctx }) {
                   className="shrink-0 text-xs font-semibold text-[#073b83]"
                   onClick={() => save(setRentalDayHours(days, day.day, standard))}
                 >
-                  Reset
+                  Use standard
                 </button>
               </li>
             );
@@ -1260,88 +1271,86 @@ function HoursStage({ ctx }: { ctx: Ctx }) {
         </ul>
       ) : null}
 
-      <details className="rounded-2xl border border-[#E6EAF0] bg-white px-3 py-2">
-        <summary className="cursor-pointer py-1 text-sm font-semibold text-ink">Customize individual days</summary>
+      <details className="rental-hours-custom-panel">
+        <summary className="rental-hours-custom-summary">Customize individual days</summary>
         <div className="space-y-3 pb-1 pt-3">
-          <label className="stay-field block">
-            <span>Day</span>
-            <select
-              className="tv-input mt-1.5 w-full font-normal"
-              value={customDay}
-              onChange={(event) => setCustomDay(event.target.value as RentalWeekday)}
-            >
-              {days.map((day) => (
-                <option key={day.day} value={day.day}>
-                  {DAY_LABELS[day.day]}
-                  {day.open ? '' : ' (closed)'}
-                </option>
-              ))}
-            </select>
-          </label>
-          <HoursWindowFields
-            window={rentalHoursWindow(selected)}
-            pickupLabel="Pickup"
-            returnLabel="Return"
-            onChange={(next) => save(setRentalDayHours(days, customDay, next))}
-          />
-          <div className="grid gap-2 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
-            <label className="stay-field block">
-              <span>Copy from</span>
-              <select
-                className="tv-input mt-1.5 w-full font-normal"
-                value={copyFrom}
-                aria-label="Copy hours from"
-                onChange={(event) => setCopyFrom(event.target.value as RentalWeekday)}
+          {openCount === 0 ? (
+            <StayHelp>Select at least one operating day before setting custom hours.</StayHelp>
+          ) : (
+            <>
+              <label className="stay-field block">
+                <span>Day</span>
+                <select
+                  className="tv-input mt-1.5 w-full font-normal"
+                  value={effectiveCustomDay}
+                  onChange={(event) => {
+                    setCustomDay(event.target.value as RentalWeekday);
+                    setApplyTargets([]);
+                  }}
+                >
+                  {openDays.map((day) => (
+                    <option key={day.day} value={day.day}>
+                      {DAY_LABELS[day.day]}
+                      {exceptionDays.has(day.day) ? ' · custom' : ''}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <HoursWindowFields
+                window={rentalHoursWindow(selected)}
+                pickupLabel="Pickup"
+                returnLabel="Return"
+                onChange={(next) => save(setRentalDayHours(days, effectiveCustomDay, next))}
+              />
+              {applyCandidates.length > 0 ? (
+                <div className="rental-hours-apply">
+                  <p className="stay-field">Apply to other days</p>
+                  <p className="stay-help mt-0.5">Optional. Copy this day’s hours onto other selected days.</p>
+                  <div className="rental-hours-apply-grid mt-2" role="group" aria-label="Apply hours to other days">
+                    {applyCandidates.map((day) => {
+                      const pressed = selectedApplyTargets.includes(day.day);
+                      return (
+                        <button
+                          key={day.day}
+                          type="button"
+                          aria-pressed={pressed}
+                          className={`rental-hours-apply-chip ${pressed ? 'rental-hours-apply-chip--selected' : ''}`}
+                          onClick={() => toggleApplyTarget(day.day)}
+                        >
+                          {DAY_CHIP[day.day]}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <button
+                    type="button"
+                    className="tv-btn-secondary mt-2 min-h-11 px-4 text-sm font-semibold"
+                    disabled={selectedApplyTargets.length === 0}
+                    onClick={() => {
+                      save(applyRentalDayHoursToDays(days, effectiveCustomDay, selectedApplyTargets));
+                      setApplyTargets([]);
+                    }}
+                  >
+                    Apply to selected days
+                  </button>
+                </div>
+              ) : null}
+              <button
+                type="button"
+                className="text-sm font-semibold text-[#073b83] disabled:opacity-45"
+                disabled={exceptions.length === 0}
+                onClick={() => save(resetRentalHourOverrides(days))}
               >
-                {days.map((day) => (
-                  <option key={day.day} value={day.day}>
-                    {DAY_LABELS[day.day]}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="stay-field block">
-              <span>Copy to</span>
-              <select
-                className="tv-input mt-1.5 w-full font-normal"
-                value={copyTo}
-                aria-label="Copy hours to"
-                onChange={(event) => setCopyTo(event.target.value as RentalWeekday)}
-              >
-                {days.map((day) => (
-                  <option key={day.day} value={day.day}>
-                    {DAY_LABELS[day.day]}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <button
-              type="button"
-              className="tv-btn-secondary min-h-11 px-4 text-sm font-semibold"
-              onClick={() => save(copyRentalDayHours(days, copyFrom, copyTo))}
-            >
-              Copy hours
-            </button>
-          </div>
-          <button
-            type="button"
-            className="text-sm font-semibold text-[#073b83]"
-            disabled={exceptions.length === 0}
-            onClick={() => save(resetRentalHourOverrides(days))}
-          >
-            Reset all custom days to standard hours
-          </button>
+                Reset all custom days to standard hours
+              </button>
+            </>
+          )}
         </div>
       </details>
 
       {issue ? (
         <p className="text-sm text-red-700" role="alert">
           {issue}
-        </p>
-      ) : null}
-      {openCount === 0 ? (
-        <p className="text-sm text-red-700" role="alert">
-          Open at least one day for pickup and return.
         </p>
       ) : null}
       <StayHelp>Times use this listing’s time zone. Custom days keep their own windows when you change the standard hours.</StayHelp>

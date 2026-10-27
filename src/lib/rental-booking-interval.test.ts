@@ -58,7 +58,10 @@ describe('rental-booking-interval', () => {
   });
 
   it('rejects a closed day and a pickup before opening', () => {
-    const operatingDays = defaultRentalOperatingDays();
+    const operatingDays = defaultRentalOperatingDays().map((day) => ({
+      ...day,
+      open: day.day !== 'sun',
+    }));
     expect(
       rentalScheduleIssue({
         operatingDays,
@@ -80,6 +83,10 @@ describe('rental-booking-interval', () => {
   });
 
   it('requires booking notice before pickup', () => {
+    const operatingDays = defaultRentalOperatingDays().map((day) => ({
+      ...day,
+      open: day.day !== 'sun',
+    }));
     const pickup = buildRentalInterval({
       startDate: '2030-06-03',
       endDate: '2030-06-03',
@@ -91,7 +98,7 @@ describe('rental-booking-interval', () => {
     if (!pickup.ok) return;
     expect(
       rentalScheduleIssue({
-        operatingDays: defaultRentalOperatingDays(),
+        operatingDays,
         bookingNoticeHours: 24,
         startDate: '2030-06-03',
         endDate: '2030-06-03',
