@@ -75,6 +75,7 @@ import {
   rentalDurationFieldIssue,
   rentalLowestDayPriceMinor,
   rentalLowestHourPriceMinor,
+  rentalOptionRatesReady,
   rentalVariantComplete,
   rentalVariantMetaLine,
   upsertRentalVariant,
@@ -1476,6 +1477,13 @@ function ReturnHandoverStage({ ctx }: { ctx: Ctx }) {
 /* Options                                                             */
 /* ------------------------------------------------------------------ */
 
+function rentalOptionStatusBadge(variant: RentalVariant, rental: RentalDetails): { complete: boolean; label: string } {
+  if (!variant.name.trim()) return { complete: false, label: 'Add name' };
+  if (!Number.isFinite(variant.quantity) || variant.quantity < 1) return { complete: false, label: 'Add quantity' };
+  if (!rentalOptionRatesReady(variant, rental)) return { complete: false, label: 'Add pricing' };
+  return { complete: true, label: 'Complete' };
+}
+
 function OptionsStage({ ctx }: { ctx: Ctx }) {
   const { rental, cfg, currency, patchRental, editVariant } = ctx;
   const variants = rental.variants ?? [];
@@ -1502,111 +1510,155 @@ function OptionsStage({ ctx }: { ctx: Ctx }) {
     };
   }, [menuId]);
 
+  const openEdit = (variant: RentalVariant) => {
+    setMenuId(null);
+    setConfirmId(null);
+    editVariant(cloneVariant(variant), false);
+  };
+
   const duplicate = (variant: RentalVariant) => {
     if (!canAdd) return;
+    setMenuId(null);
     const copy = cloneVariant(variant);
     editVariant({ ...copy, id: newRentalVariantId(), name: `${variant.name} copy`.slice(0, 80) }, true);
   };
 
   return (
-    <div className="space-y-3">
-      <ul className="space-y-3">
+    <div className="rental-options-stage space-y-3">
+      <ul className="rental-options-list">
         {variants.map((variant) => {
           const pricing = effectiveVariantPricing(rental, variant);
-          const complete = rentalVariantComplete(variant, rental);
-          const basicsOk = Boolean(variant.name.trim()) && variant.quantity >= 1;
+          const status = rentalOptionStatusBadge(variant, rental);
           const specs = variantSpecLine(variant, cfg);
           const confirming = confirmId === variant.id;
           const menuOpen = menuId === variant.id;
           const name = variant.name.trim() || 'Untitled option';
           const units = `${variant.quantity} ${variant.quantity === 1 ? 'unit' : 'units'} available`;
+          const ratesText = formatRentalOptionRates(pricing, rental.durationMode, currency);
+          const priceLabel = ratesText === 'Price needed' ? null : ratesText;
           return (
-            <li key={variant.id} className="stay-panel space-y-3">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="truncate text-base font-semibold text-ink">{name}</p>
-                  <p className="mt-0.5 text-sm text-ink-muted">{units}</p>
-                  {specs ? <p className="mt-0.5 text-sm text-ink">{specs}</p> : null}
-                </div>
-                <span
-                  className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${
-                    complete ? 'bg-[#073b83]/10 text-[#073b83]' : 'bg-[#fff1f2] text-[#9f1239]'
-                  }`}
-                >
-                  {complete ? 'Complete' : basicsOk ? 'Needs pricing' : 'Incomplete'}
-                </span>
-              </div>
-              <p className="text-sm font-semibold text-ink">{formatRentalOptionRates(pricing, rental.durationMode, currency)}</p>
-              {confirming ? (
-                <div className="space-y-2 rounded-xl bg-[#fff7f7] p-3" role="alert">
-                  <p className="text-sm font-semibold text-[#9f1239]">Delete “{name}”? This cannot be undone.</p>
-                  <div className="flex gap-2">
-                    <button type="button" className="tv-btn-secondary min-h-11 px-4 text-sm font-semibold" onClick={() => setConfirmId(null)}>
-                      Keep
-                    </button>
-                    <button
-                      type="button"
-                      className="lc-btn-danger min-h-11 rounded-xl px-4 text-sm font-semibold"
-                      onClick={() => {
-                        setConfirmId(null);
-                        patchRental({ variants: variants.filter((row) => row.id !== variant.id) });
-                      }}
-                    >
-                      Delete option
-                    </button>
+            <li key={variant.id}>
+              <article
+                className={`rental-option-card${confirming ? ' rental-option-card--confirming' : ''}`}
+                role="button"
+                tabIndex={confirming ? -1 : 0}
+                aria-label={`Edit option ${name}`}
+                onClick={() => {
+                  if (confirming) return;
+                  openEdit(variant);
+                }}
+                onKeyDown={(event) => {
+                  if (confirming) return;
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    openEdit(variant);
+                  }
+                }}
+              >
+                <div className="rental-option-card__top">
+                  <div className="rental-option-card__main min-w-0">
+                    <div className="rental-option-card__title-row">
+                      <h3 className="rental-option-card__name">{name}</h3>
+                      <span
+                        className={`rental-option-card__badge${
+                          status.complete ? ' rental-option-card__badge--complete' : ' rental-option-card__badge--todo'
+                        }`}
+                      >
+                        {status.label}
+                      </span>
+                    </div>
+                    {priceLabel ? <p className="rental-option-card__price">{priceLabel}</p> : null}
+                    <p className="rental-option-card__meta">{units}</p>
+                    {specs ? <p className="rental-option-card__specs">{specs}</p> : null}
                   </div>
                 </div>
-              ) : (
-                <div className="flex flex-wrap items-center gap-2">
-                  <button type="button" className="tv-btn-primary min-h-11 px-4 text-sm font-semibold" onClick={() => editVariant(cloneVariant(variant), false)}>
-                    Edit
-                  </button>
-                  <button
-                    type="button"
-                    className="tv-btn-secondary min-h-11 px-4 text-sm font-semibold"
-                    disabled={!canAdd}
-                    onClick={() => duplicate(variant)}
+
+                {confirming ? (
+                  <div
+                    className="rental-option-card__confirm"
+                    role="alert"
+                    onClick={(event) => event.stopPropagation()}
+                    onKeyDown={(event) => event.stopPropagation()}
                   >
-                    Duplicate
-                  </button>
-                  <div className="relative" id={`rental-option-menu-${variant.id}`}>
+                    <p className="text-sm font-semibold text-[#9f1239]">Delete “{name}”? This cannot be undone.</p>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        className="tv-btn-secondary min-h-11 px-4 text-sm font-semibold"
+                        onClick={() => setConfirmId(null)}
+                      >
+                        Keep
+                      </button>
+                      <button
+                        type="button"
+                        className="lc-btn-danger min-h-11 rounded-xl px-4 text-sm font-semibold"
+                        onClick={() => {
+                          setConfirmId(null);
+                          patchRental({ variants: variants.filter((row) => row.id !== variant.id) });
+                        }}
+                      >
+                        Delete option
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="rental-option-card__actions" onClick={(event) => event.stopPropagation()}>
                     <button
                       type="button"
-                      className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-[#E6EAF0] bg-white text-[#073b83]"
-                      aria-label={`More actions for ${name}`}
-                      aria-haspopup="menu"
-                      aria-expanded={menuOpen}
-                      onClick={() => setMenuId(menuOpen ? null : variant.id)}
+                      className="tv-btn-primary min-h-11 px-4 text-sm font-semibold"
+                      onClick={() => openEdit(variant)}
                     >
-                      <MoreHorizontal className="h-4 w-4" aria-hidden />
+                      Edit
                     </button>
-                    {menuOpen ? (
-                      <div role="menu" className="absolute right-0 z-20 mt-1 w-48 rounded-xl border border-[#E6EAF0] bg-white p-1 shadow-[0_8px_24px_rgba(15,23,42,0.08)]">
-                        <button
-                          type="button"
-                          role="menuitem"
-                          className="w-full rounded-lg px-3 py-2 text-left text-sm font-semibold text-[#9f1239] disabled:cursor-not-allowed disabled:opacity-40"
-                          disabled={variants.length <= 1}
-                          title={variants.length <= 1 ? 'Keep at least one option' : undefined}
-                          onClick={() => {
-                            setMenuId(null);
-                            setConfirmId(variant.id);
-                          }}
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    ) : null}
+                    <div className="relative ml-auto" id={`rental-option-menu-${variant.id}`}>
+                      <button
+                        type="button"
+                        className="rental-option-card__menu-btn"
+                        aria-label={`More actions for ${name}`}
+                        aria-haspopup="menu"
+                        aria-expanded={menuOpen}
+                        onClick={() => setMenuId(menuOpen ? null : variant.id)}
+                      >
+                        <MoreHorizontal className="h-4 w-4" aria-hidden />
+                      </button>
+                      {menuOpen ? (
+                        <div role="menu" className="rental-option-card__menu">
+                          <button
+                            type="button"
+                            role="menuitem"
+                            className="rental-option-card__menu-item"
+                            disabled={!canAdd}
+                            title={!canAdd ? 'Maximum number of options reached' : undefined}
+                            onClick={() => duplicate(variant)}
+                          >
+                            Duplicate
+                          </button>
+                          <button
+                            type="button"
+                            role="menuitem"
+                            className="rental-option-card__menu-item rental-option-card__menu-item--danger"
+                            disabled={variants.length <= 1}
+                            title={variants.length <= 1 ? 'Keep at least one option' : undefined}
+                            onClick={() => {
+                              setMenuId(null);
+                              setConfirmId(variant.id);
+                            }}
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      ) : null}
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
+              </article>
             </li>
           );
         })}
       </ul>
       <button
         type="button"
-        className="flex min-h-11 w-full items-center justify-center rounded-xl border border-dashed border-[#073b83]/35 bg-white px-4 text-sm font-semibold text-[#073b83] disabled:cursor-not-allowed disabled:opacity-40"
+        className="rental-option-add"
         disabled={!canAdd}
         onClick={() => editVariant(createDefaultRentalVariant(variants.length === 0 ? 'Standard' : 'New option'), true)}
       >

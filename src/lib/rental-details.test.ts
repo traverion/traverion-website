@@ -311,6 +311,24 @@ describe('rental pricing derivation', () => {
           variants: [{ id: 'a', name: 'A', quantity: 1, pricingOverride: { pricePerDayMinor: 2000 } }],
         },
       }),
+    ).toMatch(/name, quantity, and pricing|price per hour and a price per day/i);
+    expect(
+      rentalStageBlocker('options', {
+        ...base,
+        rental: {
+          ...emptyRentalDetails(),
+          durationMode: 'both',
+          variants: [
+            {
+              id: 'ready',
+              name: 'Ready',
+              quantity: 1,
+              pricingOverride: { pricePerHourMinor: 800, pricePerDayMinor: 2000 },
+            },
+            { id: 'a', name: 'A', quantity: 1, pricingOverride: { pricePerDayMinor: 2000 } },
+          ],
+        },
+      }),
     ).toMatch(/price per hour and a price per day/);
   });
 
