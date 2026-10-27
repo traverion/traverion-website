@@ -462,10 +462,40 @@ export function formatMinorAsEuro(minor: number | null | undefined): string {
   return `€${(minor / 100).toFixed(minor % 100 === 0 ? 0 : 2)}`;
 }
 
+/**
+ * Option names must be non-empty after trim. Single letters (S / M / L) are valid.
+ * The default “New option” label must be replaced before the option counts as complete.
+ */
+export function rentalOptionNameReady(name: string | null | undefined): boolean {
+  const trimmed = (name ?? '').trim();
+  if (!trimmed) return false;
+  return !/^new option$/i.test(trimmed);
+}
+
 export function rentalVariantComplete(variant: RentalVariant, rental: RentalDetails): boolean {
-  if (!variant.name.trim()) return false;
+  if (!rentalOptionNameReady(variant.name)) return false;
   if (!Number.isFinite(variant.quantity) || variant.quantity < 1) return false;
   return rentalOptionRatesReady(variant, rental);
+}
+
+/** Keep only attribute keys that belong to the listing category (drops stale Kit, etc.). */
+export function pruneRentalVariantAttributes(
+  variant: RentalVariant,
+  allowedKeys: readonly string[],
+): RentalVariant {
+  const allowed = new Set(allowedKeys);
+  const current = variant.attributes ?? {};
+  let changed = false;
+  const next: Record<string, string> = {};
+  for (const [key, raw] of Object.entries(current)) {
+    if (!allowed.has(key)) {
+      changed = true;
+      continue;
+    }
+    next[key] = raw;
+  }
+  if (!changed && Object.keys(current).length === Object.keys(next).length) return variant;
+  return { ...variant, attributes: next };
 }
 
 const DAY_SHORT: Record<RentalWeekday, string> = {

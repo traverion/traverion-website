@@ -11,6 +11,7 @@ import {
   rentalDurationFieldIssue,
   rentalMissingOptionRateMessage,
   rentalOperatingHoursIssue,
+  rentalOptionNameReady,
   rentalVariantComplete,
 } from './rental-details';
 
@@ -317,7 +318,7 @@ export function rentalStageBlocker(screenId: RentalOnboardingScreenId, check: Re
       if (!variants.some((v) => rentalVariantComplete(v, r))) {
         return 'Finish at least one rental option with name, quantity, and pricing.';
       }
-      if (!variants.every((v) => v.name.trim() && v.quantity >= 1)) {
+      if (!variants.every((v) => rentalOptionNameReady(v.name) && v.quantity >= 1)) {
         return 'Each option needs a name and at least 1 unit.';
       }
       return rentalMissingOptionRateMessage(r);

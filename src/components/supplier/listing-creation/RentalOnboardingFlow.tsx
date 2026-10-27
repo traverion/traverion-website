@@ -319,18 +319,11 @@ function variantAttributeText(variant: RentalVariant, cfg: RentalCategoryConfig 
 
 function variantSpecLine(variant: RentalVariant, cfg: RentalCategoryConfig | null): string {
   const keys = cfg?.variantAttributeKeys ?? [];
-  const seen = new Set<string>();
   const parts: string[] = [];
   for (const key of keys) {
     const value = (variant.attributes?.[key.key] ?? '').trim();
     if (!value) continue;
-    seen.add(key.key);
     parts.push(`${key.label}: ${value}`);
-  }
-  for (const [key, raw] of Object.entries(variant.attributes ?? {})) {
-    const value = raw.trim();
-    if (!value || seen.has(key)) continue;
-    parts.push(value);
   }
   return parts.join(' · ');
 }

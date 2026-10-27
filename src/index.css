@@ -14133,6 +14133,123 @@ details:not([open]) > :not(summary) {
     transform 160ms ease;
 }
 
+.rental-creator .rental-option-earnings-chip {
+  min-height: 2.25rem;
+  padding: 0.35rem 0.85rem;
+  border-radius: 9999px;
+  border: 1px solid var(--rental-border);
+  background: #ffffff;
+  color: #5c6570;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.rental-creator .rental-option-earnings-chip--active,
+.rental-creator .rental-option-earnings-chip[aria-pressed='true'] {
+  border-color: color-mix(in srgb, var(--rental-accent) 40%, var(--rental-border));
+  background: color-mix(in srgb, var(--rental-accent) 8%, #ffffff);
+  color: var(--rental-accent);
+}
+
+.rental-creator .rental-option-review {
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+}
+
+.rental-creator .rental-option-review__status {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.95rem 1rem;
+  border-radius: 1rem;
+  border: 1px solid var(--rental-border);
+  background: #ffffff;
+  box-shadow: var(--rental-card-shadow);
+  color: #9f1239;
+}
+
+.rental-creator .rental-option-review__status--complete {
+  color: var(--rental-accent);
+  border-color: color-mix(in srgb, var(--rental-accent) 28%, var(--rental-border));
+  background: linear-gradient(180deg, var(--rental-accent-soft), #ffffff 78%);
+}
+
+.rental-creator .rental-option-review__missing {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.rental-creator .rental-option-review__missing-link {
+  display: block;
+  width: 100%;
+  padding: 0.7rem 0.9rem;
+  text-align: left;
+  border-radius: 0.85rem;
+  border: 1px solid color-mix(in srgb, #9f1239 18%, var(--rental-border));
+  background: #fff7f7;
+  color: #9f1239;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.rental-creator .rental-option-review__missing-link:hover {
+  background: #fff1f2;
+}
+
+.rental-creator .rental-option-review__card {
+  margin: 0;
+  border-radius: 1rem;
+  border: 1px solid var(--rental-border);
+  background: #ffffff;
+  box-shadow: var(--rental-card-shadow);
+  overflow: hidden;
+}
+
+.rental-creator .rental-option-review__row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.95rem 1rem;
+  border-top: 1px solid var(--rental-border);
+}
+
+.rental-creator .rental-option-review__row:first-child {
+  border-top: 0;
+}
+
+.rental-creator .rental-option-review__label {
+  font-size: 0.6875rem;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #5c6570;
+}
+
+.rental-creator .rental-option-review__value {
+  margin-top: 0.25rem;
+  font-size: 0.9375rem;
+  font-weight: 650;
+  letter-spacing: -0.015em;
+  line-height: 1.35;
+  color: var(--rental-ink);
+  overflow-wrap: anywhere;
+}
+
+.rental-creator .rental-option-review__edit {
+  flex-shrink: 0;
+  min-height: 2.5rem;
+  padding: 0.35rem 0.15rem 0.35rem 0.5rem;
+  color: var(--rental-accent);
+  font-size: 0.875rem;
+  font-weight: 650;
+}
+
 .rental-creator .rental-option-add:hover:not(:disabled) {
   border-color: color-mix(in srgb, var(--rental-accent) 55%, var(--rental-border));
   background: color-mix(in srgb, var(--rental-accent) 7%, #ffffff);

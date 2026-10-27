@@ -25,6 +25,8 @@ import {
   rentalOperatingHoursIssue,
   rentalSkillConflictsDifficulty,
   rentalStartingFromMajor,
+  pruneRentalVariantAttributes,
+  rentalOptionNameReady,
   rentalVariantComplete,
   rentalVariantMetaLine,
   upsertRentalVariant,
@@ -142,6 +144,34 @@ describe('rental details', () => {
     expect(rentalVariantComplete(both.variants![0], both)).toBe(false);
     both.variants![0].pricingOverride = { pricePerHourMinor: 800, pricePerDayMinor: 2500 };
     expect(rentalVariantComplete(both.variants![0], both)).toBe(true);
+  });
+
+  it('requires a meaningful option name and prunes unrelated attributes', () => {
+    expect(rentalOptionNameReady('')).toBe(false);
+    expect(rentalOptionNameReady('New option')).toBe(false);
+    expect(rentalOptionNameReady('S')).toBe(true);
+    expect(rentalOptionNameReady('XL')).toBe(true);
+    const rental: RentalDetails = {
+      ...emptyRentalDetails(),
+      durationMode: 'daily',
+      variants: [
+        {
+          ...createDefaultRentalVariant('New option'),
+          quantity: 1,
+          pricingOverride: { pricePerDayMinor: 2000 },
+        },
+      ],
+    };
+    expect(rentalVariantComplete(rental.variants![0], rental)).toBe(false);
+    rental.variants![0].name = 'Medium';
+    expect(rentalVariantComplete(rental.variants![0], rental)).toBe(true);
+
+    const withKit = {
+      ...createDefaultRentalVariant('Medium'),
+      attributes: { size: 'M', kit: 'Body only' },
+    };
+    expect(pruneRentalVariantAttributes(withKit, ['size']).attributes).toEqual({ size: 'M' });
+    expect(pruneRentalVariantAttributes(withKit, ['size', 'kit'])).toBe(withKit);
   });
 });
 

@@ -1,11 +1,13 @@
 import { useEffect, useId, useRef, useState } from 'react';
-import { ChevronLeft } from 'lucide-react';
+import { CheckCircle2, ChevronLeft, CircleAlert } from 'lucide-react';
 import { rentalCategoryConfig } from '../../../lib/rental-categories';
 import { formatBpsAsPercent, splitGrossByCommissionBps } from '../../../lib/commercial-money';
 import {
   formatMinorAsEuro,
+  pruneRentalVariantAttributes,
   rentalOptionDayPriceMinor,
   rentalOptionHourPriceMinor,
+  rentalOptionNameReady,
   rentalOptionRatesReady,
   rentalVariantComplete,
 } from '../../../lib/rental-details';
@@ -229,8 +231,11 @@ export default function RentalOptionEditor({
   const priceId = useId();
   const hourPriceId = useId();
   const nameRef = useRef<HTMLInputElement>(null);
+  const prunedOpenRef = useRef(false);
   const [attempted, setAttempted] = useState(false);
   const [step, setStep] = useState(0);
+  /** Which rate’s earnings panel to emphasize when both hourly and daily are enabled. */
+  const [earningsFocus, setEarningsFocus] = useState<'hour' | 'day'>('day');
 
   const currency = normalizeCurrency(listingCurrency ?? rental.sharedPricing?.currency);
   const config = rentalCategoryConfig(rental.category);
@@ -242,9 +247,13 @@ export default function RentalOptionEditor({
   const dayPrice = rentalOptionDayPriceMinor(variant);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      prunedOpenRef.current = false;
+      return;
+    }
     setAttempted(false);
     setStep(0);
+    setEarningsFocus(mode === 'hourly' ? 'hour' : 'day');
     const previous = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     const timer = window.setTimeout(() => nameRef.current?.focus({ preventScroll: true }), 60);
@@ -252,11 +261,21 @@ export default function RentalOptionEditor({
       document.body.style.overflow = previous;
       window.clearTimeout(timer);
     };
+  }, [open, mode]);
+
+  useEffect(() => {
+    if (!open || prunedOpenRef.current) return;
+    prunedOpenRef.current = true;
+    const allowed = attributeKeys.map((row) => row.key);
+    const pruned = pruneRentalVariantAttributes(variant, allowed);
+    if (pruned !== variant) onChange(pruned);
+    // Intentionally run once per open session to strip stale category attributes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- open-session prune only
   }, [open]);
 
   if (!open) return null;
 
-  const nameMissing = !variant.name.trim();
+  const nameMissing = !rentalOptionNameReady(variant.name);
   const quantityInvalid = !Number.isFinite(variant.quantity) || variant.quantity < 1;
   const priceInvalid = !rentalOptionRatesReady(variant, rental);
   const priceMessage =
@@ -265,12 +284,18 @@ export default function RentalOptionEditor({
       : mode === 'both'
         ? 'Enter a price per hour and a price per day.'
         : 'Enter a price per day.';
-  const canSave = !nameMissing && !quantityInvalid && !priceInvalid;
+  const canSaveComplete = !nameMissing && !quantityInvalid && !priceInvalid;
   const complete = rentalVariantComplete(variant, rental);
+
+  const missingItems: { id: (typeof RENTAL_OPTION_STEPS)[number]; label: string }[] = [];
+  if (nameMissing) missingItems.push({ id: 'identity', label: 'Add an option name' });
+  if (quantityInvalid) missingItems.push({ id: 'inventory', label: 'Set at least 1 unit' });
+  if (priceInvalid) missingItems.push({ id: 'pricing', label: priceMessage.replace(/\.$/, '') });
 
   const patch = (next: Partial<RentalVariant>) => onChange({ ...variant, ...next });
 
   const writeRate = (key: 'pricePerHourMinor' | 'pricePerDayMinor', minor: number | null) => {
+    setEarningsFocus(key === 'pricePerHourMinor' ? 'hour' : 'day');
     patch({
       pricingOverride: {
         ...(variant.pricingOverride ?? {}),
@@ -281,25 +306,26 @@ export default function RentalOptionEditor({
   };
 
   const setAttribute = (key: string, value: string) => {
+    const allowed = new Set(attributeKeys.map((row) => row.key));
+    if (!allowed.has(key)) return;
     const attributes = { ...(variant.attributes ?? {}) };
     if (value.trim()) attributes[key] = value.slice(0, 120);
     else delete attributes[key];
     patch({ attributes });
   };
 
-  const trySave = () => {
-    if (!canSave) {
+  const saveDraft = () => {
+    onSave();
+  };
+
+  const trySaveComplete = () => {
+    if (!canSaveComplete) {
       setAttempted(true);
-      if (nameMissing) {
-        setStep(RENTAL_OPTION_STEPS.indexOf('identity'));
-        nameRef.current?.focus();
-        return;
+      const first = missingItems[0];
+      if (first) {
+        setStep(RENTAL_OPTION_STEPS.indexOf(first.id));
+        if (first.id === 'identity') nameRef.current?.focus();
       }
-      if (quantityInvalid) {
-        setStep(RENTAL_OPTION_STEPS.indexOf('inventory'));
-        return;
-      }
-      setStep(RENTAL_OPTION_STEPS.indexOf('pricing'));
       return;
     }
     onSave();
@@ -318,28 +344,45 @@ export default function RentalOptionEditor({
   const stepCopy: Record<(typeof steps)[number], { title: string; lede: string }> = {
     identity: {
       title: 'Identity and specifications',
-      lede: 'Name the size or model. Only the fields for this category are shown.',
+      lede: config
+        ? `Name this ${config.title.toLowerCase()} option. Only ${config.title.toLowerCase()} fields are shown.`
+        : 'Name the size or model. Only the fields for this category are shown.',
     },
     inventory: {
       title: 'Inventory',
-      lede: 'How many identical units of this option can be rented at once.',
+      lede: 'Set how many of this exact option guests can book at the same time.',
     },
     pricing: {
       title: 'Pricing',
       lede:
         mode === 'hourly'
-          ? 'The price a guest pays for one hour of this option.'
+          ? 'Set the guest price for one hour. Earnings update as you type.'
           : mode === 'both'
-            ? 'The price a guest pays for one hour and for one day of this option.'
-            : 'The price a guest pays for one day of this option.',
+            ? 'Set guest prices for one hour and one day. Earnings update as you type.'
+            : 'Set the guest price for one day. Earnings update as you type.',
     },
     review: {
       title: 'Review',
-      lede: 'Check this option, then save it on the listing.',
+      lede: complete
+        ? 'This option is ready to save on the listing.'
+        : 'Finish the required fields, or save a draft and return later.',
     },
   };
 
   const goTo = (id: (typeof steps)[number]) => setStep(steps.indexOf(id));
+
+  // When both rates are enabled, show exactly one earnings panel for the rate last edited.
+  const earningsUnit: 'hour' | 'day' =
+    mode === 'hourly'
+      ? 'hour'
+      : mode === 'daily'
+        ? 'day'
+        : hourPrice != null && dayPrice == null
+          ? 'hour'
+          : dayPrice != null && hourPrice == null
+            ? 'day'
+            : earningsFocus;
+  const earningsMinor = earningsUnit === 'hour' ? hourPrice : dayPrice;
 
   return (
     <div
@@ -367,8 +410,12 @@ export default function RentalOptionEditor({
           <h2 id={titleId} className="min-w-0 flex-1 truncate text-center text-sm font-semibold text-ink">
             {variant.name.trim() || 'New option'}
           </h2>
-          <button type="button" className="tv-btn-primary min-h-11 px-4 text-sm font-semibold" onClick={trySave}>
-            Save
+          <button
+            type="button"
+            className="tv-btn-primary min-h-11 px-4 text-sm font-semibold"
+            onClick={() => (canSaveComplete ? trySaveComplete() : saveDraft())}
+          >
+            {canSaveComplete ? 'Save' : 'Draft'}
           </button>
         </div>
       </header>
@@ -398,26 +445,35 @@ export default function RentalOptionEditor({
                   onChange={(e) => patch({ name: e.target.value.slice(0, 80) })}
                 />
               </StayField>
+              <StayHelp>Use a clear label travelers will recognize, such as a size or model.</StayHelp>
               {attempted && nameMissing ? (
                 <p className="stay-alert !mt-0" role="alert">
-                  Name this option to continue.
+                  {variant.name.trim() && /^new option$/i.test(variant.name.trim())
+                    ? 'Replace “New option” with a clear size or model name.'
+                    : 'Name this option to continue.'}
                 </p>
               ) : null}
               {attributeKeys.length > 0 ? (
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {attributeKeys.map((attr) => (
-                    <StayField key={attr.key} label={attr.label} optional>
-                      <input
-                        className="tv-input w-full"
-                        value={(variant.attributes ?? {})[attr.key] ?? ''}
-                        maxLength={120}
-                        placeholder={attr.placeholder}
-                        onChange={(e) => setAttribute(attr.key, e.target.value)}
-                      />
-                    </StayField>
-                  ))}
+                <div className="space-y-2">
+                  <p className="text-sm font-semibold text-ink">Specifications</p>
+                  <p className="text-sm text-ink-muted">Optional details for this category only.</p>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {attributeKeys.map((attr) => (
+                      <StayField key={attr.key} label={attr.label} optional>
+                        <input
+                          className="tv-input w-full"
+                          value={(variant.attributes ?? {})[attr.key] ?? ''}
+                          maxLength={120}
+                          placeholder={attr.placeholder}
+                          onChange={(e) => setAttribute(attr.key, e.target.value)}
+                        />
+                      </StayField>
+                    ))}
+                  </div>
                 </div>
-              ) : null}
+              ) : (
+                <StayHelp>This category has no extra specification fields for options.</StayHelp>
+              )}
               <StayField label="Description" optional>
                 <textarea
                   id={descriptionId}
@@ -435,17 +491,20 @@ export default function RentalOptionEditor({
               >
                 <summary className="cursor-pointer py-1 text-sm font-semibold text-ink">Advanced notes</summary>
                 <div className="pb-1 pt-3">
-                  <StayField label="Notes for this option" optional>
+                  <StayField label="Private notes for this option" optional>
                     <textarea
                       className="tv-input w-full resize-y py-2"
                       rows={3}
                       maxLength={240}
                       value={variant.availabilityOverrideNote ?? ''}
-                      placeholder="Setup, fit, or anything that applies only to this option."
+                      placeholder="Fit tips, kit contents, or setup notes for your team."
                       onChange={(e) => patch({ availabilityOverrideNote: e.target.value.slice(0, 240) })}
                     />
                   </StayField>
-                  <StayHelp>Saved with the option. It does not close dates on the calendar.</StayHelp>
+                  <StayHelp>
+                    Visible to your team with this option. It does not block calendar dates or change public
+                    availability.
+                  </StayHelp>
                 </div>
               </details>
             </section>
@@ -464,7 +523,7 @@ export default function RentalOptionEditor({
                   onChange={(n) => patch({ quantity: n ?? 1 })}
                 />
               </StayField>
-              <StayHelp>Ten identical units of this option means 10. Each option keeps its own stock.</StayHelp>
+              <StayHelp>Number of identical units available for rent.</StayHelp>
               {attempted && quantityInvalid ? (
                 <p className="stay-alert !mt-0" role="alert">
                   Enter at least 1 unit.
@@ -504,43 +563,107 @@ export default function RentalOptionEditor({
                   {priceMessage}
                 </p>
               ) : null}
-              {needsHour ? (
-                <OptionRateEarnings minor={hourPrice} unit="hour" currency={currency} commissionBps={commissionBps} />
-              ) : null}
-              {needsDay ? (
-                <OptionRateEarnings minor={dayPrice} unit="day" currency={currency} commissionBps={commissionBps} />
+              <OptionRateEarnings
+                minor={earningsMinor}
+                unit={earningsUnit}
+                currency={currency}
+                commissionBps={commissionBps}
+              />
+              {mode === 'both' ? (
+                <div className="flex flex-wrap gap-2" role="group" aria-label="Earnings period">
+                  <button
+                    type="button"
+                    className={`rental-option-earnings-chip${earningsUnit === 'hour' ? ' rental-option-earnings-chip--active' : ''}`}
+                    aria-pressed={earningsUnit === 'hour'}
+                    onClick={() => setEarningsFocus('hour')}
+                  >
+                    1 hour
+                  </button>
+                  <button
+                    type="button"
+                    className={`rental-option-earnings-chip${earningsUnit === 'day' ? ' rental-option-earnings-chip--active' : ''}`}
+                    aria-pressed={earningsUnit === 'day'}
+                    onClick={() => setEarningsFocus('day')}
+                  >
+                    1 day
+                  </button>
+                </div>
               ) : null}
             </section>
           ) : null}
 
           {current === 'review' ? (
-            <section aria-label="Review">
-              <dl className="divide-y divide-[#E6EAF0] rounded-2xl border border-[#E6EAF0] bg-white">
+            <section className="rental-option-review" aria-label="Review">
+              <div
+                className={`rental-option-review__status${complete ? ' rental-option-review__status--complete' : ''}`}
+                role="status"
+              >
+                {complete ? (
+                  <CheckCircle2 className="h-5 w-5 shrink-0" aria-hidden />
+                ) : (
+                  <CircleAlert className="h-5 w-5 shrink-0" aria-hidden />
+                )}
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-ink">
+                    {complete ? 'Ready to save' : 'Still missing required details'}
+                  </p>
+                  <p className="mt-0.5 text-sm text-ink-muted">
+                    {complete
+                      ? 'Name, inventory, and pricing are complete for this listing.'
+                      : 'You can save a draft now. A complete option is required before Continue on Options.'}
+                  </p>
+                </div>
+              </div>
+
+              {!complete && missingItems.length > 0 ? (
+                <ul className="rental-option-review__missing">
+                  {missingItems.map((item) => (
+                    <li key={item.id}>
+                      <button type="button" className="rental-option-review__missing-link" onClick={() => goTo(item.id)}>
+                        {item.label}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+
+              <dl className="rental-option-review__card">
                 <ReviewLine label="Name" value={variant.name.trim() || 'Not named yet'} onEdit={() => goTo('identity')} />
-                {attributeSummary ? <ReviewLine label="Specifications" value={attributeSummary} onEdit={() => goTo('identity')} /> : null}
+                <ReviewLine
+                  label="Specifications"
+                  value={attributeSummary || 'None added'}
+                  onEdit={() => goTo('identity')}
+                />
                 {variant.description?.trim() ? (
                   <ReviewLine label="Description" value={variant.description.trim()} onEdit={() => goTo('identity')} />
                 ) : null}
                 {variant.availabilityOverrideNote?.trim() ? (
-                  <ReviewLine label="Notes" value={variant.availabilityOverrideNote.trim()} onEdit={() => goTo('identity')} />
+                  <ReviewLine
+                    label="Notes"
+                    value={variant.availabilityOverrideNote.trim()}
+                    onEdit={() => goTo('identity')}
+                  />
                 ) : null}
-                <ReviewLine label="Units" value={String(variant.quantity)} onEdit={() => goTo('inventory')} />
                 <ReviewLine
-                  label="Price"
-                  value={formatRentalOptionRates(
-                    {
-                      pricePerHourMinor: hourPrice,
-                      pricePerDayMinor: dayPrice,
-                    },
-                    mode,
-                    currency,
-                  )}
-                  onEdit={() => goTo('pricing')}
+                  label="Inventory"
+                  value={`${variant.quantity} ${variant.quantity === 1 ? 'unit' : 'units'}`}
+                  onEdit={() => goTo('inventory')}
                 />
+                {needsHour ? (
+                  <ReviewLine
+                    label="Price per hour"
+                    value={hourPrice != null ? `${formatRentalMinor(hourPrice, currency)} / hour` : 'Add pricing'}
+                    onEdit={() => goTo('pricing')}
+                  />
+                ) : null}
+                {needsDay ? (
+                  <ReviewLine
+                    label="Price per day"
+                    value={dayPrice != null ? `${formatRentalMinor(dayPrice, currency)} / day` : 'Add pricing'}
+                    onEdit={() => goTo('pricing')}
+                  />
+                ) : null}
               </dl>
-              <p className={`mt-3 text-sm font-semibold ${complete ? 'text-[#073b83]' : 'text-ink-muted'}`} role="status">
-                {complete ? 'Complete.' : priceMessage}
-              </p>
             </section>
           ) : null}
         </div>
@@ -549,9 +672,15 @@ export default function RentalOptionEditor({
       <footer className="shrink-0 border-t border-[#E6EAF0] bg-white px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-6">
         <div className="mx-auto flex w-full max-w-3xl flex-col gap-2 sm:flex-row-reverse">
           {current === 'review' ? (
-            <button type="button" className="tv-btn-primary min-h-11 px-5 text-sm font-semibold" onClick={trySave}>
-              Save option
-            </button>
+            canSaveComplete ? (
+              <button type="button" className="tv-btn-primary min-h-11 px-5 text-sm font-semibold" onClick={trySaveComplete}>
+                Save option
+              </button>
+            ) : (
+              <button type="button" className="tv-btn-primary min-h-11 px-5 text-sm font-semibold" onClick={saveDraft}>
+                Save draft
+              </button>
+            )
           ) : (
             <button
               type="button"
@@ -560,6 +689,10 @@ export default function RentalOptionEditor({
                 if (current === 'identity' && nameMissing) {
                   setAttempted(true);
                   nameRef.current?.focus();
+                  return;
+                }
+                if (current === 'inventory' && quantityInvalid) {
+                  setAttempted(true);
                   return;
                 }
                 if (current === 'pricing' && priceInvalid) {
@@ -641,12 +774,12 @@ function OptionRateEarnings({
 
 function ReviewLine({ label, value, onEdit }: { label: string; value: string; onEdit: () => void }) {
   return (
-    <div className="flex items-start justify-between gap-3 px-3 py-2.5">
+    <div className="rental-option-review__row">
       <div className="min-w-0">
-        <dt className="text-xs font-semibold uppercase tracking-[0.08em] text-ink-muted">{label}</dt>
-        <dd className="mt-0.5 text-sm font-semibold text-ink">{value}</dd>
+        <dt className="rental-option-review__label">{label}</dt>
+        <dd className="rental-option-review__value">{value}</dd>
       </div>
-      <button type="button" className="shrink-0 text-sm font-semibold text-[#073b83]" onClick={onEdit}>
+      <button type="button" className="rental-option-review__edit" onClick={onEdit}>
         Edit
       </button>
     </div>
