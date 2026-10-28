@@ -4389,13 +4389,15 @@ a:focus-visible,
 }
 
 /* Tour Details — premium hero + surfaces */
-.tv-tour-pdp .tv-tour-title {
+.tv-tour-pdp .tv-tour-title,
+.tv-rental-pdp .tv-tour-title {
   font-size: clamp(1.45rem, 2.1vw, 2rem);
   line-height: 1.18;
   letter-spacing: -0.02em;
   max-width: 100%;
 }
-.tv-tour-pdp .tv-tour-subtitle {
+.tv-tour-pdp .tv-tour-subtitle,
+.tv-rental-pdp .tv-tour-subtitle {
   font-size: 0.9375rem;
   line-height: 1.6;
   letter-spacing: -0.005em;

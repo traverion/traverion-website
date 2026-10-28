@@ -7,6 +7,7 @@ type Props = {
   title: string;
 };
 
+/** Tour/Stay mosaic parity for rental PDPs — title stays above this block on the page. */
 export default function RentalPhotoGallery({ photos, title }: Props) {
   const [open, setOpen] = useState(false);
   const [index, setIndex] = useState(0);
@@ -17,58 +18,83 @@ export default function RentalPhotoGallery({ photos, title }: Props) {
 
   if (photos.length === 0) {
     return (
-      <div className="flex aspect-[16/9] items-center justify-center rounded-2xl bg-[#F4F6F8] text-sm text-ink-muted">
-        Photos coming soon
+      <div className="flex aspect-[21/9] items-center justify-center rounded-xl bg-ink/[0.06] ring-1 ring-black/[0.04]">
+        <p className="px-4 text-center text-sm text-ink-muted">No photos yet for this rental</p>
       </div>
     );
   }
 
-  const alt = (i: number) => `${title} photo ${i + 1} of ${photos.length}`;
-  const side = photos.slice(1, 5);
   const openAt = (i: number) => {
     setIndex(i);
     setOpen(true);
   };
+  const multi = photos.length > 1;
 
   return (
     <>
-      <div className="overflow-hidden rounded-2xl bg-[#F4F6F8] ring-1 ring-[#E6EAF0]">
-        <div className={`grid gap-1 ${side.length > 0 ? 'sm:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]' : ''}`}>
+      <div>
+        <div className={`grid grid-cols-1 gap-2 ${multi ? 'lg:grid-cols-4 lg:grid-rows-2 lg:h-[21rem] lg:gap-2' : ''}`}>
           <button
             type="button"
-            className="group relative block min-h-0 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#073b83]"
             onClick={() => openAt(0)}
+            className={`relative overflow-hidden rounded-xl bg-ink/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0758CB] ${
+              multi ? 'lg:col-span-2 lg:row-span-2 aspect-[4/3] lg:aspect-auto' : 'aspect-[16/10] max-h-[28rem]'
+            }`}
+            aria-label={`Open gallery, photo 1 of ${photos.length}`}
           >
             <img
               src={photos[0]}
-              alt={alt(0)}
-              className="aspect-[16/10] h-full w-full object-cover transition duration-200 group-hover:brightness-[0.97] sm:aspect-auto sm:min-h-[18rem]"
+              alt={title}
+              decoding="async"
+              fetchPriority="high"
+              className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 motion-safe:hover:scale-[1.02]"
             />
           </button>
-          {side.length > 0 ? (
-            <div className="hidden grid-cols-2 gap-1 sm:grid">
-              {side.map((url, i) => (
+          {photos.slice(1, 5).map((url, i) => (
+            <button
+              key={url}
+              type="button"
+              onClick={() => openAt(i + 1)}
+              className="relative hidden overflow-hidden rounded-xl bg-ink/10 aspect-[4/3] lg:block focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0758CB]"
+              aria-label={`Open gallery, photo ${i + 2} of ${photos.length}`}
+            >
+              <img
+                src={url}
+                alt={`${title}, photo ${i + 2}`}
+                loading="lazy"
+                decoding="async"
+                className="absolute inset-0 h-full w-full object-cover"
+              />
+              {i === 3 && photos.length > 5 ? (
+                <span className="absolute inset-0 flex items-center justify-center bg-ink/45 text-sm font-semibold text-white">
+                  +{photos.length - 5} more
+                </span>
+              ) : null}
+            </button>
+          ))}
+          {multi ? (
+            <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 snap-x snap-mandatory lg:hidden">
+              {photos.map((url, photoIndex) => (
                 <button
-                  key={url}
+                  key={`m-${photoIndex}`}
                   type="button"
-                  className="group relative min-h-0"
-                  onClick={() => openAt(i + 1)}
+                  onClick={() => openAt(photoIndex)}
+                  className={`relative shrink-0 snap-start overflow-hidden rounded-xl ${
+                    photoIndex === 0 ? 'hidden' : 'aspect-[4/3] w-[42%]'
+                  }`}
+                  aria-label={`Photo ${photoIndex + 1} of ${photos.length}`}
                 >
-                  <img
-                    src={url}
-                    alt={alt(i + 1)}
-                    className="aspect-[16/10] h-full w-full object-cover transition duration-200 group-hover:brightness-[0.97]"
-                  />
+                  <img src={url} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />
                 </button>
               ))}
             </div>
           ) : null}
         </div>
-        <div className="flex items-center justify-between gap-3 bg-white px-4 py-2.5">
-          <p className="text-xs text-ink-muted">
-            {photos.length} photo{photos.length === 1 ? '' : 's'}
+        <div className="mt-2 flex items-center justify-between gap-3">
+          <p className="text-xs tabular-nums text-ink-muted">
+            {photos.length} {photos.length === 1 ? 'photo' : 'photos'}
           </p>
-          <button type="button" className="text-sm font-semibold text-[#073b83]" onClick={() => openAt(0)}>
+          <button type="button" onClick={() => openAt(0)} className="tv-section-cta lux-flat text-xs">
             View all photos
           </button>
         </div>
@@ -102,7 +128,7 @@ export default function RentalPhotoGallery({ photos, title }: Props) {
           }}
         >
           <div className="flex items-center justify-between px-4 py-3 text-white">
-            <p className="text-sm">
+            <p className="text-sm tabular-nums">
               {index + 1} / {photos.length}
             </p>
             <button type="button" className="tv-gallery-lightbox__close" aria-label="Close photos" onClick={close}>
@@ -122,7 +148,7 @@ export default function RentalPhotoGallery({ photos, title }: Props) {
             ) : null}
             <img
               src={photos[index]}
-              alt={alt(index)}
+              alt={`${title} photo ${index + 1} of ${photos.length}`}
               className="max-h-[min(78vh,900px)] max-w-full rounded-lg object-contain shadow-2xl"
             />
             {photos.length > 1 ? (

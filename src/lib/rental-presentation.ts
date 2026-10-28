@@ -91,6 +91,20 @@ export function rentalCategoryTitle(rental: RentalDetails): string {
   return rentalCategoryConfig(rental.category)?.title ?? 'Rental';
 }
 
+/** Quantity nouns for the booking stepper — never “guest”. */
+export function rentalQuantityUnits(rental: RentalDetails): { singular: string; plural: string } {
+  switch (rental.category) {
+    case 'cameras_electronics':
+      return { singular: 'camera', plural: 'cameras' };
+    case 'bikes':
+      return { singular: 'bike', plural: 'bikes' };
+    case 'vehicles':
+      return { singular: 'vehicle', plural: 'vehicles' };
+    default:
+      return { singular: 'unit', plural: 'units' };
+  }
+}
+
 export function rentalSpecLabel(rental: RentalDetails, key: string): string {
   return rentalCategoryConfig(rental.category)?.listingSpecKeys.find((row) => row.key === key)?.label ?? 'Detail';
 }

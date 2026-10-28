@@ -11,7 +11,7 @@ import {
   effectiveVariantPricing,
   formatMinorAsEuro,
 } from '../../lib/rental-details';
-import { rentalOptionRateLabel } from '../../lib/rental-presentation';
+import { rentalOptionRateLabel, rentalQuantityUnits } from '../../lib/rental-presentation';
 import { isRentalDevPreviewId } from '../../lib/rental-dev-preview';
 import { quoteRentalLine } from '../../lib/rental-quote';
 import { COMMERCIAL_PLANS } from '../../lib/commercial-money';
@@ -318,6 +318,7 @@ export default function RentalBookingWidget({
   };
 
   const minDate = todayLocalYmd();
+  const quantityUnits = rentalQuantityUnits(rental);
   const unitPriceLabel =
     durationUnit === 'hour'
       ? formatMinorAsEuro(pricing?.pricePerHourMinor)
@@ -459,7 +460,9 @@ export default function RentalBookingWidget({
         min={1}
         max={Math.max(1, maxQty)}
         onChange={setQuantity}
-        hint={`${maxQty} available for this option`}
+        unitSingular={quantityUnits.singular}
+        unitPlural={quantityUnits.plural}
+        hint={`Up to ${maxQty} ${maxQty === 1 ? quantityUnits.singular : quantityUnits.plural} for this option. Live stock is checked for your dates.`}
       />
 
       {!interval.ok ? (

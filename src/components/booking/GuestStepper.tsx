@@ -15,6 +15,9 @@ export type GuestStepperProps = {
   hint?: string | null;
   /** Extra ids (e.g. stay capacity error) merged into the stepper group description. */
   ariaDescribedBy?: string;
+  /** Count noun for display and aria (default: guest/guests). Use unit/camera/bike for rentals. */
+  unitSingular?: string;
+  unitPlural?: string;
 };
 
 export default function GuestStepper({
@@ -28,12 +31,15 @@ export default function GuestStepper({
   className = '',
   hint,
   ariaDescribedBy,
+  unitSingular = 'guest',
+  unitPlural = 'guests',
 }: GuestStepperProps) {
   const generatedId = useId();
   const labelId = id ?? generatedId;
   const hintId = useId();
   const atMin = value <= min || max < 1;
   const atMax = value >= max || max < 1;
+  const unit = value === 1 ? unitSingular : unitPlural;
 
   const tryDecrease = () => {
     if (atMin) {
@@ -69,7 +75,7 @@ export default function GuestStepper({
         <button
           type="button"
           className="lux-flat flex h-12 w-12 shrink-0 items-center justify-center text-finland transition-colors duration-150 hover:bg-finland/5 active:scale-95 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent disabled:active:scale-100"
-          aria-label="Decrease number of guests"
+          aria-label={`Decrease number of ${unitPlural}`}
           disabled={atMin}
           onClick={tryDecrease}
         >
@@ -81,13 +87,13 @@ export default function GuestStepper({
           aria-atomic="true"
         >
           <span key={value} className="tv-tick text-sm font-semibold tabular-nums tracking-tight text-ink">
-            {value} {value === 1 ? 'guest' : 'guests'}
+            {value} {unit}
           </span>
         </div>
         <button
           type="button"
           className="lux-flat flex h-12 w-12 shrink-0 items-center justify-center text-finland transition-colors duration-150 hover:bg-finland/5 active:scale-95 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent disabled:active:scale-100"
-          aria-label="Increase number of guests"
+          aria-label={`Increase number of ${unitPlural}`}
           disabled={atMax}
           onClick={tryIncrease}
         >
