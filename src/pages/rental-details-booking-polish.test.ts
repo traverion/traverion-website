@@ -27,6 +27,8 @@ describe('Rental PDP final polish', () => {
     expect(widget).toContain('size="compact"');
     expect(widget).toContain('unitSingular');
     expect(widget).toContain('Estimated total');
+    expect(widget).toMatch(/\bContinue\b/);
+    expect(widget).toContain('onContinue');
     expect(widget).toContain('tv-rental-datetime');
     expect(widget).toContain('TraverionSingleDateField');
     expect(widget).toContain('TraverionTimeListField');
@@ -37,6 +39,8 @@ describe('Rental PDP final polish', () => {
     expect(widget).not.toContain('Confirmed again at checkout');
     expect(widget).not.toContain('Checkout uses Traverion');
     expect(widget).not.toContain('Nothing is reserved');
+    expect(widget).not.toContain('Review rental');
+    expect(widget).not.toContain('Continue to checkout');
     expect(widget).toContain('unitSingular={quantityUnits.singular}');
     expect(widget).not.toMatch(/unitSingular=["']guest["']/);
     expect(stepper).toContain("size === 'compact'");

@@ -31,6 +31,20 @@ describe('rental-booking-interval', () => {
     expect(calendarDaysBetween('2030-06-01', '2030-06-03')).toBe(2);
   });
 
+  it('bills overnight pickup→return as one calendar day (e.g. Oct 29 09:00 → Oct 30 18:00)', () => {
+    const r = buildRentalInterval({
+      startDate: '2026-10-29',
+      endDate: '2026-10-30',
+      pickupHm: '09:00',
+      returnHm: '18:00',
+      durationUnit: 'day',
+    });
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.durationCount).toBe(1);
+    expect(calendarDaysBetween('2026-10-29', '2026-10-30')).toBe(1);
+  });
+
   it('builds hourly intervals rounding up', () => {
     const r = buildRentalInterval({
       startDate: '2030-06-01',

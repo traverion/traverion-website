@@ -135,6 +135,34 @@ export function quoteRentalLine(input: RentalQuoteInput): RentalQuoteResult {
   }
 }
 
+/** Guest-facing price lines for the rental booking review page. */
+export function rentalQuotePriceLines(
+  quote: Extract<RentalQuoteResult, { ok: true }>,
+  unit: 'hour' | 'day'
+): { label: string; amount: number; muted?: boolean }[] {
+  const gross = quote.customerTotalMinor / 100;
+  const unitEuro = quote.unitMinor / 100;
+  const unitWord = unit === 'hour' ? 'hour' : 'day';
+  const durationLabel =
+    quote.durationCount === 1 ? `1 ${unitWord}` : `${quote.durationCount} ${unitWord}s`;
+  const rateLabel = `€${unitEuro % 1 === 0 ? unitEuro.toFixed(0) : unitEuro.toFixed(2)} / ${unitWord}`;
+  const undiscounted = unitEuro * quote.quantity * quote.durationCount;
+  const lines: { label: string; amount: number; muted?: boolean }[] = [
+    {
+      label: `${quote.quantity} × ${durationLabel} · ${rateLabel}`,
+      amount: Number(undiscounted.toFixed(2)),
+    },
+  ];
+  if (quote.discountApplied && undiscounted > gross + 0.001) {
+    lines.push({
+      label: 'Multi-day discount',
+      amount: Number((gross - undiscounted).toFixed(2)),
+      muted: true,
+    });
+  }
+  return lines;
+}
+
 export type RentalAuthoritativeQuoteInput = RentalQuoteInput & {
   availability: Omit<RentalAvailabilityQuery, 'variantId' | 'stock' | 'requestedQty'>;
   /** When true, stock comes from variant.quantity (listing extras). */

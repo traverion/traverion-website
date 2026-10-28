@@ -28,6 +28,7 @@ import PublicReviewCard from '../components/PublicReviewCard';
 import ListingPdpReviewMeta from '../components/ListingPdpReviewMeta';
 import { ListingReviewsModal } from '../components/ListingReviewsModal';
 import { TourOperatorBlock } from '../components/tour-detail/TourListingSections';
+import RentalBookingConfirm from './RentalBookingConfirm';
 import { LISTING_REVIEWS_EMPTY_COPY } from '../lib/booking-confirmation-copy';
 import { publicReviewLabel } from '../lib/listingTruth';
 import { useAuth } from '../contexts/AuthContext';
@@ -65,6 +66,13 @@ import {
   rentalReturnPoint,
   rentalSpecLabel,
 } from '../lib/rental-presentation';
+import {
+  buildRentalCheckoutHref,
+  buildRentalListingHref,
+  parseRentalCheckoutSearch,
+  type RentalCheckoutState,
+} from '../lib/rentalCheckoutUrl';
+import { trackListingTraffic } from '../lib/listing-traffic';
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
 import { isSupabaseListingId } from '../lib/discount-display';
 import { orderedPhotoUrls, photoSlotsFromTourPackage } from '../lib/listingPhotoGrid';
@@ -213,6 +221,27 @@ export default function RentalDetails({ listingId, onNavigate }: Props) {
   );
 }
 
+function readRentalListingPrefill(): Partial<RentalCheckoutState> {
+  if (typeof window === 'undefined') return {};
+  const params = new URLSearchParams(window.location.search);
+  const variantId = (params.get('variant') ?? '').trim();
+  const qtyRaw = Number.parseInt(params.get('qty') ?? '', 10);
+  const unitRaw = (params.get('unit') ?? '').trim().toLowerCase();
+  const startDate = (params.get('start') ?? '').trim();
+  const endDate = (params.get('end') ?? '').trim();
+  const pickupHm = (params.get('pickup') ?? '').trim();
+  const returnHm = (params.get('return') ?? '').trim();
+  return {
+    ...(variantId ? { variantId } : {}),
+    ...(Number.isFinite(qtyRaw) && qtyRaw >= 1 ? { quantity: Math.min(99, Math.floor(qtyRaw)) } : {}),
+    ...(unitRaw === 'hour' || unitRaw === 'day' ? { durationUnit: unitRaw } : {}),
+    ...( /^\d{4}-\d{2}-\d{2}$/.test(startDate) ? { startDate } : {}),
+    ...( /^\d{4}-\d{2}-\d{2}$/.test(endDate) ? { endDate } : {}),
+    ...( /^\d{2}:\d{2}$/.test(pickupHm) ? { pickupHm } : {}),
+    ...( /^\d{2}:\d{2}$/.test(returnHm) ? { returnHm } : {}),
+  };
+}
+
 function RentalBody({
   listing,
   rental,
@@ -234,13 +263,61 @@ function RentalBody({
   const hours = rentalHoursLines(rental.operatingDays);
   const returnPoint = rentalReturnPoint(rental);
   const variants = rental.variants ?? [];
-  const [variantId, setVariantId] = useState(variants[0]?.id ?? '');
+  const listingPrefill = useMemo(() => readRentalListingPrefill(), []);
+  const [locationSearch, setLocationSearch] = useState(
+    () => (typeof window !== 'undefined' ? window.location.search : '')
+  );
+  const checkoutFromUrl = useMemo(() => parseRentalCheckoutSearch(locationSearch), [locationSearch]);
+  const [variantId, setVariantId] = useState(
+    () => listingPrefill.variantId || variants[0]?.id || ''
+  );
+  const [widgetInitial, setWidgetInitial] = useState<Partial<RentalCheckoutState>>(listingPrefill);
   const selectedVariant = variants.find((item) => item.id === variantId) ?? variants[0] ?? null;
   const durationRows = rentalDurationLengthRows(rental, selectedVariant);
   const highlights = (rental.highlights?.length ? rental.highlights : listing.highlights) ?? [];
   const fromPrice = rentalFromPrice(rental);
   const units = rentalQuantityUnits(rental);
   const [shareCopied, setShareCopied] = useState(false);
+
+  useEffect(() => {
+    const onPop = () => setLocationSearch(window.location.search);
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
+
+  useEffect(() => {
+    if (listing.id && !draftPreview && !devPreview) trackListingTraffic(listing.id, 'view');
+  }, [listing.id, draftPreview, devPreview]);
+
+  const openRentalBookingConfirm = useCallback(
+    (state: RentalCheckoutState) => {
+      if (draftPreview || devPreview) return;
+      trackListingTraffic(listing.id, 'book_start');
+      const href = buildRentalCheckoutHref(listing.id, state);
+      window.history.pushState({}, '', href);
+      setLocationSearch(window.location.search);
+    },
+    [listing.id, draftPreview, devPreview]
+  );
+
+  const closeRentalBookingConfirm = useCallback(
+    (state: RentalCheckoutState) => {
+      const href = buildRentalListingHref(listing.id, state);
+      window.history.pushState({}, '', href);
+      setLocationSearch(window.location.search);
+      setVariantId(state.variantId);
+      setWidgetInitial({
+        variantId: state.variantId,
+        quantity: state.quantity,
+        durationUnit: state.durationUnit,
+        startDate: state.startDate,
+        endDate: state.endDate,
+        pickupHm: state.pickupHm,
+        returnHm: state.returnHm,
+      });
+    },
+    [listing.id]
+  );
 
   const [supplierLegal, setSupplierLegal] = useState<{
     operatorName: string;
@@ -331,6 +408,17 @@ function RentalBody({
     if (cancel) facts.push({ label: 'Cancellation', value: cancel.split('.')[0] || cancel, icon: CalendarCheck });
     return facts.slice(0, 6);
   }, [rental, item, place]);
+
+  if (checkoutFromUrl && !draftPreview && !devPreview) {
+    return (
+      <RentalBookingConfirm
+        listing={listing}
+        rental={rental}
+        initial={checkoutFromUrl}
+        onBackToListing={closeRentalBookingConfirm}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen bg-paper tv-page tv-rental-pdp pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] lg:pb-0">
@@ -714,12 +802,22 @@ function RentalBody({
               className="tv-booking-sticky tv-booking-sticky--fit tv-booking-sticky--rental scroll-mt-28 h-fit lg:sticky lg:top-[calc(4.75rem+env(safe-area-inset-top,0px))]"
             >
               <RentalBookingWidget
+                key={[
+                  widgetInitial.variantId ?? '',
+                  widgetInitial.startDate ?? '',
+                  widgetInitial.endDate ?? '',
+                  widgetInitial.pickupHm ?? '',
+                  widgetInitial.returnHm ?? '',
+                  String(widgetInitial.quantity ?? ''),
+                  widgetInitial.durationUnit ?? '',
+                ].join('|')}
                 listingId={listing.id}
-                listingTitle={listing.title}
                 rental={rental}
+                initial={widgetInitial}
                 variantId={variantId}
                 onVariantIdChange={setVariantId}
                 hideOptionPicker
+                onContinue={openRentalBookingConfirm}
               />
             </aside>
           </div>
@@ -805,7 +903,7 @@ function RentalBody({
             <p className="tv-meta truncate">Option, dates, and quantity</p>
           </div>
           <a href="#rental-booking" className="tv-btn-primary shrink-0 px-5 font-semibold">
-            Review
+            Continue
           </a>
         </div>
       </div>

@@ -1,8 +1,8 @@
 /**
- * Traveler rental booking selector.
- * Quotes and availability preview; checkout CTA stays disabled until release approval.
+ * Traveler rental booking selector on the PDP.
+ * Configuration only — review and Stripe live on the dedicated confirm step.
  */
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Loader2, Shield } from 'lucide-react';
 import type { RentalDetails, RentalVariant } from '../../types/rental';
 import {
@@ -26,8 +26,7 @@ import {
 } from '../../lib/rental-booking-interval';
 import { evaluateRentalAvailabilityRpc } from '../../data/supabase-rental-availability';
 import { fetchRentalCheckoutCapability } from '../../data/rental-checkout-capability';
-import { createBookingCheckoutSession } from '../../data/supabase-bookings';
-import { useAuth } from '../../contexts/AuthContext';
+import type { RentalCheckoutState } from '../../lib/rentalCheckoutUrl';
 import GuestStepper from '../booking/GuestStepper';
 import { TraverionSingleDateField } from '../calendar/TraverionSingleDateField';
 import { TraverionTimeListField } from '../calendar/TraverionTimeListField';
@@ -40,13 +39,25 @@ export type RentalBookingSelection = {
   durationCount: number;
   durationUnit: 'hour' | 'day';
   customerTotalMinor: number;
+  startDate: string;
+  endDate: string;
+  pickupHm: string;
+  returnHm: string;
 };
 
 type Props = {
   listingId: string;
-  listingTitle: string;
   rental: RentalDetails;
   onSelectionChange?: (selection: RentalBookingSelection | null) => void;
+  /** Navigate to the dedicated rental review step. */
+  onContinue?: (state: RentalCheckoutState) => void;
+  /** Prefill from listing URL / back-from-review. */
+  initial?: Partial<
+    Pick<
+      RentalCheckoutState,
+      'variantId' | 'quantity' | 'durationUnit' | 'startDate' | 'endDate' | 'pickupHm' | 'returnHm'
+    >
+  >;
   /** When set, option cards outside the sidebar own the selection. */
   variantId?: string;
   onVariantIdChange?: (variantId: string) => void;
@@ -70,29 +81,20 @@ function defaultReturnHm(rental: RentalDetails): string {
 
 export default function RentalBookingWidget({
   listingId,
-  listingTitle,
   rental,
   onSelectionChange,
+  onContinue,
+  initial,
   variantId: controlledVariantId,
   onVariantIdChange,
   hideOptionPicker = false,
 }: Props) {
-  const { user, requestAuth } = useAuth();
   const [checkoutOpen, setCheckoutOpen] = useState(false);
-  const [consent, setConsent] = useState(false);
-  const [paying, setPaying] = useState(false);
-  const [payError, setPayError] = useState<string | null>(null);
-  const [reviewing, setReviewing] = useState(false);
-  const primaryCtaRef = useRef<HTMLButtonElement | null>(null);
   const variants = rental.variants ?? [];
 
-  useEffect(() => {
-    if (!reviewing) return;
-    // Keep review CTA above the fixed mobile booking bar.
-    primaryCtaRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' });
-  }, [reviewing]);
-
-  const [uncontrolledVariantId, setUncontrolledVariantId] = useState(variants[0]?.id ?? '');
+  const [uncontrolledVariantId, setUncontrolledVariantId] = useState(
+    initial?.variantId?.trim() || variants[0]?.id || ''
+  );
   const variantId = controlledVariantId ?? uncontrolledVariantId;
   const setVariantId = (nextId: string) => {
     onVariantIdChange?.(nextId);
@@ -104,21 +106,30 @@ export default function RentalBookingWidget({
     ? effectiveVariantDurationMode(rental, selectedEarly)
     : (rental.durationMode ?? 'daily');
   const showUnitToggle = optionMode === 'both';
-  const unit = defaultUnitForVariant(rental, selectedEarly);
 
-  const [quantity, setQuantity] = useState(1);
-  const [durationUnit, setDurationUnit] = useState<'hour' | 'day'>(unit);
-  const [startDate, setStartDate] = useState(() => todayLocalYmd());
+  const [quantity, setQuantity] = useState(() =>
+    typeof initial?.quantity === 'number' && initial.quantity >= 1 ? Math.min(99, initial.quantity) : 1
+  );
+  const [durationUnit, setDurationUnit] = useState<'hour' | 'day'>(() => {
+    if (initial?.durationUnit === 'hour' || initial?.durationUnit === 'day') return initial.durationUnit;
+    return defaultUnitForVariant(rental, selectedEarly);
+  });
+  const [startDate, setStartDate] = useState(() => initial?.startDate || todayLocalYmd());
   const [endDate, setEndDate] = useState(() => {
-    const initialUnit = defaultUnitForVariant(rental, variants[0]);
+    if (initial?.endDate) return initial.endDate;
+    const initialUnit =
+      initial?.durationUnit === 'hour' || initial?.durationUnit === 'day'
+        ? initial.durationUnit
+        : defaultUnitForVariant(rental, variants[0]);
     if (initialUnit === 'hour') return todayLocalYmd();
     const minDays = variants[0]
       ? effectiveVariantDurationLimits(rental, variants[0], 'day').min
       : (rental.minDurationDays ?? 1);
     return addDaysYmd(todayLocalYmd(), Math.max(1, minDays));
   });
-  const [pickupHm, setPickupHm] = useState(() => defaultPickupHm(rental));
-  const [returnHm, setReturnHm] = useState(() => defaultReturnHm(rental));
+  const [pickupHm, setPickupHm] = useState(() => initial?.pickupHm || defaultPickupHm(rental));
+  const [returnHm, setReturnHm] = useState(() => initial?.returnHm || defaultReturnHm(rental));
+
   useEffect(() => {
     let cancelled = false;
     if (isRentalDevPreviewId(listingId)) {
@@ -165,9 +176,6 @@ export default function RentalBookingWidget({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- option switch clamp
   }, [selected?.id, optionMode]);
 
-  useEffect(() => {
-    setReviewing(false);
-  }, [variantId, quantity, startDate, endDate, pickupHm, returnHm, durationUnit]);
   const pricing = selected ? effectiveVariantPricing(rental, selected) : null;
   const configuredQty = Math.max(1, selected?.quantity ?? 1);
 
@@ -222,8 +230,12 @@ export default function RentalBookingWidget({
       durationCount: interval.durationCount,
       durationUnit: interval.durationUnit,
       customerTotalMinor: quote.customerTotalMinor,
+      startDate,
+      endDate,
+      pickupHm,
+      returnHm,
     });
-  }, [interval, variantId, quantity, configuredQty, quote, onSelectionChange]);
+  }, [interval, variantId, quantity, configuredQty, quote, startDate, endDate, pickupHm, returnHm, onSelectionChange]);
 
   useEffect(() => {
     if (!interval.ok || !variantId || !quote?.ok) {
@@ -295,43 +307,19 @@ export default function RentalBookingWidget({
     if (quantity > maxQty) setQuantity(maxQty);
   }, [maxQty, quantity]);
 
-  const continueToCheckout = async () => {
-    if (isRentalDevPreviewId(listingId)) {
-      setPayError('Development preview rentals cannot be booked.');
-      return;
-    }
-    if (!checkoutOpen || !quote?.ok || !interval.ok || availability.ok === false || !consent) return;
-    if (!user) {
-      requestAuth({ intent: 'checkout', onSuccess: () => void continueToCheckout() });
-      return;
-    }
-    setPaying(true);
-    setPayError(null);
-    const qty = Math.min(Math.max(1, quantity), maxQty);
-    const result = await createBookingCheckoutSession({
-      listingId,
-      listingTitle,
-      bookingDate: startDate,
-      guests: qty,
-      checkoutConsentAccepted: true,
-      expectedTotal: Number((quote.customerTotalMinor / 100).toFixed(2)),
-      successPath: '/booking-confirmed',
-      cancelPath: `/rentals/${listingId}`,
-      rental: {
-        variantId,
-        quantity: qty,
-        pickupAt: interval.pickupAt,
-        returnAt: interval.returnAt,
-        durationCount: interval.durationCount,
-        durationUnit: interval.durationUnit,
-      },
+  const handleContinue = () => {
+    if (!quote?.ok || !interval.ok || availability.ok === false || !variantId) return;
+    if (isRentalDevPreviewId(listingId)) return;
+    onContinue?.({
+      variantId,
+      quantity: Math.min(Math.max(1, quantity), maxQty),
+      durationUnit: interval.durationUnit,
+      startDate,
+      endDate,
+      pickupHm,
+      returnHm,
+      paymentCancelled: false,
     });
-    setPaying(false);
-    if (!result.success || !result.checkoutUrl) {
-      setPayError(result.error || 'Checkout could not be opened.');
-      return;
-    }
-    window.location.assign(result.checkoutUrl);
   };
 
   const minDate = todayLocalYmd();
@@ -349,7 +337,7 @@ export default function RentalBookingWidget({
         kind: 'pickup',
         stepMinutes: 30,
       }),
-    [rental.operatingDays, startDate],
+    [rental.operatingDays, startDate]
   );
   const returnTimeOptions = useMemo(
     () =>
@@ -360,13 +348,16 @@ export default function RentalBookingWidget({
         stepMinutes: 30,
         afterHmExclusive: endDate === startDate ? pickupHm : null,
       }),
-    [rental.operatingDays, endDate, startDate, pickupHm],
+    [rental.operatingDays, endDate, startDate, pickupHm]
   );
 
   const showBreakdown =
     Boolean(quote?.ok) &&
     interval.ok &&
     (interval.durationCount > 1 || Math.min(Math.max(1, quantity), maxQty) > 1);
+
+  const continueDisabled =
+    !quote?.ok || !interval.ok || availability.ok === false || availability.loading || !onContinue;
 
   return (
     <div className="space-y-2.5">
@@ -580,97 +571,14 @@ export default function RentalBookingWidget({
         </p>
       ) : null}
 
-      {reviewing && quote?.ok && interval.ok ? (
-        <div className="rounded-xl bg-[#F7F8FA] px-3 py-2.5 text-sm">
-          <div className="flex items-center justify-between gap-2">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#0758CB]">Review</p>
-            <button
-              type="button"
-              className="text-xs font-semibold text-[#0758CB]"
-              onClick={() => setReviewing(false)}
-            >
-              Edit
-            </button>
-          </div>
-          <dl className="mt-1.5 space-y-1 text-xs">
-            <div className="flex justify-between gap-3">
-              <dt className="text-ink-muted">Option</dt>
-              <dd className="font-medium text-ink">{selected?.name ?? 'Standard'}</dd>
-            </div>
-            <div className="flex justify-between gap-3">
-              <dt className="text-ink-muted">Pickup</dt>
-              <dd className="font-medium text-ink">
-                {startDate} · {pickupHm}
-              </dd>
-            </div>
-            <div className="flex justify-between gap-3">
-              <dt className="text-ink-muted">Return</dt>
-              <dd className="font-medium text-ink">
-                {endDate} · {returnHm}
-              </dd>
-            </div>
-            <div className="flex justify-between gap-3">
-              <dt className="text-ink-muted">Qty</dt>
-              <dd className="font-medium text-ink">
-                {Math.min(Math.max(1, quantity), maxQty)}{' '}
-                {Math.min(Math.max(1, quantity), maxQty) === 1
-                  ? quantityUnits.singular
-                  : quantityUnits.plural}
-              </dd>
-            </div>
-          </dl>
-        </div>
-      ) : null}
-
-      {payError ? (
-        <p className="text-sm text-[#9f1239]" role="alert">
-          {payError}
-        </p>
-      ) : null}
-
-      {reviewing && checkoutOpen ? (
-        <label className="flex items-start gap-2 text-xs leading-snug text-ink">
-          <input
-            type="checkbox"
-            className="mt-0.5"
-            checked={consent}
-            onChange={(event) => setConsent(event.target.checked)}
-          />
-          <span>
-            I agree to the{' '}
-            <a href="#rental-policies" className="font-semibold text-[#0758CB] underline-offset-2 hover:underline">
-              cancellation and deposit terms
-            </a>{' '}
-            and{' '}
-            <a href="/terms" target="_blank" rel="noreferrer" className="font-semibold text-[#0758CB] underline-offset-2 hover:underline">
-              Traverion’s terms
-            </a>
-            .
-          </span>
-        </label>
-      ) : null}
-
-      {reviewing ? (
-        <button
-          ref={primaryCtaRef}
-          type="button"
-          className="tv-btn-primary min-h-11 w-full font-semibold disabled:opacity-60"
-          disabled={!checkoutOpen || paying || !consent || !quote?.ok || !interval.ok || availability.ok === false}
-          onClick={() => void continueToCheckout()}
-        >
-          {paying ? 'Opening checkout…' : checkoutOpen ? 'Continue to checkout' : 'Payment not open yet'}
-        </button>
-      ) : (
-        <button
-          ref={primaryCtaRef}
-          type="button"
-          className="tv-btn-primary min-h-11 w-full font-semibold disabled:opacity-60"
-          disabled={!quote?.ok || !interval.ok || availability.ok === false}
-          onClick={() => setReviewing(true)}
-        >
-          Review rental
-        </button>
-      )}
+      <button
+        type="button"
+        className="tv-btn-primary min-h-11 w-full font-semibold disabled:opacity-60"
+        disabled={continueDisabled}
+        onClick={handleContinue}
+      >
+        Continue
+      </button>
     </div>
   );
 }
