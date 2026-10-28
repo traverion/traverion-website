@@ -128,7 +128,7 @@ export function todayLocalYmd(now = new Date()): string {
 
 const WEEKDAY_BY_JS_DAY: RentalWeekday[] = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
 
-function weekdayOfYmd(ymd: string): RentalWeekday | null {
+export function weekdayOfYmd(ymd: string): RentalWeekday | null {
   if (!YMD.test(ymd)) return null;
   const [y, m, d] = ymd.split('-').map(Number);
   const dt = new Date(y!, m! - 1, d!);
@@ -141,6 +141,81 @@ function hmMinutes(hm: string): number | null {
   if (!HM.test(time)) return null;
   const [h, m] = time.split(':').map(Number);
   return h! * 60 + m!;
+}
+
+function minutesToHm(total: number): string {
+  const clamped = Math.max(0, Math.min(23 * 60 + 59, Math.floor(total)));
+  const h = Math.floor(clamped / 60);
+  const m = clamped % 60;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+
+/** True when operating hours exist and this civil day is closed for pickup/return. Empty schedule = not closed. */
+export function rentalDayClosed(
+  operatingDays: RentalOperatingDay[] | undefined,
+  ymd: string,
+): boolean {
+  const days = operatingDays ?? [];
+  if (days.length === 0) return false;
+  const weekday = weekdayOfYmd(ymd);
+  if (!weekday) return true;
+  const day = days.find((row) => row.day === weekday);
+  return !day?.open;
+}
+
+const FALLBACK_EARLIEST_MIN = 6 * 60;
+const FALLBACK_LATEST_MIN = 22 * 60;
+
+/**
+ * Valid HH:MM options for a calendar day from supplier windows (inclusive).
+ * Default step 30 minutes. Empty operatingDays → 06:00–22:00 grid (server still validates).
+ * Closed day → []. Does not rewrite caller values.
+ */
+export function rentalDayTimeOptions(input: {
+  operatingDays?: RentalOperatingDay[];
+  ymd: string;
+  kind: 'pickup' | 'return';
+  stepMinutes?: number;
+  /** Same-day return: only times strictly after this pickup HH:MM. */
+  afterHmExclusive?: string | null;
+}): string[] {
+  const step = Math.max(1, Math.min(60, Math.floor(input.stepMinutes ?? 30)));
+  const days = input.operatingDays ?? [];
+  let earliest = FALLBACK_EARLIEST_MIN;
+  let latest = FALLBACK_LATEST_MIN;
+
+  if (days.length > 0) {
+    const weekday = weekdayOfYmd(input.ymd);
+    if (!weekday) return [];
+    const day = days.find((row) => row.day === weekday);
+    if (!day?.open) return [];
+    const e = hmMinutes(
+      input.kind === 'pickup' ? day.earliestPickupHm ?? '' : day.earliestReturnHm ?? '',
+    );
+    const l = hmMinutes(
+      input.kind === 'pickup' ? day.latestPickupHm ?? '' : day.latestReturnHm ?? '',
+    );
+    if (e != null && l != null && l >= e) {
+      earliest = e;
+      latest = l;
+    }
+  }
+
+  const after = input.afterHmExclusive ? hmMinutes(input.afterHmExclusive) : null;
+  const out: string[] = [];
+  for (let t = earliest; t <= latest; t += step) {
+    if (after != null && t <= after) continue;
+    out.push(minutesToHm(t));
+  }
+  const latestHm = minutesToHm(latest);
+  if (
+    latest >= earliest &&
+    !out.includes(latestHm) &&
+    (after == null || latest > after)
+  ) {
+    out.push(latestHm);
+  }
+  return out;
 }
 
 function dayWindowIssue(

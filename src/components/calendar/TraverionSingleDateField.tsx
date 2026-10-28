@@ -29,6 +29,17 @@ type Props = {
   hideIcon?: boolean;
   /** Civil YYYY-MM-DD for the “today” ring; defaults to browser-local calendar day. */
   todayIso?: string;
+  /** Extra disable rules (closed weekdays, notice floor, etc.). Past/`minIso` still apply. */
+  isDayDisabled?: (ymd: string) => boolean;
+  /**
+   * default — hint + optional Clear (marketplace/partner).
+   * compact — Today shortcut when selectable; no verbose copy (rental booking).
+   */
+  footerMode?: 'default' | 'compact';
+  /** Show Clear in the footer (default true for default footer, false for compact). */
+  allowClear?: boolean;
+  /** Optional aria-label when `label` is empty. */
+  'aria-label'?: string;
 };
 
 type PanelBox =
@@ -50,6 +61,10 @@ export function TraverionSingleDateField({
   tone = 'marketplace',
   hideIcon = false,
   todayIso: todayIsoProp,
+  isDayDisabled,
+  footerMode = 'default',
+  allowClear,
+  'aria-label': ariaLabelProp,
 }: Props) {
   const [open, setOpen] = useState(false);
   const [panelBox, setPanelBox] = useState<PanelBox | null>(null);
@@ -143,6 +158,9 @@ export function TraverionSingleDateField({
 
   const display = value.trim() ? formatBookingDateDisplay(value) : placeholder;
   const showLabel = label.trim().length > 0;
+  const showClear = allowClear ?? footerMode === 'default';
+  const dayBlocked = (iso: string) => (hasMin && iso < min) || Boolean(isDayDisabled?.(iso));
+  const todaySelectable = !dayBlocked(todayIso);
 
   const calendar = (
     <TraverionCalendarMonth
@@ -151,30 +169,61 @@ export function TraverionSingleDateField({
       onPrevMonth={() => shift(-1)}
       onNextMonth={() => shift(1)}
       footer={
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <span>{hasMin ? 'Past days are unavailable.' : 'Select a date.'}</span>
-          {value.trim() ? (
-            <button
-              type="button"
-              className="text-xs font-semibold text-finland hover:underline"
-              onClick={() => {
-                onChange('');
-                close();
-              }}
-            >
-              Clear date
-            </button>
-          ) : null}
-        </div>
+        footerMode === 'compact' ? (
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            {todaySelectable ? (
+              <button
+                type="button"
+                className="text-xs font-semibold text-finland hover:underline"
+                onClick={() => {
+                  onChange(todayIso);
+                  close();
+                }}
+              >
+                Today
+              </button>
+            ) : (
+              <span />
+            )}
+            {showClear && value.trim() ? (
+              <button
+                type="button"
+                className="text-xs font-semibold text-finland hover:underline"
+                onClick={() => {
+                  onChange('');
+                  close();
+                }}
+              >
+                Clear
+              </button>
+            ) : null}
+          </div>
+        ) : (
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span>{hasMin ? 'Past days are unavailable.' : 'Select a date.'}</span>
+            {showClear && value.trim() ? (
+              <button
+                type="button"
+                className="text-xs font-semibold text-finland hover:underline"
+                onClick={() => {
+                  onChange('');
+                  close();
+                }}
+              >
+                Clear date
+              </button>
+            ) : null}
+          </div>
+        )
       }
     >
       {cells.map((iso, i) => {
         if (!iso) return <span key={`e-${i}`} />;
-        const isPast = hasMin && iso < min;
+        const blocked = dayBlocked(iso);
         const isSelected = value === iso;
         const isToday = iso === todayIso && !isSelected;
         let visual: TraverionCalendarDayVisual = 'default';
-        if (isPast) visual = 'disabled';
+        if (blocked) visual = 'disabled';
         else if (isSelected) visual = 'selected';
         else if (isToday) visual = 'today';
         return (
@@ -182,12 +231,12 @@ export function TraverionSingleDateField({
             key={iso}
             iso={iso}
             visual={visual}
-            disabled={isPast}
+            disabled={blocked}
             ariaPressed={isSelected}
             ariaLabel={
               isSelected
                 ? `${formatBookingDateDisplay(iso)}, selected`
-                : isPast
+                : blocked
                   ? `${formatBookingDateDisplay(iso)}, unavailable`
                   : formatBookingDateDisplay(iso)
             }
@@ -218,7 +267,7 @@ export function TraverionSingleDateField({
                 id={panelId}
                 role="dialog"
                 aria-modal="true"
-                aria-label={label || placeholder}
+                aria-label={ariaLabelProp || label || placeholder}
                 className="tv-date-sheet__panel motion-safe:animate-slide-up"
               >
                 {calendar}
@@ -230,7 +279,7 @@ export function TraverionSingleDateField({
               id={panelId}
               role="dialog"
               aria-modal="true"
-              aria-label={label || placeholder}
+              aria-label={ariaLabelProp || label || placeholder}
               className="motion-safe:animate-fade-in"
               style={{
                 position: 'fixed',
@@ -264,13 +313,13 @@ export function TraverionSingleDateField({
         type="button"
         id={id}
         aria-labelledby={showLabel ? `${labelId} ${valueId}` : valueId}
-        aria-label={showLabel ? undefined : placeholder}
+        aria-label={showLabel ? undefined : ariaLabelProp || placeholder}
         aria-expanded={open}
         aria-controls={panelId}
         aria-haspopup="dialog"
         onClick={() => setOpen((v) => !v)}
         className={`flex w-full min-w-0 items-center gap-2 border-0 bg-transparent pr-1 text-left text-ink focus:outline-none focus-visible:ring-0 ${
-          tone === 'premium' ? 'mt-0.5 h-6 text-[13px]' : 'h-9 text-[15px]'
+          tone === 'premium' ? 'mt-0.5 min-h-6 text-[13px] sm:text-sm' : 'h-9 text-[15px]'
         }`}
       >
         {!hideIcon ? <Calendar className="h-4 w-4 shrink-0 text-ink-faint" aria-hidden /> : null}

@@ -5,6 +5,8 @@ import {
   buildRentalInterval,
   calendarDaysBetween,
   normalizeHm,
+  rentalDayClosed,
+  rentalDayTimeOptions,
   rentalScheduleIssue,
 } from './rental-booking-interval';
 
@@ -80,6 +82,50 @@ describe('rental-booking-interval', () => {
         returnHm: '16:00',
       })
     ).toMatch(/between 09:00 and 17:00/i);
+  });
+
+  it('enumerates pickup times in 30-minute steps within the window', () => {
+    const operatingDays = defaultRentalOperatingDays().map((day) => ({ ...day, open: true }));
+    // 2030-06-03 is Monday
+    const opts = rentalDayTimeOptions({
+      operatingDays,
+      ymd: '2030-06-03',
+      kind: 'pickup',
+      stepMinutes: 30,
+    });
+    expect(opts[0]).toBe('09:00');
+    expect(opts).toContain('09:30');
+    expect(opts[opts.length - 1]).toBe('17:00');
+    expect(opts.every((hm) => /^\d{2}:\d{2}$/.test(hm))).toBe(true);
+  });
+
+  it('returns no times on a closed day and marks the day closed', () => {
+    const operatingDays = defaultRentalOperatingDays().map((day) => ({
+      ...day,
+      open: day.day !== 'sun',
+    }));
+    // 2030-06-02 is Sunday
+    expect(rentalDayClosed(operatingDays, '2030-06-02')).toBe(true);
+    expect(
+      rentalDayTimeOptions({
+        operatingDays,
+        ymd: '2030-06-02',
+        kind: 'pickup',
+      })
+    ).toEqual([]);
+    expect(rentalDayClosed([], '2030-06-02')).toBe(false);
+  });
+
+  it('filters same-day return times after pickup', () => {
+    const operatingDays = defaultRentalOperatingDays().map((day) => ({ ...day, open: true }));
+    const opts = rentalDayTimeOptions({
+      operatingDays,
+      ymd: '2030-06-03',
+      kind: 'return',
+      afterHmExclusive: '12:00',
+    });
+    expect(opts[0]).toBe('12:30');
+    expect(opts.every((hm) => hm > '12:00')).toBe(true);
   });
 
   it('requires booking notice before pickup', () => {

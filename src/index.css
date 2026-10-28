@@ -4582,20 +4582,11 @@ details:not([open]) > :not(summary) {
   min-width: 0;
   width: 100%;
   box-sizing: border-box;
-  padding-inline: 0.7rem 2.35rem;
-  color-scheme: light;
+  padding-inline: 0.65rem 0.7rem;
+  align-items: center;
 }
-.tv-booking-sticky.tv-booking-sticky--rental .tv-input.tv-rental-datetime::-webkit-calendar-picker-indicator {
-  position: absolute;
-  inset-inline-end: 0.55rem;
-  inset-block-start: 50%;
-  width: 1rem;
-  height: 1rem;
-  padding: 0;
-  margin: 0;
-  transform: translateY(-50%);
-  opacity: 0.55;
-  cursor: pointer;
+.tv-booking-sticky.tv-booking-sticky--rental .tv-input.tv-rental-datetime button {
+  min-height: 1.5rem;
 }
 @media (min-width: 640px) {
   .tv-booking-sticky.tv-booking-sticky--rental {

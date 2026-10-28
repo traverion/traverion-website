@@ -19,6 +19,8 @@ import {
   addDaysYmd,
   buildRentalInterval,
   normalizeHm,
+  rentalDayClosed,
+  rentalDayTimeOptions,
   rentalScheduleIssue,
   todayLocalYmd,
 } from '../../lib/rental-booking-interval';
@@ -27,6 +29,8 @@ import { fetchRentalCheckoutCapability } from '../../data/rental-checkout-capabi
 import { createBookingCheckoutSession } from '../../data/supabase-bookings';
 import { useAuth } from '../../contexts/AuthContext';
 import GuestStepper from '../booking/GuestStepper';
+import { TraverionSingleDateField } from '../calendar/TraverionSingleDateField';
+import { TraverionTimeListField } from '../calendar/TraverionTimeListField';
 
 export type RentalBookingSelection = {
   variantId: string;
@@ -330,6 +334,28 @@ export default function RentalBookingWidget({
       ? formatMinorAsEuro(pricing?.pricePerHourMinor)
       : formatMinorAsEuro(pricing?.pricePerDayMinor);
 
+  const pickupTimeOptions = useMemo(
+    () =>
+      rentalDayTimeOptions({
+        operatingDays: rental.operatingDays,
+        ymd: startDate,
+        kind: 'pickup',
+        stepMinutes: 30,
+      }),
+    [rental.operatingDays, startDate],
+  );
+  const returnTimeOptions = useMemo(
+    () =>
+      rentalDayTimeOptions({
+        operatingDays: rental.operatingDays,
+        ymd: endDate,
+        kind: 'return',
+        stepMinutes: 30,
+        afterHmExclusive: endDate === startDate ? pickupHm : null,
+      }),
+    [rental.operatingDays, endDate, startDate, pickupHm],
+  );
+
   const showBreakdown =
     Boolean(quote?.ok) &&
     interval.ok &&
@@ -407,50 +433,83 @@ export default function RentalBookingWidget({
 
       <div className="space-y-2">
         <div className="grid grid-cols-2 gap-2">
-          <label className="block min-w-0 text-sm">
-            <span className="mb-1 block font-medium text-ink">Pickup</span>
-            <input
-              type="date"
-              className="tv-input tv-rental-datetime w-full"
-              min={minDate}
-              value={startDate}
-              onChange={(e) => {
-                const next = e.target.value;
-                setStartDate(next);
-                if (endDate < next) setEndDate(next);
-              }}
-            />
-          </label>
-          <label className="block min-w-0 text-sm">
-            <span className="mb-1 block font-medium text-ink">Time</span>
-            <input
-              type="time"
-              className="tv-input tv-rental-datetime w-full"
-              value={pickupHm}
-              onChange={(e) => setPickupHm(normalizeHm(e.target.value, pickupHm))}
-            />
-          </label>
+          <div className="min-w-0">
+            <span className="mb-1 block text-sm font-medium text-ink">Pickup</span>
+            <div className="tv-input tv-rental-datetime flex w-full items-center">
+              <TraverionSingleDateField
+                id="rental-pickup-date"
+                label=""
+                aria-label="Pickup date"
+                value={startDate}
+                minIso={minDate}
+                todayIso={minDate}
+                tone="premium"
+                footerMode="compact"
+                allowClear={false}
+                hideIcon
+                placeholder="Date"
+                isDayDisabled={(ymd) => rentalDayClosed(rental.operatingDays, ymd)}
+                onChange={(next) => {
+                  setStartDate(next);
+                  if (endDate < next) setEndDate(next);
+                }}
+                className="w-full"
+              />
+            </div>
+          </div>
+          <div className="min-w-0">
+            <span className="mb-1 block text-sm font-medium text-ink">Time</span>
+            <div className="tv-input tv-rental-datetime flex w-full items-center">
+              <TraverionTimeListField
+                id="rental-pickup-time"
+                aria-label="Pickup time"
+                value={pickupHm}
+                options={pickupTimeOptions}
+                placeholder="Time"
+                hideIcon
+                onChange={(hm) => setPickupHm(normalizeHm(hm, pickupHm))}
+                className="w-full"
+              />
+            </div>
+          </div>
         </div>
         <div className="grid grid-cols-2 gap-2">
-          <label className="block min-w-0 text-sm">
-            <span className="mb-1 block font-medium text-ink">Return</span>
-            <input
-              type="date"
-              className="tv-input tv-rental-datetime w-full"
-              min={startDate || minDate}
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-            />
-          </label>
-          <label className="block min-w-0 text-sm">
-            <span className="mb-1 block font-medium text-ink">Time</span>
-            <input
-              type="time"
-              className="tv-input tv-rental-datetime w-full"
-              value={returnHm}
-              onChange={(e) => setReturnHm(normalizeHm(e.target.value, returnHm))}
-            />
-          </label>
+          <div className="min-w-0">
+            <span className="mb-1 block text-sm font-medium text-ink">Return</span>
+            <div className="tv-input tv-rental-datetime flex w-full items-center">
+              <TraverionSingleDateField
+                id="rental-return-date"
+                label=""
+                aria-label="Return date"
+                value={endDate}
+                minIso={startDate || minDate}
+                todayIso={minDate}
+                tone="premium"
+                footerMode="compact"
+                allowClear={false}
+                hideIcon
+                placeholder="Date"
+                isDayDisabled={(ymd) => rentalDayClosed(rental.operatingDays, ymd)}
+                onChange={setEndDate}
+                className="w-full"
+              />
+            </div>
+          </div>
+          <div className="min-w-0">
+            <span className="mb-1 block text-sm font-medium text-ink">Time</span>
+            <div className="tv-input tv-rental-datetime flex w-full items-center">
+              <TraverionTimeListField
+                id="rental-return-time"
+                aria-label="Return time"
+                value={returnHm}
+                options={returnTimeOptions}
+                placeholder="Time"
+                hideIcon
+                onChange={(hm) => setReturnHm(normalizeHm(hm, returnHm))}
+                className="w-full"
+              />
+            </div>
+          </div>
         </div>
       </div>
 

@@ -22,6 +22,11 @@ describe('Rental PDP final polish', () => {
     expect(widget).toContain('unitSingular');
     expect(widget).toContain('Estimated total');
     expect(widget).toContain('tv-rental-datetime');
+    expect(widget).toContain('TraverionSingleDateField');
+    expect(widget).toContain('TraverionTimeListField');
+    expect(widget).toContain('rentalDayTimeOptions');
+    expect(widget).not.toContain('type="date"');
+    expect(widget).not.toContain('type="time"');
     expect(widget).not.toContain('Live stock is checked');
     expect(widget).not.toContain('Confirmed again at checkout');
     expect(widget).not.toContain('Checkout uses Traverion');
