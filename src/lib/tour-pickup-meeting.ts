@@ -103,10 +103,21 @@ export function resolveTourPickupMeetingDisplay(
   const multi =
     options.length > 1 && (distinctPlaces.length > 1 || distinctFulfillment.length > 1);
 
+  const listingPlaceLabel =
+    tour.experienceStartStyle === 'operator_pickup'
+      ? 'Pickup area'
+      : tour.experienceStartStyle === 'fixed_meeting_place'
+        ? 'Meeting point'
+        : tour.experienceStartStyle === 'either_available'
+          ? 'Pickup or meeting'
+          : listingPlace
+            ? 'Location'
+            : null;
+
   return {
     visible: Boolean(listingIntro || listingPlace || listingInstructions || multi),
     modeIntro: listingIntro,
-    placeLabel: listingPlace ? 'Meeting point' : null,
+    placeLabel: listingPlace ? listingPlaceLabel : null,
     place: listingPlace,
     instructions: listingInstructions,
     optionScoped: false,

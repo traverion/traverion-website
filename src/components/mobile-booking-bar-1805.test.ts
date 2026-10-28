@@ -11,13 +11,15 @@ describe('Phase 1805: mobile booking bar + quick facts polish', () => {
     expect(css).toContain('.tv-booking-mobile-bar');
     expect(tour).toContain('tv-booking-mobile-bar');
     expect(stay).toContain('tv-booking-mobile-bar');
-    expect(tour).toMatch(/font-display text-base font-semibold tabular-nums/);
+    expect(tour).toMatch(/text-base font-semibold tabular-nums/);
   });
 
-  it('TourQuickFacts uses solid paper surface', () => {
+  it('TourQuickFacts uses shared ListingPdpQuickFacts tiles', () => {
     const src = readFileSync(resolve(__dirname, 'tour-detail/TourQuickFacts.tsx'), 'utf8');
-    expect(src).toContain('bg-paper-raised');
-    expect(src).toContain('shadow-soft');
-    expect(src).not.toContain('bg-paper-raised/80');
+    const shared = readFileSync(resolve(__dirname, 'ListingPdpQuickFacts.tsx'), 'utf8');
+    expect(src).toContain('ListingPdpQuickFacts');
+    expect(shared).toContain('bg-[#F5F7FA]');
+    expect(shared).toContain('text-[#0B397E]');
   });
 });
+

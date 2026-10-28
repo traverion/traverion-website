@@ -13,12 +13,13 @@ import {
   Home,
   Clock,
   Shield,
+  Building2,
+  X,
 } from 'lucide-react';
-import { stayAmenityLucideIcon, stayHighlightLucideIcon } from '../lib/stay-amenity-icons';
 import { getListingById, getListingByIdAsync } from '../data/listings';
 import { stayRestrictionLines } from '../lib/stay-restrictions';
 import { staySafetyConsiderationLines } from '../lib/stay-safety';
-import { STAY_BED_KINDS, stayBedSummary } from '../lib/stay-beds';
+import { STAY_BED_KINDS, stayBedSummary, stayPdpBedroomCount, stayPdpSleepingAreas } from '../lib/stay-beds';
 import { parseListingExtras, STAY_GUEST_CANCELLATION_POLICY } from '../types/listingExtras';
 import { listingHeroImageSrc } from '../lib/listingPhotoGrid';
 import { listingIsFamily } from '../lib/inventory';
@@ -58,6 +59,10 @@ import PublicReviewCard from '../components/PublicReviewCard';
 import StarRatingDisplay from '../components/StarRatingDisplay';
 import ListingPdpReviewMeta from '../components/ListingPdpReviewMeta';
 import ListingPdpPhotoGallery from '../components/ListingPdpPhotoGallery';
+import ListingPdpQuickFacts from '../components/ListingPdpQuickFacts';
+import ListingPdpCheckList from '../components/ListingPdpCheckList';
+import ListingPdpPolicyBlock from '../components/ListingPdpPolicyBlock';
+import ListingPdpSupplierBlock from '../components/ListingPdpSupplierBlock';
 import type { TourPackage } from '../types/tour';
 import ErrorState from '../components/ErrorState';
 import { Skeleton } from '../components/ui/Skeleton';
@@ -157,8 +162,14 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
   const [guestName, setGuestName] = useState('');
   const [profileDisplayName, setProfileDisplayName] = useState('');
   const [hostName, setHostName] = useState<string | null>(null);
-  const [hostLogoUrl, setHostLogoUrl] = useState<string | null>(null);
-  const [hostDescription, setHostDescription] = useState<string | null>(null);
+  const [hostSupplier, setHostSupplier] = useState<{
+    operatorName: string;
+    business_logo_url: string | null;
+    public_description: string | null;
+    privacy_policy_text: string | null;
+    terms_conditions_text: string | null;
+  } | null>(null);
+  const [hostLegalModal, setHostLegalModal] = useState<'privacy' | 'terms' | null>(null);
   const [shareCopied, setShareCopied] = useState(false);
   const [occupiedRanges, setOccupiedRanges] = useState<{ checkIn: string; checkOut: string }[]>([]);
   const [blockedNights, setBlockedNights] = useState<string[]>([]);
@@ -186,7 +197,6 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
   const [reviewComment, setReviewComment] = useState('');
   const [descriptionExpanded, setDescriptionExpanded] = useState(false);
   const [amenitiesExpanded, setAmenitiesExpanded] = useState(false);
-  const [cancellationExpanded, setCancellationExpanded] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -441,15 +451,23 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
   useEffect(() => {
     if (!stay?.supplierId) {
       setHostName(null);
-      setHostLogoUrl(null);
-      setHostDescription(null);
+      setHostSupplier(null);
       return;
     }
     void fetchSupplierPublicLegal(stay.supplierId).then((row) => {
       const name = row?.display_name?.trim() || row?.company_legal_name?.trim() || null;
       setHostName(name);
-      setHostLogoUrl(row?.business_logo_url?.trim() || null);
-      setHostDescription(row?.public_description?.trim() || null);
+      if (!name) {
+        setHostSupplier(null);
+        return;
+      }
+      setHostSupplier({
+        operatorName: name,
+        business_logo_url: row?.business_logo_url?.trim() || null,
+        public_description: row?.public_description?.trim() || null,
+        privacy_policy_text: row?.privacy_policy_text?.trim() || null,
+        terms_conditions_text: row?.terms_conditions_text?.trim() || null,
+      });
     });
   }, [stay?.supplierId]);
 
@@ -553,12 +571,51 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
     stay?.destination ||
     ''
   ).trim();
-  const propertyTypeLabel = s?.propertyType?.trim() || '';
-  const propertyLine = propertyTypeLabel
-    ? `${propertyTypeLabel}${hostName ? ` · Hosted by ${hostName}` : ''}`
-    : hostName
-      ? `Hosted by ${hostName}`
-      : '';
+  const primaryStayOption = (s?.options ?? []).find((option) => !option.archived) ?? null;
+  // Prefer the bookable option's type when present — top-level can lag after option edits.
+  const propertyTypeLabel =
+    (primaryStayOption?.propertyType?.trim() || s?.propertyType?.trim() || '').trim();
+  const staySleepAreas = stayPdpSleepingAreas({
+    sleepingAreas: primaryStayOption?.sleepingAreas,
+    bedMix: s?.bedMix,
+  });
+  const stayBedroomCount = stayPdpBedroomCount({
+    bedrooms: s?.bedrooms,
+    sleepingAreas: primaryStayOption?.sleepingAreas,
+    bedMix: s?.bedMix,
+  });
+  const stayQuickFacts = (() => {
+    const facts: { label: string; value: string; icon: typeof Users }[] = [];
+    if (propertyTypeLabel) facts.push({ label: 'Property type', value: propertyTypeLabel, icon: Building2 });
+    if (typeof s?.maxGuests === 'number') {
+      facts.push({
+        label: 'Guests',
+        value: s.maxGuests === 1 ? '1 guest' : `Up to ${s.maxGuests}`,
+        icon: Users,
+      });
+    }
+    if (stayBedroomCount != null) {
+      facts.push({
+        label: 'Bedrooms',
+        value: stayBedroomCount === 1 ? '1 bedroom' : `${stayBedroomCount} bedrooms`,
+        icon: Home,
+      });
+    }
+    const bedsLabel = stayBedSummary(s?.bedMix) || (typeof s?.beds === 'number'
+      ? s.beds === 1
+        ? '1 bed'
+        : `${s.beds} beds`
+      : '');
+    if (bedsLabel) facts.push({ label: 'Beds', value: bedsLabel, icon: BedDouble });
+    if (typeof s?.bathrooms === 'number') {
+      facts.push({
+        label: 'Bathrooms',
+        value: s.bathrooms === 1 ? '1 bath' : `${s.bathrooms} baths`,
+        icon: Bath,
+      });
+    }
+    return facts;
+  })();
 
   useEffect(() => {
     if (!stayQuote || stayQuote.ok || !stayQuote.error.includes('not offered') || selectedExtras.length === 0) return;
@@ -914,52 +971,19 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
               </p>
             ) : null}
 
-            {propertyLine ||
-            typeof s?.maxGuests === 'number' ||
-            typeof s?.bedrooms === 'number' ||
-            stayBedSummary(s?.bedMix) ||
-            typeof s?.beds === 'number' ||
-            typeof s?.bathrooms === 'number' ? (
-              <section className="mt-5">
-                {propertyLine ? (
-                  <p className="text-base font-semibold tracking-tight text-ink">{propertyLine}</p>
+            {stayQuickFacts.length > 0 ? (
+              <div className="mt-5">
+                <ListingPdpQuickFacts facts={stayQuickFacts} />
+                {hostName ? (
+                  <p className="mt-3 text-sm text-ink-muted">
+                    Hosted by <span className="font-semibold text-ink">{hostName}</span>
+                  </p>
                 ) : null}
-                <ul
-                  className={`flex flex-wrap items-center gap-x-3.5 gap-y-2 text-sm text-ink-muted ${
-                    propertyLine ? 'mt-3.5' : ''
-                  }`}
-                >
-                  {typeof s?.maxGuests === 'number' ? (
-                    <li className="inline-flex items-center gap-1.5">
-                      <Users className="h-3.5 w-3.5 shrink-0 text-finland" aria-hidden />
-                      Up to {s.maxGuests} guests
-                    </li>
-                  ) : null}
-                  {typeof s?.bedrooms === 'number' ? (
-                    <li className="inline-flex items-center gap-1.5">
-                      <Home className="h-3.5 w-3.5 shrink-0 text-finland" aria-hidden />
-                      {s.bedrooms === 1 ? '1 bedroom' : `${s.bedrooms} bedrooms`}
-                    </li>
-                  ) : null}
-                  {stayBedSummary(s?.bedMix) || typeof s?.beds === 'number' ? (
-                    <li className="inline-flex items-center gap-1.5">
-                      <BedDouble className="h-3.5 w-3.5 shrink-0 text-finland" aria-hidden />
-                      {stayBedSummary(s?.bedMix) ||
-                        (typeof s?.beds === 'number'
-                          ? s.beds === 1
-                            ? '1 bed'
-                            : `${s.beds} beds`
-                          : null)}
-                    </li>
-                  ) : null}
-                  {typeof s?.bathrooms === 'number' ? (
-                    <li className="inline-flex items-center gap-1.5">
-                      <Bath className="h-3.5 w-3.5 shrink-0 text-finland" aria-hidden />
-                      {s.bathrooms === 1 ? '1 bath' : `${s.bathrooms} baths`}
-                    </li>
-                  ) : null}
-                </ul>
-              </section>
+              </div>
+            ) : hostName ? (
+              <p className="mt-5 text-sm text-ink-muted">
+                Hosted by <span className="font-semibold text-ink">{hostName}</span>
+              </p>
             ) : null}
 
             {stay.description ? (
@@ -990,45 +1014,18 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
             {stay.highlights?.some((line) => line.trim()) ? (
               <section className={sectionClass}>
                 <h2 className={headingClass}>Property highlights</h2>
-                <ul className="grid gap-2.5 sm:grid-cols-2">
-                  {stay.highlights
-                    .filter((line) => line.trim())
-                    .map((line) => {
-                      const Icon = stayHighlightLucideIcon(line);
-                      return (
-                        <li
-                          key={line}
-                          className="flex items-start gap-2.5 rounded-xl bg-finland/[0.04] px-3.5 py-2.5 text-sm font-medium text-ink"
-                        >
-                          {Icon ? (
-                            <Icon className="mt-0.5 h-4 w-4 shrink-0 text-finland" aria-hidden strokeWidth={1.75} />
-                          ) : null}
-                          <span className="min-w-0 leading-snug">{line}</span>
-                        </li>
-                      );
-                    })}
-                </ul>
+                <ListingPdpCheckList items={stay.highlights ?? []} />
               </section>
             ) : null}
 
             {amenities.length > 0 ? (
               <section className={sectionClass}>
                 <h2 className={headingClass}>Amenities</h2>
-                <ul className="grid grid-cols-1 gap-x-4 gap-y-2.5 sm:grid-cols-2">
-                  {(amenitiesExpanded ? amenities : amenities.slice(0, 8)).map((a) => {
-                    const Icon = stayAmenityLucideIcon(a);
-                    return (
-                      <li key={a} className="flex min-w-0 items-center gap-2.5 text-sm text-ink break-words [overflow-wrap:anywhere]">
-                        {Icon ? (
-                          <Icon className="h-4 w-4 shrink-0 text-finland" aria-hidden strokeWidth={1.75} />
-                        ) : (
-                          <span className="h-4 w-4 shrink-0 rounded-full bg-finland/15" aria-hidden />
-                        )}
-                        <span className="min-w-0">{a === 'Wifi' ? 'Wi-Fi' : a}</span>
-                      </li>
-                    );
-                  })}
-                </ul>
+                <ListingPdpCheckList
+                  items={(amenitiesExpanded ? amenities : amenities.slice(0, 8)).map((a) =>
+                    a === 'Wifi' ? 'Wi-Fi' : a,
+                  )}
+                />
                 {amenities.length > 8 ? (
                   <button
                     type="button"
@@ -1041,51 +1038,49 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
                 ) : null}
               </section>
             ) : null}
-            {(() => {
-              const primary = (s?.options ?? []).find((option) => !option.archived);
-              const areas = (primary?.sleepingAreas ?? []).filter((area) => area.beds.length > 0);
-              if (areas.length === 0) return null;
-              return (
-                <section className={sectionClass}>
-                  <h2 className={headingClass}>Where you&apos;ll sleep</h2>
-                  <ul className="grid gap-3 sm:grid-cols-2">
-                    {areas.map((area) => {
-                      const photos = primary?.roomPhotos?.find((row) => row.areaId === area.id)?.urls ?? [];
-                      const cover = photos[0] ?? null;
-                      const beds = area.beds
-                        .map((bed) => {
-                          const label = STAY_BED_KINDS.find((kind) => kind.id === bed.kind)?.label ?? 'Bed';
-                          return `${bed.count} ${label.toLowerCase()}${bed.count === 1 ? '' : 's'}`;
-                        })
-                        .join(', ');
-                      return (
-                        <li
-                          key={area.id}
-                          className="flex min-w-0 gap-3 overflow-hidden rounded-xl ring-1 ring-black/[0.08]"
-                        >
-                          {cover ? (
-                            <img
-                              src={cover}
-                              alt=""
-                              className="h-[5.5rem] w-[5.5rem] shrink-0 object-cover"
-                              loading="lazy"
-                            />
-                          ) : (
-                            <div className="flex h-[5.5rem] w-[5.5rem] shrink-0 items-center justify-center bg-ink/[0.04]">
-                              <BedDouble className="h-5 w-5 text-ink-faint" aria-hidden />
-                            </div>
-                          )}
-                          <div className="min-w-0 py-2.5 pr-3">
-                            <p className="font-semibold text-ink text-sm leading-snug">{area.name}</p>
-                            <p className="mt-0.5 text-sm text-ink-muted leading-snug">{beds}</p>
+            {staySleepAreas.length > 0 ? (
+              <section className={sectionClass}>
+                <h2 className={headingClass}>Where you&apos;ll sleep</h2>
+                <ul className="grid gap-3 sm:grid-cols-2">
+                  {staySleepAreas.map((area) => {
+                    const photos =
+                      primaryStayOption?.roomPhotos?.find((row) => row.areaId === area.id)?.urls ?? [];
+                    const cover = photos[0] ?? null;
+                    const beds = area.beds
+                      .map((bed) => {
+                        const label = STAY_BED_KINDS.find((kind) => kind.id === bed.kind)?.label ?? 'Bed';
+                        return `${bed.count} ${label.toLowerCase()}${bed.count === 1 ? '' : 's'}`;
+                      })
+                      .join(', ');
+                    return (
+                      <li
+                        key={area.id}
+                        className="flex min-w-0 gap-3 overflow-hidden rounded-xl ring-1 ring-[#E8EBF0]"
+                      >
+                        {cover ? (
+                          <img
+                            src={cover}
+                            alt=""
+                            className="h-[5.5rem] w-[5.5rem] shrink-0 object-cover"
+                            loading="lazy"
+                          />
+                        ) : (
+                          <div className="flex h-[5.5rem] w-[5.5rem] shrink-0 items-center justify-center bg-ink/[0.04]">
+                            <BedDouble className="h-5 w-5 text-ink-faint" aria-hidden />
                           </div>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </section>
-              );
-            })()}
+                        )}
+                        <div className="min-w-0 py-2.5 pr-3">
+                          <p className="font-semibold text-ink text-sm leading-snug">{area.name}</p>
+                          <p className="mt-0.5 text-sm text-ink-muted leading-snug">
+                            {beds || 'Beds not listed yet'}
+                          </p>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </section>
+            ) : null}
 
             <section className={sectionClass}>
               <h2 className={`${headingClass} flex items-center gap-2`}>
@@ -1193,26 +1188,15 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
               </section>
             ) : null}
 
-            <section className={sectionClass}>
-              <h2 className={headingClass}>Cancellation</h2>
-              <p
-                className={`text-sm text-ink-muted break-words [overflow-wrap:anywhere] whitespace-pre-wrap ${
-                  cancellationExpanded ? '' : 'line-clamp-3'
-                }`}
-              >
-                {STAY_GUEST_CANCELLATION_POLICY}
-              </p>
-              {STAY_GUEST_CANCELLATION_POLICY.length > 160 ? (
-                <button
-                  type="button"
-                  className="mt-2 text-sm font-semibold text-finland hover:underline"
-                  onClick={() => setCancellationExpanded((v) => !v)}
-                  aria-expanded={cancellationExpanded}
-                >
-                  {cancellationExpanded ? 'Show less' : 'Read full policy'}
-                </button>
-              ) : null}
-            </section>
+            <ListingPdpPolicyBlock
+              className={sectionClass}
+              summary={
+                listingShowsFreeCancellation(stay)
+                  ? 'Free cancellation up to 24 hours before check-in'
+                  : null
+              }
+              body={STAY_GUEST_CANCELLATION_POLICY}
+            />
           </div>
 
           <div className="tv-pdp-aside min-w-0">
@@ -1663,39 +1647,43 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
             </div>
           ) : null}
 
-          {hostName ? (
-            <section className={`tv-pdp-below ${canLoadReviews ? 'mt-2' : 'border-t border-[#E8EBF0] pt-8'} mb-8`}>
-              <h2 className={headingClass}>Host</h2>
-              <div className="flex max-w-xl items-start gap-3.5">
-                {hostLogoUrl ? (
-                  <img
-                    src={hostLogoUrl}
-                    alt=""
-                    className="h-12 w-12 shrink-0 rounded-xl object-cover ring-1 ring-black/[0.06]"
-                  />
-                ) : (
-                  <div
-                    className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#0758CB]/10 text-sm font-bold text-[#0758CB]"
-                    aria-hidden
-                  >
-                    {hostName.slice(0, 1).toUpperCase()}
-                  </div>
-                )}
-                <div className="min-w-0 pt-0.5">
-                  <p className="text-base font-bold tracking-tight text-[#111827]">{hostName}</p>
-                  <p className="mt-0.5 text-sm text-ink-muted">Host on Traverion</p>
-                </div>
-              </div>
-              {hostDescription ? (
-                <p className="mt-3.5 max-w-xl text-[15px] leading-relaxed text-ink-muted whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
-                  {hostDescription}
-                </p>
-              ) : null}
-              <p className="mt-2 max-w-xl text-sm text-ink-muted">
-                Contact details and private arrival instructions are shared after booking confirmation.
-              </p>
-            </section>
+          {hostSupplier ? (
+            <ListingPdpSupplierBlock
+              className={`tv-pdp-below ${canLoadReviews ? 'mt-2' : 'border-t border-[#E8EBF0] pt-8'} mb-8`}
+              heading="About the host"
+              subtitle="Host on Traverion"
+              supplier={hostSupplier}
+              onOpenLegal={setHostLegalModal}
+              privacyNote="Contact details and private arrival instructions are shared after booking confirmation."
+            />
           ) : null}
+        </div>
+      ) : null}
+
+      {hostLegalModal && hostSupplier ? (
+        <div className="tv-gallery-lightbox" role="dialog" aria-modal="true" tabIndex={-1}>
+          <div className="mx-auto flex h-full w-full max-w-2xl flex-col bg-paper">
+            <div className="flex items-center justify-between border-b border-[#E8EBF0] px-4 py-3">
+              <h2 className="font-sans text-lg font-bold text-[#111827]">
+                {hostLegalModal === 'privacy' ? 'Privacy policy' : 'Terms & conditions'}
+              </h2>
+              <button
+                type="button"
+                className="tv-icon-btn lux-flat h-10 w-10 rounded-full"
+                onClick={() => setHostLegalModal(null)}
+              >
+                <X className="h-5 w-5" aria-hidden />
+                <span className="sr-only">Close</span>
+              </button>
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto px-4 py-5">
+              <p className="whitespace-pre-wrap text-sm leading-relaxed text-ink-muted">
+                {hostLegalModal === 'privacy'
+                  ? hostSupplier.privacy_policy_text
+                  : hostSupplier.terms_conditions_text}
+              </p>
+            </div>
+          </div>
         </div>
       ) : null}
 

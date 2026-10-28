@@ -1,4 +1,4 @@
-import { Check, Info, MapPin, ShieldCheck, X } from 'lucide-react';
+import { Check, Info, MapPin, X } from 'lucide-react';
 import type { TourPackage } from '../../types/tour';
 import {
   TRAVERION_STANDARD_CANCELLATION_POLICY,
@@ -18,6 +18,9 @@ import {
   labelsForCatalogIds,
 } from '../../lib/listing-information-catalogs';
 import { listingShowsFreeCancellation } from '../../lib/listingTruth';
+import ListingPdpCheckList from '../ListingPdpCheckList';
+import ListingPdpPolicyBlock from '../ListingPdpPolicyBlock';
+import ListingPdpSupplierBlock from '../ListingPdpSupplierBlock';
 
 type Legal = {
   operatorName: string;
@@ -56,53 +59,25 @@ function Fact({ label, children }: { label: string; children: string }) {
 export function TourOperatorBlock({
   supplierLegal,
   onOpenLegal,
+  heading = 'About the operator',
+  subtitle = 'Experience operator on Traverion',
+  privacyNote = null,
 }: {
   supplierLegal: Legal;
   onOpenLegal: (kind: 'privacy' | 'terms') => void;
+  heading?: string;
+  subtitle?: string;
+  privacyNote?: string | null;
 }) {
   return (
-    <section className={sectionClass}>
-      <h2 className={headingClass}>About the operator</h2>
-      <div className="flex max-w-xl items-start gap-3.5">
-        {supplierLegal.business_logo_url ? (
-          <img
-            src={supplierLegal.business_logo_url}
-            alt=""
-            className="h-12 w-12 shrink-0 rounded-xl object-cover ring-1 ring-black/[0.06]"
-          />
-        ) : (
-          <div
-            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#0758CB]/10 text-sm font-bold text-[#0758CB]"
-            aria-hidden
-          >
-            {supplierLegal.operatorName.slice(0, 1).toUpperCase()}
-          </div>
-        )}
-        <div className="min-w-0 pt-0.5">
-          <p className="text-base font-bold tracking-tight text-[#111827]">{supplierLegal.operatorName}</p>
-          <p className="mt-0.5 text-sm text-ink-muted">Experience operator on Traverion</p>
-        </div>
-      </div>
-      {supplierLegal.public_description?.trim() ? (
-        <p className="mt-3.5 max-w-xl text-[15px] leading-relaxed text-ink-muted whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
-          {supplierLegal.public_description.trim()}
-        </p>
-      ) : null}
-      {supplierLegal.privacy_policy_text?.trim() || supplierLegal.terms_conditions_text?.trim() ? (
-        <div className="mt-3.5 flex flex-wrap gap-2">
-          {supplierLegal.privacy_policy_text?.trim() ? (
-            <button type="button" onClick={() => onOpenLegal('privacy')} className="tv-btn-ghost">
-              Privacy policy
-            </button>
-          ) : null}
-          {supplierLegal.terms_conditions_text?.trim() ? (
-            <button type="button" onClick={() => onOpenLegal('terms')} className="tv-btn-ghost">
-              Terms & conditions
-            </button>
-          ) : null}
-        </div>
-      ) : null}
-    </section>
+    <ListingPdpSupplierBlock
+      className={sectionClass}
+      heading={heading}
+      subtitle={subtitle}
+      supplier={supplierLegal}
+      onOpenLegal={onOpenLegal}
+      privacyNote={privacyNote}
+    />
   );
 }
 
@@ -153,16 +128,7 @@ export default function TourListingSections({
       {highlights.length > 0 ? (
         <section className={sectionClass}>
           <h2 className={headingClass}>Highlights</h2>
-          <ul className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-            {highlights.map((highlight) => (
-              <li key={highlight} className="flex items-start gap-2.5 text-[15px] font-medium text-[#111827]">
-                <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#EAF2FF] text-[#0758CB]">
-                  <Check className="h-3.5 w-3.5" strokeWidth={2.5} aria-hidden />
-                </span>
-                <span className="break-words [overflow-wrap:anywhere]">{highlight}</span>
-              </li>
-            ))}
-          </ul>
+          <ListingPdpCheckList items={highlights} />
         </section>
       ) : null}
 
@@ -351,28 +317,15 @@ export default function TourListingSections({
         </section>
       ) : null}
 
-      <section className={sectionClass}>
-        <h2 className={headingClass}>Cancellation</h2>
-        <div className="flex max-w-xl gap-3">
-          <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#EEF6F3] text-[#0F766E]">
-            <ShieldCheck className="h-3.5 w-3.5" aria-hidden />
-          </span>
-          <div className="min-w-0">
-            {listingShowsFreeCancellation(tour) ? (
-              <p className="text-sm font-bold tracking-tight text-[#111827]">
-                Free cancellation up to 24 hours before departure
-              </p>
-            ) : null}
-            <p
-              className={`text-[15px] leading-relaxed text-ink ${
-                listingShowsFreeCancellation(tour) ? 'mt-1.5 text-ink-muted' : ''
-              }`}
-            >
-              {tour.cancellationPolicy?.trim() || TRAVERION_STANDARD_CANCELLATION_POLICY}
-            </p>
-          </div>
-        </div>
-      </section>
+      <ListingPdpPolicyBlock
+        className={sectionClass}
+        summary={
+          listingShowsFreeCancellation(tour)
+            ? 'Free cancellation up to 24 hours before departure'
+            : null
+        }
+        body={tour.cancellationPolicy?.trim() || TRAVERION_STANDARD_CANCELLATION_POLICY}
+      />
 
       {showOperator && supplierLegal ? (
         <TourOperatorBlock supplierLegal={supplierLegal} onOpenLegal={onOpenLegal} />

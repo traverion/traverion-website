@@ -25,6 +25,8 @@ export const STAY_SINGLE_PROPERTY_TYPES = [
   'Cottage',
   'Villa',
   'Chalet',
+  'Glass igloo',
+  'Igloo',
   'Other',
 ] as const;
 

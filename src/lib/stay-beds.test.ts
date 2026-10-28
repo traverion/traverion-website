@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { applySleepingAreas, stayBedCount, stayBedSummary, stayCapacityWarning, staySleepCapacity } from './stay-beds';
+import {
+  applySleepingAreas,
+  stayBedCount,
+  stayBedSummary,
+  stayCapacityWarning,
+  stayPdpBedroomCount,
+  stayPdpSleepingAreas,
+  staySleepCapacity,
+} from './stay-beds';
 
 describe('stay bed arrangements', () => {
   it('counts beds and sleeping places separately', () => {
@@ -25,4 +33,20 @@ describe('stay bed arrangements', () => {
     expect(next.beds).toBe(2);
     expect(next.sleepingAreas.map((area) => area.id)).toEqual(['room-2']);
   });
+
+  it('aligns PDP bedroom count with configured sleeping areas', () => {
+    const areas = [
+      { id: 'b1', name: 'Bedroom 1', beds: [{ kind: 'double' as const, count: 1 }] },
+      { id: 'b2', name: 'Bedroom 2', beds: [] },
+      { id: 'lr', name: 'Living room', beds: [{ kind: 'sofa' as const, count: 1 }] },
+    ];
+    expect(stayPdpSleepingAreas({ sleepingAreas: areas, bedMix: null }).map((a) => a.id)).toEqual([
+      'b1',
+      'b2',
+      'lr',
+    ]);
+    expect(stayPdpBedroomCount({ bedrooms: 5, sleepingAreas: areas, bedMix: null })).toBe(2);
+    expect(stayPdpBedroomCount({ bedrooms: 3, sleepingAreas: [], bedMix: null })).toBe(3);
+  });
 });
+

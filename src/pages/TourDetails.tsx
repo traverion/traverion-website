@@ -629,6 +629,10 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
         fallbackDayCap: dayCapacitySnap.fallback,
       });
     }
+    // Option selected but every departure already past cutoff → do not fall through to day-cap spots.
+    if (selectedOptionApplied && bookingDate.trim()) {
+      return null;
+    }
     if (dayCap != null) {
       return remainingCapacity(dayCap, dayCapacitySnap.paidByDay[day] ?? 0);
     }
@@ -1826,7 +1830,7 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
 
               <TourListingSections
                 tour={tour}
-                selectedOption={selectedOption}
+                selectedOption={selectedOptionApplied}
                 supplierLegal={supplierLegal}
                 onOpenLegal={setLegalModal}
                 showOperator={false}

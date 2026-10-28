@@ -10,21 +10,25 @@ import {
   CalendarCheck,
   Check,
   Clock,
-  FileText,
   KeyRound,
   MapPin,
   Package,
   Share2,
+  Star,
   X,
 } from 'lucide-react';
 import RentalBookingWidget from '../components/rental/RentalBookingWidget';
 import RentalCollectionMap from '../components/supplier/listing-creation/RentalCollectionMap';
 import ListingPdpPhotoGallery from '../components/ListingPdpPhotoGallery';
+import ListingPdpQuickFacts from '../components/ListingPdpQuickFacts';
+import ListingPdpCheckList from '../components/ListingPdpCheckList';
+import ListingPdpPolicyBlock from '../components/ListingPdpPolicyBlock';
 import ErrorState from '../components/ErrorState';
 import PublicReviewCard from '../components/PublicReviewCard';
 import ListingPdpReviewMeta from '../components/ListingPdpReviewMeta';
 import { ListingReviewsModal } from '../components/ListingReviewsModal';
 import { TourOperatorBlock } from '../components/tour-detail/TourListingSections';
+import { LISTING_REVIEWS_EMPTY_COPY } from '../lib/booking-confirmation-copy';
 import { publicReviewLabel } from '../lib/listingTruth';
 import { useAuth } from '../contexts/AuthContext';
 import { fetchListingById } from '../data/supabase-listings';
@@ -410,35 +414,15 @@ function RentalBody({
             ) : null}
 
             {quickFacts.length > 0 ? (
-              <dl className="mt-5 grid grid-cols-2 gap-x-5 gap-y-4 sm:grid-cols-3">
-                {quickFacts.map((fact) => {
-                  const Icon = fact.icon;
-                  return (
-                    <div key={fact.label} className="flex min-w-0 items-start gap-2.5">
-                      <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#F5F7FA] text-[#0B397E]">
-                        <Icon className="h-3.5 w-3.5" strokeWidth={2} aria-hidden />
-                      </span>
-                      <div className="min-w-0">
-                        <dd className="text-sm font-bold leading-snug tracking-tight text-[#111827]">{fact.value}</dd>
-                        <dt className="mt-0.5 text-[11px] font-medium leading-snug text-ink-muted">{fact.label}</dt>
-                      </div>
-                    </div>
-                  );
-                })}
-              </dl>
+              <div className="mt-5">
+                <ListingPdpQuickFacts facts={quickFacts} />
+              </div>
             ) : null}
 
             {highlights.length > 0 ? (
               <section className={sectionClass}>
                 <h2 className={headingClass}>Highlights</h2>
-                <ul className="space-y-2.5">
-                  {highlights.map((line) => (
-                    <li key={line} className="flex gap-2.5 text-sm leading-relaxed text-ink">
-                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-[#0758CB]" strokeWidth={2.5} aria-hidden />
-                      <span>{line}</span>
-                    </li>
-                  ))}
-                </ul>
+                <ListingPdpCheckList items={highlights} />
               </section>
             ) : null}
 
@@ -712,24 +696,16 @@ function RentalBody({
               </section>
             ) : null}
 
-            <section id="rental-policies" className={sectionClass}>
-              <h2 className={headingClass}>Cancellation and deposit</h2>
-              <dl className="divide-y divide-[#E8EBF0]">
-                <div className="grid gap-1 py-3 sm:grid-cols-[8.75rem_minmax(0,1fr)] sm:items-start sm:gap-5">
-                  <dt className="flex items-center gap-1.5 text-sm font-semibold tracking-tight text-[#111827]">
-                    <FileText className="h-4 w-4 text-[#0B397E]" aria-hidden />
-                    Cancellation
-                  </dt>
-                  <dd className="text-sm leading-relaxed text-ink-muted">
-                    {rentalCancellationCustomerText(rental.cancellationPreset)}
-                  </dd>
-                </div>
-                <div className="grid gap-1 py-3 sm:grid-cols-[8.75rem_minmax(0,1fr)] sm:items-start sm:gap-5">
-                  <dt className="text-sm font-semibold tracking-tight text-[#111827]">Security deposit</dt>
-                  <dd className="text-sm leading-relaxed text-ink-muted">{rentalDepositCustomerText(rental)}</dd>
-                </div>
-              </dl>
-            </section>
+            <ListingPdpPolicyBlock
+              className={sectionClass}
+              title="Cancellation and deposit"
+              body={[
+                rentalCancellationCustomerText(rental.cancellationPreset),
+                `Security deposit: ${rentalDepositCustomerText(rental)}`,
+              ]
+                .filter(Boolean)
+                .join('\n\n')}
+            />
           </div>
 
           <div className="tv-pdp-aside min-w-0">
@@ -753,30 +729,45 @@ function RentalBody({
       {canLoadReviews || supplierLegal ? (
         <div className="tv-shell mx-auto mt-2 px-4 sm:px-6 lg:px-8">
           {canLoadReviews ? (
-            <div id="rental-reviews" className="tv-pdp-below border-t border-[#E8EBF0] pt-8">
+            <div id="rental-reviews" className="tv-pdp-below border-t border-[#E8EBF0] pt-8 scroll-mt-28">
               <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
-                <div>
-                  <h2 className="tv-section-heading">Reviews</h2>
-                  {reviewCount > 0 ? (
-                    <p className="mt-1 text-sm text-ink-muted">
-                      <span className="font-bold tabular-nums text-[#111827]">{reviewScore}</span>
-                      <span aria-hidden> · </span>
-                      {reviewCount} {reviewCount === 1 ? 'review' : 'reviews'}
-                    </p>
-                  ) : null}
-                </div>
-                {reviews.length > 4 ? (
-                  <button type="button" className="tv-btn-ghost" onClick={() => setReviewsModalOpen(true)}>
+                <h2 className="tv-section-heading">Reviews</h2>
+                {reviews.length > 0 ? (
+                  <button
+                    type="button"
+                    className="text-sm font-semibold text-finland hover:underline"
+                    onClick={() => setReviewsModalOpen(true)}
+                  >
                     See all reviews
                   </button>
                 ) : null}
               </div>
+              {reviewScore && reviewCount > 0 ? (
+                <div className="mb-4 flex items-center gap-3">
+                  <p className="text-4xl font-bold tabular-nums leading-none tracking-tight text-[#111827]">
+                    {reviewScore}
+                  </p>
+                  <div>
+                    <p className="text-sm text-ink-muted">
+                      {reviewCount} {reviewCount === 1 ? 'review' : 'reviews'}
+                    </p>
+                  </div>
+                </div>
+              ) : null}
               {reviewsLoadError ? (
-                <p className="text-sm text-ink-muted">{reviewsLoadError}</p>
+                <p className="mb-4 text-sm text-ink-muted">{reviewsLoadError}</p>
               ) : reviews.length === 0 ? (
-                <p className="text-sm text-ink-muted">No reviews yet for this rental.</p>
+                <div className="mb-4 flex items-start gap-3 py-1">
+                  <Star size={20} className="mt-0.5 shrink-0 text-ink-faint" aria-hidden />
+                  <div>
+                    <p className="text-sm font-bold tracking-tight text-[#111827]">No reviews yet</p>
+                    <p className="mt-0.5 max-w-md text-sm leading-relaxed text-ink-muted">
+                      {LISTING_REVIEWS_EMPTY_COPY}
+                    </p>
+                  </div>
+                </div>
               ) : (
-                <div className="grid gap-4 sm:grid-cols-2">
+                <div className="mb-6 grid items-start gap-4 sm:grid-cols-2">
                   {reviews.slice(0, 4).map((r) => (
                     <PublicReviewCard key={r.id} review={r} reply={reviewReplies[r.id] ?? null} />
                   ))}
@@ -787,7 +778,12 @@ function RentalBody({
 
           {supplierLegal ? (
             <div className="tv-pdp-below mt-2 mb-8">
-              <TourOperatorBlock supplierLegal={supplierLegal} onOpenLegal={setLegalModal} />
+              <TourOperatorBlock
+                supplierLegal={supplierLegal}
+                onOpenLegal={setLegalModal}
+                heading="About the provider"
+                subtitle="Rental provider on Traverion"
+              />
             </div>
           ) : null}
         </div>

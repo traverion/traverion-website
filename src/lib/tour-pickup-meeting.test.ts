@@ -110,5 +110,27 @@ describe('resolveTourPickupMeetingDisplay', () => {
     expect(d.optionScoped).toBe(false);
     expect(d.multiOptionHint).toMatch(/depend on the option/i);
     expect(d.place).toBe('Default meet');
+    expect(d.placeLabel).toBe('Pickup or meeting');
+  });
+
+  it('labels unscoped listing place from experienceStartStyle (not always Meeting point)', () => {
+    const pickupListing = resolveTourPickupMeetingDisplay(
+      tour({
+        meetingPoint: 'City hotels',
+        experienceStartStyle: 'operator_pickup',
+      }),
+      null,
+    );
+    expect(pickupListing.placeLabel).toBe('Pickup area');
+
+    const meetListing = resolveTourPickupMeetingDisplay(
+      tour({
+        meetingPoint: 'Square',
+        experienceStartStyle: 'fixed_meeting_place',
+      }),
+      null,
+    );
+    expect(meetListing.placeLabel).toBe('Meeting point');
   });
 });
+

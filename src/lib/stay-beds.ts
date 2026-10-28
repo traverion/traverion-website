@@ -99,6 +99,45 @@ export function stayAreasFromMix(mix: StayBedMix | null | undefined): StaySleepi
   return [{ id: 'sleeping-saved', name: 'Sleeping area', beds }];
 }
 
+function isLivingRoomName(name: string): boolean {
+  return /\bliving\b/i.test(name);
+}
+
+/**
+ * Guest-facing sleeping areas for the Stay PDP.
+ * Prefer configured sleepingAreas (with beds); fall back to legacy bedMix as one area.
+ * Includes empty named non-living rooms so bedroom count and sleep UI stay aligned.
+ */
+export function stayPdpSleepingAreas(input: {
+  sleepingAreas?: readonly StaySleepingArea[] | null;
+  bedMix?: StayBedMix | null;
+}): StaySleepingArea[] {
+  const raw = Array.isArray(input.sleepingAreas) ? [...input.sleepingAreas] : [];
+  const withBeds = raw.filter((area) => area.beds.length > 0);
+  if (withBeds.length > 0) {
+    // Keep empty bedrooms that suppliers listed next to furnished ones.
+    return raw.filter((area) => area.beds.length > 0 || !isLivingRoomName(area.name));
+  }
+  if (raw.length > 0) {
+    return raw.filter((area) => !isLivingRoomName(area.name));
+  }
+  return stayAreasFromMix(input.bedMix);
+}
+
+/** Bedroom count for quick facts — sleeping areas win over a stale top-level bedrooms field. */
+export function stayPdpBedroomCount(input: {
+  bedrooms?: number | null;
+  sleepingAreas?: readonly StaySleepingArea[] | null;
+  bedMix?: StayBedMix | null;
+}): number | null {
+  const areas = stayPdpSleepingAreas(input).filter((area) => !isLivingRoomName(area.name));
+  if (areas.length > 0) return areas.length;
+  if (typeof input.bedrooms === 'number' && Number.isFinite(input.bedrooms) && input.bedrooms >= 0) {
+    return Math.floor(input.bedrooms);
+  }
+  return null;
+}
+
 /** Warn when declared guests exceed what the beds can sleep. Does not block a draft save. */
 export function stayCapacityWarning(guests: number, mix: StayBedMix | null | undefined): string | null {
   if (!Number.isFinite(guests) || guests < 1) return null;

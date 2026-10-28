@@ -18,15 +18,21 @@ describe('StayDetails Tour PDP shell parity', () => {
 
   it('places reviews before host in the below-grid block', () => {
     const reviewsIdx = stay.indexOf('id="stay-reviews"');
-    const hostIdx = stay.indexOf('>Host</h2>');
+    const hostIdx = stay.indexOf('About the host');
     expect(reviewsIdx).toBeGreaterThan(-1);
     expect(hostIdx).toBeGreaterThan(-1);
     expect(reviewsIdx).toBeLessThan(hostIdx);
   });
 
   it('shows supplier propertyType without hardcoding Entire', () => {
-    expect(stay).toContain('s?.propertyType?.trim()');
+    expect(stay).toContain('propertyType');
+    expect(stay).toContain('ListingPdpQuickFacts');
+    expect(stay).toContain('ListingPdpCheckList');
+    expect(stay).toContain('ListingPdpPolicyBlock');
+    expect(stay).toContain('About the host');
+    expect(stay).toContain('stayPdpBedroomCount');
     expect(stay).not.toMatch(/Entire \$\{/);
     expect(stay).not.toMatch(/`Entire /);
   });
 });
+
