@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowLeft,
   BadgeInfo,
+  Calendar,
   CalendarCheck,
   Check,
   Clock,
@@ -47,7 +48,7 @@ import {
 import {
   rentalCategoryTitle,
   rentalDepositCustomerText,
-  rentalDurationCustomerText,
+  rentalDurationLengthRows,
   rentalFromPrice,
   rentalHoursLines,
   rentalItemLabel,
@@ -229,6 +230,8 @@ function RentalBody({
   const returnPoint = rentalReturnPoint(rental);
   const variants = rental.variants ?? [];
   const [variantId, setVariantId] = useState(variants[0]?.id ?? '');
+  const selectedVariant = variants.find((item) => item.id === variantId) ?? variants[0] ?? null;
+  const durationRows = rentalDurationLengthRows(rental, selectedVariant);
   const highlights = (rental.highlights?.length ? rental.highlights : listing.highlights) ?? [];
   const fromPrice = rentalFromPrice(rental);
   const units = rentalQuantityUnits(rental);
@@ -618,18 +621,29 @@ function RentalBody({
               ) : null}
             </section>
 
-            <section className={sectionClass}>
-              <h2 className={headingClass}>Rental length</h2>
-              <ul className="max-w-xl space-y-1.5 text-[15px] leading-relaxed text-ink-muted">
-                {rentalDurationCustomerText(rental)
-                  .split(' · ')
-                  .map((bit) => bit.trim())
-                  .filter(Boolean)
-                  .map((bit) => (
-                    <li key={bit}>{bit}</li>
-                  ))}
-              </ul>
-            </section>
+            {durationRows.length > 0 ? (
+              <section className={sectionClass}>
+                <h2 className={headingClass}>Rental length</h2>
+                <ul className="max-w-xl space-y-3">
+                  {durationRows.map((row) => {
+                    const Icon = row.key === 'hour' ? Clock : Calendar;
+                    return (
+                      <li key={row.key} className="flex min-w-0 items-start gap-2.5">
+                        <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#F5F7FA] text-[#0B397E]">
+                          <Icon className="h-3.5 w-3.5" strokeWidth={2} aria-hidden />
+                        </span>
+                        <div className="min-w-0 pt-0.5">
+                          <p className="text-sm font-bold leading-snug tracking-tight text-[#111827]">
+                            {row.title}
+                          </p>
+                          <p className="mt-0.5 text-sm leading-snug text-ink-muted">{row.range}</p>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </section>
+            ) : null}
 
             {requirements.length > 0 ||
             rental.idRequired ||

@@ -39,4 +39,13 @@ describe('Rental PDP final polish', () => {
     expect(details).toContain('TourOperatorBlock');
     expect(details).toContain('compact');
   });
+
+  it('renders compact rental length rows from the selected option', () => {
+    expect(details).toContain('rentalDurationLengthRows');
+    expect(details).toContain('selectedVariant');
+    expect(details).toContain("row.key === 'hour' ? Clock : Calendar");
+    expect(details).not.toContain('rentalDurationCustomerText');
+  });
 });
+
+

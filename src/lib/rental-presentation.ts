@@ -223,6 +223,72 @@ export function rentalDurationCustomerText(rental: RentalDetails): string {
   return bits.join(' · ');
 }
 
+export type RentalDurationLengthRow = {
+  key: 'hour' | 'day';
+  title: string;
+  range: string;
+};
+
+function rentalDurationRangeLabel(min: number, max: number, unitSingular: string, unitPlural: string): string {
+  if (min === max) return `${min} ${min === 1 ? unitSingular : unitPlural}`;
+  return `${min}–${max} ${unitPlural}`;
+}
+
+/**
+ * Compact PDP rows for supported rental length modes on the selected option.
+ * Falls back to listing-wide min/max when no option is selected.
+ */
+export function rentalDurationLengthRows(
+  rental: RentalDetails,
+  variant?: RentalVariant | null,
+): RentalDurationLengthRow[] {
+  const rows: RentalDurationLengthRow[] = [];
+  const mode = variant ? effectiveVariantDurationMode(rental, variant) : null;
+  const offersHour = variant
+    ? mode === 'hourly' || mode === 'both'
+    : rentalListingOffersUnit(rental, 'hour');
+  const offersDay = variant
+    ? mode === 'daily' || mode === 'both'
+    : rentalListingOffersUnit(rental, 'day');
+  const variants = rental.variants ?? [];
+
+  if (offersHour) {
+    const { min, max } = variant
+      ? effectiveVariantDurationLimits(rental, variant, 'hour')
+      : {
+          min: variants.length
+            ? Math.min(...variants.map((v) => effectiveVariantDurationLimits(rental, v, 'hour').min))
+            : (rental.minDurationHours ?? 1),
+          max: variants.length
+            ? Math.max(...variants.map((v) => effectiveVariantDurationLimits(rental, v, 'hour').max))
+            : (rental.maxDurationHours ?? 8),
+        };
+    rows.push({
+      key: 'hour',
+      title: 'Hourly rental',
+      range: rentalDurationRangeLabel(min, max, 'hour', 'hours'),
+    });
+  }
+  if (offersDay) {
+    const { min, max } = variant
+      ? effectiveVariantDurationLimits(rental, variant, 'day')
+      : {
+          min: variants.length
+            ? Math.min(...variants.map((v) => effectiveVariantDurationLimits(rental, v, 'day').min))
+            : (rental.minDurationDays ?? 1),
+          max: variants.length
+            ? Math.max(...variants.map((v) => effectiveVariantDurationLimits(rental, v, 'day').max))
+            : (rental.maxDurationDays ?? 14),
+        };
+    rows.push({
+      key: 'day',
+      title: 'Daily rental',
+      range: rentalDurationRangeLabel(min, max, 'day', 'days'),
+    });
+  }
+  return rows;
+}
+
 /** Option rates a guest would pay for this option's duration mode. */
 export function rentalOptionRateLabel(
   rental: RentalDetails,
