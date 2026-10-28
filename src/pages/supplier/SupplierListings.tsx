@@ -1091,7 +1091,7 @@ export default function SupplierListings() {
           <label className="partner-listings-workspace__search">
             <span className="sr-only">Search listings</span>
             <Search
-              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-faint"
+              className="partner-listings-workspace__search-icon pointer-events-none absolute top-1/2 h-4 w-4 -translate-y-1/2 text-ink-faint"
               aria-hidden
             />
             <input
@@ -1099,14 +1099,14 @@ export default function SupplierListings() {
               value={listQuery}
               onChange={(e) => setListQueryAndUrl(e.target.value)}
               placeholder="Search title, destination, or reference"
-              className="tv-input w-full !min-h-10 pl-9 pr-9"
+              className="tv-input partner-listings-workspace__search-input w-full !min-h-10"
               autoComplete="off"
             />
             {listQuery.trim() ? (
               <button
                 type="button"
                 onClick={() => setListQueryAndUrl('')}
-                className="lux-flat absolute right-1.5 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-md text-ink-muted hover:bg-black/[0.04] hover:text-ink"
+                className="lux-flat partner-listings-workspace__search-clear absolute top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-md text-ink-muted hover:bg-black/[0.04] hover:text-ink"
                 aria-label="Clear search"
               >
                 <X className="h-3.5 w-3.5" aria-hidden />
@@ -1545,26 +1545,31 @@ export default function SupplierListings() {
                 accountEligible: canPostNewListing,
                 liveAttention,
               });
-              const readinessLine = !isLive
-                ? card.draftStateLabel === 'Incomplete'
-                  ? draftPublish?.subtitle ?? card.publishDisabledReason
-                  : card.primaryCta === 'verify'
-                    ? 'Verification required before publish.'
-                    : card.primaryCta === 'publish'
-                      ? 'Ready to publish'
-                      : null
-                : liveAttention;
+              // One clear status chip — avoid Draft + Ready / Incomplete duplicates.
+              const displayStatus = isLive
+                ? card.statusLabel
+                : card.primaryCta === 'publish'
+                  ? 'Ready to publish'
+                  : 'Draft';
               const statusTone =
-                card.statusLabel === 'Live'
+                displayStatus === 'Live'
                   ? 'good'
-                  : card.statusLabel === 'Needs update'
-                    ? 'warn'
+                  : displayStatus === 'Needs update' || displayStatus === 'Ready to publish'
+                    ? displayStatus === 'Ready to publish'
+                      ? 'info'
+                      : 'warn'
                     : 'neutral';
+              const detailLine = !isLive
+                ? card.primaryCta === 'verify'
+                  ? 'Verification required before publish.'
+                  : card.draftStateLabel === 'Incomplete'
+                    ? draftPublish?.subtitle ?? card.publishDisabledReason
+                    : null
+                : liveAttention;
               const publicUrl = isStay
                 ? publicStayListingUrl(listing.id)
                 : publicTourListingUrl(listing.id);
-              // Live listings only — draft public URLs can render empty/invalid pages.
-              const showView = isLive;
+              const primaryIsView = isLive;
               return (
                 <article key={listing.id} className="tv-ops-listing-row min-w-0">
                   <div className="tv-ops-listing-row__grid">
@@ -1578,39 +1583,40 @@ export default function SupplierListings() {
                           </span>
                         )}
                       </div>
-                      <div className="min-w-0 flex-1 py-0.5">
-                        <div className="mb-1 flex flex-wrap items-center gap-1.5 lg:hidden">
-                          <StatusChip tone={statusTone}>{card.statusLabel}</StatusChip>
-                          <span className="text-[11px] font-medium text-ink-faint">{typeLabel}</span>
+                      <div className="tv-ops-listing-row__copy min-w-0 flex-1">
+                        <div className="tv-ops-listing-row__mobile-meta mb-1 flex flex-wrap items-center gap-1.5 lg:hidden">
+                          <StatusChip tone={statusTone}>{displayStatus}</StatusChip>
+                          <span className="tv-ops-listing-row__type-pill">{typeLabel}</span>
                         </div>
-                        <h2
-                          title={listing.title}
-                          className="tv-ops-listing-row__title break-words text-[14.5px] font-semibold leading-snug tracking-tight text-ink line-clamp-1 sm:line-clamp-2 [overflow-wrap:anywhere]"
-                        >
+                        <h2 title={listing.title} className="tv-ops-listing-row__title">
                           {listing.title}
                         </h2>
-                        <p className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[12.5px] text-ink-muted">
+                        <p className="tv-ops-listing-row__place">
                           <span className="truncate">{place || 'Destination not set'}</span>
-                          <span className="hidden shrink-0 text-ink-faint sm:inline" aria-hidden>
+                          <span className="tv-ops-listing-row__place-sep" aria-hidden>
                             ·
                           </span>
-                          <span className="hidden shrink-0 text-[11.5px] font-medium uppercase tracking-[0.04em] text-ink-faint sm:inline">
-                            {typeLabel}
-                          </span>
+                          <span className="tv-ops-listing-row__place-type">{typeLabel}</span>
                         </p>
-                        <p className="mt-0.5 hidden text-[11.5px] font-medium text-ink-faint sm:block lg:hidden">
-                          {typeLabel}
-                          {money ? ` · From ${money}` : ' · Price not set'}
+                        <p className="tv-ops-listing-row__mobile-commerce lg:hidden">
+                          {money ? (
+                            <>
+                              <span className="tv-ops-listing-row__price-emph">From {money}</span>
+                              {commerce.qualifier ? (
+                                <span className="tv-ops-listing-row__price-qual"> / {commerce.qualifier}</span>
+                              ) : null}
+                            </>
+                          ) : (
+                            <span className="tv-ops-listing-row__price-muted">Price not set</span>
+                          )}
                           {family === 'rental' || family === 'tour'
                             ? commerce.optionsLine.startsWith('No ')
                               ? ''
                               : ` · ${commerce.optionsLine}`
                             : ''}
                         </p>
-                        {readinessLine ? (
-                          <p className="mt-1 line-clamp-1 break-words text-[12px] leading-snug text-ink-muted [overflow-wrap:anywhere]">
-                            {readinessLine}
-                          </p>
+                        {detailLine ? (
+                          <p className="tv-ops-listing-row__detail">{detailLine}</p>
                         ) : null}
                         {justPublishedId === listing.id ? (
                           <button
@@ -1621,13 +1627,13 @@ export default function SupplierListings() {
                               else if (family === 'rental') openSupplierRentalCalendar(listing.id);
                               else openSupplierCalendar(listing.id);
                             }}
-                            className="mt-1 text-[11px] font-semibold text-finland hover:underline"
+                            className="tv-ops-listing-row__flash mt-1 text-[11px] font-semibold text-finland hover:underline"
                           >
                             Published · Open calendar
                           </button>
                         ) : null}
                         {justDuplicatedId === listing.id ? (
-                          <span className="mt-1 inline-block text-[11px] font-semibold text-finland">
+                          <span className="tv-ops-listing-row__flash mt-1 inline-block text-[11px] font-semibold text-finland">
                             Draft copy created
                           </span>
                         ) : null}
@@ -1635,40 +1641,46 @@ export default function SupplierListings() {
                     </div>
 
                     <div className="tv-ops-listing-row__status hidden min-w-0 lg:flex lg:flex-col lg:justify-center lg:gap-1">
-                      <StatusChip tone={statusTone}>{card.statusLabel}</StatusChip>
-                      {card.draftStateLabel && card.statusLabel !== 'Needs update' ? (
-                        <span className="text-[11.5px] text-ink-muted">{card.draftStateLabel}</span>
-                      ) : null}
-                      <span className="text-[11.5px] font-medium text-ink-faint">{typeLabel}</span>
+                      <StatusChip tone={statusTone}>{displayStatus}</StatusChip>
+                      <span className="tv-ops-listing-row__status-type">{typeLabel}</span>
                     </div>
 
                     <div className="tv-ops-listing-row__commerce hidden min-w-0 lg:flex lg:flex-col lg:justify-center">
-                      <p className="text-[13.5px] font-semibold tabular-nums tracking-tight text-ink">
+                      <p className="tv-ops-listing-row__price">
                         {money ? (
                           <>
-                            From {money}
-                            <span className="font-medium text-ink-muted">
-                              {commerce.qualifier ? ` / ${commerce.qualifier}` : ''}
-                            </span>
+                            <span className="tv-ops-listing-row__price-emph">From {money}</span>
+                            {commerce.qualifier ? (
+                              <span className="tv-ops-listing-row__price-qual"> / {commerce.qualifier}</span>
+                            ) : null}
                           </>
                         ) : (
-                          <span className="font-medium text-ink-muted">Price not set</span>
+                          <span className="tv-ops-listing-row__price-muted">Price not set</span>
                         )}
                       </p>
-                      <p className="mt-0.5 text-[12px] text-ink-muted">{commerce.optionsLine}</p>
+                      <p className="tv-ops-listing-row__inventory">{commerce.optionsLine}</p>
                     </div>
 
-                    <div className="tv-ops-listing-row__actions flex shrink-0 items-center justify-end gap-1.5 border-t border-black/[0.06] pt-2.5 lg:border-t-0 lg:pt-0">
-                      {showView ? (
+                    <div className="tv-ops-listing-row__actions flex shrink-0 items-center justify-end gap-1.5">
+                      {primaryIsView ? (
                         <a
                           href={publicUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="tv-ops-listing-row__view lux-flat inline-flex h-8 items-center justify-center rounded-md px-2.5 text-[12.5px] font-semibold text-ink-muted ring-1 ring-inset ring-black/[0.08] hover:bg-black/[0.03] hover:text-ink"
+                          className="tv-ops-listing-row__primary lux-flat"
                         >
                           View
                         </a>
-                      ) : null}
+                      ) : (
+                        <button
+                          type="button"
+                          disabled={!canEditListings}
+                          onClick={() => openSupplierListingEditor(listing.id)}
+                          className="tv-ops-listing-row__primary lux-flat disabled:opacity-40"
+                        >
+                          Edit
+                        </button>
+                      )}
                       <button
                         type="button"
                         data-listing-gear={listing.id}
