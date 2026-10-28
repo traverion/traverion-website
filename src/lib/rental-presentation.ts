@@ -4,12 +4,16 @@ import {
   effectiveVariantDurationLimits,
   effectiveVariantDurationMode,
   formatMinorAsEuro,
+  rentalHoursWindow,
+  rentalHoursWindowsEqual,
   rentalListingOffersUnit,
   rentalLowestDayPriceMinor,
   rentalLowestHourPriceMinor,
 } from './rental-details';
 import type { RentalPurchaseSnapshot } from './rental-booking-domain';
 import type { RentalDetails, RentalOperatingDay, RentalVariant, RentalWeekday } from '../types/rental';
+
+const WEEKDAY_ORDER: RentalWeekday[] = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
 
 const WEEKDAY_LABEL: Record<RentalWeekday, string> = {
   mon: 'Monday',
@@ -19,6 +23,16 @@ const WEEKDAY_LABEL: Record<RentalWeekday, string> = {
   fri: 'Friday',
   sat: 'Saturday',
   sun: 'Sunday',
+};
+
+const WEEKDAY_SHORT: Record<RentalWeekday, string> = {
+  mon: 'Mon',
+  tue: 'Tue',
+  wed: 'Wed',
+  thu: 'Thu',
+  fri: 'Fri',
+  sat: 'Sat',
+  sun: 'Sun',
 };
 
 export type RentalMapPoint = {
@@ -97,14 +111,46 @@ export function rentalReturnHandoverLabel(source: { returnStaffAssisted?: boolea
   return null;
 }
 
+function rentalHoursWindowLabel(day: RentalOperatingDay): string {
+  const window = rentalHoursWindow(day);
+  const pickup = [window.earliestPickupHm, window.latestPickupHm].filter(Boolean).join('–');
+  const ret = [window.earliestReturnHm, window.latestReturnHm].filter(Boolean).join('–');
+  return `Pickup ${pickup || 'during open hours'} · Return ${ret || 'during open hours'}`;
+}
+
+function rentalWeekdayRangeLabel(days: RentalWeekday[]): string {
+  if (days.length === 1) return WEEKDAY_LABEL[days[0]];
+  const first = days[0];
+  const last = days[days.length - 1];
+  const consecutive =
+    days.length > 1 &&
+    days.every((day, index) => WEEKDAY_ORDER.indexOf(day) === WEEKDAY_ORDER.indexOf(first) + index);
+  if (consecutive) return `${WEEKDAY_SHORT[first]}–${WEEKDAY_SHORT[last]}`;
+  return days.map((day) => WEEKDAY_SHORT[day]).join(', ');
+}
+
+/** Open days collapsed when consecutive weekdays share the same pickup/return window. */
 export function rentalHoursLines(days: RentalOperatingDay[] | undefined): string[] {
-  return (days ?? [])
-    .filter((day) => day.open)
-    .map((day) => {
-      const pickup = [day.earliestPickupHm, day.latestPickupHm].filter(Boolean).join('–');
-      const ret = [day.earliestReturnHm, day.latestReturnHm].filter(Boolean).join('–');
-      return `${WEEKDAY_LABEL[day.day]} · Pickup ${pickup || 'during open hours'} · Return ${ret || 'during open hours'}`;
-    });
+  const open = WEEKDAY_ORDER.map((day) => (days ?? []).find((row) => row.day === day && row.open)).filter(
+    (row): row is RentalOperatingDay => Boolean(row)
+  );
+  if (open.length === 0) return [];
+
+  const groups: { days: RentalWeekday[]; sample: RentalOperatingDay }[] = [];
+  for (const day of open) {
+    const prev = groups[groups.length - 1];
+    if (
+      prev &&
+      rentalHoursWindowsEqual(rentalHoursWindow(prev.sample), rentalHoursWindow(day)) &&
+      WEEKDAY_ORDER.indexOf(day.day) === WEEKDAY_ORDER.indexOf(prev.days[prev.days.length - 1]) + 1
+    ) {
+      prev.days.push(day.day);
+      continue;
+    }
+    groups.push({ days: [day.day], sample: day });
+  }
+
+  return groups.map((group) => `${rentalWeekdayRangeLabel(group.days)} · ${rentalHoursWindowLabel(group.sample)}`);
 }
 
 export function rentalDepositMethodLabel(method: RentalDetails['depositCollectionMethod']): string | null {

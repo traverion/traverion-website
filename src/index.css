@@ -4565,6 +4565,20 @@ details:not([open]) > :not(summary) {
   padding-top: 0.45rem;
   padding-bottom: 0.45rem;
 }
+/* Rental PDP: dense sticky card for option + dates/times + quantity + CTA */
+.tv-booking-sticky.tv-booking-sticky--rental {
+  padding: 0.95rem 1rem 1.05rem;
+}
+.tv-booking-sticky.tv-booking-sticky--rental .tv-input {
+  min-height: 2.5rem;
+  padding-top: 0.45rem;
+  padding-bottom: 0.45rem;
+}
+@media (min-width: 640px) {
+  .tv-booking-sticky.tv-booking-sticky--rental {
+    padding: 1rem 1.1rem 1.1rem;
+  }
+}
 
 /* Phase 1805: mobile sticky book bar — clearer price + depth */
 .tv-booking-mobile-bar {

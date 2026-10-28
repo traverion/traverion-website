@@ -211,11 +211,11 @@ function RentalBody({
           </p>
         ) : null}
 
-        <div className="mt-4 grid grid-cols-1 gap-8 pb-24 lg:grid-cols-[minmax(0,1.85fr)_minmax(17.5rem,22rem)] lg:items-start lg:gap-8 lg:pb-0">
-          <div className="min-w-0 space-y-5">
+        <div className="mt-4 grid grid-cols-1 gap-7 pb-24 lg:grid-cols-[minmax(0,1.85fr)_minmax(17.5rem,22rem)] lg:items-start lg:gap-8 lg:pb-0">
+          <div className="min-w-0 space-y-4 sm:space-y-5">
             <RentalPhotoGallery photos={photos} title={listing.title} />
 
-            <section className="rounded-2xl bg-white p-5 shadow-[0_1px_2px_rgb(15_23_42/0.04)] ring-1 ring-[#E6EAF0] sm:p-6">
+            <header className="pt-1">
               <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#073b83]">
                 {[rentalCategoryTitle(rental), item].filter(Boolean).join(' · ')}
               </p>
@@ -231,7 +231,7 @@ function RentalBody({
               {rental.shortIntro || listing.subtitle ? (
                 <p className="mt-3 text-base leading-relaxed text-ink-muted">{rental.shortIntro || listing.subtitle}</p>
               ) : null}
-            </section>
+            </header>
 
             {listing.description ? (
               <Section title="About this rental">
@@ -457,7 +457,7 @@ function RentalBody({
               <p className="text-sm leading-relaxed text-ink">{rentalDurationCustomerText(rental)}</p>
             </Section>
 
-            <Section title="Cancellation and deposit">
+            <Section title="Cancellation and deposit" id="rental-policies">
               <dl className="space-y-3 text-sm">
                 <div>
                   <dt className="flex items-center gap-1.5 font-semibold text-ink">
@@ -476,35 +476,48 @@ function RentalBody({
 
           <aside
             id="rental-booking"
-            className="tv-booking-sticky tv-booking-sticky--fit scroll-mt-28 h-fit lg:sticky lg:top-[calc(4.75rem+env(safe-area-inset-top,0px))]"
+            className="tv-booking-sticky tv-booking-sticky--fit tv-booking-sticky--rental scroll-mt-28 h-fit lg:sticky lg:top-[calc(4.75rem+env(safe-area-inset-top,0px))]"
           >
-            <div className="rounded-2xl bg-white p-5 shadow-[0_8px_30px_rgb(15_23_42/0.06)] ring-1 ring-[#E6EAF0]">
-              <RentalBookingWidget
-                listingId={listing.id}
-                listingTitle={listing.title}
-                rental={rental}
-                variantId={variantId}
-                onVariantIdChange={setVariantId}
-                hideOptionPicker
-              />
-            </div>
+            <RentalBookingWidget
+              listingId={listing.id}
+              listingTitle={listing.title}
+              rental={rental}
+              variantId={variantId}
+              onVariantIdChange={setVariantId}
+              hideOptionPicker
+            />
           </aside>
         </div>
       </div>
-      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-black/[0.06] bg-white px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] lg:hidden">
-        <a href="#rental-booking" className="tv-btn-primary flex min-h-12 w-full items-center justify-center font-semibold">
-          {fromPrice ? `From ${fromPrice.label}` : 'Review rental'}
-        </a>
+      <div className="tv-booking-mobile-bar fixed inset-x-0 bottom-0 z-[60] lg:hidden">
+        <div className="mx-auto flex w-full min-w-0 max-w-5xl items-center justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <p className="truncate font-display text-base font-semibold tracking-tight text-ink">
+              {fromPrice ? (
+                <>
+                  <span className="text-xs font-semibold uppercase tracking-[0.08em] text-ink-muted">From </span>
+                  <span className="tabular-nums">{fromPrice.label}</span>
+                </>
+              ) : (
+                'Review dates'
+              )}
+            </p>
+            <p className="tv-meta truncate">Select option, dates, and quantity</p>
+          </div>
+          <a href="#rental-booking" className="tv-btn-primary shrink-0 px-5 font-semibold">
+            Review
+          </a>
+        </div>
       </div>
     </div>
   );
 }
 
-function Section({ title, children }: { title: string; children: ReactNode }) {
+function Section({ title, children, id }: { title: string; children: ReactNode; id?: string }) {
   return (
-    <section className="border-t border-black/[0.06] pt-6">
+    <section id={id} className="border-t border-black/[0.06] pt-5 sm:pt-6">
       <h2 className="font-display text-xl font-semibold tracking-tight text-ink">{title}</h2>
-      <div className="mt-3">{children}</div>
+      <div className="mt-2.5 sm:mt-3">{children}</div>
     </section>
   );
 }

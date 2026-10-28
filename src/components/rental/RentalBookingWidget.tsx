@@ -11,12 +11,7 @@ import {
   effectiveVariantPricing,
   formatMinorAsEuro,
 } from '../../lib/rental-details';
-import {
-  rentalDepositCustomerText,
-  rentalMapHref,
-  rentalOptionRateLabel,
-  rentalReturnPoint,
-} from '../../lib/rental-presentation';
+import { rentalOptionRateLabel } from '../../lib/rental-presentation';
 import { isRentalDevPreviewId } from '../../lib/rental-dev-preview';
 import { quoteRentalLine } from '../../lib/rental-quote';
 import { COMMERCIAL_PLANS } from '../../lib/commercial-money';
@@ -31,7 +26,7 @@ import { evaluateRentalAvailabilityRpc } from '../../data/supabase-rental-availa
 import { fetchRentalCheckoutCapability } from '../../data/rental-checkout-capability';
 import { createBookingCheckoutSession } from '../../data/supabase-bookings';
 import { useAuth } from '../../contexts/AuthContext';
-import { rentalCancellationCustomerText } from '../../lib/rental-cancellation';
+import GuestStepper from '../booking/GuestStepper';
 
 export type RentalBookingSelection = {
   variantId: string;
@@ -85,7 +80,6 @@ export default function RentalBookingWidget({
   const [payError, setPayError] = useState<string | null>(null);
   const [reviewing, setReviewing] = useState(false);
   const variants = rental.variants ?? [];
-  const returnPoint = rentalReturnPoint(rental);
 
   const [uncontrolledVariantId, setUncontrolledVariantId] = useState(variants[0]?.id ?? '');
   const variantId = controlledVariantId ?? uncontrolledVariantId;
@@ -330,18 +324,18 @@ export default function RentalBookingWidget({
       : formatMinorAsEuro(pricing?.pricePerDayMinor);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3.5">
       <div>
-        <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-muted">From</p>
-        <p className="mt-1 font-display text-2xl font-semibold text-ink">
+        <p className="tv-eyebrow mb-1">From</p>
+        <p className="font-display text-[1.75rem] font-semibold leading-none tracking-tight text-ink tabular-nums">
           {unitPriceLabel}
-          <span className="ml-1 text-sm font-medium text-ink-muted">
-            / {durationUnit === 'hour' ? 'hour' : 'day'} · per unit
+          <span className="ml-1.5 text-sm font-medium text-ink-muted">
+            / {durationUnit === 'hour' ? 'hour' : 'day'}
           </span>
         </p>
         {hideOptionPicker && selected ? (
-          <p className="mt-1 text-sm text-ink-muted">
-            {selected.name}{' '}
+          <p className="mt-2 text-sm text-ink-muted">
+            <span className="font-medium text-ink">{selected.name}</span>{' '}
             <a href="#rental-options" className="font-semibold text-[#073b83]">
               Change
             </a>
@@ -405,9 +399,9 @@ export default function RentalBookingWidget({
         </div>
       ) : null}
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 gap-2.5">
         <label className="block text-sm">
-          <span className="mb-1.5 block font-medium text-ink">Pickup date</span>
+          <span className="mb-1 block font-medium text-ink">Pickup date</span>
           <input
             type="date"
             className="tv-input w-full"
@@ -421,7 +415,7 @@ export default function RentalBookingWidget({
           />
         </label>
         <label className="block text-sm">
-          <span className="mb-1.5 block font-medium text-ink">Return date</span>
+          <span className="mb-1 block font-medium text-ink">Return date</span>
           <input
             type="date"
             className="tv-input w-full"
@@ -432,9 +426,9 @@ export default function RentalBookingWidget({
         </label>
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 gap-2.5">
         <label className="block text-sm">
-          <span className="mb-1.5 flex items-center gap-1 font-medium text-ink">
+          <span className="mb-1 flex items-center gap-1 font-medium text-ink">
             <Clock className="h-3.5 w-3.5" aria-hidden />
             Pickup time
           </span>
@@ -446,7 +440,7 @@ export default function RentalBookingWidget({
           />
         </label>
         <label className="block text-sm">
-          <span className="mb-1.5 flex items-center gap-1 font-medium text-ink">
+          <span className="mb-1 flex items-center gap-1 font-medium text-ink">
             <Clock className="h-3.5 w-3.5" aria-hidden />
             Return time
           </span>
@@ -459,19 +453,14 @@ export default function RentalBookingWidget({
         </label>
       </div>
 
-      <label className="block text-sm">
-        <span className="mb-1.5 block font-medium text-ink">Quantity</span>
-        <input
-          type="number"
-          min={1}
-          max={maxQty}
-          className="tv-input w-full"
-          value={quantity}
-          onChange={(e) =>
-            setQuantity(Math.min(maxQty, Math.max(1, Number(e.target.value) || 1)))
-          }
-        />
-      </label>
+      <GuestStepper
+        label="Quantity"
+        value={Math.min(Math.max(1, quantity), maxQty)}
+        min={1}
+        max={Math.max(1, maxQty)}
+        onChange={setQuantity}
+        hint={`${maxQty} available for this option`}
+      />
 
       {!interval.ok ? (
         <p className="text-sm text-[#9f1239]" role="alert">
@@ -490,19 +479,16 @@ export default function RentalBookingWidget({
         </p>
       ) : null}
 
-      {(rental.bufferMinutes ?? 0) > 0 ? (
-        <p className="text-xs leading-relaxed text-ink-muted">
-          {rental.bufferMinutes} minutes are kept after return before the next rental. This does not reserve the item.
-        </p>
-      ) : null}
-
       {quote?.ok ? (
-        <p className="text-sm text-ink">
-          Estimated total <span className="font-semibold">{formatMinorAsEuro(quote.customerTotalMinor)}</span>
-          <span className="text-ink-muted">
-            {checkoutOpen ? ' · confirmed again at checkout' : ' · estimate, nothing is charged'}
-          </span>
-        </p>
+        <div className="rounded-xl bg-[#F7F8FA] px-3.5 py-3">
+          <p className="text-sm text-ink">
+            Estimated total{' '}
+            <span className="font-semibold tabular-nums">{formatMinorAsEuro(quote.customerTotalMinor)}</span>
+          </p>
+          <p className="mt-0.5 text-xs text-ink-muted">
+            {checkoutOpen ? 'Confirmed again at checkout before any charge.' : 'Estimate only — nothing is charged.'}
+          </p>
+        </div>
       ) : quote && !quote.ok ? (
         <p className="text-sm text-[#9f1239]" role="alert">
           {quote.error}
@@ -522,39 +508,6 @@ export default function RentalBookingWidget({
         ) : null}
       </div>
 
-      <p className="rounded-xl bg-[#F4F6F8] px-3.5 py-2.5 text-xs leading-relaxed text-ink-muted">
-        {rentalDepositCustomerText(rental)}
-      </p>
-      <p className="text-xs leading-relaxed text-ink-muted">{rentalCancellationCustomerText(rental.cancellationPreset)}</p>
-      {rental.pickupAddress ? (
-        <p className="text-xs leading-relaxed text-ink-muted">Pickup: {rental.pickupAddress}</p>
-      ) : null}
-      {returnPoint.address ? (
-        <p className="text-xs leading-relaxed text-ink-muted">
-          Return: {returnPoint.sameAsPickup ? `same place · ${returnPoint.address}` : returnPoint.address}
-        </p>
-      ) : null}
-      {rentalMapHref(rental.pickupLat, rental.pickupLng) ? (
-        <a
-          href={rentalMapHref(rental.pickupLat, rental.pickupLng) ?? undefined}
-          target="_blank"
-          rel="noreferrer"
-          className="text-xs font-semibold text-[#073b83] underline-offset-2 hover:underline"
-        >
-          {returnPoint.sameAsPickup ? 'Open the pickup and return point' : 'Open the collection point'}
-        </a>
-      ) : null}
-      {!returnPoint.sameAsPickup && rentalMapHref(returnPoint.lat, returnPoint.lng) ? (
-        <a
-          href={rentalMapHref(returnPoint.lat, returnPoint.lng) ?? undefined}
-          target="_blank"
-          rel="noreferrer"
-          className="text-xs font-semibold text-[#073b83] underline-offset-2 hover:underline"
-        >
-          Open the return point
-        </a>
-      ) : null}
-
       {checkoutOpen ? (
         <label className="flex items-start gap-2 text-sm text-ink">
           <input
@@ -563,7 +516,13 @@ export default function RentalBookingWidget({
             checked={consent}
             onChange={(event) => setConsent(event.target.checked)}
           />
-          <span>I accept this cancellation window and Traverion’s terms. Rental refunds are not automatic.</span>
+          <span>
+            I accept the{' '}
+            <a href="#rental-policies" className="font-semibold text-[#073b83] underline-offset-2 hover:underline">
+              cancellation and deposit terms
+            </a>{' '}
+            and Traverion’s terms. Rental refunds are not automatic.
+          </span>
         </label>
       ) : (
         <div className="rounded-xl bg-[#F4F6F8] px-3.5 py-3 text-sm text-ink-muted" role="note">
@@ -612,7 +571,9 @@ export default function RentalBookingWidget({
             </div>
             <div className="flex justify-between gap-3">
               <dt className="text-ink-muted">Estimated total</dt>
-              <dd className="text-right font-semibold text-ink">{formatMinorAsEuro(quote.customerTotalMinor)}</dd>
+              <dd className="text-right font-semibold text-ink tabular-nums">
+                {formatMinorAsEuro(quote.customerTotalMinor)}
+              </dd>
             </div>
           </dl>
           <p className="mt-2 text-xs leading-relaxed text-ink-muted">
@@ -635,14 +596,14 @@ export default function RentalBookingWidget({
       ) : null}
 
       {reviewing ? (
-      <button
-        type="button"
-        className="tv-btn-primary min-h-12 w-full font-semibold disabled:opacity-60"
-        disabled={!checkoutOpen || paying || !consent || !quote?.ok || !interval.ok || availability.ok === false}
-        onClick={() => void continueToCheckout()}
-      >
-        {paying ? 'Opening checkout…' : checkoutOpen ? 'Continue to checkout' : 'Payment not open yet'}
-      </button>
+        <button
+          type="button"
+          className="tv-btn-primary min-h-12 w-full font-semibold disabled:opacity-60"
+          disabled={!checkoutOpen || paying || !consent || !quote?.ok || !interval.ok || availability.ok === false}
+          onClick={() => void continueToCheckout()}
+        >
+          {paying ? 'Opening checkout…' : checkoutOpen ? 'Continue to checkout' : 'Payment not open yet'}
+        </button>
       ) : (
         <button
           type="button"
