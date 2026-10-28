@@ -137,7 +137,7 @@ function normalizeVariant(raw: unknown): RentalVariant | null {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
   const o = raw as Record<string, unknown>;
   const id = typeof o.id === 'string' && o.id.trim() ? o.id.trim() : newRentalVariantId();
-  const name = typeof o.name === 'string' && o.name.trim() ? o.name.trim().slice(0, 80) : 'Option';
+  const name = typeof o.name === 'string' && o.name.trim() ? o.name.trim().slice(0, 65) : 'Option';
   const quantity =
     typeof o.quantity === 'number' && Number.isFinite(o.quantity)
       ? Math.max(0, Math.min(9999, Math.floor(o.quantity)))

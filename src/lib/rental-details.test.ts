@@ -515,8 +515,8 @@ describe('skill suitability', () => {
 });
 
 describe('legacy rental screen aliases', () => {
-  it('maps retired 33-step and interim ids onto the 22-screen journey', () => {
-    expect(RENTAL_ONBOARDING_SCREENS).toHaveLength(22);
+  it('maps retired 33-step and interim ids onto the 23-screen journey', () => {
+    expect(RENTAL_ONBOARDING_SCREENS).toHaveLength(23);
     expect(resolveRentalScreenId('gallery')).toBe('photos');
     expect(resolveRentalScreenId('buffers')).toBe('booking-rules');
     expect(resolveRentalScreenId('availability-summary')).toBe('options');
@@ -534,14 +534,17 @@ describe('legacy rental screen aliases', () => {
     expect(resolveRentalScreenId('basics-highlights')).toBe('basics-highlights');
     expect(resolveRentalScreenId('return-location')).toBe('return-location');
     expect(resolveRentalScreenId('return')).toBe('return-location');
-    expect(resolveRentalScreenId('accessibility')).toBe('requirements');
-    expect(resolveRentalScreenId('suitability')).toBe('requirements');
+    expect(resolveRentalScreenId('accessibility')).toBe('accessibility');
+    expect(resolveRentalScreenId('suitability')).toBe('suitability');
+    expect(resolveRentalScreenId('who-can-book')).toBe('requirements');
     expect(resolveRentalScreenId('restrictions')).toBe('inclusions');
     expect(resolveRentalScreenId('pricing')).toBe('options');
     expect(resolveRentalScreenId('multi-day')).toBe('options');
     expect(resolveRentalScreenId('earnings')).toBe('options');
+    expect(resolveRentalScreenId('publish')).toBe('preview');
     expect(RENTAL_ONBOARDING_SCREENS.some((screen) => screen.id === 'pricing')).toBe(false);
     expect(RENTAL_ONBOARDING_SCREENS.some((screen) => screen.id === 'duration')).toBe(false);
+    expect(RENTAL_ONBOARDING_SCREENS.some((screen) => screen.id === 'publish')).toBe(false);
     expect(Object.keys(LEGACY_RENTAL_SCREEN_ALIASES).length).toBeGreaterThan(10);
   });
 

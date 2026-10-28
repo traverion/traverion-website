@@ -32,7 +32,6 @@ import {
   Zap,
 } from 'lucide-react';
 import {
-  RENTAL_COMPLETION_GROUPS,
   RENTAL_ONBOARDING_SCREENS,
   resolveRentalScreenId,
   rentalPublishBlockers,
@@ -49,6 +48,7 @@ import {
   rentalHighlightSuggestions,
   rentalItemTypeLabel,
   rentalRestrictionSuggestions,
+  rentalRulesSuggestions,
   type RentalCategoryConfig,
 } from '../../../lib/rental-categories';
 import {
@@ -69,7 +69,6 @@ import {
   effectiveVariantDurationLimits,
   effectiveVariantDurationMode,
   effectiveVariantPricing,
-  rentalListingOffersUnit,
   groupRentalOperatingHours,
   newRentalVariantId,
   rentalCustomerSkillSuitability,
@@ -92,7 +91,10 @@ import {
 } from '../../../lib/listingPhotoGrid';
 import { normalizeCurrency } from '../../../lib/money';
 import { travelerDestinationLabel } from '../../../lib/destination-place';
-import { RENTAL_CANCELLATION_PRESETS } from '../../../lib/rental-cancellation';
+import {
+  RENTAL_CANCELLATION_PRESETS,
+  RENTAL_CANCELLATION_REFUND_NOTE,
+} from '../../../lib/rental-cancellation';
 import { RENTAL_CATEGORIES } from '../../../types/rental';
 import type {
   RentalAccessibilityStatus,
@@ -163,6 +165,8 @@ type Props = {
   uploadsEnabled?: boolean;
   /** True while photo upload/replace/remove is in flight — Finish must wait. */
   onPhotosBusyChange?: (busy: boolean) => void;
+  /** Whether the listing is already live — readiness copy adapts. */
+  listingPublished?: boolean;
 };
 
 type Ctx = {
@@ -182,6 +186,8 @@ type Ctx = {
 const MAX_VARIANTS = 40;
 const MAX_HIGHLIGHTS = 8;
 const MAX_INCLUSIONS = 24;
+const MAX_RESTRICTIONS = 16;
+const RENTAL_RULES_MAX = 4000;
 
 const LANGUAGES: PartnerSelectOption[] = [
   { value: 'en', label: 'English' },
@@ -273,27 +279,6 @@ function noticeLabel(hours: number): string {
   if (hours === 24) return '1 day';
   if (hours > 24 && hours % 24 === 0) return `${hours / 24} days`;
   return `${hours} hours`;
-}
-
-function optionDurationPreviewLines(rental: RentalDetails): string[] {
-  const variants = rental.variants ?? [];
-  if (variants.length === 0) return ['Add rental options to set duration and pricing.'];
-  return variants.map((variant) => {
-    const name = variant.name.trim() || 'Untitled option';
-    const mode = effectiveVariantDurationMode(rental, variant);
-    const modeText =
-      mode === 'hourly' ? 'hourly' : mode === 'both' ? 'hourly or daily' : 'daily';
-    const parts: string[] = [];
-    if (mode === 'hourly' || mode === 'both') {
-      const { min, max } = effectiveVariantDurationLimits(rental, variant, 'hour');
-      parts.push(`${min}–${max} hours`);
-    }
-    if (mode === 'daily' || mode === 'both') {
-      const { min, max } = effectiveVariantDurationLimits(rental, variant, 'day');
-      parts.push(`${min}–${max} days`);
-    }
-    return `${name}: ${modeText} · ${parts.join(' · ')}`;
-  });
 }
 
 function fullOperatingDays(rental: RentalDetails): RentalOperatingDay[] {
@@ -408,79 +393,97 @@ function PreviewSection({ title, onEdit, children }: { title: string; onEdit: ()
 }
 
 function ChipEditor({
+  title,
   items,
   suggestions,
   max,
   placeholder,
   addLabel,
-  emptyHelp,
   onChange,
 }: {
+  title: string;
   items: string[];
   suggestions: string[];
   max: number;
   placeholder: string;
   addLabel: string;
-  emptyHelp: string;
   onChange: (next: string[]) => void;
 }) {
   const [draft, setDraft] = useState('');
-  const has = (label: string) => items.some((line) => line.toLowerCase() === label.toLowerCase());
-  const toggle = (label: string) => {
-    onChange(has(label) ? items.filter((line) => line.toLowerCase() !== label.toLowerCase()) : [...items, label].slice(0, max));
-  };
-  const addCustom = () => {
-    const value = draft.trim().slice(0, 80);
-    setDraft('');
+  const has = (label: string) => items.some((line) => line.toLowerCase() === label.trim().toLowerCase());
+  const addItem = (label: string) => {
+    const value = label.trim().slice(0, 80);
     if (!value || has(value) || items.length >= max) return;
     onChange([...items, value]);
   };
+  const removeItem = (label: string) => {
+    onChange(items.filter((line) => line.toLowerCase() !== label.toLowerCase()));
+  };
+  const addCustom = () => {
+    const value = draft.trim();
+    setDraft('');
+    addItem(value);
+  };
   const open = suggestions.filter((label) => !has(label));
+  const atMax = items.length >= max;
+
   return (
-    <div className="space-y-4">
+    <section className="rental-chip-editor" aria-label={title}>
+      <header className="rental-chip-editor__head">
+        <h3 className="rental-chip-editor__title">{title}</h3>
+        <p className="rental-chip-editor__meta">
+          Optional
+          {items.length > 0 ? ` · ${items.length}/${max}` : ''}
+        </p>
+      </header>
+
       {items.length > 0 ? (
-        <div>
-          <p className="stay-kicker">Added ({items.length}/{max})</p>
-          <ul className="mt-2 flex flex-wrap gap-2">
-            {items.map((line) => (
-              <li key={line}>
+        <ul className="rental-chip-editor__items">
+          {items.map((line) => (
+            <li key={line}>
+              <button
+                type="button"
+                aria-label={`Remove ${line}`}
+                className="rental-chip-editor__item"
+                onClick={() => removeItem(line)}
+              >
+                <span>{line}</span>
+                <span aria-hidden className="rental-chip-editor__item-x">
+                  ×
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+
+      {open.length > 0 && !atMax ? (
+        <div className="rental-chip-editor__suggestions">
+          <p className="rental-chip-editor__kicker">Suggestions</p>
+          <ul className="rental-chip-editor__suggestion-list">
+            {open.map((label) => (
+              <li key={label}>
                 <button
                   type="button"
-                  aria-label={`Remove ${line}`}
-                  className="stay-choice lc-choice lc-choice--selected min-h-11 rounded-full px-3 text-sm font-semibold text-[#073b83]"
-                  onClick={() => toggle(line)}
+                  className="rental-chip-editor__suggestion"
+                  onClick={() => addItem(label)}
                 >
-                  {line} <span aria-hidden>×</span>
+                  + {label}
                 </button>
               </li>
             ))}
           </ul>
         </div>
-      ) : (
-        <StayHelp>{emptyHelp}</StayHelp>
-      )}
-      {open.length > 0 ? (
-        <div>
-          <p className="stay-kicker">Suggestions</p>
-          <ul className="mt-2 flex flex-wrap gap-2">
-            {open.map((label) => (
-              <li key={label}>
-                <Pill pressed={false} onClick={() => toggle(label)}>
-                  + {label}
-                </Pill>
-              </li>
-            ))}
-          </ul>
-        </div>
       ) : null}
-      <div className="flex gap-2">
+
+      <div className="rental-chip-editor__add">
         <input
-          className="tv-input w-full"
+          className="tv-input rental-chip-editor__input"
           value={draft}
           maxLength={80}
           placeholder={placeholder}
           aria-label={addLabel}
-          disabled={items.length >= max}
+          disabled={atMax}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === 'Enter') {
@@ -491,14 +494,14 @@ function ChipEditor({
         />
         <button
           type="button"
-          className="tv-btn-secondary min-h-11 shrink-0 px-4 text-sm font-semibold"
-          disabled={!draft.trim() || items.length >= max}
+          className="tv-btn-secondary rental-chip-editor__add-btn min-h-11 shrink-0 px-4 text-sm font-semibold"
+          disabled={!draft.trim() || atMax}
           onClick={addCustom}
         >
           Add
         </button>
       </div>
-    </div>
+    </section>
   );
 }
 
@@ -1774,21 +1777,54 @@ function PresetNumber({
   customSuffix: string;
   onChange: (n: number) => void;
 }) {
+  const matchesPreset = presets.includes(value);
+  const [customSelected, setCustomSelected] = useState(!matchesPreset);
+
+  useEffect(() => {
+    if (!presets.includes(value)) setCustomSelected(true);
+  }, [value, presets]);
+
+  const showCustom = customSelected || !matchesPreset;
+
   return (
-    <div className="space-y-4">
+    <div className="rental-preset-number space-y-3">
       <fieldset>
         <legend className="stay-kicker">{label}</legend>
-        <div className="mt-2 flex flex-wrap gap-2">
+        <div className="mt-2 flex flex-wrap gap-2" role="group" aria-label={label}>
           {presets.map((n) => (
-            <Pill key={n} pressed={value === n} onClick={() => onChange(n)}>
+            <Pill
+              key={n}
+              pressed={!showCustom && value === n}
+              onClick={() => {
+                setCustomSelected(false);
+                onChange(n);
+              }}
+            >
               {format(n)}
             </Pill>
           ))}
+          <Pill
+            pressed={showCustom}
+            onClick={() => {
+              setCustomSelected(true);
+            }}
+          >
+            Custom
+          </Pill>
         </div>
       </fieldset>
-      <StayField label={customLabel}>
-        <RentalIntegerInput value={value} min={0} max={max} ariaLabel={customLabel} suffix={customSuffix} onChange={(n) => onChange(n ?? 0)} />
-      </StayField>
+      {showCustom ? (
+        <StayField label={customLabel}>
+          <RentalIntegerInput
+            value={value}
+            min={0}
+            max={max}
+            ariaLabel={customLabel}
+            suffix={customSuffix}
+            onChange={(n) => onChange(n ?? 0)}
+          />
+        </StayField>
+      ) : null}
     </div>
   );
 }
@@ -1811,12 +1847,12 @@ function RequirementsStage({ ctx }: { ctx: Ctx }) {
     <div className="space-y-4">
       <div className="grid gap-2 sm:grid-cols-2" role="group" aria-label="Identification at pickup">
         <StayChoice pressed={rental.idRequired === true} onClick={() => patchRental({ idRequired: true })}>
-          <span className="block">ID required at pickup</span>
-          <span className="stay-help mt-0.5 block font-normal">Customers bring a valid ID.</span>
+          <span className="block font-semibold">ID required at pickup</span>
+          <span className="stay-help mt-0.5 block font-normal">Guests bring a valid ID.</span>
         </StayChoice>
         <StayChoice pressed={rental.idRequired === false} onClick={() => patchRental({ idRequired: false })}>
-          <span className="block">No ID required</span>
-          <span className="stay-help mt-0.5 block font-normal">Identification is not part of this rental.</span>
+          <span className="block font-semibold">No ID required</span>
+          <span className="stay-help mt-0.5 block font-normal">Identification is not needed.</span>
         </StayChoice>
       </div>
       {cfg.requirementKeys.map((req) => {
@@ -1835,9 +1871,7 @@ function RequirementsStage({ ctx }: { ctx: Ctx }) {
           </StayField>
         );
       })}
-      <StayHelp>
-        Identification is set here only. Leave a line blank when it does not apply. Customers see what you fill in.
-      </StayHelp>
+      <StayHelp>Leave a field blank when it does not apply. Guests only see what you fill in.</StayHelp>
     </div>
   );
 }
@@ -1858,16 +1892,16 @@ function AccessibilityStage({ ctx }: { ctx: Ctx }) {
     <div className="space-y-4">
       <div className="grid gap-2" role="group" aria-label="Accessibility status">
         <StayChoice pressed={status === 'not_specified'} onClick={() => setStatus('not_specified')}>
-          <span className="block">Not specified</span>
-          <span className="stay-help mt-0.5 block font-normal">You have not confirmed access at pickup.</span>
+          <span className="block font-semibold">Not specified</span>
+          <span className="stay-help mt-0.5 block font-normal">Access at pickup is not confirmed yet.</span>
         </StayChoice>
         <StayChoice pressed={status === 'not_applicable'} onClick={() => setStatus('not_applicable')}>
-          <span className="block">Not applicable</span>
-          <span className="stay-help mt-0.5 block font-normal">Access details do not apply to this rental.</span>
+          <span className="block font-semibold">Not applicable</span>
+          <span className="stay-help mt-0.5 block font-normal">Access details do not apply here.</span>
         </StayChoice>
         <StayChoice pressed={status === 'details_provided'} onClick={() => setStatus('details_provided')}>
-          <span className="block">I have access details</span>
-          <span className="stay-help mt-0.5 block font-normal">Describe the pickup place, not how hard the product is.</span>
+          <span className="block font-semibold">I have access details</span>
+          <span className="stay-help mt-0.5 block font-normal">Describe the pickup place.</span>
         </StayChoice>
       </div>
       {status === 'details_provided' ? (
@@ -1879,22 +1913,19 @@ function AccessibilityStage({ ctx }: { ctx: Ctx }) {
               </Pill>
             ))}
           </div>
-          <StayField label="Notes" optional>
+          <StayField label="Additional details" optional>
             <textarea
               className="tv-input w-full resize-y py-2"
               rows={3}
               maxLength={1000}
               value={rental.accessibilityNotes ?? ''}
-              placeholder="For example, a ramp at the side door, or help carrying heavier kits."
+              placeholder="e.g. Ramp at the side door, or help with heavier kits"
               onChange={(e) => patchRental({ accessibilityNotes: e.target.value.slice(0, 1000) })}
             />
           </StayField>
         </>
       ) : (
-        <StayHelp>
-          Not specified means access is unknown. Not applicable means you chose not to describe it. Neither means the
-          pickup is inaccessible.
-        </StayHelp>
+        <StayHelp>Neither choice means the pickup is inaccessible.</StayHelp>
       )}
     </div>
   );
@@ -1903,6 +1934,7 @@ function AccessibilityStage({ ctx }: { ctx: Ctx }) {
 function SuitabilityStage({ ctx }: { ctx: Ctx }) {
   const { cfg, rental, patchRental } = ctx;
   const applies = cfg?.difficultyApplies === true;
+  const skillValue = (rental.skillSuitability ?? rental.specifications?.skillLevel ?? '').trim();
   const choices: { id: RentalDifficulty; label: string }[] = [
     { id: 'easy', label: 'Easy' },
     { id: 'moderate', label: 'Moderate' },
@@ -1913,23 +1945,21 @@ function SuitabilityStage({ ctx }: { ctx: Ctx }) {
     <div className="space-y-4">
       {applies ? (
         <div className="space-y-2">
-        <p className="stay-kicker">Difficulty</p>
-        <div className="flex flex-wrap gap-2" role="group" aria-label="Difficulty">
-          {choices.map((choice) => (
-            <Pill
-              key={choice.id}
-              pressed={rental.difficulty === choice.id}
-              onClick={() => patchRental({ difficulty: choice.id })}
-            >
-              {choice.label}
-            </Pill>
-          ))}
+          <p className="stay-kicker">Difficulty</p>
+          <div className="flex flex-wrap gap-2" role="group" aria-label="Difficulty">
+            {choices.map((choice) => (
+              <Pill
+                key={choice.id}
+                pressed={rental.difficulty === choice.id}
+                onClick={() => patchRental({ difficulty: choice.id })}
+              >
+                {choice.label}
+              </Pill>
+            ))}
+          </div>
         </div>
-        </div>
-      ) : (
-        <StayHelp>Difficulty is not used for this category. You can still say who it suits.</StayHelp>
-      )}
-      {applies || (rental.skillSuitability ?? rental.specifications?.skillLevel ?? '').trim() ? (
+      ) : null}
+      {applies || skillValue ? (
         <StayField label="Skill suitability" optional>
           <input
             className="tv-input w-full"
@@ -1950,12 +1980,10 @@ function SuitabilityStage({ ctx }: { ctx: Ctx }) {
       ) : null}
       {rentalSkillConflictsDifficulty(rental.difficulty, rental.skillSuitability) ? (
         <p className="stay-alert !mt-0" role="alert">
-          This skill line disagrees with the level above. Customers will see the level only until the two match.
+          This skill line disagrees with the level above. Guests see the level only until the two match.
         </p>
-      ) : applies ? (
-        <StayHelp>Use the level for the main fit. Add a skill line only when you need a range the level does not say.</StayHelp>
       ) : null}
-      <StayField label="Who is this rental suitable for?" optional>
+      <StayField label="Suitable for" optional>
         <textarea
           className="tv-input w-full resize-y py-2"
           rows={3}
@@ -1965,13 +1993,13 @@ function SuitabilityStage({ ctx }: { ctx: Ctx }) {
           onChange={(e) => patchRental({ suitableFor: e.target.value.slice(0, 500) })}
         />
       </StayField>
-      <StayField label="Who is this rental not suitable for?" optional>
+      <StayField label="Not suitable for" optional>
         <textarea
           className="tv-input w-full resize-y py-2"
           rows={3}
           maxLength={500}
           value={rental.notSuitableFor ?? ''}
-          placeholder="Practical limits, such as a size range. Do not exclude people for personal characteristics."
+          placeholder="Practical limits, such as a size range"
           onChange={(e) => patchRental({ notSuitableFor: e.target.value.slice(0, 500) })}
         />
       </StayField>
@@ -1983,12 +2011,12 @@ function RestrictionsStage({ ctx }: { ctx: Ctx }) {
   const { rental, patchRental } = ctx;
   return (
     <ChipEditor
+      title="Restrictions"
       items={rental.restrictions ?? []}
       suggestions={rentalRestrictionSuggestions(rental.category)}
-      max={16}
+      max={MAX_RESTRICTIONS}
       placeholder="Add a restriction"
       addLabel="Add a restriction"
-      emptyHelp="Optional. List uses you do not allow. Customers will see these before booking."
       onChange={(restrictions) => patchRental({ restrictions })}
     />
   );
@@ -1998,12 +2026,12 @@ function InclusionsStage({ ctx }: { ctx: Ctx }) {
   const { cfg, rental, patchRental } = ctx;
   return (
     <ChipEditor
+      title="What's included"
       items={rental.inclusions ?? []}
       suggestions={cfg?.inclusionSuggestions ?? []}
       max={MAX_INCLUSIONS}
       placeholder="Add something that is included"
       addLabel="Add an included item"
-      emptyHelp="List what comes with the rental at no extra charge. This step is optional."
       onChange={(next) => patchRental({ inclusions: next })}
     />
   );
@@ -2012,22 +2040,52 @@ function InclusionsStage({ ctx }: { ctx: Ctx }) {
 function RulesStage({ ctx }: { ctx: Ctx }) {
   const { rental, patchRental } = ctx;
   const value = rental.rentalRules ?? '';
+  const suggestions = rentalRulesSuggestions(rental.category);
+  const open = suggestions.filter(
+    (line) => !value.toLowerCase().includes(line.trim().toLowerCase()),
+  );
+
+  const insertSuggestion = (line: string) => {
+    const text = line.trim();
+    if (!text) return;
+    if (value.toLowerCase().includes(text.toLowerCase())) return;
+    const next = value.trim() ? `${value.replace(/\s+$/, '')}\n${text}` : text;
+    patchRental({ rentalRules: next.slice(0, RENTAL_RULES_MAX) });
+  };
+
   return (
-    <div className="space-y-2">
+    <div className="rental-rules-stage">
+      {open.length > 0 ? (
+        <div className="rental-rules-stage__suggestions">
+          <p className="rental-chip-editor__kicker">Suggestions</p>
+          <ul className="rental-chip-editor__suggestion-list">
+            {open.map((line) => (
+              <li key={line}>
+                <button
+                  type="button"
+                  className="rental-chip-editor__suggestion"
+                  onClick={() => insertSuggestion(line)}
+                >
+                  + {line}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
       <StayField label="Rental rules" optional>
         <textarea
           className="tv-input rental-rules-input w-full resize-y py-2.5"
-          rows={7}
-          maxLength={4000}
+          rows={6}
+          maxLength={RENTAL_RULES_MAX}
           value={value}
-          placeholder="Where the item may be used, how it must be returned, cleaning, damage reporting, and late returns."
-          onChange={(e) => patchRental({ rentalRules: e.target.value.slice(0, 4000) })}
+          placeholder="Permitted use, return condition, damage reporting, late returns…"
+          onChange={(e) => patchRental({ rentalRules: e.target.value.slice(0, RENTAL_RULES_MAX) })}
         />
       </StayField>
-      <StayHelp>
-        {value.length}/4000 · Cover permitted use, return condition, cleaning, damage reporting, and late returns if
-        they matter. Keep this practical.
-      </StayHelp>
+      <p className="rental-rules-stage__counter" aria-live="polite">
+        {value.length}/{RENTAL_RULES_MAX}
+      </p>
     </div>
   );
 }
@@ -2035,22 +2093,37 @@ function RulesStage({ ctx }: { ctx: Ctx }) {
 function CancellationStage({ ctx }: { ctx: Ctx }) {
   const { rental, patchRental } = ctx;
   return (
-    <div className="space-y-4">
-      <div className="grid gap-2" role="group" aria-label="Cancellation policy">
-        {RENTAL_CANCELLATION_PRESETS.map((preset) => (
-          <StayChoice
-            key={preset.id}
-            pressed={rental.cancellationPreset === preset.id}
-            onClick={() => patchRental({ cancellationPreset: preset.id })}
-          >
-            <span className="block">{preset.title}</span>
-            <span className="stay-help mt-0.5 block font-normal">{preset.body}</span>
-          </StayChoice>
-        ))}
+    <div className="rental-cancel-stage">
+      <div className="rental-cancel-stage__options" role="radiogroup" aria-label="Cancellation policy">
+        {RENTAL_CANCELLATION_PRESETS.map((preset) => {
+          const selected = rental.cancellationPreset === preset.id;
+          return (
+            <button
+              key={preset.id}
+              type="button"
+              role="radio"
+              aria-checked={selected}
+              className={`rental-cancel-card${selected ? ' rental-cancel-card--selected' : ''}`}
+              onClick={() => patchRental({ cancellationPreset: preset.id })}
+            >
+              <span className="rental-cancel-card__radio" aria-hidden>
+                <span className="rental-cancel-card__radio-dot" />
+              </span>
+              <span className="rental-cancel-card__copy">
+                <span className="rental-cancel-card__title">{preset.title}</span>
+                <span className="rental-cancel-card__body">
+                  Customers may request cancellation until{' '}
+                  <strong className="rental-cancel-card__deadline">{preset.deadline}</strong> before
+                  pickup.
+                </span>
+              </span>
+            </button>
+          );
+        })}
       </div>
-      <StayHelp>
-        Choose one window before you finish. Customers see this wording. Traverion does not issue automatic rental refunds.
-      </StayHelp>
+      <p className="rental-cancel-stage__note" role="note">
+        {RENTAL_CANCELLATION_REFUND_NOTE}
+      </p>
     </div>
   );
 }
@@ -2058,30 +2131,21 @@ function CancellationStage({ ctx }: { ctx: Ctx }) {
 function DepositStage({ ctx }: { ctx: Ctx }) {
   const { rental, currency, patchRental } = ctx;
   const method = rental.depositCollectionMethod ?? null;
-  const methodLabel = (id: typeof method) => {
-    if (id === 'cash_at_pickup') return 'Cash at pickup';
-    if (id === 'card_at_pickup') return 'Card at pickup (supplier-managed)';
-    if (id === 'other') return 'Other supplier-managed method';
-    return '';
-  };
-  return (
-    <div className="space-y-5">
-      <section className="stay-panel space-y-2" aria-label="Traverion deposit policy">
-        <p className="stay-kicker">Important</p>
-        <p className="text-sm font-semibold leading-relaxed text-ink">
-          Traverion does not currently collect security deposits online.
-        </p>
-        <p className="text-sm leading-relaxed text-ink-muted">
-          Anything you configure here is informational for customers. It is not charged, held, or released through
-          Traverion checkout.
-        </p>
-      </section>
+  const depositOn = rental.depositRequired === true;
+  const insuranceOn = rental.insuranceIncluded === true;
 
-      <section className="space-y-3" aria-label="Security deposit">
-        <p className="stay-kicker">Security deposit</p>
-        <div className="grid gap-2 sm:grid-cols-2" role="group" aria-label="Is a deposit required?">
+  return (
+    <div className="rental-deposit-stage">
+      <p className="rental-deposit-stage__note" role="note">
+        Deposits are handled by you, not Traverion. Anything here is shown to guests for information only — it is
+        not charged or held through Traverion checkout.
+      </p>
+
+      <section className="rental-deposit-stage__section" aria-label="Security deposit">
+        <h3 className="rental-deposit-stage__heading">Security deposit</h3>
+        <div className="rental-deposit-stage__choices" role="group" aria-label="Is a deposit required?">
           <StayChoice
-            pressed={rental.depositRequired === true}
+            pressed={depositOn}
             onClick={() => patchRental({ depositRequired: true })}
           >
             Deposit required
@@ -2093,8 +2157,9 @@ function DepositStage({ ctx }: { ctx: Ctx }) {
             No deposit
           </StayChoice>
         </div>
-        {rental.depositRequired === true ? (
-          <div className="space-y-3">
+
+        {depositOn ? (
+          <div className="rental-deposit-stage__fields">
             <StayField label={`Deposit amount (${currency})`}>
               <RentalMoneyInput
                 value={rental.depositAmountMinor}
@@ -2107,7 +2172,7 @@ function DepositStage({ ctx }: { ctx: Ctx }) {
             </StayField>
             <div>
               <p className="stay-field">
-                <span>How you collect it</span>
+                <span>Collection method</span>
               </p>
               <div className="mt-1.5 grid gap-2" role="group" aria-label="Deposit collection method">
                 {(
@@ -2127,36 +2192,35 @@ function DepositStage({ ctx }: { ctx: Ctx }) {
                 ))}
               </div>
             </div>
-            <StayField label="Return / refund conditions" optional>
+            <StayField label="Return conditions" optional>
               <textarea
                 className="tv-input w-full resize-y py-2"
-                rows={3}
+                rows={2}
                 maxLength={500}
                 value={rental.depositReturnNotes ?? ''}
-                placeholder="When and how the deposit is returned after the rental."
+                placeholder="When and how you return the deposit after the rental."
                 onChange={(e) => patchRental({ depositReturnNotes: e.target.value.slice(0, 500) })}
               />
             </StayField>
-            {method ? <StayHelp>Customers will see: {methodLabel(method)}.</StayHelp> : null}
+            <StayField label="Extra notes" optional>
+              <textarea
+                className="tv-input w-full resize-y py-2"
+                rows={2}
+                maxLength={1000}
+                value={rental.depositDisclosure ?? ''}
+                placeholder="Anything else guests should know about the deposit."
+                onChange={(e) => patchRental({ depositDisclosure: e.target.value.slice(0, 1000) })}
+              />
+            </StayField>
           </div>
         ) : null}
-        <StayField label="Extra deposit notes" optional>
-          <textarea
-            className="tv-input w-full resize-y py-2"
-            rows={3}
-            maxLength={1000}
-            value={rental.depositDisclosure ?? ''}
-            placeholder="Anything else customers should know about the deposit."
-            onChange={(e) => patchRental({ depositDisclosure: e.target.value.slice(0, 1000) })}
-          />
-        </StayField>
       </section>
 
-      <section className="space-y-3" aria-label="Insurance">
-        <p className="stay-kicker">Insurance</p>
-        <div className="grid gap-2 sm:grid-cols-2" role="group" aria-label="Is insurance included?">
+      <section className="rental-deposit-stage__section" aria-label="Insurance">
+        <h3 className="rental-deposit-stage__heading">Insurance</h3>
+        <div className="rental-deposit-stage__choices" role="group" aria-label="Is insurance included?">
           <StayChoice
-            pressed={rental.insuranceIncluded === true}
+            pressed={insuranceOn}
             onClick={() => patchRental({ insuranceIncluded: true })}
           >
             Insurance included
@@ -2168,41 +2232,48 @@ function DepositStage({ ctx }: { ctx: Ctx }) {
             Not included
           </StayChoice>
         </div>
-        <StayField label="Coverage notes" optional>
-          <textarea
-            className="tv-input w-full resize-y py-2"
-            rows={2}
-            maxLength={1000}
-            value={rental.insuranceCoverageNotes ?? rental.insuranceDisclosure ?? ''}
-            placeholder="What is covered, if anything."
-            onChange={(e) =>
-              patchRental({
-                insuranceCoverageNotes: e.target.value.slice(0, 1000),
-                insuranceDisclosure: e.target.value.slice(0, 1000),
-              })
-            }
-          />
-        </StayField>
-        <StayField label="Exclusions" optional>
-          <textarea
-            className="tv-input w-full resize-y py-2"
-            rows={2}
-            maxLength={1000}
-            value={rental.insuranceExclusions ?? ''}
-            placeholder="What is not covered."
-            onChange={(e) => patchRental({ insuranceExclusions: e.target.value.slice(0, 1000) })}
-          />
-        </StayField>
-        <StayHelp>Traverion does not provide this insurance and does not handle claims.</StayHelp>
-        <StayField label="Excess / deductible" optional>
-          <input
-            className="tv-input w-full"
-            maxLength={500}
-            value={rental.insuranceExcessNotes ?? ''}
-            placeholder="e.g. €200 excess on damage claims"
-            onChange={(e) => patchRental({ insuranceExcessNotes: e.target.value.slice(0, 500) })}
-          />
-        </StayField>
+
+        {insuranceOn ? (
+          <div className="rental-deposit-stage__fields">
+            <StayField label="Coverage" optional>
+              <textarea
+                className="tv-input w-full resize-y py-2"
+                rows={2}
+                maxLength={1000}
+                value={rental.insuranceCoverageNotes ?? rental.insuranceDisclosure ?? ''}
+                placeholder="What is covered."
+                onChange={(e) =>
+                  patchRental({
+                    insuranceCoverageNotes: e.target.value.slice(0, 1000),
+                    insuranceDisclosure: e.target.value.slice(0, 1000),
+                  })
+                }
+              />
+            </StayField>
+            <StayField label="Exclusions" optional>
+              <textarea
+                className="tv-input w-full resize-y py-2"
+                rows={2}
+                maxLength={1000}
+                value={rental.insuranceExclusions ?? ''}
+                placeholder="What is not covered."
+                onChange={(e) => patchRental({ insuranceExclusions: e.target.value.slice(0, 1000) })}
+              />
+            </StayField>
+            <StayField label="Deductible / excess" optional>
+              <input
+                className="tv-input w-full"
+                maxLength={500}
+                value={rental.insuranceExcessNotes ?? ''}
+                placeholder="e.g. €200 excess on damage claims"
+                onChange={(e) => patchRental({ insuranceExcessNotes: e.target.value.slice(0, 500) })}
+              />
+            </StayField>
+            <p className="rental-deposit-stage__hint">
+              Traverion does not provide this insurance and does not handle claims.
+            </p>
+          </div>
+        ) : null}
       </section>
     </div>
   );
@@ -2278,8 +2349,23 @@ function RentalPreviewGallery({ photos, title }: { photos: string[]; title: stri
   );
 }
 
-function PreviewStage({ ctx }: { ctx: Ctx }) {
-  const { values, rental, cfg, mode, currency, goTo } = ctx;
+function optionReviewDuration(rental: RentalDetails, variant: RentalVariant): string {
+  const mode = effectiveVariantDurationMode(rental, variant);
+  const modeText = mode === 'hourly' ? 'Hourly' : mode === 'both' ? 'Hourly & daily' : 'Daily';
+  const parts: string[] = [];
+  if (mode === 'hourly' || mode === 'both') {
+    const { min, max } = effectiveVariantDurationLimits(rental, variant, 'hour');
+    parts.push(`${min}–${max} h`);
+  }
+  if (mode === 'daily' || mode === 'both') {
+    const { min, max } = effectiveVariantDurationLimits(rental, variant, 'day');
+    parts.push(`${min}–${max} days`);
+  }
+  return parts.length > 0 ? `${modeText} · ${parts.join(' · ')}` : modeText;
+}
+
+function ReviewPublishStage({ ctx, check }: { ctx: Ctx; check: RentalOnboardingCheck }) {
+  const { values, rental, cfg, currency, goTo, props } = ctx;
   const photos = galleryUrlsOf(values);
   const variants = rental.variants ?? [];
   const from = startingPrice(rental);
@@ -2305,138 +2391,159 @@ function PreviewStage({ ctx }: { ctx: Ctx }) {
         : rental.depositCollectionMethod === 'other'
           ? 'Other supplier-managed method'
           : null;
+  const issues = rentalPublishBlockers(check);
+  const ready = issues.length === 0;
+  const published = props.listingPublished === true;
+  const categoryLine = [cfg?.title, itemTypeText(rental)].filter(Boolean).join(' · ') || 'Rental';
 
   return (
-    <div className="space-y-4">
-      <p className="rounded-xl bg-[#F4F6F8] px-3.5 py-2.5 text-sm text-ink-muted" role="note">
-        Supplier preview of the saved listing. It is wider so you can read it like a product page. Travelers cannot
-        book it, and it is not published.
-      </p>
-      <article className="stay-preview-shell overflow-hidden rounded-2xl bg-white ring-1 ring-[#E6EAF0]">
-        <div className="space-y-5 p-4 sm:p-5">
-          <section className="space-y-2">
-            <div className="flex items-center justify-between gap-3">
-              <h5 className="font-display text-base font-semibold text-ink">Photos</h5>
-              <PreviewEdit onClick={() => goTo('photos')} label="Edit photos" />
-            </div>
-            <RentalPreviewGallery photos={photos} title={values.title} />
-          </section>
+    <div className="rental-review-publish">
+      <p className="rental-review-supplier-label">Supplier preview</p>
+      <article className="rental-review-shell">
+        <section className="rental-review-gallery-block">
+          <div className="rental-review-section-head">
+            <h4 className="rental-review-section-title">Photos</h4>
+            <PreviewEdit onClick={() => goTo('photos')} label="Edit photos" />
+          </div>
+          <RentalPreviewGallery photos={photos} title={values.title} />
+        </section>
 
-          <section className="stay-preview-section">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="stay-kicker">
-                  {[cfg?.title, itemTypeText(rental)].filter(Boolean).join(' · ') || 'Rental'}
-                </p>
-                <h4 className="mt-1 font-display text-xl font-semibold text-ink sm:text-2xl">
-                  {values.title.trim() || 'Untitled rental'}
-                </h4>
-                <p className="mt-1 text-sm text-ink-muted">{place || 'Location not set'}</p>
-              </div>
-              <PreviewEdit onClick={() => goTo('title')} label="Edit title" />
-            </div>
-            {from ? (
-              <p className="mt-3 text-base font-semibold text-ink">
-                From {formatRentalMinor(from.minor, currency)}
-                <span className="font-normal text-ink-muted"> / {from.unit}</span>
-                <span className="ml-1 font-normal text-ink-muted">per unit</span>
-              </p>
-            ) : (
-              <p className="mt-3 text-sm text-ink-muted">Add prices to show a starting rate.</p>
-            )}
-            {intro ? <p className="mt-2 text-sm leading-relaxed text-ink">{intro}</p> : null}
-          </section>
+        <section className="rental-review-hero">
+          <div className="rental-review-section-head">
+            <p className="rental-review-kicker">{categoryLine}</p>
+            <PreviewEdit onClick={() => goTo('title')} label="Edit title" />
+          </div>
+          <h4 className="rental-review-title">{values.title.trim() || 'Untitled rental'}</h4>
+          <p className="rental-review-place">{place || 'Location not set'}</p>
+          {from ? (
+            <p className="rental-review-price">
+              From {formatRentalMinor(from.minor, currency)}
+              <span> / {from.unit}</span>
+              <span className="rental-review-price-unit"> per unit</span>
+            </p>
+          ) : (
+            <p className="rental-review-price rental-review-price--muted">Add prices to show a starting rate.</p>
+          )}
+          {intro ? <p className="rental-review-intro">{intro}</p> : null}
+        </section>
 
-          <PreviewSection title="Rental options" onEdit={() => goTo('options')}>
-            {variants.length === 0 ? (
-              <p className="text-sm text-ink-muted">No options yet.</p>
-            ) : (
-              <ul className="space-y-2">
-                {variants.map((variant) => {
-                  const attrs = variantAttributeText(variant, cfg);
-                  const price = formatRentalOptionRates(
-                    effectiveVariantPricing(rental, variant),
-                    effectiveVariantDurationMode(rental, variant),
-                    currency,
-                  );
-                  return (
-                    <li
-                      key={variant.id}
-                      className="flex items-start justify-between gap-3 rounded-xl px-3 py-2.5 ring-1 ring-[#E6EAF0]"
-                    >
-                      <div className="min-w-0">
-                        <p className="text-sm font-semibold text-ink">{variant.name.trim() || 'Untitled option'}</p>
-                        <p className="stay-help">{attrs}</p>
-                        {variant.description?.trim() ? (
-                          <p className="mt-1 text-sm text-ink-muted">{variant.description.trim()}</p>
+        <PreviewSection title="Rental options" onEdit={() => goTo('options')}>
+          {variants.length === 0 ? (
+            <p className="text-sm text-ink-muted">No options yet.</p>
+          ) : (
+            <ul className="rental-review-options">
+              {variants.map((variant) => {
+                const complete = rentalVariantComplete(variant, rental);
+                const attrs = variantAttributeText(variant, cfg);
+                const price = formatRentalOptionRates(
+                  effectiveVariantPricing(rental, variant),
+                  effectiveVariantDurationMode(rental, variant),
+                  currency,
+                );
+                const qty = Math.max(0, Math.floor(variant.quantity ?? 0));
+                return (
+                  <li
+                    key={variant.id}
+                    className={`rental-review-option${complete ? '' : ' rental-review-option--incomplete'}`}
+                  >
+                    <div className="rental-review-option__main">
+                      <div className="rental-review-option__top">
+                        <p className="rental-review-option__name">{variant.name.trim() || 'Untitled option'}</p>
+                        {!complete ? (
+                          <span className="rental-review-option__badge">Incomplete</span>
                         ) : null}
                       </div>
-                      <p className="shrink-0 text-right text-sm font-semibold text-ink">{price}</p>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </PreviewSection>
-
-          {description ? (
-            <PreviewSection title="About this rental" onEdit={() => goTo('description')}>
-              <p className="whitespace-pre-line text-sm leading-relaxed text-ink">{description}</p>
-            </PreviewSection>
-          ) : null}
-
-          {highlights.length > 0 ? (
-            <PreviewSection title="Highlights" onEdit={() => goTo('basics-highlights')}>
-              <ul className="flex flex-wrap gap-2">
-                {highlights.map((line) => (
-                  <li key={line} className="rounded-full bg-[#F4F6F8] px-3 py-1.5 text-sm text-ink">
-                    {line}
+                      <p className="rental-review-option__meta">{optionReviewDuration(rental, variant)}</p>
+                      <p className="rental-review-option__meta">
+                        {qty} {qty === 1 ? 'unit' : 'units'}
+                        {attrs ? ` · ${attrs}` : ''}
+                      </p>
+                      {variant.description?.trim() ? (
+                        <p className="rental-review-option__desc">{variant.description.trim()}</p>
+                      ) : null}
+                    </div>
+                    <p className="rental-review-option__price">{price}</p>
                   </li>
-                ))}
-              </ul>
-            </PreviewSection>
-          ) : null}
+                );
+              })}
+            </ul>
+          )}
+        </PreviewSection>
 
-          {specs.length > 0 ? (
-            <PreviewSection title="Specifications" onEdit={() => goTo('specs')}>
-              <dl className="grid gap-x-6 gap-y-1.5 text-sm sm:grid-cols-2">
-                {specs.map(([key, value]) => (
-                  <div key={key} className="flex justify-between gap-3">
-                    <dt className="text-ink-muted">{specLabel(key)}</dt>
-                    <dd className="font-semibold text-ink">{value}</dd>
-                  </div>
-                ))}
-              </dl>
-            </PreviewSection>
-          ) : null}
+        {description ? (
+          <PreviewSection title="About this rental" onEdit={() => goTo('description')}>
+            <p className="rental-review-prose">{description}</p>
+          </PreviewSection>
+        ) : null}
 
-          <PreviewSection title="Availability & duration" onEdit={() => goTo('options')}>
-            <ul className="space-y-1 text-sm text-ink">
-              {optionDurationPreviewLines(rental).map((line) => (
+        {highlights.length > 0 ? (
+          <PreviewSection title="Highlights" onEdit={() => goTo('basics-highlights')}>
+            <ul className="rental-review-chips">
+              {highlights.map((line) => (
                 <li key={line}>{line}</li>
               ))}
-              {(rental.bookingNoticeHours ?? 0) > 0 ? (
-                <li>Book at least {noticeLabel(rental.bookingNoticeHours ?? 0)} ahead</li>
-              ) : null}
-              {Number(rental.bufferMinutes ?? 0) > 0 ? (
-                <li>{bufferLabel(Number(rental.bufferMinutes))} preparation between rentals</li>
-              ) : null}
-              {rentalListingOffersUnit(rental, 'day') ? (
-                <li>Daily rentals run from the pickup date to the return date</li>
-              ) : null}
             </ul>
           </PreviewSection>
+        ) : null}
 
-          <PreviewSection title="Pickup & return" onEdit={() => goTo('pickup')}>
-            <div className="space-y-2 text-sm text-ink">
-              <p>
-                <span className="font-semibold">Pickup:</span> {rental.pickupAddress?.trim() || 'Not set'}
-              </p>
+        {specs.length > 0 ? (
+          <PreviewSection title="Specifications" onEdit={() => goTo('specs')}>
+            <dl className="rental-review-specs">
+              {specs.map(([key, value]) => (
+                <div key={key} className="rental-review-specs__row">
+                  <dt>{specLabel(key)}</dt>
+                  <dd>{value}</dd>
+                </div>
+              ))}
+            </dl>
+          </PreviewSection>
+        ) : null}
+
+        <PreviewSection title="Booking notice & preparation" onEdit={() => goTo('booking-rules')}>
+          <ul className="rental-review-list">
+            <li>
+              {(rental.bookingNoticeHours ?? 0) > 0
+                ? `Book at least ${noticeLabel(rental.bookingNoticeHours ?? 0)} ahead`
+                : 'No minimum booking notice'}
+            </li>
+            <li>
+              {Number(rental.bufferMinutes ?? 0) > 0
+                ? `${bufferLabel(Number(rental.bufferMinutes))} preparation between rentals`
+                : 'No preparation buffer between rentals'}
+            </li>
+          </ul>
+        </PreviewSection>
+
+        <PreviewSection title="Pickup & return" onEdit={() => goTo('pickup')}>
+          <div className="rental-review-logistics">
+            <div>
+              <p className="rental-review-logistics__label">Pickup</p>
+              <p>{rental.pickupAddress?.trim() || 'Not set'}</p>
               {typeof rental.pickupLat === 'number' && typeof rental.pickupLng === 'number' ? (
-                <RentalCollectionMap lat={rental.pickupLat} lng={rental.pickupLng} label="Pickup location map" />
+                <div className="mt-2">
+                  <RentalCollectionMap
+                    lat={rental.pickupLat}
+                    lng={rental.pickupLng}
+                    label="Pickup location map"
+                    compact
+                  />
+                </div>
               ) : null}
+              {rental.pickupInstructions?.trim() ? (
+                <p className="rental-review-muted">{rental.pickupInstructions.trim()}</p>
+              ) : null}
+              {rentalPickupHandoverLabel(rental) ? (
+                <p className="mt-1.5">
+                  <span className="font-semibold">Handover:</span> {rentalPickupHandoverLabel(rental)}
+                </p>
+              ) : null}
+              {rental.collectionNotes?.trim() ? (
+                <p className="rental-review-muted">{rental.collectionNotes.trim()}</p>
+              ) : null}
+            </div>
+            <div>
+              <p className="rental-review-logistics__label">Return</p>
               <p>
-                <span className="font-semibold">Return:</span>{' '}
                 {returnPoint.sameAsPickup
                   ? returnPoint.address
                     ? `Same as pickup · ${returnPoint.address}`
@@ -2444,284 +2551,214 @@ function PreviewStage({ ctx }: { ctx: Ctx }) {
                   : returnPoint.address || 'Not set'}
               </p>
               {!returnPoint.sameAsPickup && returnPoint.lat != null && returnPoint.lng != null ? (
-                <RentalCollectionMap lat={returnPoint.lat} lng={returnPoint.lng} label="Return location map" />
+                <div className="mt-2">
+                  <RentalCollectionMap
+                    lat={returnPoint.lat}
+                    lng={returnPoint.lng}
+                    label="Return location map"
+                    compact
+                  />
+                </div>
               ) : null}
-              {rental.pickupInstructions?.trim() ? <p className="text-ink-muted">{rental.pickupInstructions.trim()}</p> : null}
               {rental.returnSameAsPickup === false && rental.returnInstructions?.trim() ? (
-                <p className="text-ink-muted">{rental.returnInstructions.trim()}</p>
+                <p className="rental-review-muted">{rental.returnInstructions.trim()}</p>
               ) : null}
-              {hours.length > 0 ? (
-                <ul className="stay-help space-y-0.5">
+              {rentalReturnHandoverLabel(rental) ? (
+                <p className="mt-1.5">
+                  <span className="font-semibold">Handover:</span> {rentalReturnHandoverLabel(rental)}
+                </p>
+              ) : null}
+              {rental.returnCollectionNotes?.trim() ? (
+                <p className="rental-review-muted">{rental.returnCollectionNotes.trim()}</p>
+              ) : null}
+            </div>
+            {hours.length > 0 ? (
+              <div>
+                <p className="rental-review-logistics__label">Opening hours</p>
+                <ul className="rental-review-list">
                   {hours.map((line) => (
                     <li key={line}>{line}</li>
                   ))}
                 </ul>
+                <PreviewEdit onClick={() => goTo('hours')} label="Edit hours" />
+              </div>
+            ) : null}
+          </div>
+        </PreviewSection>
+
+        {inclusions.length > 0 ? (
+          <PreviewSection title="What's included" onEdit={() => goTo('inclusions')}>
+            <ul className="rental-review-included">
+              {inclusions.map((line) => (
+                <li key={line}>{line}</li>
+              ))}
+            </ul>
+          </PreviewSection>
+        ) : null}
+
+        {reqs.length > 0 || rental.idRequired != null ? (
+          <PreviewSection title="Guest requirements" onEdit={() => goTo('requirements')}>
+            <dl className="rental-review-specs">
+              {reqs.map(([key, value]) => (
+                <div key={key} className="rental-review-specs__row">
+                  <dt>{reqLabel(key)}</dt>
+                  <dd>{value}</dd>
+                </div>
+              ))}
+              {rental.idRequired != null ? (
+                <div className="rental-review-specs__row">
+                  <dt>ID at pickup</dt>
+                  <dd>{rental.idRequired ? 'Required' : 'Not required'}</dd>
+                </div>
               ) : null}
-              {rentalPickupHandoverLabel(rental) ? (
-                <p>
-                  <span className="font-semibold">Pickup handover:</span> {rentalPickupHandoverLabel(rental)}
-                </p>
+            </dl>
+          </PreviewSection>
+        ) : null}
+
+        {rental.accessibilityStatus === 'details_provided' || rental.accessibilityStatus === 'not_applicable' ? (
+          <PreviewSection title="Accessibility" onEdit={() => goTo('accessibility')}>
+            <div className="rental-review-stack">
+              {rental.accessibilityStatus === 'not_applicable' ? <p>Not applicable for this rental.</p> : null}
+              {(rental.accessibilityFeatures ?? []).length > 0 ? (
+                <ul className="rental-review-list">
+                  {(rental.accessibilityFeatures ?? []).map((line) => (
+                    <li key={line}>{line}</li>
+                  ))}
+                </ul>
               ) : null}
-              {rental.collectionNotes?.trim() ? <p className="text-ink-muted">{rental.collectionNotes.trim()}</p> : null}
-              {rentalReturnHandoverLabel(rental) ? (
-                <p>
-                  <span className="font-semibold">Return handover:</span> {rentalReturnHandoverLabel(rental)}
-                </p>
-              ) : null}
-              {rental.returnCollectionNotes?.trim() ? (
-                <p className="text-ink-muted">{rental.returnCollectionNotes.trim()}</p>
-              ) : null}
+              {rental.accessibilityNotes?.trim() ? <p>{rental.accessibilityNotes.trim()}</p> : null}
             </div>
           </PreviewSection>
+        ) : null}
 
-          {inclusions.length > 0 ? (
-            <PreviewSection title="What's included" onEdit={() => goTo('inclusions')}>
-              <ul className="grid gap-1 text-sm text-ink sm:grid-cols-2">
-                {inclusions.map((line) => (
-                  <li key={line}>✓ {line}</li>
-                ))}
-              </ul>
-            </PreviewSection>
-          ) : null}
+        {rental.difficulty ||
+        rental.suitableFor?.trim() ||
+        rental.notSuitableFor?.trim() ||
+        (rental.skillSuitability ?? '').trim() ? (
+          <PreviewSection title="Suitability" onEdit={() => goTo('suitability')}>
+            <div className="rental-review-stack">
+              {rental.difficulty === 'easy' ? <p>Easy</p> : null}
+              {rental.difficulty === 'moderate' ? <p>Moderate</p> : null}
+              {rental.difficulty === 'challenging' ? <p>Challenging</p> : null}
+              {rental.difficulty === 'not_applicable' ? <p>Difficulty is not used for this rental.</p> : null}
+              {rentalCustomerSkillSuitability(rental) ? (
+                <p>Skill suitability: {rentalCustomerSkillSuitability(rental)}</p>
+              ) : null}
+              {rentalSkillConflictsDifficulty(rental.difficulty, rental.skillSuitability) ? (
+                <p className="rental-review-muted">
+                  Saved skill line “{rental.skillSuitability?.trim()}” conflicts with the level, so customers will not
+                  see it.
+                </p>
+              ) : null}
+              {rental.suitableFor?.trim() ? <p>Suitable for: {rental.suitableFor.trim()}</p> : null}
+              {rental.notSuitableFor?.trim() ? <p>Not suitable for: {rental.notSuitableFor.trim()}</p> : null}
+            </div>
+          </PreviewSection>
+        ) : null}
 
-          {reqs.length > 0 || rental.idRequired != null ? (
-            <PreviewSection title="Customer requirements" onEdit={() => goTo('requirements')}>
-              <dl className="space-y-1.5 text-sm">
-                {reqs.map(([key, value]) => (
-                  <div key={key} className="flex justify-between gap-3">
-                    <dt className="text-ink-muted">{reqLabel(key)}</dt>
-                    <dd className="text-right font-semibold text-ink">{value}</dd>
-                  </div>
-                ))}
-                {rental.idRequired != null ? (
-                  <div className="flex justify-between gap-3">
-                    <dt className="text-ink-muted">ID at pickup</dt>
-                    <dd className="font-semibold text-ink">{rental.idRequired ? 'Required' : 'Not required'}</dd>
-                  </div>
-                ) : null}
-              </dl>
-            </PreviewSection>
-          ) : null}
+        {(rental.restrictions ?? []).length > 0 ? (
+          <PreviewSection title="Restrictions" onEdit={() => goTo('restrictions')}>
+            <ul className="rental-review-list">
+              {(rental.restrictions ?? []).map((line) => (
+                <li key={line}>{line}</li>
+              ))}
+            </ul>
+          </PreviewSection>
+        ) : null}
 
-          {rental.accessibilityStatus === 'details_provided' || rental.accessibilityStatus === 'not_applicable' ? (
-            <PreviewSection title="Accessibility" onEdit={() => goTo('accessibility')}>
-              <div className="space-y-1 text-sm text-ink">
-                {rental.accessibilityStatus === 'not_applicable' ? <p>Not applicable for this rental.</p> : null}
-                {(rental.accessibilityFeatures ?? []).length > 0 ? (
-                  <ul className="space-y-1">
-                    {(rental.accessibilityFeatures ?? []).map((line) => (
-                      <li key={line}>{line}</li>
-                    ))}
-                  </ul>
-                ) : null}
-                {rental.accessibilityNotes?.trim() ? <p>{rental.accessibilityNotes.trim()}</p> : null}
-              </div>
-            </PreviewSection>
-          ) : null}
+        {rental.rentalRules?.trim() ? (
+          <PreviewSection title="Rental rules" onEdit={() => goTo('rules')}>
+            <p className="rental-review-prose">{rental.rentalRules.trim()}</p>
+          </PreviewSection>
+        ) : null}
 
-          {rental.difficulty ||
-          rental.suitableFor?.trim() ||
-          rental.notSuitableFor?.trim() ||
-          (rental.skillSuitability ?? '').trim() ? (
-            <PreviewSection title="Suitability" onEdit={() => goTo('suitability')}>
-              <div className="space-y-1 text-sm text-ink">
-                {rental.difficulty === 'easy' ? <p>Easy</p> : null}
-                {rental.difficulty === 'moderate' ? <p>Moderate</p> : null}
-                {rental.difficulty === 'challenging' ? <p>Challenging</p> : null}
-                {rental.difficulty === 'not_applicable' ? <p>Difficulty is not used for this rental.</p> : null}
-                {rentalCustomerSkillSuitability(rental) ? <p>Skill suitability: {rentalCustomerSkillSuitability(rental)}</p> : null}
-                {rentalSkillConflictsDifficulty(rental.difficulty, rental.skillSuitability) ? (
-                  <p className="text-ink-muted">
-                    Saved skill line “{rental.skillSuitability?.trim()}” conflicts with the level, so customers will not see it.
-                  </p>
-                ) : null}
-                {rental.suitableFor?.trim() ? <p>Suitable for: {rental.suitableFor.trim()}</p> : null}
-                {rental.notSuitableFor?.trim() ? <p>Not suitable for: {rental.notSuitableFor.trim()}</p> : null}
-              </div>
-            </PreviewSection>
-          ) : null}
-
-          {(rental.restrictions ?? []).length > 0 ? (
-            <PreviewSection title="Restrictions" onEdit={() => goTo('restrictions')}>
-              <ul className="space-y-1 text-sm text-ink">
-                {(rental.restrictions ?? []).map((line) => (
-                  <li key={line}>{line}</li>
-                ))}
-              </ul>
-            </PreviewSection>
-          ) : null}
-
-          {rental.rentalRules?.trim() ? (
-            <PreviewSection title="Rental rules" onEdit={() => goTo('rules')}>
-              <p className="whitespace-pre-line text-sm leading-relaxed text-ink">{rental.rentalRules.trim()}</p>
-            </PreviewSection>
-          ) : null}
-
-          {cancellation ? (
-            <PreviewSection title="Cancellation policy" onEdit={() => goTo('cancellation')}>
-              <p className="text-sm text-ink">
-                <span className="font-semibold">{cancellation.title}.</span> {cancellation.body}
-              </p>
-              <p className="stay-help mt-1">Shown to customers once rental bookings open — not active yet.</p>
-            </PreviewSection>
-          ) : null}
-
-          {showDeposit || showInsurance ? (
-            <PreviewSection title="Deposit & insurance" onEdit={() => goTo('deposit-info')}>
-              <div className="space-y-2 text-sm text-ink">
-                {showDeposit ? (
-                  <div className="space-y-1">
-                    <p className="font-semibold">Security deposit</p>
-                    {rental.depositRequired === false ? <p>No deposit required</p> : null}
-                    {rental.depositRequired === true ? (
-                      <>
-                        {rental.depositAmountMinor != null && rental.depositAmountMinor > 0 ? (
-                          <p>{formatRentalMinor(rental.depositAmountMinor, rental.depositCurrency || currency)}</p>
-                        ) : null}
-                        {depositMethod ? <p>{depositMethod}</p> : null}
-                        {rental.depositReturnNotes?.trim() ? <p>{rental.depositReturnNotes.trim()}</p> : null}
-                      </>
-                    ) : null}
-                    {rental.depositDisclosure?.trim() ? <p>{rental.depositDisclosure.trim()}</p> : null}
-                  </div>
-                ) : null}
-                {showInsurance ? (
-                  <div className="space-y-1">
-                    <p className="font-semibold">Insurance</p>
-                    {rental.insuranceIncluded === true ? <p>Included</p> : null}
-                    {rental.insuranceIncluded === false ? <p>Not included</p> : null}
-                    {(rental.insuranceCoverageNotes || rental.insuranceDisclosure)?.trim() ? (
-                      <p>{(rental.insuranceCoverageNotes || rental.insuranceDisclosure || '').trim()}</p>
-                    ) : null}
-                    {rental.insuranceExclusions?.trim() ? (
-                      <p>
-                        <span className="text-ink-muted">Exclusions:</span> {rental.insuranceExclusions.trim()}
-                      </p>
-                    ) : null}
-                    {rental.insuranceExcessNotes?.trim() ? (
-                      <p>
-                        <span className="text-ink-muted">Excess:</span> {rental.insuranceExcessNotes.trim()}
-                      </p>
-                    ) : null}
-                  </div>
-                ) : null}
-                <p className="stay-help">Traverion does not collect security deposits online.</p>
-              </div>
-            </PreviewSection>
-          ) : null}
-
-          <section className="rounded-xl bg-[#F8FAFC] px-3.5 py-3 ring-1 ring-[#E6EAF0]" aria-label="Booking status">
-            <p className="text-sm font-semibold text-ink">Partner preview</p>
-            <p className="mt-1 text-sm text-ink-muted">
-              This preview does not take payment. After you publish, travelers can book on the public rental page.
+        {cancellation ? (
+          <PreviewSection title="Cancellation policy" onEdit={() => goTo('cancellation')}>
+            <p className="text-sm text-ink">
+              <span className="font-semibold">{cancellation.title}.</span> {cancellation.body}
             </p>
-            <button
-              type="button"
-              disabled
-              className="tv-btn-primary mt-3 min-h-11 w-full cursor-not-allowed px-4 text-sm font-semibold opacity-50"
-            >
-              Preview only
-            </button>
-          </section>
-        </div>
+            <p className="rental-review-muted mt-1">{RENTAL_CANCELLATION_REFUND_NOTE}</p>
+          </PreviewSection>
+        ) : null}
+
+        {showDeposit || showInsurance ? (
+          <PreviewSection title="Deposit & insurance" onEdit={() => goTo('deposit-info')}>
+            <div className="rental-review-stack">
+              {showDeposit ? (
+                <div className="space-y-1">
+                  <p className="font-semibold">Security deposit</p>
+                  {rental.depositRequired === false ? <p>No deposit required</p> : null}
+                  {rental.depositRequired === true ? (
+                    <>
+                      {rental.depositAmountMinor != null && rental.depositAmountMinor > 0 ? (
+                        <p>{formatRentalMinor(rental.depositAmountMinor, rental.depositCurrency || currency)}</p>
+                      ) : null}
+                      {depositMethod ? <p>{depositMethod}</p> : null}
+                      {rental.depositReturnNotes?.trim() ? <p>{rental.depositReturnNotes.trim()}</p> : null}
+                    </>
+                  ) : null}
+                  {rental.depositDisclosure?.trim() ? <p>{rental.depositDisclosure.trim()}</p> : null}
+                </div>
+              ) : null}
+              {showInsurance ? (
+                <div className="space-y-1">
+                  <p className="font-semibold">Insurance</p>
+                  {rental.insuranceIncluded === true ? <p>Included</p> : null}
+                  {rental.insuranceIncluded === false ? <p>Not included</p> : null}
+                  {(rental.insuranceCoverageNotes || rental.insuranceDisclosure)?.trim() ? (
+                    <p>{(rental.insuranceCoverageNotes || rental.insuranceDisclosure || '').trim()}</p>
+                  ) : null}
+                  {rental.insuranceExclusions?.trim() ? (
+                    <p>
+                      <span className="text-ink-muted">Exclusions:</span> {rental.insuranceExclusions.trim()}
+                    </p>
+                  ) : null}
+                  {rental.insuranceExcessNotes?.trim() ? (
+                    <p>
+                      <span className="text-ink-muted">Excess:</span> {rental.insuranceExcessNotes.trim()}
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
+              <p className="rental-review-muted">Deposits are handled by the supplier, not Traverion.</p>
+            </div>
+          </PreviewSection>
+        ) : null}
       </article>
-    </div>
-  );
-}
 
-function PublishStage({ ctx, check }: { ctx: Ctx; check: RentalOnboardingCheck }) {
-  const { values, props, goTo } = ctx;
-  const issues = rentalPublishBlockers(check);
-  const ready = issues.length === 0;
-  const cover = galleryUrlsOf(values)[0];
-  const groups = RENTAL_COMPLETION_GROUPS.map((group) => {
-    const blockers = group.screens
-      .map((screenId) => ({ screenId, issue: rentalStageBlocker(screenId, check) }))
-      .filter((row) => row.issue);
-    return { ...group, blockers, complete: blockers.length === 0 };
-  }).sort((a, b) => Number(a.complete) - Number(b.complete));
-
-  return (
-    <div className="space-y-4">
-      <div className="stay-panel flex flex-col gap-3 sm:flex-row sm:items-center">
-        {cover ? (
-          <img src={cover} alt="" className="h-20 w-28 shrink-0 rounded-lg object-cover" />
-        ) : (
-          <div className="flex h-20 w-28 shrink-0 items-center justify-center rounded-lg bg-[#F4F6F8] text-xs text-ink-muted">
-            No photo
-          </div>
-        )}
-        <div className="min-w-0 flex-1">
-          <p className="truncate font-display text-lg font-semibold text-ink">
-            {values.title.trim() || 'Untitled rental'}
+      <section
+        className={`rental-review-ready${ready ? ' rental-review-ready--ok' : ' rental-review-ready--warn'}`}
+        aria-label="Listing readiness"
+      >
+        <div className="rental-review-ready__status" role="status">
+          <p className="rental-review-ready__title">
+            {published ? 'Published listing' : ready ? 'Ready to publish' : 'Not ready to publish'}
           </p>
-          <p className="text-sm text-ink-muted">
-            {travelerDestinationLabel(values.city, values.country) || 'Location not set'}
-          </p>
-          <p className={`mt-1 text-sm font-semibold ${ready ? 'text-[#073b83]' : 'text-[#9f1239]'}`} role="status">
-            {ready
-              ? 'Setup complete — ready to publish'
-              : `${issues.length} item${issues.length === 1 ? '' : 's'} still need${issues.length === 1 ? 's' : ''} attention`}
+          <p className="rental-review-ready__body">
+            {published
+              ? 'Save changes from the footer to update the live listing.'
+              : ready
+                ? 'Everything required is complete.'
+                : `${issues.length} item${issues.length === 1 ? '' : 's'} still need${issues.length === 1 ? 's' : ''} attention.`}
           </p>
         </div>
-      </div>
 
-      {ready ? (
-        <section className="stay-panel space-y-2" aria-label="Completion confirmation">
-          <p className="text-sm font-semibold text-ink">Everything required to publish is filled in.</p>
-          <p className="text-sm text-ink-muted">
-            Publish makes this rental visible to travelers. You can still save a draft and return later.
-          </p>
-        </section>
-      ) : (
-        <section className="stay-panel space-y-2" aria-label="Still needed">
-          <p className="stay-kicker">Still needed</p>
-          <ul className="overflow-hidden rounded-xl ring-1 ring-[#E6EAF0]">
+        {!ready && issues.length > 0 ? (
+          <ul className="rental-review-ready__issues">
             {issues.map((line) => (
-              <li
-                key={line}
-                className="flex items-start justify-between gap-3 border-t border-[#E6EAF0] bg-[#FFF8F8] px-3 py-2.5 first:border-t-0"
-              >
-                <p className="min-w-0 text-sm text-ink">{line}</p>
-                <PreviewEdit
+              <li key={line}>
+                <span>{line}</span>
+                <button
+                  type="button"
+                  className="rental-review-ready__fix"
                   onClick={() => props.onEditStage(rentalScreenIndexForPublishLine(line))}
-                  label={`Fix: ${line}`}
-                />
+                >
+                  Fix
+                </button>
               </li>
             ))}
           </ul>
-        </section>
-      )}
-
-      <section className="space-y-3" aria-label="Setup checklist by section">
-        <p className="stay-kicker">Sections</p>
-        {groups.map((group) => (
-          <div
-            key={group.id}
-            className={`stay-panel space-y-2 ${group.complete ? '' : 'ring-1 ring-[#fecdd3]'}`}
-          >
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-sm font-semibold text-ink">{group.label}</p>
-                <p className={`text-sm ${group.complete ? 'text-ink-muted' : 'text-[#9f1239]'}`}>
-                  {group.complete ? 'Complete' : group.blockers[0]?.issue}
-                </p>
-              </div>
-              <PreviewEdit
-                onClick={() => goTo(group.blockers[0]?.screenId ?? group.screens[0])}
-                label={`Edit ${group.label}`}
-              />
-            </div>
-          </div>
-        ))}
-      </section>
-
-      <section className="stay-panel space-y-1" aria-label="Booking status">
-        <p className="stay-kicker">Before you publish</p>
-        <p className="text-sm leading-relaxed text-ink">
-          Publishing lists this rental for travelers with your options, pricing, and pickup details. Keep it as a draft
-          until you are ready.
-        </p>
+        ) : null}
       </section>
     </div>
   );
@@ -2782,7 +2819,7 @@ export default function RentalOnboardingFlow(props: Props) {
     setEditing(null);
   };
 
-  const previewWide = id === 'preview' || id === 'publish';
+  const previewWide = id === 'preview';
   const categoryWide = id === 'basics-category';
   const wide =
     previewWide ||
@@ -2862,7 +2899,7 @@ export default function RentalOnboardingFlow(props: Props) {
       break;
     case 'booking-rules':
       body = (
-        <div className="space-y-6">
+        <div className="rental-booking-rules grid gap-5 sm:gap-6">
           <PresetNumber
             label="Preparation time between bookings"
             value={Number(rental.bufferMinutes ?? 0)}
@@ -2887,17 +2924,17 @@ export default function RentalOnboardingFlow(props: Props) {
       );
       break;
     case 'requirements':
-      body = (
-        <div className="space-y-8">
-          <RequirementsStage ctx={ctx} />
-          <AccessibilityStage ctx={ctx} />
-          <SuitabilityStage ctx={ctx} />
-        </div>
-      );
+      body = <RequirementsStage ctx={ctx} />;
+      break;
+    case 'accessibility':
+      body = <AccessibilityStage ctx={ctx} />;
+      break;
+    case 'suitability':
+      body = <SuitabilityStage ctx={ctx} />;
       break;
     case 'inclusions':
       body = (
-        <div className="space-y-8">
+        <div className="rental-inclusions-screen">
           <InclusionsStage ctx={ctx} />
           <RestrictionsStage ctx={ctx} />
         </div>
@@ -2913,10 +2950,7 @@ export default function RentalOnboardingFlow(props: Props) {
       body = <DepositStage ctx={ctx} />;
       break;
     case 'preview':
-      body = <PreviewStage ctx={ctx} />;
-      break;
-    case 'publish':
-      body = <PublishStage ctx={ctx} check={check} />;
+      body = <ReviewPublishStage ctx={ctx} check={check} />;
       break;
   }
 
@@ -2928,22 +2962,39 @@ export default function RentalOnboardingFlow(props: Props) {
         previewWide ? 'max-w-[72rem]' : categoryWide ? 'max-w-5xl' : wide ? 'max-w-3xl' : 'max-w-xl'
       } ${props.direction === 'back' ? 'stay-stage-back' : 'stay-stage-forward'}`}
     >
-      <div className="flex items-center justify-between gap-3">
-        <div className="min-w-0">
-          <p className="stay-kicker">
-            {stage.group}
-            {stage.part && !/of 1$/.test(stage.part) ? ` · ${stage.part}` : ''}
-          </p>
+      {id !== 'preview' ? (
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p className="stay-kicker">
+              {stage.group}
+              {stage.part && !/of 1$/.test(stage.part) ? ` · ${stage.part}` : ''}
+            </p>
+          </div>
+          {showBack ? (
+            <button type="button" className="min-h-11 text-sm font-semibold text-finland" onClick={props.onBackToPreview}>
+              Back to review
+            </button>
+          ) : null}
         </div>
-        {showBack ? (
+      ) : showBack ? (
+        <div className="mb-2 flex justify-end">
           <button type="button" className="min-h-11 text-sm font-semibold text-finland" onClick={props.onBackToPreview}>
-            Back to preview
+            Back to review
           </button>
-        ) : null}
-      </div>
-      <h3 className="stay-title font-display font-semibold">{stage.title}</h3>
-      <p className="stay-lede mt-2">{stage.body}</p>
-      <div className="mt-6">{body}</div>
+        </div>
+      ) : null}
+      {id === 'preview' ? (
+        <div className="sr-only">
+          <h3>{stage.title}</h3>
+          <p>{stage.body}</p>
+        </div>
+      ) : (
+        <>
+          <h3 className="stay-title font-display font-semibold">{stage.title}</h3>
+          <p className="stay-lede mt-2">{stage.body}</p>
+        </>
+      )}
+      <div className={id === 'preview' ? 'mt-0' : 'mt-6'}>{body}</div>
       {props.attemptedContinue && blocker ? (
         <p className="stay-alert" role="alert">
           {blocker}

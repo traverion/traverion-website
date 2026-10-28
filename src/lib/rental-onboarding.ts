@@ -1,6 +1,7 @@
 /**
- * Rental Creator screens — streamlined journey (22 screens).
+ * Rental Creator screens — streamlined journey (23 screens).
  * Duration mode/limits live on each rental option (not a listing screen).
+ * Final Review & Publish merges the former preview + publish steps.
  * Split-out screens remap via LEGACY_RENTAL_SCREEN_ALIASES so drafts resume.
  */
 
@@ -123,59 +124,68 @@ export const RENTAL_ONBOARDING_SCREENS = [
   {
     id: 'requirements',
     group: 'Guest information',
-    part: '1 of 5',
-    title: 'Who can book',
-    body: 'Age, identification, licence, experience, accessibility, and suitability.',
+    part: '1 of 7',
+    title: 'Guest requirements',
+    body: 'ID, minimum age, and licence or experience when they apply.',
+  },
+  {
+    id: 'accessibility',
+    group: 'Guest information',
+    part: '2 of 7',
+    title: 'Accessibility',
+    body: 'Access at pickup when it applies to this rental.',
+  },
+  {
+    id: 'suitability',
+    group: 'Guest information',
+    part: '3 of 7',
+    title: 'Suitability',
+    body: 'Optional notes on who this rental suits.',
   },
   {
     id: 'inclusions',
     group: 'Guest information',
-    part: '2 of 5',
+    part: '4 of 7',
     title: "What's included and restricted",
-    body: 'Items provided with the rental, and uses you do not allow.',
+    body: 'Optional. List what comes with the rental, and any uses you do not allow.',
   },
   {
     id: 'rules',
     group: 'Guest information',
-    part: '3 of 5',
+    part: '5 of 7',
     title: 'Rental rules',
-    body: 'Permitted use, return condition, cleaning, damage, and late returns.',
+    body: 'Optional. Write the practical rules guests should follow.',
   },
   {
     id: 'cancellation',
     group: 'Guest information',
-    part: '4 of 5',
+    part: '6 of 7',
     title: 'Cancellation policy',
-    body: 'The window customers may request cancellation. Traverion does not issue automatic rental refunds.',
+    body: 'Choose how far ahead guests may request cancellation. Requests are not guaranteed refunds.',
   },
   {
     id: 'deposit-info',
     group: 'Guest information',
-    part: '5 of 5',
+    part: '7 of 7',
     title: 'Deposits and insurance',
-    body: 'Terms you manage yourself. Traverion does not collect deposits or handle insurance claims.',
+    body: 'Optional terms you handle yourself. Traverion does not collect deposits or manage insurance claims.',
   },
   {
     id: 'preview',
     group: 'Completion',
-    part: '1 of 2',
-    title: 'Review your rental listing',
-    body: 'A supplier preview of saved data. This is not a live bookable listing.',
-  },
-  {
-    id: 'publish',
-    group: 'Completion',
-    part: '2 of 2',
-    title: 'Publish rental',
-    body: 'Publish when ready so travelers can discover and book this rental.',
+    part: '1 of 1',
+    title: 'Review & Publish',
+    body: 'Review the listing, fix anything missing, then publish.',
   },
 ] as const;
 
 export type RentalOnboardingScreenId = (typeof RENTAL_ONBOARDING_SCREENS)[number]['id'];
 
 /**
- * Maps retired screen ids onto the current 22-screen journey so drafts resume.
+ * Maps retired screen ids onto the current 23-screen journey so drafts resume.
  * Listing-level duration screens now land on options (duration lives per option).
+ * accessibility and suitability are first-class screens (no longer aliased).
+ * Former standalone publish step resumes on Review & Publish.
  */
 export const LEGACY_RENTAL_SCREEN_ALIASES: Record<string, RentalOnboardingScreenId> = {
   category: 'basics-category',
@@ -204,9 +214,11 @@ export const LEGACY_RENTAL_SCREEN_ALIASES: Record<string, RentalOnboardingScreen
   'multi-day': 'options',
   'pricing-overrides': 'options',
   earnings: 'options',
-  accessibility: 'requirements',
-  suitability: 'requirements',
+  /** Pre-split “Who can book” drafts resume on guest requirements. */
+  'who-can-book': 'requirements',
   restrictions: 'inclusions',
+  /** Merged into Review & Publish. */
+  publish: 'preview',
 };
 
 export function rentalScreenIndex(id: string): number {
@@ -324,17 +336,17 @@ export function rentalStageBlocker(screenId: RentalOnboardingScreenId, check: Re
         if (!license) return 'Describe the licence or driver requirements.';
       }
       return null;
+    case 'accessibility':
+    case 'suitability':
+      return null;
     case 'cancellation':
       return isRentalCancellationPreset(r.cancellationPreset) ? null : 'Choose a cancellation policy.';
     case 'inclusions':
     case 'rules':
     case 'deposit-info':
     case 'preview':
+      // Review & Publish never blocks Continue — publish actions use rentalPublishBlockers.
       return null;
-    case 'publish': {
-      const issues = rentalPublishBlockers(check);
-      return issues[0] ?? null;
-    }
     default:
       return null;
   }
@@ -399,10 +411,14 @@ export function rentalScreenIndexForPublishLine(line: string): number {
     return rentalScreenIndex('options');
   }
   if (/notice|buffer|preparation/.test(text)) return rentalScreenIndex('booking-rules');
-  if (/snowmobile|license|requirement|accessib|suitab/.test(text)) return rentalScreenIndex('requirements');
+  if (/accessib/.test(text)) return rentalScreenIndex('accessibility');
+  if (/suitab|difficulty|skill/.test(text)) return rentalScreenIndex('suitability');
+  if (/snowmobile|license|licence|requirement|minimum age|identification|\bid\b/.test(text)) {
+    return rentalScreenIndex('requirements');
+  }
   if (/restriction|included|inclusion/.test(text)) return rentalScreenIndex('inclusions');
   if (/cancellation|policy/.test(text)) return rentalScreenIndex('cancellation');
-  return rentalScreenIndex('publish');
+  return rentalScreenIndex('preview');
 }
 
 /** Completion checklist groups for the finish screen. */
@@ -435,6 +451,14 @@ export const RENTAL_COMPLETION_GROUPS: {
   {
     id: 'guest',
     label: 'Guest information and policies',
-    screens: ['requirements', 'inclusions', 'rules', 'cancellation', 'deposit-info'],
+    screens: [
+      'requirements',
+      'accessibility',
+      'suitability',
+      'inclusions',
+      'rules',
+      'cancellation',
+      'deposit-info',
+    ],
   },
 ];

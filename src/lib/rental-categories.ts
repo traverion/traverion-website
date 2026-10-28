@@ -241,9 +241,149 @@ export function rentalRestrictionSuggestions(id: RentalCategoryId | undefined): 
   return SHARED_RESTRICTIONS;
 }
 
+const SHARED_RULE_SUGGESTIONS = [
+  'Use only as intended and follow local rules.',
+  'Return the item in the same condition as at pickup.',
+  'Report any damage or issue at return.',
+  'Late returns may be charged as an extra period.',
+];
+
+/**
+ * Optional starter lines for the rental rules textarea.
+ * Tapping inserts editable text — nothing is imposed until the supplier keeps it.
+ */
+export function rentalRulesSuggestions(id: RentalCategoryId | undefined): string[] {
+  switch (id) {
+    case 'bikes':
+      return [
+        'Ride on roads and paths where bikes are allowed.',
+        'Return the bike locked and with any included accessories.',
+        'Report damage, a flat tyre, or a missing lock at return.',
+        'Late returns may be charged as an extra period.',
+      ];
+    case 'winter_clothing':
+    case 'clothing_accessories':
+      return [
+        'Wear and return the items as provided — no alterations.',
+        'Return items clean and as dry as conditions allow.',
+        'Report tears, stains, or missing pieces at return.',
+        'Late returns may be charged as an extra period.',
+      ];
+    case 'skis_snowboards':
+      return [
+        'Use on marked slopes and permitted areas only.',
+        'Return boots, poles, and bindings with the set.',
+        'Report damage or missing parts at return.',
+        'Late returns may be charged as an extra period.',
+      ];
+    case 'snowmobiles':
+    case 'vehicles':
+      return [
+        'Stay on permitted routes and follow the briefing at pickup.',
+        'Return with the agreed fuel level and all documents.',
+        'Report damage, warning lights, or incidents at return.',
+        'Late returns may be charged as an extra period.',
+      ];
+    case 'cameras_electronics':
+      return [
+        'Handle gear carefully and avoid water unless stated.',
+        'Return with batteries, cards, and accessories included.',
+        'Report damage or missing accessories at return.',
+        'Late returns may be charged as an extra period.',
+      ];
+    case 'outdoor_equipment':
+      return [
+        'Use as intended and follow any setup notes provided.',
+        'Return packed clean and dry when conditions allow.',
+        'Report damage or missing parts at return.',
+        'Late returns may be charged as an extra period.',
+      ];
+    default:
+      return SHARED_RULE_SUGGESTIONS;
+  }
+}
+
 export function rentalCategoryConfig(id: RentalCategoryId | undefined): RentalCategoryConfig | null {
   if (!id) return null;
   return RENTAL_CATEGORY_CONFIG[id] ?? null;
+}
+
+/**
+ * Option-editor specification fields for the listing category and item type.
+ * Hides keys that do not apply to the chosen item (e.g. e-bike power on a standard bike).
+ */
+export function rentalOptionVariantAttributes(
+  category: RentalCategoryId | undefined,
+  itemType: string | undefined,
+): { key: string; label: string; placeholder?: string }[] {
+  const cfg = rentalCategoryConfig(category);
+  if (!cfg) return [];
+  const keys = cfg.variantAttributeKeys;
+  const item = (itemType ?? '').trim();
+
+  if (category === 'bikes') {
+    const electric = item === 'electric_bike';
+    return keys
+      .filter((row) => row.key !== 'power' || electric)
+      .map((row) =>
+        row.key === 'size'
+          ? { ...row, label: 'Frame size', placeholder: row.placeholder ?? 'e.g. M' }
+          : row.key === 'power'
+            ? { ...row, label: 'Assist', placeholder: 'e.g. Electric assist' }
+            : row,
+      );
+  }
+
+  if (category === 'skis_snowboards') {
+    if (item === 'ski_boots') {
+      return keys
+        .filter((row) => row.key === 'bootSize')
+        .map((row) => ({ ...row, label: 'Boot size', placeholder: row.placeholder ?? 'e.g. 42' }));
+    }
+    if (item === 'skis' || item === 'snowboard') {
+      return keys
+        .filter((row) => row.key === 'length')
+        .map((row) => ({
+          ...row,
+          label: item === 'snowboard' ? 'Board length' : 'Ski length',
+          placeholder: row.placeholder ?? 'e.g. 160 cm',
+        }));
+    }
+    // complete_set or unknown: keep length + boot size with clearer labels
+    return keys.map((row) =>
+      row.key === 'length'
+        ? { ...row, label: 'Length / size', placeholder: row.placeholder ?? 'e.g. 160 cm' }
+        : row.key === 'bootSize'
+          ? { ...row, label: 'Boot size', placeholder: row.placeholder ?? 'When boots are included' }
+          : row,
+    );
+  }
+
+  if (category === 'winter_clothing' || category === 'clothing_accessories') {
+    return keys.map((row) =>
+      row.key === 'size' ? { ...row, label: 'Size', placeholder: row.placeholder ?? 'S / M / L / XL' } : row,
+    );
+  }
+
+  if (category === 'cameras_electronics') {
+    return keys.map((row) =>
+      row.key === 'kit' ? { ...row, label: 'Kit contents', placeholder: row.placeholder ?? 'e.g. Body with 24–70 mm' } : row,
+    );
+  }
+
+  if (category === 'snowmobiles' || category === 'vehicles') {
+    return keys.map((row) =>
+      row.key === 'modelTrim' ? { ...row, label: 'Model / trim', placeholder: row.placeholder ?? 'e.g. Adventure' } : row,
+    );
+  }
+
+  if (category === 'outdoor_equipment') {
+    return keys.map((row) =>
+      row.key === 'size' ? { ...row, label: 'Size / variant', placeholder: row.placeholder ?? 'e.g. 25 inch' } : row,
+    );
+  }
+
+  return keys;
 }
 
 export function rentalItemTypeLabel(category: RentalCategoryId | undefined, itemType: string | undefined): string {

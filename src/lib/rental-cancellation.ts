@@ -3,21 +3,28 @@
  * Windows are stored with the listing. Traverion does not automatically refund rentals.
  */
 
+export const RENTAL_CANCELLATION_REFUND_NOTE =
+  'A cancellation request is not a guaranteed refund. Traverion does not issue automatic rental refunds.';
+
 export const RENTAL_CANCELLATION_PRESETS = [
   {
     id: 'flexible_24h',
     title: 'Flexible',
-    body: 'Customers may request cancellation until 24 hours before pickup. Traverion does not issue automatic rental refunds.',
+    /** Bolded in the creator UI. */
+    deadline: '24 hours',
+    body: 'Customers may request cancellation until 24 hours before pickup.',
   },
   {
     id: 'moderate_72h',
     title: 'Moderate',
-    body: 'Customers may request cancellation until 72 hours before pickup. Traverion does not issue automatic rental refunds.',
+    deadline: '72 hours',
+    body: 'Customers may request cancellation until 72 hours before pickup.',
   },
   {
     id: 'firm_7d',
     title: 'Firm',
-    body: 'Customers may request cancellation until 7 days before pickup. Traverion does not issue automatic rental refunds.',
+    deadline: '7 days',
+    body: 'Customers may request cancellation until 7 days before pickup.',
   },
 ] as const;
 
@@ -35,7 +42,7 @@ export function rentalCancellationById(id: string | null | undefined) {
 export function rentalCancellationCustomerText(id: string | null | undefined): string {
   const hit = rentalCancellationById(id);
   if (!hit) {
-    return 'Cancellation terms were not stored with this rental. Traverion does not issue automatic rental refunds.';
+    return `Cancellation terms were not stored with this rental. ${RENTAL_CANCELLATION_REFUND_NOTE}`;
   }
-  return `${hit.title}. ${hit.body}`;
+  return `${hit.title}. ${hit.body} ${RENTAL_CANCELLATION_REFUND_NOTE}`;
 }

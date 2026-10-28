@@ -4537,6 +4537,7 @@ export default function SupplierListingForm({
                 userId={user?.id}
                 uploadsEnabled={isSupabaseConfigured() && !!user?.id}
                 onPhotosBusyChange={setRentalPhotosBusy}
+                listingPublished={form.status === 'published'}
               />
             </Suspense>
           ) : isStayForm ? (

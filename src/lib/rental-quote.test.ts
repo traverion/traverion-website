@@ -154,6 +154,56 @@ describe('quoteRentalLine', () => {
     ).toBe(false);
   });
 
+  it('enforces the selected option rental type even when the listing still says both', () => {
+    const rental: RentalDetails = {
+      ...emptyRentalDetails(),
+      durationMode: 'both',
+      minDurationHours: 1,
+      maxDurationHours: 8,
+      minDurationDays: 1,
+      maxDurationDays: 7,
+      variants: [
+        {
+          id: 'hour-only',
+          name: 'Hour only',
+          quantity: 2,
+          durationMode: 'hourly',
+          minDurationHours: 2,
+          maxDurationHours: 6,
+          pricingOverride: { pricePerHourMinor: 900 },
+        },
+      ],
+    };
+    expect(
+      quoteRentalLine({
+        rental,
+        variantId: 'hour-only',
+        quantity: 1,
+        durationCount: 1,
+        unit: 'day',
+        commissionBps: bps,
+      }).ok,
+    ).toBe(false);
+    const hour = quoteRentalLine({
+      rental,
+      variantId: 'hour-only',
+      quantity: 1,
+      durationCount: 1,
+      unit: 'hour',
+      commissionBps: bps,
+    });
+    expect(hour.ok).toBe(false); // below option min 2 hours
+    const ok = quoteRentalLine({
+      rental,
+      variantId: 'hour-only',
+      quantity: 1,
+      durationCount: 3,
+      unit: 'hour',
+      commissionBps: bps,
+    });
+    expect(ok.ok).toBe(true);
+  });
+
   it('rejects duration below minimum', () => {
     const rental = { ...thermalListing(), minDurationDays: 2 };
     const result = quoteRentalLine({
