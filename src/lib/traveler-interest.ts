@@ -10,8 +10,8 @@ export type TravelerInterestSignal = {
   kind: TravelerSignalKind;
   /** listing id, destination id/label, or search query */
   key: string;
-  /** tour | stay | destination | query */
-  family?: 'tour' | 'stay' | 'destination' | 'query';
+  /** tour | stay | rental | destination | query */
+  family?: 'tour' | 'stay' | 'rental' | 'destination' | 'query';
   at: number;
 };
 
@@ -103,7 +103,7 @@ export function scoreListingFromInterest(params: {
   city?: string | null;
   country?: string | null;
   destination?: string | null;
-  family: 'tour' | 'stay';
+  family: 'tour' | 'stay' | 'rental';
   signals: TravelerInterestSignal[];
 }): number {
   const { listingId, family, signals } = params;

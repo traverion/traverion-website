@@ -9,7 +9,8 @@ describe('Phase 1654: Home prefetches Stays when stays family selected', () => {
     expect(prefetch).toContain('prefetchStaysPage');
     const home = readFileSync(resolve(__dirname, 'Home.tsx'), 'utf8');
     expect(home).toContain('prefetchStaysPage');
-    expect(home).toMatch(/searchFamily === 'stays' \? prefetchStaysPage\(\)/);
+    expect(home).toMatch(/searchFamily === 'stays'[\s\S]*?prefetchStaysPage\(\)/);
+    expect(home).toContain('prefetchRentalsPage');
     expect(home).toContain('prefetchDestinationPage');
   });
 });

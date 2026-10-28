@@ -10,6 +10,9 @@ import { fetchDiscountsByListingIds } from '../data/supabase-discounts';
 import { getReviewAggregatesForListingIds } from '../data/supabase-reviews';
 import { isSupabaseListingId } from '../lib/discount-display';
 import { PublicListingBrowseCard } from '../components/PublicListingBrowseCard';
+import { normalizeRentalDetails, rentalListingOffersUnit } from '../lib/rental-details';
+import { rentalCategoryTitle, rentalFromPrice } from '../lib/rental-presentation';
+import type { RentalDetails } from '../types/rental';
 import {
   MarketplaceSearchFields,
   MarketplaceSearchStack,
@@ -47,6 +50,15 @@ const TAG_LABELS: Record<string, string> = {
 };
 
 const MAX_RESULTS_HOME = 12;
+const MAX_RENTALS_HOME = 8;
+
+function rentalDurationBrowseMeta(rental: RentalDetails): string {
+  const hour = rentalListingOffersUnit(rental, 'hour');
+  const day = rentalListingOffersUnit(rental, 'day');
+  if (hour && day) return 'Daily or hourly';
+  if (hour) return 'Hourly';
+  return 'Daily';
+}
 
 interface HomeProps {
   onTourSelect: (tour: TourPackage) => void;
@@ -90,14 +102,30 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
     [catalogBase]
   );
   const stayListings = useMemo(() => filterCatalogByFamily(catalogBase, 'stay'), [catalogBase]);
+  /** Published rentals with a valid option starting price — never drafts or unpriced options. */
+  const homeRentalRows = useMemo(() => {
+    const rows: { listing: TourPackage; rental: RentalDetails }[] = [];
+    for (const listing of filterCatalogByFamily(catalogBase, 'rental')) {
+      const rental =
+        normalizeRentalDetails(listing.listingExtras?.rental) ??
+        normalizeRentalDetails(listing.listingExtras);
+      if (!rental || !rentalFromPrice(rental)) continue;
+      rows.push({ listing, rental });
+    }
+    return rows;
+  }, [catalogBase]);
   const [searchFamily, setSearchFamily] = useState<'tours' | 'stays' | 'rentals'>('tours');
   const wishlist = useTravelerWishlist();
 
   const placeChips = useMemo(() => {
-    return getDestinationsFromListings([...allListings, ...stayListings])
+    return getDestinationsFromListings([
+      ...allListings,
+      ...stayListings,
+      ...homeRentalRows.map((row) => row.listing),
+    ])
       .filter((d) => d.type === 'city' || d.type === 'region')
       .slice(0, 8);
-  }, [allListings, stayListings]);
+  }, [allListings, stayListings, homeRentalRows]);
 
   const [interestSignals, setInterestSignals] = useState<TravelerInterestSignal[]>([]);
   useEffect(() => {
@@ -106,7 +134,11 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
 
   const openListing = useCallback(
     (tour: TourPackage) => {
-      const family = listingIsFamily(tour, 'stay') ? 'stay' : 'tour';
+      const family = listingIsFamily(tour, 'stay')
+        ? 'stay'
+        : listingIsFamily(tour, 'rental')
+          ? 'rental'
+          : 'tour';
       recordTravelerInterest({ kind: 'listing_view', key: tour.id, family });
       if (tour.city) {
         recordTravelerInterest({ kind: 'destination_view', key: tour.city, family: 'destination' });
@@ -159,6 +191,25 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
   const staysSectionSubtitle = interestPlace
     ? 'Places to stay near your recent discoveries.'
     : 'Nights from operators — separate from tour departures.';
+  const displayedRentalRows = useMemo(() => {
+    const byId = new Map(homeRentalRows.map((row) => [row.listing.id, row]));
+    const ranked = sortListingsByInterest(
+      homeRentalRows.map((row) => row.listing),
+      (item) =>
+        scoreListingFromInterest({
+          listingId: item.id,
+          city: item.city,
+          country: item.country,
+          destination: item.destination,
+          family: 'rental',
+          signals: interestSignals,
+        })
+    );
+    return ranked
+      .slice(0, MAX_RENTALS_HOME)
+      .map((listing) => byId.get(listing.id))
+      .filter((row): row is { listing: TourPackage; rental: RentalDetails } => Boolean(row));
+  }, [homeRentalRows, interestSignals]);
 
   const displayedIds = useMemo(() => {
     const tourIds = displayedListings.map((t) => t.id).filter(isSupabaseListingId);
@@ -677,6 +728,63 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
           ) : null}
         </div>
       </section>
+
+      {!catalogLoading && displayedRentalRows.length > 0 ? (
+        <section className="tv-section tv-section-muted tv-section-divider" aria-labelledby="home-rentals-heading">
+          <div className="tv-content">
+            <div className="mb-4 flex items-end justify-between gap-3 sm:mb-5">
+              <div>
+                <p className="tv-eyebrow">EXPLORE MORE WITH TRAVERION</p>
+                <h2 id="home-rentals-heading" className="tv-section-heading sm:text-[1.65rem]">
+                  Need to rent equipment or a vehicle?
+                </h2>
+                <p className="tv-meta mt-1.5 max-w-xl">
+                  From cameras and outdoor gear to bikes and vehicles. Find what you need for your next adventure.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => goToRentals()}
+                onPointerEnter={prefetchRentalsPage}
+                className="tv-section-cta lux-flat"
+              >
+                Explore all rentals <ArrowRight className="w-4 h-4" aria-hidden />
+              </button>
+            </div>
+            <div className={HOME_DISCOVERY_GRID_CLASS}>
+              {displayedRentalRows.map((row, index) => {
+                const from = rentalFromPrice(row.rental);
+                return (
+                  <PublicListingBrowseCard
+                    key={row.listing.id}
+                    tour={row.listing}
+                    index={index}
+                    onSelect={() => openListing(row.listing)}
+                    discountsByListing={null}
+                    tagLabels={{}}
+                    size="compact"
+                    showTagPills={false}
+                    rentalBrowse={{
+                      badge: rentalCategoryTitle(row.rental),
+                      meta: rentalDurationBrowseMeta(row.rental),
+                      priceLabel: from?.label ?? null,
+                    }}
+                    wishlist={
+                      wishlist.enabled && wishlist.heartsKnown
+                        ? {
+                            saved: wishlist.isSaved(row.listing.id),
+                            busy: wishlist.busyId === row.listing.id,
+                            onToggle: () => wishlist.toggle(row.listing.id),
+                          }
+                        : null
+                    }
+                  />
+                );
+              })}
+            </div>
+          </div>
+        </section>
+      ) : null}
 
       <section className="tv-section tv-section-muted tv-section-divider">
         <div className="tv-content">
