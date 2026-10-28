@@ -12,9 +12,15 @@ describe('Rental PDP final polish', () => {
   it('resolves rental photos like Tours and handles load failures', () => {
     expect(details).toContain('photoSlotsFromTourPackage');
     expect(details).toContain('orderedPhotoUrls');
-    expect(gallery).toContain('onError');
-    expect(gallery).toContain('Photos could not be loaded');
-    expect(gallery).toContain('ImageOff');
+    expect(details).toContain('ListingPdpPhotoGallery');
+    const sharedGallery = readFileSync(
+      resolve(__dirname, '../components/ListingPdpPhotoGallery.tsx'),
+      'utf8',
+    );
+    expect(sharedGallery).toContain('onError');
+    expect(sharedGallery).toContain('Photos could not be loaded');
+    expect(sharedGallery).toContain('ImageOff');
+    expect(gallery).toContain('ListingPdpPhotoGallery');
   });
 
   it('keeps a compact booking card without guest wording or chatter', () => {

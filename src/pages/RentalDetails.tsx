@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import RentalBookingWidget from '../components/rental/RentalBookingWidget';
 import RentalCollectionMap from '../components/supplier/listing-creation/RentalCollectionMap';
-import RentalPhotoGallery from '../components/rental/RentalPhotoGallery';
+import ListingPdpPhotoGallery from '../components/ListingPdpPhotoGallery';
 import ErrorState from '../components/ErrorState';
 import PublicReviewCard from '../components/PublicReviewCard';
 import ListingPdpReviewMeta from '../components/ListingPdpReviewMeta';
@@ -397,7 +397,11 @@ function RentalBody({
 
         <div className="tv-pdp-layout">
           <div className="tv-pdp-main">
-            <RentalPhotoGallery photos={photos} title={listing.title} />
+            <ListingPdpPhotoGallery
+              photos={photos}
+              title={listing.title}
+              emptyLabel="No photos yet for this rental"
+            />
 
             {rental.shortIntro || listing.subtitle ? (
               <p className="tv-tour-subtitle mt-4 max-w-2xl text-[0.9375rem] leading-relaxed text-ink-muted break-words [overflow-wrap:anywhere]">

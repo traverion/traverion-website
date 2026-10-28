@@ -5,9 +5,8 @@ import {
   MapPin,
   Heart,
   Star,
-  ChevronLeft,
-  ChevronRight,
-  X,
+  Share2,
+  CheckCircle,
   Users,
   BedDouble,
   Bath,
@@ -58,6 +57,7 @@ import {
 import PublicReviewCard from '../components/PublicReviewCard';
 import StarRatingDisplay from '../components/StarRatingDisplay';
 import ListingPdpReviewMeta from '../components/ListingPdpReviewMeta';
+import ListingPdpPhotoGallery from '../components/ListingPdpPhotoGallery';
 import type { TourPackage } from '../types/tour';
 import ErrorState from '../components/ErrorState';
 import { Skeleton } from '../components/ui/Skeleton';
@@ -91,7 +91,6 @@ import {
   type TravelerCheckoutAuthMetadata,
 } from '../lib/traveler-checkout-autofill';
 import { fetchWishlistListingIds, toggleWishlist } from '../data/supabase-wishlist';
-import { useDialogFocus } from '../hooks/useDialogFocus';
 
 type Props = {
   stayId: string;
@@ -99,6 +98,9 @@ type Props = {
   /** Label for the back control — reflects where the traveler came from. */
   backLabel?: string;
 };
+
+const sectionClass = 'tv-pdp-section mt-7 border-t border-[#E8EBF0] pt-7';
+const headingClass = 'tv-section-heading mb-3.5';
 
 function readStayPrefill(): {
   checkIn: string;
@@ -155,7 +157,9 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
   const [guestName, setGuestName] = useState('');
   const [profileDisplayName, setProfileDisplayName] = useState('');
   const [hostName, setHostName] = useState<string | null>(null);
+  const [hostLogoUrl, setHostLogoUrl] = useState<string | null>(null);
   const [hostDescription, setHostDescription] = useState<string | null>(null);
+  const [shareCopied, setShareCopied] = useState(false);
   const [occupiedRanges, setOccupiedRanges] = useState<{ checkIn: string; checkOut: string }[]>([]);
   const [blockedNights, setBlockedNights] = useState<string[]>([]);
   const [occupancyError, setOccupancyError] = useState<string | null>(null);
@@ -180,15 +184,9 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewTitle, setReviewTitle] = useState('');
   const [reviewComment, setReviewComment] = useState('');
-  // Phase 1668: Tour-parity photo lightbox for stay galleries.
-  const gallerySheetRef = useRef<HTMLDivElement>(null);
-  const [galleryLightboxOpen, setGalleryLightboxOpen] = useState(false);
   const [descriptionExpanded, setDescriptionExpanded] = useState(false);
   const [amenitiesExpanded, setAmenitiesExpanded] = useState(false);
   const [cancellationExpanded, setCancellationExpanded] = useState(false);
-  const [selectedImage, setSelectedImage] = useState(0);
-  const closeGalleryLightbox = useCallback(() => setGalleryLightboxOpen(false), []);
-  useDialogFocus(galleryLightboxOpen, gallerySheetRef, closeGalleryLightbox);
 
   useEffect(() => {
     let cancelled = false;
@@ -443,12 +441,14 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
   useEffect(() => {
     if (!stay?.supplierId) {
       setHostName(null);
+      setHostLogoUrl(null);
       setHostDescription(null);
       return;
     }
     void fetchSupplierPublicLegal(stay.supplierId).then((row) => {
       const name = row?.display_name?.trim() || row?.company_legal_name?.trim() || null;
       setHostName(name);
+      setHostLogoUrl(row?.business_logo_url?.trim() || null);
       setHostDescription(row?.public_description?.trim() || null);
     });
   }, [stay?.supplierId]);
@@ -546,7 +546,19 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
     );
     return urls;
   }, [hero, gallery]);
-  const hasStayGallery = stayGalleryImages.length > 0;
+  const canLoadReviews = Boolean(stay?.id && isSupabaseConfigured() && isSupabaseListingId(stay.id));
+  const stayPlace = (
+    s?.locationDisplayName?.trim() ||
+    [stay?.city, stay?.country].filter(Boolean).join(', ') ||
+    stay?.destination ||
+    ''
+  ).trim();
+  const propertyTypeLabel = s?.propertyType?.trim() || '';
+  const propertyLine = propertyTypeLabel
+    ? `${propertyTypeLabel}${hostName ? ` · Hosted by ${hostName}` : ''}`
+    : hostName
+      ? `Hosted by ${hostName}`
+      : '';
 
   useEffect(() => {
     if (!stayQuote || stayQuote.ok || !stayQuote.error.includes('not offered') || selectedExtras.length === 0) return;
@@ -803,7 +815,7 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
 
   return (
     <div className="min-h-screen bg-paper tv-page tv-stay-pdp pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] lg:pb-0">
-      <div className="tv-shell px-4 sm:px-6 lg:px-8 pt-2 sm:pt-3 pb-6 sm:pb-8">
+      <div className="tv-shell mx-auto px-4 sm:px-6 lg:px-8 pt-2 sm:pt-3">
         <div className="mb-2.5 flex items-center justify-between gap-3">
           <button
             type="button"
@@ -813,28 +825,50 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
             <ArrowLeft className="h-4 w-4" aria-hidden />
             <span className="hidden sm:inline">{backLabel}</span>
           </button>
-          {isSupabaseListingId(stay.id) && isSupabaseConfigured() ? (
+          <div className="flex items-center gap-1.5">
+            {isSupabaseListingId(stay.id) && isSupabaseConfigured() ? (
+              <button
+                type="button"
+                className="tv-icon-btn lux-flat inline-flex h-10 w-10 items-center justify-center rounded-full text-ink disabled:opacity-60"
+                aria-label={
+                  !wishlistHeartKnown
+                    ? 'Checking saved status'
+                    : savedToWishlist
+                      ? 'Remove from saved stays'
+                      : 'Save this stay'
+                }
+                aria-pressed={wishlistHeartKnown ? savedToWishlist : undefined}
+                aria-busy={!wishlistHeartKnown}
+                disabled={wishlistBusy || !wishlistHeartKnown}
+                onClick={handleToggleWishlist}
+              >
+                <Heart
+                  size={17}
+                  className={`${wishlistHeartKnown && savedToWishlist ? 'fill-finland text-finland' : ''} ${savePop ? 'tv-pop' : ''}`}
+                />
+              </button>
+            ) : null}
             <button
               type="button"
-              className="tv-icon-btn lux-flat inline-flex h-10 w-10 items-center justify-center rounded-full text-ink disabled:opacity-60"
-              aria-label={
-                !wishlistHeartKnown
-                  ? 'Checking saved status'
-                  : savedToWishlist
-                    ? 'Remove from saved stays'
-                    : 'Save this stay'
-              }
-              aria-pressed={wishlistHeartKnown ? savedToWishlist : undefined}
-              aria-busy={!wishlistHeartKnown}
-              disabled={wishlistBusy || !wishlistHeartKnown}
-              onClick={handleToggleWishlist}
+              className="tv-icon-btn lux-flat inline-flex h-10 w-10 items-center justify-center rounded-full text-ink"
+              aria-label={shareCopied ? 'Link copied' : 'Share'}
+              onClick={() => {
+                const url = window.location.href;
+                const title = stay.title;
+                const done = () => {
+                  setShareCopied(true);
+                  window.setTimeout(() => setShareCopied(false), 1400);
+                };
+                if (navigator.share) {
+                  void navigator.share({ title, url }).then(done).catch(() => {});
+                } else if (navigator.clipboard?.writeText) {
+                  void navigator.clipboard.writeText(url).then(done);
+                }
+              }}
             >
-              <Heart
-                size={17}
-                className={`${wishlistHeartKnown && savedToWishlist ? 'fill-finland text-finland' : ''} ${savePop ? 'tv-pop' : ''}`}
-              />
+              {shareCopied ? <CheckCircle size={17} className="tv-pop text-finland" /> : <Share2 size={17} />}
             </button>
-          ) : null}
+          </div>
         </div>
 
         <header className="mb-3 sm:mb-3.5">
@@ -855,175 +889,82 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
                 />
               );
             })()}
-            <span className="inline-flex min-w-0 items-center gap-1 text-ink">
-              <MapPin size={14} className="shrink-0 text-[#0B397E]" aria-hidden strokeWidth={2} />
-              <span className="font-bold tracking-tight break-words [overflow-wrap:anywhere]">
-                {s?.locationDisplayName?.trim()
-                  ? s.locationDisplayName.trim()
-                  : [stay.city, stay.country].filter(Boolean).join(', ') || stay.destination}
+            {stayPlace ? (
+              <span className="inline-flex min-w-0 items-center gap-1 text-ink">
+                <MapPin size={14} className="shrink-0 text-[#0B397E]" aria-hidden />
+                <span className="font-bold tracking-tight break-words [overflow-wrap:anywhere]">
+                  {stayPlace}
+                </span>
               </span>
-            </span>
+            ) : null}
           </div>
         </header>
 
-        <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1.85fr)_minmax(17.5rem,22rem)] lg:gap-8 pb-24 lg:pb-0">
-          <div className="min-w-0 space-y-8 text-[15px] leading-relaxed text-ink">
-            <div>
-              {hasStayGallery ? (
-                <div
-                  className={`grid grid-cols-1 gap-2 ${
-                    stayGalleryImages.length > 1 ? 'lg:grid-cols-4 lg:grid-rows-2 lg:h-[22rem] lg:gap-2.5' : ''
+        <div className="tv-pdp-layout">
+          <div className="tv-pdp-main">
+            <ListingPdpPhotoGallery
+              photos={stayGalleryImages}
+              title={stay.title}
+              emptyLabel="No photos yet for this stay"
+            />
+
+            {stay.subtitle?.trim() ? (
+              <p className="tv-tour-subtitle mt-4 max-w-2xl text-[0.9375rem] leading-relaxed text-ink-muted break-words [overflow-wrap:anywhere]">
+                {stay.subtitle.trim()}
+              </p>
+            ) : null}
+
+            {propertyLine ||
+            typeof s?.maxGuests === 'number' ||
+            typeof s?.bedrooms === 'number' ||
+            stayBedSummary(s?.bedMix) ||
+            typeof s?.beds === 'number' ||
+            typeof s?.bathrooms === 'number' ? (
+              <section className="mt-5">
+                {propertyLine ? (
+                  <p className="text-base font-semibold tracking-tight text-ink">{propertyLine}</p>
+                ) : null}
+                <ul
+                  className={`flex flex-wrap items-center gap-x-3.5 gap-y-2 text-sm text-ink-muted ${
+                    propertyLine ? 'mt-3.5' : ''
                   }`}
                 >
-                  {hero ? (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSelectedImage(0);
-                        setGalleryLightboxOpen(true);
-                      }}
-                      className={`relative overflow-hidden rounded-xl bg-ink/10 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-finland ${
-                        stayGalleryImages.length > 1
-                          ? 'lg:col-span-2 lg:row-span-2 aspect-[4/3] lg:aspect-auto'
-                          : 'aspect-[16/10] max-h-[28rem]'
-                      }`}
-                      aria-label={`Open gallery, photo 1 of ${stayGalleryImages.length}`}
-                    >
-                      <img
-                        src={hero}
-                        alt=""
-                        decoding="async"
-                        fetchPriority="high"
-                        className="absolute inset-0 h-full w-full object-cover transition-transform duration-[420ms] ease-[cubic-bezier(0.22,1,0.36,1)] motion-safe:hover:scale-[1.03]"
-                      />
-                    </button>
+                  {typeof s?.maxGuests === 'number' ? (
+                    <li className="inline-flex items-center gap-1.5">
+                      <Users className="h-3.5 w-3.5 shrink-0 text-finland" aria-hidden />
+                      Up to {s.maxGuests} guests
+                    </li>
                   ) : null}
-                  {(hero ? gallery : gallery.slice(1)).slice(0, hero ? 4 : 5).map((url, i) => {
-                    const src = listingHeroImageSrc(url) ?? url;
-                    const index = stayGalleryImages.indexOf(src);
-                    const photoIndex = index >= 0 ? index : i + (hero ? 1 : 0);
-                    const isLastTile = i === 3 && stayGalleryImages.length > 5;
-                    return (
-                      <button
-                        key={url}
-                        type="button"
-                        onClick={() => {
-                          setSelectedImage(photoIndex);
-                          setGalleryLightboxOpen(true);
-                        }}
-                        className="relative hidden overflow-hidden rounded-xl bg-ink/10 aspect-[4/3] lg:block text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-finland"
-                        aria-label={`Open gallery, photo ${photoIndex + 1} of ${stayGalleryImages.length}`}
-                      >
-                        <img
-                          src={src}
-                          alt=""
-                          loading="lazy"
-                          decoding="async"
-                          className="absolute inset-0 h-full w-full object-cover"
-                        />
-                        {isLastTile ? (
-                          <span className="absolute inset-0 flex items-center justify-center bg-ink/45 text-sm font-semibold text-white">
-                            +{stayGalleryImages.length - 5} more
-                          </span>
-                        ) : null}
-                      </button>
-                    );
-                  })}
-                  {gallery.length > 0 ? (
-                    <div className="flex gap-2 overflow-x-auto pb-1 lg:hidden -mx-1 px-1 snap-x snap-mandatory">
-                      {gallery.slice(0, 6).map((url, index) => {
-                        const src = listingHeroImageSrc(url) ?? url;
-                        const photoIndex = stayGalleryImages.indexOf(src);
-                        const safeIndex = photoIndex >= 0 ? photoIndex : index + (hero ? 1 : 0);
-                        return (
-                          <button
-                            key={`m-${url}`}
-                            type="button"
-                            onClick={() => {
-                              setSelectedImage(safeIndex);
-                              setGalleryLightboxOpen(true);
-                            }}
-                            className="relative w-[42%] shrink-0 snap-start overflow-hidden rounded-xl aspect-[4/3] text-left"
-                            aria-label={`Photo ${safeIndex + 1} of ${stayGalleryImages.length}`}
-                          >
-                            <img src={src} alt="" className="h-full w-full object-cover" />
-                          </button>
-                        );
-                      })}
-                    </div>
+                  {typeof s?.bedrooms === 'number' ? (
+                    <li className="inline-flex items-center gap-1.5">
+                      <Home className="h-3.5 w-3.5 shrink-0 text-finland" aria-hidden />
+                      {s.bedrooms === 1 ? '1 bedroom' : `${s.bedrooms} bedrooms`}
+                    </li>
                   ) : null}
-                </div>
-              ) : (
-                <div className="flex aspect-[21/9] items-center justify-center rounded-xl bg-ink/[0.06] ring-1 ring-black/[0.04]">
-                  <p className="px-4 text-center text-sm text-ink-muted">No photos yet for this stay</p>
-                </div>
-              )}
-              {hasStayGallery ? (
-                <div className="mt-2 flex items-center justify-between gap-3">
-                  <p className="text-xs text-ink-muted tabular-nums">
-                    {stayGalleryImages.length} {stayGalleryImages.length === 1 ? 'photo' : 'photos'}
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSelectedImage(0);
-                      setGalleryLightboxOpen(true);
-                    }}
-                    className="tv-section-cta lux-flat text-xs"
-                  >
-                    View all photos
-                  </button>
-                </div>
-              ) : null}
-            </div>
-
-            <section className="border-b border-black/[0.08] pb-8">
-              <p className="text-base font-semibold tracking-tight text-ink">
-                {s?.propertyType?.trim()
-                  ? `Entire ${s.propertyType.trim()}${hostName ? ` hosted by ${hostName}` : ''}`
-                  : hostName
-                    ? `Entire stay hosted by ${hostName}`
-                    : 'Entire stay'}
-              </p>
-              {stay.subtitle?.trim() ? (
-                <p className="mt-1.5 max-w-prose text-sm leading-relaxed text-ink-muted">{stay.subtitle.trim()}</p>
-              ) : null}
-              <ul className="mt-3.5 flex flex-wrap items-center gap-x-3.5 gap-y-2 text-sm text-ink-muted">
-                {typeof s?.maxGuests === 'number' ? (
-                  <li className="inline-flex items-center gap-1.5">
-                    <Users className="h-3.5 w-3.5 text-finland" aria-hidden strokeWidth={2} />
-                    Up to {s.maxGuests} guests
-                  </li>
-                ) : null}
-                {typeof s?.bedrooms === 'number' ? (
-                  <li className="inline-flex items-center gap-1.5">
-                    <Home className="h-3.5 w-3.5 text-finland" aria-hidden strokeWidth={2} />
-                    {s.bedrooms === 1 ? '1 bedroom' : `${s.bedrooms} bedrooms`}
-                  </li>
-                ) : null}
-                {stayBedSummary(s?.bedMix) || typeof s?.beds === 'number' ? (
-                  <li className="inline-flex items-center gap-1.5">
-                    <BedDouble className="h-3.5 w-3.5 text-finland" aria-hidden strokeWidth={2} />
-                    {stayBedSummary(s?.bedMix) ||
-                      (typeof s?.beds === 'number'
-                        ? s.beds === 1
-                          ? '1 bed'
-                          : `${s.beds} beds`
-                        : null)}
-                  </li>
-                ) : null}
-                {typeof s?.bathrooms === 'number' ? (
-                  <li className="inline-flex items-center gap-1.5">
-                    <Bath className="h-3.5 w-3.5 text-finland" aria-hidden strokeWidth={2} />
-                    {s.bathrooms === 1 ? '1 bath' : `${s.bathrooms} baths`}
-                  </li>
-                ) : null}
-              </ul>
-            </section>
+                  {stayBedSummary(s?.bedMix) || typeof s?.beds === 'number' ? (
+                    <li className="inline-flex items-center gap-1.5">
+                      <BedDouble className="h-3.5 w-3.5 shrink-0 text-finland" aria-hidden />
+                      {stayBedSummary(s?.bedMix) ||
+                        (typeof s?.beds === 'number'
+                          ? s.beds === 1
+                            ? '1 bed'
+                            : `${s.beds} beds`
+                          : null)}
+                    </li>
+                  ) : null}
+                  {typeof s?.bathrooms === 'number' ? (
+                    <li className="inline-flex items-center gap-1.5">
+                      <Bath className="h-3.5 w-3.5 shrink-0 text-finland" aria-hidden />
+                      {s.bathrooms === 1 ? '1 bath' : `${s.bathrooms} baths`}
+                    </li>
+                  ) : null}
+                </ul>
+              </section>
+            ) : null}
 
             {stay.description ? (
-              <section>
-                <h2 className="tv-section-heading mb-2">About this place</h2>
+              <section className={sectionClass}>
+                <h2 className={headingClass}>About this place</h2>
                 <div
                   className={`overflow-hidden transition-[max-height] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${
                     descriptionExpanded ? 'max-h-[80rem]' : 'max-h-[6.5rem]'
@@ -1047,8 +988,8 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
             ) : null}
 
             {stay.highlights?.some((line) => line.trim()) ? (
-              <section>
-                <h2 className="tv-section-heading mb-3">Property highlights</h2>
+              <section className={sectionClass}>
+                <h2 className={headingClass}>Property highlights</h2>
                 <ul className="grid gap-2.5 sm:grid-cols-2">
                   {stay.highlights
                     .filter((line) => line.trim())
@@ -1071,19 +1012,19 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
             ) : null}
 
             {amenities.length > 0 ? (
-              <section>
-                <h2 className="tv-section-heading mb-3">Amenities</h2>
+              <section className={sectionClass}>
+                <h2 className={headingClass}>Amenities</h2>
                 <ul className="grid grid-cols-1 gap-x-4 gap-y-2.5 sm:grid-cols-2">
                   {(amenitiesExpanded ? amenities : amenities.slice(0, 8)).map((a) => {
                     const Icon = stayAmenityLucideIcon(a);
                     return (
-                      <li key={a} className="flex items-center gap-2.5 text-sm text-ink break-words [overflow-wrap:anywhere]">
+                      <li key={a} className="flex min-w-0 items-center gap-2.5 text-sm text-ink break-words [overflow-wrap:anywhere]">
                         {Icon ? (
                           <Icon className="h-4 w-4 shrink-0 text-finland" aria-hidden strokeWidth={1.75} />
                         ) : (
                           <span className="h-4 w-4 shrink-0 rounded-full bg-finland/15" aria-hidden />
                         )}
-                        <span>{a === 'Wifi' ? 'Wi-Fi' : a}</span>
+                        <span className="min-w-0">{a === 'Wifi' ? 'Wi-Fi' : a}</span>
                       </li>
                     );
                   })}
@@ -1105,8 +1046,8 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
               const areas = (primary?.sleepingAreas ?? []).filter((area) => area.beds.length > 0);
               if (areas.length === 0) return null;
               return (
-                <section>
-                  <h2 className="tv-section-heading mb-3">Where you&apos;ll sleep</h2>
+                <section className={sectionClass}>
+                  <h2 className={headingClass}>Where you&apos;ll sleep</h2>
                   <ul className="grid gap-3 sm:grid-cols-2">
                     {areas.map((area) => {
                       const photos = primary?.roomPhotos?.find((row) => row.areaId === area.id)?.urls ?? [];
@@ -1120,7 +1061,7 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
                       return (
                         <li
                           key={area.id}
-                          className="flex gap-3 overflow-hidden rounded-xl ring-1 ring-black/[0.08]"
+                          className="flex min-w-0 gap-3 overflow-hidden rounded-xl ring-1 ring-black/[0.08]"
                         >
                           {cover ? (
                             <img
@@ -1146,49 +1087,80 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
               );
             })()}
 
-            <section className="border-t border-black/[0.08] pt-8">
-              <h2 className="tv-section-heading mb-3 flex items-center gap-2">
-                <Clock className="h-4 w-4 text-finland" aria-hidden strokeWidth={2} />
+            <section className={sectionClass}>
+              <h2 className={`${headingClass} flex items-center gap-2`}>
+                <Clock className="h-4 w-4 text-finland" aria-hidden />
                 Check-in &amp; check-out
               </h2>
-              <ul className="space-y-2 text-sm text-ink-muted">
-                {s?.checkInTime ? <li>Check-in from {s.checkInTime}</li> : null}
-                {s?.checkOutTime ? <li>Check-out by {s.checkOutTime}</li> : null}
-                {stayArrivalMethodLabel(s?.arrivalMethod) ? (
-                  <li>Arrival: {stayArrivalMethodLabel(s?.arrivalMethod)}</li>
+              <dl className="divide-y divide-[#E8EBF0]">
+                {s?.checkInTime ? (
+                  <div className="grid gap-1 py-3 sm:grid-cols-[8.75rem_minmax(0,1fr)] sm:items-start sm:gap-5">
+                    <dt className="text-sm font-semibold tracking-tight text-[#111827]">Check-in</dt>
+                    <dd className="text-sm leading-relaxed text-ink-muted">From {s.checkInTime}</dd>
+                  </div>
                 ) : null}
-                {s?.arrivalNote ? <li>{s.arrivalNote}</li> : null}
+                {s?.checkOutTime ? (
+                  <div className="grid gap-1 py-3 sm:grid-cols-[8.75rem_minmax(0,1fr)] sm:items-start sm:gap-5">
+                    <dt className="text-sm font-semibold tracking-tight text-[#111827]">Check-out</dt>
+                    <dd className="text-sm leading-relaxed text-ink-muted">By {s.checkOutTime}</dd>
+                  </div>
+                ) : null}
+                {stayArrivalMethodLabel(s?.arrivalMethod) ? (
+                  <div className="grid gap-1 py-3 sm:grid-cols-[8.75rem_minmax(0,1fr)] sm:items-start sm:gap-5">
+                    <dt className="text-sm font-semibold tracking-tight text-[#111827]">Arrival</dt>
+                    <dd className="text-sm leading-relaxed text-ink-muted">
+                      {stayArrivalMethodLabel(s?.arrivalMethod)}
+                    </dd>
+                  </div>
+                ) : null}
+                {s?.arrivalNote ? (
+                  <div className="grid gap-1 py-3 sm:grid-cols-[8.75rem_minmax(0,1fr)] sm:items-start sm:gap-5">
+                    <dt className="text-sm font-semibold tracking-tight text-[#111827]">Note</dt>
+                    <dd className="text-sm leading-relaxed text-ink-muted break-words [overflow-wrap:anywhere]">
+                      {s.arrivalNote}
+                    </dd>
+                  </div>
+                ) : null}
                 {(() => {
                   // Phase 1587: only times / missing-time honesty here — Trips email note lives on booking panel (1585/1586).
                   const missing = stayCheckInOutMissingCopy({
                     checkInTime: s?.checkInTime,
                     checkOutTime: s?.checkOutTime,
                   });
-                  return missing ? <li>{missing}</li> : null;
+                  return missing ? (
+                    <div className="grid gap-1 py-3 sm:grid-cols-[8.75rem_minmax(0,1fr)] sm:items-start sm:gap-5">
+                      <dt className="text-sm font-semibold tracking-tight text-[#111827]">Times</dt>
+                      <dd className="text-sm leading-relaxed text-ink-muted">{missing}</dd>
+                    </div>
+                  ) : null;
                 })()}
-                <li className="text-ink-faint">
-                  Access codes and the private arrival address are shared with confirmed guests after payment.
-                </li>
-              </ul>
+                <div className="grid gap-1 py-3 sm:grid-cols-[8.75rem_minmax(0,1fr)] sm:items-start sm:gap-5">
+                  <dt className="text-sm font-semibold tracking-tight text-[#111827]">Access</dt>
+                  <dd className="text-sm leading-relaxed text-ink-faint">
+                    Access codes and the private arrival address are shared with confirmed guests after payment.
+                  </dd>
+                </div>
+              </dl>
             </section>
 
             {stayRestrictionLines(s?.restrictions).length > 0 || s?.houseRules ? (
-              <section className="border-t border-black/[0.08] pt-8">
-                <h2 className="tv-section-heading mb-3">House rules</h2>
+              <section className={sectionClass}>
+                <h2 className={headingClass}>House rules</h2>
                 {stayRestrictionLines(s?.restrictions).length > 0 ? (
-                  <ul className="mb-3 grid gap-2 sm:grid-cols-2">
+                  <ul className="mb-1 divide-y divide-[#E8EBF0]">
                     {stayRestrictionLines(s?.restrictions).map((line) => (
-                      <li
-                        key={line}
-                        className="rounded-lg px-3 py-2 text-sm text-ink-muted ring-1 ring-black/[0.06]"
-                      >
+                      <li key={line} className="py-2.5 text-sm text-ink-muted">
                         {line}
                       </li>
                     ))}
                   </ul>
                 ) : null}
                 {s?.houseRules ? (
-                  <p className="text-sm text-ink-muted break-words [overflow-wrap:anywhere] whitespace-pre-wrap">
+                  <p
+                    className={`text-sm text-ink-muted break-words [overflow-wrap:anywhere] whitespace-pre-wrap ${
+                      stayRestrictionLines(s?.restrictions).length > 0 ? 'mt-3 border-t border-[#E8EBF0] pt-3' : ''
+                    }`}
+                  >
                     {s.houseRules}
                   </p>
                 ) : null}
@@ -1197,9 +1169,9 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
 
             {s &&
             (s.exteriorCamera || (s.safetyConsiderations?.length ?? 0) > 0 || s.safetyNote) ? (
-              <section className="border-t border-black/[0.08] pt-8">
-                <h2 className="tv-section-heading mb-3 flex items-center gap-2">
-                  <Shield className="h-4 w-4 text-finland" aria-hidden strokeWidth={2} />
+              <section className={sectionClass}>
+                <h2 className={`${headingClass} flex items-center gap-2`}>
+                  <Shield className="h-4 w-4 text-finland" aria-hidden />
                   Safety
                 </h2>
                 <ul className="space-y-1.5 text-sm text-ink-muted">
@@ -1221,8 +1193,8 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
               </section>
             ) : null}
 
-            <section className="border-t border-black/[0.08] pt-8">
-              <h2 className="tv-section-heading mb-2">Cancellation</h2>
+            <section className={sectionClass}>
+              <h2 className={headingClass}>Cancellation</h2>
               <p
                 className={`text-sm text-ink-muted break-words [overflow-wrap:anywhere] whitespace-pre-wrap ${
                   cancellationExpanded ? '' : 'line-clamp-3'
@@ -1241,225 +1213,9 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
                 </button>
               ) : null}
             </section>
-
-            {hostName ? (
-              <section className="border-t border-black/[0.08] pt-8">
-                <h2 className="tv-section-heading mb-2">Host</h2>
-                <p className="text-sm font-medium text-ink">{hostName}</p>
-                {hostDescription ? (
-                  <p className="mt-2 text-sm text-ink-muted leading-relaxed whitespace-pre-wrap">{hostDescription}</p>
-                ) : null}
-                <p className="mt-1 text-sm text-ink-muted">
-                  Contact details and private arrival instructions are shared after booking confirmation.
-                </p>
-              </section>
-            ) : null}
-
-            <div id="stay-reviews" className="border-t border-black/[0.08] pt-8">
-              <div className="mb-2 flex flex-wrap items-end justify-between gap-3">
-                <h2 className="tv-section-heading">Reviews</h2>
-                {reviews.length > 0 ? (
-                  <button
-                    type="button"
-                    onClick={() => setReviewsModalOpen(true)}
-                    className="text-sm font-semibold text-finland hover:underline"
-                  >
-                    See all reviews
-                  </button>
-                ) : null}
-              </div>
-              {(() => {
-                const review = publicReviewLabel(reviewAggregate);
-                return review.score ? (
-                  <div className="mb-4 flex items-center gap-3">
-                    <p className="text-4xl font-bold tabular-nums leading-none tracking-tight text-[#111827]">
-                      {review.score}
-                    </p>
-                    <div>
-                      <StarRatingDisplay rating={Number(review.score) || 0} size={16} />
-                      <p className="mt-1 text-sm text-ink-muted">
-                        {review.count} {review.count === 1 ? 'review' : 'reviews'}
-                      </p>
-                    </div>
-                  </div>
-                ) : null;
-              })()}
-              {reviewsLoadError ? (
-                <div className="mb-4 max-w-xl">
-                  <p className="text-ink-muted leading-relaxed">{reviewsLoadError}</p>
-                  <button
-                    type="button"
-                    className="mt-2 text-sm font-semibold text-finland hover:underline"
-                    onClick={() => loadReviews()}
-                  >
-                    Try again
-                  </button>
-                </div>
-              ) : reviews.length === 0 && !showReviewForm ? (
-                <div className="mb-4 flex items-start gap-3 py-1">
-                  <Star size={20} className="mt-0.5 shrink-0 text-ink-faint" aria-hidden />
-                  <div>
-                    <p className="text-sm font-bold tracking-tight text-[#111827]">No reviews yet</p>
-                    <p className="mt-0.5 max-w-md text-sm leading-relaxed text-ink-muted">
-                      {LISTING_REVIEWS_EMPTY_COPY}
-                    </p>
-                  </div>
-                </div>
-              ) : null}
-              <div className="mb-6 grid items-start gap-4 sm:grid-cols-2">
-                {reviews.slice(0, 4).map((r) => (
-                  <PublicReviewCard
-                    key={r.id}
-                    review={r}
-                    reply={reviewReplies[r.id]}
-                    replyFromLabel="host"
-                  />
-                ))}
-              </div>
-              {canLeaveReview && !hasReviewed && !showReviewForm ? (
-                <div className="space-y-2">
-                  {/* Phase 1656: eligibility microcopy (Tour 1655 parity). */}
-                  <p className="text-sm text-ink-muted max-w-xl">
-                    Reviews are for guests who completed this paid stay.
-                  </p>
-                  <button type="button" onClick={() => setShowReviewForm(true)} className="tv-btn-secondary">
-                    Leave a review
-                  </button>
-                </div>
-              ) : null}
-              {showReviewForm && user ? (
-                <div className="tv-review-compose max-w-xl">
-                  <h3 className="font-display text-xl sm:text-2xl tracking-tight text-ink mb-1">Write a review</h3>
-                  <p className="text-sm text-ink-muted mb-4 leading-relaxed">
-                    Share what stood out — rating and a short note help other travelers.
-                  </p>
-                  <div className="space-y-4">
-                    <div>
-                      <label id="stay-review-rating-label" className="block text-sm font-medium text-ink mb-1">
-                        Rating
-                      </label>
-                      <p className="text-xs text-ink-muted mb-1.5">Tap to rate</p>
-                      <div className="flex gap-1" role="group" aria-labelledby="stay-review-rating-label">
-                        {[1, 2, 3, 4, 5].map((i) => (
-                          <button
-                            key={i}
-                            type="button"
-                            onClick={() => setReviewRating(i)}
-                            className="lux-tap-target min-h-11 min-w-11 inline-flex items-center justify-center p-0.5"
-                            aria-label={`Rate ${i} out of 5 stars`}
-                            aria-pressed={i <= reviewRating}
-                          >
-                            <Star
-                              size={28}
-                              className={i <= reviewRating ? 'text-finland fill-finland' : 'text-ink-faint'}
-                              aria-hidden
-                            />
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                    <div>
-                      <label htmlFor="stay-review-title" className="block text-sm font-medium text-ink mb-1">
-                        Title (optional)
-                      </label>
-                      <input
-                        id="stay-review-title"
-                        type="text"
-                        value={reviewTitle}
-                        onChange={(e) => setReviewTitle(e.target.value)}
-                        className="tv-input"
-                        placeholder="Sum up your stay"
-                      />
-                    </div>
-                    <div>
-                      <label htmlFor="stay-review-comment" className="block text-sm font-medium text-ink mb-1">
-                        Your review *
-                      </label>
-                      <textarea
-                        id="stay-review-comment"
-                        value={reviewComment}
-                        onChange={(e) => setReviewComment(e.target.value.slice(0, 2000))}
-                        rows={3}
-                        maxLength={2000}
-                        className="tv-input"
-                        placeholder="Tell others what you liked…"
-                        required
-                        aria-describedby="stay-review-comment-hint"
-                      />
-                      {/* Phase 1696: live length honesty on review compose. */}
-                      <p id="stay-review-comment-hint" className="mt-1.5 text-xs text-ink-faint">
-                        Up to 2000 characters
-                        {reviewComment.length > 0 ? ` · ${reviewComment.length} used` : ''}.
-                      </p>
-                    </div>
-                    {reviewError ? (
-                      <NoticeCallout title="Could not submit review" tone="danger">
-                        {reviewError}
-                      </NoticeCallout>
-                    ) : null}
-                    <div className="flex gap-3">
-                      <button
-                        type="button"
-                        disabled={reviewSubmitting || !reviewComment.trim()}
-                        aria-busy={reviewSubmitting || undefined}
-                        onClick={async () => {
-                          if (!bookingIdForReview) {
-                            setReviewError('A completed booking is required to leave a review.');
-                            return;
-                          }
-                          setReviewSubmitting(true);
-                          setReviewError(null);
-                          const res = await submitReview({
-                            listingId: stay.id,
-                            userId: user.id,
-                            guestName: travelerDisplayNameFromSources({
-                              formValue: guestName,
-                              profileDisplayName,
-                              metadata: user.user_metadata as {
-                                full_name?: string;
-                                name?: string;
-                                customer_first_name?: string;
-                                customer_last_name?: string;
-                              },
-                            }),
-                            rating: reviewRating,
-                            title: reviewTitle.trim() || undefined,
-                            comment: reviewComment.trim(),
-                            bookingId: bookingIdForReview,
-                          });
-                          setReviewSubmitting(false);
-                          if (res.success) {
-                            setShowReviewForm(false);
-                            setReviewTitle('');
-                            setReviewComment('');
-                            setHasReviewed(true);
-                            loadReviews();
-                          } else {
-                            setReviewError(userFacingError(res.error, USER_ERROR.review));
-                          }
-                        }}
-                        className="tv-btn-primary disabled:opacity-50"
-                      >
-                        {reviewSubmitting ? 'Submitting…' : 'Submit review'}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setShowReviewForm(false);
-                          setReviewError(null);
-                        }}
-                        className="tv-btn-ghost"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ) : null}
-            </div>
           </div>
 
-          <div className="min-w-0">
+          <div className="tv-pdp-aside min-w-0">
           <aside
             id="stay-booking-panel"
             role="region"
@@ -1699,6 +1455,250 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
           </div>
         </div>
       </div>
+
+      {canLoadReviews || hostName ? (
+        <div className="tv-shell mx-auto mt-2 px-4 sm:px-6 lg:px-8">
+          {canLoadReviews ? (
+            <div id="stay-reviews" className="tv-pdp-below border-t border-[#E8EBF0] pt-8 scroll-mt-28">
+              <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+                <h2 className="tv-section-heading">Reviews</h2>
+                {reviews.length > 0 ? (
+                  <button
+                    type="button"
+                    onClick={() => setReviewsModalOpen(true)}
+                    className="text-sm font-semibold text-finland hover:underline"
+                  >
+                    See all reviews
+                  </button>
+                ) : null}
+              </div>
+              {(() => {
+                const review = publicReviewLabel(reviewAggregate);
+                return review.score ? (
+                  <div className="mb-4 flex items-center gap-3">
+                    <p className="text-4xl font-bold tabular-nums leading-none tracking-tight text-[#111827]">
+                      {review.score}
+                    </p>
+                    <div>
+                      <StarRatingDisplay rating={Number(review.score) || 0} size={16} />
+                      <p className="mt-1 text-sm text-ink-muted">
+                        {review.count} {review.count === 1 ? 'review' : 'reviews'}
+                      </p>
+                    </div>
+                  </div>
+                ) : null;
+              })()}
+              {reviewsLoadError ? (
+                <div className="mb-4 max-w-xl">
+                  <p className="text-ink-muted leading-relaxed">{reviewsLoadError}</p>
+                  <button
+                    type="button"
+                    className="mt-2 text-sm font-semibold text-finland hover:underline"
+                    onClick={() => loadReviews()}
+                  >
+                    Try again
+                  </button>
+                </div>
+              ) : reviews.length === 0 && !showReviewForm ? (
+                <div className="mb-4 flex items-start gap-3 py-1">
+                  <Star size={20} className="mt-0.5 shrink-0 text-ink-faint" aria-hidden />
+                  <div>
+                    <p className="text-sm font-bold tracking-tight text-[#111827]">No reviews yet</p>
+                    <p className="mt-0.5 max-w-md text-sm leading-relaxed text-ink-muted">
+                      {LISTING_REVIEWS_EMPTY_COPY}
+                    </p>
+                  </div>
+                </div>
+              ) : null}
+              <div className="mb-6 grid items-start gap-4 sm:grid-cols-2">
+                {reviews.slice(0, 4).map((r) => (
+                  <PublicReviewCard
+                    key={r.id}
+                    review={r}
+                    reply={reviewReplies[r.id]}
+                    replyFromLabel="host"
+                  />
+                ))}
+              </div>
+              {canLeaveReview && !hasReviewed && !showReviewForm ? (
+                <div className="space-y-2">
+                  {/* Phase 1656: eligibility microcopy (Tour 1655 parity). */}
+                  <p className="text-sm text-ink-muted max-w-xl">
+                    Reviews are for guests who completed this paid stay.
+                  </p>
+                  <button type="button" onClick={() => setShowReviewForm(true)} className="tv-btn-secondary">
+                    Leave a review
+                  </button>
+                </div>
+              ) : null}
+              {showReviewForm && user ? (
+                <div className="tv-review-compose max-w-xl">
+                  <h3 className="font-display text-xl sm:text-2xl tracking-tight text-ink mb-1">Write a review</h3>
+                  <p className="text-sm text-ink-muted mb-4 leading-relaxed">
+                    Share what stood out — rating and a short note help other travelers.
+                  </p>
+                  <div className="space-y-4">
+                    <div>
+                      <label id="stay-review-rating-label" className="block text-sm font-medium text-ink mb-1">
+                        Rating
+                      </label>
+                      <p className="text-xs text-ink-muted mb-1.5">Tap to rate</p>
+                      <div className="flex gap-1" role="group" aria-labelledby="stay-review-rating-label">
+                        {[1, 2, 3, 4, 5].map((i) => (
+                          <button
+                            key={i}
+                            type="button"
+                            onClick={() => setReviewRating(i)}
+                            className="lux-tap-target min-h-11 min-w-11 inline-flex items-center justify-center p-0.5"
+                            aria-label={`Rate ${i} out of 5 stars`}
+                            aria-pressed={i <= reviewRating}
+                          >
+                            <Star
+                              size={28}
+                              className={i <= reviewRating ? 'text-finland fill-finland' : 'text-ink-faint'}
+                              aria-hidden
+                            />
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <label htmlFor="stay-review-title" className="block text-sm font-medium text-ink mb-1">
+                        Title (optional)
+                      </label>
+                      <input
+                        id="stay-review-title"
+                        type="text"
+                        value={reviewTitle}
+                        onChange={(e) => setReviewTitle(e.target.value)}
+                        className="tv-input"
+                        placeholder="Sum up your stay"
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="stay-review-comment" className="block text-sm font-medium text-ink mb-1">
+                        Your review *
+                      </label>
+                      <textarea
+                        id="stay-review-comment"
+                        value={reviewComment}
+                        onChange={(e) => setReviewComment(e.target.value.slice(0, 2000))}
+                        rows={3}
+                        maxLength={2000}
+                        className="tv-input"
+                        placeholder="Tell others what you liked…"
+                        required
+                        aria-describedby="stay-review-comment-hint"
+                      />
+                      {/* Phase 1696: live length honesty on review compose. */}
+                      <p id="stay-review-comment-hint" className="mt-1.5 text-xs text-ink-faint">
+                        Up to 2000 characters
+                        {reviewComment.length > 0 ? ` · ${reviewComment.length} used` : ''}.
+                      </p>
+                    </div>
+                    {reviewError ? (
+                      <NoticeCallout title="Could not submit review" tone="danger">
+                        {reviewError}
+                      </NoticeCallout>
+                    ) : null}
+                    <div className="flex gap-3">
+                      <button
+                        type="button"
+                        disabled={reviewSubmitting || !reviewComment.trim()}
+                        aria-busy={reviewSubmitting || undefined}
+                        onClick={async () => {
+                          if (!bookingIdForReview) {
+                            setReviewError('A completed booking is required to leave a review.');
+                            return;
+                          }
+                          setReviewSubmitting(true);
+                          setReviewError(null);
+                          const res = await submitReview({
+                            listingId: stay.id,
+                            userId: user.id,
+                            guestName: travelerDisplayNameFromSources({
+                              formValue: guestName,
+                              profileDisplayName,
+                              metadata: user.user_metadata as {
+                                full_name?: string;
+                                name?: string;
+                                customer_first_name?: string;
+                                customer_last_name?: string;
+                              },
+                            }),
+                            rating: reviewRating,
+                            title: reviewTitle.trim() || undefined,
+                            comment: reviewComment.trim(),
+                            bookingId: bookingIdForReview,
+                          });
+                          setReviewSubmitting(false);
+                          if (res.success) {
+                            setShowReviewForm(false);
+                            setReviewTitle('');
+                            setReviewComment('');
+                            setHasReviewed(true);
+                            loadReviews();
+                          } else {
+                            setReviewError(userFacingError(res.error, USER_ERROR.review));
+                          }
+                        }}
+                        className="tv-btn-primary disabled:opacity-50"
+                      >
+                        {reviewSubmitting ? 'Submitting…' : 'Submit review'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowReviewForm(false);
+                          setReviewError(null);
+                        }}
+                        className="tv-btn-ghost"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+
+          {hostName ? (
+            <section className={`tv-pdp-below ${canLoadReviews ? 'mt-2' : 'border-t border-[#E8EBF0] pt-8'} mb-8`}>
+              <h2 className={headingClass}>Host</h2>
+              <div className="flex max-w-xl items-start gap-3.5">
+                {hostLogoUrl ? (
+                  <img
+                    src={hostLogoUrl}
+                    alt=""
+                    className="h-12 w-12 shrink-0 rounded-xl object-cover ring-1 ring-black/[0.06]"
+                  />
+                ) : (
+                  <div
+                    className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#0758CB]/10 text-sm font-bold text-[#0758CB]"
+                    aria-hidden
+                  >
+                    {hostName.slice(0, 1).toUpperCase()}
+                  </div>
+                )}
+                <div className="min-w-0 pt-0.5">
+                  <p className="text-base font-bold tracking-tight text-[#111827]">{hostName}</p>
+                  <p className="mt-0.5 text-sm text-ink-muted">Host on Traverion</p>
+                </div>
+              </div>
+              {hostDescription ? (
+                <p className="mt-3.5 max-w-xl text-[15px] leading-relaxed text-ink-muted whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
+                  {hostDescription}
+                </p>
+              ) : null}
+              <p className="mt-2 max-w-xl text-sm text-ink-muted">
+                Contact details and private arrival instructions are shared after booking confirmation.
+              </p>
+            </section>
+          ) : null}
+        </div>
+      ) : null}
+
       {createPortal(
         <div className="lg:hidden fixed inset-x-0 bottom-0 z-[60] tv-booking-mobile-bar">
           <div className="mx-auto flex w-full min-w-0 max-w-5xl items-center justify-between gap-3">
@@ -1767,90 +1767,6 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
         replies={reviewReplies}
         listingTitle={stay.title}
       />
-
-      {galleryLightboxOpen && hasStayGallery ? (
-        <div
-          ref={gallerySheetRef}
-          className="tv-gallery-lightbox"
-          role="dialog"
-          aria-modal="true"
-          aria-label="Photo gallery"
-          tabIndex={-1}
-          onKeyDown={(e) => {
-            if (stayGalleryImages.length < 2) return;
-            if (e.key === 'ArrowRight') {
-              e.preventDefault();
-              setSelectedImage((i) => (i >= stayGalleryImages.length - 1 ? 0 : i + 1));
-            } else if (e.key === 'ArrowLeft') {
-              e.preventDefault();
-              setSelectedImage((i) => (i <= 0 ? stayGalleryImages.length - 1 : i - 1));
-            }
-          }}
-        >
-          <div className="flex items-center justify-between gap-3 px-4 py-3 text-white">
-            <p className="text-sm font-medium tabular-nums">
-              {Math.min(selectedImage, stayGalleryImages.length - 1) + 1} / {stayGalleryImages.length}
-            </p>
-            <button
-              type="button"
-              className="tv-gallery-lightbox__close"
-              aria-label="Close"
-              onClick={closeGalleryLightbox}
-            >
-              <X className="h-6 w-6" strokeWidth={2.25} aria-hidden />
-            </button>
-          </div>
-          <div className="relative flex flex-1 items-center justify-center px-4 pb-6">
-            {stayGalleryImages.length > 1 ? (
-              <button
-                type="button"
-                className="tv-gallery-lightbox__nav absolute left-3 sm:left-6 z-10"
-                aria-label="Previous photo"
-                onClick={() =>
-                  setSelectedImage((i) => (i <= 0 ? stayGalleryImages.length - 1 : i - 1))
-                }
-              >
-                <ChevronLeft className="h-5 w-5" aria-hidden />
-              </button>
-            ) : null}
-            <img
-              src={stayGalleryImages[Math.min(selectedImage, stayGalleryImages.length - 1)]}
-              alt=""
-              className="max-h-[min(78vh,900px)] max-w-full rounded-lg object-contain shadow-2xl"
-            />
-            {stayGalleryImages.length > 1 ? (
-              <button
-                type="button"
-                className="tv-gallery-lightbox__nav absolute right-3 sm:right-6 z-10"
-                aria-label="Next photo"
-                onClick={() =>
-                  setSelectedImage((i) => (i >= stayGalleryImages.length - 1 ? 0 : i + 1))
-                }
-              >
-                <ChevronRight className="h-5 w-5" aria-hidden />
-              </button>
-            ) : null}
-          </div>
-          {stayGalleryImages.length > 1 ? (
-            <div className="flex justify-center gap-2 overflow-x-auto px-4 pb-6">
-              {stayGalleryImages.map((img, index) => (
-                <button
-                  key={`lb-${index}`}
-                  type="button"
-                  onClick={() => setSelectedImage(index)}
-                  aria-label={`Photo ${index + 1}`}
-                  aria-current={selectedImage === index ? 'true' : undefined}
-                  className={`h-14 w-14 shrink-0 overflow-hidden rounded-lg ring-2 transition-opacity ${
-                    selectedImage === index ? 'ring-white' : 'ring-transparent opacity-70 hover:opacity-100'
-                  }`}
-                >
-                  <img src={img} alt="" className="h-full w-full object-cover" />
-                </button>
-              ))}
-            </div>
-          ) : null}
-        </div>
-      ) : null}
     </div>
   );
 }

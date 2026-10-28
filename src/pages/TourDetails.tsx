@@ -8,8 +8,6 @@ import {
   Share2,
   CheckCircle,
   Heart,
-  ChevronLeft,
-  ChevronRight,
   Users,
   X,
 } from 'lucide-react';
@@ -49,7 +47,8 @@ import { listingIsOnTravelerCatalog } from '../lib/inventory';
 import { reviewOnlyPackageFromListingOps } from '../lib/trip-views';
 import { fetchListingOpsByIds } from '../data/supabase-listings';
 import { listingShowsFreeCancellation, publicReviewLabel } from '../lib/listingTruth';
-import { listingHeroImageSrc } from '../lib/listingPhotoGrid';
+import { listingHeroImageSrc, orderedPhotoUrls, photoSlotsFromTourPackage } from '../lib/listingPhotoGrid';
+import ListingPdpPhotoGallery from '../components/ListingPdpPhotoGallery';
 import { LISTING_SELF_BOOK_BLOCKED, LISTING_SELF_BOOK_CHECK_FAILED, viewerIsListingSupplierSide } from '../lib/listing-self-book';
 import { listingTourCapacityFromOptions, remainingCapacity, capacitySpotsFromBookingOptions } from '../lib/availability-ops';
 import { departureSlotSpotsLeft, maxSpotsLeftAcrossDepartures, partyMaxCappedByRemainingSpots } from '../lib/departure-slot-remaining';
@@ -176,7 +175,6 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
   const [tourLoadError, setTourLoadError] = useState<string | null>(null);
   /** Phase 1731: loaded for Leave a review when draft/season-ended (not a live bookable PDP). */
   const [reviewOnlyAccess, setReviewOnlyAccess] = useState(false);
-  const [selectedImage, setSelectedImage] = useState(0);
   const [reviews, setReviews] = useState<ReviewDisplay[]>([]);
   const [reviewsLoadError, setReviewsLoadError] = useState<string | null>(null);
   const [reviewReplies, setReviewReplies] = useState<Record<string, ReviewReplyRow>>({});
@@ -207,25 +205,10 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
   } | null>(null);
   const [legalModal, setLegalModal] = useState<'privacy' | 'terms' | null>(null);
   const legalSheetRef = useRef<HTMLDivElement>(null);
-  const gallerySheetRef = useRef<HTMLDivElement>(null);
-  const galleryTouchX = useRef<number | null>(null);
-  const [galleryLightboxOpen, setGalleryLightboxOpen] = useState(false);
   const [participantsOpen, setParticipantsOpen] = useState(false);
   const participantsRef = useRef<HTMLDivElement>(null);
   const closeLegalModal = useCallback(() => setLegalModal(null), []);
-  const closeGalleryLightbox = useCallback(() => setGalleryLightboxOpen(false), []);
   useDialogFocus(legalModal !== null, legalSheetRef, closeLegalModal);
-  useDialogFocus(galleryLightboxOpen, gallerySheetRef, closeGalleryLightbox);
-  useEffect(() => {
-    if (!galleryLightboxOpen) return;
-    const y = window.scrollY;
-    const previous = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.body.style.overflow = previous;
-      window.scrollTo(0, y);
-    };
-  }, [galleryLightboxOpen]);
   useEffect(() => {
     if (!participantsOpen) return;
     const onPointer = (event: MouseEvent) => {
@@ -1659,14 +1642,7 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
     );
   }
 
-  const galleryExtras = (tour.listingExtras?.galleryImageUrls ?? [])
-    .map((u) => listingHeroImageSrc(u))
-    .filter((u): u is string => Boolean(u))
-    .slice(0, 3);
-  const hero = listingHeroImageSrc(tour.image);
-  const uniqueGallery = [hero, ...galleryExtras].filter((u, i, arr): u is string => Boolean(u) && arr.indexOf(u) === i);
-  const images = uniqueGallery;
-  const hasGallery = images.length > 0;
+  const images = orderedPhotoUrls(photoSlotsFromTourPackage(tour));
   const review = publicReviewLabel(reviewAggregate);
 
   if (checkoutUnlocked && checkoutFromUrl && checkoutVariant) {
@@ -1775,86 +1751,11 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
 
         <div className="tv-pdp-layout">
           <div className="tv-pdp-main">
-        <div>
-          {hasGallery ? (
-            <div className={`grid grid-cols-1 gap-2 ${images.length > 1 ? 'lg:grid-cols-4 lg:grid-rows-2 lg:h-[21rem] lg:gap-2' : ''}`}>
-              <button
-                type="button"
-                onClick={() => {
-                  setSelectedImage(0);
-                  setGalleryLightboxOpen(true);
-                }}
-                className={`relative overflow-hidden rounded-xl bg-ink/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0758CB] ${images.length > 1 ? 'lg:col-span-2 lg:row-span-2 aspect-[4/3] lg:aspect-auto' : 'aspect-[16/10] max-h-[28rem]'}`}
-                aria-label={`Open gallery, photo 1 of ${images.length}`}
-              >
-                  <img
-                  src={images[0]}
-                  alt={tour.title}
-                  decoding="async"
-                  fetchPriority="high"
-                  className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 motion-safe:hover:scale-[1.02]"
-                />
-              </button>
-              {images.slice(1, 5).map((img, i) => (
-                <button
-                  key={img}
-                  type="button"
-                  onClick={() => {
-                    setSelectedImage(i + 1);
-                    setGalleryLightboxOpen(true);
-                  }}
-                  className="relative hidden overflow-hidden rounded-xl bg-ink/10 aspect-[4/3] lg:block focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0758CB]"
-                  aria-label={`Open gallery, photo ${i + 2} of ${images.length}`}
-                >
-                  <img src={img} alt={`${tour.title}, photo ${i + 2}`} loading="lazy" decoding="async" className="absolute inset-0 h-full w-full object-cover" />
-                  {i === 3 && images.length > 5 ? (
-                    <span className="absolute inset-0 flex items-center justify-center bg-ink/45 text-sm font-semibold text-white">
-                      +{images.length - 5} more
-                    </span>
-                  ) : null}
-                </button>
-              ))}
-              {images.length > 1 ? (
-                <div className="flex gap-2 overflow-x-auto pb-1 lg:hidden -mx-1 px-1 snap-x snap-mandatory">
-                  {images.map((img, index) => (
-                    <button
-                      key={`m-${index}`}
-                      type="button"
-                      onClick={() => {
-                        setSelectedImage(index);
-                        setGalleryLightboxOpen(true);
-                      }}
-                      className={`relative shrink-0 snap-start overflow-hidden rounded-xl ${
-                        index === 0 ? 'hidden' : 'w-[42%] aspect-[4/3]'
-                      }`}
-                      aria-label={`Photo ${index + 1} of ${images.length}`}
-                    >
-                      <img src={img} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />
-                    </button>
-                  ))}
-                </div>
-              ) : null}
-            </div>
-          ) : (
-            <div className="flex aspect-[21/9] items-center justify-center rounded-xl bg-ink/[0.06] ring-1 ring-black/[0.04]">
-              <p className="px-4 text-center text-sm text-ink-muted">No photos yet for this experience</p>
-            </div>
-          )}
-          {hasGallery ? (
-            <div className="mt-2 flex items-center justify-between gap-3">
-              <p className="text-xs text-ink-muted tabular-nums">
-                {images.length} {images.length === 1 ? 'photo' : 'photos'}
-              </p>
-              <button
-                type="button"
-                onClick={() => setGalleryLightboxOpen(true)}
-                className="tv-section-cta lux-flat text-xs"
-              >
-                View all photos
-              </button>
-            </div>
-          ) : null}
-        </div>
+        <ListingPdpPhotoGallery
+          photos={images}
+          title={tour.title}
+          emptyLabel="No photos yet for this experience"
+        />
 
         {tour.subtitle?.trim() ? (
           <p className="tv-tour-subtitle mt-4 max-w-2xl text-[0.9375rem] leading-relaxed text-ink-muted break-words [overflow-wrap:anywhere]">
@@ -2775,104 +2676,6 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
           )
         : null}
 
-
-      {galleryLightboxOpen && hasGallery
-        ? createPortal(
-        <div
-          ref={gallerySheetRef}
-          className="tv-gallery-lightbox"
-          role="dialog"
-          aria-modal="true"
-          aria-label="Photo gallery"
-          tabIndex={-1}
-          onKeyDown={(e) => {
-            if (images.length < 2) return;
-            if (e.key === 'ArrowRight') {
-              e.preventDefault();
-              setSelectedImage((i) => (i >= images.length - 1 ? 0 : i + 1));
-            } else if (e.key === 'ArrowLeft') {
-              e.preventDefault();
-              setSelectedImage((i) => (i <= 0 ? images.length - 1 : i - 1));
-            }
-          }}
-          onTouchStart={(e) => {
-            galleryTouchX.current = e.changedTouches[0]?.clientX ?? null;
-          }}
-          onTouchEnd={(e) => {
-            const start = galleryTouchX.current;
-            galleryTouchX.current = null;
-            if (start == null || images.length < 2) return;
-            const dx = (e.changedTouches[0]?.clientX ?? start) - start;
-            if (dx > 48) setSelectedImage((i) => (i <= 0 ? images.length - 1 : i - 1));
-            else if (dx < -48) setSelectedImage((i) => (i >= images.length - 1 ? 0 : i + 1));
-          }}
-        >
-          <div className="flex items-center justify-between gap-3 px-4 py-3 text-white">
-            <p className="text-sm font-medium tabular-nums">
-              {Math.min(selectedImage, images.length - 1) + 1} / {images.length}
-            </p>
-            <button
-              type="button"
-              className="tv-gallery-lightbox__close"
-              aria-label="Close"
-              onClick={closeGalleryLightbox}
-            >
-              <X className="h-6 w-6" strokeWidth={2.25} aria-hidden />
-            </button>
-          </div>
-          <div className="relative flex flex-1 items-center justify-center px-4 pb-6">
-            {images.length > 1 ? (
-              <button
-                type="button"
-                className="tv-gallery-lightbox__nav absolute left-3 sm:left-6 z-10"
-                aria-label="Previous photo"
-                onClick={() =>
-                  setSelectedImage((i) => (i <= 0 ? images.length - 1 : i - 1))
-                }
-              >
-                <ChevronLeft className="h-5 w-5" aria-hidden />
-              </button>
-            ) : null}
-            <img
-              src={images[Math.min(selectedImage, images.length - 1)]}
-              alt={`${tour.title}, photo ${Math.min(selectedImage, images.length - 1) + 1} of ${images.length}`}
-              className="max-h-[min(78vh,900px)] max-w-full rounded-lg object-contain shadow-2xl"
-              decoding="async"
-            />
-            {images.length > 1 ? (
-              <button
-                type="button"
-                className="tv-gallery-lightbox__nav absolute right-3 sm:right-6 z-10"
-                aria-label="Next photo"
-                onClick={() =>
-                  setSelectedImage((i) => (i >= images.length - 1 ? 0 : i + 1))
-                }
-              >
-                <ChevronRight className="h-5 w-5" aria-hidden />
-              </button>
-            ) : null}
-          </div>
-          {images.length > 1 ? (
-            <div className="flex justify-center gap-2 overflow-x-auto px-4 pb-6">
-              {images.map((img, index) => (
-                <button
-                  key={`lb-${index}`}
-                  type="button"
-                  onClick={() => setSelectedImage(index)}
-                  aria-label={`Photo ${index + 1}`}
-                  aria-current={selectedImage === index ? 'true' : undefined}
-                  className={`h-14 w-14 shrink-0 overflow-hidden rounded-lg ring-2 transition-opacity ${
-                    selectedImage === index ? 'ring-white' : 'ring-transparent opacity-70 hover:opacity-100'
-                  }`}
-                >
-                  <img src={img} alt="" className="h-full w-full object-cover" />
-                </button>
-              ))}
-            </div>
-          ) : null}
-        </div>,
-        document.body
-      ) : null}
 
       <ListingReviewsModal
         open={reviewsModalOpen}

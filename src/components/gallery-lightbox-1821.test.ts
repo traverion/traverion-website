@@ -10,14 +10,15 @@ describe('Phase 1821: listing gallery lightbox polish', () => {
     expect(css).toContain('.tv-gallery-lightbox__nav');
   });
 
-  it('Tour and Stay lightboxes share chrome and prev/next', () => {
+  it('Tour and Stay share ListingPdpPhotoGallery chrome and prev/next', () => {
     const tour = readFileSync(resolve(__dirname, '../pages/TourDetails.tsx'), 'utf8');
     const stay = readFileSync(resolve(__dirname, '../pages/StayDetails.tsx'), 'utf8');
-    expect(tour).toContain('tv-gallery-lightbox');
-    expect(stay).toContain('tv-gallery-lightbox');
-    expect(tour).toContain('Previous photo');
-    expect(stay).toContain('Next photo');
-    expect(tour).toContain('tv-section-cta');
-    expect(stay).toContain('tv-section-cta');
+    const gallery = readFileSync(resolve(__dirname, 'ListingPdpPhotoGallery.tsx'), 'utf8');
+    expect(tour).toContain('ListingPdpPhotoGallery');
+    expect(stay).toContain('ListingPdpPhotoGallery');
+    expect(gallery).toContain('tv-gallery-lightbox');
+    expect(gallery).toContain('Previous photo');
+    expect(gallery).toContain('Next photo');
+    expect(gallery).toContain('tv-section-cta');
   });
 });

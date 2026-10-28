@@ -4390,6 +4390,7 @@ a:focus-visible,
 
 /* Tour Details — premium hero + surfaces */
 .tv-tour-pdp .tv-tour-title,
+.tv-stay-pdp .tv-tour-title,
 .tv-rental-pdp .tv-tour-title {
   font-size: clamp(1.45rem, 2.1vw, 2rem);
   line-height: 1.18;
@@ -4397,6 +4398,7 @@ a:focus-visible,
   max-width: 100%;
 }
 .tv-tour-pdp .tv-tour-subtitle,
+.tv-stay-pdp .tv-tour-subtitle,
 .tv-rental-pdp .tv-tour-subtitle {
   font-size: 0.9375rem;
   line-height: 1.6;
@@ -4560,16 +4562,31 @@ details:not([open]) > :not(summary) {
   }
 }
 .tv-booking-sticky.tv-booking-sticky--stay {
-  padding: 0.85rem 0.9rem 0.95rem;
+  /* Match Tour sticky chrome; slightly denser padding for stay date/guest stack. */
+  padding: 0.95rem 1rem 1.05rem;
+  border-radius: var(--tv-radius-lg, 1rem);
+  border: 1px solid rgba(232, 235, 240, 0.95);
 }
 .tv-booking-sticky.tv-booking-sticky--stay .tv-input {
   min-height: 2.5rem;
   padding-top: 0.45rem;
   padding-bottom: 0.45rem;
 }
+.tv-booking-sticky.tv-booking-sticky--stay .tv-btn-primary {
+  min-height: var(--tv-control-h, 2.75rem);
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
 /* Rental PDP: dense sticky card for option + dates/times + quantity + CTA */
 .tv-booking-sticky.tv-booking-sticky--rental {
   padding: 0.85rem 0.9rem 0.95rem;
+  border-radius: var(--tv-radius-lg, 1rem);
+  border: 1px solid rgba(232, 235, 240, 0.95);
+}
+.tv-booking-sticky.tv-booking-sticky--rental .tv-btn-primary {
+  min-height: var(--tv-control-h, 2.75rem);
+  font-weight: 650;
+  letter-spacing: -0.01em;
 }
 .tv-booking-sticky.tv-booking-sticky--rental .tv-input {
   min-height: 2.5rem;
