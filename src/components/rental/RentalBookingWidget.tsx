@@ -2,7 +2,7 @@
  * Traveler rental booking selector.
  * Quotes and availability preview; checkout CTA stays disabled until release approval.
  */
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Loader2, Shield } from 'lucide-react';
 import type { RentalDetails, RentalVariant } from '../../types/rental';
 import {
@@ -83,7 +83,14 @@ export default function RentalBookingWidget({
   const [paying, setPaying] = useState(false);
   const [payError, setPayError] = useState<string | null>(null);
   const [reviewing, setReviewing] = useState(false);
+  const primaryCtaRef = useRef<HTMLButtonElement | null>(null);
   const variants = rental.variants ?? [];
+
+  useEffect(() => {
+    if (!reviewing) return;
+    // Keep review CTA above the fixed mobile booking bar.
+    primaryCtaRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }, [reviewing]);
 
   const [uncontrolledVariantId, setUncontrolledVariantId] = useState(variants[0]?.id ?? '');
   const variantId = controlledVariantId ?? uncontrolledVariantId;
@@ -645,6 +652,7 @@ export default function RentalBookingWidget({
 
       {reviewing ? (
         <button
+          ref={primaryCtaRef}
           type="button"
           className="tv-btn-primary min-h-11 w-full font-semibold disabled:opacity-60"
           disabled={!checkoutOpen || paying || !consent || !quote?.ok || !interval.ok || availability.ok === false}
@@ -654,6 +662,7 @@ export default function RentalBookingWidget({
         </button>
       ) : (
         <button
+          ref={primaryCtaRef}
           type="button"
           className="tv-btn-primary min-h-11 w-full font-semibold disabled:opacity-60"
           disabled={!quote?.ok || !interval.ok || availability.ok === false}

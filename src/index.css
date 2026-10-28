@@ -4387,6 +4387,13 @@ a:focus-visible,
 .tv-booking-sticky .tv-btn-primary.tv-tour-book:active:not(:disabled) {
   transform: translateY(0.5px);
 }
+/* Keep sticky CTAs clear of the fixed mobile booking bar below lg. */
+@media (max-width: 1023px) {
+  .tv-booking-sticky {
+    margin-bottom: calc(5.75rem + env(safe-area-inset-bottom, 0px));
+    scroll-margin-bottom: calc(5.75rem + env(safe-area-inset-bottom, 0px));
+  }
+}
 
 /* Tour Details — premium hero + surfaces */
 .tv-tour-pdp .tv-tour-title,
