@@ -1,5 +1,6 @@
 import type {
   RentalDetails,
+  RentalDurationMode,
   RentalOperatingDay,
   RentalPricing,
   RentalVariant,
@@ -7,6 +8,16 @@ import type {
 } from '../types/rental';
 import { isRentalCategoryId } from '../types/rental';
 import { newListingCreationId } from './listing-creation-persist';
+
+function asDurationMode(value: unknown): RentalDurationMode | undefined {
+  return value === 'hourly' || value === 'daily' || value === 'both' ? value : undefined;
+}
+
+function asPositiveDurationLimit(value: unknown): number | null | undefined {
+  if (value === null) return null;
+  if (typeof value !== 'number' || !Number.isFinite(value)) return undefined;
+  return Math.max(0, Math.round(value));
+}
 
 const WEEKDAYS: RentalWeekday[] = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
 
@@ -139,6 +150,11 @@ function normalizeVariant(raw: unknown): RentalVariant | null {
   }
   const pricingOverride =
     o.pricingOverride === null ? null : normalizePricing(o.pricingOverride) ?? null;
+  const durationMode = asDurationMode(o.durationMode);
+  const minDurationHours = asPositiveDurationLimit(o.minDurationHours);
+  const maxDurationHours = asPositiveDurationLimit(o.maxDurationHours);
+  const minDurationDays = asPositiveDurationLimit(o.minDurationDays);
+  const maxDurationDays = asPositiveDurationLimit(o.maxDurationDays);
   return {
     id,
     name,
@@ -148,12 +164,98 @@ function normalizeVariant(raw: unknown): RentalVariant | null {
         : undefined,
     attributes,
     quantity,
+    ...(durationMode ? { durationMode } : {}),
+    ...(minDurationHours !== undefined ? { minDurationHours } : {}),
+    ...(maxDurationHours !== undefined ? { maxDurationHours } : {}),
+    ...(minDurationDays !== undefined ? { minDurationDays } : {}),
+    ...(maxDurationDays !== undefined ? { maxDurationDays } : {}),
     pricingOverride,
     availabilityOverrideNote:
       typeof o.availabilityOverrideNote === 'string' && o.availabilityOverrideNote.trim()
         ? o.availabilityOverrideNote.trim().slice(0, 240)
         : undefined,
   };
+}
+
+/**
+ * Copy listing-level duration onto options that lack their own mode (idempotent migration).
+ * Listing fields remain as legacy fallback for older readers.
+ */
+export function migrateListingDurationToVariants(rental: RentalDetails): RentalDetails {
+  const listingMode = asDurationMode(rental.durationMode);
+  if (!listingMode || !(rental.variants && rental.variants.length > 0)) return rental;
+  let changed = false;
+  const variants = rental.variants.map((variant) => {
+    if (asDurationMode(variant.durationMode)) return variant;
+    changed = true;
+    const next: RentalVariant = { ...variant, durationMode: listingMode };
+    if ((listingMode === 'hourly' || listingMode === 'both') && variant.minDurationHours == null) {
+      next.minDurationHours = rental.minDurationHours ?? 1;
+    }
+    if ((listingMode === 'hourly' || listingMode === 'both') && variant.maxDurationHours == null) {
+      next.maxDurationHours = rental.maxDurationHours ?? 8;
+    }
+    if ((listingMode === 'daily' || listingMode === 'both') && variant.minDurationDays == null) {
+      next.minDurationDays = rental.minDurationDays ?? 1;
+    }
+    if ((listingMode === 'daily' || listingMode === 'both') && variant.maxDurationDays == null) {
+      next.maxDurationDays = rental.maxDurationDays ?? 14;
+    }
+    return next;
+  });
+  return changed ? { ...rental, variants } : rental;
+}
+
+/** Option duration mode with listing-level fallback for legacy drafts. */
+export function effectiveVariantDurationMode(
+  rental: RentalDetails,
+  variant: RentalVariant,
+): RentalDurationMode {
+  return asDurationMode(variant.durationMode) ?? asDurationMode(rental.durationMode) ?? 'daily';
+}
+
+export function effectiveVariantDurationLimits(
+  rental: RentalDetails,
+  variant: RentalVariant,
+  unit: 'hour' | 'day',
+): { min: number; max: number } {
+  if (unit === 'hour') {
+    return {
+      min: variant.minDurationHours ?? rental.minDurationHours ?? 1,
+      max: variant.maxDurationHours ?? rental.maxDurationHours ?? 720,
+    };
+  }
+  return {
+    min: variant.minDurationDays ?? rental.minDurationDays ?? 1,
+    max: variant.maxDurationDays ?? rental.maxDurationDays ?? 90,
+  };
+}
+
+/** True when option duration limits for its mode are valid (uses effective defaults). */
+export function rentalVariantDurationLimitsReady(variant: RentalVariant, rental: RentalDetails): boolean {
+  const mode = effectiveVariantDurationMode(rental, variant);
+  if (mode === 'hourly' || mode === 'both') {
+    const { min, max } = effectiveVariantDurationLimits(rental, variant, 'hour');
+    if (rentalDurationFieldIssue(min, max, 'hours')) return false;
+  }
+  if (mode === 'daily' || mode === 'both') {
+    const { min, max } = effectiveVariantDurationLimits(rental, variant, 'day');
+    if (rentalDurationFieldIssue(min, max, 'days')) return false;
+  }
+  return true;
+}
+
+/** Listing offers a unit if any option (or legacy listing mode) allows it. */
+export function rentalListingOffersUnit(rental: RentalDetails, unit: 'hour' | 'day'): boolean {
+  const variants = rental.variants ?? [];
+  if (variants.length === 0) {
+    const mode = asDurationMode(rental.durationMode) ?? 'daily';
+    return unit === 'hour' ? mode === 'hourly' || mode === 'both' : mode === 'daily' || mode === 'both';
+  }
+  return variants.some((variant) => {
+    const mode = effectiveVariantDurationMode(rental, variant);
+    return unit === 'hour' ? mode === 'hourly' || mode === 'both' : mode === 'daily' || mode === 'both';
+  });
 }
 
 export function normalizeRentalDetails(raw: unknown): RentalDetails | undefined {
@@ -350,7 +452,7 @@ export function normalizeRentalDetails(raw: unknown): RentalDetails | undefined 
       .slice(0, 20);
   }
 
-  return inheritRentalOptionRates(out);
+  return inheritRentalOptionRates(migrateListingDurationToVariants(out));
 }
 
 /**
@@ -392,9 +494,9 @@ export function rentalOptionHourPriceMinor(variant: RentalVariant): number | nul
   return typeof hour === 'number' && Number.isFinite(hour) && hour > 0 ? hour : null;
 }
 
-/** True when the option has every rate its listing duration mode uses. */
+/** True when the option has every rate its (option or legacy listing) duration mode uses. */
 export function rentalOptionRatesReady(variant: RentalVariant, rental: RentalDetails): boolean {
-  const mode = rental.durationMode ?? 'daily';
+  const mode = effectiveVariantDurationMode(rental, variant);
   if ((mode === 'hourly' || mode === 'both') && rentalOptionHourPriceMinor(variant) == null) return false;
   if ((mode === 'daily' || mode === 'both') && rentalOptionDayPriceMinor(variant) == null) return false;
   return true;
@@ -402,8 +504,9 @@ export function rentalOptionRatesReady(variant: RentalVariant, rental: RentalDet
 
 export function rentalMissingOptionRateMessage(rental: RentalDetails): string | null {
   const variants = rental.variants ?? [];
-  if (!variants.some((variant) => !rentalOptionRatesReady(variant, rental))) return null;
-  const mode = rental.durationMode ?? 'daily';
+  const incomplete = variants.find((variant) => !rentalOptionRatesReady(variant, rental));
+  if (!incomplete) return null;
+  const mode = effectiveVariantDurationMode(rental, incomplete);
   if (mode === 'hourly') return 'Each option needs a price per hour.';
   if (mode === 'both') return 'Each option needs a price per hour and a price per day.';
   return 'Each option needs a price per day.';
@@ -475,6 +578,8 @@ export function rentalOptionNameReady(name: string | null | undefined): boolean 
 export function rentalVariantComplete(variant: RentalVariant, rental: RentalDetails): boolean {
   if (!rentalOptionNameReady(variant.name)) return false;
   if (!Number.isFinite(variant.quantity) || variant.quantity < 1) return false;
+  if (!asDurationMode(variant.durationMode) && !asDurationMode(rental.durationMode)) return false;
+  if (!rentalVariantDurationLimitsReady(variant, rental)) return false;
   return rentalOptionRatesReady(variant, rental);
 }
 
@@ -738,10 +843,20 @@ export function rentalLowestHourPriceMinor(rental: RentalDetails): number | null
  * Authoritative for listing.price.startingFrom on rental drafts (major currency units).
  */
 export function rentalStartingFromMajor(rental: RentalDetails): number {
-  const mode = rental.durationMode ?? 'daily';
-  const best = mode === 'hourly' ? rentalLowestHourPriceMinor(rental) : rentalLowestDayPriceMinor(rental);
-  if (best == null) return 0;
-  return best / 100;
+  const offersHour = rentalListingOffersUnit(rental, 'hour');
+  const offersDay = rentalListingOffersUnit(rental, 'day');
+  // Hourly-only uses hour. Daily or combined prefer day (catalog convention).
+  if (offersHour && !offersDay) {
+    const hour = rentalLowestHourPriceMinor(rental);
+    return hour == null ? 0 : hour / 100;
+  }
+  const day = rentalLowestDayPriceMinor(rental);
+  if (day != null) return day / 100;
+  if (offersHour) {
+    const hour = rentalLowestHourPriceMinor(rental);
+    return hour == null ? 0 : hour / 100;
+  }
+  return 0;
 }
 
 /**

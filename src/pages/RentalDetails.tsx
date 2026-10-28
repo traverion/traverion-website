@@ -257,7 +257,7 @@ function RentalBody({
                 <div id="rental-options" role="radiogroup" aria-label="Rental option" className="grid gap-2 sm:grid-cols-2">
                   {variants.map((variant) => {
                     const selected = variant.id === variantId;
-                    const rates = rentalOptionRateLabel(rental, effectiveVariantPricing(rental, variant));
+                    const rates = rentalOptionRateLabel(rental, effectiveVariantPricing(rental, variant), variant);
                     const specs = Object.values(variant.attributes ?? {}).filter(Boolean).join(' · ');
                     return (
                       <button

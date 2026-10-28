@@ -2,7 +2,7 @@
  * Development-only rental previews.
  * Not inserted into the database, not indexed as live inventory, and blocked from checkout.
  */
-import { defaultRentalOperatingDays } from '../lib/rental-details';
+import { defaultRentalOperatingDays, migrateListingDurationToVariants } from '../lib/rental-details';
 import type { ListingExtras } from '../types/listingExtras';
 import type { TourPackage } from '../types/tour';
 import type { RentalDetails, RentalOperatingDay, RentalVariant } from '../types/rental';
@@ -26,24 +26,25 @@ function listing(
   rental: RentalDetails,
   photos: string[]
 ): TourPackage {
+  const migrated = migrateListingDurationToVariants(rental);
   return {
     id,
     title,
     destination: `${city}, Finland`,
-    duration: rental.durationMode === 'hourly' ? 'Hourly' : 'Daily',
+    duration: migrated.durationMode === 'hourly' ? 'Hourly' : 'Daily',
     style: 'rental',
-    startLocation: rental.pickupAddress ?? city,
-    endLocation: rental.returnAddress || rental.pickupAddress || city,
+    startLocation: migrated.pickupAddress ?? city,
+    endLocation: migrated.returnAddress || migrated.pickupAddress || city,
     price: { startingFrom: 0, currency: 'EUR', perPerson: false, twinOccupancy: false, customQuote: false, singleSupplement: 0, validity: '' },
     category: '4*',
     tourType: 'adventure',
     validity: '',
     image,
-    subtitle: rental.shortIntro,
+    subtitle: migrated.shortIntro,
     description,
-    highlights: rental.highlights ?? [],
+    highlights: migrated.highlights ?? [],
     itinerary: [],
-    includes: rental.inclusions ?? [],
+    includes: migrated.inclusions ?? [],
     excludes: [],
     hotels: [],
     difficulty: 'Easy',
@@ -58,7 +59,7 @@ function listing(
     isSeedData: true,
     listingExtras: {
       inventoryFamily: 'rental',
-      rental,
+      rental: migrated,
       photoSlots: photos,
     } as ListingExtras & { photoSlots: string[] },
   };

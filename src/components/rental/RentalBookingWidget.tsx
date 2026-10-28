@@ -5,7 +5,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { CalendarDays, Clock, Loader2, Shield } from 'lucide-react';
 import type { RentalDetails, RentalVariant } from '../../types/rental';
-import { effectiveVariantPricing, formatMinorAsEuro } from '../../lib/rental-details';
+import {
+  effectiveVariantDurationLimits,
+  effectiveVariantDurationMode,
+  effectiveVariantPricing,
+  formatMinorAsEuro,
+} from '../../lib/rental-details';
 import {
   rentalDepositCustomerText,
   rentalMapHref,
@@ -49,8 +54,9 @@ type Props = {
   hideOptionPicker?: boolean;
 };
 
-function defaultUnit(rental: RentalDetails): 'hour' | 'day' {
-  return rental.durationMode === 'hourly' ? 'hour' : 'day';
+function defaultUnitForVariant(rental: RentalDetails, variant: RentalVariant | undefined): 'hour' | 'day' {
+  if (!variant) return rental.durationMode === 'hourly' ? 'hour' : 'day';
+  return effectiveVariantDurationMode(rental, variant) === 'hourly' ? 'hour' : 'day';
 }
 
 function defaultPickupHm(rental: RentalDetails): string {
@@ -80,8 +86,6 @@ export default function RentalBookingWidget({
   const [reviewing, setReviewing] = useState(false);
   const variants = rental.variants ?? [];
   const returnPoint = rentalReturnPoint(rental);
-  const unit = defaultUnit(rental);
-  const showUnitToggle = rental.durationMode === 'both';
 
   const [uncontrolledVariantId, setUncontrolledVariantId] = useState(variants[0]?.id ?? '');
   const variantId = controlledVariantId ?? uncontrolledVariantId;
@@ -89,12 +93,25 @@ export default function RentalBookingWidget({
     onVariantIdChange?.(nextId);
     if (controlledVariantId == null) setUncontrolledVariantId(nextId);
   };
+  const selectedEarly: RentalVariant | undefined =
+    variants.find((v) => v.id === variantId) ?? variants[0];
+  const optionMode = selectedEarly
+    ? effectiveVariantDurationMode(rental, selectedEarly)
+    : (rental.durationMode ?? 'daily');
+  const showUnitToggle = optionMode === 'both';
+  const unit = defaultUnitForVariant(rental, selectedEarly);
+
   const [quantity, setQuantity] = useState(1);
   const [durationUnit, setDurationUnit] = useState<'hour' | 'day'>(unit);
   const [startDate, setStartDate] = useState(() => todayLocalYmd());
-  const [endDate, setEndDate] = useState(() =>
-    unit === 'hour' ? todayLocalYmd() : addDaysYmd(todayLocalYmd(), Math.max(1, rental.minDurationDays ?? 1))
-  );
+  const [endDate, setEndDate] = useState(() => {
+    const initialUnit = defaultUnitForVariant(rental, variants[0]);
+    if (initialUnit === 'hour') return todayLocalYmd();
+    const minDays = variants[0]
+      ? effectiveVariantDurationLimits(rental, variants[0], 'day').min
+      : (rental.minDurationDays ?? 1);
+    return addDaysYmd(todayLocalYmd(), Math.max(1, minDays));
+  });
   const [pickupHm, setPickupHm] = useState(() => defaultPickupHm(rental));
   const [returnHm, setReturnHm] = useState(() => defaultReturnHm(rental));
   useEffect(() => {
@@ -122,8 +139,26 @@ export default function RentalBookingWidget({
     if (!variantId && variants[0]?.id) setVariantId(variants[0].id);
   }, [variantId, variants]);
 
-  const selected: RentalVariant | undefined =
-    variants.find((v) => v.id === variantId) ?? variants[0];
+  const selected: RentalVariant | undefined = selectedEarly;
+
+  useEffect(() => {
+    if (!selected) return;
+    const mode = effectiveVariantDurationMode(rental, selected);
+    const nextUnit: 'hour' | 'day' = mode === 'hourly' ? 'hour' : mode === 'daily' ? 'day' : durationUnit;
+    const clamped: 'hour' | 'day' =
+      mode === 'both' ? (durationUnit === 'hour' || durationUnit === 'day' ? durationUnit : 'day') : nextUnit;
+    if (clamped !== durationUnit) {
+      setDurationUnit(clamped);
+      if (clamped === 'hour') {
+        setEndDate(startDate);
+      } else {
+        const { min } = effectiveVariantDurationLimits(rental, selected, 'day');
+        setEndDate((current) => (current < startDate ? startDate : current || addDaysYmd(startDate, Math.max(1, min))));
+      }
+    }
+    // Only re-clamp when the selected option or its mode changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- option switch clamp
+  }, [selected?.id, optionMode]);
 
   useEffect(() => {
     setReviewing(false);
@@ -210,6 +245,7 @@ export default function RentalBookingWidget({
             quantity: Math.min(Math.max(1, quantity), maxQty),
             startsAtIso: interval.pickupAt,
             endsAtIso: interval.returnAt,
+            durationUnit: interval.durationUnit,
           });
           if (cancelled) return;
           if (result.ok) {
@@ -317,7 +353,7 @@ export default function RentalBookingWidget({
         <div role="radiogroup" aria-label="Rental option" className="space-y-2">
           {variants.map((item) => {
             const selectedOption = item.id === (selected?.id ?? variantId);
-            const rates = rentalOptionRateLabel(rental, effectiveVariantPricing(rental, item));
+            const rates = rentalOptionRateLabel(rental, effectiveVariantPricing(rental, item), item);
             const specs = Object.values(item.attributes ?? {}).filter(Boolean).join(' · ');
             return (
               <button
@@ -333,6 +369,10 @@ export default function RentalBookingWidget({
                 onClick={() => {
                   setVariantId(item.id);
                   setQuantity((current) => Math.min(item.quantity || 1, Math.max(1, current)));
+                  const nextMode = effectiveVariantDurationMode(rental, item);
+                  if (nextMode === 'hourly') setDurationUnit('hour');
+                  else if (nextMode === 'daily') setDurationUnit('day');
+                  else if (durationUnit !== 'hour' && durationUnit !== 'day') setDurationUnit('day');
                 }}
               >
                 <span>

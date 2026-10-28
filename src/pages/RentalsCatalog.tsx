@@ -4,7 +4,12 @@ import { fetchAllListings } from '../data/supabase-listings';
 import { isRentalDevPreviewId, loadRentalDevPreviews } from '../lib/rental-dev-preview';
 import { inventoryFamilyFromListing } from '../lib/inventory';
 import { RENTAL_CATEGORY_CONFIG } from '../lib/rental-categories';
-import { normalizeRentalDetails } from '../lib/rental-details';
+import {
+  effectiveVariantDurationLimits,
+  effectiveVariantDurationMode,
+  normalizeRentalDetails,
+  rentalListingOffersUnit,
+} from '../lib/rental-details';
 import { rentalCategoryTitle, rentalFromPrice, rentalItemLabel } from '../lib/rental-presentation';
 import { formatMoney } from '../lib/money';
 import {
@@ -103,8 +108,10 @@ function initialSearch(): {
 }
 
 function durationMeta(rental: RentalDetails): string {
-  if (rental.durationMode === 'hourly') return 'Hourly';
-  if (rental.durationMode === 'both') return 'Daily or hourly';
+  const hour = rentalListingOffersUnit(rental, 'hour');
+  const day = rentalListingOffersUnit(rental, 'day');
+  if (hour && day) return 'Daily or hourly';
+  if (hour) return 'Hourly';
   return 'Daily';
 }
 
@@ -209,8 +216,8 @@ export default function RentalsCatalog({ onOpenListing, onNavigate }: Props) {
     const matched = rows.filter((row) => {
       const { listing, rental } = row;
       if (category && rental.category !== category) return false;
-      if (duration === 'hour' && rental.durationMode === 'daily') return false;
-      if (duration === 'day' && rental.durationMode === 'hourly') return false;
+      if (duration === 'hour' && !rentalListingOffersUnit(rental, 'hour')) return false;
+      if (duration === 'day' && !rentalListingOffersUnit(rental, 'day')) return false;
       if (q) {
         const hay = [
           listing.title,
@@ -231,9 +238,21 @@ export default function RentalsCatalog({ onOpenListing, onNavigate }: Props) {
       const major = from ? from.minor / 100 : 0;
       if (from && !matchesPriceChip(major, price)) return false;
       if (!from && price !== 'all') return false;
-      if (span != null && (rental.durationMode === 'daily' || rental.durationMode === 'both' || !rental.durationMode)) {
-        if (rental.minDurationDays && span < rental.minDurationDays) return false;
-        if (rental.maxDurationDays && span > rental.maxDurationDays) return false;
+      if (span != null && rentalListingOffersUnit(rental, 'day')) {
+        const dayVariants = (rental.variants ?? []).filter((v) => {
+          const mode = effectiveVariantDurationMode(rental, v);
+          return mode === 'daily' || mode === 'both';
+        });
+        const minDays =
+          dayVariants.length > 0
+            ? Math.min(...dayVariants.map((v) => effectiveVariantDurationLimits(rental, v, 'day').min))
+            : (rental.minDurationDays ?? 1);
+        const maxDays =
+          dayVariants.length > 0
+            ? Math.max(...dayVariants.map((v) => effectiveVariantDurationLimits(rental, v, 'day').max))
+            : (rental.maxDurationDays ?? 90);
+        if (span < minDays) return false;
+        if (span > maxDays) return false;
       }
       return true;
     });

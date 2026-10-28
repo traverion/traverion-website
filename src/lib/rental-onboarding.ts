@@ -1,14 +1,13 @@
 /**
- * Rental Creator screens — streamlined journey (23 screens).
- * Split-out screens from interim 26-step work remap via LEGACY_RENTAL_SCREEN_ALIASES
- * so saved drafts resume without data loss.
+ * Rental Creator screens — streamlined journey (22 screens).
+ * Duration mode/limits live on each rental option (not a listing screen).
+ * Split-out screens remap via LEGACY_RENTAL_SCREEN_ALIASES so drafts resume.
  */
 
 import type { RentalDetails } from '../types/rental';
 import { rentalCategoryConfig } from './rental-categories';
 import { isRentalCancellationPreset } from './rental-cancellation';
 import {
-  rentalDurationFieldIssue,
   rentalMissingOptionRateMessage,
   rentalOperatingHoursIssue,
   rentalOptionNameReady,
@@ -112,19 +111,12 @@ export const RENTAL_ONBOARDING_SCREENS = [
     group: 'Rental options',
     part: '1 of 1',
     title: 'Rental options',
-    body: 'Each option has its own price, stock, and specifications.',
-  },
-  {
-    id: 'duration',
-    group: 'Availability & duration',
-    part: '1 of 2',
-    title: 'How long can it be rented?',
-    body: 'Hourly, daily, or both, length limits, and how a rental day is counted.',
+    body: 'Each option has its own rental type, duration limits, price, and stock.',
   },
   {
     id: 'booking-rules',
-    group: 'Availability & duration',
-    part: '2 of 2',
+    group: 'Availability',
+    part: '1 of 1',
     title: 'Notice and preparation',
     body: 'Notice is how far ahead a customer must book. Preparation is the buffer between two rentals.',
   },
@@ -182,8 +174,8 @@ export const RENTAL_ONBOARDING_SCREENS = [
 export type RentalOnboardingScreenId = (typeof RENTAL_ONBOARDING_SCREENS)[number]['id'];
 
 /**
- * Maps retired screen ids (33-step registry and interim 26-step splits)
- * onto the current 23-screen journey so drafts resume correctly.
+ * Maps retired screen ids onto the current 22-screen journey so drafts resume.
+ * Listing-level duration screens now land on options (duration lives per option).
  */
 export const LEGACY_RENTAL_SCREEN_ALIASES: Record<string, RentalOnboardingScreenId> = {
   category: 'basics-category',
@@ -200,13 +192,14 @@ export const LEGACY_RENTAL_SCREEN_ALIASES: Record<string, RentalOnboardingScreen
   return: 'return-location',
   collection: 'pickup-handover',
   handover: 'pickup-handover',
-  'duration-mode': 'duration',
-  'duration-limits': 'duration',
-  'daily-rules': 'duration',
-  'daily-counting': 'duration',
+  duration: 'options',
+  'duration-mode': 'options',
+  'duration-limits': 'options',
+  'daily-rules': 'options',
+  'daily-counting': 'options',
   buffers: 'booking-rules',
   notice: 'booking-rules',
-  'availability-summary': 'duration',
+  'availability-summary': 'options',
   pricing: 'options',
   'multi-day': 'options',
   'pricing-overrides': 'options',
@@ -316,25 +309,12 @@ export function rentalStageBlocker(screenId: RentalOnboardingScreenId, check: Re
       const variants = r.variants ?? [];
       if (variants.length < 1) return 'Add at least one rental option.';
       if (!variants.some((v) => rentalVariantComplete(v, r))) {
-        return 'Finish at least one rental option with name, quantity, and pricing.';
+        return 'Finish at least one rental option with name, quantity, duration, and pricing.';
       }
       if (!variants.every((v) => rentalOptionNameReady(v.name) && v.quantity >= 1)) {
         return 'Each option needs a name and at least 1 unit.';
       }
       return rentalMissingOptionRateMessage(r);
-    }
-    case 'duration': {
-      if (!r.durationMode) return 'Choose hourly, daily, or both.';
-      const mode = r.durationMode;
-      if (mode === 'hourly' || mode === 'both') {
-        const issue = rentalDurationFieldIssue(r.minDurationHours, r.maxDurationHours, 'hours');
-        if (issue) return issue;
-      }
-      if (mode === 'daily' || mode === 'both') {
-        const issue = rentalDurationFieldIssue(r.minDurationDays, r.maxDurationDays, 'days');
-        if (issue) return issue;
-      }
-      return null;
     }
     case 'booking-rules':
       return null;
@@ -385,10 +365,9 @@ export function rentalPublishBlockers(check: RentalOnboardingCheck): string[] {
   if (variants.length < 1) out.push('Add at least one rental option.');
   for (const v of variants) {
     if (!rentalVariantComplete(v, r)) {
-      out.push(`Finish option “${v.name || 'Untitled'}” (quantity and pricing).`);
+      out.push(`Finish option “${v.name || 'Untitled'}” (quantity, duration, and pricing).`);
     }
   }
-  if (!r.durationMode) out.push('Choose rental duration mode.');
   const cfg = rentalCategoryConfig(r.category);
   if ((cfg?.id === 'snowmobiles' || cfg?.id === 'vehicles') && !(r.requirements?.license || '').trim()) {
     out.push('Add licence or driver requirements.');
@@ -416,8 +395,10 @@ export function rentalScreenIndexForPublishLine(line: string): number {
   if (/hours/.test(text)) return rentalScreenIndex('hours');
   if (/return address|return location|same as pickup/.test(text)) return rentalScreenIndex('return-location');
   if (/pickup|return/.test(text)) return rentalScreenIndex('pickup-location');
-  if (/option|variant|quantity|pricing|price/.test(text)) return rentalScreenIndex('options');
-  if (/duration|hourly|daily/.test(text)) return rentalScreenIndex('duration');
+  if (/option|variant|quantity|pricing|price|duration|hourly|daily/.test(text)) {
+    return rentalScreenIndex('options');
+  }
+  if (/notice|buffer|preparation/.test(text)) return rentalScreenIndex('booking-rules');
   if (/snowmobile|license|requirement|accessib|suitab/.test(text)) return rentalScreenIndex('requirements');
   if (/restriction|included|inclusion/.test(text)) return rentalScreenIndex('inclusions');
   if (/cancellation|policy/.test(text)) return rentalScreenIndex('cancellation');
@@ -445,7 +426,7 @@ export const RENTAL_COMPLETION_GROUPS: {
   },
   { id: 'photos', label: 'Photos', screens: ['photos'] },
   { id: 'options', label: 'Rental options', screens: ['options'] },
-  { id: 'pricing', label: 'Availability', screens: ['duration', 'booking-rules'] },
+  { id: 'pricing', label: 'Availability', screens: ['booking-rules'] },
   {
     id: 'pickup',
     label: 'Pickup and return',

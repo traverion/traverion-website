@@ -61,6 +61,12 @@ export type RentalVariant = {
   /** Category-specific attributes (size, electric, length, etc.). */
   attributes?: Record<string, string>;
   quantity: number;
+  /** Per-option rental type. Listing-level durationMode is legacy fallback only. */
+  durationMode?: RentalDurationMode;
+  minDurationHours?: number | null;
+  maxDurationHours?: number | null;
+  minDurationDays?: number | null;
+  maxDurationDays?: number | null;
   /** When set, overrides listing shared pricing for this variant. */
   pricingOverride?: RentalPricing | null;
   /** Reserved for future per-variant availability overrides. */

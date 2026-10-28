@@ -4,6 +4,7 @@ import { pickHeadlineOption } from './headline-price';
 import {
   emptyRentalDetails,
   normalizeRentalDetails,
+  rentalListingOffersUnit,
   rentalLowestDayPriceMinor,
   rentalLowestHourPriceMinor,
 } from './rental-details';
@@ -199,9 +200,8 @@ export function partnerListingCommerceSummary(
       (sum, v) => sum + (Number.isFinite(v.quantity) ? Math.max(0, v.quantity) : 0),
       0
     );
-    const mode = rental.durationMode ?? 'daily';
-    const minor =
-      mode === 'hourly' ? rentalLowestHourPriceMinor(rental) : rentalLowestDayPriceMinor(rental);
+    const hourlyOnly = rentalListingOffersUnit(rental, 'hour') && !rentalListingOffersUnit(rental, 'day');
+    const minor = hourlyOnly ? rentalLowestHourPriceMinor(rental) : rentalLowestDayPriceMinor(rental);
     const fromMinor = minor != null && minor > 0 ? minor / 100 : null;
     const fromStored =
       typeof listing.price?.startingFrom === 'number' && listing.price.startingFrom > 0
@@ -217,7 +217,7 @@ export function partnerListingCommerceSummary(
     return {
       typeLabel,
       amount,
-      qualifier: mode === 'hourly' ? 'hour' : 'day',
+      qualifier: hourlyOnly ? 'hour' : 'day',
       optionsLine: `${optionPart}${unitsPart}`,
     };
   }

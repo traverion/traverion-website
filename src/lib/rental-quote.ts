@@ -5,6 +5,8 @@
 
 import type { RentalDetails, RentalDurationMode, RentalVariant } from '../types/rental';
 import {
+  effectiveVariantDurationLimits,
+  effectiveVariantDurationMode,
   effectiveVariantPricing,
   rentalIllustrativeTotalMinor,
 } from './rental-details';
@@ -19,7 +21,7 @@ export type RentalQuoteInput = {
   rental: RentalDetails;
   variantId: string;
   quantity: number;
-  /** Billable hours (hourly) or calendar/24h days (daily). */
+  /** Billable hours (hourly) or calendar days (daily). */
   durationCount: number;
   unit: 'hour' | 'day';
   commissionBps: number;
@@ -49,24 +51,29 @@ export function rentalModeAllowsUnit(mode: RentalDurationMode | undefined, unit:
   return m === 'daily' || m === 'both';
 }
 
-/** Validate duration against listing min/max for the selected unit. */
+/** Validate duration against option (or legacy listing) min/max for the selected unit. */
 export function rentalDurationWithinLimits(
   rental: RentalDetails,
   unit: 'hour' | 'day',
-  durationCount: number
+  durationCount: number,
+  variant?: RentalVariant | null,
 ): string | null {
   if (!(durationCount > 0) || !Number.isFinite(durationCount)) return 'Duration must be greater than zero.';
-  if (unit === 'hour') {
-    const min = rental.minDurationHours ?? 1;
-    const max = rental.maxDurationHours ?? 720;
-    if (durationCount < min) return `Minimum rental is ${min} hour${min === 1 ? '' : 's'}.`;
-    if (durationCount > max) return `Maximum rental is ${max} hours.`;
-    return null;
+  const limits = variant
+    ? effectiveVariantDurationLimits(rental, variant, unit)
+    : unit === 'hour'
+      ? { min: rental.minDurationHours ?? 1, max: rental.maxDurationHours ?? 720 }
+      : { min: rental.minDurationDays ?? 1, max: rental.maxDurationDays ?? 90 };
+  if (durationCount < limits.min) {
+    return unit === 'hour'
+      ? `Minimum rental is ${limits.min} hour${limits.min === 1 ? '' : 's'}.`
+      : `Minimum rental is ${limits.min} day${limits.min === 1 ? '' : 's'}.`;
   }
-  const min = rental.minDurationDays ?? 1;
-  const max = rental.maxDurationDays ?? 90;
-  if (durationCount < min) return `Minimum rental is ${min} day${min === 1 ? '' : 's'}.`;
-  if (durationCount > max) return `Maximum rental is ${max} days.`;
+  if (durationCount > limits.max) {
+    return unit === 'hour'
+      ? `Maximum rental is ${limits.max} hours.`
+      : `Maximum rental is ${limits.max} days.`;
+  }
   return null;
 }
 
@@ -76,18 +83,18 @@ export function rentalDurationWithinLimits(
  */
 export function quoteRentalLine(input: RentalQuoteInput): RentalQuoteResult {
   const { rental, variantId, quantity, durationCount, unit, commissionBps } = input;
-  if (!rentalModeAllowsUnit(rental.durationMode, unit)) {
-    return { ok: false, error: `This rental does not offer ${unit === 'hour' ? 'hourly' : 'daily'} pricing.` };
-  }
   const variant = findRentalVariant(rental, variantId);
   if (!variant) return { ok: false, error: 'Rental option not found.' };
+  if (!rentalModeAllowsUnit(effectiveVariantDurationMode(rental, variant), unit)) {
+    return { ok: false, error: `This rental does not offer ${unit === 'hour' ? 'hourly' : 'daily'} pricing.` };
+  }
   if (!(quantity >= 1) || !Number.isInteger(quantity)) {
     return { ok: false, error: 'Quantity must be a whole number of at least 1.' };
   }
   if (quantity > variant.quantity) {
     return { ok: false, error: `Only ${variant.quantity} unit${variant.quantity === 1 ? '' : 's'} available for this option.` };
   }
-  const limitIssue = rentalDurationWithinLimits(rental, unit, durationCount);
+  const limitIssue = rentalDurationWithinLimits(rental, unit, durationCount, variant);
   if (limitIssue) return { ok: false, error: limitIssue };
 
   const pricing = effectiveVariantPricing(rental, variant);

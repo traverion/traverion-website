@@ -1,6 +1,7 @@
 /**
  * Server-side rental quote for checkout edge (Deno).
  * Mirrors src/lib/rental-quote.ts — keep logic aligned when changing either side.
+ * Duration mode and limits prefer the selected option, with listing-level fallback.
  */
 
 import { splitGrossByCommissionBps } from './commercial-money.ts';
@@ -15,6 +16,11 @@ type RentalPricingSlice = {
 type RentalVariant = {
   id?: unknown;
   quantity?: unknown;
+  durationMode?: unknown;
+  minDurationHours?: unknown;
+  maxDurationHours?: unknown;
+  minDurationDays?: unknown;
+  maxDurationDays?: unknown;
   /** Authoritative variant price override (matches client `pricingOverride`). */
   pricingOverride?: RentalPricingSlice | null;
   /** Legacy alias — prefer pricingOverride. */
@@ -36,6 +42,22 @@ type RentalExtras = {
 function asInt(n: unknown): number | null {
   if (typeof n !== 'number' || !Number.isFinite(n)) return null;
   return Math.round(n);
+}
+
+function asDurationMode(value: unknown): 'hourly' | 'daily' | 'both' | null {
+  return value === 'hourly' || value === 'daily' || value === 'both' ? value : null;
+}
+
+function effectiveMode(rental: RentalExtras, variant: RentalVariant): 'hourly' | 'daily' | 'both' {
+  return asDurationMode(variant.durationMode) ?? asDurationMode(rental.durationMode) ?? 'daily';
+}
+
+function effectiveLimit(
+  variantValue: unknown,
+  listingValue: unknown,
+  fallback: number,
+): number {
+  return asInt(variantValue) ?? asInt(listingValue) ?? fallback;
 }
 
 function illustrativeTotalMinor(args: {
@@ -87,17 +109,17 @@ export function quoteRentalCheckoutLine(input: {
       : null;
   if (!rental) return { ok: false, error: 'Rental configuration missing.' };
 
-  const mode = typeof rental.durationMode === 'string' ? rental.durationMode : 'daily';
+  const variants = Array.isArray(rental.variants) ? (rental.variants as RentalVariant[]) : [];
+  const variant = variants.find((v) => typeof v.id === 'string' && v.id === input.variantId);
+  if (!variant) return { ok: false, error: 'Rental option not found.' };
+
+  const mode = effectiveMode(rental, variant);
   if (input.durationUnit === 'hour' && mode !== 'hourly' && mode !== 'both') {
     return { ok: false, error: 'This rental does not offer hourly pricing.' };
   }
   if (input.durationUnit === 'day' && mode !== 'daily' && mode !== 'both') {
     return { ok: false, error: 'This rental does not offer daily pricing.' };
   }
-
-  const variants = Array.isArray(rental.variants) ? (rental.variants as RentalVariant[]) : [];
-  const variant = variants.find((v) => typeof v.id === 'string' && v.id === input.variantId);
-  if (!variant) return { ok: false, error: 'Rental option not found.' };
 
   const stock = asInt(variant.quantity) ?? 0;
   if (!(input.quantity >= 1) || !Number.isInteger(input.quantity)) {
@@ -111,13 +133,13 @@ export function quoteRentalCheckoutLine(input: {
     return { ok: false, error: 'Duration must be greater than zero.' };
   }
   if (input.durationUnit === 'hour') {
-    const min = asInt(rental.minDurationHours) ?? 1;
-    const max = asInt(rental.maxDurationHours) ?? 720;
+    const min = effectiveLimit(variant.minDurationHours, rental.minDurationHours, 1);
+    const max = effectiveLimit(variant.maxDurationHours, rental.maxDurationHours, 720);
     if (input.durationCount < min) return { ok: false, error: `Minimum rental is ${min} hour${min === 1 ? '' : 's'}.` };
     if (input.durationCount > max) return { ok: false, error: `Maximum rental is ${max} hours.` };
   } else {
-    const min = asInt(rental.minDurationDays) ?? 1;
-    const max = asInt(rental.maxDurationDays) ?? 90;
+    const min = effectiveLimit(variant.minDurationDays, rental.minDurationDays, 1);
+    const max = effectiveLimit(variant.maxDurationDays, rental.maxDurationDays, 90);
     if (input.durationCount < min) return { ok: false, error: `Minimum rental is ${min} day${min === 1 ? '' : 's'}.` };
     if (input.durationCount > max) return { ok: false, error: `Maximum rental is ${max} days.` };
   }

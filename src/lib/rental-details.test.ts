@@ -25,7 +25,10 @@ import {
   rentalOperatingHoursIssue,
   rentalSkillConflictsDifficulty,
   rentalStartingFromMajor,
+  effectiveVariantDurationMode,
+  migrateListingDurationToVariants,
   pruneRentalVariantAttributes,
+  rentalListingOffersUnit,
   rentalOptionNameReady,
   rentalVariantComplete,
   rentalVariantMetaLine,
@@ -144,6 +147,59 @@ describe('rental details', () => {
     expect(rentalVariantComplete(both.variants![0], both)).toBe(false);
     both.variants![0].pricingOverride = { pricePerHourMinor: 800, pricePerDayMinor: 2500 };
     expect(rentalVariantComplete(both.variants![0], both)).toBe(true);
+  });
+
+  it('migrates listing duration onto options that lack their own mode', () => {
+    const listing: RentalDetails = {
+      ...emptyRentalDetails(),
+      durationMode: 'both',
+      minDurationHours: 2,
+      maxDurationHours: 6,
+      minDurationDays: 1,
+      maxDurationDays: 5,
+      variants: [
+        {
+          ...createDefaultRentalVariant('Standard'),
+          quantity: 3,
+          pricingOverride: { pricePerHourMinor: 800, pricePerDayMinor: 2500 },
+        },
+      ],
+    };
+    const migrated = migrateListingDurationToVariants(listing);
+    expect(migrated.variants![0].durationMode).toBe('both');
+    expect(migrated.variants![0].minDurationHours).toBe(2);
+    expect(migrated.variants![0].maxDurationDays).toBe(5);
+    expect(effectiveVariantDurationMode(migrated, migrated.variants![0])).toBe('both');
+    expect(rentalVariantComplete(migrated.variants![0], migrated)).toBe(true);
+
+    const mixed = normalizeRentalDetails({
+      durationMode: 'daily',
+      minDurationDays: 1,
+      maxDurationDays: 7,
+      variants: [
+        {
+          id: 'hour-only',
+          name: 'Hourly bike',
+          quantity: 2,
+          durationMode: 'hourly',
+          minDurationHours: 1,
+          maxDurationHours: 4,
+          pricingOverride: { pricePerHourMinor: 900 },
+        },
+        {
+          id: 'day-only',
+          name: 'Day bike',
+          quantity: 2,
+          pricingOverride: { pricePerDayMinor: 3000 },
+        },
+      ],
+    });
+    expect(mixed?.variants?.[0].durationMode).toBe('hourly');
+    expect(mixed?.variants?.[1].durationMode).toBe('daily');
+    expect(rentalListingOffersUnit(mixed!, 'hour')).toBe(true);
+    expect(rentalListingOffersUnit(mixed!, 'day')).toBe(true);
+    expect(rentalVariantComplete(mixed!.variants![0], mixed!)).toBe(true);
+    expect(rentalVariantComplete(mixed!.variants![1], mixed!)).toBe(true);
   });
 
   it('requires a meaningful option name and prunes unrelated attributes', () => {
@@ -315,21 +371,41 @@ describe('rental pricing derivation', () => {
       experienceLanguage: 'en',
     };
     expect(
-      rentalStageBlocker('duration', {
+      rentalStageBlocker('options', {
         ...base,
-        rental: { ...emptyRentalDetails(), durationMode: 'hourly', minDurationHours: 4, maxDurationHours: 2 },
+        rental: {
+          ...emptyRentalDetails(),
+          variants: [
+            {
+              id: 'a',
+              name: 'A',
+              quantity: 1,
+              durationMode: 'hourly',
+              minDurationHours: 4,
+              maxDurationHours: 2,
+              pricingOverride: { pricePerHourMinor: 800 },
+            },
+          ],
+        },
       }),
-    ).toMatch(/Maximum hours/);
+    ).toMatch(/duration|pricing/i);
     expect(
-      rentalStageBlocker('duration', {
+      rentalStageBlocker('options', {
         ...base,
-        rental: { ...emptyRentalDetails(), durationMode: 'daily', minDurationDays: 1, maxDurationDays: 7 },
-      }),
-    ).toBeNull();
-    expect(
-      rentalStageBlocker('duration', {
-        ...base,
-        rental: { ...emptyRentalDetails(), durationMode: 'hourly', minDurationHours: 1, maxDurationHours: 8 },
+        rental: {
+          ...emptyRentalDetails(),
+          variants: [
+            {
+              id: 'a',
+              name: 'A',
+              quantity: 1,
+              durationMode: 'daily',
+              minDurationDays: 1,
+              maxDurationDays: 7,
+              pricingOverride: { pricePerDayMinor: 2000 },
+            },
+          ],
+        },
       }),
     ).toBeNull();
     expect(
@@ -341,7 +417,7 @@ describe('rental pricing derivation', () => {
           variants: [{ id: 'a', name: 'A', quantity: 1, pricingOverride: { pricePerDayMinor: 2000 } }],
         },
       }),
-    ).toMatch(/name, quantity, and pricing|price per hour and a price per day/i);
+    ).toMatch(/duration|pricing|price per hour/i);
     expect(
       rentalStageBlocker('options', {
         ...base,
@@ -439,18 +515,19 @@ describe('skill suitability', () => {
 });
 
 describe('legacy rental screen aliases', () => {
-  it('maps retired 33-step and interim 26-step ids onto the 23-screen journey', () => {
-    expect(RENTAL_ONBOARDING_SCREENS).toHaveLength(23);
+  it('maps retired 33-step and interim ids onto the 22-screen journey', () => {
+    expect(RENTAL_ONBOARDING_SCREENS).toHaveLength(22);
     expect(resolveRentalScreenId('gallery')).toBe('photos');
     expect(resolveRentalScreenId('buffers')).toBe('booking-rules');
-    expect(resolveRentalScreenId('availability-summary')).toBe('duration');
+    expect(resolveRentalScreenId('availability-summary')).toBe('options');
     expect(resolveRentalScreenId('basics-title')).toBe('basics-title');
     expect(resolveRentalScreenId('pickup-handover')).toBe('pickup-handover');
     expect(resolveRentalScreenId('return-handover')).toBe('return-handover');
     expect(resolveRentalScreenId('item-type')).toBe('basics-item');
     expect(resolveRentalScreenId('basics-item')).toBe('basics-item');
-    expect(resolveRentalScreenId('daily-rules')).toBe('duration');
-    expect(resolveRentalScreenId('daily-counting')).toBe('duration');
+    expect(resolveRentalScreenId('duration')).toBe('options');
+    expect(resolveRentalScreenId('daily-rules')).toBe('options');
+    expect(resolveRentalScreenId('daily-counting')).toBe('options');
     expect(resolveRentalScreenId('collection')).toBe('pickup-handover');
     expect(resolveRentalScreenId('handover')).toBe('pickup-handover');
     expect(resolveRentalScreenId('highlights')).toBe('basics-highlights');
@@ -464,6 +541,7 @@ describe('legacy rental screen aliases', () => {
     expect(resolveRentalScreenId('multi-day')).toBe('options');
     expect(resolveRentalScreenId('earnings')).toBe('options');
     expect(RENTAL_ONBOARDING_SCREENS.some((screen) => screen.id === 'pricing')).toBe(false);
+    expect(RENTAL_ONBOARDING_SCREENS.some((screen) => screen.id === 'duration')).toBe(false);
     expect(Object.keys(LEGACY_RENTAL_SCREEN_ALIASES).length).toBeGreaterThan(10);
   });
 
@@ -650,8 +728,15 @@ describe('rental publish readiness', () => {
 });
 
 describe('rental option save', () => {
-  it('keeps four option steps and category-specific fields', () => {
-    expect(RENTAL_OPTION_STEPS).toEqual(['identity', 'inventory', 'pricing', 'review']);
+  it('keeps six option steps and category-specific fields', () => {
+    expect(RENTAL_OPTION_STEPS).toEqual([
+      'identity',
+      'inventory',
+      'duration-mode',
+      'duration-limits',
+      'pricing',
+      'review',
+    ]);
     expect(rentalCategoryConfig('bikes')?.variantAttributeKeys.map((key) => key.key)).toEqual(['size', 'power']);
     expect(rentalCategoryConfig('winter_clothing')?.variantAttributeKeys.map((key) => key.key)).toEqual(['size']);
     expect(rentalCategoryConfig('skis_snowboards')?.variantAttributeKeys.map((key) => key.key)).toEqual(['length', 'bootSize']);

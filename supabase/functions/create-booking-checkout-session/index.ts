@@ -588,15 +588,29 @@ serve(async (req) => {
         rentalExtras && typeof rentalExtras === 'object'
           ? (rentalExtras as Record<string, unknown>)
           : {};
+      const rentalVariantsEarly = Array.isArray(rentalRecordEarly.variants)
+        ? (rentalRecordEarly.variants as Record<string, unknown>[])
+        : [];
+      const selectedVariantEarly =
+        rentalVariantsEarly.find((row) => typeof row?.id === 'string' && row.id === variantId) ?? null;
+      const optionDurationMode =
+        (selectedVariantEarly &&
+          (selectedVariantEarly.durationMode === 'hourly' ||
+            selectedVariantEarly.durationMode === 'daily' ||
+            selectedVariantEarly.durationMode === 'both') &&
+          selectedVariantEarly.durationMode) ||
+        rentalRecordEarly.durationMode;
       const rentalWindow = authoritativeRentalWindow({
         timeZone: listingExtrasObj.departureTimezone,
         operatingDays: rentalRecordEarly.operatingDays,
         bookingNoticeHours: rentalRecordEarly.bookingNoticeHours,
-        durationMode: rentalRecordEarly.durationMode,
-        minDurationHours: rentalRecordEarly.minDurationHours,
-        maxDurationHours: rentalRecordEarly.maxDurationHours,
-        minDurationDays: rentalRecordEarly.minDurationDays,
-        maxDurationDays: rentalRecordEarly.maxDurationDays,
+        durationMode: optionDurationMode,
+        minDurationHours:
+          selectedVariantEarly?.minDurationHours ?? rentalRecordEarly.minDurationHours,
+        maxDurationHours:
+          selectedVariantEarly?.maxDurationHours ?? rentalRecordEarly.maxDurationHours,
+        minDurationDays: selectedVariantEarly?.minDurationDays ?? rentalRecordEarly.minDurationDays,
+        maxDurationDays: selectedVariantEarly?.maxDurationDays ?? rentalRecordEarly.maxDurationDays,
         pickupAt,
         returnAt,
         durationUnit,

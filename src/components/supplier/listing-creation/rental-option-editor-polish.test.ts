@@ -7,8 +7,15 @@ import { RENTAL_OPTION_STEPS } from './RentalOptionEditor';
 const src = readFileSync(new URL('./RentalOptionEditor.tsx', import.meta.url), 'utf8');
 
 describe('rental option editor polish', () => {
-  it('keeps the four-step journey', () => {
-    expect(RENTAL_OPTION_STEPS).toEqual(['identity', 'inventory', 'pricing', 'review']);
+  it('keeps the six-step journey', () => {
+    expect(RENTAL_OPTION_STEPS).toEqual([
+      'identity',
+      'inventory',
+      'duration-mode',
+      'duration-limits',
+      'pricing',
+      'review',
+    ]);
   });
 
   it('shows only category attribute keys and prunes stale specs', () => {
@@ -29,7 +36,10 @@ describe('rental option editor polish', () => {
     expect(src).toContain('CheckCircle2');
   });
 
-  it('adapts pricing to duration mode and uses supplier commission for earnings', () => {
+  it('adapts pricing to option duration mode and uses supplier commission for earnings', () => {
+    expect(src).toContain('effectiveVariantDurationMode');
+    expect(src).toContain('duration-mode');
+    expect(src).toContain('duration-limits');
     expect(src).toContain("mode === 'hourly'");
     expect(src).toContain("mode === 'both'");
     expect(src).toContain('OptionRateEarnings');

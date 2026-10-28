@@ -3,17 +3,21 @@ import { AlertCircle, CheckCircle2, ChevronLeft } from 'lucide-react';
 import { rentalCategoryConfig } from '../../../lib/rental-categories';
 import { formatBpsAsPercent, splitGrossByCommissionBps } from '../../../lib/commercial-money';
 import {
+  effectiveVariantDurationLimits,
+  effectiveVariantDurationMode,
   formatMinorAsEuro,
   pruneRentalVariantAttributes,
+  rentalDurationFieldIssue,
   rentalOptionDayPriceMinor,
   rentalOptionHourPriceMinor,
   rentalOptionNameReady,
   rentalOptionRatesReady,
   rentalVariantComplete,
+  rentalVariantDurationLimitsReady,
 } from '../../../lib/rental-details';
 import { formatMoney, normalizeCurrency } from '../../../lib/money';
-import type { RentalDetails, RentalVariant } from '../../../types/rental';
-import { StayField, StayHelp } from './StayCreatorUi';
+import type { RentalDetails, RentalDurationMode, RentalVariant } from '../../../types/rental';
+import { StayChoice, StayField, StayHelp } from './StayCreatorUi';
 
 type Props = {
   open: boolean;
@@ -34,10 +38,10 @@ export function formatRentalMinor(minor: number | null | undefined, currency?: s
   return formatMoney(minor / 100, code);
 }
 
-/** Applicable option rates for the listing duration mode, e.g. "€25 / day" or "€6 / hour · €25 / day". */
+/** Applicable option rates for a duration mode, e.g. "€25 / day" or "€6 / hour · €25 / day". */
 export function formatRentalOptionRates(
   pricing: { pricePerHourMinor?: number | null; pricePerDayMinor?: number | null },
-  mode: RentalDetails['durationMode'],
+  mode: RentalDurationMode | RentalDetails['durationMode'],
   currency?: string,
 ): string {
   const m = mode ?? 'daily';
@@ -212,7 +216,33 @@ export function RentalIntegerInput({
   );
 }
 
-export const RENTAL_OPTION_STEPS = ['identity', 'inventory', 'pricing', 'review'] as const;
+export const RENTAL_OPTION_STEPS = [
+  'identity',
+  'inventory',
+  'duration-mode',
+  'duration-limits',
+  'pricing',
+  'review',
+] as const;
+
+function optionModeLabel(mode: RentalDurationMode): string {
+  if (mode === 'hourly') return 'Hourly';
+  if (mode === 'both') return 'Hourly and daily';
+  return 'Daily';
+}
+
+function optionLimitsSummary(variant: RentalVariant, rental: RentalDetails, mode: RentalDurationMode): string {
+  const parts: string[] = [];
+  if (mode === 'hourly' || mode === 'both') {
+    const { min, max } = effectiveVariantDurationLimits(rental, variant, 'hour');
+    parts.push(`${min}–${max} h`);
+  }
+  if (mode === 'daily' || mode === 'both') {
+    const { min, max } = effectiveVariantDurationLimits(rental, variant, 'day');
+    parts.push(`${min}–${max} days`);
+  }
+  return parts.join(' · ');
+}
 
 export default function RentalOptionEditor({
   open,
@@ -240,7 +270,8 @@ export default function RentalOptionEditor({
   const currency = normalizeCurrency(listingCurrency ?? rental.sharedPricing?.currency);
   const config = rentalCategoryConfig(rental.category);
   const attributeKeys = config?.variantAttributeKeys ?? [];
-  const mode = rental.durationMode ?? 'daily';
+  const mode = effectiveVariantDurationMode(rental, variant);
+  const hasOwnMode = Boolean(variant.durationMode);
   const needsHour = mode === 'hourly' || mode === 'both';
   const needsDay = mode === 'daily' || mode === 'both';
   const hourPrice = rentalOptionHourPriceMinor(variant);
@@ -261,7 +292,9 @@ export default function RentalOptionEditor({
       document.body.style.overflow = previous;
       window.clearTimeout(timer);
     };
-  }, [open, mode]);
+    // Reset UI when the dialog opens; mode is re-read from the variant on that open.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- open-session reset only
+  }, [open]);
 
   useEffect(() => {
     if (!open || prunedOpenRef.current) return;
@@ -277,6 +310,8 @@ export default function RentalOptionEditor({
 
   const nameMissing = !rentalOptionNameReady(variant.name);
   const quantityInvalid = !Number.isFinite(variant.quantity) || variant.quantity < 1;
+  const modeMissing = !variant.durationMode && !rental.durationMode;
+  const limitsInvalid = !rentalVariantDurationLimitsReady(variant, rental);
   const priceInvalid = !rentalOptionRatesReady(variant, rental);
   const priceMessage =
     mode === 'hourly'
@@ -284,15 +319,35 @@ export default function RentalOptionEditor({
       : mode === 'both'
         ? 'Enter a price per hour and a price per day.'
         : 'Enter a price per day.';
-  const canSaveComplete = !nameMissing && !quantityInvalid && !priceInvalid;
+  const canSaveComplete = !nameMissing && !quantityInvalid && !modeMissing && !limitsInvalid && !priceInvalid;
   const complete = rentalVariantComplete(variant, rental);
 
   const missingItems: { id: (typeof RENTAL_OPTION_STEPS)[number]; label: string }[] = [];
   if (nameMissing) missingItems.push({ id: 'identity', label: 'Add an option name' });
   if (quantityInvalid) missingItems.push({ id: 'inventory', label: 'Set at least 1 unit' });
+  if (modeMissing) missingItems.push({ id: 'duration-mode', label: 'Choose a rental type' });
+  if (!modeMissing && limitsInvalid) missingItems.push({ id: 'duration-limits', label: 'Set valid duration limits' });
   if (priceInvalid) missingItems.push({ id: 'pricing', label: priceMessage.replace(/\.$/, '') });
 
   const patch = (next: Partial<RentalVariant>) => onChange({ ...variant, ...next });
+
+  const chooseMode = (next: RentalDurationMode) => {
+    const defaults: Partial<RentalVariant> = { durationMode: next };
+    if ((next === 'hourly' || next === 'both') && variant.minDurationHours == null) {
+      defaults.minDurationHours = rental.minDurationHours ?? 1;
+    }
+    if ((next === 'hourly' || next === 'both') && variant.maxDurationHours == null) {
+      defaults.maxDurationHours = rental.maxDurationHours ?? 8;
+    }
+    if ((next === 'daily' || next === 'both') && variant.minDurationDays == null) {
+      defaults.minDurationDays = rental.minDurationDays ?? 1;
+    }
+    if ((next === 'daily' || next === 'both') && variant.maxDurationDays == null) {
+      defaults.maxDurationDays = rental.maxDurationDays ?? 14;
+    }
+    setEarningsFocus(next === 'hourly' ? 'hour' : 'day');
+    patch(defaults);
+  };
 
   const writeRate = (key: 'pricePerHourMinor' | 'pricePerDayMinor', minor: number | null) => {
     setEarningsFocus(key === 'pricePerHourMinor' ? 'hour' : 'day');
@@ -352,6 +407,14 @@ export default function RentalOptionEditor({
       title: 'Inventory',
       lede: 'Set how many of this exact option guests can book at the same time.',
     },
+    'duration-mode': {
+      title: 'Rental type',
+      lede: 'Choose whether guests book this option by the hour, by the day, or either.',
+    },
+    'duration-limits': {
+      title: 'Duration limits',
+      lede: 'Set the shortest and longest rental guests can book for this option.',
+    },
     pricing: {
       title: 'Pricing',
       lede:
@@ -371,7 +434,7 @@ export default function RentalOptionEditor({
 
   const goTo = (id: (typeof steps)[number]) => setStep(steps.indexOf(id));
 
-  // When both rates are enabled, show exactly one earnings panel for the rate last edited.
+  // When both rates are enabled, show earnings for both periods (1h and 1d).
   const earningsUnit: 'hour' | 'day' =
     mode === 'hourly'
       ? 'hour'
@@ -382,7 +445,29 @@ export default function RentalOptionEditor({
           : dayPrice != null && hourPrice == null
             ? 'day'
             : earningsFocus;
-  const earningsMinor = earningsUnit === 'hour' ? hourPrice : dayPrice;
+
+  const hourLimitsIssue =
+    needsHour
+      ? rentalDurationFieldIssue(
+          variant.minDurationHours ?? rental.minDurationHours,
+          variant.maxDurationHours ?? rental.maxDurationHours,
+          'hours',
+        )
+      : null;
+  const dayLimitsIssue =
+    needsDay
+      ? rentalDurationFieldIssue(
+          variant.minDurationDays ?? rental.minDurationDays,
+          variant.maxDurationDays ?? rental.maxDurationDays,
+          'days',
+        )
+      : null;
+
+  const modeOptions: { id: RentalDurationMode; title: string; body: string }[] = [
+    { id: 'hourly', title: 'By the hour', body: 'Short rentals, such as a few hours on the trail.' },
+    { id: 'daily', title: 'By the day', body: 'Full-day or multi-day rentals.' },
+    { id: 'both', title: 'Hourly and daily', body: 'Customers pick whichever suits them.' },
+  ];
 
   return (
     <div
@@ -532,6 +617,100 @@ export default function RentalOptionEditor({
             </section>
           ) : null}
 
+          {current === 'duration-mode' ? (
+            <section className="grid gap-2" role="group" aria-label="Rental type">
+              {modeOptions.map((option) => (
+                <StayChoice
+                  key={option.id}
+                  pressed={hasOwnMode ? variant.durationMode === option.id : false}
+                  onClick={() => chooseMode(option.id)}
+                >
+                  <span className="block">{option.title}</span>
+                  <span className="stay-help mt-0.5 block font-normal">{option.body}</span>
+                </StayChoice>
+              ))}
+              {attempted && modeMissing ? (
+                <p className="stay-alert !mt-0" role="alert">
+                  Choose how guests book this option.
+                </p>
+              ) : null}
+            </section>
+          ) : null}
+
+          {current === 'duration-limits' ? (
+            <section className="space-y-6" aria-label="Duration limits">
+              {needsHour ? (
+                <div className="space-y-3">
+                  <p className="stay-kicker">Hourly rentals</p>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <StayField label="Minimum hours">
+                      <RentalIntegerInput
+                        value={variant.minDurationHours ?? rental.minDurationHours}
+                        min={1}
+                        max={720}
+                        allowEmpty
+                        stepper
+                        ariaLabel="Minimum hours"
+                        onChange={(n) => patch({ minDurationHours: n })}
+                      />
+                    </StayField>
+                    <StayField label="Maximum hours">
+                      <RentalIntegerInput
+                        value={variant.maxDurationHours ?? rental.maxDurationHours}
+                        min={1}
+                        max={720}
+                        allowEmpty
+                        stepper
+                        ariaLabel="Maximum hours"
+                        onChange={(n) => patch({ maxDurationHours: n })}
+                      />
+                    </StayField>
+                  </div>
+                  {attempted && hourLimitsIssue ? (
+                    <p className="stay-alert !mt-0" role="alert">
+                      {hourLimitsIssue}
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
+              {needsDay ? (
+                <div className="space-y-3">
+                  <p className="stay-kicker">Daily rentals</p>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <StayField label="Minimum days">
+                      <RentalIntegerInput
+                        value={variant.minDurationDays ?? rental.minDurationDays}
+                        min={1}
+                        max={365}
+                        allowEmpty
+                        stepper
+                        ariaLabel="Minimum days"
+                        onChange={(n) => patch({ minDurationDays: n })}
+                      />
+                    </StayField>
+                    <StayField label="Maximum days">
+                      <RentalIntegerInput
+                        value={variant.maxDurationDays ?? rental.maxDurationDays}
+                        min={1}
+                        max={365}
+                        allowEmpty
+                        stepper
+                        ariaLabel="Maximum days"
+                        onChange={(n) => patch({ maxDurationDays: n })}
+                      />
+                    </StayField>
+                  </div>
+                  {attempted && dayLimitsIssue ? (
+                    <p className="stay-alert !mt-0" role="alert">
+                      {dayLimitsIssue}
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
+              <StayHelp>Guests pick pickup and return inside your opening hours. Daily rentals count calendar days.</StayHelp>
+            </section>
+          ) : null}
+
           {current === 'pricing' ? (
             <section className="space-y-3" aria-label="Pricing">
               {needsHour ? (
@@ -563,32 +742,29 @@ export default function RentalOptionEditor({
                   {priceMessage}
                 </p>
               ) : null}
-              <OptionRateEarnings
-                minor={earningsMinor}
-                unit={earningsUnit}
-                currency={currency}
-                commissionBps={commissionBps}
-              />
               {mode === 'both' ? (
-                <div className="flex flex-wrap gap-2" role="group" aria-label="Earnings period">
-                  <button
-                    type="button"
-                    className={`rental-option-earnings-chip${earningsUnit === 'hour' ? ' rental-option-earnings-chip--active' : ''}`}
-                    aria-pressed={earningsUnit === 'hour'}
-                    onClick={() => setEarningsFocus('hour')}
-                  >
-                    1 hour
-                  </button>
-                  <button
-                    type="button"
-                    className={`rental-option-earnings-chip${earningsUnit === 'day' ? ' rental-option-earnings-chip--active' : ''}`}
-                    aria-pressed={earningsUnit === 'day'}
-                    onClick={() => setEarningsFocus('day')}
-                  >
-                    1 day
-                  </button>
+                <div className="space-y-3">
+                  <OptionRateEarnings
+                    minor={hourPrice}
+                    unit="hour"
+                    currency={currency}
+                    commissionBps={commissionBps}
+                  />
+                  <OptionRateEarnings
+                    minor={dayPrice}
+                    unit="day"
+                    currency={currency}
+                    commissionBps={commissionBps}
+                  />
                 </div>
-              ) : null}
+              ) : (
+                <OptionRateEarnings
+                  minor={earningsUnit === 'hour' ? hourPrice : dayPrice}
+                  unit={earningsUnit}
+                  currency={currency}
+                  commissionBps={commissionBps}
+                />
+              )}
             </section>
           ) : null}
 
@@ -609,7 +785,7 @@ export default function RentalOptionEditor({
                   </p>
                   <p className="mt-0.5 text-sm text-ink-muted">
                     {complete
-                      ? 'Name, inventory, and pricing are complete for this listing.'
+                      ? 'Name, inventory, rental type, duration, and pricing are complete.'
                       : 'You can save a draft now. A complete option is required before Continue on Options.'}
                   </p>
                 </div>
@@ -648,6 +824,18 @@ export default function RentalOptionEditor({
                   label="Inventory"
                   value={`${variant.quantity} ${variant.quantity === 1 ? 'unit' : 'units'}`}
                   onEdit={() => goTo('inventory')}
+                />
+                <ReviewLine
+                  label="Rental type"
+                  value={hasOwnMode || rental.durationMode ? optionModeLabel(mode) : 'Not set'}
+                  onEdit={() => goTo('duration-mode')}
+                />
+                <ReviewLine
+                  label="Duration"
+                  value={
+                    hasOwnMode || rental.durationMode ? optionLimitsSummary(variant, rental, mode) : 'Not set'
+                  }
+                  onEdit={() => goTo('duration-limits')}
                 />
                 {needsHour ? (
                   <ReviewLine
@@ -692,6 +880,14 @@ export default function RentalOptionEditor({
                   return;
                 }
                 if (current === 'inventory' && quantityInvalid) {
+                  setAttempted(true);
+                  return;
+                }
+                if (current === 'duration-mode' && modeMissing) {
+                  setAttempted(true);
+                  return;
+                }
+                if (current === 'duration-limits' && limitsInvalid) {
                   setAttempted(true);
                   return;
                 }

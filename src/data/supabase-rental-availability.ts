@@ -150,6 +150,7 @@ export async function evaluateRentalAvailabilityRpc(input: {
   startsAtIso: string;
   endsAtIso: string;
   excludeHoldId?: string | null;
+  durationUnit?: 'hour' | 'day' | null;
 }): Promise<RentalEvaluateRpcResult> {
   if (!supabase) throw new Error('Supabase not configured');
   const { data, error } = await supabase.rpc('evaluate_rental_availability', {
@@ -159,6 +160,7 @@ export async function evaluateRentalAvailabilityRpc(input: {
     p_starts_at: input.startsAtIso,
     p_ends_at: input.endsAtIso,
     p_exclude_hold_id: input.excludeHoldId ?? null,
+    p_duration_unit: input.durationUnit ?? null,
   });
   if (error) throw error;
   return (data ?? { ok: false, error: 'empty_response' }) as RentalEvaluateRpcResult;

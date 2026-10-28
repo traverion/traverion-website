@@ -66,17 +66,19 @@ import {
   clearRentalDepositAmounts,
   createDefaultRentalVariant,
   defaultRentalOperatingDays,
+  effectiveVariantDurationLimits,
+  effectiveVariantDurationMode,
   effectiveVariantPricing,
-  ensureRentalHasDefaultVariant,
+  rentalListingOffersUnit,
   groupRentalOperatingHours,
   newRentalVariantId,
   rentalCustomerSkillSuitability,
   rentalHasDepositInfo,
   rentalHasInsuranceInfo,
   rentalSkillConflictsDifficulty,
-  rentalDurationFieldIssue,
   rentalLowestDayPriceMinor,
   rentalLowestHourPriceMinor,
+  rentalOptionNameReady,
   rentalOptionRatesReady,
   rentalVariantComplete,
   rentalVariantMetaLine,
@@ -259,12 +261,6 @@ function deviceTimezone(): string {
   }
 }
 
-function durationLabel(mode: RentalDurationMode): string {
-  if (mode === 'hourly') return 'Hourly';
-  if (mode === 'both') return 'Hourly or daily';
-  return 'Daily';
-}
-
 function bufferLabel(minutes: number): string {
   if (minutes <= 0) return 'None';
   if (minutes < 60) return `${minutes} min`;
@@ -279,23 +275,25 @@ function noticeLabel(hours: number): string {
   return `${hours} hours`;
 }
 
-function limitsSummary(rental: RentalDetails, mode: RentalDurationMode): string {
-  const parts: string[] = [];
-  if (mode === 'hourly' || mode === 'both') {
-    parts.push(
-      rental.minDurationHours != null && rental.maxDurationHours != null
-        ? `${rental.minDurationHours}–${rental.maxDurationHours} hours`
-        : 'Hours not set'
-    );
-  }
-  if (mode === 'daily' || mode === 'both') {
-    parts.push(
-      rental.minDurationDays != null && rental.maxDurationDays != null
-        ? `${rental.minDurationDays}–${rental.maxDurationDays} days`
-        : 'Days not set'
-    );
-  }
-  return parts.join(' · ');
+function optionDurationPreviewLines(rental: RentalDetails): string[] {
+  const variants = rental.variants ?? [];
+  if (variants.length === 0) return ['Add rental options to set duration and pricing.'];
+  return variants.map((variant) => {
+    const name = variant.name.trim() || 'Untitled option';
+    const mode = effectiveVariantDurationMode(rental, variant);
+    const modeText =
+      mode === 'hourly' ? 'hourly' : mode === 'both' ? 'hourly or daily' : 'daily';
+    const parts: string[] = [];
+    if (mode === 'hourly' || mode === 'both') {
+      const { min, max } = effectiveVariantDurationLimits(rental, variant, 'hour');
+      parts.push(`${min}–${max} hours`);
+    }
+    if (mode === 'daily' || mode === 'both') {
+      const { min, max } = effectiveVariantDurationLimits(rental, variant, 'day');
+      parts.push(`${min}–${max} days`);
+    }
+    return `${name}: ${modeText} · ${parts.join(' · ')}`;
+  });
 }
 
 function fullOperatingDays(rental: RentalDetails): RentalOperatingDay[] {
@@ -1473,10 +1471,18 @@ function ReturnHandoverStage({ ctx }: { ctx: Ctx }) {
 /* ------------------------------------------------------------------ */
 
 function rentalOptionStatusBadge(variant: RentalVariant, rental: RentalDetails): { complete: boolean; label: string } {
-  if (!variant.name.trim()) return { complete: false, label: 'Add name' };
+  if (!rentalOptionNameReady(variant.name)) return { complete: false, label: 'Add name' };
   if (!Number.isFinite(variant.quantity) || variant.quantity < 1) return { complete: false, label: 'Add quantity' };
+  if (!variant.durationMode && !rental.durationMode) return { complete: false, label: 'Add rental type' };
   if (!rentalOptionRatesReady(variant, rental)) return { complete: false, label: 'Add pricing' };
+  if (!rentalVariantComplete(variant, rental)) return { complete: false, label: 'Add duration' };
   return { complete: true, label: 'Complete' };
+}
+
+function rentalOptionModeLabel(mode: RentalDurationMode): string {
+  if (mode === 'hourly') return 'Hourly';
+  if (mode === 'both') return 'Hourly & daily';
+  return 'Daily';
 }
 
 const RENTAL_OPTION_MENU_WIDTH = 184;
@@ -1578,7 +1584,8 @@ function OptionsStage({ ctx }: { ctx: Ctx }) {
           const menuOpen = menuId === variant.id;
           const name = variant.name.trim() || 'Untitled option';
           const units = `${variant.quantity} ${variant.quantity === 1 ? 'unit' : 'units'} available`;
-          const ratesText = formatRentalOptionRates(pricing, rental.durationMode, currency);
+          const optionMode = effectiveVariantDurationMode(rental, variant);
+          const ratesText = formatRentalOptionRates(pricing, optionMode, currency);
           const priceLabel = ratesText === 'Price needed' ? null : ratesText;
           return (
             <li key={variant.id}>
@@ -1612,7 +1619,12 @@ function OptionsStage({ ctx }: { ctx: Ctx }) {
                       </span>
                     </div>
                     {priceLabel ? <p className="rental-option-card__price">{priceLabel}</p> : null}
-                    <p className="rental-option-card__meta">{units}</p>
+                    <p className="rental-option-card__meta">
+                      {units}
+                      {variant.durationMode || rental.durationMode
+                        ? ` · ${rentalOptionModeLabel(optionMode)}`
+                        : ''}
+                    </p>
                     {specs ? <p className="rental-option-card__specs">{specs}</p> : null}
                   </div>
                 </div>
@@ -1694,8 +1706,8 @@ function OptionsStage({ ctx }: { ctx: Ctx }) {
         Add option
       </button>
       <StayHelp>
-        One standard option is enough. Add another when a size, model, or variant has its own stock. Quantity is how
-        many identical units of that option you can rent at once.
+        Add your first option manually. Each option has its own rental type, duration limits, price, and stock. Quantity
+        is how many identical units of that option you can rent at once.
       </StayHelp>
       {menuVariant && menuBox && typeof document !== 'undefined'
         ? createPortal(
@@ -1742,148 +1754,6 @@ function OptionsStage({ ctx }: { ctx: Ctx }) {
 /* ------------------------------------------------------------------ */
 /* Availability                                                        */
 /* ------------------------------------------------------------------ */
-
-function DurationModeStage({ ctx }: { ctx: Ctx }) {
-  const { rental, mode, patchRental } = ctx;
-  const choose = (next: RentalDurationMode) => {
-    const defaults: Partial<RentalDetails> = { durationMode: next };
-    if (next !== 'daily' && rental.minDurationHours == null && rental.maxDurationHours == null) {
-      defaults.minDurationHours = 1;
-      defaults.maxDurationHours = 8;
-    }
-    if (next !== 'hourly' && rental.minDurationDays == null && rental.maxDurationDays == null) {
-      defaults.minDurationDays = 1;
-      defaults.maxDurationDays = 14;
-    }
-    patchRental(defaults);
-  };
-  const options: { id: RentalDurationMode; title: string; body: string }[] = [
-    { id: 'hourly', title: 'By the hour', body: 'Short rentals, such as a few hours on the trail.' },
-    { id: 'daily', title: 'By the day', body: 'Full-day or multi-day rentals.' },
-    { id: 'both', title: 'Hourly and daily', body: 'Customers pick whichever suits them.' },
-  ];
-  return (
-    <div className="grid gap-2" role="group" aria-label="Rental duration">
-      {options.map((o) => (
-        <StayChoice key={o.id} pressed={rental.durationMode != null && mode === o.id} onClick={() => choose(o.id)}>
-          <span className="block">{o.title}</span>
-          <span className="stay-help mt-0.5 block font-normal">{o.body}</span>
-        </StayChoice>
-      ))}
-    </div>
-  );
-}
-
-function DurationLimitFields({
-  label,
-  min,
-  max,
-  minLabel,
-  maxLabel,
-  maxValue,
-  unit,
-  showError,
-  onMin,
-  onMax,
-}: {
-  label: string;
-  min: number | null | undefined;
-  max: number | null | undefined;
-  minLabel: string;
-  maxLabel: string;
-  maxValue: number;
-  unit: 'hours' | 'days';
-  showError: boolean;
-  onMin: (n: number | null) => void;
-  onMax: (n: number | null) => void;
-}) {
-  const issue = rentalDurationFieldIssue(min, max, unit);
-  const clash = typeof min === 'number' && typeof max === 'number' && max < min;
-  return (
-    <section className="space-y-3" aria-label={label}>
-      <p className="stay-kicker">{label}</p>
-      <div className="grid gap-3 sm:grid-cols-2">
-        <StayField label={minLabel}>
-          <RentalIntegerInput value={min} min={1} max={maxValue} allowEmpty stepper ariaLabel={minLabel} onChange={onMin} />
-        </StayField>
-        <StayField label={maxLabel}>
-          <RentalIntegerInput value={max} min={1} max={maxValue} allowEmpty stepper ariaLabel={maxLabel} onChange={onMax} />
-        </StayField>
-      </div>
-      {issue && (showError || clash) ? (
-        <p className="stay-alert !mt-0" role="alert">
-          {issue}
-        </p>
-      ) : null}
-    </section>
-  );
-}
-
-function DurationLimitsStage({ ctx }: { ctx: Ctx }) {
-  const { rental, patchRental, props } = ctx;
-  const mode = rental.durationMode;
-  const hourly = mode === 'hourly' || mode === 'both';
-  const daily = mode === 'daily' || mode === 'both';
-  if (!hourly && !daily) return null;
-  return (
-    <div className="space-y-6">
-      {hourly ? (
-        <DurationLimitFields
-          label="Hourly rentals"
-          min={rental.minDurationHours}
-          max={rental.maxDurationHours}
-          minLabel="Minimum hours"
-          maxLabel="Maximum hours"
-          maxValue={720}
-          unit="hours"
-          showError={props.attemptedContinue}
-          onMin={(n) => patchRental({ minDurationHours: n })}
-          onMax={(n) => patchRental({ maxDurationHours: n })}
-        />
-      ) : null}
-      {daily ? (
-        <DurationLimitFields
-          label="Daily rentals"
-          min={rental.minDurationDays}
-          max={rental.maxDurationDays}
-          minLabel="Minimum days"
-          maxLabel="Maximum days"
-          maxValue={365}
-          unit="days"
-          showError={props.attemptedContinue}
-          onMin={(n) => patchRental({ minDurationDays: n })}
-          onMax={(n) => patchRental({ maxDurationDays: n })}
-        />
-      ) : null}
-    </div>
-  );
-}
-
-function DailyRulesStage({ ctx }: { ctx: Ctx }) {
-  const { rental, patchRental } = ctx;
-  useEffect(() => {
-    if (rental.calendarDayRentals === false) patchRental({ calendarDayRentals: true });
-  }, [patchRental, rental.calendarDayRentals]);
-  return (
-    <div className="grid gap-2" role="group" aria-label="How a rental day is counted">
-      <StayChoice
-        pressed
-        onClick={() => {
-          if (rental.calendarDayRentals === false) patchRental({ calendarDayRentals: true });
-        }}
-      >
-        <span className="block">Calendar days</span>
-        <span className="stay-help mt-0.5 block font-normal">
-          The pickup date through the return date. The same date counts as one day. Pickup and return stay inside your opening hours.
-        </span>
-      </StayChoice>
-      <StayChoice pressed={false} disabled onClick={() => undefined}>
-        <span className="block">24-hour periods</span>
-        <span className="stay-help mt-0.5 block font-normal">Coming later</span>
-      </StayChoice>
-    </div>
-  );
-}
 
 function PresetNumber({
   label,
@@ -2484,7 +2354,11 @@ function PreviewStage({ ctx }: { ctx: Ctx }) {
               <ul className="space-y-2">
                 {variants.map((variant) => {
                   const attrs = variantAttributeText(variant, cfg);
-                  const price = formatRentalOptionRates(effectiveVariantPricing(rental, variant), rental.durationMode, currency);
+                  const price = formatRentalOptionRates(
+                    effectiveVariantPricing(rental, variant),
+                    effectiveVariantDurationMode(rental, variant),
+                    currency,
+                  );
                   return (
                     <li
                       key={variant.id}
@@ -2536,18 +2410,18 @@ function PreviewStage({ ctx }: { ctx: Ctx }) {
             </PreviewSection>
           ) : null}
 
-          <PreviewSection title="Availability & duration" onEdit={() => goTo('availability-summary')}>
+          <PreviewSection title="Availability & duration" onEdit={() => goTo('options')}>
             <ul className="space-y-1 text-sm text-ink">
-              <li>
-                Rent {durationLabel(mode).toLowerCase()} · {limitsSummary(rental, mode)}
-              </li>
+              {optionDurationPreviewLines(rental).map((line) => (
+                <li key={line}>{line}</li>
+              ))}
               {(rental.bookingNoticeHours ?? 0) > 0 ? (
                 <li>Book at least {noticeLabel(rental.bookingNoticeHours ?? 0)} ahead</li>
               ) : null}
               {Number(rental.bufferMinutes ?? 0) > 0 ? (
                 <li>{bufferLabel(Number(rental.bufferMinutes))} preparation between rentals</li>
               ) : null}
-              {mode === 'daily' || mode === 'both' ? (
+              {rentalListingOffersUnit(rental, 'day') ? (
                 <li>Daily rentals run from the pickup date to the return date</li>
               ) : null}
             </ul>
@@ -2871,14 +2745,6 @@ export default function RentalOnboardingFlow(props: Props) {
   const latest = useRef({ values, onChange });
   latest.current = { values, onChange };
 
-  const variantCount = rental.variants?.length ?? 0;
-  useEffect(() => {
-    if (id === 'options' && variantCount === 0) {
-      const { values: v, onChange: change } = latest.current;
-      change({ rental: ensureRentalHasDefaultVariant(v.rental) });
-    }
-  }, [id, variantCount]);
-
   // Close any open option editor when the stage changes.
   useEffect(() => {
     setEditing(null);
@@ -2993,15 +2859,6 @@ export default function RentalOnboardingFlow(props: Props) {
       break;
     case 'options':
       body = <OptionsStage ctx={ctx} />;
-      break;
-    case 'duration':
-      body = (
-        <div className="space-y-8">
-          <DurationModeStage ctx={ctx} />
-          <DurationLimitsStage ctx={ctx} />
-          <DailyRulesStage ctx={ctx} />
-        </div>
-      );
       break;
     case 'booking-rules':
       body = (

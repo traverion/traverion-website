@@ -91,4 +91,51 @@ describe('rental availability intervals', () => {
     });
     expect(result.ok).toBe(false);
   });
+
+  it('shares one stock pool for overlapping hourly and daily windows on the same variant', () => {
+    // One daily hold (absolute time) must reduce stock for a later hourly request on the same option.
+    const dayPickup = Date.parse('2026-12-01T09:00:00Z');
+    const dayReturn = Date.parse('2026-12-01T18:00:00Z');
+    const hourPickup = Date.parse('2026-12-01T12:00:00Z');
+    const hourReturn = Date.parse('2026-12-01T15:00:00Z');
+    const afterDaily = evaluateRentalAvailability({
+      variantId: 'shared-option',
+      stock: 1,
+      requestedQty: 1,
+      pickupReturn: { startMs: hourPickup, endMs: hourReturn },
+      bufferMinutes: 0,
+      bookingNoticeHours: 0,
+      nowMs: Date.parse('2026-11-01T00:00:00Z'),
+      blocks: [],
+      occupancies: [
+        {
+          variantId: 'shared-option',
+          quantity: 1,
+          // Hold rows have no duration unit — daily and hourly share this pool.
+          interval: { startMs: dayPickup, endMs: dayReturn },
+        },
+      ],
+    });
+    expect(afterDaily.ok).toBe(false);
+    expect(afterDaily.available).toBe(0);
+
+    const freeSlot = evaluateRentalAvailability({
+      variantId: 'shared-option',
+      stock: 1,
+      requestedQty: 1,
+      pickupReturn: { startMs: Date.parse('2026-12-01T19:00:00Z'), endMs: Date.parse('2026-12-01T21:00:00Z') },
+      bufferMinutes: 0,
+      bookingNoticeHours: 0,
+      nowMs: Date.parse('2026-11-01T00:00:00Z'),
+      blocks: [],
+      occupancies: [
+        {
+          variantId: 'shared-option',
+          quantity: 1,
+          interval: { startMs: dayPickup, endMs: dayReturn },
+        },
+      ],
+    });
+    expect(freeSlot.ok).toBe(true);
+  });
 });

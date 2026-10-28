@@ -1,8 +1,15 @@
 import { rentalCancellationCustomerText } from './rental-cancellation';
 import { rentalCategoryConfig, rentalItemTypeLabel } from './rental-categories';
-import { formatMinorAsEuro, rentalLowestDayPriceMinor, rentalLowestHourPriceMinor } from './rental-details';
+import {
+  effectiveVariantDurationLimits,
+  effectiveVariantDurationMode,
+  formatMinorAsEuro,
+  rentalListingOffersUnit,
+  rentalLowestDayPriceMinor,
+  rentalLowestHourPriceMinor,
+} from './rental-details';
 import type { RentalPurchaseSnapshot } from './rental-booking-domain';
-import type { RentalDetails, RentalOperatingDay, RentalWeekday } from '../types/rental';
+import type { RentalDetails, RentalOperatingDay, RentalVariant, RentalWeekday } from '../types/rental';
 
 const WEEKDAY_LABEL: Record<RentalWeekday, string> = {
   mon: 'Monday',
@@ -127,16 +134,27 @@ export function rentalDepositCustomerText(rental: RentalDetails): string {
 }
 
 export function rentalDurationCustomerText(rental: RentalDetails): string {
-  const mode = rental.durationMode ?? 'daily';
-  const modeLabel = mode === 'hourly' ? 'Hourly' : mode === 'both' ? 'Hourly or daily' : 'Daily';
+  const offersHour = rentalListingOffersUnit(rental, 'hour');
+  const offersDay = rentalListingOffersUnit(rental, 'day');
+  const modeLabel =
+    offersHour && offersDay ? 'Hourly or daily' : offersHour ? 'Hourly' : 'Daily';
   const bits = [modeLabel];
-  if (mode === 'hourly' || mode === 'both') {
-    if (rental.minDurationHours) bits.push(`at least ${rental.minDurationHours} hour${rental.minDurationHours === 1 ? '' : 's'}`);
-    if (rental.maxDurationHours) bits.push(`up to ${rental.maxDurationHours} hours`);
+  const variants = rental.variants ?? [];
+  if (offersHour) {
+    const mins = variants.map((v) => effectiveVariantDurationLimits(rental, v, 'hour').min);
+    const maxes = variants.map((v) => effectiveVariantDurationLimits(rental, v, 'hour').max);
+    const minH = mins.length ? Math.min(...mins) : (rental.minDurationHours ?? undefined);
+    const maxH = maxes.length ? Math.max(...maxes) : (rental.maxDurationHours ?? undefined);
+    if (minH) bits.push(`at least ${minH} hour${minH === 1 ? '' : 's'}`);
+    if (maxH) bits.push(`up to ${maxH} hours`);
   }
-  if (mode === 'daily' || mode === 'both') {
-    if (rental.minDurationDays) bits.push(`at least ${rental.minDurationDays} day${rental.minDurationDays === 1 ? '' : 's'}`);
-    if (rental.maxDurationDays) bits.push(`up to ${rental.maxDurationDays} days`);
+  if (offersDay) {
+    const mins = variants.map((v) => effectiveVariantDurationLimits(rental, v, 'day').min);
+    const maxes = variants.map((v) => effectiveVariantDurationLimits(rental, v, 'day').max);
+    const minD = mins.length ? Math.min(...mins) : (rental.minDurationDays ?? undefined);
+    const maxD = maxes.length ? Math.max(...maxes) : (rental.maxDurationDays ?? undefined);
+    if (minD) bits.push(`at least ${minD} day${minD === 1 ? '' : 's'}`);
+    if (maxD) bits.push(`up to ${maxD} days`);
   }
   if (rental.bookingNoticeHours) {
     bits.push(`book at least ${rental.bookingNoticeHours} hour${rental.bookingNoticeHours === 1 ? '' : 's'} ahead`);
@@ -145,12 +163,19 @@ export function rentalDurationCustomerText(rental: RentalDetails): string {
   return bits.join(' · ');
 }
 
-/** Option rates a guest would pay for this listing's duration mode. */
+/** Option rates a guest would pay for this option's duration mode. */
 export function rentalOptionRateLabel(
   rental: RentalDetails,
   pricing: { pricePerHourMinor?: number | null; pricePerDayMinor?: number | null },
+  variant?: RentalVariant | null,
 ): string {
-  const mode = rental.durationMode ?? 'daily';
+  const mode = variant
+    ? effectiveVariantDurationMode(rental, variant)
+    : rentalListingOffersUnit(rental, 'hour') && rentalListingOffersUnit(rental, 'day')
+      ? 'both'
+      : rentalListingOffersUnit(rental, 'hour')
+        ? 'hourly'
+        : 'daily';
   const parts: string[] = [];
   if ((mode === 'hourly' || mode === 'both') && pricing.pricePerHourMinor != null && pricing.pricePerHourMinor > 0) {
     parts.push(`${formatMinorAsEuro(pricing.pricePerHourMinor)} / hour`);
@@ -161,12 +186,16 @@ export function rentalOptionRateLabel(
   return parts.join(' · ');
 }
 
-/** Lowest applicable option rate, for catalog cards. Hourly listings use the hour rate. */
+/** Lowest applicable option rate, for catalog cards. Hour-only listings use the hour rate. */
 export function rentalFromPrice(rental: RentalDetails): { label: string; minor: number } | null {
-  const hourly = rental.durationMode === 'hourly';
-  const minor = hourly ? rentalLowestHourPriceMinor(rental) : rentalLowestDayPriceMinor(rental);
-  if (minor == null) return null;
-  return { minor, label: `${formatMinorAsEuro(minor)} / ${hourly ? 'hour' : 'day'}` };
+  const hourlyOnly = rentalListingOffersUnit(rental, 'hour') && !rentalListingOffersUnit(rental, 'day');
+  const minor = hourlyOnly ? rentalLowestHourPriceMinor(rental) : rentalLowestDayPriceMinor(rental);
+  if (minor == null) {
+    const fallback = hourlyOnly ? rentalLowestDayPriceMinor(rental) : rentalLowestHourPriceMinor(rental);
+    if (fallback == null) return null;
+    return { minor: fallback, label: `${formatMinorAsEuro(fallback)} / ${hourlyOnly ? 'day' : 'hour'}` };
+  }
+  return { minor, label: `${formatMinorAsEuro(minor)} / ${hourlyOnly ? 'hour' : 'day'}` };
 }
 
 export function rentalSnapshotCancellationText(snap: {
