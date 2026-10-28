@@ -57,6 +57,7 @@ import {
 } from '../data/supabase-reviews';
 import PublicReviewCard from '../components/PublicReviewCard';
 import StarRatingDisplay from '../components/StarRatingDisplay';
+import ListingPdpReviewMeta from '../components/ListingPdpReviewMeta';
 import type { TourPackage } from '../types/tour';
 import ErrorState from '../components/ErrorState';
 import { Skeleton } from '../components/ui/Skeleton';
@@ -846,25 +847,12 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
           <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-sm">
             {(() => {
               const review = publicReviewLabel(reviewAggregate);
-              if (review.score) {
-                return (
-                  <span className="inline-flex items-center gap-1.5">
-                    <Star size={15} className="shrink-0 fill-[#C9A227] text-[#C9A227]" aria-hidden />
-                    <span className="font-bold tabular-nums text-[#111827]">{review.score}</span>
-                    <span className="font-medium text-ink-muted">
-                      {review.count} {review.count === 1 ? 'review' : 'reviews'}
-                    </span>
-                  </span>
-                );
-              }
               return (
-                <span className="inline-flex items-center gap-1.5 text-ink-muted">
-                  <Star size={15} className="shrink-0 text-ink-faint" aria-hidden />
-                  <span className="font-medium">(0) reviews</span>
-                  <span className="rounded-md bg-finland/[0.06] px-1.5 py-0.5 text-[11px] font-semibold text-finland">
-                    New
-                  </span>
-                </span>
+                <ListingPdpReviewMeta
+                  score={review.score}
+                  count={review.count}
+                  reviewsSectionId="stay-reviews"
+                />
               );
             })()}
             <span className="inline-flex min-w-0 items-center gap-1 text-ink">

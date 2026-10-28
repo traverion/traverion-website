@@ -15,7 +15,6 @@ import {
   MapPin,
   Package,
   Share2,
-  Star,
   X,
 } from 'lucide-react';
 import RentalBookingWidget from '../components/rental/RentalBookingWidget';
@@ -23,8 +22,10 @@ import RentalCollectionMap from '../components/supplier/listing-creation/RentalC
 import RentalPhotoGallery from '../components/rental/RentalPhotoGallery';
 import ErrorState from '../components/ErrorState';
 import PublicReviewCard from '../components/PublicReviewCard';
+import ListingPdpReviewMeta from '../components/ListingPdpReviewMeta';
 import { ListingReviewsModal } from '../components/ListingReviewsModal';
 import { TourOperatorBlock } from '../components/tour-detail/TourListingSections';
+import { publicReviewLabel } from '../lib/listingTruth';
 import { useAuth } from '../contexts/AuthContext';
 import { fetchListingById } from '../data/supabase-listings';
 import { fetchSupplierPublicLegal } from '../data/supabase-supplier-profile';
@@ -312,8 +313,9 @@ function RentalBody({
     };
   }, [canLoadReviews, listing.id]);
 
-  const reviewScore = reviewAggregate?.rating ?? null;
-  const reviewCount = reviewAggregate?.count ?? 0;
+  const review = publicReviewLabel(reviewAggregate);
+  const reviewScore = review.score;
+  const reviewCount = review.count;
 
   const quickFacts = useMemo(() => {
     const facts: { label: string; value: string; icon: typeof Clock }[] = [];
@@ -379,22 +381,11 @@ function RentalBody({
             {listing.title}
           </h1>
           <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-sm">
-            {canLoadReviews && reviewCount > 0 && reviewScore ? (
-              <button
-                type="button"
-                className="inline-flex items-center gap-1.5 rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0758CB]"
-                onClick={() => {
-                  document.getElementById('rental-reviews')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                }}
-                aria-label={`${reviewScore} average from ${reviewCount} reviews. Go to reviews.`}
-              >
-                <Star size={15} className="shrink-0 fill-[#C9A227] text-[#C9A227]" aria-hidden />
-                <span className="font-bold tabular-nums text-[#111827]">{reviewScore}</span>
-                <span className="font-medium text-ink-muted underline decoration-[#E8EBF0] underline-offset-2">
-                  {reviewCount} {reviewCount === 1 ? 'review' : 'reviews'}
-                </span>
-              </button>
-            ) : null}
+            <ListingPdpReviewMeta
+              score={review.score}
+              count={review.count}
+              reviewsSectionId="rental-reviews"
+            />
             {place ? (
               <span className="inline-flex min-w-0 items-center gap-1 text-ink">
                 <MapPin size={14} className="shrink-0 text-[#0B397E]" aria-hidden />

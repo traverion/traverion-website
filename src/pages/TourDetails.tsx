@@ -35,6 +35,7 @@ import {
 } from '../data/supabase-reviews';
 import PublicReviewCard from '../components/PublicReviewCard';
 import StarRatingDisplay from '../components/StarRatingDisplay';
+import ListingPdpReviewMeta from '../components/ListingPdpReviewMeta';
 import { fetchSupplierPublicLegal } from '../data/supabase-supplier-profile';
 import { fetchConsumerProfileRow } from '../data/supabase-consumer-profile';
 import { setPageMetaWithOg, setTourJsonLd, clearTourJsonLd } from '../lib/seo';
@@ -1756,35 +1757,11 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
             {tour.title}
           </h1>
           <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-sm">
-            <button
-              type="button"
-              className="inline-flex items-center gap-1.5 rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0758CB]"
-              onClick={() => {
-                document.getElementById('tour-reviews')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-              }}
-              aria-label={
-                review.score
-                  ? `${review.score} average from ${review.count} reviews. Go to reviews.`
-                  : 'No reviews yet. Go to reviews.'
-              }
-            >
-              {review.score ? (
-                <>
-                  <Star size={15} className="shrink-0 fill-[#C9A227] text-[#C9A227]" aria-hidden />
-                  <span className="font-bold tabular-nums text-[#111827]">{review.score}</span>
-                  <span className="font-medium text-ink-muted underline decoration-[#E8EBF0] underline-offset-2">
-                    {review.count} {review.count === 1 ? 'review' : 'reviews'}
-                  </span>
-                </>
-              ) : (
-                <>
-                  <Star size={15} className="shrink-0 text-ink-faint" aria-hidden />
-                  <span className="font-medium text-ink-muted underline decoration-[#E8EBF0] underline-offset-2">
-                    (0) reviews
-                  </span>
-                </>
-              )}
-            </button>
+            <ListingPdpReviewMeta
+              score={review.score}
+              count={review.count}
+              reviewsSectionId="tour-reviews"
+            />
             {tour.destination?.trim() ? (
               <span className="inline-flex min-w-0 items-center gap-1 text-ink">
                 <MapPin size={14} className="shrink-0 text-[#0B397E]" aria-hidden />

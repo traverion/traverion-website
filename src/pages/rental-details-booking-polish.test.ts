@@ -37,13 +37,14 @@ describe('Rental PDP final polish', () => {
     expect(css).toContain('tv-rental-datetime');
   });
 
-  it('hides empty title ratings and keeps reviews/operator sections', () => {
-    expect(details).toContain('reviewCount > 0 && reviewScore');
-    expect(details).not.toContain('(0) reviews');
+  it('shows shared title review meta including zero reviews', () => {
+    expect(details).toContain('ListingPdpReviewMeta');
+    expect(details).toContain('publicReviewLabel');
     expect(details).toContain('rental-reviews');
     expect(details).toContain('TourOperatorBlock');
     expect(details).toContain('compact');
   });
+
 
   it('renders compact rental length rows from the selected option', () => {
     expect(details).toContain('rentalDurationLengthRows');
