@@ -97,7 +97,7 @@ export function rentalQuantityUnits(rental: RentalDetails): { singular: string; 
     case 'cameras_electronics':
       return { singular: 'camera', plural: 'cameras' };
     case 'bikes':
-      return { singular: 'bike', plural: 'bikes' };
+      return { singular: 'bicycle', plural: 'bicycles' };
     case 'vehicles':
       return { singular: 'vehicle', plural: 'vehicles' };
     default:

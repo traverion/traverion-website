@@ -3,7 +3,7 @@
  * Quotes and availability preview; checkout CTA stays disabled until release approval.
  */
 import { useEffect, useMemo, useState } from 'react';
-import { CalendarDays, Clock, Loader2, Shield } from 'lucide-react';
+import { Loader2, Shield } from 'lucide-react';
 import type { RentalDetails, RentalVariant } from '../../types/rental';
 import {
   effectiveVariantDurationLimits,
@@ -158,7 +158,7 @@ export default function RentalBookingWidget({
     setReviewing(false);
   }, [variantId, quantity, startDate, endDate, pickupHm, returnHm, durationUnit]);
   const pricing = selected ? effectiveVariantPricing(rental, selected) : null;
-  const maxQty = selected?.quantity ?? 1;
+  const configuredQty = Math.max(1, selected?.quantity ?? 1);
 
   const interval = useMemo(
     () =>
@@ -191,12 +191,12 @@ export default function RentalBookingWidget({
     return quoteRentalLine({
       rental,
       variantId,
-      quantity: Math.min(Math.max(1, quantity), maxQty),
+      quantity: Math.min(Math.max(1, quantity), configuredQty),
       durationCount: interval.durationCount,
       unit: interval.durationUnit,
       commissionBps: COMMERCIAL_PLANS.standard.commissionBps,
     });
-  }, [rental, variantId, quantity, maxQty, interval, scheduleIssue]);
+  }, [rental, variantId, quantity, configuredQty, interval, scheduleIssue]);
 
   useEffect(() => {
     if (!interval.ok || !variantId || !quote?.ok) {
@@ -205,14 +205,14 @@ export default function RentalBookingWidget({
     }
     onSelectionChange?.({
       variantId,
-      quantity: Math.min(Math.max(1, quantity), maxQty),
+      quantity: Math.min(Math.max(1, quantity), configuredQty),
       pickupAt: interval.pickupAt,
       returnAt: interval.returnAt,
       durationCount: interval.durationCount,
       durationUnit: interval.durationUnit,
       customerTotalMinor: quote.customerTotalMinor,
     });
-  }, [interval, variantId, quantity, maxQty, quote, onSelectionChange]);
+  }, [interval, variantId, quantity, configuredQty, quote, onSelectionChange]);
 
   useEffect(() => {
     if (!interval.ok || !variantId || !quote?.ok) {
@@ -223,8 +223,8 @@ export default function RentalBookingWidget({
       setAvailability({
         loading: false,
         ok: true,
-        message: `${maxQty} configured for this option. Nothing is reserved.`,
-        available: maxQty,
+        message: null,
+        available: configuredQty,
       });
       return;
     }
@@ -236,7 +236,7 @@ export default function RentalBookingWidget({
           const result = await evaluateRentalAvailabilityRpc({
             listingId,
             variantId,
-            quantity: Math.min(Math.max(1, quantity), maxQty),
+            quantity: Math.min(Math.max(1, quantity), configuredQty),
             startsAtIso: interval.pickupAt,
             endsAtIso: interval.returnAt,
             durationUnit: interval.durationUnit,
@@ -246,10 +246,7 @@ export default function RentalBookingWidget({
             setAvailability({
               loading: false,
               ok: true,
-              message:
-                typeof result.available === 'number'
-                  ? `${result.available} free in this window. Nothing is reserved.`
-                  : 'This window passed the server check. Nothing is reserved.',
+              message: null,
               available: result.available ?? null,
             });
           } else {
@@ -266,7 +263,7 @@ export default function RentalBookingWidget({
           setAvailability({
             loading: false,
             ok: null,
-            message: 'Live availability could not be checked. Nothing is reserved.',
+            message: 'Availability could not be checked yet.',
             available: null,
           });
         }
@@ -276,7 +273,16 @@ export default function RentalBookingWidget({
       cancelled = true;
       window.clearTimeout(handle);
     };
-  }, [listingId, variantId, quantity, maxQty, interval, quote]);
+  }, [listingId, variantId, quantity, configuredQty, interval, quote]);
+
+  const maxQty =
+    typeof availability.available === 'number' && availability.available >= 0
+      ? Math.max(0, Math.min(configuredQty, availability.available)) || 1
+      : configuredQty;
+
+  useEffect(() => {
+    if (quantity > maxQty) setQuantity(maxQty);
+  }, [maxQty, quantity]);
 
   const continueToCheckout = async () => {
     if (isRentalDevPreviewId(listingId)) {
@@ -324,20 +330,24 @@ export default function RentalBookingWidget({
       ? formatMinorAsEuro(pricing?.pricePerHourMinor)
       : formatMinorAsEuro(pricing?.pricePerDayMinor);
 
+  const showBreakdown =
+    Boolean(quote?.ok) &&
+    interval.ok &&
+    (interval.durationCount > 1 || Math.min(Math.max(1, quantity), maxQty) > 1);
+
   return (
-    <div className="space-y-3.5">
+    <div className="space-y-2.5">
       <div>
-        <p className="tv-eyebrow mb-1">From</p>
-        <p className="font-display text-[1.75rem] font-semibold leading-none tracking-tight text-ink tabular-nums">
+        <p className="font-sans text-[1.65rem] font-bold leading-none tracking-tight text-[#111827] tabular-nums">
           {unitPriceLabel}
-          <span className="ml-1.5 text-sm font-medium text-ink-muted">
+          <span className="ml-1.5 text-sm font-semibold text-ink-muted">
             / {durationUnit === 'hour' ? 'hour' : 'day'}
           </span>
         </p>
         {hideOptionPicker && selected ? (
-          <p className="mt-2 text-sm text-ink-muted">
-            <span className="font-medium text-ink">{selected.name}</span>{' '}
-            <a href="#rental-options" className="font-semibold text-[#073b83]">
+          <p className="mt-1.5 text-sm text-ink-muted">
+            <span className="font-semibold text-ink">{selected.name}</span>{' '}
+            <a href="#rental-options" className="font-semibold text-[#0758CB]">
               Change
             </a>
           </p>
@@ -345,20 +355,19 @@ export default function RentalBookingWidget({
       </div>
 
       {!hideOptionPicker && variants.length > 0 ? (
-        <div role="radiogroup" aria-label="Rental option" className="space-y-2">
+        <div role="radiogroup" aria-label="Rental option" className="space-y-1.5">
           {variants.map((item) => {
             const selectedOption = item.id === (selected?.id ?? variantId);
             const rates = rentalOptionRateLabel(rental, effectiveVariantPricing(rental, item), item);
-            const specs = Object.values(item.attributes ?? {}).filter(Boolean).join(' · ');
             return (
               <button
                 key={item.id}
                 type="button"
                 role="radio"
                 aria-checked={selectedOption}
-                className={`flex w-full items-start justify-between gap-3 rounded-xl px-3 py-2.5 text-left transition ${
+                className={`flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2 text-left text-sm transition ${
                   selectedOption
-                    ? 'bg-white shadow-sm ring-2 ring-[#073b83]'
+                    ? 'bg-white shadow-sm ring-2 ring-[#0758CB]'
                     : 'bg-[#F7F8FA] ring-1 ring-transparent hover:bg-white hover:ring-black/[0.08]'
                 }`}
                 onClick={() => {
@@ -370,12 +379,8 @@ export default function RentalBookingWidget({
                   else if (durationUnit !== 'hour' && durationUnit !== 'day') setDurationUnit('day');
                 }}
               >
-                <span>
-                  <span className="block text-sm font-semibold text-ink">{item.name}</span>
-                  {specs ? <span className="mt-0.5 block text-xs text-ink-muted">{specs}</span> : null}
-                  <span className="mt-0.5 block text-xs text-ink-muted">{item.quantity} in stock</span>
-                </span>
-                {rates ? <span className="shrink-0 text-sm font-semibold text-ink">{rates}</span> : null}
+                <span className="font-semibold text-ink">{item.name}</span>
+                {rates ? <span className="shrink-0 font-semibold tabular-nums text-ink">{rates}</span> : null}
               </button>
             );
           })}
@@ -383,13 +388,13 @@ export default function RentalBookingWidget({
       ) : null}
 
       {showUnitToggle ? (
-        <div className="flex gap-2" role="group" aria-label="Rental pricing unit">
+        <div className="flex gap-1.5" role="group" aria-label="Rental pricing unit">
           {(['day', 'hour'] as const).map((u) => (
             <button
               key={u}
               type="button"
-              className={`tv-btn-ghost min-h-10 flex-1 text-sm ${
-                durationUnit === u ? 'bg-[#073b83]/10 font-semibold text-[#073b83] ring-1 ring-[#073b83]' : ''
+              className={`tv-btn-ghost min-h-9 flex-1 px-2 text-sm ${
+                durationUnit === u ? 'bg-[#0758CB]/10 font-semibold text-[#0758CB] ring-1 ring-[#0758CB]' : ''
               }`}
               aria-pressed={durationUnit === u}
               onClick={() => setDurationUnit(u)}
@@ -400,69 +405,65 @@ export default function RentalBookingWidget({
         </div>
       ) : null}
 
-      <div className="grid grid-cols-2 gap-2.5">
-        <label className="block text-sm">
-          <span className="mb-1 block font-medium text-ink">Pickup date</span>
-          <input
-            type="date"
-            className="tv-input w-full"
-            min={minDate}
-            value={startDate}
-            onChange={(e) => {
-              const next = e.target.value;
-              setStartDate(next);
-              if (endDate < next) setEndDate(next);
-            }}
-          />
-        </label>
-        <label className="block text-sm">
-          <span className="mb-1 block font-medium text-ink">Return date</span>
-          <input
-            type="date"
-            className="tv-input w-full"
-            min={startDate || minDate}
-            value={endDate}
-            onChange={(e) => setEndDate(e.target.value)}
-          />
-        </label>
-      </div>
-
-      <div className="grid grid-cols-2 gap-2.5">
-        <label className="block text-sm">
-          <span className="mb-1 flex items-center gap-1 font-medium text-ink">
-            <Clock className="h-3.5 w-3.5" aria-hidden />
-            Pickup time
-          </span>
-          <input
-            type="time"
-            className="tv-input w-full"
-            value={pickupHm}
-            onChange={(e) => setPickupHm(normalizeHm(e.target.value, pickupHm))}
-          />
-        </label>
-        <label className="block text-sm">
-          <span className="mb-1 flex items-center gap-1 font-medium text-ink">
-            <Clock className="h-3.5 w-3.5" aria-hidden />
-            Return time
-          </span>
-          <input
-            type="time"
-            className="tv-input w-full"
-            value={returnHm}
-            onChange={(e) => setReturnHm(normalizeHm(e.target.value, returnHm))}
-          />
-        </label>
+      <div className="space-y-2">
+        <div className="grid grid-cols-2 gap-2">
+          <label className="block min-w-0 text-sm">
+            <span className="mb-1 block font-medium text-ink">Pickup</span>
+            <input
+              type="date"
+              className="tv-input tv-rental-datetime w-full"
+              min={minDate}
+              value={startDate}
+              onChange={(e) => {
+                const next = e.target.value;
+                setStartDate(next);
+                if (endDate < next) setEndDate(next);
+              }}
+            />
+          </label>
+          <label className="block min-w-0 text-sm">
+            <span className="mb-1 block font-medium text-ink">Time</span>
+            <input
+              type="time"
+              className="tv-input tv-rental-datetime w-full"
+              value={pickupHm}
+              onChange={(e) => setPickupHm(normalizeHm(e.target.value, pickupHm))}
+            />
+          </label>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <label className="block min-w-0 text-sm">
+            <span className="mb-1 block font-medium text-ink">Return</span>
+            <input
+              type="date"
+              className="tv-input tv-rental-datetime w-full"
+              min={startDate || minDate}
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+            />
+          </label>
+          <label className="block min-w-0 text-sm">
+            <span className="mb-1 block font-medium text-ink">Time</span>
+            <input
+              type="time"
+              className="tv-input tv-rental-datetime w-full"
+              value={returnHm}
+              onChange={(e) => setReturnHm(normalizeHm(e.target.value, returnHm))}
+            />
+          </label>
+        </div>
       </div>
 
       <GuestStepper
         label="Quantity"
-        value={Math.min(Math.max(1, quantity), maxQty)}
+        size="compact"
+        value={Math.min(Math.max(1, quantity), Math.max(1, maxQty))}
         min={1}
         max={Math.max(1, maxQty)}
         onChange={setQuantity}
         unitSingular={quantityUnits.singular}
         unitPlural={quantityUnits.plural}
-        hint={`Up to ${maxQty} ${maxQty === 1 ? quantityUnits.singular : quantityUnits.plural} for this option. Live stock is checked for your dates.`}
+        hint={null}
       />
 
       {!interval.ok ? (
@@ -471,26 +472,21 @@ export default function RentalBookingWidget({
         </p>
       ) : null}
 
-      {interval.ok ? (
-        <p className="text-sm text-ink-muted">
-          Duration{' '}
-          <span className="font-medium text-ink">
-            {interval.durationCount} {interval.durationUnit}
-            {interval.durationCount === 1 ? '' : 's'}
-            {interval.durationUnit === 'day' ? ' · calendar days' : ''}
-          </span>
-        </p>
-      ) : null}
-
       {quote?.ok ? (
-        <div className="rounded-xl bg-[#F7F8FA] px-3.5 py-3">
-          <p className="text-sm text-ink">
-            Estimated total{' '}
-            <span className="font-semibold tabular-nums">{formatMinorAsEuro(quote.customerTotalMinor)}</span>
-          </p>
-          <p className="mt-0.5 text-xs text-ink-muted">
-            {checkoutOpen ? 'Confirmed again at checkout before any charge.' : 'Estimate only — nothing is charged.'}
-          </p>
+        <div className="border-t border-[#E8EBF0] pt-2.5">
+          <div className="flex items-baseline justify-between gap-3">
+            <span className="text-sm font-medium text-ink-muted">Estimated total</span>
+            <span className="font-sans text-lg font-bold tabular-nums tracking-tight text-[#111827]">
+              {formatMinorAsEuro(quote.customerTotalMinor)}
+            </span>
+          </div>
+          {showBreakdown && interval.ok ? (
+            <p className="mt-0.5 text-right text-xs text-ink-muted">
+              {Math.min(Math.max(1, quantity), maxQty)} × {interval.durationCount}{' '}
+              {interval.durationUnit}
+              {interval.durationCount === 1 ? '' : 's'}
+            </p>
+          ) : null}
         </div>
       ) : quote && !quote.ok ? (
         <p className="text-sm text-[#9f1239]" role="alert">
@@ -498,7 +494,7 @@ export default function RentalBookingWidget({
         </p>
       ) : null}
 
-      <div className="min-h-[1.25rem] text-sm text-ink-muted" aria-live="polite">
+      <div className="min-h-[1rem] text-xs text-ink-muted" aria-live="polite">
         {availability.loading ? (
           <span className="inline-flex items-center gap-1.5">
             <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
@@ -511,84 +507,52 @@ export default function RentalBookingWidget({
         ) : null}
       </div>
 
-      {checkoutOpen ? (
-        <label className="flex items-start gap-2 text-sm text-ink">
-          <input
-            type="checkbox"
-            className="mt-1"
-            checked={consent}
-            onChange={(event) => setConsent(event.target.checked)}
-          />
-          <span>
-            I accept the{' '}
-            <a href="#rental-policies" className="font-semibold text-[#073b83] underline-offset-2 hover:underline">
-              cancellation and deposit terms
-            </a>{' '}
-            and Traverion’s terms. Rental refunds are not automatic.
-          </span>
-        </label>
-      ) : (
-        <div className="rounded-xl bg-[#F4F6F8] px-3.5 py-3 text-sm text-ink-muted" role="note">
-          <p className="flex items-start gap-2">
-            <Shield className="mt-0.5 h-4 w-4 shrink-0 text-[#073b83]" aria-hidden />
-            Online payment for rentals is not open yet. You can review dates, times, and the price. Nothing is charged.
-          </p>
-        </div>
-      )}
+      {!checkoutOpen ? (
+        <p className="flex items-start gap-1.5 text-xs text-ink-muted" role="note">
+          <Shield className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#0758CB]" aria-hidden />
+          Online payment is not open yet. Nothing is charged.
+        </p>
+      ) : null}
 
       {reviewing && quote?.ok && interval.ok ? (
-        <div className="rounded-xl bg-[#F4F6F8] px-3.5 py-3 text-sm">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#073b83]">Review</p>
-          <dl className="mt-2 space-y-1.5">
-            <div className="flex justify-between gap-3">
-              <dt className="text-ink-muted">Rental</dt>
-              <dd className="text-right font-medium text-ink">{listingTitle}</dd>
-            </div>
+        <div className="rounded-xl bg-[#F7F8FA] px-3 py-2.5 text-sm">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#0758CB]">Review</p>
+            <button
+              type="button"
+              className="text-xs font-semibold text-[#0758CB]"
+              onClick={() => setReviewing(false)}
+            >
+              Edit
+            </button>
+          </div>
+          <dl className="mt-1.5 space-y-1 text-xs">
             <div className="flex justify-between gap-3">
               <dt className="text-ink-muted">Option</dt>
-              <dd className="text-right font-medium text-ink">{selected?.name ?? 'Standard'}</dd>
-            </div>
-            <div className="flex justify-between gap-3">
-              <dt className="text-ink-muted">Quantity</dt>
-              <dd className="text-right font-medium text-ink">{Math.min(Math.max(1, quantity), maxQty)}</dd>
+              <dd className="font-medium text-ink">{selected?.name ?? 'Standard'}</dd>
             </div>
             <div className="flex justify-between gap-3">
               <dt className="text-ink-muted">Pickup</dt>
-              <dd className="text-right font-medium text-ink">
+              <dd className="font-medium text-ink">
                 {startDate} · {pickupHm}
               </dd>
             </div>
             <div className="flex justify-between gap-3">
               <dt className="text-ink-muted">Return</dt>
-              <dd className="text-right font-medium text-ink">
+              <dd className="font-medium text-ink">
                 {endDate} · {returnHm}
               </dd>
             </div>
             <div className="flex justify-between gap-3">
-              <dt className="text-ink-muted">Duration</dt>
-              <dd className="text-right font-medium text-ink">
-                {interval.durationCount} {interval.durationUnit}
-                {interval.durationCount === 1 ? '' : 's'}
-                {interval.durationUnit === 'day' ? ' · calendar days' : ''}
-              </dd>
-            </div>
-            <div className="flex justify-between gap-3">
-              <dt className="text-ink-muted">Estimated total</dt>
-              <dd className="text-right font-semibold text-ink tabular-nums">
-                {formatMinorAsEuro(quote.customerTotalMinor)}
+              <dt className="text-ink-muted">Qty</dt>
+              <dd className="font-medium text-ink">
+                {Math.min(Math.max(1, quantity), maxQty)}{' '}
+                {Math.min(Math.max(1, quantity), maxQty) === 1
+                  ? quantityUnits.singular
+                  : quantityUnits.plural}
               </dd>
             </div>
           </dl>
-          <p className="mt-2 text-xs leading-relaxed text-ink-muted">
-            The estimate is for review. Traverion confirms the amount on the server before any charge.
-          </p>
-          <button
-            type="button"
-            className="mt-2 text-xs font-semibold text-[#073b83]"
-            onClick={() => setReviewing(false)}
-          >
-            Edit selection
-          </button>
         </div>
       ) : null}
 
@@ -598,10 +562,32 @@ export default function RentalBookingWidget({
         </p>
       ) : null}
 
+      {reviewing && checkoutOpen ? (
+        <label className="flex items-start gap-2 text-xs leading-snug text-ink">
+          <input
+            type="checkbox"
+            className="mt-0.5"
+            checked={consent}
+            onChange={(event) => setConsent(event.target.checked)}
+          />
+          <span>
+            I agree to the{' '}
+            <a href="#rental-policies" className="font-semibold text-[#0758CB] underline-offset-2 hover:underline">
+              cancellation and deposit terms
+            </a>{' '}
+            and{' '}
+            <a href="/terms" target="_blank" rel="noreferrer" className="font-semibold text-[#0758CB] underline-offset-2 hover:underline">
+              Traverion’s terms
+            </a>
+            .
+          </span>
+        </label>
+      ) : null}
+
       {reviewing ? (
         <button
           type="button"
-          className="tv-btn-primary min-h-12 w-full font-semibold disabled:opacity-60"
+          className="tv-btn-primary min-h-11 w-full font-semibold disabled:opacity-60"
           disabled={!checkoutOpen || paying || !consent || !quote?.ok || !interval.ok || availability.ok === false}
           onClick={() => void continueToCheckout()}
         >
@@ -610,19 +596,13 @@ export default function RentalBookingWidget({
       ) : (
         <button
           type="button"
-          className="tv-btn-primary min-h-12 w-full font-semibold disabled:opacity-60"
+          className="tv-btn-primary min-h-11 w-full font-semibold disabled:opacity-60"
           disabled={!quote?.ok || !interval.ok || availability.ok === false}
           onClick={() => setReviewing(true)}
         >
           Review rental
         </button>
       )}
-      <p className="flex items-center justify-center gap-1.5 text-xs text-ink-muted">
-        <CalendarDays className="h-3.5 w-3.5" aria-hidden />
-        {checkoutOpen
-          ? 'Checkout uses Traverion’s secure payment page.'
-          : 'The price above is for review only.'}
-      </p>
     </div>
   );
 }

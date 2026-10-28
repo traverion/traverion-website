@@ -61,6 +61,7 @@ import {
 } from '../lib/rental-presentation';
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
 import { isSupabaseListingId } from '../lib/discount-display';
+import { orderedPhotoUrls, photoSlotsFromTourPackage } from '../lib/listingPhotoGrid';
 import { USER_ERROR, userFacingError } from '../lib/userFacingError';
 import { useDialogFocus } from '../hooks/useDialogFocus';
 import type { TourPackage } from '../types/tour';
@@ -88,11 +89,9 @@ async function viewerMayPreviewDraft(supplierId: string | undefined, userId: str
   return Boolean(data?.user_id);
 }
 
+/** Same cover + gallery resolution as Tours/Stays (image + galleryImageUrls). */
 function photoList(listing: TourPackage): string[] {
-  const slots = (listing.listingExtras as { photoSlots?: string[] } | undefined)?.photoSlots ?? [];
-  const fromSlots = slots.filter((url) => typeof url === 'string' && url.startsWith('http'));
-  if (fromSlots.length) return fromSlots;
-  return listing.image ? [listing.image] : [];
+  return orderedPhotoUrls(photoSlotsFromTourPackage(listing));
 }
 
 function rentalDurationFact(rental: RentalModel): string {
@@ -377,35 +376,20 @@ function RentalBody({
             {listing.title}
           </h1>
           <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-sm">
-            {canLoadReviews ? (
+            {canLoadReviews && reviewCount > 0 && reviewScore ? (
               <button
                 type="button"
                 className="inline-flex items-center gap-1.5 rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0758CB]"
                 onClick={() => {
                   document.getElementById('rental-reviews')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 }}
-                aria-label={
-                  reviewScore
-                    ? `${reviewScore} average from ${reviewCount} reviews. Go to reviews.`
-                    : 'No reviews yet. Go to reviews.'
-                }
+                aria-label={`${reviewScore} average from ${reviewCount} reviews. Go to reviews.`}
               >
-                {reviewScore ? (
-                  <>
-                    <Star size={15} className="shrink-0 fill-[#C9A227] text-[#C9A227]" aria-hidden />
-                    <span className="font-bold tabular-nums text-[#111827]">{reviewScore}</span>
-                    <span className="font-medium text-ink-muted underline decoration-[#E8EBF0] underline-offset-2">
-                      {reviewCount} {reviewCount === 1 ? 'review' : 'reviews'}
-                    </span>
-                  </>
-                ) : (
-                  <>
-                    <Star size={15} className="shrink-0 text-ink-faint" aria-hidden />
-                    <span className="font-medium text-ink-muted underline decoration-[#E8EBF0] underline-offset-2">
-                      (0) reviews
-                    </span>
-                  </>
-                )}
+                <Star size={15} className="shrink-0 fill-[#C9A227] text-[#C9A227]" aria-hidden />
+                <span className="font-bold tabular-nums text-[#111827]">{reviewScore}</span>
+                <span className="font-medium text-ink-muted underline decoration-[#E8EBF0] underline-offset-2">
+                  {reviewCount} {reviewCount === 1 ? 'review' : 'reviews'}
+                </span>
               </button>
             ) : null}
             {place ? (
@@ -530,9 +514,9 @@ function RentalBody({
                   {specs.map(([key, value]) => (
                     <div
                       key={key}
-                      className="grid gap-1 py-3 sm:grid-cols-[8.75rem_minmax(0,1fr)] sm:items-start sm:gap-5"
+                      className="grid gap-1 py-3 sm:grid-cols-[minmax(7.5rem,11rem)_minmax(0,1fr)] sm:items-start sm:gap-6"
                     >
-                      <dt className="text-sm font-semibold tracking-tight text-[#111827]">
+                      <dt className="text-sm font-semibold tracking-tight text-[#111827] whitespace-normal">
                         {rentalSpecLabel(rental, key)}
                       </dt>
                       <dd className="text-sm leading-relaxed text-ink-muted break-words [overflow-wrap:anywhere]">
@@ -604,13 +588,19 @@ function RentalBody({
                   <RentalCollectionMap
                     lat={rental.pickupLat}
                     lng={rental.pickupLng}
+                    compact
                     label={returnPoint.sameAsPickup ? 'Pickup and return map' : 'Pickup location map'}
                   />
                 </div>
               ) : null}
               {!returnPoint.sameAsPickup && returnPoint.lat != null && returnPoint.lng != null ? (
                 <div className="mt-4 overflow-hidden rounded-xl ring-1 ring-[#E8EBF0]">
-                  <RentalCollectionMap lat={returnPoint.lat} lng={returnPoint.lng} label="Return location map" />
+                  <RentalCollectionMap
+                    lat={returnPoint.lat}
+                    lng={returnPoint.lng}
+                    compact
+                    label="Return location map"
+                  />
                 </div>
               ) : null}
               {hours.length > 0 ? (
@@ -630,7 +620,15 @@ function RentalBody({
 
             <section className={sectionClass}>
               <h2 className={headingClass}>Rental length</h2>
-              <p className="max-w-xl text-[15px] leading-relaxed text-ink-muted">{rentalDurationCustomerText(rental)}</p>
+              <ul className="max-w-xl space-y-1.5 text-[15px] leading-relaxed text-ink-muted">
+                {rentalDurationCustomerText(rental)
+                  .split(' · ')
+                  .map((bit) => bit.trim())
+                  .filter(Boolean)
+                  .map((bit) => (
+                    <li key={bit}>{bit}</li>
+                  ))}
+              </ul>
             </section>
 
             {requirements.length > 0 ||

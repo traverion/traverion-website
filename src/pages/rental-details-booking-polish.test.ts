@@ -2,50 +2,41 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-describe('Rental PDP Tour-parity unification', () => {
+describe('Rental PDP final polish', () => {
   const details = readFileSync(resolve(__dirname, 'RentalDetails.tsx'), 'utf8');
   const widget = readFileSync(resolve(__dirname, '../components/rental/RentalBookingWidget.tsx'), 'utf8');
   const gallery = readFileSync(resolve(__dirname, '../components/rental/RentalPhotoGallery.tsx'), 'utf8');
   const stepper = readFileSync(resolve(__dirname, '../components/booking/GuestStepper.tsx'), 'utf8');
   const css = readFileSync(resolve(__dirname, '../index.css'), 'utf8');
 
-  it('uses Tour shell, title-before-gallery, and sans title typography', () => {
-    expect(details).toContain('tv-rental-pdp');
-    expect(details).toContain('tv-pdp-layout');
-    expect(details).toContain('tv-pdp-main');
-    expect(details).toContain('tv-pdp-aside');
-    expect(details).toContain('tv-tour-title font-sans');
-    expect(details).not.toContain('font-display text-3xl');
-    expect(details.indexOf('tv-tour-title')).toBeLessThan(details.indexOf('<RentalPhotoGallery'));
-    expect(css).toContain('.tv-rental-pdp .tv-tour-title');
+  it('resolves rental photos like Tours and handles load failures', () => {
+    expect(details).toContain('photoSlotsFromTourPackage');
+    expect(details).toContain('orderedPhotoUrls');
+    expect(gallery).toContain('onError');
+    expect(gallery).toContain('Photos could not be loaded');
+    expect(gallery).toContain('ImageOff');
   });
 
-  it('keeps sticky rental booking chrome and unit quantity (not guests)', () => {
-    expect(details).toContain('tv-booking-sticky--rental');
-    expect(details).toContain('tv-booking-mobile-bar');
-    expect(details).toContain('id="rental-policies"');
-    expect(details).toContain('tv-tour-option-card');
-    expect(widget).toContain('GuestStepper');
+  it('keeps a compact booking card without guest wording or chatter', () => {
+    expect(widget).toContain('size="compact"');
     expect(widget).toContain('unitSingular');
-    expect(widget).toContain('rentalQuantityUnits');
-    expect(widget).not.toContain('rentalDepositCustomerText');
-    expect(widget).not.toContain('rentalCancellationCustomerText');
-    expect(stepper).toContain('unitSingular');
-    expect(stepper).toContain('unitPlural');
+    expect(widget).toContain('Estimated total');
+    expect(widget).toContain('tv-rental-datetime');
+    expect(widget).not.toContain('Live stock is checked');
+    expect(widget).not.toContain('Confirmed again at checkout');
+    expect(widget).not.toContain('Checkout uses Traverion');
+    expect(widget).not.toContain('Nothing is reserved');
+    expect(widget).toContain('unitSingular={quantityUnits.singular}');
+    expect(widget).not.toMatch(/unitSingular=["']guest["']/);
+    expect(stepper).toContain("size === 'compact'");
+    expect(css).toContain('tv-rental-datetime');
   });
 
-  it('wires reviews and supplier with shared components when data exists', () => {
-    expect(details).toContain('PublicReviewCard');
-    expect(details).toContain('ListingReviewsModal');
+  it('hides empty title ratings and keeps reviews/operator sections', () => {
+    expect(details).toContain('reviewCount > 0 && reviewScore');
+    expect(details).not.toContain('(0) reviews');
+    expect(details).toContain('rental-reviews');
     expect(details).toContain('TourOperatorBlock');
-    expect(details).toContain('fetchSupplierPublicLegal');
-    expect(details).toContain('fetchReviewsByListingId');
-  });
-
-  it('aligns rental gallery with Tour mosaic and shared lightbox', () => {
-    expect(gallery).toContain('useDialogFocus');
-    expect(gallery).toContain('tv-gallery-lightbox');
-    expect(gallery).toContain('lg:grid-cols-4 lg:grid-rows-2');
-    expect(gallery).toContain('View all photos');
+    expect(details).toContain('compact');
   });
 });

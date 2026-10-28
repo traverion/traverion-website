@@ -18,6 +18,8 @@ export type GuestStepperProps = {
   /** Count noun for display and aria (default: guest/guests). Use unit/camera/bike for rentals. */
   unitSingular?: string;
   unitPlural?: string;
+  /** Compact height for dense sticky booking cards (rentals). */
+  size?: 'default' | 'compact';
 };
 
 export default function GuestStepper({
@@ -33,6 +35,7 @@ export default function GuestStepper({
   ariaDescribedBy,
   unitSingular = 'guest',
   unitPlural = 'guests',
+  size = 'default',
 }: GuestStepperProps) {
   const generatedId = useId();
   const labelId = id ?? generatedId;
@@ -61,9 +64,17 @@ export default function GuestStepper({
   const groupDescribedBy =
     [hintText ? hintId : null, ariaDescribedBy?.trim() || null].filter(Boolean).join(' ') || undefined;
 
+  const compact = size === 'compact';
+  const btnClass = compact
+    ? 'lux-flat flex h-10 w-10 shrink-0 items-center justify-center text-finland transition-colors duration-150 hover:bg-finland/5 active:scale-95 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent disabled:active:scale-100'
+    : 'lux-flat flex h-12 w-12 shrink-0 items-center justify-center text-finland transition-colors duration-150 hover:bg-finland/5 active:scale-95 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent disabled:active:scale-100';
+
   return (
     <div className={className}>
-      <span id={labelId} className="mb-1.5 block text-sm font-medium tracking-tight text-ink">
+      <span
+        id={labelId}
+        className={`block text-sm font-medium tracking-tight text-ink ${compact ? 'mb-1' : 'mb-1.5'}`}
+      >
         {label}
       </span>
       <div
@@ -74,7 +85,7 @@ export default function GuestStepper({
       >
         <button
           type="button"
-          className="lux-flat flex h-12 w-12 shrink-0 items-center justify-center text-finland transition-colors duration-150 hover:bg-finland/5 active:scale-95 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent disabled:active:scale-100"
+          className={btnClass}
           aria-label={`Decrease number of ${unitPlural}`}
           disabled={atMin}
           onClick={tryDecrease}
@@ -92,7 +103,7 @@ export default function GuestStepper({
         </div>
         <button
           type="button"
-          className="lux-flat flex h-12 w-12 shrink-0 items-center justify-center text-finland transition-colors duration-150 hover:bg-finland/5 active:scale-95 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent disabled:active:scale-100"
+          className={btnClass}
           aria-label={`Increase number of ${unitPlural}`}
           disabled={atMax}
           onClick={tryIncrease}
@@ -101,7 +112,7 @@ export default function GuestStepper({
         </button>
       </div>
       {hintText ? (
-        <p id={hintId} className="mt-1.5 text-xs text-ink-faint">
+        <p id={hintId} className={`text-xs text-ink-faint ${compact ? 'mt-1' : 'mt-1.5'}`}>
           {hintText}
         </p>
       ) : null}
