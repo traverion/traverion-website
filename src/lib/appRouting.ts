@@ -157,6 +157,12 @@ export function parsePathname(pathname: string, options?: ParsePathnameOptions):
   if (STAY_LISTING_DEEP_LINK.test(normalized)) {
     return { page: 'stays', destinationSlug: null };
   }
+  if (
+    import.meta.env.DEV &&
+    (normalized === '/checkout-ui-preview' || normalized === '/dev/checkout-ui-preview')
+  ) {
+    return { page: 'checkout-ui-preview', destinationSlug: null };
+  }
   const mapped = PATH_TO_PAGE[normalized];
   if (mapped) {
     return { page: mapped, destinationSlug: null };

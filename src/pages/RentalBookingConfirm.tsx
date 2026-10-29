@@ -9,7 +9,7 @@ import { listingHeroImageSrc } from '../lib/listingPhotoGrid';
 import { formatMoney, normalizeCurrency } from '../lib/money';
 import PriceBreakdown from '../components/PriceBreakdown';
 import CheckoutConsentCheckbox from '../components/booking/CheckoutConsentCheckbox';
-import CheckoutSecureHeader from '../components/checkout/CheckoutSecureHeader';
+import CheckoutPageShell, { CHECKOUT_TWO_COL } from '../components/checkout/CheckoutPageShell';
 import NoticeCallout from '../components/NoticeCallout';
 import { checkoutPayBlockedByConsent } from '../lib/checkout-consent';
 import { LISTING_SELF_BOOK_BLOCKED, LISTING_SELF_BOOK_CHECK_FAILED, viewerIsListingSupplierSide } from '../lib/listing-self-book';
@@ -553,15 +553,23 @@ export default function RentalBookingConfirm({ listing, rental, initial, onBackT
     </>
   );
 
-  return (
-    <div className="fixed inset-0 z-[10000] flex flex-col bg-white">
-      <CheckoutSecureHeader
-        onBrandClick={() => onBackToListing(currentState())}
-        srBackLabel="Back to rental"
-      />
+  const mobileDock = (
+    <>
+      {quoteOk && quote?.ok ? (
+        <p className="text-center text-[13px] text-ink-muted">
+          Total <strong className="font-semibold tabular-nums text-ink">{totalLabel}</strong>
+        </p>
+      ) : null}
+      {paymentButton}
+    </>
+  );
 
-      <div className="min-h-0 flex-1 overflow-y-auto pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] lg:pb-0">
-        <div className="mx-auto w-full max-w-5xl px-4 py-4 sm:px-6 sm:py-5 lg:px-8">
+  return (
+    <CheckoutPageShell
+      onBrandClick={() => onBackToListing(currentState())}
+      srBackLabel="Back to rental"
+      mobileDock={mobileDock}
+    >
           {paymentCancelledNote ? (
             <div className="mb-3">
               <NoticeCallout title="Checkout cancelled" tone="warn">
@@ -570,9 +578,9 @@ export default function RentalBookingConfirm({ listing, rental, initial, onBackT
             </div>
           ) : null}
 
-          <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_20.5rem] lg:items-start lg:gap-7">
+          <div className={CHECKOUT_TWO_COL}>
             <div className="min-w-0 space-y-3">
-              <div className="overflow-hidden rounded-xl border border-black/[0.08] bg-white lg:hidden">
+              <div className="tv-checkout-panel lg:hidden">
                 <button
                   type="button"
                   className="flex w-full items-center gap-3 p-3 text-left motion-safe:transition-colors duration-150 hover:bg-black/[0.02]"
@@ -618,7 +626,7 @@ export default function RentalBookingConfirm({ listing, rental, initial, onBackT
                 </div>
               </div>
 
-              <div className="rounded-xl border border-black/[0.08] bg-white p-3.5 sm:p-4">
+              <div className="tv-checkout-panel p-3.5 sm:p-4">
                 <h2 className="font-sans text-lg font-semibold tracking-tight text-ink">
                   Review & payment
                 </h2>
@@ -864,47 +872,12 @@ export default function RentalBookingConfirm({ listing, rental, initial, onBackT
             </div>
 
             <aside className="mt-4 hidden lg:sticky lg:top-4 lg:mt-0 lg:block lg:self-start">
-              <div className="overflow-hidden rounded-xl border border-black/[0.08] bg-white p-3.5 shadow-[0_10px_28px_-18px_rgba(15,23,42,0.22)]">
+              <div className="tv-checkout-panel p-3.5 sm:p-4">
                 <p className="tv-eyebrow mb-2.5">Booking summary</p>
                 {summaryBody}
               </div>
             </aside>
           </div>
-
-          <footer className="mt-6 border-t border-black/[0.06] py-3">
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-ink-muted">
-              <span>© {new Date().getFullYear()} Traverion</span>
-              <a
-                href="/privacy"
-                target="_blank"
-                rel="noreferrer"
-                className="underline-offset-2 hover:text-ink hover:underline"
-              >
-                Privacy
-              </a>
-              <a
-                href="/terms"
-                target="_blank"
-                rel="noreferrer"
-                className="underline-offset-2 hover:text-ink hover:underline"
-              >
-                Terms
-              </a>
-            </div>
-          </footer>
-        </div>
-      </div>
-
-      <div className="lg:hidden shrink-0 border-t border-black/[0.08] bg-white/96 px-4 py-2.5 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-md">
-        <div className="mx-auto flex w-full max-w-5xl flex-col gap-1.5">
-          {quoteOk && quote?.ok ? (
-            <p className="text-center text-[13px] text-ink-muted">
-              Total <strong className="font-semibold tabular-nums text-ink">{totalLabel}</strong>
-            </p>
-          ) : null}
-          {paymentButton}
-        </div>
-      </div>
-    </div>
+    </CheckoutPageShell>
   );
 }

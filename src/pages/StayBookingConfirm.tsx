@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
-import { ArrowLeft, Home, Lock, MapPin } from 'lucide-react';
+import { Home, Mail, MapPin, Phone, User } from 'lucide-react';
 import type { TourPackage } from '../types/tour';
 import { parseListingExtras } from '../types/listingExtras';
 import { listingHeroImageSrc } from '../lib/listingPhotoGrid';
@@ -17,6 +16,7 @@ import PriceBreakdown from '../components/PriceBreakdown';
 import StayNightPicker from '../components/StayNightPicker';
 import StayGuestPartySelector from '../components/booking/StayGuestPartySelector';
 import CheckoutConsentCheckbox from '../components/booking/CheckoutConsentCheckbox';
+import CheckoutPageShell, { CHECKOUT_TWO_COL } from '../components/checkout/CheckoutPageShell';
 import NoticeCallout from '../components/NoticeCallout';
 import { normalizeStayGuestPolicy, type StayGuestParty } from '../lib/stay-guest-party';
 import { stayArrivalMethodLabel } from '../lib/stay-arrival';
@@ -30,7 +30,6 @@ import { STRIPE_TEST_UNTIL_LIVE } from '../lib/booking-confirmation-copy';
 import { listingShowsFreeCancellation } from '../lib/listingTruth';
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { BRAND_LOGO_SRC } from '../lib/brandAssets';
 import {
   createCheckoutTiming,
   logCheckoutInitiationTiming,
@@ -57,7 +56,7 @@ type Props = {
   onBackToListing: (state: StayCheckoutState) => void;
 };
 
-const sectionClass = 'rounded-xl border border-black/[0.08] bg-white p-3.5 sm:p-4';
+const sectionClass = 'tv-checkout-panel p-3.5 sm:p-4';
 const sectionTitleClass = 'font-display text-[0.9375rem] font-semibold tracking-tight text-ink';
 
 export default function StayBookingConfirm({ stay, initial, onBackToListing }: Props) {
@@ -76,6 +75,7 @@ export default function StayBookingConfirm({ stay, initial, onBackToListing }: P
   });
   const [editingDates, setEditingDates] = useState(false);
   const [editingGuests, setEditingGuests] = useState(false);
+  const [editingContact, setEditingContact] = useState(false);
   const [discounts, setDiscounts] = useState<ListingDiscount[]>([]);
   const [occupiedRanges, setOccupiedRanges] = useState<{ checkIn: string; checkOut: string }[]>([]);
   const [blockedNights, setBlockedNights] = useState<string[]>([]);
@@ -481,47 +481,37 @@ export default function StayBookingConfirm({ stay, initial, onBackToListing }: P
     </button>
   );
 
-  return (
-    <div className="fixed inset-0 z-[10000] flex flex-col bg-paper">
-      <header className="shrink-0 border-b border-black/[0.08] bg-white pt-[env(safe-area-inset-top,0px)]">
-        <div className="mx-auto flex h-12 w-full max-w-5xl items-center justify-between gap-3 px-4 sm:px-6">
-          <button
-            type="button"
-            onClick={() => onBackToListing(currentState())}
-            className="lux-flat inline-flex h-10 min-w-0 items-center gap-2 rounded-md pr-2 text-ink"
-          >
-            <img src={BRAND_LOGO_SRC} alt="" className="h-7 w-7 object-contain" />
-            <span className="font-sans text-[13px] font-bold tracking-tight">Traverion</span>
-            <span className="sr-only">Back to stay</span>
-          </button>
-          <p className="inline-flex items-center gap-1.5 text-xs font-semibold text-ink-muted">
-            <Lock className="h-3.5 w-3.5 text-finland" aria-hidden />
-            Secure checkout
-          </p>
-        </div>
-      </header>
+  const mobileDock = (
+    <>
+      {quoteOk && stayQuote.ok ? (
+        <p className="text-center text-xs text-ink-muted">
+          Total{' '}
+          <span className="font-semibold tabular-nums text-ink">
+            {formatMoney(stayQuote.totalAmount, stayQuote.currency)}
+          </span>
+        </p>
+      ) : null}
+      {paymentButton}
+    </>
+  );
 
-      <div className="min-h-0 flex-1 overflow-y-auto pb-[calc(5.25rem+env(safe-area-inset-bottom,0px))] lg:pb-0">
-        <div className="mx-auto w-full max-w-5xl px-4 py-4 sm:px-6 sm:py-5 lg:px-8 lg:py-6">
+  return (
+    <CheckoutPageShell
+      onBrandClick={() => onBackToListing(currentState())}
+      srBackLabel="Back to stay"
+      mobileDock={mobileDock}
+    >
           {paymentCancelledNote ? (
-            <div className="mb-4">
+            <div className="mb-3">
               <NoticeCallout title="Checkout cancelled" tone="warn">
                 {paymentCancelledNote}
               </NoticeCallout>
             </div>
           ) : null}
 
-          <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_20.5rem] lg:items-start lg:gap-8">
+          <div className={CHECKOUT_TWO_COL}>
             <div className="min-w-0 space-y-3">
               <div>
-                <button
-                  type="button"
-                  onClick={() => onBackToListing(currentState())}
-                  className="mb-2.5 inline-flex items-center gap-1.5 text-sm font-medium text-ink-muted hover:text-ink"
-                >
-                  <ArrowLeft className="h-4 w-4" aria-hidden />
-                  Back to stay
-                </button>
                 <h1 className="font-display text-xl font-semibold tracking-tight text-ink sm:text-[1.375rem]">
                   Complete your reservation
                 </h1>
@@ -631,58 +621,93 @@ export default function StayBookingConfirm({ stay, initial, onBackToListing }: P
               </section>
 
               <section className={sectionClass}>
-                <h2 className={sectionTitleClass}>Contact</h2>
-                <div className="mt-2.5 grid gap-2.5 sm:grid-cols-2">
-                  <div className="sm:col-span-2">
-                    <label className="block text-xs font-medium text-ink" htmlFor="stay-book-guest-name">
-                      Lead guest name
-                    </label>
-                    <input
-                      id="stay-book-guest-name"
-                      type="text"
-                      autoComplete="name"
-                      autoCapitalize="words"
-                      required
-                      aria-required="true"
-                      value={guestName}
-                      onChange={(e) => {
-                        setGuestName(e.target.value);
-                        setPayError(null);
-                      }}
-                      className="tv-input mt-1 min-h-11 w-full"
-                      placeholder="Name on the booking"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-ink" htmlFor="stay-book-guest-email">
-                      Email
-                    </label>
-                    <input
-                      id="stay-book-guest-email"
-                      type="email"
-                      autoComplete="email"
-                      value={user?.email ?? ''}
-                      readOnly
-                      className="tv-input mt-1 min-h-11 w-full bg-black/[0.02] text-ink-muted"
-                      placeholder={user ? undefined : 'Sign in to confirm your email'}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-ink" htmlFor="stay-book-guest-phone">
-                      Phone <span className="font-normal text-ink-muted">(optional)</span>
-                    </label>
-                    <input
-                      id="stay-book-guest-phone"
-                      type="tel"
-                      autoComplete="tel"
-                      inputMode="tel"
-                      value={guestPhone}
-                      onChange={(e) => setGuestPhone(e.target.value)}
-                      className="tv-input mt-1 min-h-11 w-full"
-                      placeholder="Arrival contact"
-                    />
-                  </div>
+                <div className="flex items-center justify-between gap-3">
+                  <h2 className={sectionTitleClass}>Contact</h2>
+                  <button
+                    type="button"
+                    onClick={() => setEditingContact((v) => !v)}
+                    className="text-[13px] font-semibold text-finland hover:underline"
+                  >
+                    {editingContact ? 'Done' : 'Edit'}
+                  </button>
                 </div>
+                {editingContact ? (
+                  <div className="mt-2.5 grid gap-2.5 sm:grid-cols-2">
+                    <div className="relative sm:col-span-2">
+                      <User
+                        className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-faint"
+                        aria-hidden
+                      />
+                      <label className="sr-only" htmlFor="stay-book-guest-name">
+                        Lead guest name
+                      </label>
+                      <input
+                        id="stay-book-guest-name"
+                        type="text"
+                        autoComplete="name"
+                        autoCapitalize="words"
+                        required
+                        aria-required="true"
+                        value={guestName}
+                        onChange={(e) => {
+                          setGuestName(e.target.value);
+                          setPayError(null);
+                        }}
+                        className="tv-checkout-input pl-10"
+                        placeholder="Name on the booking"
+                      />
+                    </div>
+                    <div className="relative">
+                      <Mail
+                        className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-faint"
+                        aria-hidden
+                      />
+                      <label className="sr-only" htmlFor="stay-book-guest-email">
+                        Email
+                      </label>
+                      <input
+                        id="stay-book-guest-email"
+                        type="email"
+                        autoComplete="email"
+                        value={user?.email ?? ''}
+                        readOnly
+                        className="tv-checkout-input bg-black/[0.02] pl-10 text-ink-muted"
+                        placeholder={user ? undefined : 'Sign in to confirm your email'}
+                      />
+                    </div>
+                    <div className="relative">
+                      <Phone
+                        className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-faint"
+                        aria-hidden
+                      />
+                      <label className="sr-only" htmlFor="stay-book-guest-phone">
+                        Phone
+                      </label>
+                      <input
+                        id="stay-book-guest-phone"
+                        type="tel"
+                        autoComplete="tel"
+                        inputMode="tel"
+                        value={guestPhone}
+                        onChange={(e) => setGuestPhone(e.target.value)}
+                        className="tv-checkout-input pl-10"
+                        placeholder="Arrival contact (optional)"
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mt-2 space-y-0.5">
+                    <p className="text-sm font-medium text-ink break-words">
+                      {guestName.trim() || 'Name missing'}
+                    </p>
+                    <p className="text-[13px] text-ink-muted break-all">
+                      {user?.email || 'Sign in to confirm email'}
+                    </p>
+                    {guestPhone.trim() ? (
+                      <p className="text-[13px] text-ink-muted">{guestPhone.trim()}</p>
+                    ) : null}
+                  </div>
+                )}
               </section>
 
               {(s?.checkInTime || s?.checkOutTime || stayArrivalMethodLabel(s?.arrivalMethod) || s?.arrivalNote) && (
@@ -748,8 +773,8 @@ export default function StayBookingConfirm({ stay, initial, onBackToListing }: P
               </div>
             </div>
 
-            <aside className="mt-6 hidden lg:sticky lg:top-5 lg:mt-0 lg:block">
-              <div className="rounded-xl border border-black/[0.08] bg-white p-4 shadow-[0_10px_28px_-18px_rgba(15,23,42,0.22)]">
+            <aside className="mt-4 hidden lg:sticky lg:top-4 lg:mt-0 lg:block lg:self-start">
+              <div className="tv-checkout-panel p-3.5 sm:p-4">
                 <p className="tv-eyebrow mb-2.5">Booking summary</p>
                 {summary}
                 {quoteOk && stayQuote.ok ? (
@@ -761,28 +786,7 @@ export default function StayBookingConfirm({ stay, initial, onBackToListing }: P
               </div>
             </aside>
           </div>
-        </div>
-      </div>
-
-      {typeof document !== 'undefined'
-        ? createPortal(
-            <div className="lg:hidden fixed inset-x-0 bottom-0 z-[10001] border-t border-black/[0.08] bg-white/96 backdrop-blur-md px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-[0_-10px_28px_-18px_rgba(15,23,42,0.35)]">
-              <div className="mx-auto flex w-full max-w-5xl flex-col gap-2">
-                {quoteOk && stayQuote.ok ? (
-                  <p className="text-center text-xs text-ink-muted">
-                    Total{' '}
-                    <span className="font-semibold tabular-nums text-ink">
-                      {formatMoney(stayQuote.totalAmount, stayQuote.currency)}
-                    </span>
-                  </p>
-                ) : null}
-                {paymentButton}
-              </div>
-            </div>,
-            document.body
-          )
-        : null}
-    </div>
+    </CheckoutPageShell>
   );
 }
 

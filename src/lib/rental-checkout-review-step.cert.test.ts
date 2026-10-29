@@ -34,9 +34,10 @@ describe('Rental checkout review step', () => {
     expect(confirm).toContain('Back to rental');
   });
 
-  it('matches Tour review chrome: Review & payment + shared secure header', () => {
+  it('matches Tour review chrome: Review & payment + shared checkout shell', () => {
     expect(confirm).toContain('Review & payment');
-    expect(confirm).toContain('CheckoutSecureHeader');
+    expect(confirm).toContain('CheckoutPageShell');
+    expect(confirm).toContain('CHECKOUT_TWO_COL');
     expect(confirm).toContain('tv-checkout-input');
     expect(confirm).toContain('Continue to secure payment');
     expect(confirm).not.toContain('Complete your reservation');

@@ -120,7 +120,7 @@ import { tourStickyBookCtaLabel } from '../lib/tour-sticky-cta';
 import { bookingPageQuoteFailureFocusTarget } from '../lib/tour-quote-failure-focus';
 import { resolveTourPickupMeetingDisplay } from '../lib/tour-pickup-meeting';
 import { listingShowsFreeCancellation } from '../lib/listingTruth';
-import CheckoutSecureHeader from '../components/checkout/CheckoutSecureHeader';
+import CheckoutPageShell, { CHECKOUT_TWO_COL } from '../components/checkout/CheckoutPageShell';
 import { clearTravelerCart, saveTravelerCart } from '../lib/travelerCart';
 import { rememberAccountCart } from '../data/supabase-cart';
 
@@ -1963,33 +1963,66 @@ export default function BookingPage({
         )}
 
         {step === 'confirm' && (
-          <div className="tv-card p-4 sm:p-5">
+          <div className="tv-checkout-panel p-3.5 sm:p-4">
             <BookingProgress step={step} flow={progressFlow} pickupLabel={step3Label} />
-            <h2 className="text-xl font-bold text-ink mb-1">Review & payment</h2>
-            <p className="text-sm text-ink-muted mb-5">Review your details before completing your booking.</p>
+            <h2 className="font-sans text-lg font-semibold tracking-tight text-ink">Review & payment</h2>
+            <p className="mt-0.5 text-[13px] text-ink-muted">Confirm details, then continue to secure payment.</p>
 
-            <section className="border-t border-black/[0.06] py-4">
+            <section className="mt-3 border-t border-black/[0.06] pt-3">
               <div className="mb-2 flex items-center justify-between gap-3">
-                <h3 className="text-sm font-bold text-ink">Contact details</h3>
-                <button type="button" onClick={() => setStep('contact')} className="text-sm font-semibold text-finland hover:underline">
+                <h3 className="text-[13px] font-semibold text-ink">Booking details</h3>
+                <button
+                  type="button"
+                  onClick={() => setStep(flowMode === 'modal' || selectedVariant ? 'review' : 'date-guests')}
+                  className="text-[13px] font-semibold text-finland hover:underline"
+                >
                   Edit
                 </button>
               </div>
-              <p className="text-sm text-ink break-words">{leadGuestName || 'Name missing'}</p>
-              <p className="text-sm text-ink-muted break-all">{email}</p>
-              {phone.trim() ? <p className="text-sm text-ink-muted">{phone.trim()}</p> : null}
+              <p className="text-sm font-semibold leading-snug text-ink">{tour.title}</p>
+              {selectedVariant ? (
+                <p className="mt-0.5 text-[13px] text-ink-muted">{selectedVariant.label}</p>
+              ) : null}
+              <dl className="mt-2.5 grid grid-cols-2 gap-x-3 gap-y-2 text-[13px]">
+                <div>
+                  <dt className="text-[11px] font-medium uppercase tracking-[0.08em] text-ink-faint">Date</dt>
+                  <dd className="mt-0.5 font-medium text-ink">{dateDisplay || date || '—'}</dd>
+                </div>
+                {departureLabel ? (
+                  <div>
+                    <dt className="text-[11px] font-medium uppercase tracking-[0.08em] text-ink-faint">Departure</dt>
+                    <dd className="mt-0.5 font-medium tabular-nums text-ink">{departureLabel}</dd>
+                  </div>
+                ) : null}
+                <div className={departureLabel ? '' : 'col-span-2'}>
+                  <dt className="text-[11px] font-medium uppercase tracking-[0.08em] text-ink-faint">Participants</dt>
+                  <dd className="mt-0.5 font-medium text-ink">{participantsSummary}</dd>
+                </div>
+              </dl>
             </section>
 
-            <section className="border-t border-black/[0.06] py-4">
+            <section className="mt-3 border-t border-black/[0.06] pt-3">
               <div className="mb-2 flex items-center justify-between gap-3">
-                <h3 className="text-sm font-bold text-ink">{pickupMode === 'meet' ? 'Meeting point' : 'Pickup'}</h3>
+                <h3 className="text-[13px] font-semibold text-ink">Contact</h3>
+                <button type="button" onClick={() => setStep('contact')} className="text-[13px] font-semibold text-finland hover:underline">
+                  Edit
+                </button>
+              </div>
+              <p className="text-sm font-medium text-ink break-words">{leadGuestName || 'Name missing'}</p>
+              <p className="text-[13px] text-ink-muted break-all">{email}</p>
+              {phone.trim() ? <p className="text-[13px] text-ink-muted">{phone.trim()}</p> : null}
+            </section>
+
+            <section className="mt-3 border-t border-black/[0.06] pt-3">
+              <div className="mb-2 flex items-center justify-between gap-3">
+                <h3 className="text-[13px] font-semibold text-ink">{pickupMode === 'meet' ? 'Meeting point' : 'Pickup'}</h3>
                 {pickupMode === 'pickup' ? (
-                  <button type="button" onClick={() => setStep('pickup')} className="text-sm font-semibold text-finland hover:underline">
+                  <button type="button" onClick={() => setStep('pickup')} className="text-[13px] font-semibold text-finland hover:underline">
                     Edit
                   </button>
                 ) : null}
               </div>
-              <p className="text-sm text-ink break-words">
+              <p className="text-[13px] font-medium text-ink break-words">
                 {pickupMode === 'pickup'
                   ? selectedPickup?.formattedAddress || 'No pickup location selected'
                   : pickupMode === 'meet'
@@ -1998,26 +2031,26 @@ export default function BookingPage({
               </p>
             </section>
 
-            <section className="border-t border-black/[0.06] py-4">
-              <h3 className="text-sm font-bold text-ink">Payment</h3>
-              <p className="mt-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-muted">Total payable</p>
-              <p className="mt-1 text-2xl font-bold tabular-nums text-ink">{totalLabel}</p>
-              <p className="mt-2 text-sm text-ink-muted">
+            <section className="mt-3 border-t border-black/[0.06] pt-3">
+              <h3 className="text-[13px] font-semibold text-ink">Payment</h3>
+              <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-muted">Total payable</p>
+              <p className="mt-1 font-sans text-[1.65rem] font-semibold leading-none tracking-tight tabular-nums text-ink">{totalLabel}</p>
+              <p className="mt-2 text-[13px] text-ink-muted">
                 Spots stay available until payment succeeds. Checkout closes after{' '}
                 {CHECKOUT_HOLD_MINUTES} minutes if you leave without paying.
               </p>
-              <p className="mt-3 text-sm font-semibold text-ink">{cancellationShort}</p>
+              <p className="mt-2.5 text-[13px] font-medium leading-snug text-ink">{cancellationShort}</p>
               <details className="mt-1">
-                <summary className="cursor-pointer text-sm font-semibold text-finland">Full cancellation terms</summary>
-                <p className="mt-2 text-sm leading-relaxed text-ink-muted">{cancellationText}</p>
+                <summary className="cursor-pointer text-[13px] font-semibold text-finland">Full cancellation terms</summary>
+                <p className="mt-1.5 text-[13px] leading-relaxed text-ink-muted">{cancellationText}</p>
               </details>
-              <p className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold text-ink-muted">
+              <p className="mt-2.5 inline-flex items-center gap-1.5 text-xs font-medium text-ink-muted">
                 <Lock className="h-3.5 w-3.5 text-finland" aria-hidden />
                 Secure payment
               </p>
             </section>
 
-            <div className="mb-6">
+            <div className="mt-3">
               <CheckoutConsentCheckbox
                 id="booking-checkout-consent"
                 checked={checkoutConsentAccepted}
@@ -2272,22 +2305,23 @@ export default function BookingPage({
       {presentation === 'modal' ? createPortal(modalShell, document.body) : null}
       {presentation !== 'modal'
         ? createPortal(
-        <div className="fixed inset-0 z-[10000] flex flex-col bg-white">
-          <CheckoutSecureHeader onBrandClick={handleLeaveBooking} srBackLabel="Back to tour" />
-          <div ref={checkoutScrollRef} className="min-h-0 flex-1 overflow-y-auto">
-          <div className="mx-auto w-full max-w-6xl px-4 py-5 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
-
+        <CheckoutPageShell
+          onBrandClick={handleLeaveBooking}
+          srBackLabel="Back to tour"
+          scrollRef={checkoutScrollRef}
+          mobileDock={checkoutDockInner}
+        >
             {stripeReturnCancelled ? (
-              <div className="mb-5">
+              <div className="mb-3">
                 <NoticeCallout title="Checkout cancelled" tone="warn">
                   {STRIPE_CHECKOUT_CANCELLED_TOUR_COPY}
                 </NoticeCallout>
               </div>
             ) : null}
 
-            <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_22.5rem] lg:items-start lg:gap-10">
+            <div className={CHECKOUT_TWO_COL}>
               <div className="min-w-0">
-                <div className="mb-4 overflow-hidden rounded-xl border border-black/10 bg-white lg:hidden">
+                <div className="tv-checkout-panel mb-3 lg:hidden">
                   <button
                     type="button"
                     className="flex w-full items-center gap-3 p-3 text-left"
@@ -2351,16 +2385,14 @@ export default function BookingPage({
                 {flowInner}
               </div>
 
-              <aside className="mt-6 hidden lg:sticky lg:top-4 lg:mt-0 lg:block lg:self-start">
-                <div className="overflow-hidden rounded-xl bg-white ring-1 ring-finland/20">
-                  <div className="relative h-28 bg-black/10">
+              <aside className="mt-4 hidden lg:sticky lg:top-4 lg:mt-0 lg:block lg:self-start">
+                <div className="tv-checkout-panel overflow-hidden">
+                  <div className="relative h-24 bg-black/10">
                     <img src={tour.image} alt={tour.title} className="h-full w-full object-cover" />
                   </div>
-                  <div className="space-y-4 p-5">
-                    <div>
-                      <h2 className="font-sans text-base font-bold leading-snug text-ink line-clamp-3">{tour.title}</h2>
-                    </div>
-                    <dl className="space-y-2.5 border-t border-black/[0.06] pt-4 text-sm">
+                  <div className="space-y-3 p-3.5 sm:p-4">
+                    <h2 className="font-sans text-[15px] font-semibold leading-snug text-ink line-clamp-3">{tour.title}</h2>
+                    <dl className="space-y-2 border-t border-black/[0.06] pt-3 text-[13px]">
                       <div className="flex justify-between gap-3">
                         <dt className="text-ink-muted">Date</dt>
                         <dd className="text-right font-medium text-ink">{dateDisplay || date || '—'}</dd>
@@ -2381,69 +2413,37 @@ export default function BookingPage({
                         <dt className="text-ink-muted">Participants</dt>
                         <dd className="max-w-[65%] text-right font-medium text-ink">{participantsSummary}</dd>
                       </div>
-                      {acceptedPickupAddress ? (
-                        <div className="flex justify-between gap-3">
-                          <dt className="text-ink-muted">Pickup</dt>
-                          <dd className="max-w-[65%] text-right font-medium text-ink">{acceptedPickupAddress}</dd>
-                        </div>
-                      ) : null}
-                      {pickupMode === 'meet' && meetingAddress ? (
-                        <div className="flex justify-between gap-3">
-                          <dt className="text-ink-muted">Meeting point</dt>
-                          <dd className="max-w-[65%] text-right font-medium text-ink">{meetingAddress}</dd>
-                        </div>
-                      ) : null}
-                      {logisticsLines.length > 0 ? (
-                        <div>
-                          <dt className="sr-only">Pickup and transport</dt>
-                          <dd>
-                            <CheckoutLogisticsDetails lines={logisticsLines} />
-                          </dd>
-                        </div>
-                      ) : null}
                     </dl>
-                    <div className="border-t border-black/[0.08] pt-4">
+                    <div className="border-t border-black/[0.08] pt-3">
                       {quotedSavings != null && quotedOriginalTotal != null ? (
                         <div className="mb-2 space-y-1">
-                          <p className="text-sm text-ink-muted">
+                          <p className="text-[13px] text-ink-muted">
                             Regular price{' '}
                             <span className="line-through tabular-nums">{formatMoney(quotedOriginalTotal, currency)}</span>
                           </p>
-                          <p className="text-sm font-semibold text-emerald-800">
+                          <p className="text-[13px] font-semibold text-emerald-800">
                             You save {formatMoney(quotedSavings, currency)}
                             {quoted?.discountLabel ? ` · ${quoted.discountLabel}` : ''}
                           </p>
                         </div>
                       ) : quoted?.discountLabel ? (
-                        <p className="mb-2 text-sm font-semibold text-emerald-800">{quoted.discountLabel}</p>
+                        <p className="mb-2 text-[13px] font-semibold text-emerald-800">{quoted.discountLabel}</p>
                       ) : null}
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-muted">Total</p>
-                      <p className="mt-1 text-[1.65rem] font-bold leading-none tabular-nums text-ink">{totalLabel}</p>
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-muted">Total</p>
+                      <p className="mt-1 font-sans text-[1.65rem] font-semibold leading-none tabular-nums text-ink">{totalLabel}</p>
                     </div>
                     <div>
-                      <p className="text-sm font-semibold text-ink">{cancellationShort}</p>
+                      <p className="text-[13px] font-medium text-ink">{cancellationShort}</p>
                       <details className="mt-1">
-                        <summary className="cursor-pointer text-xs font-semibold text-finland">Full cancellation terms</summary>
-                        <p className="mt-2 text-xs leading-relaxed text-ink-muted">{cancellationText}</p>
+                        <summary className="cursor-pointer text-[13px] font-semibold text-finland">Full cancellation terms</summary>
+                        <p className="mt-1.5 text-[12px] leading-relaxed text-ink-muted">{cancellationText}</p>
                       </details>
                     </div>
                   </div>
                 </div>
               </aside>
             </div>
-          </div>
-          <footer className="mx-auto mt-8 w-full max-w-6xl border-t border-black/[0.06] px-4 py-4 sm:px-6">
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-ink-muted">
-              <span>© {new Date().getFullYear()} Traverion</span>
-              <a href="/privacy" target="_blank" rel="noreferrer" className="underline-offset-2 hover:text-ink hover:underline">Privacy</a>
-              <a href="/terms" target="_blank" rel="noreferrer" className="underline-offset-2 hover:text-ink hover:underline">Terms</a>
-            </div>
-          </footer>
-          </div>
-          <div className="lg:hidden shrink-0 border-t border-black/[0.08] bg-white px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-            <div className="mx-auto w-full min-w-0 max-w-6xl">{checkoutDockInner}</div>
-          </div>
-        </div>,
+        </CheckoutPageShell>,
         document.body
       ) : null}
 

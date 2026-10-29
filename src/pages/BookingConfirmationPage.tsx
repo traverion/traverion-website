@@ -30,6 +30,10 @@ import { fetchMyBookingByCheckoutSessionId,
 } from '../data/supabase-bookings';
 import { fetchListingById, fetchListingOpsByIds, pgTimeToHm } from '../data/supabase-listings';
 import { BRAND_LOGO_SRC } from '../lib/brandAssets';
+import CheckoutPageShell, { CHECKOUT_TWO_COL } from '../components/checkout/CheckoutPageShell';
+import { rentalQuantityUnits } from '../lib/rental-presentation';
+import type { RentalCategoryId } from '../types/rental';
+import { isRentalCategoryId } from '../types/rental';
 import { nightsOccupiedByStay, stayRangeFromBooking } from '../lib/stayOccupancy';
 import { formatMoney, isStripeTestCheckoutSession, appStripeIsTestMode } from '../lib/money';
 import NoticeCallout from '../components/NoticeCallout';
@@ -161,6 +165,7 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
   const [emailNotice, setEmailNotice] = useState<'idle' | 'sent' | 'failed' | 'pending' | 'unknown'>('idle');
   const [coverImage, setCoverImage] = useState('');
   const [meetingPoint, setMeetingPoint] = useState('');
+  const [rentalCategoryId, setRentalCategoryId] = useState<RentalCategoryId | null>(null);
   const loadGenRef = useRef(0);
   const confirmationUserIdRef = useRef<string | null>(null);
   const bookingRowRef = useRef<BookingWithPaymentRow | null>(null);
@@ -178,6 +183,7 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
     setPickupPending(false);
     setCoverImage('');
     setMeetingPoint('');
+    setRentalCategoryId(null);
     setError(null);
     setPollCount(0);
     setReconcileAttempted(false);
@@ -278,9 +284,16 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
           setOptionLabel(
             displayOptionLabelFromPurchase(row.purchase_snapshot, match?.name?.trim() || '')
           );
+          const listingRentalCat = listing?.listingExtras?.rental?.category;
+          setRentalCategoryId(
+            typeof listingRentalCat === 'string' && isRentalCategoryId(listingRentalCat)
+              ? listingRentalCat
+              : null
+          );
         } catch {
           if (gen !== loadGenRef.current) return;
           setOptionLabel(displayOptionLabelFromPurchase(row.purchase_snapshot, ''));
+          setRentalCategoryId(null);
         }
       } else {
         setListingTitle(displayListingTitleFromPurchase(row.purchase_snapshot, '', ''));
@@ -703,10 +716,16 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
       label: `${formatBookingDateDisplay(d.toISOString().slice(0, 10)) || d.toISOString().slice(0, 10)} · ${d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}`,
     };
   })();
-  const rentalQtyLabel =
-    rentalSnap && typeof rentalSnap.quantity === 'number' && rentalSnap.quantity > 0
-      ? `${rentalSnap.quantity} ${rentalSnap.quantity === 1 ? 'unit' : 'units'}`
-      : null;
+  const rentalQtyLabel = (() => {
+    if (!rentalSnap || typeof rentalSnap.quantity !== 'number' || rentalSnap.quantity <= 0) return null;
+    const rawCat = (booking?.purchase_snapshot as { rentalCategory?: unknown } | null)?.rentalCategory;
+    const cat =
+      (typeof rawCat === 'string' && isRentalCategoryId(rawCat) ? rawCat : null) ?? rentalCategoryId;
+    const units = cat
+      ? rentalQuantityUnits({ category: cat } as import('../types/rental').RentalDetails)
+      : { singular: 'item', plural: 'items' };
+    return `${rentalSnap.quantity} ${rentalSnap.quantity === 1 ? units.singular : units.plural}`;
+  })();
   const rentalDurationLabel =
     rentalSnap && typeof rentalSnap.durationCount === 'number' && rentalSnap.durationCount > 0
       ? `${rentalSnap.durationCount} ${
@@ -825,11 +844,11 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
   };
 
   return (
-    <div className="min-h-screen bg-paper px-4 py-4 sm:px-6 sm:py-5">
-      <div className="mx-auto w-full max-w-[760px]">
-      <header className="mb-3">
-        <img src={BRAND_LOGO_SRC} alt="Traverion" className="h-7 w-auto" />
-      </header>
+    <CheckoutPageShell
+      onBrandClick={() => onNavigate(explorePage)}
+      srBackLabel="Back to Traverion"
+      secureLabel="Secure booking"
+    >
         {error && !booking && (
           <ErrorState
             className="py-6"
@@ -864,9 +883,9 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
         )}
 
         {booking && (
-          <div className="overflow-hidden tv-confirm-shell">
+          <>
             <div
-              className={`tv-confirm-hero border-b border-black/[0.08] ${
+              className={`tv-confirm-shell tv-checkout-panel tv-confirm-hero mb-4 ${
                 paidActive
                   ? 'tv-confirm-hero--good'
                   : cancelled
@@ -978,7 +997,8 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
               </div>
             </div>
 
-            <div className="space-y-0 px-4 py-3.5 sm:px-5">
+            <div className={CHECKOUT_TWO_COL}>
+              <div className="tv-checkout-panel min-w-0 space-y-0 p-4 sm:p-5">
               <div className="flex flex-col gap-3 border-b border-black/[0.08] pb-3.5 sm:flex-row sm:items-center">
                 {coverImage ? (
                   <img
@@ -1012,66 +1032,28 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
                     ) : null}
                     {rentalDurationLabel ? <span>{rentalDurationLabel}</span> : null}
                   </div>
-                  {collected && booking.amount_paid != null ? (
-                    <p className="mt-1.5 flex flex-wrap items-baseline gap-x-2 font-sans text-lg font-bold tabular-nums text-ink">
-                      <span>{formatMoney(Number(booking.amount_paid), booking.currency)}</span>
-                      {isStripeTestCheckoutSession(booking.checkout_session_id) || appStripeIsTestMode() ? (
-                        <span className="text-xs font-semibold text-amber-800">{' '}TEST</span>
-                      ) : null}
-                    </p>
-                  ) : null}
                 </div>
               </div>
 
-              <dl className="grid grid-cols-2 gap-x-4 gap-y-2.5 border-b border-black/[0.08] py-3.5">
-                {isRentalBooking ? (
-                  <>
-                    {rentalPickupParts ? fact('Pickup', rentalPickupParts.label) : null}
-                    {rentalReturnParts ? fact('Return', rentalReturnParts.label) : null}
-                    {rentalSnap?.variantName ? fact('Option', rentalSnap.variantName) : null}
-                    {rentalQtyLabel ? fact('Quantity', rentalQtyLabel) : null}
-                    {rentalDurationLabel ? fact('Duration', rentalDurationLabel) : null}
-                    {rentalSnap?.pickupAddress ? fact('Pickup place', rentalSnap.pickupAddress) : null}
-                    {rentalReturnPlace ? fact('Return place', rentalReturnPlace) : null}
-                    {rentalPickupHandover ? fact('Pickup handover', rentalPickupHandover) : null}
-                    {rentalReturnHandover ? fact('Return handover', rentalReturnHandover) : null}
-                  </>
-                ) : stayCheckOut ? (
-                  <>
-                    {booking.booking_date
-                      ? fact('Check-in', formatBookingDateDisplay(booking.booking_date) || booking.booking_date)
-                      : null}
-                    {fact('Check-out', formatBookingDateDisplay(stayCheckOut) || stayCheckOut)}
-                    {confirmationNightCount
-                      ? fact(
-                          'Nights',
-                          `${confirmationNightCount} night${confirmationNightCount === 1 ? '' : 's'}`
-                        )
-                      : null}
-                    {participantsLabel ? fact(participantsLabel, participantsValue) : null}
-                    {optionLabel ? fact('Option', optionLabel) : null}
-                    {meetingPoint ? fact('Property address', meetingPoint) : null}
-                  </>
-                ) : (
-                  <>
-                    {booking.booking_date
-                      ? fact('Date', formatBookingDateDisplay(booking.booking_date) || booking.booking_date)
-                      : null}
-                    {startHm ? fact('Departure', startHm) : null}
-                    {optionLabel ? fact('Option', optionLabel) : null}
-                    {participantsLabel ? fact(participantsLabel, participantsValue) : null}
-                    {arrival?.value || pickupPending
-                      ? fact(
-                          arrival?.label ?? 'Meeting point',
-                          arrival?.value ?? `${arrival?.label ?? 'Meeting point'} is not confirmed yet.`
-                        )
-                      : null}
-                    {arrival?.time && !hideExactPickupClock
-                      ? fact('Pickup time', arrival.time)
-                      : null}
-                  </>
-                )}
-              </dl>
+              {(isRentalBooking &&
+                (rentalSnap?.pickupAddress ||
+                  rentalReturnPlace ||
+                  rentalPickupHandover ||
+                  rentalReturnHandover)) ||
+              (!isRentalBooking && !stayCheckOut && arrival?.time && !hideExactPickupClock) ? (
+                <dl className="grid grid-cols-2 gap-x-4 gap-y-2.5 border-b border-black/[0.08] py-3.5">
+                  {isRentalBooking ? (
+                    <>
+                      {rentalSnap?.pickupAddress ? fact('Pickup place', rentalSnap.pickupAddress) : null}
+                      {rentalReturnPlace ? fact('Return place', rentalReturnPlace) : null}
+                      {rentalPickupHandover ? fact('Pickup handover', rentalPickupHandover) : null}
+                      {rentalReturnHandover ? fact('Return handover', rentalReturnHandover) : null}
+                    </>
+                  ) : arrival?.time && !hideExactPickupClock ? (
+                    fact('Pickup time', arrival.time)
+                  ) : null}
+                </dl>
+              ) : null}
 
               {showLocationBlock ? (
                 <div className="border-b border-black/[0.08] py-3.5">
@@ -1183,8 +1165,12 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
                 );
               })()}
 
+              </div>
+
+              <aside className="mt-4 min-w-0 space-y-3 lg:mt-0 lg:sticky lg:top-4 lg:self-start">
+              <div className="tv-checkout-panel p-4 sm:p-5">
               {collected && booking.amount_paid != null && (
-                <div className="border-b border-black/[0.08] py-3.5">
+                <div className="border-b border-black/[0.08] pb-3.5">
                   <div className="flex flex-wrap items-end justify-between gap-3">
                     <div className="min-w-0">
                       <SavedStayPrice
@@ -1252,13 +1238,13 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
                 </NoticeCallout>
               ) : null}
 
-              <div className="tv-confirm-no-print flex flex-col gap-2 sm:flex-row sm:items-center">
+              <div className="tv-confirm-no-print flex flex-col gap-2 pt-1">
                 {needsPay ? (
                   <button
                     type="button"
                     onClick={() => void handlePayNow()}
                     disabled={payingNow}
-                    className="tv-btn-primary w-full sm:w-auto"
+                    className="tv-btn-primary w-full"
                   >
                     {payingNow ? TRAVELER_OPENING_CHECKOUT_CTA : TRAVELER_PAY_NOW_TEST_CTA}
                   </button>
@@ -1266,7 +1252,7 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
                 <button
                   type="button"
                   onClick={goToBookings}
-                  className={needsPay ? 'tv-btn-secondary w-full sm:w-auto' : 'tv-btn-primary w-full sm:w-auto'}
+                  className={needsPay ? 'tv-btn-secondary w-full' : 'tv-btn-primary w-full'}
                 >
                   {/* Phase 1616: primary trip action from this confirmation. */}
                   View booking in Trips
@@ -1274,15 +1260,16 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
                 <button
                   type="button"
                   onClick={() => onNavigate(explorePage)}
-                  className="px-1 py-2 text-left text-sm font-semibold text-finland hover:underline"
+                  className="px-1 py-2 text-center text-sm font-semibold text-finland hover:underline"
                 >
                   Explore more experiences
                 </button>
               </div>
+              </div>
+              </aside>
             </div>
-          </div>
+          </>
         )}
-      </div>
-    </div>
+    </CheckoutPageShell>
   );
 }

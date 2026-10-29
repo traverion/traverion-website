@@ -75,6 +75,7 @@ import { HERO_IMG } from './lib/heroImages';
 
 const Blog = lazy(() => import('./pages/Blog'));
 const BookingConfirmationPage = lazy(() => import('./pages/BookingConfirmationPage'));
+const CheckoutUiPreview = lazy(() => import('./pages/dev/CheckoutUiPreview'));
 const AccountPage = lazy(() => import('./pages/AccountPage'));
 const WishlistPage = lazy(() => import('./pages/WishlistPage'));
 const Contact = lazy(() => import('./pages/Contact'));
@@ -474,6 +475,7 @@ function App() {
       'bookings': '/bookings',
       'cart': '/cart',
       'booking-confirmed': '/booking-confirmed',
+      'checkout-ui-preview': '/checkout-ui-preview',
       'blog': '/blog',
       'contact': '/contact',
       'admin': '/admin',
@@ -506,7 +508,11 @@ function App() {
         ? `/destinations/${destinationSlug || ''}`
         : (urlMapping[currentPage] ?? '/');
     if (window.location.pathname !== newUrl) {
-      window.history.replaceState({}, '', newUrl);
+      const keepSearch =
+        currentPage === 'checkout-ui-preview' || currentPage === 'booking-confirmed'
+          ? window.location.search
+          : '';
+      window.history.replaceState({}, '', `${newUrl}${keepSearch}`);
     }
   }, [currentPage, destinationSlug, selectedTour, isSupplierArea]);
 
@@ -997,6 +1003,8 @@ function App() {
         );
       case 'booking-confirmed':
         return <BookingConfirmationPage onNavigate={handleNavigate} />;
+      case 'checkout-ui-preview':
+        return import.meta.env.DEV ? <CheckoutUiPreview /> : null;
       case 'contact':
         return <Contact onNavigate={handleNavigate} />;
       case 'legal-notice':
@@ -1106,6 +1114,7 @@ function App() {
 
   const minimalTravelerChrome =
     currentPage === 'booking-confirmed' ||
+    currentPage === 'checkout-ui-preview' ||
     currentPage === 'reset-password' ||
     currentPage === 'auth';
 
