@@ -46,3 +46,10 @@ export function rentalCancellationCustomerText(id: string | null | undefined): s
   }
   return `${hit.title}. ${hit.body} ${RENTAL_CANCELLATION_REFUND_NOTE}`;
 }
+
+/** Compact checkout line — full policy stays in rentalCancellationCustomerText. */
+export function rentalCancellationShortSummary(id: string | null | undefined): string {
+  const hit = rentalCancellationById(id);
+  if (!hit) return 'Cancellation terms apply to this rental.';
+  return `${hit.title} · request until ${hit.deadline} before pickup`;
+}

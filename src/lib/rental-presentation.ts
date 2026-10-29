@@ -193,6 +193,18 @@ export function rentalDepositCustomerText(rental: RentalDetails): string {
   return parts.join('. ').replace(/\.\./g, '.');
 }
 
+/** One-line deposit cue for checkout chrome (full text stays in rentalDepositCustomerText). */
+export function rentalDepositShortSummary(rental: RentalDetails): string {
+  if (rental.depositRequired === false) return 'No security deposit listed.';
+  const amount =
+    rental.depositRequired && rental.depositAmountMinor
+      ? formatMinorAsEuro(rental.depositAmountMinor)
+      : null;
+  if (amount) return `${amount} security deposit · collected by the operator`;
+  if (rental.depositRequired) return 'Security deposit required · collected by the operator';
+  return 'Deposit terms apply.';
+}
+
 export function rentalDurationCustomerText(rental: RentalDetails): string {
   const offersHour = rentalListingOffersUnit(rental, 'hour');
   const offersDay = rentalListingOffersUnit(rental, 'day');

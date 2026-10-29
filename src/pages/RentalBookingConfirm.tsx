@@ -2,7 +2,7 @@
  * Dedicated rental booking review — Tour checkout chrome, rental payload.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronDown, Mail, MapPin, Package, Phone, User } from 'lucide-react';
+import { ChevronDown, Lock, Mail, MapPin, Package, Phone, User } from 'lucide-react';
 import type { TourPackage } from '../types/tour';
 import type { RentalDetails } from '../types/rental';
 import { listingHeroImageSrc } from '../lib/listingPhotoGrid';
@@ -39,9 +39,13 @@ import {
   rentalScheduleIssue,
 } from '../lib/rental-booking-interval';
 import { formatMinorAsEuro } from '../lib/rental-details';
-import { rentalCancellationCustomerText } from '../lib/rental-cancellation';
+import {
+  rentalCancellationCustomerText,
+  rentalCancellationShortSummary,
+} from '../lib/rental-cancellation';
 import {
   rentalDepositCustomerText,
+  rentalDepositShortSummary,
   rentalPickupHandoverLabel,
   rentalQuantityUnits,
   rentalReturnHandoverLabel,
@@ -438,8 +442,10 @@ export default function RentalBookingConfirm({ listing, rental, initial, onBackT
   const qtyLabel = `${quantity} ${quantity === 1 ? quantityUnits.singular : quantityUnits.plural}`;
   const totalLabel =
     quoteOk && quote?.ok ? formatMinorAsEuro(quote.customerTotalMinor) : '—';
-  const cancellationText = rentalCancellationCustomerText(rental.cancellationPreset);
-  const depositText = rentalDepositCustomerText(rental);
+  const cancellationFull = rentalCancellationCustomerText(rental.cancellationPreset);
+  const cancellationShort = rentalCancellationShortSummary(rental.cancellationPreset);
+  const depositFull = rentalDepositCustomerText(rental);
+  const depositShort = rentalDepositShortSummary(rental);
   const pickupPlace =
     rental.pickupAddress?.trim() ||
     destination ||
@@ -476,7 +482,7 @@ export default function RentalBookingConfirm({ listing, rental, initial, onBackT
   const paymentButton = (
     <button
       type="button"
-      className="tv-btn-primary w-full whitespace-normal text-center text-sm leading-snug disabled:opacity-50"
+      className="tv-btn-primary w-full whitespace-normal text-center text-sm leading-snug motion-safe:transition-opacity duration-200 disabled:opacity-50"
       disabled={payDisabled}
       onClick={() => void startPayment()}
     >
@@ -489,39 +495,39 @@ export default function RentalBookingConfirm({ listing, rental, initial, onBackT
       ? rentalQuotePriceLines(quote, interval.durationUnit)
       : [];
 
+  const row = (label: string, value: string, opts?: { tabular?: boolean; wide?: boolean }) => (
+    <div className="flex justify-between gap-3">
+      <dt className="shrink-0 text-[13px] text-ink-muted">{label}</dt>
+      <dd
+        className={`text-right text-[13px] font-medium text-ink ${opts?.wide ? 'max-w-[68%] break-words' : ''} ${
+          opts?.tabular ? 'tabular-nums' : ''
+        }`}
+      >
+        {value}
+      </dd>
+    </div>
+  );
+
   const detailsDl = (
-    <dl className="space-y-2.5 text-sm">
-      {selected ? (
-        <div className="flex justify-between gap-3">
-          <dt className="text-ink-muted">Option</dt>
-          <dd className="max-w-[65%] text-right font-medium text-ink break-words">{selected.name}</dd>
-        </div>
-      ) : null}
-      <div className="flex justify-between gap-3">
-        <dt className="text-ink-muted">Quantity</dt>
-        <dd className="text-right font-medium text-ink">{qtyLabel}</dd>
-      </div>
-      <div className="flex justify-between gap-3">
-        <dt className="text-ink-muted">Pickup</dt>
-        <dd className="text-right font-medium tabular-nums text-ink">
-          {formatStayNightHuman(startDate)} · {pickupHm}
-        </dd>
-      </div>
-      <div className="flex justify-between gap-3">
-        <dt className="text-ink-muted">Return</dt>
-        <dd className="text-right font-medium tabular-nums text-ink">
-          {formatStayNightHuman(endDate)} · {returnHm}
-        </dd>
-      </div>
-      <div className="flex justify-between gap-3">
-        <dt className="text-ink-muted">Billable duration</dt>
-        <dd className="max-w-[65%] text-right font-medium text-ink">
-          {durationLabel ?? '—'}
-          <span className="block text-xs font-normal text-ink-muted">
-            {durationUnit === 'hour' ? 'Hourly rate' : 'Daily rate · calendar days pickup→return'}
-          </span>
-        </dd>
-      </div>
+    <dl className="space-y-1.5">
+      {selected ? row('Option', selected.name, { wide: true }) : null}
+      {row('Quantity', qtyLabel)}
+      {row('Pickup', `${formatStayNightHuman(startDate)} · ${pickupHm}`, { tabular: true })}
+      {row('Return', `${formatStayNightHuman(endDate)} · ${returnHm}`, { tabular: true })}
+      {row('Duration', durationLabel ?? '—')}
+      {row('Pickup place', pickupPlace, { wide: true })}
+      {row('Return place', returnPlace, { wide: true })}
+      {pickupHandover ? row('Pickup handover', pickupHandover, { wide: true }) : null}
+      {returnHandover ? row('Return handover', returnHandover, { wide: true }) : null}
+    </dl>
+  );
+
+  const summaryFacts = (
+    <dl className="space-y-1.5">
+      {row('Pickup', `${formatStayNightHuman(startDate)} · ${pickupHm}`, { tabular: true })}
+      {row('Return', `${formatStayNightHuman(endDate)} · ${returnHm}`, { tabular: true })}
+      {row('Quantity', qtyLabel)}
+      {row('Duration', durationLabel ?? '—')}
     </dl>
   );
 
@@ -533,49 +539,55 @@ export default function RentalBookingConfirm({ listing, rental, initial, onBackT
       />
 
       <div className="min-h-0 flex-1 overflow-y-auto">
-        <div className="mx-auto w-full max-w-6xl px-4 py-5 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
+        <div className="mx-auto w-full max-w-6xl px-4 py-4 sm:px-6 sm:py-5 lg:px-8 lg:py-6">
           {paymentCancelledNote ? (
-            <div className="mb-5">
+            <div className="mb-4">
               <NoticeCallout title="Checkout cancelled" tone="warn">
                 {paymentCancelledNote}
               </NoticeCallout>
             </div>
           ) : null}
 
-          <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_22.5rem] lg:items-start lg:gap-10">
+          <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_21rem] lg:items-start lg:gap-8">
             <div className="min-w-0">
-              <div className="mb-4 overflow-hidden rounded-xl border border-black/10 bg-white lg:hidden">
+              <div className="mb-3 overflow-hidden rounded-xl border border-black/[0.08] bg-white lg:hidden">
                 <button
                   type="button"
-                  className="flex w-full items-center gap-3 p-3 text-left"
+                  className="flex w-full items-center gap-3 p-3 text-left motion-safe:transition-colors duration-150 hover:bg-black/[0.02]"
                   aria-expanded={summaryOpen}
                   onClick={() => setSummaryOpen((open) => !open)}
                 >
                   {hero ? (
-                    <img src={hero} alt={listing.title} className="h-14 w-14 shrink-0 rounded-lg object-cover" />
+                    <img
+                      src={hero}
+                      alt={listing.title}
+                      className="h-12 w-12 shrink-0 rounded-lg object-cover"
+                    />
                   ) : (
-                    <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg bg-black/[0.04]">
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-black/[0.04]">
                       <Package className="h-5 w-5 text-ink-faint" aria-hidden />
                     </div>
                   )}
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-bold text-ink">{listing.title}</span>
+                    <span className="block truncate text-sm font-semibold text-ink">{listing.title}</span>
                     <span className="mt-0.5 block truncate text-xs text-ink-muted">
                       {formatStayNightHuman(startDate)} · {pickupHm}
                       {durationLabel ? ` · ${durationLabel}` : ''}
                     </span>
                   </span>
                   <span className="shrink-0 text-right">
-                    <span className="block text-sm font-bold tabular-nums text-ink">{totalLabel}</span>
+                    <span className="block text-sm font-semibold tabular-nums text-ink">{totalLabel}</span>
                     <ChevronDown
-                      className={`ml-auto h-4 w-4 text-ink-muted transition-transform ${summaryOpen ? 'rotate-180' : ''}`}
+                      className={`ml-auto h-4 w-4 text-ink-muted motion-safe:transition-transform duration-200 ${
+                        summaryOpen ? 'rotate-180' : ''
+                      }`}
                       aria-hidden
                     />
                   </span>
                 </button>
                 {summaryOpen ? (
                   <div className="space-y-3 border-t border-black/[0.06] px-3 py-3">
-                    {detailsDl}
+                    {summaryFacts}
                     {quoteOk && quote?.ok ? (
                       <PriceBreakdown
                         currency={currency}
@@ -587,66 +599,63 @@ export default function RentalBookingConfirm({ listing, rental, initial, onBackT
                 ) : null}
               </div>
 
-              <div className="tv-card p-4 sm:p-5">
-                <h2 className="mb-1 text-xl font-bold text-ink">Review & payment</h2>
-                <p className="mb-5 text-sm text-ink-muted">
-                  Review your rental details before completing your booking.
+              <div className="tv-card p-3.5 sm:p-4">
+                <h2 className="font-sans text-lg font-semibold tracking-tight text-ink sm:text-xl">
+                  Review & payment
+                </h2>
+                <p className="mt-0.5 mb-3 text-sm text-ink-muted">
+                  Confirm your rental, then continue to secure payment.
                 </p>
 
-                <section className="border-t border-black/[0.06] py-4">
-                  <div className="mb-2 flex items-center justify-between gap-3">
-                    <h3 className="text-sm font-bold text-ink">Rental details</h3>
+                <section className="border-t border-black/[0.06] py-3">
+                  <div className="mb-1.5 flex items-center justify-between gap-3">
+                    <h3 className="text-[13px] font-semibold text-ink">Rental details</h3>
                     <button
                       type="button"
                       onClick={() => onBackToListing(currentState())}
-                      className="text-sm font-semibold text-finland hover:underline"
+                      className="text-[13px] font-semibold text-finland motion-safe:transition-opacity duration-150 hover:opacity-80"
                     >
                       Edit
                     </button>
                   </div>
-                  <p className="text-sm font-semibold text-ink">{listing.title}</p>
+                  <p className="text-sm font-semibold leading-snug text-ink">{listing.title}</p>
                   {destination ? (
-                    <p className="mt-0.5 flex items-center gap-1 text-sm text-ink-muted">
+                    <p className="mt-0.5 flex items-center gap-1 text-[13px] text-ink-muted">
                       <MapPin className="h-3.5 w-3.5 shrink-0" aria-hidden />
                       {destination}
                     </p>
                   ) : null}
-                  <div className="mt-3">{detailsDl}</div>
-                  <ul className="mt-3 space-y-1.5 text-sm text-ink-muted">
-                    <li>
-                      <span className="font-medium text-ink">Pickup: </span>
-                      {pickupPlace}
-                    </li>
-                    <li>
-                      <span className="font-medium text-ink">Return: </span>
-                      {returnPlace}
-                    </li>
-                    {pickupHandover ? <li>{pickupHandover}</li> : null}
-                    {returnHandover ? <li>{returnHandover}</li> : null}
-                    {rental.pickupInstructions?.trim() ? (
-                      <li className="whitespace-pre-wrap">{rental.pickupInstructions.trim()}</li>
-                    ) : null}
-                    {rental.returnInstructions?.trim() ? (
-                      <li className="whitespace-pre-wrap">{rental.returnInstructions.trim()}</li>
-                    ) : null}
-                  </ul>
+                  <div className="mt-2.5">{detailsDl}</div>
+                  {rental.pickupInstructions?.trim() || rental.returnInstructions?.trim() ? (
+                    <div className="mt-2 space-y-1 text-[12px] leading-relaxed text-ink-muted">
+                      {rental.pickupInstructions?.trim() ? (
+                        <p className="whitespace-pre-wrap">{rental.pickupInstructions.trim()}</p>
+                      ) : null}
+                      {rental.returnInstructions?.trim() ? (
+                        <p className="whitespace-pre-wrap">{rental.returnInstructions.trim()}</p>
+                      ) : null}
+                    </div>
+                  ) : null}
                 </section>
 
-                <section className="border-t border-black/[0.06] py-4">
-                  <div className="mb-2 flex items-center justify-between gap-3">
-                    <h3 className="text-sm font-bold text-ink">Contact details</h3>
+                <section className="border-t border-black/[0.06] py-3">
+                  <div className="mb-1.5 flex items-center justify-between gap-3">
+                    <h3 className="text-[13px] font-semibold text-ink">Contact details</h3>
                     <button
                       type="button"
                       onClick={() => setEditingContact((v) => !v)}
-                      className="text-sm font-semibold text-finland hover:underline"
+                      className="text-[13px] font-semibold text-finland motion-safe:transition-opacity duration-150 hover:opacity-80"
                     >
                       {editingContact ? 'Done' : 'Edit'}
                     </button>
                   </div>
                   {editingContact ? (
-                    <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="grid gap-2.5 sm:grid-cols-2">
                       <div className="relative sm:col-span-2">
-                        <User className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-faint" aria-hidden />
+                        <User
+                          className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-faint"
+                          aria-hidden
+                        />
                         <label className="sr-only" htmlFor="rental-book-guest-name">
                           Lead guest name
                         </label>
@@ -667,7 +676,10 @@ export default function RentalBookingConfirm({ listing, rental, initial, onBackT
                         />
                       </div>
                       <div className="relative">
-                        <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-faint" aria-hidden />
+                        <Mail
+                          className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-faint"
+                          aria-hidden
+                        />
                         <label className="sr-only" htmlFor="rental-book-guest-email">
                           Email
                         </label>
@@ -682,7 +694,10 @@ export default function RentalBookingConfirm({ listing, rental, initial, onBackT
                         />
                       </div>
                       <div className="relative">
-                        <Phone className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-faint" aria-hidden />
+                        <Phone
+                          className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-faint"
+                          aria-hidden
+                        />
                         <label className="sr-only" htmlFor="rental-book-guest-phone">
                           Phone
                         </label>
@@ -699,22 +714,28 @@ export default function RentalBookingConfirm({ listing, rental, initial, onBackT
                       </div>
                     </div>
                   ) : (
-                    <>
+                    <div className="space-y-0.5">
                       <p className="text-sm text-ink break-words">{guestName.trim() || 'Name missing'}</p>
-                      <p className="text-sm text-ink-muted break-all">{user?.email || 'Sign in to confirm email'}</p>
-                      {guestPhone.trim() ? <p className="text-sm text-ink-muted">{guestPhone.trim()}</p> : null}
-                    </>
+                      <p className="text-[13px] text-ink-muted break-all">
+                        {user?.email || 'Sign in to confirm email'}
+                      </p>
+                      {guestPhone.trim() ? (
+                        <p className="text-[13px] text-ink-muted">{guestPhone.trim()}</p>
+                      ) : null}
+                    </div>
                   )}
                 </section>
 
-                <section className="border-t border-black/[0.06] py-4">
-                  <h3 className="text-sm font-bold text-ink">Payment</h3>
-                  <p className="mt-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-muted">
+                <section className="border-t border-black/[0.06] py-3">
+                  <h3 className="text-[13px] font-semibold text-ink">Payment</h3>
+                  <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-muted">
                     Total payable
                   </p>
-                  <p className="mt-1 text-2xl font-bold tabular-nums text-ink">{totalLabel}</p>
+                  <p className="mt-1 font-sans text-[1.75rem] font-semibold leading-none tracking-tight tabular-nums text-ink">
+                    {totalLabel}
+                  </p>
                   {quoteOk && quote?.ok ? (
-                    <div className="mt-3">
+                    <div className="mt-2.5">
                       <PriceBreakdown
                         currency={currency}
                         lines={priceLines}
@@ -732,26 +753,27 @@ export default function RentalBookingConfirm({ listing, rental, initial, onBackT
                           : 'Price unavailable'}
                     </p>
                   )}
-                  <p className="mt-3 text-sm font-semibold text-ink">{cancellationText}</p>
-                  <details className="mt-1">
-                    <summary className="cursor-pointer text-sm font-semibold text-finland">
+                  <p className="mt-2.5 text-[13px] font-medium text-ink">{cancellationShort}</p>
+                  <details className="mt-0.5">
+                    <summary className="cursor-pointer text-[13px] font-semibold text-finland">
                       Full cancellation terms
                     </summary>
-                    <p className="mt-2 text-sm leading-relaxed text-ink-muted">{cancellationText}</p>
-                    <p className="mt-2 text-sm leading-relaxed text-ink-muted">{depositText}</p>
+                    <p className="mt-1.5 text-[13px] leading-relaxed text-ink-muted">{cancellationFull}</p>
+                    <p className="mt-1.5 text-[13px] leading-relaxed text-ink-muted">{depositFull}</p>
                     {rental.insuranceDisclosure?.trim() || rental.insuranceCoverageNotes?.trim() ? (
-                      <p className="mt-2 text-sm leading-relaxed text-ink-muted">
+                      <p className="mt-1.5 text-[13px] leading-relaxed text-ink-muted">
                         {rental.insuranceCoverageNotes?.trim() || rental.insuranceDisclosure?.trim()}
                       </p>
                     ) : null}
                   </details>
-                  <p className="mt-3 text-sm text-ink-muted">{depositText}</p>
-                  <p className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold text-ink-muted">
+                  <p className="mt-1.5 text-[13px] text-ink-muted">{depositShort}</p>
+                  <p className="mt-2.5 inline-flex items-center gap-1.5 text-xs font-medium text-ink-muted">
+                    <Lock className="h-3.5 w-3.5 text-finland" aria-hidden />
                     Secure payment
                   </p>
                 </section>
 
-                <div className="mb-6">
+                <div className="mb-4 mt-1">
                   <CheckoutConsentCheckbox
                     id="rental-book-consent"
                     checked={checkoutConsentAccepted}
@@ -763,13 +785,13 @@ export default function RentalBookingConfirm({ listing, rental, initial, onBackT
                 </div>
 
                 {availability.loading ? (
-                  <div className="mb-4">
+                  <div className="mb-3">
                     <NoticeCallout title="Checking availability" tone="warn">
                       Confirming this rental is still free for your pickup and return.
                     </NoticeCallout>
                   </div>
                 ) : availability.message ? (
-                  <div className="mb-4">
+                  <div className="mb-3">
                     <NoticeCallout
                       title={availability.ok === false ? 'Not available' : 'Availability check'}
                       tone={availability.ok === false ? 'danger' : 'warn'}
@@ -788,88 +810,93 @@ export default function RentalBookingConfirm({ listing, rental, initial, onBackT
                   </div>
                 ) : null}
                 {payError ? (
-                  <div className="mb-4">
+                  <div className="mb-3">
                     <NoticeCallout title="Payment could not start" tone="danger">
                       {payError}
                     </NoticeCallout>
                   </div>
                 ) : null}
 
-                <div className="hidden flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between lg:flex">
+                <div className="hidden items-center justify-between gap-3 lg:flex">
                   <button
                     type="button"
                     onClick={() => onBackToListing(currentState())}
-                    className="tv-btn-ghost w-full sm:w-auto"
+                    className="tv-btn-ghost"
                   >
                     Back to rental
                   </button>
-                  <div className="w-full sm:w-auto sm:min-w-[14rem]">{paymentButton}</div>
+                  <div className="w-auto min-w-[12.5rem] max-w-xs">{paymentButton}</div>
                 </div>
-                <p className="mt-3 hidden text-[11px] leading-relaxed text-ink-faint lg:block">
+                <p className="mt-2 hidden text-[11px] leading-relaxed text-ink-faint lg:block">
                   {STRIPE_TEST_UNTIL_LIVE} · total confirmed on the server before payment
                 </p>
               </div>
             </div>
 
-            <aside className="mt-6 hidden lg:sticky lg:top-4 lg:mt-0 lg:block lg:self-start">
-              <div className="overflow-hidden rounded-xl bg-white ring-1 ring-finland/20">
-                <div className="relative h-36 bg-black/10">
+            <aside className="mt-5 hidden lg:sticky lg:top-4 lg:mt-0 lg:block lg:self-start">
+              <div className="overflow-hidden rounded-xl bg-white shadow-[0_8px_24px_-18px_rgba(15,23,42,0.28)] ring-1 ring-finland/20">
+                <div className="relative aspect-[16/10] bg-black/10">
                   {hero ? (
-                    <img src={hero} alt={listing.title} className="h-full w-full object-cover" />
+                    <img
+                      src={hero}
+                      alt={listing.title}
+                      className="absolute inset-0 h-full w-full object-cover"
+                    />
                   ) : (
                     <div className="flex h-full items-center justify-center">
                       <Package className="h-8 w-8 text-ink-faint" aria-hidden />
                     </div>
                   )}
                 </div>
-                <div className="space-y-4 p-5">
+                <div className="space-y-3 p-4">
                   <div>
-                    <h2 className="font-sans text-base font-bold leading-snug text-ink line-clamp-3">
+                    <h2 className="font-sans text-[15px] font-semibold leading-snug tracking-tight text-ink line-clamp-3">
                       {listing.title}
                     </h2>
                     {selected ? (
-                      <p className="mt-1 text-sm text-ink-muted">{selected.name}</p>
+                      <p className="mt-0.5 text-[13px] text-ink-muted">{selected.name}</p>
                     ) : null}
                   </div>
-                  <div className="border-t border-black/[0.06] pt-4">{detailsDl}</div>
+                  <div className="border-t border-black/[0.06] pt-3">{summaryFacts}</div>
                   {quoteOk && quote?.ok ? (
-                    <div className="border-t border-black/[0.08] pt-4">
+                    <div className="border-t border-black/[0.08] pt-3">
                       <PriceBreakdown
                         currency={currency}
                         lines={priceLines}
                         total={Number((quote.customerTotalMinor / 100).toFixed(2))}
                         hideTotal
                       />
-                      <p className="mt-4 text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-muted">
+                      <p className="mt-3 text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-muted">
                         Total
                       </p>
-                      <p className="mt-1 text-[1.65rem] font-bold leading-none tabular-nums text-ink">
+                      <p className="mt-1 font-sans text-[1.5rem] font-semibold leading-none tracking-tight tabular-nums text-ink">
                         {totalLabel}
                       </p>
                     </div>
                   ) : null}
-                  <div>
-                    <p className="text-sm font-semibold text-ink">{cancellationText}</p>
-                    <details className="mt-1">
-                      <summary className="cursor-pointer text-xs font-semibold text-finland">
-                        Full cancellation terms
-                      </summary>
-                      <p className="mt-2 text-xs leading-relaxed text-ink-muted">{cancellationText}</p>
-                      <p className="mt-2 text-xs leading-relaxed text-ink-muted">{depositText}</p>
-                    </details>
-                  </div>
+                  <p className="text-[12px] leading-snug text-ink-muted">{cancellationShort}</p>
                 </div>
               </div>
             </aside>
           </div>
 
-          <footer className="mx-auto mt-8 w-full max-w-6xl border-t border-black/[0.06] py-4">
+          <footer className="mx-auto mt-6 w-full max-w-6xl border-t border-black/[0.06] py-3">
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-ink-muted">
               <span>© {new Date().getFullYear()} Traverion</span>
-              <a href="/privacy" target="_blank" rel="noreferrer" className="underline-offset-2 hover:text-ink hover:underline">
+              <a
+                href="/privacy"
+                target="_blank"
+                rel="noreferrer"
+                className="underline-offset-2 hover:text-ink hover:underline"
+              >
                 Privacy
               </a>
-              <a href="/terms" target="_blank" rel="noreferrer" className="underline-offset-2 hover:text-ink hover:underline">
+              <a
+                href="/terms"
+                target="_blank"
+                rel="noreferrer"
+                className="underline-offset-2 hover:text-ink hover:underline"
+              >
                 Terms
               </a>
             </div>
@@ -877,10 +904,10 @@ export default function RentalBookingConfirm({ listing, rental, initial, onBackT
         </div>
       </div>
 
-      <div className="lg:hidden shrink-0 border-t border-black/[0.08] bg-white px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-        <div className="mx-auto flex w-full min-w-0 max-w-6xl flex-col gap-2">
+      <div className="lg:hidden shrink-0 border-t border-black/[0.08] bg-white px-4 py-2.5 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+        <div className="mx-auto flex w-full min-w-0 max-w-6xl flex-col gap-1.5">
           {quoteOk && quote?.ok ? (
-            <p className="truncate text-sm text-ink-muted">
+            <p className="truncate text-[13px] text-ink-muted">
               <span className="text-ink-faint">Total</span>{' '}
               <strong className="font-semibold tabular-nums text-ink">{totalLabel}</strong>
             </p>
