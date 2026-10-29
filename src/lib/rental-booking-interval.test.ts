@@ -43,6 +43,20 @@ describe('rental-booking-interval', () => {
     if (!r.ok) return;
     expect(r.durationCount).toBe(1);
     expect(calendarDaysBetween('2026-10-29', '2026-10-30')).toBe(1);
+    // Daily billing: 30 Oct 09:00 → 31 Oct 15:00 is 30h wall-clock but 1 billable day.
+    const overnight = buildRentalInterval({
+      startDate: '2026-10-30',
+      endDate: '2026-10-31',
+      pickupHm: '09:00',
+      returnHm: '15:00',
+      durationUnit: 'day',
+      timeZone: 'Europe/Helsinki',
+    });
+    expect(overnight.ok).toBe(true);
+    if (overnight.ok) {
+      expect(overnight.durationCount).toBe(1);
+      expect(overnight.durationUnit).toBe('day');
+    }
   });
 
   it('builds hourly intervals rounding up', () => {

@@ -11,6 +11,8 @@ type Props = {
   lines: PriceLine[];
   total: number;
   totalLabel?: string;
+  /** When the parent already shows a hero total (Tour/Rental payment block). */
+  hideTotal?: boolean;
   originalTotal?: number | null;
   discountLabel?: string | null;
   footnote?: string | null;
@@ -54,6 +56,7 @@ export default function PriceBreakdown({
   lines,
   total,
   totalLabel = 'Total',
+  hideTotal = false,
   originalTotal,
   discountLabel,
   footnote,
@@ -75,10 +78,12 @@ export default function PriceBreakdown({
           {discountLabel?.trim() || 'Discount applied'} · was {formatMoney(originalTotal, currency)}
         </p>
       ) : null}
-      <div className="mt-3 flex justify-between gap-4 border-t border-black/[0.08] pt-2 font-semibold text-ink">
-        <span>{totalLabel}</span>
-        <span className="tabular-nums">{formatMoney(total, currency)}</span>
-      </div>
+      {hideTotal ? null : (
+        <div className="mt-3 flex justify-between gap-4 border-t border-black/[0.08] pt-2 font-semibold text-ink">
+          <span>{totalLabel}</span>
+          <span className="tabular-nums">{formatMoney(total, currency)}</span>
+        </div>
+      )}
       {holdNote ? <p className="mt-2 text-xs text-ink-muted">{holdNote}</p> : null}
       {footnote ? <p className="mt-1 text-xs text-ink-faint">{footnote}</p> : null}
     </div>

@@ -33,4 +33,13 @@ describe('Rental checkout review step', () => {
     expect(confirm).toContain('quoteRentalLine');
     expect(confirm).toContain('Back to rental');
   });
+
+  it('matches Tour review chrome: Review & payment + shared secure header', () => {
+    expect(confirm).toContain('Review & payment');
+    expect(confirm).toContain('CheckoutSecureHeader');
+    expect(confirm).toContain('tv-checkout-input');
+    expect(confirm).toContain('Continue to secure payment');
+    expect(confirm).not.toContain('Complete your reservation');
+    expect(confirm).not.toContain('font-display text-xl font-semibold tracking-tight text-ink sm:text-[1.375rem]');
+  });
 });

@@ -120,7 +120,7 @@ import { tourStickyBookCtaLabel } from '../lib/tour-sticky-cta';
 import { bookingPageQuoteFailureFocusTarget } from '../lib/tour-quote-failure-focus';
 import { resolveTourPickupMeetingDisplay } from '../lib/tour-pickup-meeting';
 import { listingShowsFreeCancellation } from '../lib/listingTruth';
-import { BRAND_LOGO_SRC } from '../lib/brandAssets';
+import CheckoutSecureHeader from '../components/checkout/CheckoutSecureHeader';
 import { clearTravelerCart, saveTravelerCart } from '../lib/travelerCart';
 import { rememberAccountCart } from '../data/supabase-cart';
 
@@ -2272,23 +2272,7 @@ export default function BookingPage({
       {presentation !== 'modal'
         ? createPortal(
         <div className="fixed inset-0 z-[10000] flex flex-col bg-white">
-          <header className="shrink-0 border-b border-black/[0.08] bg-white pt-[env(safe-area-inset-top,0px)]">
-            <div className="mx-auto flex h-14 w-full max-w-6xl items-center justify-between gap-3 px-4 sm:px-6">
-              <button
-                type="button"
-                onClick={handleLeaveBooking}
-                className="lux-flat inline-flex h-11 min-w-0 items-center gap-2 rounded-md pr-2 text-ink"
-              >
-                <img src={BRAND_LOGO_SRC} alt="" className="h-8 w-8 object-contain" />
-                <span className="font-sans text-[13px] font-bold tracking-tight">Traverion</span>
-                <span className="sr-only">Back to tour</span>
-              </button>
-              <p className="inline-flex items-center gap-1.5 text-xs font-semibold text-ink-muted">
-                <Lock className="h-3.5 w-3.5 text-finland" aria-hidden />
-                Secure checkout
-              </p>
-            </div>
-          </header>
+          <CheckoutSecureHeader onBrandClick={handleLeaveBooking} srBackLabel="Back to tour" />
           <div ref={checkoutScrollRef} className="min-h-0 flex-1 overflow-y-auto">
           <div className="mx-auto w-full max-w-6xl px-4 py-5 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
 
