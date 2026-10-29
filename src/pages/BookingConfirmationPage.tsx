@@ -2,8 +2,16 @@
  * Minimal post–Stripe Checkout screen for one booking (no site header/footer).
  * Stripe redirects here with ?session_id=cs_…; we resolve the row via RLS.
  */
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { CheckCircle, Calendar, Users, LogIn, Copy, Check, Printer, MapPin, Clock } from 'lucide-react';
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
+import { CheckCircle, Calendar, LogIn, Copy, Check, Printer, MapPin, ExternalLink } from 'lucide-react';
 import RentalCollectionMap from '../components/supplier/listing-creation/RentalCollectionMap';
 import {
   rentalPickupHandoverLabel,
@@ -149,6 +157,7 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
   const [payingNow, setPayingNow] = useState(false);
   const [payNowError, setPayNowError] = useState<string | null>(null);
   const [copiedRef, setCopiedRef] = useState(false);
+  const [celebrateSuccess, setCelebrateSuccess] = useState(false);
   const [emailNotice, setEmailNotice] = useState<'idle' | 'sent' | 'failed' | 'pending' | 'unknown'>('idle');
   const [coverImage, setCoverImage] = useState('');
   const [meetingPoint, setMeetingPoint] = useState('');
@@ -452,6 +461,25 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
     if (paidActive && user?.id) clearBookingsUnread(user.id);
   }, [paidActive, user?.id]);
 
+  /** Subtle success motion once per booking id (never invents confirmed state). */
+  useEffect(() => {
+    if (!paidActive || !booking?.id) {
+      setCelebrateSuccess(false);
+      return;
+    }
+    const key = `tv_confirm_celebrate_${booking.id}`;
+    try {
+      if (sessionStorage.getItem(key)) {
+        setCelebrateSuccess(false);
+        return;
+      }
+      sessionStorage.setItem(key, '1');
+    } catch {
+      /* still animate once in this mount */
+    }
+    setCelebrateSuccess(true);
+  }, [paidActive, booking?.id]);
+
   useEffect(() => {
     if (!paidActive || !booking?.id || !supabase) {
       setEmailNotice('idle');
@@ -655,6 +683,136 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
     ? confirmationEmailSentence(emailNotice, (booking.guest_email ?? user?.email ?? '').trim())
     : null;
 
+  const rentalPickupParts = (() => {
+    if (!rentalSnap?.pickupAt) return null;
+    const d = new Date(rentalSnap.pickupAt);
+    if (Number.isNaN(d.getTime())) return null;
+    return {
+      date: formatBookingDateDisplay(d.toISOString().slice(0, 10)) || d.toISOString().slice(0, 10),
+      time: d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }),
+      label: `${formatBookingDateDisplay(d.toISOString().slice(0, 10)) || d.toISOString().slice(0, 10)} · ${d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}`,
+    };
+  })();
+  const rentalReturnParts = (() => {
+    if (!rentalSnap?.returnAt) return null;
+    const d = new Date(rentalSnap.returnAt);
+    if (Number.isNaN(d.getTime())) return null;
+    return {
+      date: formatBookingDateDisplay(d.toISOString().slice(0, 10)) || d.toISOString().slice(0, 10),
+      time: d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }),
+      label: `${formatBookingDateDisplay(d.toISOString().slice(0, 10)) || d.toISOString().slice(0, 10)} · ${d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}`,
+    };
+  })();
+  const rentalQtyLabel =
+    rentalSnap && typeof rentalSnap.quantity === 'number' && rentalSnap.quantity > 0
+      ? `${rentalSnap.quantity} ${rentalSnap.quantity === 1 ? 'unit' : 'units'}`
+      : null;
+  const rentalDurationLabel =
+    rentalSnap && typeof rentalSnap.durationCount === 'number' && rentalSnap.durationCount > 0
+      ? `${rentalSnap.durationCount} ${
+          rentalSnap.durationUnit === 'hour'
+            ? rentalSnap.durationCount === 1
+              ? 'hour'
+              : 'hours'
+            : rentalSnap.durationCount === 1
+              ? 'day'
+              : 'days'
+        }`
+      : null;
+  const rentalPickupHandover = rentalSnap ? rentalPickupHandoverLabel(rentalSnap) : '';
+  const rentalReturnHandover = rentalSnap ? rentalReturnHandoverLabel(rentalSnap) : '';
+  const rentalReturnPlace = rentalReturn
+    ? rentalReturn.sameAsPickup
+      ? rentalReturn.address
+        ? `Same as pickup · ${rentalReturn.address}`
+        : 'Same as pickup'
+      : rentalReturn.address || null
+    : null;
+  const depositDisclosure = (
+    (rentalSnap?.depositDisclosure ?? '').trim() ||
+    (typeof rentalSnap?.depositAmountMinor === 'number' && rentalSnap.depositAmountMinor > 0
+      ? `Security deposit: ${formatMoney(rentalSnap.depositAmountMinor / 100, rentalSnap.currency || booking?.currency || 'EUR')}`
+      : '')
+  ).trim();
+  const explorePage = isRentalBooking ? 'rentals' : stayCheckOut ? 'stays' : 'packages';
+  const participantsLabel = isRentalBooking
+    ? null
+    : stayCheckOut
+      ? 'Guests'
+      : 'Participants';
+  const participantsValue = booking ? formatBookingParticipantsLabel(booking) : '—';
+  const summaryDateLine = isRentalBooking
+    ? [rentalPickupParts?.label, rentalReturnParts ? `→ ${rentalReturnParts.label}` : null]
+        .filter(Boolean)
+        .join(' ')
+    : dateLabel;
+  const summaryQtyLine = isRentalBooking
+    ? rentalQtyLabel
+    : stayCheckOut
+      ? participantsValue
+      : participantsValue;
+  const locationAddress = isRentalBooking
+    ? (rentalSnap?.pickupAddress ?? '').trim()
+    : stayCheckOut
+      ? (meetingPoint || '').trim()
+      : (arrival?.value ?? '').trim();
+  const locationDirectionsHref = locationAddress
+    ? confirmationMapHref(
+        locationAddress,
+        isRentalBooking
+          ? typeof rentalSnap?.pickupLat === 'number'
+            ? rentalSnap.pickupLat
+            : null
+          : pickupMapLat,
+        isRentalBooking
+          ? typeof rentalSnap?.pickupLng === 'number'
+            ? rentalSnap.pickupLng
+            : null
+          : pickupMapLng
+      )
+    : null;
+  const hasEmbeddedPickupMap =
+    isRentalBooking &&
+    typeof rentalSnap?.pickupLat === 'number' &&
+    typeof rentalSnap.pickupLng === 'number';
+  const hasEmbeddedReturnMap =
+    isRentalBooking &&
+    Boolean(rentalReturn) &&
+    !rentalReturn!.sameAsPickup &&
+    rentalReturn!.lat != null &&
+    rentalReturn!.lng != null;
+  const hasTourPickupMap =
+    !isRentalBooking &&
+    !stayCheckOut &&
+    pickupMapLat != null &&
+    pickupMapLng != null;
+  const locationInstructions = [
+    isRentalBooking ? (rentalSnap?.pickupInstructions ?? '').trim() : '',
+    isRentalBooking && !rentalReturn?.sameAsPickup ? (rentalSnap?.returnInstructions ?? '').trim() : '',
+    isRentalBooking ? (rentalSnap?.collectionNotes ?? '').trim() : '',
+    isRentalBooking ? (rentalSnap?.returnCollectionNotes ?? '').trim() : '',
+    !isRentalBooking ? arrivalInstructions : '',
+    ...(!isRentalBooking && !stayCheckOut ? logisticsLines : []),
+  ].filter(Boolean);
+  const showLocationBlock =
+    Boolean(locationAddress) ||
+    hasEmbeddedPickupMap ||
+    hasEmbeddedReturnMap ||
+    hasTourPickupMap ||
+    Boolean(arrival?.value) ||
+    Boolean(pickupPending && arrival);
+
+  const fact = (label: string, value: ReactNode) => (
+    <div className="tv-confirm-fact min-w-0 !p-0">
+      <div className="min-w-0">
+        <dt className="text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-faint">{label}</dt>
+        <dd className="mt-0.5 text-[13px] font-semibold leading-snug text-ink break-words [overflow-wrap:anywhere]">
+          {value}
+        </dd>
+      </div>
+    </div>
+  );
+
   const copyBookingRef = () => {
     if (!publicRef) return;
     void navigator.clipboard?.writeText(publicRef).then(
@@ -667,8 +825,8 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
   };
 
   return (
-    <div className="min-h-screen bg-white px-4 py-4 sm:px-6 sm:py-5">
-      <div className="mx-auto w-full max-w-[880px]">
+    <div className="min-h-screen bg-paper px-4 py-4 sm:px-6 sm:py-5">
+      <div className="mx-auto w-full max-w-[760px]">
       <header className="mb-3">
         <img src={BRAND_LOGO_SRC} alt="Traverion" className="h-7 w-auto" />
       </header>
@@ -708,7 +866,7 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
         {booking && (
           <div className="overflow-hidden tv-confirm-shell">
             <div
-              className={`tv-confirm-hero border-b border-black/[0.08] px-5 py-5 sm:px-8 ${
+              className={`tv-confirm-hero border-b border-black/[0.08] ${
                 paidActive
                   ? 'tv-confirm-hero--good'
                   : cancelled
@@ -720,23 +878,37 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
             >
               {paidActive ? (
                 <div className="flex items-start gap-2.5">
-                  <span className="mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white">
-                    <CheckCircle className="h-3.5 w-3.5" aria-hidden />
+                  <span
+                    className={`mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white shadow-sm ${
+                      celebrateSuccess ? 'tv-confirm-success-icon--animate' : ''
+                    }`}
+                  >
+                    <CheckCircle className="h-4 w-4" aria-hidden />
                   </span>
-                  <div className="min-w-0">
-                    <h1 className="font-sans text-2xl font-bold tracking-tight text-ink sm:text-[1.65rem]">Booking confirmed!</h1>
-                    <p className="mt-0.5 text-sm text-ink-muted">Your adventure is booked.</p>
+                  <div className="min-w-0 flex-1">
+                    <h1 className="font-sans text-xl font-bold tracking-tight text-ink sm:text-2xl">
+                      Booking confirmed!
+                    </h1>
+                    <p className="mt-0.5 text-[13px] text-ink-muted">Your adventure is booked.</p>
                     {emailLine ? (
-                      <p className="mt-1 max-w-xl text-sm leading-snug text-ink-muted break-words [overflow-wrap:anywhere]">
+                      <p className="mt-1 max-w-xl text-[13px] leading-snug text-ink-muted break-words [overflow-wrap:anywhere]">
                         {emailLine}
                       </p>
                     ) : null}
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      <StatusChip tone="good">Paid · Confirmed</StatusChip>
+                      {isStripeTestCheckoutSession(booking.checkout_session_id) || appStripeIsTestMode() ? (
+                        <span className="text-[11px] font-semibold uppercase tracking-wide text-amber-800">
+                          Test mode
+                        </span>
+                      ) : null}
+                    </div>
                   </div>
                 </div>
               ) : (
                 <div>
                   <StatusChip tone={statusChipTone}>{statusChipLabel}</StatusChip>
-                  <h1 className="mt-2 font-sans text-2xl font-bold tracking-tight text-ink">
+                  <h1 className="mt-2 font-sans text-xl font-bold tracking-tight text-ink sm:text-2xl">
                     {cancelled
                       ? 'Booking cancelled'
                       : awaitingHost
@@ -749,7 +921,7 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
                             ? BOOKING_CONFIRMATION_NEEDS_PAY_TITLE
                             : 'Booking received'}
                   </h1>
-                  <p className="mt-1 max-w-xl text-sm leading-relaxed text-ink-muted">
+                  <p className="mt-1 max-w-xl text-[13px] leading-relaxed text-ink-muted">
                     {cancelled
                       ? bookingConfirmationCancelledBody(booking)
                       : awaitingHost
@@ -766,185 +938,225 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
                   </p>
                 </div>
               )}
+
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-black/[0.06] pt-3">
+                <div className="min-w-0">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-faint">
+                    Booking reference
+                  </p>
+                  <p className="mt-0.5 font-mono text-base font-bold tracking-wide text-ink break-all sm:text-lg">
+                    {publicRef ?? 'Reference pending'}
+                  </p>
+                  {(booking.guest_name ?? '').trim() ? (
+                    <p className="mt-0.5 text-[12px] text-ink-muted break-words [overflow-wrap:anywhere]">
+                      Booked for {(booking.guest_name ?? '').trim()}
+                    </p>
+                  ) : null}
+                </div>
+                <div className="tv-confirm-no-print flex shrink-0 items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={copyBookingRef}
+                    disabled={!publicRef}
+                    className="tv-btn-ghost text-sm disabled:opacity-50"
+                    aria-label="Copy booking reference"
+                  >
+                    {copiedRef ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                    {copiedRef ? 'Copied' : 'Copy'}
+                  </button>
+                  {/* Phase 1674: printable receipt beside Copy for offline voucher use. */}
+                  <button
+                    type="button"
+                    onClick={() => window.print()}
+                    className="tv-btn-ghost text-sm print:hidden"
+                    aria-label="Print booking confirmation"
+                  >
+                    <Printer className="w-4 h-4" aria-hidden />
+                    Print
+                  </button>
+                </div>
+              </div>
             </div>
 
-            <div className="space-y-0 px-4 py-3 sm:px-5">
-              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-black/[0.08] pb-3">
-                  <div className="min-w-0">
-                    <p className="text-xs font-semibold text-ink-muted">Booking reference</p>
-                    <p className="mt-0.5 font-mono text-lg font-bold tracking-wide text-ink break-all">
-                      {publicRef ?? 'Reference pending'}
-                    </p>
-                    {(booking.guest_name ?? '').trim() ? (
-                      <p className="mt-0.5 text-xs text-ink-muted break-words [overflow-wrap:anywhere]">
-                        Booked for {(booking.guest_name ?? '').trim()}
-                      </p>
-                    ) : null}
-                  </div>
-                  <div className="tv-confirm-no-print flex shrink-0 items-center gap-1">
-                    <button
-                      type="button"
-                      onClick={copyBookingRef}
-                      disabled={!publicRef}
-                      className="tv-btn-ghost text-sm disabled:opacity-50"
-                      aria-label="Copy booking reference"
-                    >
-                      {copiedRef ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                      {copiedRef ? 'Copied' : 'Copy'}
-                    </button>
-                    {/* Phase 1674: printable receipt beside Copy for offline voucher use. */}
-                    <button
-                      type="button"
-                      onClick={() => window.print()}
-                      className="tv-btn-ghost text-sm print:hidden"
-                      aria-label="Print booking confirmation"
-                    >
-                      <Printer className="w-4 h-4" aria-hidden />
-                      Print
-                    </button>
-                  </div>
-                </div>
-
-              <div className="flex gap-3 border-b border-black/[0.08] py-3">
+            <div className="space-y-0 px-4 py-3.5 sm:px-5">
+              <div className="flex flex-col gap-3 border-b border-black/[0.08] pb-3.5 sm:flex-row sm:items-center">
                 {coverImage ? (
                   <img
                     src={coverImage}
                     alt=""
-                    className="h-16 w-24 shrink-0 rounded-md object-cover sm:h-[4.5rem] sm:w-28"
+                    className="h-28 w-full shrink-0 rounded-lg object-cover ring-1 ring-black/[0.06] sm:h-24 sm:w-36"
                   />
-                ) : null}
+                ) : (
+                  <div className="flex h-28 w-full shrink-0 items-center justify-center rounded-lg bg-black/[0.04] ring-1 ring-black/[0.06] sm:h-24 sm:w-36">
+                    <Calendar className="h-6 w-6 text-ink-faint" aria-hidden />
+                  </div>
+                )}
                 <div className="min-w-0 flex-1">
-                  <h2 className="text-base font-bold leading-snug text-ink break-words [overflow-wrap:anywhere]">
-                    {listingTitle || (stayCheckOut ? 'Your stay' : 'Your experience')}
+                  <h2 className="font-sans text-[15px] font-bold leading-snug tracking-tight text-ink break-words [overflow-wrap:anywhere] sm:text-base">
+                    {listingTitle || (stayCheckOut ? 'Your stay' : isRentalBooking ? 'Your rental' : 'Your experience')}
                   </h2>
                   {(isRentalBooking && rentalSnap?.variantName) || optionLabel ? (
-                    <p className="mt-0.5 text-sm text-ink-muted break-words [overflow-wrap:anywhere]">
+                    <p className="mt-0.5 text-[13px] text-ink-muted break-words [overflow-wrap:anywhere]">
                       {isRentalBooking && rentalSnap?.variantName
-                        ? `${rentalSnap.variantName}${rentalSnap.quantity ? ` · ${rentalSnap.quantity}` : ''}`
+                        ? rentalSnap.variantName
                         : optionLabel}
+                    </p>
+                  ) : null}
+                  <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[13px] text-ink-muted">
+                    {summaryDateLine ? <span className="font-medium text-ink">{summaryDateLine}</span> : null}
+                    {summaryQtyLine ? <span>{summaryQtyLine}</span> : null}
+                    {confirmationNightCount ? (
+                      <span>
+                        {confirmationNightCount} night{confirmationNightCount === 1 ? '' : 's'}
+                      </span>
+                    ) : null}
+                    {rentalDurationLabel ? <span>{rentalDurationLabel}</span> : null}
+                  </div>
+                  {collected && booking.amount_paid != null ? (
+                    <p className="mt-1.5 flex flex-wrap items-baseline gap-x-2 font-sans text-lg font-bold tabular-nums text-ink">
+                      <span>{formatMoney(Number(booking.amount_paid), booking.currency)}</span>
+                      {isStripeTestCheckoutSession(booking.checkout_session_id) || appStripeIsTestMode() ? (
+                        <span className="text-xs font-semibold text-amber-800">{' '}TEST</span>
+                      ) : null}
                     </p>
                   ) : null}
                 </div>
               </div>
-              <dl className="grid gap-2 border-b border-black/[0.08] py-3 text-sm sm:grid-cols-3">
-                    <div className="tv-confirm-fact">
-                      <Calendar className="mt-0.5 h-4 w-4 shrink-0 text-ink-muted" aria-hidden />
-                      <div className="min-w-0">
-                        <dt className="text-xs font-semibold text-ink-muted">
-                          {isRentalBooking ? 'Pickup and return' : stayCheckOut ? 'Stay dates' : 'Date'}
-                        </dt>
-                        <dd className="font-semibold text-ink break-words">{dateLabel}</dd>
-                        {isRentalBooking && rentalSnap?.pickupAddress ? (
-                          <dd className="text-ink-muted">{rentalSnap.pickupAddress}</dd>
-                        ) : null}
-                        {isRentalBooking && rentalReturn?.address ? (
-                          <dd className="text-ink-muted">
-                            Return: {rentalReturn.sameAsPickup ? `same place · ${rentalReturn.address}` : rentalReturn.address}
-                          </dd>
-                        ) : null}
-                        {isRentalBooking && rentalPickupHandoverLabel(rentalSnap ?? {}) ? (
-                          <dd className="text-ink-muted">Pickup: {rentalPickupHandoverLabel(rentalSnap ?? {})}</dd>
-                        ) : null}
-                        {isRentalBooking && rentalSnap?.collectionNotes ? (
-                          <dd className="text-ink-muted">{rentalSnap.collectionNotes}</dd>
-                        ) : null}
-                        {isRentalBooking && rentalSnap?.pickupInstructions ? (
-                          <dd className="text-ink-muted">{rentalSnap.pickupInstructions}</dd>
-                        ) : null}
-                        {isRentalBooking && rentalReturnHandoverLabel(rentalSnap ?? {}) ? (
-                          <dd className="text-ink-muted">Return: {rentalReturnHandoverLabel(rentalSnap ?? {})}</dd>
-                        ) : null}
-                        {isRentalBooking && rentalSnap?.returnCollectionNotes ? (
-                          <dd className="text-ink-muted">{rentalSnap.returnCollectionNotes}</dd>
-                        ) : null}
-                        {isRentalBooking && !rentalReturn?.sameAsPickup && rentalSnap?.returnInstructions ? (
-                          <dd className="text-ink-muted">{rentalSnap.returnInstructions}</dd>
-                        ) : null}
-                        {isRentalBooking &&
-                        typeof rentalSnap?.pickupLat === 'number' &&
-                        typeof rentalSnap.pickupLng === 'number' ? (
-                          <dd className="mt-2 max-w-sm">
-                            <RentalCollectionMap
-                              lat={rentalSnap.pickupLat}
-                              lng={rentalSnap.pickupLng}
-                              label={rentalReturn?.sameAsPickup ? 'Pickup and return map' : 'Pickup location map'}
-                            />
-                          </dd>
-                        ) : null}
-                        {isRentalBooking && rentalReturn && !rentalReturn.sameAsPickup && rentalReturn.lat != null && rentalReturn.lng != null ? (
-                          <dd className="mt-2 max-w-sm">
-                            <RentalCollectionMap lat={rentalReturn.lat} lng={rentalReturn.lng} label="Return location map" />
-                          </dd>
-                        ) : null}
-                        {isRentalBooking && rentalSnap?.cancellationLabel ? (
-                          <dd className="text-ink-muted">{rentalSnap.cancellationLabel}</dd>
-                        ) : null}
-                        {confirmationNightCount ? (
-                          <dd className="text-ink-muted">
-                            {confirmationNightCount} night{confirmationNightCount === 1 ? '' : 's'}
-                          </dd>
-                        ) : null}
-                      </div>
-                    </div>
-                    {!stayCheckOut && startHm ? (
-                      <div className="tv-confirm-fact">
-                        <Clock className="mt-0.5 h-4 w-4 shrink-0 text-ink-muted" aria-hidden />
-                        <div className="min-w-0">
-                          <dt className="text-xs font-semibold text-ink-muted">Start time</dt>
-                          <dd className="font-semibold text-ink break-words">{startHm}</dd>
-                        </div>
-                      </div>
-                    ) : null}
-                    <div className="tv-confirm-fact">
-                      <Users className="mt-0.5 h-4 w-4 shrink-0 text-ink-muted" aria-hidden />
-                      <div className="min-w-0">
-                        <dt className="text-xs font-semibold text-ink-muted">Participants</dt>
-                        <dd className="font-semibold text-ink break-words">{formatBookingParticipantsLabel(booking)}</dd>
-                      </div>
-                    </div>
+
+              <dl className="grid grid-cols-2 gap-x-4 gap-y-2.5 border-b border-black/[0.08] py-3.5">
+                {isRentalBooking ? (
+                  <>
+                    {rentalPickupParts ? fact('Pickup', rentalPickupParts.label) : null}
+                    {rentalReturnParts ? fact('Return', rentalReturnParts.label) : null}
+                    {rentalSnap?.variantName ? fact('Option', rentalSnap.variantName) : null}
+                    {rentalQtyLabel ? fact('Quantity', rentalQtyLabel) : null}
+                    {rentalDurationLabel ? fact('Duration', rentalDurationLabel) : null}
+                    {rentalSnap?.pickupAddress ? fact('Pickup place', rentalSnap.pickupAddress) : null}
+                    {rentalReturnPlace ? fact('Return place', rentalReturnPlace) : null}
+                    {rentalPickupHandover ? fact('Pickup handover', rentalPickupHandover) : null}
+                    {rentalReturnHandover ? fact('Return handover', rentalReturnHandover) : null}
+                  </>
+                ) : stayCheckOut ? (
+                  <>
+                    {booking.booking_date
+                      ? fact('Check-in', formatBookingDateDisplay(booking.booking_date) || booking.booking_date)
+                      : null}
+                    {fact('Check-out', formatBookingDateDisplay(stayCheckOut) || stayCheckOut)}
+                    {confirmationNightCount
+                      ? fact(
+                          'Nights',
+                          `${confirmationNightCount} night${confirmationNightCount === 1 ? '' : 's'}`
+                        )
+                      : null}
+                    {participantsLabel ? fact(participantsLabel, participantsValue) : null}
+                    {optionLabel ? fact('Option', optionLabel) : null}
+                    {meetingPoint ? fact('Property address', meetingPoint) : null}
+                  </>
+                ) : (
+                  <>
+                    {booking.booking_date
+                      ? fact('Date', formatBookingDateDisplay(booking.booking_date) || booking.booking_date)
+                      : null}
+                    {startHm ? fact('Departure', startHm) : null}
+                    {optionLabel ? fact('Option', optionLabel) : null}
+                    {participantsLabel ? fact(participantsLabel, participantsValue) : null}
+                    {arrival?.value || pickupPending
+                      ? fact(
+                          arrival?.label ?? 'Meeting point',
+                          arrival?.value ?? `${arrival?.label ?? 'Meeting point'} is not confirmed yet.`
+                        )
+                      : null}
+                    {arrival?.time && !hideExactPickupClock
+                      ? fact('Pickup time', arrival.time)
+                      : null}
+                  </>
+                )}
               </dl>
-              {arrival ? (
-                <div className="border-b border-black/[0.08] py-3">
-                  <div className="tv-confirm-fact">
+
+              {showLocationBlock ? (
+                <div className="border-b border-black/[0.08] py-3.5">
+                  <div className="tv-confirm-fact !p-0">
                     <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-ink-muted" aria-hidden />
-                    <div className="min-w-0">
-                      <dt className="text-xs font-semibold text-ink-muted">{arrival.label}</dt>
-                      <dd
-                        className="font-semibold text-ink break-words [overflow-wrap:anywhere]"
-                        data-pending={pickupPending && !arrival.value ? 'true' : 'false'}
-                      >
-                        {arrival.value ?? `${arrival.label} is not confirmed yet.`}
-                      </dd>
-                      {arrival.value ? (
-                        <dd className="mt-1">
-                          <a
-                            href={confirmationMapHref(arrival.value, pickupMapLat, pickupMapLng)}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="text-sm font-semibold text-finland hover:underline"
-                          >
-                            View on map
-                          </a>
-                        </dd>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-faint">
+                        Location & directions
+                      </p>
+                      {locationAddress ? (
+                        <p
+                          className="mt-0.5 text-[13px] font-semibold leading-snug text-ink break-words [overflow-wrap:anywhere]"
+                          data-pending={pickupPending && !arrival?.value ? 'true' : 'false'}
+                        >
+                          {locationAddress}
+                        </p>
+                      ) : arrival && !arrival.value ? (
+                        <p className="mt-0.5 text-[13px] font-semibold text-ink" data-pending="true">
+                          {arrival.label} is not confirmed yet.
+                        </p>
                       ) : null}
-                      {arrival.time && !hideExactPickupClock ? (
-                        <dd className="mt-1 text-ink-muted">Pickup time {arrival.time}</dd>
+                      {locationDirectionsHref ? (
+                        <a
+                          href={locationDirectionsHref}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="mt-1.5 inline-flex items-center gap-1 text-[13px] font-semibold text-finland hover:underline"
+                        >
+                          Open directions
+                          <ExternalLink className="h-3.5 w-3.5" aria-hidden />
+                        </a>
+                      ) : null}
+                      {hasEmbeddedPickupMap ||
+                      hasEmbeddedReturnMap ||
+                      hasTourPickupMap ||
+                      locationInstructions.length > 0 ? (
+                        <details className="mt-2 group">
+                          <summary className="cursor-pointer text-[13px] font-semibold text-finland">
+                            Show map & instructions
+                          </summary>
+                          <div className="mt-2 space-y-2.5">
+                            {locationInstructions.map((line) => (
+                              <p
+                                key={line.slice(0, 48)}
+                                className="whitespace-pre-wrap text-[13px] leading-relaxed text-ink-muted"
+                              >
+                                {line}
+                              </p>
+                            ))}
+                            {hasEmbeddedPickupMap ? (
+                              <RentalCollectionMap
+                                lat={rentalSnap!.pickupLat!}
+                                lng={rentalSnap!.pickupLng!}
+                                label={
+                                  rentalReturn?.sameAsPickup
+                                    ? 'Pickup and return map'
+                                    : 'Pickup location map'
+                                }
+                                compact
+                              />
+                            ) : null}
+                            {hasEmbeddedReturnMap ? (
+                              <RentalCollectionMap
+                                lat={rentalReturn!.lat!}
+                                lng={rentalReturn!.lng!}
+                                label="Return location map"
+                                compact
+                              />
+                            ) : null}
+                            {hasTourPickupMap ? (
+                              <RentalCollectionMap
+                                lat={pickupMapLat!}
+                                lng={pickupMapLng!}
+                                label="Pickup location map"
+                                compact
+                              />
+                            ) : null}
+                          </div>
+                        </details>
                       ) : null}
                     </div>
                   </div>
-                  {logisticsLines.length > 0 || arrivalInstructions ? (
-                    <details className="mt-2">
-                      <summary className="cursor-pointer text-sm font-semibold text-finland">Pickup and transport details</summary>
-                      <div className="mt-1.5 space-y-1 text-sm leading-relaxed text-ink-muted">
-                        {arrivalInstructions ? <p className="whitespace-pre-wrap break-words">{arrivalInstructions}</p> : null}
-                        {logisticsLines.map((line) => (
-                          <p key={line}>{line}</p>
-                        ))}
-                      </div>
-                    </details>
-                  ) : null}
                 </div>
               ) : null}
+
               {!isStayBooking &&
               collected &&
               (() => {
@@ -955,10 +1167,12 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
                 if (!phone) return null;
                 return (
                   <div className="border-b border-black/[0.08] py-3">
-                    <div className="tv-confirm-fact">
+                    <div className="tv-confirm-fact !p-0">
                       <div>
-                        <dt className="text-xs font-semibold text-ink-muted">Operator</dt>
-                        <dd className="font-semibold text-ink">
+                        <dt className="text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-faint">
+                          Operator
+                        </dt>
+                        <dd className="mt-0.5 text-[13px] font-semibold text-ink">
                           <a href={`tel:${phone}`} className="underline-offset-2 hover:underline">
                             {formatBookingContactForDisplay(phone)}
                           </a>
@@ -970,51 +1184,67 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
               })()}
 
               {collected && booking.amount_paid != null && (
-                <div className="flex flex-wrap items-end justify-between gap-3 border-b border-black/[0.08] py-4">
-                  <div>
-                    <SavedStayPrice
-                      snapshot={booking.purchase_snapshot}
-                      currency={booking.currency}
-                      amountPaid={Number(booking.amount_paid)}
-                      totalLabel="Booked total"
-                    />
-                    {paidNightlyBreakdown && !readStayBookingPrice(booking.purchase_snapshot) ? (
-                      <p className="text-sm text-ink-muted">
-                        {paidNightlyBreakdown.nights} night{paidNightlyBreakdown.nights === 1 ? '' : 's'} ×{' '}
-                        {formatMoney(Number(booking.nightly_amount), booking.currency)}
-                        {booking.cleaning_fee != null && Number(booking.cleaning_fee) > 0
-                          ? ` + ${formatMoney(Number(booking.cleaning_fee), booking.currency)} cleaning`
-                          : ''}
-                      </p>
-                    ) : null}
-                    <p className="text-xs font-semibold text-ink-muted">{cancelled ? payLabel : 'Amount paid'}</p>
-                    {/* Phase 1861: money + TEST as siblings with an explicit space (avoid “€89TEST”). */}
-                    <p className="mt-1 flex flex-wrap items-baseline gap-x-2 font-sans text-2xl font-bold tabular-nums text-ink">
-                      <span>{formatMoney(Number(booking.amount_paid), booking.currency)}</span>
-                      {isStripeTestCheckoutSession(booking.checkout_session_id) || appStripeIsTestMode() ? (
-                        <span className="text-sm font-semibold text-amber-800">{' '}TEST</span>
+                <div className="border-b border-black/[0.08] py-3.5">
+                  <div className="flex flex-wrap items-end justify-between gap-3">
+                    <div className="min-w-0">
+                      <SavedStayPrice
+                        snapshot={booking.purchase_snapshot}
+                        currency={booking.currency}
+                        amountPaid={Number(booking.amount_paid)}
+                        totalLabel="Booked total"
+                      />
+                      {paidNightlyBreakdown && !readStayBookingPrice(booking.purchase_snapshot) ? (
+                        <p className="text-[13px] text-ink-muted">
+                          {paidNightlyBreakdown.nights} night{paidNightlyBreakdown.nights === 1 ? '' : 's'} ×{' '}
+                          {formatMoney(Number(booking.nightly_amount), booking.currency)}
+                          {booking.cleaning_fee != null && Number(booking.cleaning_fee) > 0
+                            ? ` + ${formatMoney(Number(booking.cleaning_fee), booking.currency)} cleaning`
+                            : ''}
+                        </p>
                       ) : null}
-                    </p>
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-faint">
+                        {cancelled ? payLabel : 'Amount paid'}
+                      </p>
+                      {/* Phase 1861: money + TEST as siblings with an explicit space (avoid “€89TEST”). */}
+                      <p className="mt-1 flex flex-wrap items-baseline gap-x-2 font-sans text-2xl font-bold tabular-nums text-ink">
+                        <span>{formatMoney(Number(booking.amount_paid), booking.currency)}</span>
+                        {isStripeTestCheckoutSession(booking.checkout_session_id) || appStripeIsTestMode() ? (
+                          <span className="text-sm font-semibold text-amber-800">{' '}TEST</span>
+                        ) : null}
+                      </p>
+                    </div>
+                    <p className="text-[13px] font-semibold text-ink">{payLabel}</p>
                   </div>
-                  <p className="text-sm font-semibold text-ink">{payLabel}</p>
+                  {depositDisclosure ? (
+                    <p className="mt-2 text-[13px] leading-snug text-ink-muted">{depositDisclosure}</p>
+                  ) : null}
+                  {(cancellationPolicy || rentalSnap?.cancellationLabel) && paidActive ? (
+                    <p className="mt-2 text-[13px] font-medium leading-snug text-ink">
+                      {(rentalSnap?.cancellationLabel || cancellationPolicy).split('.')[0]}.
+                    </p>
+                  ) : null}
                 </div>
               )}
 
-              {cancellationPolicy ? (
+              {cancellationPolicy || rentalSnap?.cancellationLabel ? (
                 <details className="border-b border-black/[0.08] py-3">
-                  <summary className="cursor-pointer text-sm font-semibold text-ink">Cancellation terms</summary>
-                  <p className="mt-2 text-sm leading-relaxed text-ink-muted">{cancellationPolicy}</p>
+                  <summary className="cursor-pointer text-[13px] font-semibold text-ink">
+                    Cancellation terms
+                  </summary>
+                  <p className="mt-2 text-[13px] leading-relaxed text-ink-muted">
+                    {cancellationPolicy || rentalSnap?.cancellationLabel}
+                  </p>
                 </details>
               ) : null}
 
-              <p className="py-3 text-sm text-ink-muted">
+              <p className="py-3 text-[13px] text-ink-muted">
                 {cancelled
                   ? bookingConfirmationCancelledNextStep(booking)
                   : needsPay
                     ? payLabel === 'Checkout expired' || payLabel === 'Hold expired'
                       ? TRAVELER_HOLD_EXPIRED_PAY_NOW_NOTE
                       : 'Payment is still required. You can finish it from here or from Trips.'
-                    : "Your booking details and any updates from your operator are available in Trips."}
+                    : 'Your booking details and updates are available in Trips.'}
               </p>
               {payNowError ? (
                 <NoticeCallout title="Could not open checkout" tone="danger">
@@ -1043,7 +1273,7 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
                 </button>
                 <button
                   type="button"
-                  onClick={() => onNavigate(stayCheckOut ? 'stays' : 'packages')}
+                  onClick={() => onNavigate(explorePage)}
                   className="px-1 py-2 text-left text-sm font-semibold text-finland hover:underline"
                 >
                   Explore more experiences

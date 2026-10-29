@@ -11832,13 +11832,13 @@ details:not([open]) > :not(summary) {
 }
 
 .tv-confirm-hero {
-  padding: 0.85rem 1rem 0.75rem;
+  padding: 0.85rem 1rem 0.85rem;
   text-align: left;
 }
 
 @media (min-width: 640px) {
   .tv-confirm-hero {
-    padding: 1rem 1.25rem 0.85rem;
+    padding: 1rem 1.25rem 1rem;
   }
 }
 
@@ -11864,6 +11864,31 @@ details:not([open]) > :not(summary) {
   gap: 0.65rem;
   padding: 0.35rem 0;
   background: transparent;
+}
+
+@keyframes tv-confirm-pop {
+  0% {
+    transform: scale(0.72);
+    opacity: 0;
+  }
+  70% {
+    transform: scale(1.06);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.tv-confirm-success-icon--animate {
+  animation: tv-confirm-pop 0.45s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tv-confirm-success-icon--animate {
+    animation: none;
+  }
 }
 
 @media print {
