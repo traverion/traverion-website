@@ -173,7 +173,7 @@ export async function buildReceiptPdfBytes(input: ReceiptPdfInput): Promise<Uint
 
   y -= 8;
   draw('Thank you for booking with Traverion.', 10, body, muted);
-  draw('Keep this receipt for your records. Manage the booking in Trips.', 10, body, muted);
+  draw('Keep this receipt for your records. Manage the booking in My bookings.', 10, body, muted);
   draw('Support · traverion.com/contact', 9, body, blue);
 
   return new Uint8Array(await doc.save());

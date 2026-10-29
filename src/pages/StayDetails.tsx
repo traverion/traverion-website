@@ -1146,7 +1146,7 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
                   </div>
                 ) : null}
                 {(() => {
-                  // Phase 1587: only times / missing-time honesty here — Trips email note lives on booking panel (1585/1586).
+                  // Phase 1587: only times / missing-time honesty here — My bookings email note lives on booking panel (1585/1586).
                   const missing = stayCheckInOutMissingCopy({
                     checkInTime: s?.checkInTime,
                     checkOutTime: s?.checkOutTime,
@@ -1463,7 +1463,7 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
               </button>
             )}
             <p className="mt-2 text-[11px] leading-relaxed text-ink-faint" title={STAY_LISTING_CONFIRMATION_NOTE}>
-              {STRIPE_TEST_UNTIL_LIVE} · confirmed stays appear in Trips
+              {STRIPE_TEST_UNTIL_LIVE} · confirmed stays appear in My bookings
             </p>
           </aside>
           </div>

@@ -153,7 +153,7 @@ export function listingBackLabel(fallback: 'Tours' | 'Stays'): string {
     case 'wishlist':
       return 'Saved';
     case 'bookings':
-      return 'Trips';
+      return 'My bookings';
     case 'destination':
       return 'Back';
     case 'account':

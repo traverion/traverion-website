@@ -598,8 +598,8 @@ export async function updateGuestBookingSpecialRequests(
         return {
           success: true,
           error: notifyWarning
-            ? `Note saved, but the host Inbox thread update failed, and email notification may not have been sent. Try messaging from Trips.`
-            : 'Note saved, but the host Inbox thread update failed. Try sending a message from Trips.',
+            ? `Note saved, but the host Inbox thread update failed, and email notification may not have been sent. Try messaging from My bookings.`
+            : 'Note saved, but the host Inbox thread update failed. Try sending a message from My bookings.',
         };
       }
     }

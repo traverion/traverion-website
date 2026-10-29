@@ -437,7 +437,7 @@ export default function TravelerReviewComposeDialog({
               className="tv-btn-primary tv-review-journey__primary"
               onClick={finishSuccess}
             >
-              Continue to Trips
+              Continue to My bookings
             </button>
           ) : (
             <>

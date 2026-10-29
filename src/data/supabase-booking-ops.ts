@@ -412,7 +412,7 @@ export async function notifyTravelerCancellationRequest(params: {
         {
           label: 'Status',
           before: 'Confirmed',
-          after: 'Cancelled by operator — choose a full refund or another departure in Trips',
+          after: 'Cancelled by operator — choose a full refund or another departure in My bookings',
         },
         ...(params.startTimeLabel
           ? [{ label: 'Original start', before: '—', after: params.startTimeLabel }]
@@ -432,7 +432,7 @@ export async function notifyTravelerCancellationRequest(params: {
         {
           label: 'Status',
           before: 'Confirmed',
-          after: 'Cancelled by operator — a full refund is due. Open Trips for details.',
+          after: 'Cancelled by operator — a full refund is due. Open My bookings for details.',
         },
       ];
   const { data, error } = await supabase.functions.invoke('notify-customer-booking', {

@@ -15,7 +15,7 @@ export const USER_ERROR = {
   stayMissing: 'This stay is not available. It may have been unpublished or the link is wrong.',
   cart: 'We could not load your cart. Check your connection and try again.',
   wishlist: 'We could not load saved tours and stays. Check your connection and try again.',
-  trips: 'We could not load your trips. Check your connection and try again.',
+  trips: 'We could not load your bookings. Check your connection and try again.',
   booking: 'We could not load this booking. Check your connection and try again.',
   listings: 'We could not load listings. Check your connection and try again.',
   bookings: 'We could not load bookings. Check your connection and try again.',

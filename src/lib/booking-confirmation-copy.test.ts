@@ -140,7 +140,7 @@ describe('booking confirmation copy', () => {
 
   it('stay listing copy keeps Trips durable without claiming no email is sent (Phase 1585)', () => {
     expect(bookingConfirmationPromisesEmailSent(STAY_LISTING_CONFIRMATION_NOTE)).toBe(false);
-    expect(STAY_LISTING_CONFIRMATION_NOTE.toLowerCase()).toContain('trips');
+    expect(STAY_LISTING_CONFIRMATION_NOTE.toLowerCase()).toContain('my bookings');
     expect(STAY_LISTING_CONFIRMATION_NOTE.toLowerCase()).toContain('does not treat email delivery as booking proof');
     expect(STAY_LISTING_CONFIRMATION_NOTE.toLowerCase()).not.toContain('do not send a confirmation email');
   });
@@ -154,7 +154,7 @@ describe('booking confirmation copy', () => {
 
   it('tour listing copy keeps Trips durable without claiming no email is sent (Phase 1585)', () => {
     expect(bookingConfirmationPromisesEmailSent(TOUR_LISTING_CONFIRMATION_NOTE)).toBe(false);
-    expect(TOUR_LISTING_CONFIRMATION_NOTE.toLowerCase()).toContain('trips');
+    expect(TOUR_LISTING_CONFIRMATION_NOTE.toLowerCase()).toContain('my bookings');
     expect(TOUR_LISTING_CONFIRMATION_NOTE.toLowerCase()).toContain('does not treat email delivery as booking proof');
     expect(TOUR_LISTING_CONFIRMATION_NOTE.toLowerCase()).not.toContain('do not send a confirmation email');
   });
@@ -181,7 +181,7 @@ describe('booking confirmation copy', () => {
     const copy = bookingPayConfirmAfterPayCopy(15);
     expect(bookingConfirmationPromisesEmailSent(copy)).toBe(false);
     expect(copy.toLowerCase()).not.toContain('do not send a confirmation email');
-    expect(copy.toLowerCase()).toContain('trips');
+    expect(copy.toLowerCase()).toContain('my bookings');
     expect(copy.toLowerCase()).toContain('does not treat email delivery as booking proof');
     expect(copy).toContain('15 minutes');
   });
@@ -195,8 +195,8 @@ describe('booking confirmation copy', () => {
     expect(STRIPE_CHECKOUT_CANCELLED_STAY_COPY.toLowerCase()).toContain('no payment was taken');
     expect(STRIPE_CHECKOUT_CANCELLED_TOUR_COPY.toLowerCase()).toContain('pay now');
     expect(STRIPE_CHECKOUT_CANCELLED_STAY_COPY.toLowerCase()).toContain('pay now');
-    expect(STRIPE_CHECKOUT_CANCELLED_TOUR_COPY.toLowerCase()).toContain('trips');
-    expect(STRIPE_CHECKOUT_CANCELLED_STAY_COPY.toLowerCase()).toContain('trips');
+    expect(STRIPE_CHECKOUT_CANCELLED_TOUR_COPY.toLowerCase()).toContain('my bookings');
+    expect(STRIPE_CHECKOUT_CANCELLED_STAY_COPY.toLowerCase()).toContain('my bookings');
     expect(STRIPE_CHECKOUT_CANCELLED_TOUR_COPY.toLowerCase()).not.toContain('open the tour again');
     expect(readStripeCheckoutReturnBanner('?payment=cancelled')).toBe('cancelled');
     expect(readStripeCheckoutReturnBanner('?payment=success')).toBe('success');
@@ -271,7 +271,7 @@ describe('booking confirmation copy', () => {
 
   it('partner cancellation request copy does not promise the traveler was emailed', () => {
     expect(bookingConfirmationPromisesEmailSent(PARTNER_CANCELLATION_REQUEST_DELIVERY_NOTE)).toBe(false);
-    expect(PARTNER_CANCELLATION_REQUEST_DELIVERY_NOTE.toLowerCase()).toContain('trips');
+    expect(PARTNER_CANCELLATION_REQUEST_DELIVERY_NOTE.toLowerCase()).toContain('my bookings');
     expect(PARTNER_CANCELLATION_REQUEST_DELIVERY_NOTE.toLowerCase()).toContain('does not treat email delivery as proof');
   });
 
@@ -376,7 +376,7 @@ describe('booking confirmation copy', () => {
     expect(SUPPLIER_BOOKING_CANCELLED_NO_REFUND_NOTIFY_SUB.toLowerCase()).not.toContain('refund due');
     expect(bookingConfirmationPromisesEmailSent(SUPPLIER_BOOKING_CANCELLED_NO_REFUND_NOTIFY_SUB)).toBe(false);
     expect(bookingConfirmationPromisesEmailSent(SUPPLIER_HOST_SCHEDULE_UPDATED_NOTIFY_SUB)).toBe(false);
-    expect(SUPPLIER_HOST_SCHEDULE_UPDATED_NOTIFY_SUB.toLowerCase()).toContain('trips');
+    expect(SUPPLIER_HOST_SCHEDULE_UPDATED_NOTIFY_SUB.toLowerCase()).toContain('my bookings');
     expect(SUPPLIER_HOST_SCHEDULE_UPDATED_NOTIFY_SUB.toLowerCase()).toContain(
       'does not treat email delivery as proof'
     );
@@ -420,13 +420,13 @@ describe('booking confirmation copy', () => {
       'does not treat email delivery as proof'
     );
     expect(bookingConfirmationPromisesEmailSent(BOOKING_CONFIRMED_PAID_FOLLOWUP_NOTE)).toBe(false);
-    expect(BOOKING_CONFIRMED_PAID_FOLLOWUP_NOTE.toLowerCase()).toContain('trips');
+    expect(BOOKING_CONFIRMED_PAID_FOLLOWUP_NOTE.toLowerCase()).toContain('my bookings');
     expect(BOOKING_CONFIRMED_PAID_FOLLOWUP_NOTE.toLowerCase()).toContain(
       'does not treat email delivery as proof'
     );
     expect(BOOKING_CONFIRMED_PAID_FOLLOWUP_NOTE.toLowerCase()).not.toContain('follow up by email');
     expect(bookingConfirmationPromisesEmailSent(BOOKING_CONFIRMED_PAID_RECEIPT_LINE)).toBe(false);
-    expect(BOOKING_CONFIRMED_PAID_RECEIPT_LINE.toLowerCase()).toContain('trips is the durable receipt');
+    expect(BOOKING_CONFIRMED_PAID_RECEIPT_LINE.toLowerCase()).toContain('my bookings is the durable receipt');
     expect(BOOKING_CONFIRMED_PAID_RECEIPT_LINE.toLowerCase()).not.toContain('keep this email for your records');
     expect(paidConfirmationReceiptLine('stay').toLowerCase()).toContain('charged for this stay');
     expect(paidConfirmationReceiptLine('tour')).toBe(BOOKING_CONFIRMED_PAID_RECEIPT_LINE);
@@ -480,22 +480,22 @@ describe('booking confirmation copy', () => {
     expect(TRAVELER_PICKUP_PENDING_UI_NOTE.toLowerCase()).toContain('when the host updates them');
     expect(TRAVELER_PICKUP_PENDING_UI_NOTE.toLowerCase()).not.toContain('when ready');
     expect(bookingConfirmationPromisesEmailSent(BOOKING_CONFIRMED_UI_FOLLOWUP_NOTE)).toBe(false);
-    expect(BOOKING_CONFIRMED_UI_FOLLOWUP_NOTE.toLowerCase()).toContain('trips');
+    expect(BOOKING_CONFIRMED_UI_FOLLOWUP_NOTE.toLowerCase()).toContain('my bookings');
     expect(BOOKING_CONFIRMED_UI_FOLLOWUP_NOTE.toLowerCase()).not.toContain('may follow up');
     expect(BOOKING_CONFIRMED_UI_FOLLOWUP_NOTE.toLowerCase()).not.toContain('may send arrival');
     expect(bookingConfirmationPromisesEmailSent(BOOKING_REQUEST_EMAIL_FOLLOWUP_NOTE)).toBe(false);
-    expect(BOOKING_REQUEST_EMAIL_FOLLOWUP_NOTE.toLowerCase()).toContain('trips');
+    expect(BOOKING_REQUEST_EMAIL_FOLLOWUP_NOTE.toLowerCase()).toContain('my bookings');
     expect(BOOKING_REQUEST_EMAIL_FOLLOWUP_NOTE.toLowerCase()).toContain(
       'does not treat email delivery as proof'
     );
     expect(BOOKING_REQUEST_EMAIL_FOLLOWUP_NOTE.toLowerCase()).not.toContain('you will receive another email');
     expect(bookingConfirmationPromisesEmailSent(TRAVELER_NEW_BOOKING_MESSAGE_EMAIL_NOTE)).toBe(false);
-    expect(TRAVELER_NEW_BOOKING_MESSAGE_EMAIL_NOTE.toLowerCase()).toContain('trips');
+    expect(TRAVELER_NEW_BOOKING_MESSAGE_EMAIL_NOTE.toLowerCase()).toContain('my bookings');
     expect(TRAVELER_NEW_BOOKING_MESSAGE_EMAIL_NOTE.toLowerCase()).toContain(
       'does not treat email delivery as proof'
     );
     expect(bookingConfirmationPromisesEmailSent(TRAVELER_HOST_SCHEDULE_UPDATED_EMAIL_NOTE)).toBe(false);
-    expect(TRAVELER_HOST_SCHEDULE_UPDATED_EMAIL_NOTE.toLowerCase()).toContain('trips');
+    expect(TRAVELER_HOST_SCHEDULE_UPDATED_EMAIL_NOTE.toLowerCase()).toContain('my bookings');
     expect(TRAVELER_HOST_SCHEDULE_UPDATED_EMAIL_NOTE.toLowerCase()).toContain(
       'does not treat email delivery as proof'
     );
@@ -503,18 +503,18 @@ describe('booking confirmation copy', () => {
       'reply to the provider if you need help'
     );
     expect(bookingConfirmationPromisesEmailSent(TRAVELER_DETAILS_UPDATED_EMAIL_NOTE)).toBe(false);
-    expect(TRAVELER_DETAILS_UPDATED_EMAIL_NOTE.toLowerCase()).toContain('trips');
+    expect(TRAVELER_DETAILS_UPDATED_EMAIL_NOTE.toLowerCase()).toContain('my bookings');
     expect(TRAVELER_DETAILS_UPDATED_EMAIL_NOTE.toLowerCase()).toContain(
       'does not treat email delivery as proof'
     );
     expect(TRAVELER_DETAILS_UPDATED_EMAIL_NOTE.toLowerCase()).toContain('if you did not make this change');
     expect(bookingConfirmationPromisesEmailSent(TRAVELER_CANCELLATION_DECLINED_EMAIL_NOTE)).toBe(false);
-    expect(TRAVELER_CANCELLATION_DECLINED_EMAIL_NOTE.toLowerCase()).toContain('trips');
+    expect(TRAVELER_CANCELLATION_DECLINED_EMAIL_NOTE.toLowerCase()).toContain('my bookings');
     expect(TRAVELER_CANCELLATION_DECLINED_EMAIL_NOTE.toLowerCase()).toContain(
       'does not treat email delivery as proof'
     );
     expect(bookingConfirmationPromisesEmailSent(TRAVELER_PICKUP_ACTION_EMAIL_NOTE)).toBe(false);
-    expect(TRAVELER_PICKUP_ACTION_EMAIL_NOTE.toLowerCase()).toContain('trips');
+    expect(TRAVELER_PICKUP_ACTION_EMAIL_NOTE.toLowerCase()).toContain('my bookings');
     expect(TRAVELER_PICKUP_ACTION_EMAIL_NOTE.toLowerCase()).toContain(
       'does not treat email delivery as proof'
     );
@@ -572,7 +572,7 @@ describe('booking confirmation copy', () => {
     expect(PARTNER_TERMS_MATERIAL_CHANGES_NOTE.toLowerCase()).toContain('partner portal');
     expect(TERMS_MATERIAL_CHANGES_NOTE.toLowerCase()).toContain('does not treat email delivery as the only notice');
     expect(PARTNER_TERMS_MATERIAL_CHANGES_NOTE.toLowerCase()).toContain('does not treat email delivery as the only notice');
-    expect(TERMS_LAST_MINUTE_CHANGES_NOTE.toLowerCase()).toContain('trips is the durable record');
+    expect(TERMS_LAST_MINUTE_CHANGES_NOTE.toLowerCase()).toContain('my bookings is the durable record');
     expect(TERMS_LAST_MINUTE_CHANGES_NOTE.toLowerCase()).toContain(
       'does not treat email delivery as proof'
     );
@@ -584,7 +584,7 @@ describe('booking confirmation copy', () => {
   it('Privacy copy does not treat email delivery as proof of a notice', () => {
     expect(bookingConfirmationPromisesEmailSent(PRIVACY_COMMUNICATIONS_NOTE)).toBe(false);
     expect(bookingConfirmationPromisesEmailSent(PARTNER_PRIVACY_COMMUNICATIONS_NOTE)).toBe(false);
-    expect(PRIVACY_COMMUNICATIONS_NOTE.toLowerCase()).toContain('trips');
+    expect(PRIVACY_COMMUNICATIONS_NOTE.toLowerCase()).toContain('my bookings');
     expect(PARTNER_PRIVACY_COMMUNICATIONS_NOTE.toLowerCase()).toContain('partner portal');
     expect(PRIVACY_COMMUNICATIONS_NOTE.toLowerCase()).toContain('does not treat email delivery as proof you received');
     expect(PARTNER_PRIVACY_COMMUNICATIONS_NOTE.toLowerCase()).toContain(

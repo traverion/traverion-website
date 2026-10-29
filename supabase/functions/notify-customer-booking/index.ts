@@ -494,7 +494,7 @@ const handler = async (req: Request): Promise<Response> => {
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')?.trim() ?? '';
     // Phase 1126: fieldDiffs are caller-authored copy — supplier/service-role always;
     // Phase 1706: guest JWT may supply diffs only for guestMayInvokeCustomerEmailKind kinds
-    // (your_details_updated / booking_cancelled / cancel responses) so Trips note updates
+    // (your_details_updated / booking_cancelled / cancel responses) so My bookings note updates
     // and cancel self-receipts are not hollow “what changed” emails.
     let allowCallerFieldDiffs = false;
     // Phase 1092: booking-tied kinds reject anonymous forgery. Service-role
@@ -804,7 +804,7 @@ const handler = async (req: Request): Promise<Response> => {
         entityId: body.bookingId ?? (kind === 'traveler_welcome' ? to : undefined),
         // Phase 1727: content-hashed keys dedupe identical new_booking_message /
         // your_details_updated mail. Entity-level 900s cooldown dropped every later
-        // distinct Inbox message / Trips note change within 15 minutes.
+        // distinct Inbox message / My bookings note change within 15 minutes.
       });
       if (claim.action === 'skip') {
         return json({ success: true, skipped: true, reason: claim.reason, idempotencyKey });
@@ -858,7 +858,7 @@ const handler = async (req: Request): Promise<Response> => {
           ? 'Cancelled — full refund due until Stripe records it (not automatic)'
           : refundChoice === 'no_refund'
             ? 'Cancelled — no refund for this traveler-initiated cancellation'
-            : 'Cancelled — refund status follows Trips / Stripe';
+            : 'Cancelled — refund status follows My bookings / Stripe';
       diffs = [
         {
           label: 'Cancellation & refund',
@@ -898,7 +898,7 @@ const handler = async (req: Request): Promise<Response> => {
       if (logistics) extraHtml += logistics;
       // Keep in sync with BOOKING_CONFIRMED_PAID_FOLLOWUP_NOTE in booking-confirmation-copy.ts
       footerNote =
-        'Your booking details and updates are available in Trips. Traverion does not treat email delivery as proof you received a notice.';
+        'Your booking details and updates are available in My bookings. Traverion does not treat email delivery as proof you received a notice.';
     } else if (kind === 'your_details_updated') {
       headline = 'Your booking details were saved';
       intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">We updated the notes on your booking. Here is what changed (previous value → new value):</p>`;
@@ -926,26 +926,26 @@ const handler = async (req: Request): Promise<Response> => {
       if (diffs.length) extraHtml = fieldDiffTableHtml(diffs);
       footerNote = unpaid
         ? // Keep in sync with TRAVELER_CANCEL_UNPAID_CHECKOUT_EMAIL_FOOTER
-          'This was an unpaid checkout. No payment was collected. Trips keeps the cancelled record if you need it.'
+          'This was an unpaid checkout. No payment was collected. My bookings keeps the cancelled record if you need it.'
         : refundChoice === 'no_refund'
-          ? 'No refund applies for this cancellation. Trips keeps the cancelled record if you need it.'
-          : 'When a refund applies, Trips shows Refund due until Stripe records Refunded. Traverion does not send Stripe refunds automatically. Timing then depends on your bank.';
+          ? 'No refund applies for this cancellation. My bookings keeps the cancelled record if you need it.'
+          : 'When a refund applies, My bookings shows Refund due until Stripe records Refunded. Traverion does not send Stripe refunds automatically. Timing then depends on your bank.';
     } else if (kind === 'cancellation_requested_by_supplier') {
       headline = 'Action needed on your booking';
-      intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">The supplier can no longer operate this booking as planned. Your reservation is <strong>not cancelled yet</strong>. Open Trips to accept the cancellation (refund due when payment was collected) or keep the booking if you decline.</p>`;
+      intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">The supplier can no longer operate this booking as planned. Your reservation is <strong>not cancelled yet</strong>. Open My bookings to accept the cancellation (refund due when payment was collected) or keep the booking if you decline.</p>`;
       if (diffs.length) extraHtml = fieldDiffTableHtml(diffs);
       footerNote =
         'If you accept, a full refund is due when you paid online. Status becomes Refunded only after Stripe records it. Traverion does not send refunds automatically.';
     } else if (kind === 'supplier_cancelled_choose_resolution') {
       headline = 'Your activity was cancelled';
-      intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">Your operator cancelled <strong>${escapeHtml(title)}</strong>. You are entitled to a <strong>full refund</strong>, or you can choose another available departure for the same activity in Trips. If you do not choose before the original official start time, your full refund begins automatically.</p>`;
+      intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">Your operator cancelled <strong>${escapeHtml(title)}</strong>. You are entitled to a <strong>full refund</strong>, or you can choose another available departure for the same activity in My bookings. If you do not choose before the original official start time, your full refund begins automatically.</p>`;
       if (diffs.length) extraHtml = fieldDiffTableHtml(diffs);
       footerNote =
-        'Open Trips to get a full refund or pick another date. This email cannot issue a refund. Refunded appears only after Stripe confirms.';
+        'Open My bookings to get a full refund or pick another date. This email cannot issue a refund. Refunded appears only after Stripe confirms.';
     } else if (kind === 'cancellation_accepted') {
       headline = 'Cancellation confirmed';
       intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">You accepted the host’s cancellation request. This booking is cancelled. A refund is due; it is recorded when Stripe processes it — Traverion does not refund automatically.</p>`;
-      footerNote = 'Watch Trips for Refund due, then Refunded. Traverion does not refund automatically. Timing depends on your bank.';
+      footerNote = 'Watch My bookings for Refund due, then Refunded. Traverion does not refund automatically. Timing depends on your bank.';
     } else if (kind === 'cancellation_declined') {
       headline = 'Your booking stays confirmed';
       intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">You declined the host’s cancellation request. The booking remains active.</p>`;
@@ -954,20 +954,20 @@ const handler = async (req: Request): Promise<Response> => {
         'Your booking stays active.';
     } else if (kind === 'new_booking_message') {
       headline = 'New message about your booking';
-      intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">You have a new message about this booking. Open Trips to read and reply.</p>`;
+      intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">You have a new message about this booking. Open My bookings to read and reply.</p>`;
       if (diffs.length) extraHtml = fieldDiffTableHtml(diffs);
       footerNote =
         // Keep in sync with TRAVELER_NEW_BOOKING_MESSAGE_EMAIL_NOTE in booking-confirmation-copy.ts
         'Open the message to read and reply.';
     } else if (kind === 'pickup_action_required') {
       headline = 'Pickup details still needed';
-      intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">Your booking is confirmed. The host still needs to confirm pickup or meeting details — they will appear in Trips when ready.</p>`;
+      intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">Your booking is confirmed. The host still needs to confirm pickup or meeting details — they will appear in My bookings when ready.</p>`;
       footerNote =
         // Keep in sync with TRAVELER_PICKUP_ACTION_EMAIL_NOTE in booking-confirmation-copy.ts
         'Pickup details will appear on your booking when your operator confirms them.';
     } else if (kind === 'pickup_confirmed') {
       headline = 'Pickup time confirmed';
-      intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">Your host confirmed the pickup time for this booking. Details below — also visible in Trips.</p>`;
+      intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">Your host confirmed the pickup time for this booking. Details below — also visible in My bookings.</p>`;
       if (diffs.length) extraHtml = fieldDiffTableHtml(diffs);
       if (meetingPoint?.trim()) {
         extraHtml += `<p style="margin:12px 0 0;font-size:14px;color:#111827;"><strong>Meeting / pickup place:</strong> ${escapeHtml(meetingPoint.trim())}</p>`;
@@ -977,7 +977,7 @@ const handler = async (req: Request): Promise<Response> => {
       headline = 'Pickup details changed';
       intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">Your host updated pickup or meeting details. Compare previous → new below.</p>`;
       extraHtml = fieldDiffTableHtml(diffs);
-      footerNote = 'Updated times appear in Trips. Contact the host in Trips if you need help.';
+      footerNote = 'Updated times appear in My bookings. Contact the host in My bookings if you need help.';
     } else if (kind === 'traveler_welcome') {
       headline = 'Welcome to Traverion';
       intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">Your traveler account is ready. Browse experiences, book securely, and manage trips in one place.</p>`;
@@ -993,7 +993,7 @@ const handler = async (req: Request): Promise<Response> => {
         'Your booking shows this refund as complete. Your bank may take a few days to post it.';
     } else if (kind === 'refund_initiated') {
       headline = 'Your refund is being processed';
-      intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">We submitted a refund to Stripe for this cancelled booking. Trips will show Refunded when Stripe confirms it.</p>`;
+      intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">We submitted a refund to Stripe for this cancelled booking. My bookings will show Refunded when Stripe confirms it.</p>`;
       if (typeof amount === 'number') {
         extraHtml = `<p style="margin:0;font-size:14px;color:#374151;"><strong>Refund amount:</strong> ${escapeHtml(currency)} ${amount.toFixed(2)}</p>`;
       }
@@ -1004,11 +1004,11 @@ const handler = async (req: Request): Promise<Response> => {
       // Phase 1740: cancelled Refund due — do not claim reservation still active.
       headline = 'A partial refund was recorded';
       if (cancelledRefundDuePartial) {
-        intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">Stripe recorded a partial refund toward the amount due on this cancelled booking. Trips still shows Refund due for any remaining charge until Stripe records a full refund.</p>`;
+        intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">Stripe recorded a partial refund toward the amount due on this cancelled booking. My bookings still shows Refund due for any remaining charge until Stripe records a full refund.</p>`;
         footerNote =
           'Your bank may take a few days to post this refund. Any remaining amount still shows as due on your booking.';
       } else {
-        intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">Stripe recorded a partial refund for this booking. Your reservation stays active and Trips still shows Paid for the remaining amount.</p>`;
+        intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">Stripe recorded a partial refund for this booking. Your reservation stays active and My bookings still shows Paid for the remaining amount.</p>`;
         footerNote =
           'Your bank may take a few days to post this refund. The remaining amount stays paid on your booking.';
       }
@@ -1024,10 +1024,10 @@ const handler = async (req: Request): Promise<Response> => {
           ? 'Your rental is coming up soon'
           : 'Your tour is coming up soon';
       intro = isStay
-        ? `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">Your stay at <strong>${escapeHtml(title)}</strong> is coming up soon. Details we have on file are below — check Trips for the latest.</p>`
+        ? `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">Your stay at <strong>${escapeHtml(title)}</strong> is coming up soon. Details we have on file are below — check My bookings for the latest.</p>`
         : isRental
           ? `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">Your rental <strong>${escapeHtml(title)}</strong> is coming up soon. Pickup and return times below are in the listing timezone.</p>`
-          : `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">Your tour <strong>${escapeHtml(title)}</strong> is coming up soon. Details we have on file are below — check Trips for the latest.</p>`;
+          : `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">Your tour <strong>${escapeHtml(title)}</strong> is coming up soon. Details we have on file are below — check My bookings for the latest.</p>`;
       extraHtml = purchasedLogisticsExtraHtml({
         isStay,
         checkInAddress,
@@ -1040,17 +1040,17 @@ const handler = async (req: Request): Promise<Response> => {
       });
       if (diffs.length) extraHtml += fieldDiffTableHtml(diffs);
       footerNote = isStay
-        ? 'Open Trips for check-in address, house times, or host updates.'
-        : 'Open Trips for pickup, meeting, or host updates.';
+        ? 'Open My bookings for check-in address, house times, or host updates.'
+        : 'Open My bookings for pickup, meeting, or host updates.';
     } else if (kind === 'review_request') {
       const isStay = String(listingKind ?? '').toLowerCase() === 'stay';
       headline = isStay ? 'How was your stay?' : 'How was your tour?';
       intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">Thanks for booking with Traverion. If you enjoyed <strong>${escapeHtml(title)}</strong>, a short review helps other travelers.</p>`;
-      footerNote = 'You can leave a review from Trips or the listing page.';
+      footerNote = 'You can leave a review from My bookings or the listing page.';
     } else if (kind === 'checkout_payment_reversed') {
       // Phase 1719: orphan / duplicate capture reverse while booking stays paid/active.
       headline = 'A checkout payment was reversed';
-      intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">Stripe reversed an extra or invalid checkout payment for <strong>${escapeHtml(title)}</strong>. Your booking status on Trips is unchanged unless noted below.</p>`;
+      intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">Stripe reversed an extra or invalid checkout payment for <strong>${escapeHtml(title)}</strong>. Your booking status in My bookings is unchanged unless noted below.</p>`;
       if (diffs.length) extraHtml = fieldDiffTableHtml(diffs);
       if (typeof amount === 'number') {
         extraHtml += `<p style="margin:12px 0 0;font-size:14px;color:#374151;"><strong>Amount reversed:</strong> ${escapeHtml(currency)} ${amount.toFixed(2)}</p>`;
@@ -1079,7 +1079,7 @@ const handler = async (req: Request): Promise<Response> => {
             : `${publicSiteUrl}/trips`;
     const ctaLabel =
       kind === 'cancellation_requested_by_supplier' || kind === 'supplier_cancelled_choose_resolution'
-        ? 'Choose in Trips'
+        ? 'Choose in My bookings'
         : kind === 'new_booking_message'
           ? 'View message'
           : kind === 'pickup_action_required' || kind === 'pickup_confirmed' || kind === 'pickup_changed'

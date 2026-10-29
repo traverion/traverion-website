@@ -49,7 +49,7 @@ export default function Privacy({ onNavigate }: PrivacyProps) {
         <p>We use the information we collect to:</p>
         <ul>
           <li>Provide, maintain, and improve our services</li>
-          <li>Process transactions and show related status in Trips</li>
+          <li>Process transactions and show related status in My bookings</li>
           <li>Attempt technical notices and support messages when delivery channels allow</li>
           <li>Respond to your comments and questions</li>
           <li>Provide personalized recommendations when we have enough signal</li>

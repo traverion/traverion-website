@@ -168,7 +168,7 @@ export const en = {
     travelers: 'Travelers',
     selectDestination: 'Select destination',
     selectDate: 'Select date',
-    searchTrips: 'Search Trips',
+    searchTrips: 'Search bookings',
     person: 'person',
     people: 'people',
     tripTypes: {
@@ -203,7 +203,7 @@ export const en = {
 
   // Top bar (above main nav) - one line, minimal
   topBanner: {
-    trustLine: 'Cancellation follows each listing · manage bookings in Trips',
+    trustLine: 'Cancellation follows each listing · manage everything in My bookings',
   },
 
   // Promotional Banner

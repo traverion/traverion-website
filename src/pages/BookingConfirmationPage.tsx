@@ -115,12 +115,12 @@ function confirmationEmailSentence(
   if (!email || notice === 'idle') return null;
   if (notice === 'sent') return `We've sent your booking confirmation to ${email}.`;
   if (notice === 'failed') {
-    return `We couldn't send the confirmation email to ${email}. Your booking is saved in Trips.`;
+    return `We couldn't send the confirmation email to ${email}. Your booking is saved in My bookings.`;
   }
   if (notice === 'pending') {
-    return `Your confirmation email to ${email} is still being sent. Open Trips if it does not arrive.`;
+    return `Your confirmation email to ${email} is still being sent. Open My bookings if it does not arrive.`;
   }
-  return `A confirmation email goes to ${email} when the mail provider accepts it. If it does not arrive, open Trips.`;
+  return `A confirmation email goes to ${email} when the mail provider accepts it. If it does not arrive, open My bookings.`;
 }
 
 function readStoredSessionId(): string {
@@ -193,7 +193,7 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
 
   const load = useCallback(async () => {
     if (!sessionId) {
-      setError('Missing payment session. Open the link from your payment receipt or go to Trips.');
+      setError('Missing payment session. Open the link from your payment receipt or go to My bookings.');
       return;
     }
     if (!isSupabaseConfigured()) {
@@ -212,7 +212,7 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
         setCoverImage('');
         setMeetingPoint('');
         setError(
-          'We could not find this booking for your account yet. If you just paid, wait a few seconds and refresh — or open Trips.'
+          'We could not find this booking for your account yet. If you just paid, wait a few seconds and refresh — or open My bookings.'
         );
         return;
       }
@@ -572,13 +572,13 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
           <p className="text-ink-muted text-sm mt-2 mb-6 leading-relaxed">
             {userFacingError(
               error,
-              'This page needs the return link from payment. Open Trips if you already booked.'
+              'This page needs the return link from payment. Open My bookings if you already booked.'
             )}
           </p>
           <div className="flex flex-col gap-2">
             <button type="button" onClick={goToBookings} className="tv-btn-primary w-full">
               <Calendar className="w-4 h-4" aria-hidden />
-              Open Trips
+              Open My bookings
             </button>
             <button type="button" onClick={() => onNavigate('packages')} className="tv-btn-ghost w-full justify-center">
               Browse tours
@@ -855,7 +855,7 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
             title="Could not load this booking"
             body={userFacingError(error, USER_ERROR.booking)}
             retry={{ onClick: () => void load() }}
-            back={{ onClick: goToBookings, label: 'Open Trips' }}
+            back={{ onClick: goToBookings, label: 'Open My bookings' }}
             extra={
               <button type="button" onClick={() => onNavigate('contact')} className="tv-btn-ghost">
                 Contact support
@@ -949,7 +949,7 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
                           ? 'The host accepted your request. We are confirming payment capture — this usually takes a few seconds.'
                           : confirming
                             ? stalledConfirming
-                              ? 'Payment is still settling. Open Trips in a moment if this does not update.'
+                              ? 'Payment is still settling. Open My bookings in a moment if this does not update.'
                               : 'This usually takes a few seconds. We will not mark the booking confirmed until payment is recorded.'
                             : needsPay
                               ? BOOKING_CONFIRMATION_NEEDS_PAY_BODY
@@ -1229,8 +1229,8 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
                   : needsPay
                     ? payLabel === 'Checkout expired' || payLabel === 'Hold expired'
                       ? TRAVELER_HOLD_EXPIRED_PAY_NOW_NOTE
-                      : 'Payment is still required. You can finish it from here or from Trips.'
-                    : 'Your booking details and updates are available in Trips.'}
+                      : 'Payment is still required. You can finish it from here or from My bookings.'
+                    : 'Your booking details and updates are available in My bookings.'}
               </p>
               {payNowError ? (
                 <NoticeCallout title="Could not open checkout" tone="danger">
@@ -1255,7 +1255,7 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
                   className={needsPay ? 'tv-btn-secondary w-full' : 'tv-btn-primary w-full'}
                 >
                   {/* Phase 1616: primary trip action from this confirmation. */}
-                  View booking in Trips
+                  View in My bookings
                 </button>
                 <button
                   type="button"

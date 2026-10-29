@@ -83,7 +83,8 @@ import {
 } from '../lib/pickup-completeness';
 import { parseRentalPurchaseSnapshot } from '../lib/rental-booking-domain';
 import RentalCollectionMap from '../components/supplier/listing-creation/RentalCollectionMap';
-import { rentalReturnPoint } from '../lib/rental-presentation';
+import { formatRentalQuantityLabel, rentalReturnPoint } from '../lib/rental-presentation';
+import { isRentalCategoryId } from '../types/rental';
 import { travelerPickupAddressFromRecord } from '../lib/pickup-area';
 import {
   displayListingTitleFromPurchase,
@@ -432,7 +433,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
           : TRAVELER_SELF_CANCEL_SUCCESS_NO_REFUND;
       if (!serverUnpaid && serverChoice === 'full_refund' && res.refundExecution?.success) {
         baseBody =
-          'Booking cancelled. Your refund was submitted to Stripe. Trips will show Refunded when Stripe confirms it — bank timing varies.';
+          'Booking cancelled. Your refund was submitted to Stripe. My bookings will show Refunded when Stripe confirms it — bank timing varies.';
       } else if (
         !serverUnpaid &&
         serverChoice === 'full_refund' &&
@@ -680,7 +681,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
           <header className="mb-6 border-b border-black/[0.06] pb-5">
             <p className="tv-eyebrow">Your travel</p>
             <h1 id={TRIPS_HEADING_ID} className="tv-page-title">
-              Trips
+              My bookings
             </h1>
             <p className="mt-2 text-sm text-ink-muted">Upcoming and past tours, stays, and rentals you booked.</p>
           </header>
@@ -730,7 +731,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
           <header className="mb-6 border-b border-black/[0.06] pb-5">
             <p className="tv-eyebrow">Your travel</p>
             <h1 id={TRIPS_HEADING_ID} className="tv-page-title">
-              Trips
+              My bookings
             </h1>
             <p className="mt-2 text-sm text-ink-muted leading-relaxed max-w-xl">
               Manage upcoming, past, and cancelled tours, stays, and rentals after you sign in.
@@ -740,7 +741,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
           <EmptyState
             icon={LogIn}
             className="pt-2 pb-0"
-            title="Log in to see your trips"
+            title="Log in to see your bookings"
             body="Bookings are tied to your traveler account. You have not signed in, so there is nothing to show."
             action={
               <div className="flex flex-wrap gap-2">
@@ -777,7 +778,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="min-w-0">
               <h1 id={TRIPS_HEADING_ID} className="tv-page-title !text-[1.5rem] sm:!text-[1.625rem]">
-                Your trips
+                My bookings
               </h1>
             </div>
             <button
@@ -785,7 +786,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
               onClick={load}
               disabled={loading}
               className="lux-flat inline-flex h-9 items-center gap-1.5 rounded-lg px-2.5 text-[13px] font-medium text-ink-muted hover:bg-black/[0.04] hover:text-ink disabled:opacity-50"
-              aria-label="Refresh trips"
+              aria-label="Refresh bookings"
             >
               <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} aria-hidden />
               Refresh
@@ -797,7 +798,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
         {loadError && (
           <ErrorState
             className="py-6"
-            title="Trips unavailable"
+            title="My bookings unavailable"
             body={userFacingError(loadError, USER_ERROR.trips)}
             retry={{ onClick: () => void load() }}
             extra={
@@ -842,9 +843,9 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
             <h2 className="tv-section-heading">Payment received</h2>
             <p className="mt-2 text-sm text-ink-muted">
               {loading
-                ? 'Updating your trips…'
+                ? 'Updating your bookings…'
                 : pendingPayBookings.length > 0
-                  ? 'Stripe reported success. If a trip still shows Pay now, wait a moment and refresh — confirmation can lag the redirect.'
+                  ? 'Stripe reported success. If a booking still shows Pay now, wait a moment and refresh — confirmation can lag the redirect.'
                   : `Your booking is confirmed. Open this page anytime for details. ${BOOKING_CONFIRMED_UI_FOLLOWUP_NOTE} ${BOOKING_CONFIRMATION_EMAIL_DISCLAIMER}`}
             </p>
             <div className="mt-4 flex flex-wrap gap-2">
@@ -986,7 +987,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                     ? 'Nothing is scheduled yet. Book a tour or stay to see it here.'
                     : tripView === 'past'
                       ? 'You have no completed trips in this list yet. That is normal until a booked date has passed.'
-                      : 'You have no cancelled or refunded trips. Trips that still show Refund due appear here until Stripe records a refund.'
+                      : 'You have no cancelled or refunded bookings. Bookings that still show Refund due appear here until Stripe records a refund.'
                 }
                 action={
                   tripView === 'upcoming' ? (
@@ -1044,8 +1045,22 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
               const isStay = bookingIsStayNight(b);
               const isRental = bookingIsRental(b);
               const rentalSnap = isRental ? parseRentalPurchaseSnapshot(b.purchase_snapshot) : null;
-              const rentalReturn = rentalSnap ? rentalReturnPoint(rentalSnap) : null;
               const ops = listingOps[b.listing_id];
+              const rentalQtyLabel = (() => {
+                if (!rentalSnap) return null;
+                const rawCat = (b.purchase_snapshot as { rentalCategory?: unknown } | null)?.rentalCategory;
+                const cat =
+                  typeof rawCat === 'string' && isRentalCategoryId(rawCat) ? rawCat : null;
+                const extras =
+                  ops?.listing_extras && typeof ops.listing_extras === 'object'
+                    ? (ops.listing_extras as { rental?: { category?: unknown } })
+                    : null;
+                const extrasCat = extras?.rental?.category;
+                const fromExtras =
+                  typeof extrasCat === 'string' && isRentalCategoryId(extrasCat) ? extrasCat : null;
+                return formatRentalQuantityLabel(rentalSnap.quantity, cat ?? fromExtras);
+              })();
+              const rentalReturn = rentalSnap ? rentalReturnPoint(rentalSnap) : null;
               const tripTitle = displayListingTitleFromPurchase(
                 b.purchase_snapshot,
                 titles[b.listing_id] || ops?.title,
@@ -1116,8 +1131,8 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                     const fmt = (d: Date) =>
                       d.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
                     const option = rentalSnap.variantName?.trim();
-                    const qty = `${rentalSnap.quantity} item${rentalSnap.quantity === 1 ? '' : 's'}`;
-                    return [option, qty, `${fmt(pick)} → ${fmt(ret)}`].filter(Boolean).join(' · ');
+                    // Quantity lives in the meta row — keep the when-line to option + window only.
+                    return [option, `${fmt(pick)} → ${fmt(ret)}`].filter(Boolean).join(' · ');
                   }
                 }
                 if (isStay) {
@@ -1242,7 +1257,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                           </p>
                         ) : null}
                         <span className="tv-trip-card__view" aria-hidden>
-                          {open ? 'Close' : 'View details'}
+                          {open ? 'Close' : 'View booking'}
                           <ChevronDown
                             className={`h-3.5 w-3.5 transition-transform duration-180 motion-reduce:transition-none ${open ? 'rotate-180' : ''}`}
                             aria-hidden
@@ -1269,7 +1284,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                           </span>
                         ) : null}
                         <span className="shrink-0">
-                          {formatBookingParticipantsLabel(b)}
+                          {isRental ? rentalQtyLabel : formatBookingParticipantsLabel(b)}
                           {stayNightsSuffix}
                         </span>
                         {ref ? (
@@ -1314,7 +1329,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                         window.history.replaceState({}, '', `${url.pathname}${url.search}`);
                       }}
                     >
-                      View details
+                      View booking
                     </button>
                   </div>
                 ) : null}
@@ -1728,11 +1743,17 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                     {tripDetailTab === 'overview' ? (
                     <div>
                       <dt className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-faint">
-                        {b.guest_breakdown && b.guest_breakdown.length > 0 ? 'Participants' : 'Guests'}
+                        {isRental
+                          ? 'Quantity'
+                          : isStay
+                            ? 'Guests'
+                            : b.guest_breakdown && b.guest_breakdown.length > 0
+                              ? 'Participants'
+                              : 'Participants'}
                       </dt>
                       <dd className="mt-0.5 text-sm text-ink">
-                        {formatBookingParticipantsLabel(b)}
-                        {stayNightsSuffix}
+                        {isRental ? rentalQtyLabel : formatBookingParticipantsLabel(b)}
+                        {!isRental ? stayNightsSuffix : ''}
                       </dd>
                     </div>
                     ) : null}
@@ -1767,7 +1788,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                           <button
                             type="button"
                             className="tv-btn-ghost text-xs min-h-9 px-2 print:hidden"
-                            aria-label="Print trip details"
+                            aria-label="Print booking details"
                             onClick={() => window.print()}
                           >
                             <Printer className="w-3.5 h-3.5" aria-hidden />
@@ -2203,7 +2224,25 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                     : ''}
                 </p>
                 <p className="mt-1.5 text-sm text-ink">
-                  {formatBookingParticipantsLabel(cancelConfirm)}
+                  {(() => {
+                    if (bookingIsRental(cancelConfirm)) {
+                      const snap = parseRentalPurchaseSnapshot(cancelConfirm.purchase_snapshot);
+                      if (!snap) return null;
+                      const rawCat = (cancelConfirm.purchase_snapshot as { rentalCategory?: unknown } | null)
+                        ?.rentalCategory;
+                      const cat =
+                        typeof rawCat === 'string' && isRentalCategoryId(rawCat) ? rawCat : null;
+                      const extras = listingOps[cancelConfirm.listing_id]?.listing_extras as
+                        | { rental?: { category?: unknown } }
+                        | null
+                        | undefined;
+                      const extrasCat = extras?.rental?.category;
+                      const fromExtras =
+                        typeof extrasCat === 'string' && isRentalCategoryId(extrasCat) ? extrasCat : null;
+                      return formatRentalQuantityLabel(snap.quantity, cat ?? fromExtras);
+                    }
+                    return formatBookingParticipantsLabel(cancelConfirm);
+                  })()}
                 </p>
               </div>
               {travelerSelfCancelIsUnpaidCheckout(cancelConfirm) ? (

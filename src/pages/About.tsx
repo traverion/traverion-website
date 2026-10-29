@@ -11,7 +11,7 @@ const VALUES = [
   {
     icon: Shield,
     title: 'Clear booking truth',
-    body: 'Options, participants, prices, and policies stay the same from product page through Trips and the operator’s bookings list.',
+    body: 'Options, participants, prices, and policies stay the same from product page through My bookings and the operator’s bookings list.',
   },
   {
     icon: MapPin,
@@ -21,7 +21,7 @@ const VALUES = [
   {
     icon: HeartHandshake,
     title: 'Calm support',
-    body: 'From first search to cancellation, we explain what applies — and Trips keeps your confirmed bookings in one place.',
+    body: 'From first search to cancellation, we explain what applies — and My bookings keeps your confirmed bookings in one place.',
   },
 ] as const;
 
@@ -93,7 +93,7 @@ export default function About({ onNavigate }: AboutProps) {
             <h3 className="mb-1.5 font-sans text-[15px] font-semibold text-ink">Travelers</h3>
             <p className="m-0 mb-4 text-[14px] leading-relaxed text-ink-muted">
               Find a destination, understand the experience, choose an option and participants, pay to confirm, and
-              manage everything in Trips.
+              manage everything in My bookings.
             </p>
             <div className="flex flex-wrap gap-2">
               <a href="/packages" onClick={goTours} className="tv-btn-secondary text-sm">
@@ -102,11 +102,11 @@ export default function About({ onNavigate }: AboutProps) {
               <a href="/stays" onClick={goStays} className="tv-btn-ghost text-sm">
                 Browse stays
               </a>
-              {/* Phase 1624: Trips entry next to browse — matches footer/nav wayfinding. */}
+              {/* Phase 1624: My bookings entry next to browse — matches footer/nav wayfinding. */}
               <a href="/bookings" onClick={goTrips} className="tv-btn-ghost text-sm">
-                Your trips
+                My bookings
               </a>
-              {/* Phase 1675: Saved beside Trips — Footer 1664 / primary-nav parity. */}
+              {/* Phase 1675: Saved beside My bookings — Footer 1664 / primary-nav parity. */}
               <a href="/wishlist" onClick={goSaved} className="tv-btn-ghost text-sm">
                 Saved
               </a>

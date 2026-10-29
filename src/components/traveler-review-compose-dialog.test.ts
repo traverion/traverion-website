@@ -17,7 +17,7 @@ describe('TravelerReviewComposeDialog multi-step journey', () => {
     expect(dialog).toContain('How would you like to post your review?');
     expect(dialog).toContain('Post anonymously');
     expect(dialog).toContain('Thank you for your review!');
-    expect(dialog).toContain('Continue to Trips');
+    expect(dialog).toContain('Continue to My bookings');
     expect(dialog).toContain('Save changes');
     expect(dialog).toContain('Post review');
     expect(dialog).toContain('tv-review-journey-overlay');

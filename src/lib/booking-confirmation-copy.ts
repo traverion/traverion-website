@@ -1,5 +1,5 @@
 /**
- * Booking proof is the paid booking row (Trips / confirmation page).
+ * Booking proof is the paid booking row (My bookings / confirmation page).
  * Resend is blocked until a valid key exists — never claim an email was sent.
  */
 
@@ -14,7 +14,7 @@ import {
 } from './payment-states';
 
 export const BOOKING_CONFIRMATION_EMAIL_DISCLAIMER =
-  'Trips is your confirmation. If an email arrives, keep it for your records — Traverion does not treat email delivery as booking proof.';
+  'My bookings is your confirmation. If an email arrives, keep it for your records — Traverion does not treat email delivery as booking proof.';
 
 /**
  * Shared honesty phrase for **payment-critical** surfaces until live money.
@@ -75,7 +75,7 @@ export function confirmationLoadErrorShouldSurface(hasBookingRow: boolean): bool
 export const BOOKING_CONFIRMATION_NEEDS_PAY_TITLE = 'Payment not completed';
 
 export const BOOKING_CONFIRMATION_NEEDS_PAY_BODY =
-  'Checkout expired or did not finish. You were not charged for a completed booking. Use Pay now to open a new Stripe checkout, or manage the hold from Trips.';
+  'Checkout expired or did not finish. You were not charged for a completed booking. Use Pay now to open a new Stripe checkout, or manage the hold from My bookings.';
 
 export function bookingConfirmationCancelledBody(b: MoneyBookingRow): string {
   const pay = travelerPaymentLabel(b);
@@ -88,31 +88,31 @@ export function bookingConfirmationCancelledBody(b: MoneyBookingRow): string {
   if (pay === 'No refund') {
     return 'This booking is cancelled. No refund applies for this cancellation.';
   }
-  return 'This booking is cancelled. Open Trips for the current status.';
+  return 'This booking is cancelled. Open My bookings for the current status.';
 }
 
 /** Post-checkout “What happens next” for cancelled bookings — must match payment label, not always Refund due. */
 export function bookingConfirmationCancelledNextStep(b: MoneyBookingRow): string {
   const pay = travelerPaymentLabel(b);
   if (pay === 'Refund due') {
-    return 'Manage this booking from Trips — Cancelled shows Refund due until Stripe records a refund.';
+    return 'Manage this booking from My bookings — Cancelled shows Refund due until Stripe records a refund.';
   }
   if (pay === 'Refunded') {
-    return 'Manage this booking from Trips — Cancelled shows Refunded.';
+    return 'Manage this booking from My bookings — Cancelled shows Refunded.';
   }
   if (pay === 'No refund') {
-    return 'Manage this booking from Trips — no refund applies for this cancellation.';
+    return 'Manage this booking from My bookings — no refund applies for this cancellation.';
   }
-  return 'Manage this booking from Trips — no payment was collected for a completed booking.';
+  return 'Manage this booking from My bookings — no payment was collected for a completed booking.';
 }
 
-/** Stay listing / checkout panel: Trips is durable; email may arrive but is not proof (paid notify exists). */
+/** Stay listing / checkout panel: My bookings is durable; email may arrive but is not proof (paid notify exists). */
 export const STAY_LISTING_CONFIRMATION_NOTE =
-  `After you pay, the stay appears in Trips. ${BOOKING_CONFIRMATION_EMAIL_DISCLAIMER}`;
+  `After you pay, the stay appears in My bookings. ${BOOKING_CONFIRMATION_EMAIL_DISCLAIMER}`;
 
 /**
  * Phase 1514: Check-in & check-out heading must not imply published times
- * when the host left them blank (browser Stay PDP showed only the Trips note).
+ * when the host left them blank (browser Stay PDP showed only the My bookings note).
  */
 export function stayCheckInOutMissingCopy(params: {
   checkInTime?: string | null;
@@ -128,27 +128,27 @@ export function stayCheckInOutMissingCopy(params: {
   return null;
 }
 
-/** Tour listing booking panel: Trips is durable; email may arrive but is not proof (paid notify exists). */
+/** Tour listing booking panel: My bookings is durable; email may arrive but is not proof (paid notify exists). */
 export const TOUR_LISTING_CONFIRMATION_NOTE =
-  `After you pay, the tour appears in Trips. ${BOOKING_CONFIRMATION_EMAIL_DISCLAIMER}`;
+  `After you pay, the tour appears in My bookings. ${BOOKING_CONFIRMATION_EMAIL_DISCLAIMER}`;
 
 /** Checkout contact step: always honest about email, including when not signed in. */
 export function bookingContactIntroCopy(signedInWithEmail: boolean): string {
   const details =
     'Your details are stored on the booking. You are not charged on this page — payment happens on the next step.';
   const account = signedInWithEmail
-    ? ' Email is fixed to your account so this booking stays on your trips.'
+    ? ' Email is fixed to your account so this booking stays on your bookings.'
     : '';
   return `${details}${account} ${BOOKING_CONFIRMATION_EMAIL_DISCLAIMER}`;
 }
 
 export const BOOKING_CONTACT_EMAIL_FIELD_NOTE =
-  'This email is for the booking record on Trips — not a separate confirmation channel.';
+  'This email is for the booking record in My bookings — not a separate confirmation channel.';
 
-/** Checkout pay step: confirmation is Trips / Booking confirmed; email may arrive but is not proof. */
+/** Checkout pay step: confirmation is My bookings / Booking confirmed; email may arrive but is not proof. */
 export function bookingPayConfirmAfterPayCopy(holdMinutes: number): string {
   return (
-    `After Stripe confirms payment, Traverion shows Booking confirmed with your reference. Manage the trip from Trips. ` +
+    `After Stripe confirms payment, Traverion shows Booking confirmed with your reference. Manage the booking from My bookings. ` +
     `${BOOKING_CONFIRMATION_EMAIL_DISCLAIMER} ` +
     `Inventory is reserved only after payment succeeds. If you leave Stripe without paying, the checkout window closes after ${holdMinutes} minutes and nothing is charged.`
   );
@@ -159,13 +159,13 @@ export const STRIPE_CHECKOUT_CANCELLED_NO_EMAIL =
   'No confirmation email is sent for an unfinished checkout.';
 
 export const STRIPE_CHECKOUT_CANCELLED_TOUR_COPY =
-  `Checkout was cancelled. You were not charged. ${STRIPE_CHECKOUT_CANCELLED_NO_EMAIL} If checkout is still open on Trips, use Pay now to finish — you do not need to start over. Spots were not reserved.`;
+  `Checkout was cancelled. You were not charged. ${STRIPE_CHECKOUT_CANCELLED_NO_EMAIL} If checkout is still open in My bookings, use Pay now to finish — you do not need to start over. Spots were not reserved.`;
 
 export const STRIPE_CHECKOUT_CANCELLED_STAY_COPY =
-  `Checkout was cancelled and no payment was taken. ${STRIPE_CHECKOUT_CANCELLED_NO_EMAIL} If checkout is still open on Trips, use Pay now to finish — you do not need to choose dates again unless the checkout window already closed. Dates were not reserved.`;
+  `Checkout was cancelled and no payment was taken. ${STRIPE_CHECKOUT_CANCELLED_NO_EMAIL} If checkout is still open in My bookings, use Pay now to finish — you do not need to choose dates again unless the checkout window already closed. Dates were not reserved.`;
 
 export const STRIPE_CHECKOUT_CANCELLED_RENTAL_COPY =
-  `Checkout was cancelled. You were not charged. ${STRIPE_CHECKOUT_CANCELLED_NO_EMAIL} If checkout is still open on Trips, use Pay now to finish — you do not need to pick pickup and return again unless the checkout window already closed. Inventory was not reserved.`;
+  `Checkout was cancelled. You were not charged. ${STRIPE_CHECKOUT_CANCELLED_NO_EMAIL} If checkout is still open in My bookings, use Pay now to finish — you do not need to pick pickup and return again unless the checkout window already closed. Inventory was not reserved.`;
 
 /** Auth/SMTP confirmation request — do not claim inbox delivery as proven. */
 export const AUTH_CONFIRMATION_EMAIL_REQUESTED =
@@ -183,7 +183,7 @@ export const AUTH_PASSWORD_RESET_REQUESTED = (email: string) =>
 export const PARTNER_INBOX_MESSAGE_DELIVERY_NOTE =
   'Messages are saved on this booking in Traverion. We do not treat email delivery as proof the traveler saw them.';
 
-/** Traveler Trips thread: Resend is blocked — do not claim the host was emailed. */
+/** Traveler My bookings thread: Resend is blocked — do not claim the host was emailed. */
 export const TRAVELER_BOOKING_THREAD_DELIVERY_NOTE =
   'Messages are saved on this booking in Traverion. We do not treat email delivery as proof the host saw them.';
 
@@ -238,45 +238,45 @@ export const SUPPLIER_WELCOME_LISTING_STEP_NOTE =
 export const PARTNER_PAYOUT_THRESHOLD_HINT =
   'Preference only: minimum balance Traverion will consider once payouts are enabled (e.g. 50). Not an active payout queue.';
 
-/** Traveler Trips / confirmation — unpaid checkout CTA while Stripe session opens. */
+/** Traveler My bookings / confirmation — unpaid checkout CTA while Stripe session opens. */
 export const TRAVELER_OPENING_CHECKOUT_CTA = 'Opening checkout…';
 
-/** Traveler Trips / confirmation — pay CTA while Stripe is still in TEST mode. */
+/** Traveler My bookings / confirmation — pay CTA while Stripe is still in TEST mode. */
 export const TRAVELER_PAY_NOW_TEST_CTA = 'Pay now · test mode';
 
-/** Traveler Trips — Pay now after the unpaid Stripe checkout window closed. */
+/** Traveler My bookings — Pay now after the unpaid Stripe checkout window closed. */
 export const TRAVELER_HOLD_EXPIRED_PAY_NOW_NOTE =
   'Your Stripe checkout session ended before payment. Inventory was never reserved. Pay now opens a new checkout if the selection is still available.';
 
 /** Tour / stay sticky + booking card — continue into checkout (Stripe TEST disclosed beside CTA). */
 export const TRAVELER_CONTINUE_TEST_CTA = 'Continue to checkout';
 
-/** Traveler Trips — self-cancel is immediate, not a host-approval “request”. */
+/** Traveler My bookings — self-cancel is immediate, not a host-approval “request”. */
 export const TRAVELER_SELF_CANCEL_CTA = 'Cancel booking';
 
-/** Traveler Trips — after free-cancel deadline / non-refundable (paid). */
+/** Traveler My bookings — after free-cancel deadline / non-refundable (paid). */
 export const TRAVELER_SELF_CANCEL_DEADLINE_PASSED_TITLE = 'Cancellation deadline passed';
 
-/** Traveler Trips — nudge to existing booking Messages after deadline. */
+/** Traveler My bookings — nudge to existing booking Messages after deadline. */
 export const TRAVELER_SELF_CANCEL_CONTACT_OPERATOR_NOTE =
   'Guest-initiated cancellation is no longer available for this booking. Contact the operator from Messages to discuss your situation.';
 
-/** Traveler Trips — success after self-cancel with refund due. */
+/** Traveler My bookings — success after self-cancel with refund due. */
 export const TRAVELER_SELF_CANCEL_SUCCESS_REFUND_DUE =
   'Booking cancelled. A refund is due — for stays Traverion submits it to Stripe automatically. Open Cancelled to follow status until Stripe confirms Refunded.';
 
-/** Traveler Trips — success after self-cancel with no refund (unpaid / legacy). */
+/** Traveler My bookings — success after self-cancel with no refund (unpaid / legacy). */
 export const TRAVELER_SELF_CANCEL_SUCCESS_NO_REFUND =
   'Booking cancelled. No refund applies for this cancellation. Open Cancelled to see it.';
 
-/** Traveler Trips — cancel an unpaid / failed Pay now hold (no money collected). */
+/** Traveler My bookings — cancel an unpaid / failed Pay now hold (no money collected). */
 export const TRAVELER_CANCEL_UNPAID_CHECKOUT_CTA = 'Cancel checkout';
 
-/** Traveler Trips — success after cancelling unpaid checkout. */
+/** Traveler My bookings — success after cancelling unpaid checkout. */
 export const TRAVELER_CANCEL_UNPAID_CHECKOUT_SUCCESS =
   'Checkout cancelled. No payment was collected. Open Cancelled if you need the record.';
 
-/** Traveler Trips — sheet body for unpaid checkout cancel. */
+/** Traveler My bookings — sheet body for unpaid checkout cancel. */
 export const TRAVELER_CANCEL_UNPAID_CHECKOUT_POLICY =
   'No payment was collected for this checkout. Cancelling removes it from Upcoming and frees the hold.';
 
@@ -290,26 +290,26 @@ export const TRAVELER_CANCEL_UNPAID_CHECKOUT_EMAIL_DIFF =
 
 /** Traveler cancel email footer when no Stripe money was collected — keep in sync with notify-customer-booking. */
 export const TRAVELER_CANCEL_UNPAID_CHECKOUT_EMAIL_FOOTER =
-  'This was an unpaid checkout. No payment was collected. Trips keeps the cancelled record if you need it.';
+  'This was an unpaid checkout. No payment was collected. My bookings keeps the cancelled record if you need it.';
 
 /**
  * Phase 1726: traveler cancel email footer when refund_choice is no_refund.
  * Keep in sync with notify-customer-booking booking_cancelled footer.
  */
 export const TRAVELER_CANCEL_NO_REFUND_EMAIL_FOOTER =
-  'No refund applies for this cancellation. Trips keeps the cancelled record if you need it.';
+  'No refund applies for this cancellation. My bookings keeps the cancelled record if you need it.';
 
 /** Partner notify-supplier-event for traveler cancel of unpaid checkout — keep in sync with notify-supplier-event. */
 export const SUPPLIER_BOOKING_CANCELLED_UNPAID_NOTIFY_SUB =
   'The traveler cancelled an unpaid checkout. No payment was collected. The hold is released; nothing is Refund due. Check Bookings if you need the record.';
 
-/** Traveler Trips — success after accepting host cancel request. */
+/** Traveler My bookings — success after accepting host cancel request. */
 export const TRAVELER_ACCEPT_CANCEL_SUCCESS =
   'You accepted the cancellation. A full refund is due — for stays Traverion submits it to Stripe automatically. Open Cancelled to follow status until Stripe confirms Refunded.';
 
-/** Traveler Trips — success after declining host cancel request. */
+/** Traveler My bookings — success after declining host cancel request. */
 export const TRAVELER_DECLINE_CANCEL_SUCCESS =
-  'You declined the cancellation. This booking stays active on Trips.';
+  'You declined the cancellation. This booking stays active in My bookings.';
 
 /** Partner listing editor final step — publish needs verification; draft anytime. */
 export const PARTNER_LISTING_PUBLISH_STEP_NOTE =
@@ -320,7 +320,7 @@ export const PARTNER_LISTING_PUBLISH_STEP_TITLE = 'Publish or keep a draft';
 
 /** Partner cancellation: Resend is blocked — do not claim the traveler was emailed. */
 export const PARTNER_CANCELLATION_REQUEST_DELIVERY_NOTE =
-  'The cancellation appears on the traveler’s Trips. Traverion does not treat email delivery as proof they saw it.';
+  'The cancellation appears on the traveler’s My bookings. Traverion does not treat email delivery as proof they saw it.';
 
 /**
  * Partner cancel modal — traveler refund is due, not already paid out.
@@ -349,7 +349,7 @@ export const TRAVELER_SELF_CANCEL_DELIVERY_NOTE =
  * Do not say “you should receive a full refund” as if Stripe already moved money.
  */
 export const TRAVELER_SELF_CANCEL_FULL_REFUND_POLICY =
-  'A full refund is due under the cancellation window. After you confirm, Traverion submits the refund to Stripe. Trips shows Refunded when Stripe confirms it — bank timing varies.';
+  'A full refund is due under the cancellation window. After you confirm, Traverion submits the refund to Stripe. My bookings shows Refunded when Stripe confirms it — bank timing varies.';
 
 /** Email / notify fieldDiff after traveler self-cancel with a refund due. */
 export const TRAVELER_SELF_CANCEL_EMAIL_DIFF_FULL_REFUND =
@@ -384,7 +384,7 @@ export const TRAVELER_SELF_CANCEL_SYSTEM_MESSAGE_NO_REFUND =
  * Fallback when refund_choice is unknown; prefer FULL_REFUND / NO_REFUND variants.
  */
 export const SUPPLIER_BOOKING_CANCELLED_NOTIFY_SUB =
-  'The traveler cancelled this booking. When a refund applies, Traverion submits it to Stripe for stays and Trips updates when Stripe confirms Refunded. Inventory is released; check Bookings and Income.';
+  'The traveler cancelled this booking. When a refund applies, Traverion submits it to Stripe for stays and My bookings updates when Stripe confirms Refunded. Inventory is released; check Bookings and Income.';
 
 /**
  * Phase 1724: partner cancel notify when booking.refund_choice is full_refund.
@@ -405,7 +405,7 @@ export const SUPPLIER_BOOKING_CANCELLED_NO_REFUND_NOTIFY_SUB =
  * Keep in sync with supabase/functions/notify-supplier-event host_schedule_updated copy.
  */
 export const SUPPLIER_HOST_SCHEDULE_UPDATED_NOTIFY_SUB =
-  'You just updated start or pickup times for this booking. Below is a record of what changed. The guest sees the update on Trips; Traverion does not treat email delivery as proof they saw it.';
+  'You just updated start or pickup times for this booking. Below is a record of what changed. The guest sees the update in My bookings; Traverion does not treat email delivery as proof they saw it.';
 
 /**
  * Partner notify after guest updates notes — Bookings is durable; do not treat email as proof.
@@ -463,29 +463,29 @@ export const SUPPLIER_CANCELLATION_DECLINED_NOTIFY_SUB =
 export const SUPPLIER_REFUND_COMPLETED_NOTIFY_SUB =
   'Stripe recorded a full refund for this booking. Payment status is Refunded. Collected earnings for this booking were reversed. Check Bookings and Income — Traverion does not treat email delivery as proof you saw this.';
 
-/** Paid confirmation UI — Trips is durable; do not imply host follow-up arrives by email. */
+/** Paid confirmation UI — My bookings is durable; do not imply host follow-up arrives by email. */
 export const BOOKING_CONFIRMED_UI_FOLLOWUP_NOTE =
-  'Watch Trips for schedule, meeting, or arrival updates from the host.';
+  'Watch My bookings for schedule, meeting, or arrival updates from the host.';
 
 /**
- * Paid confirmation email footer — Trips is durable; do not imply host follow-up is by email.
+ * Paid confirmation email footer — My bookings is durable; do not imply host follow-up is by email.
  * Keep in sync with notify-customer-booking booking_confirmed_paid footerNote.
  */
 export const BOOKING_CONFIRMED_PAID_FOLLOWUP_NOTE =
-  'Watch Trips for schedule or meeting updates from the host. Traverion does not treat email delivery as proof you received a notice.';
+  'Watch My bookings for schedule or meeting updates from the host. Traverion does not treat email delivery as proof you received a notice.';
 
 /**
- * Paid confirmation receipt line — Trips is durable; email may not arrive.
+ * Paid confirmation receipt line — My bookings is durable; email may not arrive.
  * Keep in sync with notify-customer-booking booking_confirmed_paid receipt cell.
  */
 export const BOOKING_CONFIRMED_PAID_RECEIPT_LINE =
-  'Charged for this tour. Trips is the durable receipt — keep this email if it arrives.';
+  'Charged for this tour. My bookings is the durable receipt — keep this email if it arrives.';
 
 /** Keep in sync with notify-customer-booking receipt cell. */
 export function paidConfirmationReceiptLine(listingKind?: string | null): string {
   const stay = String(listingKind ?? '').trim().toLowerCase() === 'stay';
   return stay
-    ? 'Charged for this stay. Trips is the durable receipt — keep this email if it arrives.'
+    ? 'Charged for this stay. My bookings is the durable receipt — keep this email if it arrives.'
     : BOOKING_CONFIRMED_PAID_RECEIPT_LINE;
 }
 
@@ -535,7 +535,7 @@ export function confirmationStayNightCount(params: {
 
 /**
  * Phase 1588: single entry for money-adjacent stay night counts (confirmation,
- * Trips, partner Bookings meta) — 1579 reconcile + 1580 omit-on-mismatch.
+ * My bookings, partner Bookings meta) — 1579 reconcile + 1580 omit-on-mismatch.
  */
 export function stayPaidAdjacentNightCount(params: {
   /** MoneyBookingRow may store amount_paid as string from PostgREST. */
@@ -657,7 +657,7 @@ export const BOOKING_MESSAGE_EMPTY_BODY_ERROR = 'Write a message before posting.
 export const PARTNER_BUSINESS_READY_TO_SUBMIT_NOTE =
   'Required fields look complete. Save company details to submit them to Traverion for review.';
 
-/** Traveler Trips — pickup pending until host confirms on the booking. */
+/** Traveler My bookings — pickup pending until host confirms on the booking. */
 export const TRAVELER_PICKUP_PENDING_UI_NOTE =
   'Your host still needs to confirm meeting or pickup details. They appear here when the host updates them on this booking.';
 
@@ -666,42 +666,42 @@ export const TRAVELER_PICKUP_PENDING_UI_NOTE =
  * Keep in sync with notify-customer-booking booking_request footerNote.
  */
 export const BOOKING_REQUEST_EMAIL_FOLLOWUP_NOTE =
-  'Watch Trips for payment and confirmation status. Traverion does not treat email delivery as proof of a later confirmation.';
+  'Watch My bookings for payment and confirmation status. Traverion does not treat email delivery as proof of a later confirmation.';
 
 /**
- * Host → traveler new_booking_message email footer — Trips thread is durable.
+ * Host → traveler new_booking_message email footer — My bookings thread is durable.
  * Keep in sync with notify-customer-booking new_booking_message footerNote.
  */
 export const TRAVELER_NEW_BOOKING_MESSAGE_EMAIL_NOTE =
-  'Open Trips for the durable message thread. Traverion does not treat email delivery as proof you saw the message.';
+  'Open My bookings for the durable message thread. Traverion does not treat email delivery as proof you saw the message.';
 
 /**
- * Host schedule update email footer — Trips is durable for meeting times.
+ * Host schedule update email footer — My bookings is durable for meeting times.
  * Keep in sync with notify-customer-booking host_updated_schedule footerNote.
  */
 export const TRAVELER_HOST_SCHEDULE_UPDATED_EMAIL_NOTE =
-  'Updated times appear in Trips. Traverion does not treat email delivery as proof you received this update. Reply to the host in Trips if you need help.';
+  'Updated times appear in My bookings. Traverion does not treat email delivery as proof you received this update. Reply to the host in My bookings if you need help.';
 
 /**
- * Traveler details-saved email footer — Trips is durable for booking notes.
+ * Traveler details-saved email footer — My bookings is durable for booking notes.
  * Keep in sync with notify-customer-booking your_details_updated footerNote.
  */
 export const TRAVELER_DETAILS_UPDATED_EMAIL_NOTE =
-  'Your updates are saved on this booking in Trips. Traverion does not treat email delivery as proof of the change. If you did not make this change, contact the host or Traverion support immediately.';
+  'Your updates are saved on this booking in My bookings. Traverion does not treat email delivery as proof of the change. If you did not make this change, contact the host or Traverion support immediately.';
 
 /**
- * Traveler declined host cancel — Trips is durable for the active booking.
+ * Traveler declined host cancel — My bookings is durable for the active booking.
  * Keep in sync with notify-customer-booking cancellation_declined footerNote.
  */
 export const TRAVELER_CANCELLATION_DECLINED_EMAIL_NOTE =
-  'Your booking stays active in Trips. Traverion does not treat email delivery as proof of this update.';
+  'Your booking stays active in My bookings. Traverion does not treat email delivery as proof of this update.';
 
 /**
- * Pickup still needed — Trips is durable when host fills meeting details.
+ * Pickup still needed — My bookings is durable when host fills meeting details.
  * Keep in sync with notify-customer-booking pickup_action_required footerNote.
  */
 export const TRAVELER_PICKUP_ACTION_EMAIL_NOTE =
-  'Pickup and meeting details appear in Trips when the host confirms them. Traverion does not treat email delivery as proof you received an update.';
+  'Pickup and meeting details appear in My bookings when the host confirms them. Traverion does not treat email delivery as proof you received an update.';
 
 /** Contact form success heading — saved, not email-sent proof. */
 export const CONTACT_FORM_SUCCESS_HEADING = 'Message received';
@@ -754,9 +754,9 @@ export const BOOKING_MESSAGE_SUBMIT_ERROR_TITLE = 'Message not posted';
 export const TERMS_MATERIAL_CHANGES_NOTE =
   'TRAVERION reserves the right to modify these terms at any time. Material changes are posted on this website. Traverion does not treat email delivery as the only notice of a change.';
 
-/** Traveler Terms — last-minute supplier contact: Trips is durable, not email delivery. */
+/** Traveler Terms — last-minute supplier contact: My bookings is durable, not email delivery. */
 export const TERMS_LAST_MINUTE_CHANGES_NOTE =
-  'Suppliers may attempt to reach you about last-minute changes using the contact details on your booking, but Trips is the durable record. Traverion does not treat email delivery as proof you received a notice.';
+  'Suppliers may attempt to reach you about last-minute changes using the contact details on your booking, but My bookings is the durable record. Traverion does not treat email delivery as proof you received a notice.';
 
 /** Partner marketing terms — material changes: portal first, not email-as-sole-proof. */
 export const PARTNER_TERMS_MATERIAL_CHANGES_NOTE =
@@ -764,7 +764,7 @@ export const PARTNER_TERMS_MATERIAL_CHANGES_NOTE =
 
 /** Traveler Privacy — notices may be attempted by email; Trips/site are the durable record. */
 export const PRIVACY_COMMUNICATIONS_NOTE =
-  'Account and booking notices may be attempted by email, but Trips and this website are the durable record. Traverion does not treat email delivery as proof you received a notice.';
+  'Account and booking notices may be attempted by email, but My bookings and this website are the durable record. Traverion does not treat email delivery as proof you received a notice.';
 
 /** Partner Privacy — account notices may be attempted by email; the portal is the durable record. */
 export const PARTNER_PRIVACY_COMMUNICATIONS_NOTE =

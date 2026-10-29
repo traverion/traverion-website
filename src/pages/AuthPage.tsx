@@ -30,7 +30,7 @@ function destinationHint(nextPage: string): string | null {
   if (nextPage === 'wishlist' || nextPage === 'bookings') {
     return nextPage === 'wishlist'
       ? 'After you log in, we will take you to Saved.'
-      : 'After you log in, we will take you to Trips.';
+      : 'After you log in, we will take you to My bookings.';
   }
   // Phase 1638: nextPage === 'account'
   if (nextPage === 'account') return 'After you log in, we will take you to Account.';

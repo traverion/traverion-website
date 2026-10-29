@@ -214,8 +214,9 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
   const displayedIds = useMemo(() => {
     const tourIds = displayedListings.map((t) => t.id).filter(isSupabaseListingId);
     const stayIds = displayedStayListings.map((t) => t.id).filter(isSupabaseListingId);
-    return [...new Set([...tourIds, ...stayIds])];
-  }, [displayedListings, displayedStayListings]);
+    const rentalIds = displayedRentalRows.map((row) => row.listing.id).filter(isSupabaseListingId);
+    return [...new Set([...tourIds, ...stayIds, ...rentalIds])];
+  }, [displayedListings, displayedStayListings, displayedRentalRows]);
   const displayedIdsKey = useMemo(() => displayedIds.join(','), [displayedIds]);
   const discountsForDisplayedCatalog =
     discountsLoadedForKey === displayedIdsKey ? discountsByListing : null;
@@ -251,7 +252,8 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
         if (!cancelled) setReviewAggregates(reviews);
       })
       .catch(() => {
-        // Keep prior map — review load failure must not invent empty ratings.
+        // Clear stale stars for this id set — do not invent empty ratings per listing.
+        if (!cancelled) setReviewAggregates(new Map());
       });
     return () => {
       cancelled = true;
@@ -470,7 +472,7 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
             </span>
             <span className="tv-home-trust__item">
               <CalendarCheck aria-hidden strokeWidth={2.25} />
-              Secure checkout · manage everything in Trips
+              Secure checkout · manage everything in My bookings
             </span>
           </div>
         </div>
@@ -659,7 +661,7 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
         </div>
       </section>
 
-      <section className="tv-section">
+      <section className="tv-section tv-section-muted tv-section-divider">
         <div className="tv-content">
           <div className="mb-4 flex items-end justify-between gap-3 sm:mb-5">
             <div>
@@ -734,7 +736,7 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
           <div className="tv-content">
             <div className="mb-4 flex items-end justify-between gap-3 sm:mb-5">
               <div>
-                <p className="tv-eyebrow">EXPLORE MORE WITH TRAVERION</p>
+                <p className="tv-eyebrow">Explore more with Traverion</p>
                 <h2 id="home-rentals-heading" className="tv-section-heading sm:text-[1.65rem]">
                   Need to rent equipment or a vehicle?
                 </h2>
@@ -761,6 +763,7 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
                     index={index}
                     onSelect={() => openListing(row.listing)}
                     discountsByListing={null}
+                    reviewAggregate={reviewAggregates.get(row.listing.id)}
                     tagLabels={{}}
                     size="compact"
                     showTagPills={false}
@@ -790,14 +793,14 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
         <div className="tv-content">
           <h2 className="tv-section-heading mb-1.5 sm:text-[1.65rem]">Why book with Traverion</h2>
           <p className="tv-meta mb-5 max-w-xl leading-relaxed sm:mb-6">
-            Tours and stays from independent operators — with clear prices before you pay.
+            Tours, stays, and rentals from independent operators — with clear prices before you pay.
           </p>
           <ul className="grid gap-5 border-t border-[#E6EAF0] pt-5 sm:grid-cols-2 sm:gap-6 sm:pt-6 lg:grid-cols-4">
             {[
               {
                 icon: Compass,
                 title: 'One place to explore',
-                body: 'Browse tours and stays from operators who publish directly on Traverion.',
+                body: 'Browse tours, stays, and rentals from operators who publish directly on Traverion.',
               },
               {
                 icon: ShieldCheck,
@@ -811,8 +814,8 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
               },
               {
                 icon: CalendarCheck,
-                title: 'Trips stays with you',
-                body: 'Find upcoming and past bookings anytime in Trips.',
+                title: 'My bookings stays with you',
+                body: 'Find upcoming and past bookings anytime in My bookings.',
               },
             ].map((item) => {
               const Icon = item.icon;

@@ -3,7 +3,7 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 describe('Phase 1679: Sitemap Company matches Footer wayfinding', () => {
-  it('lists About, Tours, Stays, Trips, and Saved under Company', () => {
+  it('lists About, Tours, Stays, My bookings, and Saved under Company', () => {
     const src = readFileSync(resolve(__dirname, 'Sitemap.tsx'), 'utf8');
     expect(src).toContain('Phase 1679');
     const company = src.slice(src.indexOf("title: 'Company'"), src.indexOf("title: 'Work with us'"));

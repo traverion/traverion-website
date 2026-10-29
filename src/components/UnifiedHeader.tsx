@@ -22,6 +22,7 @@ import {
   prefetchAuthPage,
   prefetchMyBookingsPage,
   prefetchPackagesPage,
+  prefetchRentalsPage,
   prefetchStaysPage,
   prefetchWishlistPage,
 } from '../lib/routePrefetch';
@@ -214,6 +215,7 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
             <button
               type="button"
               onClick={() => onNavigate('rentals')}
+              onPointerEnter={prefetchRentalsPage}
               aria-current={currentPage === 'rentals' || currentPage === 'rental-details' ? 'page' : undefined}
               className={`tv-header-nav__item lux-flat ${
                 currentPage === 'rentals' || currentPage === 'rental-details' ? 'tv-header-nav__item--active' : ''
@@ -264,7 +266,7 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                 <button
                   type="button"
                   className="lux-flat relative hidden h-10 w-10 items-center justify-center rounded-full text-ink transition-colors duration-150 hover:bg-black/[0.04] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-finland lg:inline-flex"
-                  aria-label={hasUnreadBookings ? 'Trips, unread updates' : 'Trips'}
+                  aria-label={hasUnreadBookings ? 'My bookings, unread updates' : 'My bookings'}
                   aria-current={currentPage === 'bookings' ? 'page' : undefined}
                   onPointerEnter={prefetchMyBookingsPage}
                   onClick={openBookings}
@@ -388,14 +390,14 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                           type="button"
                           onClick={openBookings}
                           aria-current={currentPage === 'bookings' ? 'page' : undefined}
-                          aria-label={hasUnreadBookings ? 'Trips, unread updates' : 'Trips'}
+                          aria-label={hasUnreadBookings ? 'My bookings, unread updates' : 'My bookings'}
                           className={`lux-flat lux-tap-target min-h-11 w-full flex items-center justify-between gap-2 px-3.5 py-2 text-sm text-left ${
                             currentPage === 'bookings' ? 'bg-finland/10 font-semibold text-finland' : 'text-ink hover:bg-black/[0.04]'
                           }`}
                         >
                           <span className="inline-flex items-center gap-2.5">
                             <Calendar className="h-4 w-4 shrink-0 text-ink-muted" aria-hidden />
-                            Trips
+                            My bookings
                           </span>
                           {hasUnreadBookings ? (
                             <span className="h-2.5 w-2.5 rounded-full bg-red-500" aria-hidden />
@@ -654,14 +656,14 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                       type="button"
                       onClick={openBookings}
                       aria-current={currentPage === 'bookings' ? 'page' : undefined}
-                      aria-label={hasUnreadBookings ? 'Trips, unread updates' : 'Trips'}
+                      aria-label={hasUnreadBookings ? 'My bookings, unread updates' : 'My bookings'}
                       className={`lux-flat w-full text-left px-4 py-3 rounded-lg transition-colors duration-300 ease-lux flex items-center justify-between gap-2 ${
                         currentPage === 'bookings' ? 'bg-finland/10 font-semibold text-finland' : 'text-ink hover:bg-black/[0.04]'
                       }`}
                     >
                       <span className="inline-flex items-center gap-2">
                         <Calendar className="w-5 h-5" />
-                        Trips
+                        My bookings
                       </span>
                       {hasUnreadBookings ? (
                         <span className="h-2.5 w-2.5 rounded-full bg-red-500" aria-hidden />

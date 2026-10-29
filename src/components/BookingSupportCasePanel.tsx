@@ -81,7 +81,7 @@ export default function BookingSupportCasePanel({
       {successRef ? (
         <NoticeCallout title="Support case submitted" tone="success">
           Reference <span className="font-mono font-semibold">{successRef}</span>. We will keep you
-          updated in Trips.
+          updated in My bookings.
         </NoticeCallout>
       ) : null}
 

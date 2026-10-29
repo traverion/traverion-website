@@ -132,7 +132,7 @@ export const REFUND_DUE_MANUAL_COPY =
   'A refund is due. For stays, Traverion queues an automatic Stripe refund after eligible cancellation. This status clears when Stripe confirms the refund.';
 
 export const REFUND_PROCESSING_COPY =
-  'Your refund was submitted to Stripe. Bank timing depends on your card issuer — Trips will show Refunded when Stripe confirms it.';
+  'Your refund was submitted to Stripe. Bank timing depends on your card issuer — My bookings will show Refunded when Stripe confirms it.';
 
 export const REFUND_DELAYED_COPY =
   'We could not finish submitting this refund to Stripe. Traverion will keep the refund obligation visible until it succeeds. You can retry from this trip, or contact support if it stays delayed.';

@@ -5342,7 +5342,7 @@ export default function SupplierListingForm({
               <section className="rounded-xl bg-white p-4 ring-1 ring-[#E6EAF0] sm:p-5">
                 <h4 className="text-base font-semibold text-ink">What guests can know beforehand</h4>
                 <p className="mt-1 text-sm text-ink-muted">
-                  A short public note, such as where to park. Put the access code in the private arrival address on Policies. Confirmed guests see that address in Trips after payment.
+                  A short public note, such as where to park. Put the access code in the private arrival address on Policies. Confirmed guests see that address in My bookings after payment.
                 </p>
                 <textarea
                   value={form.stayArrivalNote}
@@ -5401,7 +5401,7 @@ export default function SupplierListingForm({
                     Arrival address
                   </h4>
                   <p className="mt-1 text-xs leading-relaxed text-ink-muted">
-                    Booked guests see this in Trips after payment. It is not shown on the public listing.
+                    Booked guests see this in My bookings after payment. It is not shown on the public listing.
                   </p>
                 </div>
                 <label className="block text-sm font-semibold text-ink" htmlFor="stay-check-in-address">

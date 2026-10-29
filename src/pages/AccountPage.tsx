@@ -27,7 +27,7 @@ interface AccountPageProps {
   onNavigate: (page: string) => void;
 }
 
-/** Layer C: named Account region (MyBookings Trips / Wishlist Saved landmark parity). */
+/** Layer C: named Account region (MyBookings My bookings / Wishlist Saved landmark parity). */
 const ACCOUNT_HEADING_ID = 'account-heading';
 
 type HubStats = { bookings: number; wishlist: number };
@@ -248,7 +248,7 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
   }[] = [
     {
       id: 'bookings',
-      title: 'Trips',
+      title: 'My bookings',
       description: 'Upcoming, past, and cancelled bookings',
       icon: Calendar,
       count: stats != null ? badge(stats.bookings) : undefined,
@@ -289,7 +289,7 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
             <section>
               <h2 className="tv-section-heading mb-3.5">Your travel</h2>
               {statsError ? (
-                // Phase 1635: stats cover Trips and Saved counts.
+                // Phase 1635: stats cover My bookings and Saved counts.
                 <ErrorState
                   className="mb-4 py-4"
                   title="Could not load your account summary"
@@ -341,9 +341,9 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
                 })}
               </ul>
               <p className="mt-3 text-xs text-ink-muted leading-relaxed max-w-lg">
-                Messages with hosts live on each trip — open{' '}
+                Messages with hosts live on each booking — open{' '}
                 <button type="button" onClick={() => onNavigate('bookings')} className="font-semibold text-finland hover:underline">
-                  Trips
+                  My bookings
                 </button>{' '}
                 to read and reply.
               </p>

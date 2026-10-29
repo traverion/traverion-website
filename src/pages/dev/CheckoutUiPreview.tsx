@@ -240,11 +240,11 @@ function ConfirmLayout({
               </p>
             </details>
             <p className="py-3 text-[13px] text-ink-muted">
-              Your booking details and updates are available in Trips.
+              Your booking details and updates are available in My bookings.
             </p>
             <div className="flex flex-col gap-2 pt-1">
               <button type="button" className="tv-btn-primary w-full">
-                View booking in Trips
+                View in My bookings
               </button>
               <button type="button" className="px-1 py-2 text-center text-sm font-semibold text-finland">
                 Explore more experiences

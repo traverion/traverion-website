@@ -606,7 +606,7 @@ function App() {
       'email-confirmed': { title: 'Email confirmed', description: 'Your Traverion traveler email was verified.' },
       account: { title: 'My account', description: 'Your profile, trips, and saved tours and stays.' },
       wishlist: { title: 'Saved', description: 'Tours and stays you have saved.' },
-      bookings: { title: 'Trips', description: 'View your confirmed tours and stays.' },
+      bookings: { title: 'My bookings', description: 'View your confirmed tours and stays.' },
       cart: { title: 'Cart', description: 'Open checkouts you can finish — nights are not reserved until payment succeeds.' },
       'booking-confirmed': {
         title: 'Booking confirmed',
@@ -740,7 +740,7 @@ function App() {
       }
       setSelectedTour(tour);
       setCurrentPage('stay-details');
-      // Hydrate full stay row when Trips only passed an id + family hint.
+      // Hydrate full stay row when My bookings only passed an id + family hint.
       if (!tour.title) {
         void getListingByIdAsync(tour.id).then((full) => {
           if (

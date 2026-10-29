@@ -105,6 +105,19 @@ export function rentalQuantityUnits(rental: RentalDetails): { singular: string; 
   }
 }
 
+/** Traveler-facing quantity line — never “guest(s)” for rentals. */
+export function formatRentalQuantityLabel(
+  quantity: number,
+  category?: RentalDetails['category'] | string | null
+): string {
+  const q = Math.max(0, Math.floor(Number(quantity) || 0));
+  if (q <= 0) return '—';
+  const units = rentalQuantityUnits({
+    category: category as RentalDetails['category'],
+  } as RentalDetails);
+  return `${q} ${q === 1 ? units.singular : units.plural}`;
+}
+
 export function rentalSpecLabel(rental: RentalDetails, key: string): string {
   return rentalCategoryConfig(rental.category)?.listingSpecKeys.find((row) => row.key === key)?.label ?? 'Detail';
 }

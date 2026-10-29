@@ -46,7 +46,7 @@ export default function Footer({ onNavigate }: { onNavigate?: (page: string) => 
               </span>
             </a>
             <p className="m-0 max-w-[16rem] text-[13px] leading-relaxed text-[#C5D0E0]">
-              Discover and book tours and stays from independent operators worldwide.
+              Discover and book tours, stays, and rentals from independent operators worldwide.
             </p>
           </div>
 
@@ -114,13 +114,13 @@ export default function Footer({ onNavigate }: { onNavigate?: (page: string) => 
                   Cart
                 </button>
               </li>
-              {/* Phase 1623: Trips beside Tours/Stays — match primary nav wayfinding. */}
+              {/* Phase 1623: My bookings beside Tours/Stays — match primary nav wayfinding. */}
               <li>
                 <button type="button" onClick={() => nav('bookings')} className={linkClass}>
-                  Trips
+                  My bookings
                 </button>
               </li>
-              {/* Phase 1664: Saved beside Trips — match primary nav wishlist wayfinding. */}
+              {/* Phase 1664: Saved beside My bookings — match primary nav wishlist wayfinding. */}
               <li>
                 <button type="button" onClick={() => nav('wishlist')} className={linkClass}>
                   Saved

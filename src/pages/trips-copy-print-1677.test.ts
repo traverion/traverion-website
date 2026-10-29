@@ -7,7 +7,7 @@ describe('Phase 1677: Trips expanded reference has Copy and Print', () => {
     const src = readFileSync(resolve(__dirname, 'MyBookings.tsx'), 'utf8');
     expect(src).toContain('Phase 1677');
     expect(src).toContain('copiedTripRefId');
-    expect(src).toContain('Print trip details');
+    expect(src).toContain('Print booking details');
     expect(src).toContain('Copy booking reference');
   });
 });

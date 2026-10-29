@@ -24,7 +24,7 @@ type TourPickupSource = Pick<
 
 function listingModeIntro(style: TourPackage['experienceStartStyle']): string | null {
   if (style === 'operator_pickup') {
-    return 'The operator picks you up. Pickup details appear on your booking in Trips after you pay.';
+    return 'The operator picks you up. Pickup details appear on your booking in My bookings after you pay.';
   }
   if (style === 'fixed_meeting_place') {
     return 'Meet at the place given below. Arrive a few minutes early.';
@@ -37,7 +37,7 @@ function listingModeIntro(style: TourPackage['experienceStartStyle']): string | 
 
 function optionModeIntro(fulfillment: ListingBookingOption['fulfillment']): string | null {
   if (fulfillment === 'pickup') {
-    return 'This option includes pickup. Exact pickup timing appears on your booking in Trips after you pay.';
+    return 'This option includes pickup. Exact pickup timing appears on your booking in My bookings after you pay.';
   }
   if (fulfillment === 'meeting_point') {
     return 'This option starts at a meeting point. Arrive a few minutes early.';
