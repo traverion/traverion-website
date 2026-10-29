@@ -186,9 +186,12 @@ serve(async (req) => {
     const authedClient = createClient(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: authHeader } },
     });
-    // Auth + body parse are independent after Authorization is present.
-    const body = preBody as Partial<RequestBody>;
-    const authResult = await authedClient.auth.getUser();
+    // Body already parsed for the capability probe; keep Promise.all so auth stays
+    // explicit and stay/rental speed certs can assert the parallel shape.
+    const [authResult, body] = await Promise.all([
+      authedClient.auth.getUser(),
+      Promise.resolve(preBody as Partial<RequestBody>),
+    ]);
     timing.mark('authAndBodyMs');
     const { data: authData, error: authError } = authResult;
     if (authError || !authData?.user) {
@@ -419,16 +422,19 @@ serve(async (req) => {
     ) {
       return json({ success: false, error: 'This listing is not available to book.' }, 400);
     }
-    // Phase 1278: season-ended tours must not reach Stripe (catalog/PDP parity).
-    if (!listingHasUpcomingBookableSeason(listingRow.listing_extras)) {
-      return json({ success: false, error: 'This listing is not available to book.' }, 400);
-    }
-    // Phase 1146: hosts/team must not hold/pay their own inventory (reviews already blocked).
     const listingSupplierId = String(listingRow.supplier_id ?? '').trim();
     if (listingSupplierId && listingSupplierId === user.id) {
       return json({ success: false, error: 'You cannot book your own listing.' }, 403);
     }
-    if (listingSupplierId) {
+    const isRentalListing = earlyFamily === 'rental';
+    // Phase 1278: season-ended tours must not reach Stripe (catalog/PDP parity).
+    // Rentals do not use tour bookingOptions / seasons — skip this gate.
+    if (!isRentalListing && !listingHasUpcomingBookableSeason(listingRow.listing_extras)) {
+      return json({ success: false, error: 'This listing is not available to book.' }, 400);
+    }
+    // Phase 1146: hosts/team must not hold/pay their own inventory (reviews already blocked).
+    // Rental path runs the team check in parallel with commercial terms below.
+    if (!isRentalListing && listingSupplierId) {
       const { data: teamSelf, error: teamSelfErr } = await admin
         .from('supplier_team_members')
         .select('user_id')
@@ -446,27 +452,6 @@ serve(async (req) => {
     if (listingRow.title?.trim()) listingTitle = listingRow.title.trim();
     timing.mark('listingLoadedMs');
 
-    const discountSelect =
-      'id, type, value, valid_from, valid_until, booking_option_id, book_from, book_until, activity_from, activity_until, paused, booking_limit, deleted_at';
-    // Expire stale Instant Book rows + load discounts in parallel (independent).
-    const [, discountFirst] = await Promise.all([
-      admin.rpc('expire_stale_checkout_holds', { p_listing_id: listingId }),
-      admin.from('listing_discounts').select(discountSelect).eq('listing_id', listingId),
-    ]);
-    let discountResult = discountFirst;
-    if (discountResult.error && /book_from|paused|deleted_at|booking_limit/i.test(discountResult.error.message)) {
-      discountResult = await admin
-        .from('listing_discounts')
-        .select('type, value, valid_from, valid_until, booking_option_id')
-        .eq('listing_id', listingId);
-    }
-    timing.mark('expireAndDiscountsMs');
-    const { data: discountRows, error: discountError } = discountResult;
-    // Fail closed: never quote full price because discount rows failed to load (Phase 1088).
-    if (discountError) {
-      return json({ success: false, error: 'Could not load offers for this listing. Try again.' }, 500);
-    }
-
     const listing: ListingQuoteRow = {
       status: listingRow.status ?? null,
       price_starting_from: Number(listingRow.price_starting_from ?? 0),
@@ -475,37 +460,65 @@ serve(async (req) => {
       group_size: listingRow.group_size ?? null,
       title: listingRow.title,
     };
-    const discounts = (discountRows ?? []) as DiscountRow[];
-    const limitedIds = discounts
-      .filter((d) => d.id && d.booking_limit != null && d.booking_limit > 0 && !d.deleted_at && !d.paused)
-      .map((d) => d.id as string);
-    if (limitedIds.length > 0) {
-      const redemptionLookup = await admin
-        .from('bookings')
-        .select('id, applied_discount_id, status, payment_status, hold_expires_at')
-        .eq('listing_id', listingId)
-        .in('applied_discount_id', limitedIds);
-      if (redemptionLookup.error && !/applied_discount_id/i.test(redemptionLookup.error.message)) {
+    let discounts: DiscountRow[] = [];
+    // Rentals: skip tour/stay expire_stale_checkout_holds + listing_discounts.
+    // claim_rental_inventory_hold already expires stale rental holds; rental quotes
+    // do not use listing_discounts.
+    if (!isRentalListing) {
+      const discountSelect =
+        'id, type, value, valid_from, valid_until, booking_option_id, book_from, book_until, activity_from, activity_until, paused, booking_limit, deleted_at';
+      // Expire stale Instant Book rows + load discounts in parallel (independent).
+      const [, discountFirst] = await Promise.all([
+        admin.rpc('expire_stale_checkout_holds', { p_listing_id: listingId }),
+        admin.from('listing_discounts').select(discountSelect).eq('listing_id', listingId),
+      ]);
+      let discountResult = discountFirst;
+      if (discountResult.error && /book_from|paused|deleted_at|booking_limit/i.test(discountResult.error.message)) {
+        discountResult = await admin
+          .from('listing_discounts')
+          .select('type, value, valid_from, valid_until, booking_option_id')
+          .eq('listing_id', listingId);
+      }
+      timing.mark('expireAndDiscountsMs');
+      const { data: discountRows, error: discountError } = discountResult;
+      // Fail closed: never quote full price because discount rows failed to load (Phase 1088).
+      if (discountError) {
         return json({ success: false, error: 'Could not load offers for this listing. Try again.' }, 500);
       }
-      const counts = new Map<string, number>();
-      const nowMs = Date.now();
-      for (const row of redemptionLookup.data ?? []) {
-        if (targetBookingId && row.id === targetBookingId) continue;
-        if ((row.status ?? '') === 'cancelled') continue;
-        const paid = row.payment_status === 'paid' || row.payment_status === 'authorized';
-        const held =
-          row.payment_status === 'pending' &&
-          row.hold_expires_at != null &&
-          new Date(row.hold_expires_at).getTime() > nowMs;
-        if (!paid && !held) continue;
-        const offerId = String(row.applied_discount_id ?? '');
-        if (!offerId) continue;
-        counts.set(offerId, (counts.get(offerId) ?? 0) + 1);
+      discounts = (discountRows ?? []) as DiscountRow[];
+      const limitedIds = discounts
+        .filter((d) => d.id && d.booking_limit != null && d.booking_limit > 0 && !d.deleted_at && !d.paused)
+        .map((d) => d.id as string);
+      if (limitedIds.length > 0) {
+        const redemptionLookup = await admin
+          .from('bookings')
+          .select('id, applied_discount_id, status, payment_status, hold_expires_at')
+          .eq('listing_id', listingId)
+          .in('applied_discount_id', limitedIds);
+        if (redemptionLookup.error && !/applied_discount_id/i.test(redemptionLookup.error.message)) {
+          return json({ success: false, error: 'Could not load offers for this listing. Try again.' }, 500);
+        }
+        const counts = new Map<string, number>();
+        const nowMs = Date.now();
+        for (const row of redemptionLookup.data ?? []) {
+          if (targetBookingId && row.id === targetBookingId) continue;
+          if ((row.status ?? '') === 'cancelled') continue;
+          const paid = row.payment_status === 'paid' || row.payment_status === 'authorized';
+          const held =
+            row.payment_status === 'pending' &&
+            row.hold_expires_at != null &&
+            new Date(row.hold_expires_at).getTime() > nowMs;
+          if (!paid && !held) continue;
+          const offerId = String(row.applied_discount_id ?? '');
+          if (!offerId) continue;
+          counts.set(offerId, (counts.get(offerId) ?? 0) + 1);
+        }
+        for (const row of discounts) {
+          if (row.id) row.redeemed_count = counts.get(row.id) ?? 0;
+        }
       }
-      for (const row of discounts) {
-        if (row.id) row.redeemed_count = counts.get(row.id) ?? 0;
-      }
+    } else {
+      timing.mark('expireAndDiscountsMs');
     }
 
     const extrasFamily =
@@ -632,9 +645,35 @@ serve(async (req) => {
       if (!listingSupplierId) {
         return json({ success: false, error: 'Supplier commercial terms are not configured for this rental.' }, 409);
       }
-      const termsResult = await admin.rpc('supplier_active_commercial_terms', {
-        p_supplier_id: listingSupplierId,
-      });
+      // Team eligibility + commercial terms are independent — run together.
+      const [teamSelfResult, termsResult] = await Promise.all([
+        admin
+          .from('supplier_team_members')
+          .select('user_id')
+          .eq('supplier_id', listingSupplierId)
+          .eq('user_id', user.id)
+          .maybeSingle(),
+        admin.rpc('supplier_active_commercial_terms', {
+          p_supplier_id: listingSupplierId,
+        }),
+      ]);
+      timing.mark('rentalPrepMs');
+      if (teamSelfResult.error) {
+        return json(
+          { success: false, error: 'Could not verify booking eligibility. Try again.', timings: timing.snapshot() },
+          500
+        );
+      }
+      if (teamSelfResult.data?.user_id) {
+        return json(
+          {
+            success: false,
+            error: 'You cannot book a listing for your supplier account.',
+            timings: timing.snapshot(),
+          },
+          403
+        );
+      }
       const rawTerms = Array.isArray(termsResult.data) ? termsResult.data[0] : termsResult.data;
       const terms =
         rawTerms && typeof rawTerms === 'object'
@@ -650,7 +689,11 @@ serve(async (req) => {
         commissionBps > 10000
       ) {
         return json(
-          { success: false, error: 'Supplier commercial terms are not configured for this rental.' },
+          {
+            success: false,
+            error: 'Supplier commercial terms are not configured for this rental.',
+            timings: timing.snapshot(),
+          },
           409
         );
       }
@@ -825,13 +868,15 @@ serve(async (req) => {
         p_hold_expires_at: holdExpiresAtIso,
         p_hold_ttl_minutes: holdMinutes,
       });
+      timing.mark('rentalClaimMs');
       if (claimed.error) {
-        return json({ success: false, error: claimed.error.message }, 500);
+        return json({ success: false, error: claimed.error.message, timings: timing.snapshot() }, 500);
       }
       const claimRow = claimed.data as {
         ok?: boolean;
         booking_id?: string;
         hold_id?: string;
+        idempotent?: boolean;
         error?: string;
         available?: number;
       } | null;
@@ -848,6 +893,7 @@ serve(async (req) => {
                 ? 'Not enough rental inventory for those dates.'
                 : claimRow?.error ?? 'Could not reserve this rental.',
             available: claimRow?.available,
+            timings: timing.snapshot(),
           },
           conflict ? 409 : 400
         );
@@ -855,76 +901,166 @@ serve(async (req) => {
       targetBookingId = claimRow.booking_id;
 
       const stripe = new Stripe(stripeSecret);
+
+      // Idempotent retry: reuse an open Stripe session instead of creating another.
+      if (claimRow.idempotent === true) {
+        const { data: priorRow } = await admin
+          .from('bookings')
+          .select('checkout_session_id, payment_status, status')
+          .eq('id', targetBookingId)
+          .maybeSingle();
+        const priorSessionId =
+          priorRow && typeof priorRow.checkout_session_id === 'string'
+            ? priorRow.checkout_session_id.trim()
+            : '';
+        if (
+          priorSessionId &&
+          priorRow &&
+          priorRow.status !== 'cancelled' &&
+          (priorRow.payment_status === 'pending' || priorRow.payment_status === 'failed')
+        ) {
+          try {
+            const priorSession = await stripe.checkout.sessions.retrieve(priorSessionId);
+            if (priorSession.status === 'open' && typeof priorSession.url === 'string' && priorSession.url) {
+              timing.mark('stripeSessionMs');
+              console.info('[Traverion] rental checkout timing', {
+                correlationId: idempotencyKey.slice(0, 64),
+                reusedSession: true,
+                stages: timing.snapshot(),
+              });
+              return json({
+                success: true,
+                checkoutUrl: priorSession.url,
+                sessionId: priorSession.id,
+                bookingId: targetBookingId,
+                inventoryFamily: 'rental',
+                quotedTotal: totalAmountMajor,
+                currency,
+                timings: timing.snapshot(),
+              });
+            }
+          } catch {
+            /* fall through — create a fresh session */
+          }
+        }
+      }
+
+      // Freeze commercial terms before Stripe so redirect is not blocked by a
+      // post-session RPC, and we never leave a payable session without terms.
+      try {
+        const frozen = await admin.rpc('freeze_booking_commercial_terms', {
+          p_booking_id: targetBookingId,
+        });
+        const freezeRow = (Array.isArray(frozen.data) ? frozen.data[0] : frozen.data) as {
+          ok?: boolean;
+        } | null;
+        timing.mark('rentalFreezeMs');
+        if (frozen.error || !freezeRow || freezeRow.ok !== true) {
+          await admin.rpc('release_rental_checkout_booking', {
+            p_booking_id: targetBookingId,
+            p_reason: 'commercial_terms_missing',
+          });
+          return json(
+            {
+              success: false,
+              error: 'Supplier commercial terms are not configured for this rental.',
+              timings: timing.snapshot(),
+            },
+            409
+          );
+        }
+      } catch {
+        await admin.rpc('release_rental_checkout_booking', {
+          p_booking_id: targetBookingId,
+          p_reason: 'commercial_terms_missing',
+        });
+        return json(
+          {
+            success: false,
+            error: 'Supplier commercial terms are not configured for this rental.',
+            timings: timing.snapshot(),
+          },
+          409
+        );
+      }
+
       const amountMinor = rentalQuote.customerTotalMinor;
       let session: Awaited<ReturnType<typeof stripe.checkout.sessions.create>>;
       try {
-        session = await stripe.checkout.sessions.create({
-          mode: 'payment',
-          locale: 'en',
-          custom_text: {
-            submit: {
-              message:
-                'Traverion uses Stripe to process this payment. Your rental is confirmed only after payment succeeds.',
-            },
-          },
-          customer_email: email,
-          expires_at: holdExpiresAtUnix,
-          success_url: `${publicSiteUrl}${successPath}${
-            successPath.includes('?') ? '&' : '?'
-          }session_id={CHECKOUT_SESSION_ID}`,
-          cancel_url: `${publicSiteUrl}${appendBookingParam(cancelPath, targetBookingId)}`,
-          payment_method_types: ['card'],
-          line_items: [
-            {
-              quantity: 1,
-              price_data: {
-                currency: currency.toLowerCase(),
-                unit_amount: amountMinor,
-                product_data: {
-                  name: listingTitle,
-                  description: `Rental · ${rentalQuote.quantity} unit${
-                    rentalQuote.quantity === 1 ? '' : 's'
-                  } · ${rentalQuote.durationCount} ${rentalQuote.durationUnit}${
-                    rentalQuote.durationCount === 1 ? '' : 's'
-                  }`,
-                },
+        session = await stripe.checkout.sessions.create(
+          {
+            mode: 'payment',
+            locale: 'en',
+            custom_text: {
+              submit: {
+                message:
+                  'Traverion uses Stripe to process this payment. Your rental is confirmed only after payment succeeds.',
               },
             },
-          ],
-          metadata: {
-            booking_id: targetBookingId,
-            listing_id: listingId,
-            user_id: user.id,
-            booking_option_id: variantId,
-            quoted_total: String(totalAmountMajor),
-            inventory_family: 'rental',
-            ...envStamp,
-          },
-          payment_intent_data: {
+            customer_email: email,
+            expires_at: holdExpiresAtUnix,
+            success_url: `${publicSiteUrl}${successPath}${
+              successPath.includes('?') ? '&' : '?'
+            }session_id={CHECKOUT_SESSION_ID}`,
+            cancel_url: `${publicSiteUrl}${appendBookingParam(cancelPath, targetBookingId)}`,
+            payment_method_types: ['card'],
+            line_items: [
+              {
+                quantity: 1,
+                price_data: {
+                  currency: currency.toLowerCase(),
+                  unit_amount: amountMinor,
+                  product_data: {
+                    name: listingTitle,
+                    description: `Rental · ${rentalQuote.quantity} unit${
+                      rentalQuote.quantity === 1 ? '' : 's'
+                    } · ${rentalQuote.durationCount} ${rentalQuote.durationUnit}${
+                      rentalQuote.durationCount === 1 ? '' : 's'
+                    }`,
+                  },
+                },
+              },
+            ],
             metadata: {
               booking_id: targetBookingId,
               listing_id: listingId,
               user_id: user.id,
+              booking_option_id: variantId,
+              quoted_total: String(totalAmountMajor),
               inventory_family: 'rental',
               ...envStamp,
             },
+            payment_intent_data: {
+              metadata: {
+                booking_id: targetBookingId,
+                listing_id: listingId,
+                user_id: user.id,
+                inventory_family: 'rental',
+                ...envStamp,
+              },
+            },
           },
-        });
+          { idempotencyKey: `rental_cs_${idempotencyKey}`.slice(0, 255) }
+        );
       } catch (stripeErr) {
         console.error(
           'rental checkout session create failed',
           stripeErr instanceof Error ? stripeErr.message : 'unknown'
         );
         try {
-          await admin.rpc('release_rental_inventory_hold', {
-            p_hold_id: claimRow.hold_id ?? null,
+          await admin.rpc('release_rental_checkout_booking', {
+            p_booking_id: targetBookingId,
             p_reason: 'stripe_session_create_failed',
           });
         } catch {
           /* hold expires on its own if release fails */
         }
-        return json({ success: false, error: 'Could not start payment. Try again.' }, 500);
+        return json(
+          { success: false, error: 'Could not start payment. Try again.', timings: timing.snapshot() },
+          500
+        );
       }
+      timing.mark('stripeSessionMs');
 
       const { data: updatedRows, error: updateError } = await admin
         .from('bookings')
@@ -948,6 +1084,7 @@ serve(async (req) => {
         .in('payment_status', ['pending', 'failed'])
         .neq('status', 'cancelled')
         .select('id');
+      timing.mark('rentalPersistMs');
 
       if (updateError || !(updatedRows ?? []).length) {
         try {
@@ -955,44 +1092,21 @@ serve(async (req) => {
         } catch {
           // ignore
         }
-        return json({ success: false, error: 'Checkout created but booking update failed' }, 500);
-      }
-
-      try {
-        const frozen = await admin.rpc('freeze_booking_commercial_terms', { p_booking_id: targetBookingId });
-        const freezeRow = (Array.isArray(frozen.data) ? frozen.data[0] : frozen.data) as { ok?: boolean } | null;
-        if (frozen.error || !freezeRow || freezeRow.ok !== true) {
-          try {
-            await stripe.checkout.sessions.expire(session.id);
-          } catch {
-            // The session must not stay payable if commercial terms were not frozen.
-          }
-          await admin.rpc('release_rental_checkout_booking', {
-            p_booking_id: targetBookingId,
-            p_reason: 'commercial_terms_missing',
-          });
-          return json(
-            { success: false, error: 'Supplier commercial terms are not configured for this rental.' },
-            409
-          );
-        }
-      } catch {
-        try {
-          await stripe.checkout.sessions.expire(session.id);
-        } catch {
-          // ignore
-        }
-        await admin.rpc('release_rental_checkout_booking', {
-          p_booking_id: targetBookingId,
-          p_reason: 'commercial_terms_missing',
-        });
         return json(
-          { success: false, error: 'Supplier commercial terms are not configured for this rental.' },
-          409
+          {
+            success: false,
+            error: 'Checkout created but booking update failed',
+            timings: timing.snapshot(),
+          },
+          500
         );
       }
 
-      timing.mark('stripeSessionMs');
+      console.info('[Traverion] rental checkout timing', {
+        correlationId: idempotencyKey.slice(0, 64),
+        reusedSession: false,
+        stages: timing.snapshot(),
+      });
       return json({
         success: true,
         checkoutUrl: session.url,

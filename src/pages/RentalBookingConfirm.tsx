@@ -359,7 +359,8 @@ export default function RentalBookingConfirm({ listing, rental, initial, onBackT
     setPaymentCancelledNote(null);
     const timing = createCheckoutTiming();
     timing.mark('client_ready');
-    revalidateAvailability();
+    // Server claim re-validates inventory atomically — do not fire a competing
+    // availability RPC on the click path (adds latency and lock contention).
     trackListingTraffic(listing.id, 'book_start');
     const cancelPath = buildRentalCheckoutHref(listing.id, {
       ...currentState(),
@@ -466,7 +467,7 @@ export default function RentalBookingConfirm({ listing, rental, initial, onBackT
     checkoutPayBlockedByConsent(checkoutConsentAccepted);
 
   const payButtonLabel = paying
-    ? 'Processing…'
+    ? 'Preparing secure checkout…'
     : !checkoutOpen
       ? 'Payment not open yet'
       : !quoteOk
@@ -484,6 +485,7 @@ export default function RentalBookingConfirm({ listing, rental, initial, onBackT
       type="button"
       className="tv-btn-primary w-full whitespace-normal text-center text-sm leading-snug motion-safe:transition-opacity duration-200 disabled:opacity-50"
       disabled={payDisabled}
+      aria-busy={paying || undefined}
       onClick={() => void startPayment()}
     >
       {payButtonLabel}
