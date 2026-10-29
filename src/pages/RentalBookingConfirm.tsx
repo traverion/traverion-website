@@ -576,7 +576,7 @@ export default function RentalBookingConfirm({ listing, rental, initial, onBackT
                   className="mb-2.5 inline-flex items-center gap-1.5 text-sm font-medium text-ink-muted hover:text-ink"
                 >
                   <ArrowLeft className="h-4 w-4" aria-hidden />
-                  Edit booking
+                  Back to rental
                 </button>
                 <h1 className="font-display text-xl font-semibold tracking-tight text-ink sm:text-[1.375rem]">
                   Complete your reservation

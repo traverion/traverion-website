@@ -72,6 +72,7 @@ import {
   parseRentalCheckoutSearch,
   type RentalCheckoutState,
 } from '../lib/rentalCheckoutUrl';
+import { scrubListingBookingSelectionFromLocation } from '../lib/listing-booking-fresh';
 import { trackListingTraffic } from '../lib/listing-traffic';
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
 import { isSupabaseListingId } from '../lib/discount-display';
@@ -221,27 +222,6 @@ export default function RentalDetails({ listingId, onNavigate }: Props) {
   );
 }
 
-function readRentalListingPrefill(): Partial<RentalCheckoutState> {
-  if (typeof window === 'undefined') return {};
-  const params = new URLSearchParams(window.location.search);
-  const variantId = (params.get('variant') ?? '').trim();
-  const qtyRaw = Number.parseInt(params.get('qty') ?? '', 10);
-  const unitRaw = (params.get('unit') ?? '').trim().toLowerCase();
-  const startDate = (params.get('start') ?? '').trim();
-  const endDate = (params.get('end') ?? '').trim();
-  const pickupHm = (params.get('pickup') ?? '').trim();
-  const returnHm = (params.get('return') ?? '').trim();
-  return {
-    ...(variantId ? { variantId } : {}),
-    ...(Number.isFinite(qtyRaw) && qtyRaw >= 1 ? { quantity: Math.min(99, Math.floor(qtyRaw)) } : {}),
-    ...(unitRaw === 'hour' || unitRaw === 'day' ? { durationUnit: unitRaw } : {}),
-    ...( /^\d{4}-\d{2}-\d{2}$/.test(startDate) ? { startDate } : {}),
-    ...( /^\d{4}-\d{2}-\d{2}$/.test(endDate) ? { endDate } : {}),
-    ...( /^\d{2}:\d{2}$/.test(pickupHm) ? { pickupHm } : {}),
-    ...( /^\d{2}:\d{2}$/.test(returnHm) ? { returnHm } : {}),
-  };
-}
-
 function RentalBody({
   listing,
   rental,
@@ -263,15 +243,13 @@ function RentalBody({
   const hours = rentalHoursLines(rental.operatingDays);
   const returnPoint = rentalReturnPoint(rental);
   const variants = rental.variants ?? [];
-  const listingPrefill = useMemo(() => readRentalListingPrefill(), []);
   const [locationSearch, setLocationSearch] = useState(
     () => (typeof window !== 'undefined' ? window.location.search : '')
   );
   const checkoutFromUrl = useMemo(() => parseRentalCheckoutSearch(locationSearch), [locationSearch]);
-  const [variantId, setVariantId] = useState(
-    () => listingPrefill.variantId || variants[0]?.id || ''
-  );
-  const [widgetInitial, setWidgetInitial] = useState<Partial<RentalCheckoutState>>(listingPrefill);
+  const [variantId, setVariantId] = useState(variants[0]?.id ?? '');
+  /** Only set when returning from booking review Edit/Back — never from URL/refresh. */
+  const [widgetInitial, setWidgetInitial] = useState<Partial<RentalCheckoutState>>({});
   const selectedVariant = variants.find((item) => item.id === variantId) ?? variants[0] ?? null;
   const durationRows = rentalDurationLengthRows(rental, selectedVariant);
   const highlights = (rental.highlights?.length ? rental.highlights : listing.highlights) ?? [];
@@ -284,6 +262,19 @@ function RentalBody({
     window.addEventListener('popstate', onPop);
     return () => window.removeEventListener('popstate', onPop);
   }, []);
+
+  const rentalListingHydratedRef = useRef<string | null>(null);
+  const defaultVariantId = variants[0]?.id ?? '';
+  useEffect(() => {
+    if (checkoutFromUrl) return;
+    if (scrubListingBookingSelectionFromLocation()) {
+      setLocationSearch(window.location.search);
+    }
+    if (rentalListingHydratedRef.current === listing.id) return;
+    rentalListingHydratedRef.current = listing.id;
+    setVariantId(defaultVariantId);
+    setWidgetInitial({});
+  }, [checkoutFromUrl, listing.id, defaultVariantId]);
 
   useEffect(() => {
     if (listing.id && !draftPreview && !devPreview) trackListingTraffic(listing.id, 'view');
@@ -302,7 +293,8 @@ function RentalBody({
 
   const closeRentalBookingConfirm = useCallback(
     (state: RentalCheckoutState) => {
-      const href = buildRentalListingHref(listing.id, state);
+      // Clean listing URL; restore selection only in React for this Edit/Back session.
+      const href = buildRentalListingHref(listing.id);
       window.history.pushState({}, '', href);
       setLocationSearch(window.location.search);
       setVariantId(state.variantId);

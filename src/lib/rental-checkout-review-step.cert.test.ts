@@ -31,6 +31,6 @@ describe('Rental checkout review step', () => {
     expect(confirm).toContain('Continue to payment');
     expect(confirm).toContain('evaluateRentalAvailabilityRpc');
     expect(confirm).toContain('quoteRentalLine');
-    expect(confirm).toContain('Edit booking');
+    expect(confirm).toContain('Back to rental');
   });
 });

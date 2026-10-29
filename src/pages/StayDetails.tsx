@@ -28,8 +28,8 @@ import { reviewOnlyPackageFromListingOps } from '../lib/trip-views';
 import { fetchListingOpsByIds } from '../data/supabase-listings';
 import { useAuth } from '../contexts/AuthContext';
 import { LISTING_SELF_BOOK_BLOCKED, LISTING_SELF_BOOK_CHECK_FAILED, viewerIsListingSupplierSide } from '../lib/listing-self-book';
-import { failCloseOrphanStayCheckout } from '../lib/marketplaceBrowse';
 import { trackListingTraffic } from '../lib/listing-traffic';
+import { scrubListingBookingSelectionFromLocation } from '../lib/listing-booking-fresh';
 import { quoteStayNights, stayQuotePriceLines, experienceTodayIsoForListing } from '../lib/booking-quote';
 import { fetchDiscountsByListingIds, type ListingDiscount } from '../data/supabase-discounts';
 import { stayDateRangesOverlap, occupiedNightsFromStayRanges, nightsOccupiedByStay } from '../lib/stayOccupancy';
@@ -107,31 +107,7 @@ type Props = {
 const sectionClass = 'tv-pdp-section mt-7 border-t border-[#E8EBF0] pt-7';
 const headingClass = 'tv-section-heading mb-3.5';
 
-function readStayPrefill(): {
-  checkIn: string;
-  checkOut: string;
-  adults: number;
-  children: number;
-  infants: number;
-} {
-  if (typeof window === 'undefined') {
-    return { checkIn: '', checkOut: '', adults: 2, children: 0, infants: 0 };
-  }
-  const p = new URLSearchParams(window.location.search);
-  const rawIn = (p.get('date') ?? p.get('checkIn') ?? '').trim();
-  const rawOut = (p.get('checkout') ?? p.get('checkOut') ?? '').trim();
-  const { checkIn, checkOut } = failCloseOrphanStayCheckout(rawIn, rawOut);
-  const adultsRaw = Number.parseInt(p.get('adults') ?? p.get('guests') ?? '', 10);
-  const childrenRaw = Number.parseInt(p.get('children') ?? '', 10);
-  const infantsRaw = Number.parseInt(p.get('infants') ?? '', 10);
-  return {
-    checkIn,
-    checkOut,
-    adults: Number.isFinite(adultsRaw) && adultsRaw >= 1 ? Math.min(99, Math.floor(adultsRaw)) : 2,
-    children: Number.isFinite(childrenRaw) && childrenRaw >= 0 ? Math.min(99, Math.floor(childrenRaw)) : 0,
-    infants: Number.isFinite(infantsRaw) && infantsRaw >= 0 ? Math.min(99, Math.floor(infantsRaw)) : 0,
-  };
-}
+const STAY_DEFAULT_PARTY = { adults: 2, children: 0, infants: 0 } as const;
 
 export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Props) {
   const { user, requestAuth } = useAuth();
@@ -149,12 +125,9 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
   const [error, setError] = useState<string | null>(null);
   /** Phase 1731: review-only PDP when draft stay is hidden from traveler SELECT. */
   const [reviewOnlyAccess, setReviewOnlyAccess] = useState(false);
-  const [checkIn, setCheckIn] = useState(() => readStayPrefill().checkIn);
-  const [checkOut, setCheckOut] = useState(() => readStayPrefill().checkOut);
-  const [party, setParty] = useState<StayGuestParty>(() => {
-    const pre = readStayPrefill();
-    return { adults: pre.adults, children: pre.children, infants: pre.infants };
-  });
+  const [checkIn, setCheckIn] = useState('');
+  const [checkOut, setCheckOut] = useState('');
+  const [party, setParty] = useState<StayGuestParty>(() => ({ ...STAY_DEFAULT_PARTY }));
   const [selectedExtras, setSelectedExtras] = useState<StayExtraSelection[]>([]);
   const [payError, setPayError] = useState<string | null>(null);
   const [selfBookBlocked, setSelfBookBlocked] = useState(false);
@@ -693,16 +666,20 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
     return () => window.removeEventListener('popstate', onPop);
   }, []);
 
-  // Hydrate listing dates when returning from confirmation (back / clear book flag).
+  // Fresh visit / refresh: strip stale selection params. Edit/Back restores via closeStayBookingConfirm.
+  const stayListingHydratedRef = useRef<string | null>(null);
   useEffect(() => {
     if (checkoutFromUrl) return;
-    const pre = readStayPrefill();
-    if (pre.checkIn) setCheckIn(pre.checkIn);
-    if (pre.checkOut) setCheckOut(pre.checkOut);
-    if (pre.adults >= 1 || pre.children > 0 || pre.infants > 0) {
-      setParty({ adults: pre.adults, children: pre.children, infants: pre.infants });
+    if (scrubListingBookingSelectionFromLocation()) {
+      setLocationSearch(window.location.search);
     }
-  }, [checkoutFromUrl, locationSearch]);
+    if (stayListingHydratedRef.current === stayId) return;
+    stayListingHydratedRef.current = stayId;
+    setCheckIn('');
+    setCheckOut('');
+    setParty({ ...STAY_DEFAULT_PARTY });
+    setPayError(null);
+  }, [checkoutFromUrl, stayId]);
 
   const stayBookingAlertDescribedBy =
     [occupancyError ? 'stay-occupancy-error' : null, payError ? 'stay-pay-error' : null]
@@ -788,7 +765,8 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
   };
 
   const closeStayBookingConfirm = (state: StayCheckoutState) => {
-    const href = buildStayListingHref(stayId, state);
+    // Clean listing URL; keep the active selection in React for Edit/Back.
+    const href = buildStayListingHref(stayId);
     window.history.pushState({}, '', href);
     setLocationSearch(window.location.search);
     setCheckIn(state.checkIn);

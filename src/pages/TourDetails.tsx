@@ -67,7 +67,6 @@ import {
 } from '../lib/booking-flow';
 import {
   parseTourCheckoutSearch,
-  parseTourListingSelection,
   resolveTourCheckoutVariant,
   tourCheckoutPath,
   tourListingPath,
@@ -108,8 +107,9 @@ import { tourSlotMaxSpotsFromOption } from '../lib/tour-slot-capacity';
 import { tourDepartureSlotCapacity } from '../../supabase/functions/_shared/booking-quote.ts';
 import { tourStickyBookCtaLabel } from '../lib/tour-sticky-cta';
 import { tourQuoteFailureFocusTarget } from '../lib/tour-quote-failure-focus';
-import { loadTravelerCart, saveTravelerCart } from '../lib/travelerCart';
-import { loadAccountCartForListing, rememberAccountCart } from '../data/supabase-cart';
+import { saveTravelerCart } from '../lib/travelerCart';
+import { rememberAccountCart } from '../data/supabase-cart';
+import { scrubListingBookingSelectionFromLocation } from '../lib/listing-booking-fresh';
 import { travelerDisplayNameFromSources } from '../lib/traveler-display-name';
 import { fetchWishlistListingIds, toggleWishlist } from '../data/supabase-wishlist';
 import { formatMoney, normalizeCurrency } from '../lib/money';
@@ -119,12 +119,6 @@ import TourOverview from '../components/tour-detail/TourOverview';
 import TourAvailableOptions from '../components/tour-detail/TourAvailableOptions';
 import TourListingSections, { TourOperatorBlock } from '../components/tour-detail/TourListingSections';
 import { ListingReviewsModal } from '../components/ListingReviewsModal';
-
-function readSearchPrefill(): { date: string; guests: number } {
-  if (typeof window === 'undefined') return { date: '', guests: 1 };
-  const sel = parseTourListingSelection(window.location.search);
-  return { date: sel.date, guests: sel.guests };
-}
 
 function prefersReducedMotion(): boolean {
   return typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -190,8 +184,8 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
   const [reviewTitle, setReviewTitle] = useState('');
   const [reviewComment, setReviewComment] = useState('');
   const [profileDisplayName, setProfileDisplayName] = useState('');
-  const [bookingDate, setBookingDate] = useState(() => readSearchPrefill().date);
-  const [guests, setGuests] = useState(() => readSearchPrefill().guests);
+  const [bookingDate, setBookingDate] = useState('');
+  const [guests, setGuests] = useState(1);
   const [discountsByListing, setDiscountsByListing] = useState<Map<
     string,
     import('../data/supabase-discounts').ListingDiscount[]
@@ -227,10 +221,9 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
     };
   }, [participantsOpen]);
   const [bookingCardError, setBookingCardError] = useState<string | null>(null);
-  const [selectionRestored, setSelectionRestored] = useState(false);
   const [selfBookBlocked, setSelfBookBlocked] = useState(false);
   const [selfBookCheckFailed, setSelfBookCheckFailed] = useState(false);
-  const [bookingVariantsOpen, setBookingVariantsOpen] = useState(() => Boolean(readSearchPrefill().date));
+  const [bookingVariantsOpen, setBookingVariantsOpen] = useState(false);
   const [locationSearch, setLocationSearch] = useState(
     () => (typeof window === 'undefined' ? '' : window.location.search)
   );
@@ -1068,12 +1061,8 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
   const checkoutAuthPromptedRef = useRef(false);
   const closeBookingModal = useCallback(() => {
     if (!tour) return;
-    const listing = tourListingPath(tour.id, {
-      date: bookingDate.trim(),
-      guests,
-      optionId: selectedBookingVariant?.id ?? null,
-      mix: participantMix,
-    });
+    // Clean listing URL — selection stays in React state for Edit/Back; refresh starts fresh.
+    const listing = tourListingPath(tour.id);
     if (openedCheckoutViaPushRef.current) {
       openedCheckoutViaPushRef.current = false;
       const pathBefore = `${window.location.pathname}${window.location.search}`;
@@ -1083,12 +1072,13 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
           commitLocation(listing, 'replace');
           return;
         }
+        scrubListingBookingSelectionFromLocation();
         setLocationSearch(window.location.search);
       }, 50);
       return;
     }
     commitLocation(listing, 'replace');
-  }, [tour, bookingDate, guests, participantMix, selectedBookingVariant?.id, commitLocation]);
+  }, [tour, commitLocation]);
 
   useEffect(() => {
     const onPop = () => {
@@ -1134,111 +1124,39 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
       if (checkoutFromUrl.startTime) setSelectedDepartureTime(checkoutFromUrl.startTime);
       return;
     }
+    // Invalid / unavailable checkout option — exit checkout, keep selection in React only.
     if (!checkoutVariant) {
       setBookingCardError('That tour option is no longer available. Pick another option.');
     }
-    commitLocation(
-      tourListingPath(tour.id, {
-        date: checkoutFromUrl.date,
-        guests: checkoutFromUrl.guests,
-        optionId: checkoutFromUrl.optionId,
-      }),
-      'replace'
-    );
+    setBookingDate(checkoutFromUrl.date);
+    setGuests(checkoutFromUrl.guests);
+    if (checkoutFromUrl.mix) setParticipantMix(checkoutFromUrl.mix);
+    if (checkoutFromUrl.startTime) setSelectedDepartureTime(checkoutFromUrl.startTime);
+    setBookingVariantsOpen(true);
+    commitLocation(tourListingPath(tour.id), 'replace');
   }, [checkoutFromUrl, checkoutVariant, tour, commitLocation]);
 
-  const listingHydratedRef = useRef(false);
   const hydratedTourIdRef = useRef<string | null>(null);
   useEffect(() => {
     if (!tour || checkoutFromUrl) return;
-    if (hydratedTourIdRef.current !== tour.id) {
-      hydratedTourIdRef.current = tour.id;
-      listingHydratedRef.current = false;
-      setBookingDate('');
-      setBookingVariantsOpen(false);
-      setSelectedBookingVariant(null);
-      setSelectedDepartureTime('');
-      setParticipantMix({});
-      setGuests(1);
-    }
-    if (listingHydratedRef.current) return;
-    listingHydratedRef.current = true;
-    const sel = parseTourListingSelection(window.location.search);
-    if (sel.date) {
-      setBookingDate(sel.date);
-      setBookingVariantsOpen(true);
-      scrollToOptionsSection();
-    }
-    if (sel.guests && sel.guests > 0) setGuests(sel.guests);
-    if (sel.optionId) {
-      const restored = resolveTourCheckoutVariant(tourVariants, sel.optionId);
-      if (restored) {
-        setSelectedBookingVariant(restored);
-        if (sel.mix) {
-          setParticipantMix(sel.mix);
-        } else if (restored.listingOption && optionUsesAgePricing(restored.listingOption)) {
-          const seeded = emptyMixSelection(restored.listingOption);
-          const adult = activePriceCategories(restored.listingOption).find((cat) => cat.kind === 'adult');
-          if (adult && sel.guests > 1) seeded[adult.id] = sel.guests;
-          setParticipantMix(seeded);
-        }
-      }
-    } else if (!sel.date) {
-      const saved = loadTravelerCart();
-      if (saved && saved.tourId === tour.id && saved.date) {
-        setBookingDate(saved.date);
-        setBookingVariantsOpen(true);
-        if (saved.guests > 0) setGuests(saved.guests);
-        if (saved.mix) setParticipantMix(saved.mix);
-        if (saved.startTime) setSelectedDepartureTime(saved.startTime);
-        const restored = saved.optionId ? resolveTourCheckoutVariant(tourVariants, saved.optionId) : null;
-        if (restored) setSelectedBookingVariant(restored);
-        setSelectionRestored(true);
-      }
-    }
-  }, [tour, checkoutFromUrl, tourVariants, scrollToOptionsSection]);
-
-  useEffect(() => {
-    if (!tour || checkoutFromUrl || !user?.id || !isSupabaseConfigured()) return;
-    if (bookingDate.trim()) return;
-    let cancelled = false;
-    void loadAccountCartForListing(user.id, tour.id).then((row) => {
-      if (cancelled || !row?.booking_date || bookingDateRef.current.trim()) return;
-      setBookingDate(row.booking_date);
-      setGuests((current) => (current > 1 ? current : Math.max(1, row.guests || 1)));
-      setBookingVariantsOpen(true);
-      if (row.participant_mix) setParticipantMix(row.participant_mix);
-      if (row.start_time) setSelectedDepartureTime(row.start_time);
-      if (row.option_id) {
-        const restored = resolveTourCheckoutVariant(getTourBookingVariants(tour), row.option_id);
-        if (restored) setSelectedBookingVariant(restored);
-      }
-      setSelectionRestored(true);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [tour, checkoutFromUrl, user?.id, bookingDate]);
-
-  // Compact restored notice — clear after a short window; never auto-dismiss errors.
-  useEffect(() => {
-    if (!selectionRestored) return;
-    const t = window.setTimeout(() => setSelectionRestored(false), 6500);
-    return () => window.clearTimeout(t);
-  }, [selectionRestored]);
+    scrubListingBookingSelectionFromLocation();
+    setLocationSearch(window.location.search);
+    if (hydratedTourIdRef.current === tour.id) return;
+    hydratedTourIdRef.current = tour.id;
+    setBookingDate('');
+    setBookingVariantsOpen(false);
+    setSelectedBookingVariant(null);
+    setSelectedDepartureTime('');
+    setParticipantMix({});
+    setGuests(1);
+    setBookingCardError(null);
+  }, [tour, checkoutFromUrl]);
 
   useEffect(() => {
     if (!tour || checkoutFromUrl) return;
-    const selectedOptionId = selectedBookingVariant?.id ?? null;
-    if (!bookingDate.trim() && !selectedOptionId) return;
-    const href = tourListingPath(tour.id, {
-      date: bookingDate.trim(),
-      guests,
-      optionId: selectedOptionId,
-      mix: participantMix,
-    });
+    const href = tourListingPath(tour.id);
     commitLocation(href, 'replace');
-  }, [tour, bookingDate, guests, participantMix, selectedBookingVariant?.id, checkoutFromUrl, commitLocation]);
+  }, [tour?.id, checkoutFromUrl, commitLocation]);
 
   useEffect(() => {
     if (!bookingDate.trim() || !bookingVariantsOpen) return;
@@ -1842,20 +1760,6 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
                 id="tour-booking-panel"
                 className="tv-booking-sticky tv-booking-sticky--fit lg:sticky lg:top-[calc(4.75rem+env(safe-area-inset-top,0px))] h-fit scroll-mt-28"
               >
-                {selectionRestored ? (
-                  <div className="tv-selection-restored" role="status">
-                    <p className="min-w-0">
-                      Selection restored — price and availability are checked again before payment.
-                    </p>
-                    <button
-                      type="button"
-                      className="shrink-0 text-[11px] font-semibold text-finland hover:underline"
-                      onClick={() => setSelectionRestored(false)}
-                    >
-                      Dismiss
-                    </button>
-                  </div>
-                ) : null}
                 {!canBook ? (
                   <div>
                     <p className="text-lg font-semibold text-ink">Not bookable yet</p>

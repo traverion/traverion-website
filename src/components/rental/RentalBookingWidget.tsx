@@ -357,7 +357,12 @@ export default function RentalBookingWidget({
     (interval.durationCount > 1 || Math.min(Math.max(1, quantity), maxQty) > 1);
 
   const continueDisabled =
-    !quote?.ok || !interval.ok || availability.ok === false || availability.loading || !onContinue;
+    !checkoutOpen ||
+    !quote?.ok ||
+    !interval.ok ||
+    availability.ok === false ||
+    availability.loading ||
+    !onContinue;
 
   return (
     <div className="space-y-2.5">
