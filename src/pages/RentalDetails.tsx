@@ -235,6 +235,11 @@ function RentalBody({
   devPreview: boolean;
   onNavigate: (page: string) => void;
 }) {
+  const { user, requestAuth } = useAuth();
+  const userRef = useRef(user);
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
   const photos = photoList(listing);
   const place = [listing.city, listing.country].filter(Boolean).join(', ') || listing.destination?.trim() || '';
   const item = rentalItemLabel(rental);
@@ -280,15 +285,38 @@ function RentalBody({
     if (listing.id && !draftPreview && !devPreview) trackListingTraffic(listing.id, 'view');
   }, [listing.id, draftPreview, devPreview]);
 
-  const openRentalBookingConfirm = useCallback(
+  const pushRentalBookingConfirm = useCallback(
     (state: RentalCheckoutState) => {
-      if (draftPreview || devPreview) return;
       trackListingTraffic(listing.id, 'book_start');
       const href = buildRentalCheckoutHref(listing.id, state);
       window.history.pushState({}, '', href);
       setLocationSearch(window.location.search);
     },
-    [listing.id, draftPreview, devPreview]
+    [listing.id]
+  );
+
+  const openRentalBookingConfirm = useCallback(
+    (state: RentalCheckoutState) => {
+      if (draftPreview || devPreview) return;
+      // Shared AuthModal — same Tour/Stay Continue gate. Keep selection; resume into review.
+      if (isSupabaseConfigured() && !userRef.current) {
+        requestAuth({
+          intent: 'checkout',
+          onSuccess: () => {
+            void (async () => {
+              if (supabase) {
+                const { data: sessionData } = await supabase.auth.getSession();
+                if (sessionData.session?.user) userRef.current = sessionData.session.user;
+              }
+              if (userRef.current) pushRentalBookingConfirm(state);
+            })();
+          },
+        });
+        return;
+      }
+      pushRentalBookingConfirm(state);
+    },
+    [draftPreview, devPreview, requestAuth, pushRentalBookingConfirm]
   );
 
   const closeRentalBookingConfirm = useCallback(

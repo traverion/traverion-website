@@ -747,6 +747,23 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
     if (stay?.id && !reviewOnlyAccess) trackListingTraffic(stay.id, 'view');
   }, [stay?.id, reviewOnlyAccess]);
 
+  const pushStayBookingConfirm = useCallback(() => {
+    if (!stay || !stayQuote?.ok) return;
+    setPayError(null);
+    trackListingTraffic(stay.id, 'book_start');
+    const state: StayCheckoutState = {
+      checkIn: stayQuote.checkIn,
+      checkOut: stayQuote.checkOut,
+      adults: party.adults,
+      children: party.children,
+      infants: party.infants,
+      paymentCancelled: false,
+    };
+    const href = buildStayCheckoutHref(stay.id, state);
+    window.history.pushState({}, '', href);
+    setLocationSearch(window.location.search);
+  }, [stay, stayQuote, party.adults, party.children, party.infants]);
+
   const openStayBookingConfirm = () => {
     if (!stay || !stayQuote?.ok) {
       document.getElementById('stay-booking-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -779,19 +796,23 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
       setPayError(LISTING_SELF_BOOK_BLOCKED);
       return;
     }
-    setPayError(null);
-    trackListingTraffic(stay.id, 'book_start');
-    const state: StayCheckoutState = {
-      checkIn: stayQuote.checkIn,
-      checkOut: stayQuote.checkOut,
-      adults: party.adults,
-      children: party.children,
-      infants: party.infants,
-      paymentCancelled: false,
-    };
-    const href = buildStayCheckoutHref(stay.id, state);
-    window.history.pushState({}, '', href);
-    setLocationSearch(window.location.search);
+    // Shared AuthModal — same Tour Continue gate. Keep dates/party; resume into review.
+    if (isSupabaseConfigured() && !userRef.current) {
+      requestAuth({
+        intent: 'checkout',
+        onSuccess: () => {
+          void (async () => {
+            if (supabase) {
+              const { data: sessionData } = await supabase.auth.getSession();
+              if (sessionData.session?.user) userRef.current = sessionData.session.user;
+            }
+            if (userRef.current) pushStayBookingConfirm();
+          })();
+        },
+      });
+      return;
+    }
+    pushStayBookingConfirm();
   };
 
   const closeStayBookingConfirm = (state: StayCheckoutState) => {

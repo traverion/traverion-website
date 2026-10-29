@@ -470,25 +470,19 @@ export default function TravelerAuthForm({
               {tab === 'signin' ? (submitting ? 'Logging in…' : 'Log in') : submitting ? 'Creating account…' : 'Create account'}
             </button>
 
-            <div className="tv-auth-or" aria-hidden>
-              <span />
-              <span>OR</span>
-              <span />
-            </div>
-            <button
-              type="button"
-              className="tv-auth-google"
-              disabled={!GOOGLE_AUTH_ENABLED}
-              aria-describedby={`${idPrefix}-google-note`}
-            >
-              <GoogleMark />
-              Continue with Google
-            </button>
-            {GOOGLE_AUTH_ENABLED ? null : (
-              <p id={`${idPrefix}-google-note`} className="text-center text-xs text-ink-faint">
-                Coming soon. Google sign-in is not enabled yet.
-              </p>
-            )}
+            {GOOGLE_AUTH_ENABLED ? (
+              <>
+                <div className="tv-auth-or" aria-hidden>
+                  <span />
+                  <span>OR</span>
+                  <span />
+                </div>
+                <button type="button" className="tv-auth-google">
+                  <GoogleMark />
+                  Continue with Google
+                </button>
+              </>
+            ) : null}
             <p className="text-center text-xs leading-relaxed text-ink-muted">
               By continuing, you log in or sign up and accept our{' '}
               <a href="/terms" className="whitespace-nowrap font-semibold text-ink underline underline-offset-2">
