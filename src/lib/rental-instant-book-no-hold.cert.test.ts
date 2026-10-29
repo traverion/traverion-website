@@ -47,8 +47,9 @@ describe('Rental Instant Book no pre-payment inventory hold', () => {
     expect(bookingPage).toContain('Spots stay available until payment succeeds');
     expect(cartPage).toContain('Checkout open · not reserved');
     expect(cartPage).not.toMatch(/Held for \$\{remaining\}/);
-    expect(confirmPage).toContain('Inventory stays available until payment succeeds');
+    expect(confirmPage).toMatch(/inventory reserved after payment succeeds/i);
     expect(confirmPage).not.toContain('Inventory is held only after payment starts');
+    expect(confirmPage).not.toContain('Spots are held for');
     expect(copy).toContain('Inventory is reserved only after payment succeeds');
     expect(copy).toContain('Spots were not reserved');
     expect(copy).toContain('Dates were not reserved');
