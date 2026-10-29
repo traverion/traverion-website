@@ -56,9 +56,10 @@ import AvailabilityOptionsModal from '../components/booking/AvailabilityOptionsM
 import TourDatePicker from '../components/TourDatePicker';
 import GuestStepper from '../components/booking/GuestStepper';
 import ParticipantCategoryStepper from '../components/booking/ParticipantCategoryStepper';
-import { listingTourCapacityFromOptions, remainingCapacity, capacitySpotsFromBookingOptions } from '../lib/availability-ops';
+import { listingTourCapacityFromOptions, capacitySpotsFromBookingOptions } from '../lib/availability-ops';
 import { departureSlotSpotsLeft, maxSpotsLeftAcrossDepartures, partyMaxCappedByRemainingSpots } from '../lib/departure-slot-remaining';
 import { tourSoldOutDates } from '../lib/tour-calendar';
+import { addCalendarDays } from '../lib/stayOccupancy';
 import { tourSlotMaxSpotsFromOption } from '../lib/tour-slot-capacity';
 import { useDialogFocus } from '../hooks/useDialogFocus';
 import { analytics } from '../lib/analytics';
@@ -462,6 +463,14 @@ export default function BookingPage({
           capByDay.set(day, row.capacity);
         }
         setDayCapacitySnap({ paidByDay, paidBySlot, capByDay, fallback: fallbackCap });
+        const horizonDays: string[] = [];
+        if (/^\d{4}-\d{2}-\d{2}$/.test(experienceTodayIso)) {
+          let cur = experienceTodayIso;
+          for (let i = 0; i < 120; i += 1) {
+            horizonDays.push(cur);
+            cur = addCalendarDays(cur, 1);
+          }
+        }
         setSoldOutDates(
           tourSoldOutDates({
             paidByDay,
@@ -469,6 +478,7 @@ export default function BookingPage({
             capByDay,
             fallbackCapacity: fallbackCap,
             slotKey: tourPaidSlotKey,
+            extraDays: horizonDays,
             departuresForDay: (day) =>
               tourBookableSellingDeparturesOnDate(calendarOptions, day, {
                 cutoffHoursBeforeStart: listingCutoffHours,
@@ -585,13 +595,9 @@ export default function BookingPage({
         fallbackDayCap: dayCapacitySnap.fallback,
       });
     }
-    if (dayCap != null) {
-      return remainingCapacity(dayCap, dayCapacitySnap.paidByDay[day] ?? 0);
-    }
-    const cap = dayCapacitySnap.fallback;
-    // Phase 1163: unknown listing-wide fallback → null remaining (fail closed).
-    if (cap == null) return null;
-    return remainingCapacity(cap, dayCapacitySnap.paidByDay[day] ?? 0);
+    // Never show raw day-cap seats for expired / unbookable departures.
+    if (appliedOption) return 0;
+    return null;
   }, [date, dayCapacitySnap, soldOutDates, departureTime, appliedOption, bookableDepartureTimes, selectedVariant]);
 
   const spotsLeftIsDepartureCapacity = Boolean(departureTime) && Boolean(appliedOption);

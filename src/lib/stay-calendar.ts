@@ -1,4 +1,4 @@
-import { addCalendarDays } from './stayOccupancy';
+import { addCalendarDays, STAY_MAX_OCCUPIED_NIGHTS } from './stayOccupancy';
 
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -46,6 +46,18 @@ export function upcomingOccupiedNights(nights: string[], todayIso: string): stri
   return valid.filter((n) => n >= today).sort();
 }
 
+/** Earliest civil check-out for a check-in given minimum nights (exclusive end). */
+export function earliestStayCheckoutIso(checkIn: string, minNights: number): string {
+  const n = Math.max(1, Math.floor(Number(minNights)) || 1);
+  return addCalendarDays(checkIn, n);
+}
+
+/** Latest civil check-out for a check-in given the hard occupied-night cap. */
+export function latestStayCheckoutIso(checkIn: string, maxNights: number = STAY_MAX_OCCUPIED_NIGHTS): string {
+  const n = Math.max(1, Math.min(STAY_MAX_OCCUPIED_NIGHTS, Math.floor(Number(maxNights)) || 1));
+  return addCalendarDays(checkIn, n);
+}
+
 export function stayNightState(params: {
   iso: string;
   todayIso: string;
@@ -58,6 +70,10 @@ export function stayNightState(params: {
    * must remain selectable even when today's new check-in is closed.
    */
   checkInClosed?: (iso: string) => boolean;
+  /** Minimum nights once check-in is chosen — nights before earliest checkout are closed. */
+  minNights?: number;
+  /** Optional hard max nights while picking checkout (defaults to STAY_MAX_OCCUPIED_NIGHTS). */
+  maxNights?: number;
 }): 'past' | 'occupied' | 'selected' | 'checkout' | 'available' {
   if (params.iso < params.todayIso) return 'past';
   if (params.occupied.has(params.iso)) return 'occupied';
@@ -68,6 +84,13 @@ export function stayNightState(params: {
   if (params.checkIn && !params.checkOut && params.iso === params.checkIn) return 'selected';
   const pickingCheckIn = !params.checkIn || Boolean(params.checkIn && params.checkOut);
   if (pickingCheckIn && params.checkInClosed?.(params.iso)) return 'past';
+  // Picking check-out: never treat check-in (or nights before min stay) as a valid checkout.
+  if (params.checkIn && !params.checkOut && params.iso > params.checkIn) {
+    const earliest = earliestStayCheckoutIso(params.checkIn, params.minNights ?? 1);
+    if (params.iso < earliest) return 'past';
+    const latest = latestStayCheckoutIso(params.checkIn, params.maxNights);
+    if (params.iso > latest) return 'past';
+  }
   return 'available';
 }
 

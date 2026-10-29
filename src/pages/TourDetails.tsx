@@ -50,9 +50,10 @@ import { listingShowsFreeCancellation, publicReviewLabel } from '../lib/listingT
 import { listingHeroImageSrc, orderedPhotoUrls, photoSlotsFromTourPackage } from '../lib/listingPhotoGrid';
 import ListingPdpPhotoGallery from '../components/ListingPdpPhotoGallery';
 import { LISTING_SELF_BOOK_BLOCKED, LISTING_SELF_BOOK_CHECK_FAILED, viewerIsListingSupplierSide } from '../lib/listing-self-book';
-import { listingTourCapacityFromOptions, remainingCapacity, capacitySpotsFromBookingOptions } from '../lib/availability-ops';
+import { listingTourCapacityFromOptions, capacitySpotsFromBookingOptions } from '../lib/availability-ops';
 import { departureSlotSpotsLeft, maxSpotsLeftAcrossDepartures, partyMaxCappedByRemainingSpots } from '../lib/departure-slot-remaining';
 import { tourSoldOutDates } from '../lib/tour-calendar';
+import { addCalendarDays } from '../lib/stayOccupancy';
 import BookingPage from './BookingPage';
 import {
   LISTING_REVIEWS_EMPTY_COPY,
@@ -548,6 +549,14 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
           capByDay.set(day, row.capacity);
         }
         setDayCapacitySnap({ paidByDay, paidBySlot, capByDay, fallback: fallbackCap });
+        const horizonDays: string[] = [];
+        if (/^\d{4}-\d{2}-\d{2}$/.test(experienceTodayIso)) {
+          let cur = experienceTodayIso;
+          for (let i = 0; i < 120; i += 1) {
+            horizonDays.push(cur);
+            cur = addCalendarDays(cur, 1);
+          }
+        }
         setSoldOutDates(
           tourSoldOutDates({
             paidByDay,
@@ -555,6 +564,7 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
             capByDay,
             fallbackCapacity: fallbackCap,
             slotKey: tourPaidSlotKey,
+            extraDays: horizonDays,
             departuresForDay: (day) =>
               // Listing-level cutoff only — each option/slot applies its own override inside.
               tourBookableSellingDeparturesOnDate(optionsSnapshot, day, {
@@ -658,17 +668,34 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
         fallbackDayCap: dayCapacitySnap.fallback,
       });
     }
-    // Option selected but every departure already past cutoff → do not fall through to day-cap spots.
+    // Never show raw day-cap seats: those include expired departures.
     if (selectedOptionApplied && bookingDate.trim()) {
-      return null;
+      return 0;
     }
-    if (dayCap != null) {
-      return remainingCapacity(dayCap, dayCapacitySnap.paidByDay[day] ?? 0);
+    // Date chosen, option not yet: aggregate only still-bookable listing departures.
+    if (bookingDate.trim() && calendarOptions.length >= 1) {
+      const bookable = tourBookableSellingDeparturesOnDate(calendarOptions, day, {
+        cutoffHoursBeforeStart: listingCutoffHours,
+        timeZone: departureTimezone,
+        nowMs: bookingClockMs,
+        confirmedDepartureKeys,
+        slotOverrides: tour?.listingExtras?.slotOverrides ?? null,
+      });
+      if (bookable.length < 1) return 0;
+      return maxSpotsLeftAcrossDepartures({
+        dayIso: day,
+        departures: bookable.map((d) => ({
+          startTimeHm: d.startTime,
+          maxSpotsPerSlot: d.maxSpotsPerSlot,
+          maxPersonsFallback: 0,
+        })),
+        paidBySlot: dayCapacitySnap.paidBySlot,
+        paidByDay: dayCapacitySnap.paidByDay,
+        dayCapOverride: dayCap,
+        fallbackDayCap: dayCapacitySnap.fallback,
+      });
     }
-    const cap = dayCapacitySnap.fallback;
-    // Phase 1163: unknown listing-wide fallback → null remaining (fail closed).
-    if (cap == null) return null;
-    return remainingCapacity(cap, dayCapacitySnap.paidByDay[day] ?? 0);
+    return null;
   }, [
     bookingDate,
     dayCapacitySnap,
@@ -677,6 +704,12 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
     selectedOption,
     departureTimes,
     selectedDepartureTime,
+    calendarOptions,
+    listingCutoffHours,
+    departureTimezone,
+    bookingClockMs,
+    confirmedDepartureKeys,
+    tour?.listingExtras?.slotOverrides,
   ]);
 
   const spotsLeftIsDepartureCapacity = Boolean(
@@ -687,7 +720,8 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
   const allDeparturesSoldOut = useMemo(() => {
     const day = bookingDate.trim();
     if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || !dayCapacitySnap || !selectedOption) return false;
-    if (departureTimes.length < 1) return false;
+    // Option selected but every departure past cutoff → treat as sold out for CTA copy.
+    if (departureTimes.length < 1) return true;
     const dayCap = dayCapacitySnap.capByDay.has(day)
       ? (dayCapacitySnap.capByDay.get(day) ?? dayCapacitySnap.fallback)
       : undefined;

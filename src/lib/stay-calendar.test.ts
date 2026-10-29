@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { formatOccupiedNightRanges, stayNightState, upcomingOccupiedNights } from './stay-calendar';
+import {
+  earliestStayCheckoutIso,
+  formatOccupiedNightRanges,
+  stayNightState,
+  upcomingOccupiedNights,
+} from './stay-calendar';
+import { planStayNightPick } from './stay-night-pick';
 
 describe('stay calendar language', () => {
   it('groups consecutive occupied nights', () => {
@@ -54,3 +60,159 @@ describe('stay calendar language', () => {
     ).toBe('checkout');
   });
 });
+
+describe('stay check-out eligibility (min nights, frozen 2026-10-29)', () => {
+  const todayIso = '2026-10-29';
+
+  it('check-in Oct 30 / min 1 night → Oct 29 and 30 invalid as check-out; Oct 31 valid', () => {
+    expect(earliestStayCheckoutIso('2026-10-30', 1)).toBe('2026-10-31');
+    // Oct 29 is before check-in: may restart check-in, but never completes as check-out.
+    expect(
+      planStayNightPick({
+        iso: '2026-10-29',
+        todayIso,
+        occupied: new Set(),
+        checkIn: '2026-10-30',
+        checkOut: '',
+        minNights: 1,
+      })
+    ).toEqual({ checkIn: '2026-10-29', checkOut: '', close: false });
+    expect(
+      stayNightState({
+        iso: '2026-10-30',
+        todayIso,
+        occupied: new Set(),
+        checkIn: '2026-10-30',
+        checkOut: '',
+        minNights: 1,
+      })
+    ).toBe('selected');
+    // Same day as check-in is not a checkout (toggle clears, never zero-night stay).
+    expect(
+      planStayNightPick({
+        iso: '2026-10-30',
+        todayIso,
+        occupied: new Set(),
+        checkIn: '2026-10-30',
+        checkOut: '',
+        minNights: 1,
+      })
+    ).toEqual({ checkIn: '', checkOut: '', close: false });
+    expect(
+      stayNightState({
+        iso: '2026-10-31',
+        todayIso,
+        occupied: new Set(),
+        checkIn: '2026-10-30',
+        checkOut: '',
+        minNights: 1,
+      })
+    ).toBe('available');
+    expect(
+      planStayNightPick({
+        iso: '2026-10-31',
+        todayIso,
+        occupied: new Set(),
+        checkIn: '2026-10-30',
+        checkOut: '',
+        minNights: 1,
+      })
+    ).toEqual({ checkIn: '2026-10-30', checkOut: '2026-10-31', close: true });
+  });
+
+  it('multi-night minimum disables nights before earliest checkout', () => {
+    expect(earliestStayCheckoutIso('2026-10-30', 3)).toBe('2026-11-02');
+    expect(
+      stayNightState({
+        iso: '2026-10-31',
+        todayIso,
+        occupied: new Set(),
+        checkIn: '2026-10-30',
+        checkOut: '',
+        minNights: 3,
+      })
+    ).toBe('past');
+    expect(
+      stayNightState({
+        iso: '2026-11-01',
+        todayIso,
+        occupied: new Set(),
+        checkIn: '2026-10-30',
+        checkOut: '',
+        minNights: 3,
+      })
+    ).toBe('past');
+    expect(
+      stayNightState({
+        iso: '2026-11-02',
+        todayIso,
+        occupied: new Set(),
+        checkIn: '2026-10-30',
+        checkOut: '',
+        minNights: 3,
+      })
+    ).toBe('available');
+  });
+
+  it('blocked intermediate nights stay occupied; checkout after last occupied night is allowed', () => {
+    const occupied = new Set(['2026-11-01']);
+    expect(
+      stayNightState({
+        iso: '2026-11-01',
+        todayIso,
+        occupied,
+        checkIn: '2026-10-30',
+        checkOut: '',
+        minNights: 1,
+      })
+    ).toBe('occupied');
+    // Checkout boundary night after occupied is not itself occupied.
+    expect(
+      stayNightState({
+        iso: '2026-11-02',
+        todayIso,
+        occupied,
+        checkIn: '2026-10-30',
+        checkOut: '',
+        minNights: 1,
+      })
+    ).toBe('available');
+    expect(
+      planStayNightPick({
+        iso: '2026-11-02',
+        todayIso,
+        occupied,
+        checkIn: '2026-10-30',
+        checkOut: '',
+        minNights: 1,
+      }).reason
+    ).toBe('occupied_in_range');
+    expect(
+      planStayNightPick({
+        iso: '2026-10-31',
+        todayIso,
+        occupied,
+        checkIn: '2026-10-30',
+        checkOut: '',
+        minNights: 1,
+      })
+    ).toEqual({ checkIn: '2026-10-30', checkOut: '2026-10-31', close: true });
+  });
+
+  it('DST spring-forward civil days still advance by calendar night', () => {
+    // Europe/Helsinki springs forward 2026-03-29; civil nights still +1.
+    expect(earliestStayCheckoutIso('2026-03-28', 1)).toBe('2026-03-29');
+    expect(earliestStayCheckoutIso('2026-03-29', 1)).toBe('2026-03-30');
+    expect(
+      stayNightState({
+        iso: '2026-03-29',
+        todayIso: '2026-03-20',
+        occupied: new Set(),
+        checkIn: '2026-03-28',
+        checkOut: '',
+        minNights: 1,
+      })
+    ).toBe('available');
+  });
+});
+

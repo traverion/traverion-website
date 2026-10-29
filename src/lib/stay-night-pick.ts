@@ -28,13 +28,20 @@ export function planStayNightPick(params: {
     checkIn: params.checkIn,
     checkOut: params.checkOut,
     checkInClosed: params.checkInClosed,
+    minNights: params.minNights,
   });
   if (state === 'past' || state === 'occupied') {
+    const pickingCheckout = Boolean(params.checkIn && !params.checkOut);
+    const tooSoonForMinStay =
+      pickingCheckout &&
+      state === 'past' &&
+      params.iso > params.checkIn &&
+      params.iso >= params.todayIso;
     return {
       checkIn: params.checkIn,
       checkOut: params.checkOut,
       close: false,
-      reason: state,
+      reason: tooSoonForMinStay ? 'min_nights' : state,
     };
   }
 

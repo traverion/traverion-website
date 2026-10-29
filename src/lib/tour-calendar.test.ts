@@ -155,8 +155,9 @@ describe('tour calendar states', () => {
     ).toBe(true);
   });
 
-  it('counts live checkout holds toward public tour sold-out (matches checkout inventory)', () => {
+  it('counts paid and authorized holds toward public tour sold-out (pending IB does not)', () => {
     const now = Date.parse('2026-09-27T12:00:00.000Z');
+    // Instant Book pending no longer occupies inventory.
     expect(
       bookingCountsTowardPublicTourSoldOut(
         {
@@ -166,12 +167,22 @@ describe('tour calendar states', () => {
         },
         now
       )
+    ).toBe(false);
+    expect(
+      bookingCountsTowardPublicTourSoldOut(
+        {
+          status: 'pending',
+          payment_status: 'authorized',
+          hold_expires_at: '2026-09-27T12:20:00.000Z',
+        },
+        now
+      )
     ).toBe(true);
     expect(
       bookingCountsTowardPublicTourSoldOut(
         {
           status: 'pending',
-          payment_status: 'pending',
+          payment_status: 'authorized',
           hold_expires_at: '2026-09-27T11:59:00.000Z',
         },
         now
@@ -182,7 +193,7 @@ describe('tour calendar states', () => {
         [
           {
             status: 'pending',
-            payment_status: 'pending',
+            payment_status: 'authorized',
             hold_expires_at: '2026-09-27T12:20:00.000Z',
             booking_date: '2026-10-01',
             guests: 8,
@@ -190,7 +201,7 @@ describe('tour calendar states', () => {
           {
             status: 'pending',
             payment_status: 'pending',
-            hold_expires_at: '2026-09-27T11:59:00.000Z',
+            hold_expires_at: '2026-09-27T12:20:00.000Z',
             booking_date: '2026-10-02',
             guests: 8,
           },

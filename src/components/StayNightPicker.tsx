@@ -3,7 +3,12 @@ import { createPortal } from 'react-dom';
 import { CalendarDays } from 'lucide-react';
 import { useDialogFocus } from '../hooks/useDialogFocus';
 import { computeAnchoredPopoverBox, type AnchoredPopoverBox } from '../lib/anchored-popover';
-import { formatStayNightHuman, monthGrid, stayNightState } from '../lib/stay-calendar';
+import {
+  earliestStayCheckoutIso,
+  formatStayNightHuman,
+  monthGrid,
+  stayNightState,
+} from '../lib/stay-calendar';
 import { planStayNightPick, stayHoverPreviewNights } from '../lib/stay-night-pick';
 import {
   TraverionCalendarDayButton,
@@ -194,9 +199,13 @@ export default function StayNightPicker({
 
   useEffect(() => {
     if (!checkIn || !/^\d{4}-\d{2}-\d{2}$/.test(checkIn)) return;
-    const [y, m] = checkIn.split('-').map(Number);
+    // When picking check-out, show the earliest valid departure month — not check-in as checkout.
+    const focusIso =
+      !checkOut ? earliestStayCheckoutIso(checkIn, minNights) : checkIn;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(focusIso)) return;
+    const [y, m] = focusIso.split('-').map(Number);
     setCursor({ y, m: (m ?? 1) - 1 });
-  }, [checkIn]);
+  }, [checkIn, checkOut, minNights]);
 
   const pick = (iso: string) => {
     const next = planStayNightPick({
@@ -208,7 +217,7 @@ export default function StayNightPicker({
       minNights,
       checkInClosed,
     });
-    if (next.reason === 'past' || next.reason === 'occupied') return;
+    if (next.reason === 'past' || next.reason === 'occupied' || next.reason === 'min_nights') return;
     onChange(next.checkIn, next.checkOut);
     setHoverIso(null);
     if (next.close) close();
@@ -221,11 +230,11 @@ export default function StayNightPicker({
     });
   };
 
+  const earliestCheckout = checkIn ? earliestStayCheckoutIso(checkIn, minNights) : '';
   const hoverBlocked =
-    checkIn &&
-    hoverIso &&
-    hoverIso > checkIn &&
-    stayHoverPreviewNights(checkIn, hoverIso).some((n) => occupied.has(n));
+    Boolean(checkIn && hoverIso && hoverIso > checkIn) &&
+    (hoverIso! < earliestCheckout ||
+      stayHoverPreviewNights(checkIn, hoverIso!).some((n) => occupied.has(n)));
 
   const fieldClass =
     'flex min-h-11 flex-1 flex-col justify-center gap-0.5 rounded-lg px-3 py-2 text-left transition-colors hover:bg-black/[0.03] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-finland/40';
@@ -256,8 +265,11 @@ export default function StayNightPicker({
             checkIn,
             checkOut,
             checkInClosed,
+            minNights,
           });
           const disabled = state === 'past' || state === 'occupied';
+          const tooSoonCheckout =
+            Boolean(checkIn && !checkOut && iso > checkIn && iso < earliestCheckout);
           const previewVisual = stayVisual(
             iso,
             state,
@@ -280,11 +292,17 @@ export default function StayNightPicker({
                 setHoverIso(next);
               }}
               ariaLabel={
-                disabled
-                  ? `${formatStayNightHuman(iso)}, unavailable`
-                  : checkIn && !checkOut
-                    ? `${formatStayNightHuman(iso)}, check-out`
-                    : `${formatStayNightHuman(iso)}, check-in`
+                tooSoonCheckout
+                  ? `${formatStayNightHuman(iso)}, before minimum stay check-out`
+                  : disabled
+                    ? `${formatStayNightHuman(iso)}, unavailable`
+                    : checkIn && !checkOut && iso === checkIn
+                      ? `${formatStayNightHuman(iso)}, check-in selected`
+                      : checkIn && !checkOut && iso < checkIn
+                        ? `${formatStayNightHuman(iso)}, new check-in`
+                        : checkIn && !checkOut
+                          ? `${formatStayNightHuman(iso)}, check-out`
+                          : `${formatStayNightHuman(iso)}, check-in`
               }
             />
           );

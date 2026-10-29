@@ -125,11 +125,17 @@ export function tourSoldOutDates(params: {
   paidBySlot?: Record<string, number>;
   departuresForDay?: (day: string) => Array<{ startTimeHm: string; maxSpots: number }>;
   slotKey?: (day: string, startTimeHm: string) => string;
+  /**
+   * Extra civil days to evaluate (e.g. today → horizon). Needed so cutoff-closed
+   * days without a capacity row still mark unavailable — not only paid/cap keys.
+   */
+  extraDays?: Iterable<string>;
 }): Set<string> {
   const next = new Set<string>();
   const days = new Set<string>([
     ...params.capByDay.keys(),
     ...Object.keys(params.paidByDay),
+    ...(params.extraDays ?? []),
   ]);
   for (const day of days) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) continue;
@@ -138,22 +144,30 @@ export function tourSoldOutDates(params: {
       next.add(day);
       continue;
     }
-    const departures = params.departuresForDay?.(day) ?? [];
-    if (departures.length >= 1 && params.paidBySlot && params.slotKey) {
-      const dayPaid = params.paidByDay[day] ?? 0;
-      const dayLeft = dayCap != null ? Math.max(0, dayCap - dayPaid) : null;
-      if (dayLeft != null && dayLeft < 1) {
+    // When the caller supplies bookable departures (cutoff-filtered), an empty
+    // list means nothing is bookable — never fall through to raw day capacity.
+    if (typeof params.departuresForDay === 'function') {
+      const departures = params.departuresForDay(day) ?? [];
+      if (departures.length < 1) {
         next.add(day);
         continue;
       }
-      const allFull = departures.every((d) => {
-        const paid = params.paidBySlot![params.slotKey!(day, d.startTimeHm)] ?? 0;
-        const slotLeft = Math.max(0, d.maxSpots - paid);
-        const left = dayLeft != null ? Math.min(slotLeft, dayLeft) : slotLeft;
-        return left < 1;
-      });
-      if (allFull) next.add(day);
-      continue;
+      if (params.paidBySlot && params.slotKey) {
+        const dayPaid = params.paidByDay[day] ?? 0;
+        const dayLeft = dayCap != null ? Math.max(0, dayCap - dayPaid) : null;
+        if (dayLeft != null && dayLeft < 1) {
+          next.add(day);
+          continue;
+        }
+        const allFull = departures.every((d) => {
+          const paid = params.paidBySlot![params.slotKey!(day, d.startTimeHm)] ?? 0;
+          const slotLeft = Math.max(0, d.maxSpots - paid);
+          const left = dayLeft != null ? Math.min(slotLeft, dayLeft) : slotLeft;
+          return left < 1;
+        });
+        if (allFull) next.add(day);
+        continue;
+      }
     }
     if (dayCap != null) {
       if (remainingCapacity(dayCap, params.paidByDay[day] ?? 0) < 1) next.add(day);
