@@ -805,6 +805,7 @@ function RentalBody({
                 ].join('|')}
                 listingId={listing.id}
                 rental={rental}
+                timeZone={listing.listingExtras?.departureTimezone}
                 initial={widgetInitial}
                 variantId={variantId}
                 onVariantIdChange={setVariantId}

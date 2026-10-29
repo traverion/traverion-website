@@ -122,8 +122,9 @@ export default function RentalBookingConfirm({ listing, rental, initial, onBackT
         pickupHm,
         returnHm,
         durationUnit,
+        timeZone: listing.listingExtras?.departureTimezone,
       }),
-    [startDate, endDate, pickupHm, returnHm, durationUnit]
+    [startDate, endDate, pickupHm, returnHm, durationUnit, listing.listingExtras?.departureTimezone]
   );
 
   const scheduleIssue = useMemo(() => {

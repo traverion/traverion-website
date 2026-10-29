@@ -19,6 +19,7 @@ export function planStayNightPick(params: {
   checkIn: string;
   checkOut: string;
   minNights: number;
+  checkInClosed?: (iso: string) => boolean;
 }): { checkIn: string; checkOut: string; close: boolean; reason?: string } {
   const state = stayNightState({
     iso: params.iso,
@@ -26,6 +27,7 @@ export function planStayNightPick(params: {
     occupied: params.occupied as Set<string>,
     checkIn: params.checkIn,
     checkOut: params.checkOut,
+    checkInClosed: params.checkInClosed,
   });
   if (state === 'past' || state === 'occupied') {
     return {

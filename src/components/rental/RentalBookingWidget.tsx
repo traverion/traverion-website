@@ -21,9 +21,11 @@ import {
   normalizeHm,
   rentalDayClosed,
   rentalDayTimeOptions,
+  rentalPickupDayExhausted,
   rentalScheduleIssue,
   todayLocalYmd,
 } from '../../lib/rental-booking-interval';
+import { resolveDepartureTimezone } from '../../lib/tour-departure-cutoff';
 import { evaluateRentalAvailabilityRpc } from '../../data/supabase-rental-availability';
 import { fetchRentalCheckoutCapability } from '../../data/rental-checkout-capability';
 import type { RentalCheckoutState } from '../../lib/rentalCheckoutUrl';
@@ -48,6 +50,8 @@ export type RentalBookingSelection = {
 type Props = {
   listingId: string;
   rental: RentalDetails;
+  /** Listing IANA zone for civil today and pickup wall-clock (not browser TZ). */
+  timeZone?: string | null;
   onSelectionChange?: (selection: RentalBookingSelection | null) => void;
   /** Navigate to the dedicated rental review step. */
   onContinue?: (state: RentalCheckoutState) => void;
@@ -82,6 +86,7 @@ function defaultReturnHm(rental: RentalDetails): string {
 export default function RentalBookingWidget({
   listingId,
   rental,
+  timeZone,
   onSelectionChange,
   onContinue,
   initial,
@@ -90,7 +95,14 @@ export default function RentalBookingWidget({
   hideOptionPicker = false,
 }: Props) {
   const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [bookingClockMs, setBookingClockMs] = useState(() => Date.now());
+  const listingTz = resolveDepartureTimezone(timeZone);
   const variants = rental.variants ?? [];
+
+  useEffect(() => {
+    const id = window.setInterval(() => setBookingClockMs(Date.now()), 30_000);
+    return () => window.clearInterval(id);
+  }, []);
 
   const [uncontrolledVariantId, setUncontrolledVariantId] = useState(
     initial?.variantId?.trim() || variants[0]?.id || ''
@@ -114,19 +126,8 @@ export default function RentalBookingWidget({
     if (initial?.durationUnit === 'hour' || initial?.durationUnit === 'day') return initial.durationUnit;
     return defaultUnitForVariant(rental, selectedEarly);
   });
-  const [startDate, setStartDate] = useState(() => initial?.startDate || todayLocalYmd());
-  const [endDate, setEndDate] = useState(() => {
-    if (initial?.endDate) return initial.endDate;
-    const initialUnit =
-      initial?.durationUnit === 'hour' || initial?.durationUnit === 'day'
-        ? initial.durationUnit
-        : defaultUnitForVariant(rental, variants[0]);
-    if (initialUnit === 'hour') return todayLocalYmd();
-    const minDays = variants[0]
-      ? effectiveVariantDurationLimits(rental, variants[0], 'day').min
-      : (rental.minDurationDays ?? 1);
-    return addDaysYmd(todayLocalYmd(), Math.max(1, minDays));
-  });
+  const [startDate, setStartDate] = useState(() => initial?.startDate || '');
+  const [endDate, setEndDate] = useState(() => initial?.endDate || '');
   const [pickupHm, setPickupHm] = useState(() => initial?.pickupHm || defaultPickupHm(rental));
   const [returnHm, setReturnHm] = useState(() => initial?.returnHm || defaultReturnHm(rental));
 
@@ -187,8 +188,9 @@ export default function RentalBookingWidget({
         pickupHm,
         returnHm,
         durationUnit,
+        timeZone: listingTz,
       }),
-    [startDate, endDate, pickupHm, returnHm, durationUnit]
+    [startDate, endDate, pickupHm, returnHm, durationUnit, listingTz]
   );
 
   const scheduleIssue = useMemo(() => {
@@ -201,8 +203,18 @@ export default function RentalBookingWidget({
       pickupHm,
       returnHm,
       pickupAtIso: interval.pickupAt,
+      nowMs: bookingClockMs,
     });
-  }, [interval, rental.operatingDays, rental.bookingNoticeHours, startDate, endDate, pickupHm, returnHm]);
+  }, [
+    interval,
+    rental.operatingDays,
+    rental.bookingNoticeHours,
+    startDate,
+    endDate,
+    pickupHm,
+    returnHm,
+    bookingClockMs,
+  ]);
 
   const quote = useMemo(() => {
     if (!rental || !variantId || !interval.ok) return null;
@@ -322,7 +334,7 @@ export default function RentalBookingWidget({
     });
   };
 
-  const minDate = todayLocalYmd();
+  const minDate = todayLocalYmd(bookingClockMs, listingTz);
   const quantityUnits = rentalQuantityUnits(rental);
   const unitPriceLabel =
     durationUnit === 'hour'
@@ -331,25 +343,54 @@ export default function RentalBookingWidget({
 
   const pickupTimeOptions = useMemo(
     () =>
-      rentalDayTimeOptions({
-        operatingDays: rental.operatingDays,
-        ymd: startDate,
-        kind: 'pickup',
-        stepMinutes: 30,
-      }),
-    [rental.operatingDays, startDate]
+      startDate
+        ? rentalDayTimeOptions({
+            operatingDays: rental.operatingDays,
+            ymd: startDate,
+            kind: 'pickup',
+            stepMinutes: 30,
+            timeZone: listingTz,
+            bookingNoticeHours: rental.bookingNoticeHours,
+            nowMs: bookingClockMs,
+          })
+        : [],
+    [rental.operatingDays, rental.bookingNoticeHours, startDate, listingTz, bookingClockMs]
   );
   const returnTimeOptions = useMemo(
     () =>
-      rentalDayTimeOptions({
-        operatingDays: rental.operatingDays,
-        ymd: endDate,
-        kind: 'return',
-        stepMinutes: 30,
-        afterHmExclusive: endDate === startDate ? pickupHm : null,
-      }),
-    [rental.operatingDays, endDate, startDate, pickupHm]
+      endDate
+        ? rentalDayTimeOptions({
+            operatingDays: rental.operatingDays,
+            ymd: endDate,
+            kind: 'return',
+            stepMinutes: 30,
+            afterHmExclusive: endDate === startDate ? pickupHm : null,
+            timeZone: listingTz,
+            nowMs: bookingClockMs,
+          })
+        : [],
+    [rental.operatingDays, endDate, startDate, pickupHm, listingTz, bookingClockMs]
   );
+
+  useEffect(() => {
+    if (!startDate || pickupTimeOptions.length === 0) return;
+    if (!pickupTimeOptions.includes(pickupHm)) setPickupHm(pickupTimeOptions[0]!);
+  }, [startDate, pickupTimeOptions, pickupHm]);
+
+  useEffect(() => {
+    if (!endDate || returnTimeOptions.length === 0) return;
+    if (!returnTimeOptions.includes(returnHm)) setReturnHm(returnTimeOptions[0]!);
+  }, [endDate, returnTimeOptions, returnHm]);
+
+  const isPickupDayDisabled = (ymd: string) =>
+    rentalDayClosed(rental.operatingDays, ymd) ||
+    rentalPickupDayExhausted({
+      operatingDays: rental.operatingDays,
+      ymd,
+      timeZone: listingTz,
+      bookingNoticeHours: rental.bookingNoticeHours,
+      nowMs: bookingClockMs,
+    });
 
   const showBreakdown =
     Boolean(quote?.ok) &&
@@ -448,13 +489,21 @@ export default function RentalBookingWidget({
                 todayIso={minDate}
                 tone="premium"
                 footerMode="compact"
-                allowClear={false}
+                allowClear
                 hideIcon
                 placeholder="Date"
-                isDayDisabled={(ymd) => rentalDayClosed(rental.operatingDays, ymd)}
+                isDayDisabled={isPickupDayDisabled}
                 onChange={(next) => {
                   setStartDate(next);
-                  if (endDate < next) setEndDate(next);
+                  if (!endDate || endDate < next) {
+                    if (durationUnit === 'hour') setEndDate(next);
+                    else {
+                      const { min } = selected
+                        ? effectiveVariantDurationLimits(rental, selected, 'day')
+                        : { min: rental.minDurationDays ?? 1 };
+                      setEndDate(addDaysYmd(next, Math.max(1, min)));
+                    }
+                  }
                 }}
                 className="w-full"
               />
@@ -489,7 +538,7 @@ export default function RentalBookingWidget({
                 todayIso={minDate}
                 tone="premium"
                 footerMode="compact"
-                allowClear={false}
+                allowClear
                 hideIcon
                 placeholder="Date"
                 isDayDisabled={(ymd) => rentalDayClosed(rental.operatingDays, ymd)}

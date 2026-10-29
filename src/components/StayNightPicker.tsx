@@ -17,6 +17,8 @@ type Props = {
   occupiedNights: string[];
   todayIso: string;
   minNights: number;
+  /** True when this civil day can no longer be chosen as a new check-in (cutoff / notice). */
+  checkInClosed?: (iso: string) => boolean;
   onChange: (checkIn: string, checkOut: string) => void;
   id?: string;
 };
@@ -56,6 +58,7 @@ export default function StayNightPicker({
   occupiedNights,
   todayIso,
   minNights,
+  checkInClosed,
   onChange,
   id = 'stay-night-picker',
 }: Props) {
@@ -203,6 +206,7 @@ export default function StayNightPicker({
       checkIn,
       checkOut,
       minNights,
+      checkInClosed,
     });
     if (next.reason === 'past' || next.reason === 'occupied') return;
     onChange(next.checkIn, next.checkOut);
@@ -245,7 +249,14 @@ export default function StayNightPicker({
       >
         {cells.map((iso, i) => {
           if (!iso) return <span key={`e-${i}`} />;
-          const state = stayNightState({ iso, todayIso, occupied, checkIn, checkOut });
+          const state = stayNightState({
+            iso,
+            todayIso,
+            occupied,
+            checkIn,
+            checkOut,
+            checkInClosed,
+          });
           const disabled = state === 'past' || state === 'occupied';
           const previewVisual = stayVisual(
             iso,

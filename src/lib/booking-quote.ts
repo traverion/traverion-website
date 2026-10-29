@@ -761,15 +761,24 @@ export function quoteStayNights(input: {
   if (lodging.maxGuests != null && guests > lodging.maxGuests) {
     return { ok: false, code: 'party', error: `This period allows up to ${lodging.maxGuests} guests.` };
   }
-  const cutoffMinutes = stay?.reservationCutoffMinutes;
-  if (typeof cutoffMinutes === 'number' && cutoffMinutes >= 0) {
-    const hm = lodging.checkIn || (stay?.checkInTime ?? '').trim().slice(0, 5);
-    const arrivalMs = /^\d{2}:\d{2}$/.test(hm)
-      ? wallTimeInZoneToUtcMs(checkIn, hm, resolveDepartureTimezone(extras.departureTimezone))
-      : null;
-    const closesAt = arrivalMs == null ? null : arrivalMs - cutoffMinutes * 60_000;
-    if (closesAt != null && (input.nowMs ?? Date.now()) > closesAt) {
+  {
+    const hmRaw = lodging.checkIn || (stay?.checkInTime ?? '').trim().slice(0, 5);
+    const hm = /^\d{2}:\d{2}$/.test(hmRaw) ? hmRaw : '15:00';
+    const arrivalMs = wallTimeInZoneToUtcMs(
+      checkIn,
+      hm,
+      resolveDepartureTimezone(extras.departureTimezone)
+    );
+    const nowMs = input.nowMs ?? Date.now();
+    if (arrivalMs != null && nowMs >= arrivalMs) {
       return { ok: false, code: 'bad_date', error: 'Booking for this check-in has closed.' };
+    }
+    const cutoffMinutes = stay?.reservationCutoffMinutes;
+    if (typeof cutoffMinutes === 'number' && cutoffMinutes >= 0 && arrivalMs != null) {
+      const closesAt = arrivalMs - Math.floor(cutoffMinutes) * 60_000;
+      if (nowMs > closesAt) {
+        return { ok: false, code: 'bad_date', error: 'Booking for this check-in has closed.' };
+      }
     }
   }
   const cleaning =

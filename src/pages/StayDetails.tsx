@@ -31,6 +31,7 @@ import { LISTING_SELF_BOOK_BLOCKED, LISTING_SELF_BOOK_CHECK_FAILED, viewerIsList
 import { trackListingTraffic } from '../lib/listing-traffic';
 import { scrubListingBookingSelectionFromLocation } from '../lib/listing-booking-fresh';
 import { quoteStayNights, stayQuotePriceLines, experienceTodayIsoForListing } from '../lib/booking-quote';
+import { stayCheckInStillBookable } from '../lib/stay-cutoff';
 import { fetchDiscountsByListingIds, type ListingDiscount } from '../data/supabase-discounts';
 import { stayDateRangesOverlap, occupiedNightsFromStayRanges, nightsOccupiedByStay } from '../lib/stayOccupancy';
 import {
@@ -127,6 +128,7 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
   const [reviewOnlyAccess, setReviewOnlyAccess] = useState(false);
   const [checkIn, setCheckIn] = useState('');
   const [checkOut, setCheckOut] = useState('');
+  const [bookingClockMs, setBookingClockMs] = useState(() => Date.now());
   const [party, setParty] = useState<StayGuestParty>(() => ({ ...STAY_DEFAULT_PARTY }));
   const [selectedExtras, setSelectedExtras] = useState<StayExtraSelection[]>([]);
   const [payError, setPayError] = useState<string | null>(null);
@@ -493,10 +495,37 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
 
   const extras = stay ? parseListingExtras(stay.listingExtras) : {};
   const s = extras.stay;
-  const experienceTodayIso = experienceTodayIsoForListing(extras.departureTimezone);
+  const experienceTodayIso = experienceTodayIsoForListing(extras.departureTimezone, bookingClockMs);
   const amenities = stayAmenityDisplayList(s?.amenities);
   const gallery = (extras.galleryImageUrls ?? []).map((u) => String(u).trim()).filter(Boolean);
   const guestPolicy = normalizeStayGuestPolicy(s?.guestPolicy);
+
+  useEffect(() => {
+    const id = window.setInterval(() => setBookingClockMs(Date.now()), 30_000);
+    return () => window.clearInterval(id);
+  }, []);
+
+  const checkInClosed = useCallback(
+    (iso: string) =>
+      !stayCheckInStillBookable({
+        checkInDate: iso,
+        checkInTimeHm: s?.checkInTime,
+        cutoffMinutes: s?.reservationCutoffMinutes,
+        timeZone: extras.departureTimezone,
+        nowMs: bookingClockMs,
+      }),
+    [s?.checkInTime, s?.reservationCutoffMinutes, extras.departureTimezone, bookingClockMs]
+  );
+
+  useEffect(() => {
+    if (!checkIn || checkoutFromUrl) return;
+    if (checkInClosed(checkIn)) {
+      setCheckIn('');
+      setCheckOut('');
+      setPayError('That check-in is no longer available. Choose a new date.');
+    }
+  }, [checkIn, checkInClosed, checkoutFromUrl]);
+
   const stayQuote = stay
     ? quoteStayNights({
         tour: stay,
@@ -507,6 +536,7 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
         selectedExtras,
         discounts: stayDiscounts,
         todayIso: experienceTodayIso,
+        nowMs: bookingClockMs,
       })
     : null;
   const nightly = stayQuote?.ok ? stayQuote.nightlyPrice : s?.nightlyPriceUsd && s.nightlyPriceUsd > 0 ? s.nightlyPriceUsd : stay?.price.startingFrom ?? 0;
@@ -1222,6 +1252,7 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
                 occupiedNights={occupiedNights}
                 todayIso={experienceTodayIso}
                 minNights={minNights}
+                checkInClosed={checkInClosed}
                 onChange={(a, b) => {
                   setCheckIn(a);
                   setCheckOut(b);
@@ -1680,10 +1711,10 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
                       ? 'Price unavailable'
                       : nightly > 0
                         ? formatMoney(nightly, currency)
-                        : 'Price unavailable'}
+                        : 'Select dates'}
                 </span>
                 <span className="ml-1 font-sans text-sm font-medium text-ink-muted">
-                  {quoteOk ? 'total' : checkIn && checkOut ? '' : 'per night'}
+                  {quoteOk ? 'total' : checkIn && checkOut ? '' : nightly > 0 ? 'per night' : ''}
                 </span>
               </p>
               <p className="truncate text-xs text-ink-muted">

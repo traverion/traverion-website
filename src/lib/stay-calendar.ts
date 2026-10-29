@@ -52,6 +52,12 @@ export function stayNightState(params: {
   occupied: Set<string>;
   checkIn: string;
   checkOut: string;
+  /**
+   * When selecting a new check-in (no open check-in, or restarting a complete range),
+   * dates that fail booking notice/cutoff are closed. Checkout of an earlier check-in
+   * must remain selectable even when today's new check-in is closed.
+   */
+  checkInClosed?: (iso: string) => boolean;
 }): 'past' | 'occupied' | 'selected' | 'checkout' | 'available' {
   if (params.iso < params.todayIso) return 'past';
   if (params.occupied.has(params.iso)) return 'occupied';
@@ -60,6 +66,8 @@ export function stayNightState(params: {
   }
   if (params.checkOut && params.iso === params.checkOut) return 'checkout';
   if (params.checkIn && !params.checkOut && params.iso === params.checkIn) return 'selected';
+  const pickingCheckIn = !params.checkIn || Boolean(params.checkIn && params.checkOut);
+  if (pickingCheckIn && params.checkInClosed?.(params.iso)) return 'past';
   return 'available';
 }
 

@@ -4,6 +4,12 @@
  */
 
 import { noticeSatisfied } from './rental-availability';
+import {
+  resolveDepartureTimezone,
+  wallTimeInZoneToUtcMs,
+  TRAVERION_DEPARTURE_TIMEZONE,
+} from './tour-departure-cutoff';
+import { ymdInTimeZone } from './booking-lifecycle-calendar';
 import type { RentalOperatingDay, RentalWeekday } from '../types/rental';
 
 export type RentalIntervalSelection = {
@@ -34,22 +40,14 @@ export function normalizeHm(raw: string, fallback = '10:00'): string {
   return `${m[1]!.padStart(2, '0')}:${m[2]}`;
 }
 
-function localDateTimeMs(ymd: string, hm: string): number | null {
+/** Civil date + HH:MM in the listing IANA zone → UTC epoch ms. */
+function localDateTimeMs(
+  ymd: string,
+  hm: string,
+  timeZone: string = TRAVERION_DEPARTURE_TIMEZONE
+): number | null {
   if (!YMD.test(ymd)) return null;
-  const time = normalizeHm(hm);
-  const [y, mo, d] = ymd.split('-').map(Number);
-  const [hh, mm] = time.split(':').map(Number);
-  const dt = new Date(y!, mo! - 1, d!, hh!, mm!, 0, 0);
-  if (
-    dt.getFullYear() !== y ||
-    dt.getMonth() !== mo! - 1 ||
-    dt.getDate() !== d ||
-    dt.getHours() !== hh ||
-    dt.getMinutes() !== mm
-  ) {
-    return null;
-  }
-  return dt.getTime();
+  return wallTimeInZoneToUtcMs(ymd, normalizeHm(hm), resolveDepartureTimezone(timeZone));
 }
 
 /** Whole calendar days between two YMD dates (inclusive start, exclusive end style for daily rentals). */
@@ -66,7 +64,9 @@ export function calendarDaysBetween(startYmd: string, endYmd: string): number {
  * Duration days = max(1, calendar days from start→end) when end > start; same-day = 1 day.
  * Hourly mode: duration = ceil hours between pickup and return.
  */
-export function buildRentalInterval(selection: RentalIntervalSelection): RentalIntervalBuildResult {
+export function buildRentalInterval(
+  selection: RentalIntervalSelection & { timeZone?: string | null }
+): RentalIntervalBuildResult {
   const startDate = selection.startDate.trim();
   const endDate = selection.endDate.trim();
   if (!YMD.test(startDate) || !YMD.test(endDate)) {
@@ -76,10 +76,11 @@ export function buildRentalInterval(selection: RentalIntervalSelection): RentalI
     return { ok: false, error: 'Return date must be on or after pickup date.' };
   }
 
+  const tz = resolveDepartureTimezone(selection.timeZone);
   const pickupHm = normalizeHm(selection.pickupHm, '10:00');
   const returnHm = normalizeHm(selection.returnHm, selection.durationUnit === 'hour' ? '18:00' : '18:00');
-  const startMs = localDateTimeMs(startDate, pickupHm);
-  const endMs = localDateTimeMs(endDate, returnHm);
+  const startMs = localDateTimeMs(startDate, pickupHm, tz);
+  const endMs = localDateTimeMs(endDate, returnHm, tz);
   if (startMs == null || endMs == null) {
     return { ok: false, error: 'Choose a valid pickup and return time.' };
   }
@@ -119,21 +120,29 @@ export function addDaysYmd(ymd: string, days: number): string {
   return dt.toISOString().slice(0, 10);
 }
 
-export function todayLocalYmd(now = new Date()): string {
-  const y = now.getFullYear();
-  const m = String(now.getMonth() + 1).padStart(2, '0');
-  const d = String(now.getDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
+/** Listing-local civil today. Prefer `timeZone`; browser-local only as last resort. */
+export function todayLocalYmd(now: Date | number = new Date(), timeZone?: string | null): string {
+  const ms = typeof now === 'number' ? now : now.getTime();
+  const tz = timeZone ? resolveDepartureTimezone(timeZone) : null;
+  if (tz) {
+    const ymd = ymdInTimeZone(ms, tz);
+    if (ymd) return ymd;
+  }
+  const d = new Date(ms);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
 }
 
 const WEEKDAY_BY_JS_DAY: RentalWeekday[] = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
 
+/** Weekday of a civil YMD via UTC noon — independent of the browser timezone. */
 export function weekdayOfYmd(ymd: string): RentalWeekday | null {
   if (!YMD.test(ymd)) return null;
   const [y, m, d] = ymd.split('-').map(Number);
-  const dt = new Date(y!, m! - 1, d!);
-  if (dt.getFullYear() !== y || dt.getMonth() !== m! - 1 || dt.getDate() !== d) return null;
-  return WEEKDAY_BY_JS_DAY[dt.getDay()] ?? null;
+  const dt = new Date(Date.UTC(y!, m! - 1, d!, 12, 0, 0));
+  return WEEKDAY_BY_JS_DAY[dt.getUTCDay()] ?? null;
 }
 
 function hmMinutes(hm: string): number | null {
@@ -178,6 +187,10 @@ export function rentalDayTimeOptions(input: {
   stepMinutes?: number;
   /** Same-day return: only times strictly after this pickup HH:MM. */
   afterHmExclusive?: string | null;
+  /** Listing IANA zone — required to drop past / notice-window pickups for today. */
+  timeZone?: string | null;
+  bookingNoticeHours?: number | null;
+  nowMs?: number;
 }): string[] {
   const step = Math.max(1, Math.min(60, Math.floor(input.stepMinutes ?? 30)));
   const days = input.operatingDays ?? [];
@@ -202,10 +215,20 @@ export function rentalDayTimeOptions(input: {
   }
 
   const after = input.afterHmExclusive ? hmMinutes(input.afterHmExclusive) : null;
+  const tz = resolveDepartureTimezone(input.timeZone);
+  const nowMs = input.nowMs ?? Date.now();
+  const noticeHours = Math.max(0, Number(input.bookingNoticeHours) || 0);
   const out: string[] = [];
   for (let t = earliest; t <= latest; t += step) {
     if (after != null && t <= after) continue;
-    out.push(minutesToHm(t));
+    const hm = minutesToHm(t);
+    if (input.kind === 'pickup') {
+      const pickupMs = localDateTimeMs(input.ymd, hm, tz);
+      if (pickupMs == null) continue;
+      if (pickupMs <= nowMs) continue;
+      if (noticeHours > 0 && !noticeSatisfied(pickupMs, nowMs, noticeHours)) continue;
+    }
+    out.push(hm);
   }
   const latestHm = minutesToHm(latest);
   if (
@@ -213,9 +236,41 @@ export function rentalDayTimeOptions(input: {
     !out.includes(latestHm) &&
     (after == null || latest > after)
   ) {
-    out.push(latestHm);
+    if (input.kind === 'pickup') {
+      const pickupMs = localDateTimeMs(input.ymd, latestHm, tz);
+      if (
+        pickupMs != null &&
+        pickupMs > nowMs &&
+        (noticeHours <= 0 || noticeSatisfied(pickupMs, nowMs, noticeHours))
+      ) {
+        out.push(latestHm);
+      }
+    } else {
+      out.push(latestHm);
+    }
   }
   return out;
+}
+
+/** True when this pickup civil day has no remaining eligible pickup times. */
+export function rentalPickupDayExhausted(input: {
+  operatingDays?: RentalOperatingDay[];
+  ymd: string;
+  timeZone?: string | null;
+  bookingNoticeHours?: number | null;
+  nowMs?: number;
+}): boolean {
+  if (rentalDayClosed(input.operatingDays, input.ymd)) return true;
+  return (
+    rentalDayTimeOptions({
+      operatingDays: input.operatingDays,
+      ymd: input.ymd,
+      kind: 'pickup',
+      timeZone: input.timeZone,
+      bookingNoticeHours: input.bookingNoticeHours,
+      nowMs: input.nowMs,
+    }).length === 0
+  );
 }
 
 function dayWindowIssue(
