@@ -66,6 +66,14 @@ export function departureHasConfirmedPaidBooking(
   });
 }
 
+/**
+ * Standard cutoff first. After it, a departure stays bookable only when:
+ * - an existing checkout hold already owns this seat (honor until absolute start), or
+ * - last-minute is enabled, this exact departure already has a confirmed paid booking,
+ *   and now is still before the last-minute deadline (never at/after departure start).
+ *
+ * Each call is scoped to one date + startTimeHm + option — never date-wide.
+ */
 export function evaluateDepartureBookingWindow(input: {
   bookingDate: string;
   startTimeHm: string;
@@ -75,9 +83,14 @@ export function evaluateDepartureBookingWindow(input: {
   lastMinuteEnabled?: boolean;
   lastMinuteUntil?: LastMinuteUntil | null;
   confirmedPaidOnDeparture?: boolean;
+  /** Live checkout hold already claimed this seat before cutoff — keep it until start. */
+  existingHold?: boolean;
 }): { ok: true } | { ok: false; code: 'past_start' | 'cutoff' | 'bad_time'; error: string } {
   const standard = assertDepartureStillBookable(input);
-  if (standard.ok || standard.code !== 'cutoff') return standard.ok ? { ok: true } : standard;
+  if (standard.ok) return { ok: true };
+  if (standard.code !== 'cutoff') return standard;
+  // Absolute start already failed above. Hold grace never bypasses past_start.
+  if (input.existingHold) return { ok: true };
   if (!input.lastMinuteEnabled || !input.confirmedPaidOnDeparture) return standard;
   const until = isLastMinuteUntil(input.lastMinuteUntil) ? input.lastMinuteUntil : 'departure';
   const startMs = wallTimeInZoneToUtcMs(input.bookingDate, input.startTimeHm, input.timeZone);

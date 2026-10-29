@@ -17,10 +17,12 @@ import {
   listingHasUpcomingBookableSeason,
   resolveTourDepartureHmForCutoff,
 } from './booking-quote.ts';
+import { resolveDepartureTimezone } from './tour-departure-cutoff.ts';
 import {
-  assertDepartureStillBookable,
-  resolveDepartureTimezone,
-} from './tour-departure-cutoff.ts';
+  departureHasConfirmedPaidBooking,
+  evaluateDepartureBookingWindow,
+  lastMinutePolicyFromListingExtras,
+} from './last-minute-booking.ts';
 import { stayRequestApprovalExpiresAtIso } from './stay-booking-method.ts';
 import { paidPromotionListingStillBookable } from './rental-checkout-listing-gate.ts';
 import {
@@ -1333,7 +1335,19 @@ export async function promotePaidFromCheckoutSession(params: {
               departureTimezone?: unknown;
             })
           : null;
-      const cut = assertDepartureStillBookable({
+      const optionId = String(bookingOptionId ?? '').trim();
+      const policy = lastMinutePolicyFromListingExtras(listingGate?.listing_extras, optionId);
+      // Sibling confirmed bookings on this exact departure unlock last-minute; this
+      // pending hold does not. existingHold honors a hold created before cutoff.
+      const { data: siblingRows } = listingId
+        ? await admin
+            .from('bookings')
+            .select('status, payment_status, booking_date, booking_option_id, start_time, purchase_snapshot')
+            .eq('listing_id', listingId)
+            .eq('booking_date', bookingDate)
+            .neq('id', bookingId)
+        : { data: [] as Array<Record<string, unknown>> };
+      const cut = evaluateDepartureBookingWindow({
         bookingDate,
         startTimeHm: cutoffStartTimeHm,
         cutoffHoursBeforeStart: effectiveBookingCutoffHours({
@@ -1344,6 +1358,15 @@ export async function promotePaidFromCheckoutSession(params: {
         }),
         nowMs: Date.now(),
         timeZone: resolveDepartureTimezone(extras?.departureTimezone),
+        lastMinuteEnabled: policy.enabled,
+        lastMinuteUntil: policy.until,
+        confirmedPaidOnDeparture: departureHasConfirmedPaidBooking(siblingRows ?? [], {
+          date: bookingDate,
+          startTimeHm: cutoffStartTimeHm,
+          optionId,
+        }),
+        // Hold already claimed before/at checkout — keep valid until absolute start.
+        existingHold: true,
       });
       if (!cut.ok) {
         let cutoffRefunded = false;

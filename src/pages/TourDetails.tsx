@@ -240,6 +240,8 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
   const [shareCopied, setShareCopied] = useState(false);
   const [soldOutDates, setSoldOutDates] = useState<ReadonlySet<string>>(() => new Set());
   const [confirmedDepartureKeys, setConfirmedDepartureKeys] = useState<ReadonlySet<string>>(() => new Set());
+  /** Soft tick so departure chips drop as cutoffs pass without a full remount. */
+  const [bookingClockMs, setBookingClockMs] = useState(() => Date.now());
   const [departureClosedNote, setDepartureClosedNote] = useState('');
   const [dayCapacitySnap, setDayCapacitySnap] = useState<{
     paidByDay: Record<string, number>;
@@ -334,23 +336,47 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
   const bookingCutoffHours = optionCutoffHours > 0 ? optionCutoffHours : listingCutoffHours;
   const departureTimezone = resolveDepartureTimezone(tour?.listingExtras?.departureTimezone);
   const experienceTodayIso = experienceTodayIsoForListing(departureTimezone);
+  useEffect(() => {
+    if (!bookingDate.trim()) return;
+    const id = window.setInterval(() => setBookingClockMs(Date.now()), 30_000);
+    return () => window.clearInterval(id);
+  }, [bookingDate]);
+
   const departureTimes = useMemo(() => {
     if (!selectedOption || !bookingDate.trim()) return [] as string[];
     const times = departureTimesOnDate(selectedOption, bookingDate.trim());
-    return times.filter((time) =>
-      evaluateDepartureBookingWindow({
-        bookingDate: bookingDate.trim(),
+    const day = bookingDate.trim();
+    const slotOverrides = tour?.listingExtras?.slotOverrides ?? [];
+    return times.filter((time) => {
+      const ov = slotOverrides.find(
+        (o) => o.date === day && (o.startTimeHm === time || o.startTimeHm === time.slice(0, 5))
+      );
+      const cutoff =
+        ov?.cutoffHours != null
+          ? normalizeBookingCutoffHours(ov.cutoffHours)
+          : bookingCutoffHours;
+      return evaluateDepartureBookingWindow({
+        bookingDate: day,
         startTimeHm: time,
-        cutoffHoursBeforeStart: bookingCutoffHours,
+        cutoffHoursBeforeStart: cutoff,
+        nowMs: bookingClockMs,
         timeZone: departureTimezone,
         lastMinuteEnabled: selectedOption.lastMinuteBookings === true,
         lastMinuteUntil: selectedOption.lastMinuteUntil,
         confirmedPaidOnDeparture: confirmedDepartureKeys.has(
-          confirmedDepartureKey(bookingDate.trim(), time, selectedOption.id)
+          confirmedDepartureKey(day, time, selectedOption.id)
         ),
-      }).ok
-    );
-  }, [selectedOption, bookingDate, bookingCutoffHours, departureTimezone, confirmedDepartureKeys]);
+      }).ok;
+    });
+  }, [
+    selectedOption,
+    bookingDate,
+    bookingCutoffHours,
+    departureTimezone,
+    confirmedDepartureKeys,
+    tour?.listingExtras?.slotOverrides,
+    bookingClockMs,
+  ]);
 
   const selectedDepartureRef = useRef(selectedDepartureTime);
   selectedDepartureRef.current = selectedDepartureTime;
@@ -530,10 +556,12 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
             fallbackCapacity: fallbackCap,
             slotKey: tourPaidSlotKey,
             departuresForDay: (day) =>
+              // Listing-level cutoff only — each option/slot applies its own override inside.
               tourBookableSellingDeparturesOnDate(optionsSnapshot, day, {
-                cutoffHoursBeforeStart: bookingCutoffHours,
+                cutoffHoursBeforeStart: listingCutoffHours,
                 timeZone: departureTimezone,
                 confirmedDepartureKeys: confirmedKeys,
+                slotOverrides: tour?.listingExtras?.slotOverrides ?? null,
               }).map((d) => ({
                 startTimeHm: d.startTime,
                 maxSpots: d.maxSpotsPerSlot,
@@ -551,7 +579,15 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
     return () => {
       cancelled = true;
     };
-  }, [tour?.id, tourId, bookingCutoffHours, departureTimezone, experienceTodayIso, calendarOptionsCapacityKey]);
+  }, [
+    tour?.id,
+    tourId,
+    listingCutoffHours,
+    departureTimezone,
+    experienceTodayIso,
+    calendarOptionsCapacityKey,
+    tour?.listingExtras?.slotOverrides,
+  ]);
 
   useEffect(() => {
     return reloadTourDayCapacity();

@@ -1157,7 +1157,6 @@ export function quoteListingBooking(input: {
   if (!ISO_DATE.test(date)) return { ok: false, error: 'Choose a valid date.' };
   if (date < today) return { ok: false, error: 'Choose a date that is today or later.' };
 
-  const listingCutoffHours = normalizeBookingCutoffHours(extrasObj?.bookingCutoffHoursBeforeStart);
   const opts = parseOptions(input.listing.listing_extras);
   const fallbackBase = Number(input.listing.price_starting_from ?? 0);
   const currency = (input.listing.price_currency ?? 'EUR').trim().toUpperCase() || 'EUR';
@@ -1193,8 +1192,6 @@ export function quoteListingBooking(input: {
 
     const departureHm = (input.startTime ?? option.startTime ?? '').trim().slice(0, 5);
     if (departureHm) {
-      const optionCutoff = normalizeBookingCutoffHours(option.bookingCutoffHoursBeforeStart);
-      const cutoffHours = optionCutoff > 0 ? optionCutoff : listingCutoffHours;
       const confirmedPaid = departureHasConfirmedPaidBooking(input.confirmedOccupancy ?? [], {
         date,
         startTimeHm: departureHm,
@@ -1203,14 +1200,20 @@ export function quoteListingBooking(input: {
       const cut = evaluateDepartureBookingWindow({
         bookingDate: date,
         startTimeHm: departureHm,
-        cutoffHoursBeforeStart: cutoffHours,
+        cutoffHoursBeforeStart: effectiveBookingCutoffHours({
+          listingExtras: input.listing.listing_extras,
+          bookingOptionId: option.id,
+          bookingDate: date,
+          startTimeHm: departureHm,
+        }),
         nowMs,
         timeZone: departureTimezone,
         lastMinuteEnabled: option.lastMinuteBookings === true,
         lastMinuteUntil: option.lastMinuteUntil,
         confirmedPaidOnDeparture: confirmedPaid,
+        existingHold: input.existingHold === true,
       });
-      if (!cut.ok && !(input.existingHold && cut.code === 'cutoff')) {
+      if (!cut.ok) {
         return { ok: false, error: cut.error };
       }
     }

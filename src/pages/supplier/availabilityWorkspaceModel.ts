@@ -5,9 +5,9 @@ import type { TourPackage } from '../../types/tour';
 import { inventoryFamilyFromListing } from '../../lib/inventory';
 import {
   normalizeBookingCutoffHours,
-  isDepartureTimeStillBookable,
   bookingCutoffTravelerLabel,
 } from '../../lib/tour-departure-cutoff';
+import { evaluateDepartureBookingWindow } from '../../lib/last-minute-booking';
 import { partnerTourRemainingSpots } from '../../lib/availability-ops';
 import {
   findSlotOverride,
@@ -200,13 +200,18 @@ export function buildWorkspaceDepartures(params: {
           baselineCutoffHours: baselineCutoff,
           override: slotOv,
         });
-        const cutoffStillBookable = isDepartureTimeStillBookable({
+        const option = opts.find((o) => o.id === d.optionId);
+        const cutoffStillBookable = evaluateDepartureBookingWindow({
           bookingDate: cur,
           startTimeHm: startTimeHm || '00:00',
           cutoffHoursBeforeStart: cutoffHours,
           nowMs,
           timeZone: tz,
-        });
+          lastMinuteEnabled: option?.lastMinuteBookings === true,
+          lastMinuteUntil: option?.lastMinuteUntil,
+          // Partner occupying seats are confirmed paid inventory for this exact slot.
+          confirmedPaidOnDeparture: booked > 0,
+        }).ok;
         const status = classifyDepartureStatus({
           dayCapacityOverride: dayCap,
           remaining,

@@ -98,9 +98,12 @@ export default function BookingCutoffDurationField({
             className="mt-0.5 h-4 w-4 shrink-0 rounded border-black/35 text-finland focus:ring-finland"
           />
           <span>
-            <span className="block text-[13px] font-semibold text-ink">Allow last-minute bookings</span>
+            <span className="block text-[13px] font-semibold text-ink">
+              Allow bookings after cutoff if this departure already has a confirmed booking
+            </span>
             <span className="mt-0.5 block text-[12px] leading-snug text-ink-muted">
-              Accept additional guests after the normal cutoff when a departure already has confirmed bookings.
+              When enabled, customers can continue booking until departure starts, provided that
+              specific departure already has a confirmed booking and seats remain.
             </span>
           </span>
         </label>

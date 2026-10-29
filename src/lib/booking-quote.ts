@@ -25,6 +25,7 @@ import { resolveStayLodgingWithOffers } from './stay-offer-pricing';
 import { validateStayGuestParty, type StayGuestBreakdownRow, type StayGuestParty } from './stay-guest-party';
 import { priceStayAddOns, stayChargeLines, type StayExtraSelection, type StayPaidExtra, type StayPricedExtra } from './stay-price';
 import { confirmedDepartureKey, evaluateDepartureBookingWindow } from './last-minute-booking';
+import { findSlotOverride, resolveSlotCutoffHours } from './listing-slot-overrides';
 import {
   normalizeBookingCutoffHours,
   resolveDepartureTimezone,
@@ -430,9 +431,13 @@ export function quoteBooking(input: {
 
     const departureHm = (input.startTime ?? option.startTime ?? '').trim().slice(0, 5);
     if (departureHm) {
-      // Option-level cutoff overrides listing-level when set (Phase 5).
+      // Option cutoff → listing fallback → per-slot override (same as server effectiveBookingCutoffHours).
       const optionCutoff = normalizeBookingCutoffHours(option.bookingCutoffHoursBeforeStart);
-      const effectiveCutoff = optionCutoff > 0 ? optionCutoff : cutoffHours;
+      const baselineCutoff = optionCutoff > 0 ? optionCutoff : cutoffHours;
+      const effectiveCutoff = resolveSlotCutoffHours({
+        baselineCutoffHours: baselineCutoff,
+        override: findSlotOverride(extras.slotOverrides, date, departureHm),
+      });
       const cut = evaluateDepartureBookingWindow({
         bookingDate: date,
         startTimeHm: departureHm,

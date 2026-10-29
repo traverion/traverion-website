@@ -254,3 +254,223 @@ describe('quoteBooking last-minute', () => {
     expect(shown.map((d) => d.startTime)).toContain(TIME);
   });
 });
+
+describe('independent per-departure cutoffs (18:30 vs 20:00)', () => {
+  const DAY = '2026-09-27';
+  const EARLY = '18:30';
+  const LATE = '20:00';
+  const OPT_A = 'opt-bus';
+  const OPT_B = 'opt-small';
+
+  function ms(hm: string) {
+    const v = wallTimeInZoneToUtcMs(DAY, hm, ZONE);
+    if (v == null) throw new Error(hm);
+    return v;
+  }
+
+  function slotOption(id: string, startTime: string, cutoffHours: number) {
+    return {
+      id,
+      name: id,
+      priceUsd: 99,
+      startTime,
+      duration: '2 hours',
+      pickupPlace: 'Square',
+      minPersons: 1,
+      maxPersons: 40,
+      maxSpotsPerSlot: 40,
+      optionInfo: id,
+      travelerStartInstructions: 'Board at the square.',
+      weekdays: [true, true, true, true, true, true, true],
+      availabilityDateFrom: '2020-01-01',
+      availabilityDateTo: '',
+      bookingCutoffHoursBeforeStart: cutoffHours,
+      fulfillment: 'meeting_point' as const,
+      lastMinuteBookings: true as const,
+      lastMinuteUntil: 'departure' as const,
+    };
+  }
+
+  // Same option id + two schedule rows via weekdayStartTimes on one schedule.
+  const dualTimes = [EARLY, LATE];
+  const dualScheduleOption = {
+    ...slotOption(OPT_A, EARLY, 3),
+    schedules: [
+      {
+        id: 'sch-dual',
+        name: 'Evening',
+        status: 'ready' as const,
+        startTime: EARLY,
+        priceUsd: 99,
+        weekdays: [true, true, true, true, true, true, true],
+        weekdayStartTimes: Array.from({ length: 7 }, () => dualTimes),
+        availabilityDateFrom: '2020-01-01',
+        availabilityDateTo: '',
+        maxSpotsPerSlot: 40,
+        minPersons: 1,
+        maxPersons: 40,
+      },
+    ],
+  };
+
+  it('closes 18:30 at its own cutoff while 20:00 stays open', () => {
+    // 16:00 local: 18:30 cutoff was 15:30 (closed); 20:00 cutoff is 17:00 (open).
+    const nowMs = ms(EARLY) - 2.5 * 60 * 60 * 1000;
+    const bookable = tourBookableSellingDeparturesOnDate([dualScheduleOption], DAY, {
+      timeZone: ZONE,
+      nowMs,
+      confirmedDepartureKeys: new Set(),
+    });
+    const times = bookable.map((d) => d.startTime);
+    expect(times).not.toContain(EARLY);
+    expect(times).toContain(LATE);
+  });
+
+  it('late-booking on 18:30 does not unlock 20:00', () => {
+    // 17:30: past both cutoffs (15:30 / 17:00), still before either departure start.
+    const nowMs = ms(EARLY) - 60 * 60 * 1000;
+    const onlyEarlyConfirmed = new Set([confirmedDepartureKey(DAY, EARLY, OPT_A)]);
+    const bookable = tourBookableSellingDeparturesOnDate([dualScheduleOption], DAY, {
+      timeZone: ZONE,
+      nowMs,
+      confirmedDepartureKeys: onlyEarlyConfirmed,
+    });
+    const times = bookable.map((d) => d.startTime);
+    expect(times).toContain(EARLY);
+    expect(times).not.toContain(LATE);
+  });
+
+  it('late-booking on 20:00 does not unlock 18:30', () => {
+    const nowMs = ms(EARLY) - 60 * 60 * 1000;
+    const onlyLateConfirmed = new Set([confirmedDepartureKey(DAY, LATE, OPT_A)]);
+    const bookable = tourBookableSellingDeparturesOnDate([dualScheduleOption], DAY, {
+      timeZone: ZONE,
+      nowMs,
+      confirmedDepartureKeys: onlyLateConfirmed,
+    });
+    const times = bookable.map((d) => d.startTime);
+    expect(times).not.toContain(EARLY);
+    expect(times).toContain(LATE);
+  });
+
+  it('keeps options with different cutoffs independent on the same date', () => {
+    const nowMs = ms(EARLY) - 90 * 60 * 1000; // 1.5h before 18:30
+    const bookable = tourBookableSellingDeparturesOnDate(
+      [slotOption(OPT_A, EARLY, 3), slotOption(OPT_B, LATE, 1)],
+      DAY,
+      { timeZone: ZONE, nowMs, confirmedDepartureKeys: new Set() }
+    );
+    const byId = Object.fromEntries(bookable.map((d) => [d.optionId, d.startTime]));
+    expect(byId[OPT_A]).toBeUndefined(); // 3h cutoff already closed
+    expect(byId[OPT_B]).toBe(LATE); // 1h cutoff still open
+  });
+
+  it('does not unlock another option or another date', () => {
+    const nowMs = ms(EARLY) - 30 * 60 * 1000;
+    expect(
+      evaluateDepartureBookingWindow({
+        bookingDate: DAY,
+        startTimeHm: EARLY,
+        cutoffHoursBeforeStart: 3,
+        timeZone: ZONE,
+        nowMs,
+        lastMinuteEnabled: true,
+        lastMinuteUntil: 'departure',
+        confirmedPaidOnDeparture: departureHasConfirmedPaidBooking(
+          [paid({ booking_option_id: OPT_B, start_time: EARLY })],
+          { date: DAY, startTimeHm: EARLY, optionId: OPT_A }
+        ),
+      }).ok
+    ).toBe(false);
+    expect(
+      evaluateDepartureBookingWindow({
+        bookingDate: DAY,
+        startTimeHm: EARLY,
+        cutoffHoursBeforeStart: 3,
+        timeZone: ZONE,
+        nowMs,
+        lastMinuteEnabled: true,
+        lastMinuteUntil: 'departure',
+        confirmedPaidOnDeparture: departureHasConfirmedPaidBooking(
+          [paid({ booking_date: '2026-09-28', start_time: EARLY })],
+          { date: DAY, startTimeHm: EARLY, optionId: OPT_A }
+        ),
+      }).ok
+    ).toBe(false);
+  });
+
+  it('honors an existing checkout hold past cutoff until absolute start', () => {
+    const start = ms(EARLY);
+    expect(
+      evaluateDepartureBookingWindow({
+        bookingDate: DAY,
+        startTimeHm: EARLY,
+        cutoffHoursBeforeStart: 3,
+        timeZone: ZONE,
+        nowMs: start - 30 * 60 * 1000,
+        lastMinuteEnabled: false,
+        confirmedPaidOnDeparture: false,
+        existingHold: true,
+      }).ok
+    ).toBe(true);
+    expect(
+      evaluateDepartureBookingWindow({
+        bookingDate: DAY,
+        startTimeHm: EARLY,
+        cutoffHoursBeforeStart: 3,
+        timeZone: ZONE,
+        nowMs: start + 1,
+        lastMinuteEnabled: false,
+        confirmedPaidOnDeparture: false,
+        existingHold: true,
+      }).ok
+    ).toBe(false);
+  });
+
+  it('rejects exactly at cutoff and at departure start', () => {
+    const start = ms(EARLY);
+    const cutoffMs = start - 3 * 60 * 60 * 1000;
+    expect(
+      evaluateDepartureBookingWindow({
+        bookingDate: DAY,
+        startTimeHm: EARLY,
+        cutoffHoursBeforeStart: 3,
+        timeZone: ZONE,
+        nowMs: cutoffMs,
+        lastMinuteEnabled: false,
+      }).ok
+    ).toBe(false);
+    expect(
+      evaluateDepartureBookingWindow({
+        bookingDate: DAY,
+        startTimeHm: EARLY,
+        cutoffHoursBeforeStart: 3,
+        timeZone: ZONE,
+        nowMs: start,
+        lastMinuteEnabled: true,
+        confirmedPaidOnDeparture: true,
+        existingHold: true,
+      }).ok
+    ).toBe(false);
+  });
+
+  it('closes late bookings when the last qualifying booking is cancelled', () => {
+    const nowMs = ms(EARLY) - 30 * 60 * 1000;
+    const rows = [paid({ status: 'cancelled' })];
+    expect(
+      departureHasConfirmedPaidBooking(rows, { date: DAY, startTimeHm: EARLY, optionId: OPTION })
+    ).toBe(false);
+    expect(
+      evaluateDepartureBookingWindow({
+        bookingDate: DAY,
+        startTimeHm: EARLY,
+        cutoffHoursBeforeStart: 3,
+        timeZone: ZONE,
+        nowMs,
+        lastMinuteEnabled: true,
+        lastMinuteUntil: 'departure',
+        confirmedPaidOnDeparture: false,
+      }).ok
+    ).toBe(false);
+  });
+});

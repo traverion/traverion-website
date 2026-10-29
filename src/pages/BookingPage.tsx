@@ -471,9 +471,10 @@ export default function BookingPage({
             slotKey: tourPaidSlotKey,
             departuresForDay: (day) =>
               tourBookableSellingDeparturesOnDate(calendarOptions, day, {
-                cutoffHoursBeforeStart: bookingCutoffHours,
+                cutoffHoursBeforeStart: listingCutoffHours,
                 timeZone: departureTimezone,
                 confirmedDepartureKeys: confirmedKeys,
+                slotOverrides: tour.listingExtras?.slotOverrides ?? null,
               }).map((d) => ({
                 startTimeHm: d.startTime,
                 maxSpots: d.maxSpotsPerSlot,
@@ -492,7 +493,7 @@ export default function BookingPage({
     return () => {
       cancelled = true;
     };
-  }, [tour.id, calendarOptions, bookingCutoffHours, departureTimezone, experienceTodayIso]);
+  }, [tour.id, calendarOptions, listingCutoffHours, departureTimezone, experienceTodayIso, tour.listingExtras?.slotOverrides]);
 
   useEffect(() => {
     return reloadBookingDayCapacity();
@@ -510,18 +511,34 @@ export default function BookingPage({
     const day = date.trim();
     const opt = appliedOption ?? selectedVariant?.listingOption ?? null;
     if (!opt || !/^\d{4}-\d{2}-\d{2}$/.test(day)) return [] as string[];
-    return departureTimesOnDate(opt, day).filter((time) =>
-      evaluateDepartureBookingWindow({
+    const slotOverrides = tour.listingExtras?.slotOverrides ?? [];
+    return departureTimesOnDate(opt, day).filter((time) => {
+      const ov = slotOverrides.find(
+        (o) => o.date === day && (o.startTimeHm === time || o.startTimeHm === time.slice(0, 5))
+      );
+      const cutoff =
+        ov?.cutoffHours != null
+          ? normalizeBookingCutoffHours(ov.cutoffHours)
+          : bookingCutoffHours;
+      return evaluateDepartureBookingWindow({
         bookingDate: day,
         startTimeHm: time,
-        cutoffHoursBeforeStart: bookingCutoffHours,
+        cutoffHoursBeforeStart: cutoff,
         timeZone: departureTimezone,
         lastMinuteEnabled: opt.lastMinuteBookings === true,
         lastMinuteUntil: opt.lastMinuteUntil,
         confirmedPaidOnDeparture: confirmedDepartureKeys.has(confirmedDepartureKey(day, time, opt.id)),
-      }).ok
-    );
-  }, [date, appliedOption, selectedVariant, bookingCutoffHours, departureTimezone, confirmedDepartureKeys]);
+      }).ok;
+    });
+  }, [
+    date,
+    appliedOption,
+    selectedVariant,
+    bookingCutoffHours,
+    departureTimezone,
+    confirmedDepartureKeys,
+    tour.listingExtras?.slotOverrides,
+  ]);
 
   const selectedDaySpotsLeft = useMemo(() => {
     const day = date.trim();
