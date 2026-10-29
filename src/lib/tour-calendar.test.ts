@@ -121,6 +121,26 @@ describe('tour calendar states', () => {
     ).toBe('available');
   });
 
+  it('does not keep selection chrome on a sold-out or closed day', () => {
+    expect(
+      tourDayState({
+        iso: '2026-09-14',
+        todayIso: '2026-09-08',
+        selected: '2026-09-14',
+        options: [option(WEEKDAYS)],
+        soldOut: true,
+      })
+    ).toBe('full');
+    expect(
+      tourDayState({
+        iso: '2026-09-12',
+        todayIso: '2026-09-08',
+        selected: '2026-09-12',
+        options: [option(WEEKDAYS)],
+      })
+    ).toBe('closed');
+  });
+
   it('does not call a sold-out month “no departures”', () => {
     expect(tourMonthAvailabilityNote(['closed', 'past', 'closed'])).toMatch(/No departures/);
     expect(tourMonthAvailabilityNote(['full', 'closed', 'full'])).toMatch(/fully booked/);

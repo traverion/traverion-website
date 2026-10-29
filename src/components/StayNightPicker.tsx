@@ -10,6 +10,7 @@ import {
   stayNightState,
 } from '../lib/stay-calendar';
 import { planStayNightPick, stayHoverPreviewNights } from '../lib/stay-night-pick';
+import { addCalendarDays } from '../lib/stayOccupancy';
 import {
   TraverionCalendarDayButton,
   TraverionCalendarMonth,
@@ -33,7 +34,8 @@ function stayVisual(
   state: ReturnType<typeof stayNightState>,
   checkIn: string,
   checkOut: string,
-  hoverIso: string | null
+  hoverIso: string | null,
+  todayIso: string
 ): TraverionCalendarDayVisual {
   if (state === 'past') return 'disabled';
   if (state === 'occupied') return 'occupied';
@@ -42,13 +44,16 @@ function stayVisual(
     if (iso === checkOut) return 'rangeEnd';
     if (iso > checkIn && iso < checkOut) return 'rangeMiddle';
   }
+  // Check-in alone is range-start chrome — never looks like a checkout candidate.
+  if (checkIn && !checkOut && iso === checkIn) return 'rangeStart';
   if (checkIn && !checkOut && hoverIso && hoverIso > checkIn) {
-    if (iso === checkIn) return 'rangeStart';
     if (iso === hoverIso) return 'rangeEnd';
     if (iso > checkIn && iso < hoverIso) return 'rangeMiddle';
   }
   if (state === 'selected') return 'selected';
   if (state === 'checkout') return 'rangeEnd';
+  // Today is secondary only when the day is still bookable.
+  if (iso === todayIso) return 'today';
   return 'default';
 }
 
@@ -236,6 +241,29 @@ export default function StayNightPicker({
     (hoverIso! < earliestCheckout ||
       stayHoverPreviewNights(checkIn, hoverIso!).some((n) => occupied.has(n)));
 
+  /** First legal checkout civil day that is not blocked by an occupied night in the stay. */
+  const firstOpenCheckout = useMemo(() => {
+    if (!checkIn || checkOut || !earliestCheckout) return null;
+    let cur = earliestCheckout;
+    for (let i = 0; i < 120; i += 1) {
+      const state = stayNightState({
+        iso: cur,
+        todayIso,
+        occupied,
+        checkIn,
+        checkOut: '',
+        checkInClosed,
+        minNights,
+      });
+      if (state === 'available') {
+        const nights = stayHoverPreviewNights(checkIn, cur);
+        if (!nights.some((n) => occupied.has(n))) return cur;
+      }
+      cur = addCalendarDays(cur, 1);
+    }
+    return null;
+  }, [checkIn, checkOut, earliestCheckout, todayIso, occupied, checkInClosed, minNights]);
+
   const fieldClass =
     'flex min-h-11 flex-1 flex-col justify-center gap-0.5 rounded-lg px-3 py-2 text-left transition-colors hover:bg-black/[0.03] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-finland/40';
 
@@ -245,7 +273,9 @@ export default function StayNightPicker({
         <CalendarDays className="h-3.5 w-3.5 text-finland" aria-hidden />
         <span>
           {checkIn && !checkOut
-            ? `Select check-out · min ${minNights} night${minNights === 1 ? '' : 's'}`
+            ? firstOpenCheckout
+              ? `Select check-out · earliest ${formatStayNightHuman(firstOpenCheckout)}`
+              : 'No valid check-out for this check-in — reset and choose another arrival'
             : 'Select check-in, then check-out'}
         </span>
       </div>
@@ -269,13 +299,14 @@ export default function StayNightPicker({
           });
           const disabled = state === 'past' || state === 'occupied';
           const tooSoonCheckout =
-            Boolean(checkIn && !checkOut && iso > checkIn && iso < earliestCheckout);
+            Boolean(checkIn && !checkOut && iso !== checkIn && iso < earliestCheckout);
           const previewVisual = stayVisual(
             iso,
             state,
             checkIn,
             checkOut,
-            hoverBlocked ? null : hoverIso
+            hoverBlocked ? null : hoverIso,
+            todayIso
           );
           return (
             <TraverionCalendarDayButton
@@ -298,11 +329,9 @@ export default function StayNightPicker({
                     ? `${formatStayNightHuman(iso)}, unavailable`
                     : checkIn && !checkOut && iso === checkIn
                       ? `${formatStayNightHuman(iso)}, check-in selected`
-                      : checkIn && !checkOut && iso < checkIn
-                        ? `${formatStayNightHuman(iso)}, new check-in`
-                        : checkIn && !checkOut
-                          ? `${formatStayNightHuman(iso)}, check-out`
-                          : `${formatStayNightHuman(iso)}, check-in`
+                      : checkIn && !checkOut
+                        ? `${formatStayNightHuman(iso)}, check-out`
+                        : `${formatStayNightHuman(iso)}, check-in`
               }
             />
           );

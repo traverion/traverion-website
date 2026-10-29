@@ -64,9 +64,18 @@ describe('stay calendar language', () => {
 describe('stay check-out eligibility (min nights, frozen 2026-10-29)', () => {
   const todayIso = '2026-10-29';
 
-  it('check-in Oct 30 / min 1 night → Oct 29 and 30 invalid as check-out; Oct 31 valid', () => {
+  it('check-in Oct 30 / min 1 night → Oct 29 muted; Oct 30 check-in only; Oct 31 first checkout', () => {
     expect(earliestStayCheckoutIso('2026-10-30', 1)).toBe('2026-10-31');
-    // Oct 29 is before check-in: may restart check-in, but never completes as check-out.
+    expect(
+      stayNightState({
+        iso: '2026-10-29',
+        todayIso,
+        occupied: new Set(),
+        checkIn: '2026-10-30',
+        checkOut: '',
+        minNights: 1,
+      })
+    ).toBe('past');
     expect(
       planStayNightPick({
         iso: '2026-10-29',
@@ -76,7 +85,7 @@ describe('stay check-out eligibility (min nights, frozen 2026-10-29)', () => {
         checkOut: '',
         minNights: 1,
       })
-    ).toEqual({ checkIn: '2026-10-29', checkOut: '', close: false });
+    ).toEqual({ checkIn: '2026-10-30', checkOut: '', close: false, reason: 'past' });
     expect(
       stayNightState({
         iso: '2026-10-30',

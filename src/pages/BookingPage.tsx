@@ -517,6 +517,14 @@ export default function BookingPage({
     return () => document.removeEventListener('visibilitychange', onVis);
   }, [reloadBookingDayCapacity]);
 
+  useEffect(() => {
+    const day = date.trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return;
+    if (!soldOutDates.has(day)) return;
+    setDate('');
+    setError(null);
+  }, [date, soldOutDates]);
+
   const bookableDepartureTimes = useMemo(() => {
     const day = date.trim();
     const opt = appliedOption ?? selectedVariant?.listingOption ?? null;

@@ -13,11 +13,16 @@ export function tourDayState(params: {
   soldOut?: boolean;
 }): TourDayState {
   if (params.iso < params.todayIso) return 'past';
-  if (params.selected === params.iso) return 'selected';
-  if (params.options.length === 0) return params.soldOut ? 'full' : 'available';
+  if (params.options.length === 0) {
+    if (params.soldOut) return 'full';
+    return params.selected === params.iso ? 'selected' : 'available';
+  }
   const anyOpen = params.options.some((o) => optionRunsOnDate(o, params.iso) === null);
+  // Ineligible before selected — a closed/full day must not keep selection chrome.
   if (!anyOpen) return 'closed';
-  return params.soldOut ? 'full' : 'available';
+  if (params.soldOut) return 'full';
+  if (params.selected === params.iso) return 'selected';
+  return 'available';
 }
 
 export function formatTourDayAria(iso: string, state: TourDayState): string {

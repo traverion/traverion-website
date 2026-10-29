@@ -28,10 +28,10 @@ function visualForTourState(state: ReturnType<typeof tourDayState>): TraverionCa
   switch (state) {
     case 'selected':
       return 'selected';
-    case 'full':
-      return 'occupied';
     case 'past':
     case 'closed':
+    case 'full':
+      // One muted disabled look — never strikethrough for sold-out / cutoff-closed days.
       return 'disabled';
     default:
       return 'default';
@@ -112,7 +112,7 @@ export default function TourDatePicker({
               <p>
                 {value.trim()
                   ? `Selected · ${formatBookingDateDisplay(value)}`
-                  : 'Open days can be booked. Faded days are closed. Struck days are sold out.'}
+                  : 'Open days can be booked. Faded days are closed or fully booked.'}
               </p>
               {monthNote ? <p className="mt-1 text-ink-muted">{monthNote}</p> : null}
             </>

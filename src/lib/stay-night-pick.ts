@@ -60,12 +60,8 @@ export function planStayNightPick(params: {
     return { checkIn: params.iso, checkOut: '', close: false };
   }
 
-  // Second click on earlier day → new check-in.
-  if (params.iso < params.checkIn) {
-    return { checkIn: params.iso, checkOut: '', close: false };
-  }
-
   // Same day as check-in already handled above; refuse zero-night stays.
+  // Days before check-in are past while picking checkout (Reset to change arrival).
   if (params.iso === params.checkIn) {
     return { checkIn: params.checkIn, checkOut: '', close: false, reason: 'zero_nights' };
   }

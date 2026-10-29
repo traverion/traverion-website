@@ -757,6 +757,17 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
     }
   }, [selectedDepartureTime, selectedDaySpotsLeft]);
 
+  // Eligibility can close after selection (cutoff tick / capacity reload) — drop stale date.
+  useEffect(() => {
+    const day = bookingDate.trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return;
+    if (!soldOutDates.has(day)) return;
+    setBookingDate('');
+    setSelectedBookingVariant(null);
+    setSelectedDepartureTime('');
+    setBookingCardError(null);
+  }, [bookingDate, soldOutDates]);
+
   const partyMaxForSelectedDay = useMemo(() => {
     if (!tour) return partyBounds.max;
     const base = getPartySizeBoundsForVariant(tour, selectedBookingVariant, bookingDate, selectedDepartureTime).max;

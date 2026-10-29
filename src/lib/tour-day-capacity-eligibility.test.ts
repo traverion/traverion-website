@@ -8,8 +8,16 @@ import { tourSoldOutDates } from './tour-calendar';
 
 const ZONE = 'Europe/Helsinki';
 const DAY = '2026-10-29';
-/** ~21:21 Europe/Helsinki on 2026-10-29 (EEST, UTC+3). */
+const NEXT = '2026-10-30';
+/** Frozen clocks in Europe/Helsinki (EEST, UTC+3). */
 const NOW_MS = wallTimeInZoneToUtcMs(DAY, '21:21', ZONE)!;
+const CLOCKS = {
+  '09:00': wallTimeInZoneToUtcMs(DAY, '09:00', ZONE)!,
+  '17:00': wallTimeInZoneToUtcMs(DAY, '17:00', ZONE)!,
+  '21:38': wallTimeInZoneToUtcMs(DAY, '21:38', ZONE)!,
+  '23:59': wallTimeInZoneToUtcMs(DAY, '23:59', ZONE)!,
+  '00:01_next': wallTimeInZoneToUtcMs(NEXT, '00:01', ZONE)!,
+} as const;
 
 function opt(over: Partial<ListingBookingOption> & Pick<ListingBookingOption, 'id' | 'startTime'>): ListingBookingOption {
   return {
@@ -191,5 +199,40 @@ describe('tour day capacity at frozen 2026-10-29 21:21 Europe/Helsinki', () => {
       departuresForDay: () => [],
     });
     expect(sold.has(DAY)).toBe(true);
+  });
+
+  it('17:00 departure stays bookable at 09:00 and 17:00, closes by 21:38', () => {
+    const options = [opt({ id: 'a', startTime: '17:00', maxSpotsPerSlot: 50 })];
+    expect(
+      tourBookableSellingDeparturesOnDate(options, DAY, {
+        timeZone: ZONE,
+        nowMs: CLOCKS['09:00'],
+      }).map((d) => d.startTime)
+    ).toEqual(['17:00']);
+    expect(
+      tourBookableSellingDeparturesOnDate(options, DAY, {
+        timeZone: ZONE,
+        nowMs: CLOCKS['17:00'],
+      })
+    ).toEqual([]);
+    expect(
+      tourBookableSellingDeparturesOnDate(options, DAY, {
+        timeZone: ZONE,
+        nowMs: CLOCKS['21:38'],
+      })
+    ).toEqual([]);
+    expect(
+      tourBookableSellingDeparturesOnDate(options, DAY, {
+        timeZone: ZONE,
+        nowMs: CLOCKS['23:59'],
+      })
+    ).toEqual([]);
+    // Next civil day in Helsinki — prior day not offered via this call.
+    expect(
+      tourBookableSellingDeparturesOnDate(options, DAY, {
+        timeZone: ZONE,
+        nowMs: CLOCKS['00:01_next'],
+      })
+    ).toEqual([]);
   });
 });

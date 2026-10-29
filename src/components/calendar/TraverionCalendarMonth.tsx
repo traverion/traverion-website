@@ -81,10 +81,11 @@ export function traverionCalendarDayClass(visual: TraverionCalendarDayVisual): s
     case 'rangeMiddle':
       return 'bg-finland/15 text-ink';
     case 'today':
+      // Secondary cue only — never stronger than disabled/occupied.
       return 'text-ink ring-1 ring-finland/35';
     case 'occupied':
-      return 'text-ink-faint/50 line-through';
     case 'disabled':
+      // Same muted treatment — no strikethrough (looks broken vs other closed days).
       return 'text-ink-faint/40 cursor-not-allowed';
     default:
       return 'text-ink hover:bg-finland/10';
@@ -110,18 +111,28 @@ export function TraverionCalendarDayButton({
   ariaPressed?: boolean;
 }) {
   const day = Number(iso.slice(8, 10));
+  // Disabled must never keep interactive / today / default chrome.
+  const effectiveVisual: TraverionCalendarDayVisual =
+    disabled && (visual === 'default' || visual === 'today') ? 'disabled' : visual;
   return (
     <button
       type="button"
       disabled={disabled}
-      onClick={() => onSelect(iso)}
-      onMouseEnter={() => onHoverChange?.(iso)}
+      onClick={() => {
+        if (disabled) return;
+        onSelect(iso);
+      }}
+      onMouseEnter={() => {
+        if (disabled) return;
+        onHoverChange?.(iso);
+      }}
       onMouseLeave={() => onHoverChange?.(null)}
       aria-label={ariaLabel}
       aria-pressed={ariaPressed}
+      aria-disabled={disabled || undefined}
       className={`min-h-11 h-11 rounded-lg text-sm tabular-nums motion-safe:transition-colors ${traverionCalendarDayClass(
-        visual
-      )} ${disabled ? 'cursor-not-allowed' : ''}`}
+        effectiveVisual
+      )} ${disabled ? 'pointer-events-none cursor-not-allowed' : ''}`}
     >
       {day}
     </button>

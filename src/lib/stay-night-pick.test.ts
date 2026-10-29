@@ -53,7 +53,7 @@ describe('planStayNightPick', () => {
     ).toBe('past');
   });
 
-  it('restarts when selecting an earlier day after check-in', () => {
+  it('does not restart check-in via an earlier day while picking check-out', () => {
     expect(
       planStayNightPick({
         iso: '2099-06-02',
@@ -63,7 +63,7 @@ describe('planStayNightPick', () => {
         checkOut: '',
         minNights: 1,
       })
-    ).toEqual({ checkIn: '2099-06-02', checkOut: '', close: false });
+    ).toEqual({ checkIn: '2099-06-05', checkOut: '', close: false, reason: 'past' });
   });
 
   it('rejects ranges shorter than min nights', () => {

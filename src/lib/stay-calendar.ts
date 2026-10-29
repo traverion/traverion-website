@@ -84,8 +84,9 @@ export function stayNightState(params: {
   if (params.checkIn && !params.checkOut && params.iso === params.checkIn) return 'selected';
   const pickingCheckIn = !params.checkIn || Boolean(params.checkIn && params.checkOut);
   if (pickingCheckIn && params.checkInClosed?.(params.iso)) return 'past';
-  // Picking check-out: never treat check-in (or nights before min stay) as a valid checkout.
-  if (params.checkIn && !params.checkOut && params.iso > params.checkIn) {
+  // Picking check-out: every civil day before earliest legal checkout is closed
+  // (including today and days before check-in — change check-in via Reset only).
+  if (params.checkIn && !params.checkOut) {
     const earliest = earliestStayCheckoutIso(params.checkIn, params.minNights ?? 1);
     if (params.iso < earliest) return 'past';
     const latest = latestStayCheckoutIso(params.checkIn, params.maxNights);
