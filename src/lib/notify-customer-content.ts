@@ -112,11 +112,41 @@ function snapshotRecord(snapshot: unknown): Record<string, unknown> | null {
   return snapshot as Record<string, unknown>;
 }
 
+/** Experience-local clock for rental pickup/return. Falls back to UTC if the zone is invalid. */
+function formatInstantInZone(iso: string, timeZone: string | undefined): string {
+  const ms = Date.parse(iso);
+  if (!Number.isFinite(ms)) return iso;
+  const tz = (timeZone ?? '').trim() || 'Europe/Helsinki';
+  try {
+    const parts = new Intl.DateTimeFormat('en-GB', {
+      timeZone: tz,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hourCycle: 'h23',
+    }).formatToParts(new Date(ms));
+    const get = (type: string) => parts.find((part) => part.type === type)?.value ?? '';
+    const stamp = `${get('year')}-${get('month')}-${get('day')} ${get('hour')}:${get('minute')}`;
+    return stamp.includes('undefined') ? `${new Date(ms).toISOString().replace('T', ' ').slice(0, 16)} UTC` : `${stamp} ${tz}`;
+  } catch {
+    return `${new Date(ms).toISOString().replace('T', ' ').slice(0, 16)} UTC`;
+  }
+}
+
 function snapshotString(snapshot: unknown, key: string): string | undefined {
   const rec = snapshotRecord(snapshot);
   if (!rec) return undefined;
   const v = rec[key];
   return typeof v === 'string' && v.trim() ? v.trim() : undefined;
+}
+
+function snapshotNumber(snapshot: unknown, key: string): number | undefined {
+  const rec = snapshotRecord(snapshot);
+  if (!rec) return undefined;
+  const v = rec[key];
+  return typeof v === 'number' && Number.isFinite(v) ? v : undefined;
 }
 
 /** Phase 1741: keyed lines from bookings.special_requests (Pickup planner). */
@@ -151,13 +181,21 @@ function resolveListingKind(
   listing: ListingRowForContent,
   booking: BookingRowForContent
 ): string | undefined {
+  // Purchase snapshot family wins (rentals reuse check_out for return-day accounting).
+  const snapFam = snapshotString(booking?.purchase_snapshot, 'inventoryFamily');
+  if (snapFam === 'rental') return 'rental';
+  if (snapFam === 'stay') return 'stay';
+  if (snapFam === 'tour') return 'tour';
+
   const extras = listing?.listing_extras;
   if (extras && typeof extras === 'object') {
     const fam = (extras as Record<string, unknown>).inventoryFamily;
+    if (typeof fam === 'string' && fam.trim().toLowerCase() === 'rental') return 'rental';
     if (typeof fam === 'string' && fam.trim().toLowerCase() === 'stay') return 'stay';
     if (typeof fam === 'string' && fam.trim()) return fam.trim().toLowerCase();
   }
   // Phase 1525: bookingIsStayNight parity — column / nights / snap (never notes-only).
+  // Skip when snapshot already identified a non-stay family above.
   const checkOut = typeof booking?.check_out === 'string' ? booking.check_out.trim() : '';
   if (checkOut && /^\d{4}-\d{2}-\d{2}$/.test(checkOut)) return 'stay';
   const nights = Math.floor(Number(booking?.nights ?? 0));
@@ -236,10 +274,12 @@ export function resolveBookingTiedContent(params: {
 
   const listingKind = resolveListingKind(params.listingRow, params.bookingRow);
   const isStay = listingKind === 'stay';
+  const isRental = listingKind === 'rental';
 
   // Tours: place + traveler start instructions (Phase 1059/1060).
   // Phase 1741: host Pickup planner note overrides win over purchase_snapshot (Trips 1716 parity).
   // Stays: do not invent tour meeting copy — use purchased house logistics instead.
+  // Rentals: pickup/return from rental snapshot fields (not tour meeting points).
   const notePlace = keyedSpecialRequestLine(params.bookingRow.special_requests, 'meeting_point');
   const noteInstructions = keyedSpecialRequestLine(
     params.bookingRow.special_requests,
@@ -249,10 +289,73 @@ export function resolveBookingTiedContent(params: {
   const snapInstructions = snapshotString(snap, 'pickupInstructions');
   const travelerPickup =
     snapshotString(snap, 'fulfillment') === 'pickup' ? snapshotString(snap, 'travelerPickupAddress') : '';
+  const logisticsNote = isStay || isRental
+    ? ''
+    : [
+        snapshotString(snap, 'pickupTiming') === 'at_start' ? 'Pickup is at the departure time.' : '',
+        snapshotString(snap, 'pickupTiming') === 'before_start' &&
+        Number(snapshotNumber(snap, 'pickupWindowMinutes')) >= 5
+          ? `Pickup window: up to ${snapshotNumber(snap, 'pickupWindowMinutes')} minutes before departure.`
+          : '',
+        snapshotString(snap, 'dropoffMode') === 'same' ? 'Drop-off is at the same place.' : '',
+        snapshotString(snap, 'dropoffMode') === 'different' && snapshotString(snap, 'dropoffPlace')
+          ? `Drop-off: ${snapshotString(snap, 'dropoffPlace')}`
+          : '',
+        snapshotString(snap, 'transportMode') === 'car'
+          ? 'Transport: Car'
+          : snapshotString(snap, 'transportMode') === 'minivan'
+            ? 'Transport: Minivan'
+            : snapshotString(snap, 'transportMode') === 'van'
+              ? 'Transport: Van / shuttle'
+              : snapshotString(snap, 'transportMode') === 'bus'
+                ? 'Transport: Bus / coach'
+                : snapshotString(snap, 'transportMode') === 'suv'
+                  ? 'Transport: SUV / 4×4'
+                  : snapshotString(snap, 'transportMode') === 'limousine'
+                    ? 'Transport: Limousine'
+                    : snapshotString(snap, 'transportMode') === 'motorcycle'
+                      ? 'Transport: Motorcycle'
+                      : snapshotString(snap, 'transportMode') === 'boat'
+                        ? 'Transport: Boat'
+                        : snapshotString(snap, 'transportMode') === 'other'
+                          ? `Transport: ${snapshotString(snap, 'transportOther') || 'Other'}`
+                          : '',
+      ]
+        .filter(Boolean)
+        .join(' ');
+  const rentalPickupIso = isRental ? snapshotString(snap, 'pickupAt') : undefined;
+  const rentalReturnIso = isRental ? snapshotString(snap, 'returnAt') : undefined;
+  const rentalZone = isRental ? snapshotString(snap, 'departureTimezone') || 'Europe/Helsinki' : undefined;
+  const rentalPickupLabel =
+    isRental && rentalPickupIso ? formatInstantInZone(rentalPickupIso, rentalZone) : undefined;
+  const rentalReturnLabel =
+    isRental && rentalReturnIso ? formatInstantInZone(rentalReturnIso, rentalZone) : undefined;
+  // Rentals: structured Pickup/Return dates go on bookingDate/checkOutDate.
+  // Keep meetingPoint for optional handover notes only (not dates/qty/option).
+  const snapRec = snapshotRecord(snap);
   const meetingPoint = isStay
     ? undefined
-    : [travelerPickup || notePlace || snapPlace, noteInstructions || snapInstructions].filter(Boolean).join(' — ') ||
-      undefined;
+    : isRental
+      ? [
+          snapRec?.staffAssisted === true
+            ? 'Pickup method: Staff handover'
+            : snapRec?.staffAssisted === false
+              ? 'Pickup method: Self-service pickup'
+              : '',
+          snapshotString(snap, 'collectionNotes') || '',
+          snapRec?.returnStaffAssisted === true
+            ? 'Return method: Staff return'
+            : snapRec?.returnStaffAssisted === false
+              ? 'Return method: Self-service return'
+              : '',
+          snapshotString(snap, 'returnCollectionNotes') || '',
+        ]
+          .filter(Boolean)
+          .join(' — ') || undefined
+      : [travelerPickup || notePlace || snapPlace, noteInstructions || snapInstructions, logisticsNote]
+          .filter(Boolean)
+          .join(' — ') ||
+        undefined;
 
   const paymentCollected = paymentWasCollectedForContent(params.bookingRow.payment_status);
   const checkInAddress =
@@ -280,13 +383,24 @@ export function resolveBookingTiedContent(params: {
       : undefined;
   if (guestName) overrides.customerName = guestName;
 
-  const bookingDate =
-    typeof params.bookingRow.booking_date === 'string' && params.bookingRow.booking_date
+  const bookingDate = rentalPickupLabel
+    ? rentalPickupLabel
+    : typeof params.bookingRow.booking_date === 'string' && params.bookingRow.booking_date
       ? params.bookingRow.booking_date
       : undefined;
   if (bookingDate) overrides.bookingDate = bookingDate;
 
-  if (
+  if (isRental) {
+    const qty = snapshotNumber(snap, 'quantity');
+    if (typeof qty === 'number' && qty > 0) overrides.guests = qty;
+    else if (
+      typeof params.bookingRow.guests === 'number' &&
+      Number.isFinite(params.bookingRow.guests) &&
+      params.bookingRow.guests > 0
+    ) {
+      overrides.guests = params.bookingRow.guests;
+    }
+  } else if (
     typeof params.bookingRow.guests === 'number' &&
     Number.isFinite(params.bookingRow.guests) &&
     params.bookingRow.guests > 0
@@ -304,12 +418,17 @@ export function resolveBookingTiedContent(params: {
   if (listingKind) overrides.listingKind = listingKind;
 
   // Phase 1525: nights-only stays must surface checkOutDate like Trips / stayRangeFromBooking.
-  const checkOut = isStay
-    ? resolveStayCheckOutDate(params.bookingRow)
-    : typeof params.bookingRow.check_out === 'string' && params.bookingRow.check_out.trim()
-      ? params.bookingRow.check_out.trim()
-      : snapshotString(snap, 'checkOut');
-  if (checkOut && /^\d{4}-\d{2}-\d{2}$/.test(checkOut)) overrides.checkOutDate = checkOut;
+  // Rentals: exclusive return instant (with time) from purchase_snapshot.
+  if (rentalReturnLabel) {
+    overrides.checkOutDate = rentalReturnLabel;
+  } else {
+    const checkOut = isStay
+      ? resolveStayCheckOutDate(params.bookingRow)
+      : typeof params.bookingRow.check_out === 'string' && params.bookingRow.check_out.trim()
+        ? params.bookingRow.check_out.trim()
+        : snapshotString(snap, 'checkOut');
+    if (checkOut && /^\d{4}-\d{2}-\d{2}$/.test(checkOut)) overrides.checkOutDate = checkOut;
+  }
 
   if (meetingPoint) overrides.meetingPoint = meetingPoint;
   if (checkInAddress) overrides.checkInAddress = checkInAddress;

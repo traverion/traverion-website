@@ -326,36 +326,36 @@ export function resolveBookingTiedContent(params: {
   const rentalPickupIso = isRental ? snapshotString(snap, 'pickupAt') : undefined;
   const rentalReturnIso = isRental ? snapshotString(snap, 'returnAt') : undefined;
   const rentalZone = isRental ? snapshotString(snap, 'departureTimezone') || 'Europe/Helsinki' : undefined;
+  const rentalPickupLabel =
+    isRental && rentalPickupIso ? formatInstantInZone(rentalPickupIso, rentalZone) : undefined;
+  const rentalReturnLabel =
+    isRental && rentalReturnIso ? formatInstantInZone(rentalReturnIso, rentalZone) : undefined;
+  // Rentals: structured Pickup/Return dates go on bookingDate/checkOutDate.
+  // Keep meetingPoint for optional handover notes only (not dates/qty/option).
+  const snapRec = snapshotRecord(snap);
   const meetingPoint = isStay
     ? undefined
     : isRental
       ? [
-          snapshotString(snap, 'variantName') ? `Option ${snapshotString(snap, 'variantName')}` : '',
-          snapshotNumber(snap, 'quantity') ? `Quantity ${snapshotNumber(snap, 'quantity')}` : '',
-          rentalPickupIso ? `Pickup ${formatInstantInZone(rentalPickupIso, rentalZone)}` : '',
-          rentalReturnIso ? `Return ${formatInstantInZone(rentalReturnIso, rentalZone)}` : '',
-          snapshotString(snap, 'pickupAddress') ? `Collect at ${snapshotString(snap, 'pickupAddress')}` : '',
-          snap.staffAssisted === true
+          snapRec?.staffAssisted === true
             ? 'Pickup method: Staff handover'
-            : snap.staffAssisted === false
+            : snapRec?.staffAssisted === false
               ? 'Pickup method: Self-service pickup'
               : '',
           snapshotString(snap, 'collectionNotes') || '',
-          snapshotString(snap, 'returnAddress') ? `Return to ${snapshotString(snap, 'returnAddress')}` : '',
-          snap.returnStaffAssisted === true
+          snapRec?.returnStaffAssisted === true
             ? 'Return method: Staff return'
-            : snap.returnStaffAssisted === false
+            : snapRec?.returnStaffAssisted === false
               ? 'Return method: Self-service return'
               : '',
           snapshotString(snap, 'returnCollectionNotes') || '',
-          snapshotString(snap, 'cancellationLabel') ?? '',
         ]
           .filter(Boolean)
           .join(' — ') || undefined
-    : [travelerPickup || notePlace || snapPlace, noteInstructions || snapInstructions, logisticsNote]
-        .filter(Boolean)
-        .join(' — ') ||
-      undefined;
+      : [travelerPickup || notePlace || snapPlace, noteInstructions || snapInstructions, logisticsNote]
+          .filter(Boolean)
+          .join(' — ') ||
+        undefined;
 
   const paymentCollected = paymentWasCollectedForContent(params.bookingRow.payment_status);
   const checkInAddress =
@@ -383,13 +383,24 @@ export function resolveBookingTiedContent(params: {
       : undefined;
   if (guestName) overrides.customerName = guestName;
 
-  const bookingDate =
-    typeof params.bookingRow.booking_date === 'string' && params.bookingRow.booking_date
+  const bookingDate = rentalPickupLabel
+    ? rentalPickupLabel
+    : typeof params.bookingRow.booking_date === 'string' && params.bookingRow.booking_date
       ? params.bookingRow.booking_date
       : undefined;
   if (bookingDate) overrides.bookingDate = bookingDate;
 
-  if (
+  if (isRental) {
+    const qty = snapshotNumber(snap, 'quantity');
+    if (typeof qty === 'number' && qty > 0) overrides.guests = qty;
+    else if (
+      typeof params.bookingRow.guests === 'number' &&
+      Number.isFinite(params.bookingRow.guests) &&
+      params.bookingRow.guests > 0
+    ) {
+      overrides.guests = params.bookingRow.guests;
+    }
+  } else if (
     typeof params.bookingRow.guests === 'number' &&
     Number.isFinite(params.bookingRow.guests) &&
     params.bookingRow.guests > 0
@@ -407,12 +418,17 @@ export function resolveBookingTiedContent(params: {
   if (listingKind) overrides.listingKind = listingKind;
 
   // Phase 1525: nights-only stays must surface checkOutDate like Trips / stayRangeFromBooking.
-  const checkOut = isStay
-    ? resolveStayCheckOutDate(params.bookingRow)
-    : typeof params.bookingRow.check_out === 'string' && params.bookingRow.check_out.trim()
-      ? params.bookingRow.check_out.trim()
-      : snapshotString(snap, 'checkOut');
-  if (checkOut && /^\d{4}-\d{2}-\d{2}$/.test(checkOut)) overrides.checkOutDate = checkOut;
+  // Rentals: exclusive return instant (with time) from purchase_snapshot.
+  if (rentalReturnLabel) {
+    overrides.checkOutDate = rentalReturnLabel;
+  } else {
+    const checkOut = isStay
+      ? resolveStayCheckOutDate(params.bookingRow)
+      : typeof params.bookingRow.check_out === 'string' && params.bookingRow.check_out.trim()
+        ? params.bookingRow.check_out.trim()
+        : snapshotString(snap, 'checkOut');
+    if (checkOut && /^\d{4}-\d{2}-\d{2}$/.test(checkOut)) overrides.checkOutDate = checkOut;
+  }
 
   if (meetingPoint) overrides.meetingPoint = meetingPoint;
   if (checkInAddress) overrides.checkInAddress = checkInAddress;

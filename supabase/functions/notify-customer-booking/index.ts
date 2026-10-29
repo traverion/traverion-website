@@ -2,6 +2,10 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.4';
 import {
+  EMAIL_THEME,
+  emailAmountBlock,
+  emailDetailRow,
+  emailProductBlock,
   escapeHtml,
   fieldDiffPlainText,
   fieldDiffTableHtml,
@@ -147,6 +151,8 @@ function wrapCustomerDocument(params: {
   footerNote?: string;
   ctaUrl?: string;
   ctaLabel?: string;
+  productHtml?: string;
+  statusChip?: string;
 }): string {
   const base = siteBase(params.publicSiteUrl);
   const ctaUrl = params.ctaUrl ?? `${base}/trips`;
@@ -154,18 +160,18 @@ function wrapCustomerDocument(params: {
   return transactionalEmailDocument({
     headline: params.headline,
     introHtml: params.intro,
-    bodyHtml: `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-top:1px solid #e6e8ec;">${params.detailRowsHtml}</table>${params.extraHtml}`,
+    bodyHtml: `${params.productHtml ?? ''}<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-top:1px solid ${EMAIL_THEME.divider};">${params.detailRowsHtml}</table>${params.extraHtml}`,
     ctaUrl,
     ctaLabel,
     preheader: params.headline,
     footerNote: params.footerNote,
     siteUrl: base,
+    statusChip: params.statusChip,
   });
 }
 
 function detailRow(label: string, value: string): string {
-  if (!value) return '';
-  return `<tr><td style="padding:6px 0;font-size:13px;color:#6b7280;width:130px;vertical-align:top;">${escapeHtml(label)}</td><td style="padding:6px 0;font-size:14px;color:#111827;">${escapeHtml(value)}</td></tr>`;
+  return emailDetailRow(label, value);
 }
 
 function confirmedPaidMailFacts(row: {
@@ -184,37 +190,58 @@ function confirmedPaidMailFacts(row: {
     rows.push(detailRow(label, value));
     lines.push(`${label}: ${value}`);
   };
-  push('Option', text('optionLabel'));
-  const hm = text('startTimeHm');
-  const tz = text('departureTimezone');
-  push('Start time', hm ? travelerTimeLabel(hm, tz) : '');
-  const breakdown = Array.isArray(row.guest_breakdown)
-    ? row.guest_breakdown
-        .map((item) => {
-          if (!item || typeof item !== 'object') return '';
-          const label = typeof (item as { label?: unknown }).label === 'string'
-            ? String((item as { label: string }).label).trim()
-            : '';
-          const qty = (item as { quantity?: unknown }).quantity;
-          return label && typeof qty === 'number' && qty > 0 ? `${qty} ${label}` : '';
-        })
-        .filter(Boolean)
-        .join(' · ')
-    : '';
-  push('Participants', breakdown);
-  const fulfillment = text('fulfillment');
-  if (fulfillment === 'pickup') push('Pickup', text('travelerPickupAddress'));
-  else if (fulfillment === 'meeting_point') push('Meeting point', text('meetingPoint'));
-  push('Cancellation', text('cancellationPolicy'));
+  const inventoryFamily = text('inventoryFamily');
+  const isRental = inventoryFamily === 'rental';
+  // Option shown in emailProductBlock for confirmed mail — keep in text lines only.
+  const option = text('optionLabel') || text('variantName');
+  if (option) lines.push(`Option: ${option}`);
+  if (isRental) {
+    const unit = text('durationUnit');
+    const count = typeof snap?.durationCount === 'number' ? snap.durationCount : null;
+    if (count && unit) {
+      push(
+        'Duration',
+        `${count} ${unit === 'hour' ? (count === 1 ? 'hour' : 'hours') : count === 1 ? 'day' : 'days'}`
+      );
+    }
+    push('Pickup place', text('pickupAddress'));
+    push('Return place', text('returnAddress'));
+    if (snap?.staffAssisted === true) push('Handover', 'Staff handover');
+    else if (snap?.staffAssisted === false) push('Handover', 'Self-service pickup');
+    if (snap?.returnStaffAssisted === true) push('Return method', 'Staff return');
+    else if (snap?.returnStaffAssisted === false) push('Return method', 'Self-service return');
+  } else {
+    const hm = text('startTimeHm');
+    const tz = text('departureTimezone');
+    push('Departure', hm ? travelerTimeLabel(hm, tz) : '');
+    const breakdown = Array.isArray(row.guest_breakdown)
+      ? row.guest_breakdown
+          .map((item) => {
+            if (!item || typeof item !== 'object') return '';
+            const label = typeof (item as { label?: unknown }).label === 'string'
+              ? String((item as { label: string }).label).trim()
+              : '';
+            const qty = (item as { quantity?: unknown }).quantity;
+            return label && typeof qty === 'number' && qty > 0 ? `${qty} ${label}` : '';
+          })
+          .filter(Boolean)
+          .join(' · ')
+      : '';
+    push('Participants', breakdown);
+    const fulfillment = text('fulfillment');
+    if (fulfillment === 'pickup') push('Pickup', text('travelerPickupAddress'));
+    else if (fulfillment === 'meeting_point') push('Meeting point', text('meetingPoint'));
+  }
+  push('Cancellation', text('cancellationPolicy') || text('cancellationLabel'));
   return { html: rows.join(''), lines };
 }
 
 function htmlBulletList(items: string[] | undefined, title: string): string {
   if (!items?.length) return '';
   const lis = items
-    .map((i) => `<li style="margin:0 0 4px;">${escapeHtml(i)}</li>`)
+    .map((i) => `<li style="margin:0 0 4px;color:${EMAIL_THEME.muted};">${escapeHtml(i)}</li>`)
     .join('');
-  return `<p style="margin:12px 0 0;font-size:14px;color:#111827;"><strong>${escapeHtml(title)}</strong></p><ul style="margin:6px 0 0;padding-left:18px;font-size:14px;color:#111827;">${lis}</ul>`;
+  return `<p style="margin:12px 0 0;font-size:14px;color:${EMAIL_THEME.text};"><strong>${escapeHtml(title)}</strong></p><ul style="margin:6px 0 0;padding-left:18px;font-size:14px;color:${EMAIL_THEME.muted};">${lis}</ul>`;
 }
 
 function purchasedLogisticsExtraHtml(params: {
@@ -232,7 +259,7 @@ function purchasedLogisticsExtraHtml(params: {
     const stayLines: string[] = [];
     if (params.checkInAddress?.trim()) {
       stayLines.push(
-        `<p style="margin:0 0 8px;font-size:14px;color:#111827;"><strong>Check-in address:</strong> ${escapeHtml(params.checkInAddress.trim())}</p>`
+        `<p style="margin:0 0 8px;font-size:14px;color:${EMAIL_THEME.text};"><strong>Check-in address:</strong> ${escapeHtml(params.checkInAddress.trim())}</p>`
       );
     }
     const houseBits = [
@@ -241,12 +268,12 @@ function purchasedLogisticsExtraHtml(params: {
     ].filter(Boolean);
     if (houseBits.length) {
       stayLines.push(
-        `<p style="margin:0 0 8px;font-size:14px;color:#111827;"><strong>House times:</strong> ${escapeHtml(houseBits.join(' · '))}</p>`
+        `<p style="margin:0 0 8px;font-size:14px;color:${EMAIL_THEME.text};"><strong>House times:</strong> ${escapeHtml(houseBits.join(' · '))}</p>`
       );
     }
     if (params.houseRules?.trim()) {
       stayLines.push(
-        `<p style="margin:0;font-size:14px;color:#111827;white-space:pre-wrap;"><strong>House rules:</strong> ${escapeHtml(params.houseRules.trim())}</p>`
+        `<p style="margin:0;font-size:14px;color:${EMAIL_THEME.muted};white-space:pre-wrap;"><strong style="color:${EMAIL_THEME.text};">House rules:</strong> ${escapeHtml(params.houseRules.trim())}</p>`
       );
     }
     return stayLines.join('');
@@ -254,13 +281,13 @@ function purchasedLogisticsExtraHtml(params: {
   const parts: string[] = [];
   if (params.meetingPoint?.trim()) {
     parts.push(
-      `<p style="margin:0;font-size:14px;color:#111827;"><strong>Meeting / pickup:</strong> ${escapeHtml(params.meetingPoint.trim())}</p>`
+      `<p style="margin:0;font-size:14px;color:${EMAIL_THEME.text};"><strong>Meeting / pickup:</strong> ${escapeHtml(params.meetingPoint.trim())}</p>`
     );
   }
   if (params.bookingContactPhoneE164?.trim()) {
     const tel = params.bookingContactPhoneE164.trim();
     parts.push(
-      `<p style="margin:0 0 8px;font-size:14px;color:#111827;"><strong>Experience provider contact:</strong> <a href="tel:${escapeHtml(tel)}" style="color:#0f766e;text-decoration:none;">${escapeHtml(tel)}</a></p>`
+      `<p style="margin:0 0 8px;font-size:14px;color:${EMAIL_THEME.text};"><strong>Experience provider contact:</strong> <a href="tel:${escapeHtml(tel)}" style="color:${EMAIL_THEME.accent};text-decoration:none;">${escapeHtml(tel)}</a></p>`
     );
   }
   parts.push(htmlBulletList(params.includes, 'Included (when you booked)'));
@@ -290,23 +317,37 @@ function paidReceiptLine(_kind: string | undefined): string {
   return 'Paid';
 }
 
-function buildDetailRows(p: Payload): string {
+function buildDetailRows(p: Payload, opts?: { omitTitle?: boolean }): string {
   const title = String(p.listingTitle ?? 'Your booking').trim() || 'Your booking';
   const rows: string[] = [];
-  rows.push(detailRow(confirmationListingLabel(p.listingKind), title));
+  if (!opts?.omitTitle) {
+    rows.push(detailRow(confirmationListingLabel(p.listingKind), title));
+  }
   const publicRef = String(p.publicReference ?? '').trim();
   if (publicRef) rows.push(detailRow('Booking reference', publicRef));
   const checkOut = String(p.checkOutDate ?? '').trim();
   if (listingKindIsStay(p.listingKind) && p.bookingDate && /^\d{4}-\d{2}-\d{2}$/.test(checkOut)) {
     rows.push(detailRow('Check-in', p.bookingDate));
     rows.push(detailRow('Check-out', checkOut));
+    if (/^\d{4}-\d{2}-\d{2}$/.test(p.bookingDate)) {
+      const a = Date.parse(`${p.bookingDate}T12:00:00Z`);
+      const b = Date.parse(`${checkOut}T12:00:00Z`);
+      if (Number.isFinite(a) && Number.isFinite(b) && b > a) {
+        const nights = Math.round((b - a) / 86_400_000);
+        if (nights > 0) rows.push(detailRow('Nights', String(nights)));
+      }
+    }
   } else if (listingKindIsRental(p.listingKind) && p.bookingDate) {
     rows.push(detailRow('Pickup', p.bookingDate));
-    if (/^\d{4}-\d{2}-\d{2}$/.test(checkOut)) rows.push(detailRow('Return', checkOut));
+    if (checkOut) rows.push(detailRow('Return', checkOut));
   } else if (p.bookingDate) {
     rows.push(detailRow('Date', p.bookingDate));
   }
-  if (typeof p.guests === 'number' && p.guests > 0) rows.push(detailRow('Guests', String(p.guests)));
+  // Rentals: quantity (never "guests"). Stays: guests. Tours: participants come from breakdown extras.
+  if (typeof p.guests === 'number' && p.guests > 0) {
+    if (listingKindIsRental(p.listingKind)) rows.push(detailRow('Quantity', String(p.guests)));
+    else if (listingKindIsStay(p.listingKind)) rows.push(detailRow('Guests', String(p.guests)));
+  }
   if (listingKindIsStay(p.listingKind)) {
     const addr = String(p.checkInAddress ?? '').trim();
     if (addr) rows.push(detailRow('Check-in address', addr));
@@ -330,7 +371,7 @@ function subjectForKind(
   const isStay = String(listingKind ?? '').toLowerCase() === 'stay';
   switch (kind) {
     case 'booking_confirmed_paid':
-      return `Your Traverion booking is confirmed — ${t}`;
+      return `Your Traverion booking is confirmed · ${t}`;
     case 'your_details_updated':
       return withRef('Your booking details were saved');
     case 'host_updated_schedule':
@@ -588,6 +629,7 @@ const handler = async (req: Request): Promise<Response> => {
     let paymentIntentIdFromDb: string | undefined;
     let confirmedPaidExtra: { html: string; lines: string[] } | null = null;
     let publicReference = '';
+    let listingImageUrl = '';
 
     // Phase 562/578/1052: recipient + static content re-derived from booking.
     // Phase 1092: anonymous callers never reach this path for booking-tied kinds.
@@ -691,15 +733,19 @@ const handler = async (req: Request): Promise<Response> => {
         title?: string | null;
         listing_extras?: unknown;
         experience_kind?: string | null;
+        image?: string | null;
       } | null = null;
       const listingId = String(bookingRow?.listing_id ?? '').trim();
       if (listingId) {
         const { data: listing } = await admin
           .from('listings')
-          .select('id, title, listing_extras, experience_kind')
+          .select('id, title, listing_extras, experience_kind, image')
           .eq('id', listingId)
           .maybeSingle();
         listingRow = listing;
+        if (typeof listing?.image === 'string' && listing.image.trim().startsWith('http')) {
+          listingImageUrl = listing.image.trim();
+        }
       }
 
       const content = resolveBookingTiedContent({
@@ -828,17 +874,17 @@ const handler = async (req: Request): Promise<Response> => {
     let footerNote: string | undefined;
 
     if (kind === 'booking_confirmed_paid') {
-      headline = 'Your adventure is confirmed.';
-      intro = `<p style="margin:0;">${escapeHtml(greeting)} your booking is confirmed. Here are the details for your experience.</p>`;
-      if (refDigits) {
-        intro += `<p style="margin:8px 0 0;font-size:13px;color:#5c6570;">A receipt is attached as a PDF.</p>`;
+      headline = 'Your booking is confirmed!';
+      intro = `<p style="margin:0;color:${EMAIL_THEME.muted};">${escapeHtml(greeting)} your Traverion booking is confirmed. Details and next steps are below.</p>`;
+      if (refDigits || publicReference) {
+        intro += `<p style="margin:8px 0 0;font-size:13px;color:${EMAIL_THEME.faint};">A payment receipt is attached as a PDF.</p>`;
       }
       if (typeof amount === 'number') {
-        extraHtml = `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:12px 0 0;border-top:1px solid #e6e8ec;">
-<tr><td style="padding-top:12px;font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#6b7280;">Amount paid</td></tr>
-<tr><td style="font-family:Arial,Helvetica,sans-serif;font-size:22px;font-weight:700;color:#0b1f44;padding-top:2px;">${escapeHtml(currency)} ${amount.toFixed(2)}</td></tr>
-<tr><td style="font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#0f766e;padding-top:4px;">${escapeHtml(paidReceiptLine(listingKind))}</td></tr>
-</table>`;
+        extraHtml = emailAmountBlock({
+          label: 'Amount paid',
+          amountLine: `${currency} ${amount.toFixed(2)}`,
+          status: paidReceiptLine(listingKind),
+        });
       }
       const logistics = purchasedLogisticsExtraHtml({
         isStay: listingKindIsStay(listingKind),
@@ -847,9 +893,12 @@ const handler = async (req: Request): Promise<Response> => {
         checkInTime,
         checkOutTime,
         houseRules,
+        meetingPoint: listingKindIsRental(listingKind) ? undefined : meetingPoint,
       });
       if (logistics) extraHtml += logistics;
-      footerNote = 'Open your booking for pickup details, messages, and changes.';
+      // Keep in sync with BOOKING_CONFIRMED_PAID_FOLLOWUP_NOTE in booking-confirmation-copy.ts
+      footerNote =
+        'Your booking details and updates are available in Trips. Traverion does not treat email delivery as proof you received a notice.';
     } else if (kind === 'your_details_updated') {
       headline = 'Your booking details were saved';
       intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">We updated the notes on your booking. Here is what changed (previous value → new value):</p>`;
@@ -1057,7 +1106,16 @@ const handler = async (req: Request): Promise<Response> => {
       checkOutTime,
       publicReference,
     };
-    const detailRows = `${buildDetailRows(detailPayload)}${confirmedPaidExtra?.html ?? ''}`;
+    const optionLine =
+      confirmedPaidExtra?.lines.find((line) => line.startsWith('Option: '))?.slice('Option: '.length) ??
+      '';
+    const productHtml =
+      kind === 'booking_confirmed_paid'
+        ? emailProductBlock({ title, option: optionLine, imageUrl: listingImageUrl })
+        : '';
+    const detailRows = `${buildDetailRows(detailPayload, {
+      omitTitle: kind === 'booking_confirmed_paid',
+    })}${confirmedPaidExtra?.html ?? ''}`;
     const html = wrapCustomerDocument({
       headline,
       intro,
@@ -1067,6 +1125,8 @@ const handler = async (req: Request): Promise<Response> => {
       footerNote,
       ctaUrl: bookingCta,
       ctaLabel,
+      productHtml,
+      statusChip: kind === 'booking_confirmed_paid' ? 'Booking confirmed' : undefined,
     });
 
     const textParts: string[] = [
@@ -1077,6 +1137,7 @@ const handler = async (req: Request): Promise<Response> => {
     ];
     if (publicReference) textParts.push(`Booking reference: ${publicReference}`);
     // Phase 1576: stay text mirrors HTML Check-in / Check-out (not Date alone).
+    // Rentals: Pickup / Return with exact times when available.
     {
       const checkOut = String(checkOutDate ?? '').trim();
       if (
@@ -1086,17 +1147,24 @@ const handler = async (req: Request): Promise<Response> => {
       ) {
         textParts.push(`Check-in: ${bookingDate}`);
         textParts.push(`Check-out: ${checkOut}`);
+      } else if (listingKindIsRental(listingKind) && bookingDate) {
+        textParts.push(`Pickup: ${bookingDate}`);
+        if (checkOut) textParts.push(`Return: ${checkOut}`);
       } else if (bookingDate) {
         textParts.push(`Date: ${bookingDate}`);
       }
     }
-    if (typeof guests === 'number') textParts.push(`Guests: ${guests}`);
+    if (typeof guests === 'number' && guests > 0) {
+      if (listingKindIsRental(listingKind)) textParts.push(`Quantity: ${guests}`);
+      else if (listingKindIsStay(listingKind)) textParts.push(`Guests: ${guests}`);
+      else textParts.push(`Participants: ${guests}`);
+    }
     if (confirmedPaidExtra?.lines.length) textParts.push(...confirmedPaidExtra.lines);
     if (!publicReference && refDigits) textParts.push(`Booking reference: ${refDigits}`);
     if (typeof amount === 'number' && kind === 'booking_confirmed_paid') {
       textParts.push('', `Payment receipt: ${currency} ${amount.toFixed(2)}`);
     }
-    if (kind === 'booking_confirmed_paid' && refDigits) {
+    if (kind === 'booking_confirmed_paid' && (refDigits || publicReference)) {
       textParts.push('', 'A PDF receipt is attached to this email.');
     }
     if (diffs.length) {
@@ -1106,23 +1174,35 @@ const handler = async (req: Request): Promise<Response> => {
     const text = textParts.filter(Boolean).join('\n');
 
     const attachments: { filename: string; content: string }[] = [];
-    if (kind === 'booking_confirmed_paid' && refDigits && typeof amount === 'number') {
+    if (kind === 'booking_confirmed_paid' && typeof amount === 'number' && (refDigits || publicReference)) {
       try {
+        const optionFromExtra =
+          confirmedPaidExtra?.lines.find((line) => line.startsWith('Option: '))?.slice('Option: '.length) ??
+          undefined;
+        const partyFromExtra =
+          confirmedPaidExtra?.lines.find((line) =>
+            line.startsWith('Participants: ') || line.startsWith('Quantity: ')
+          )?.replace(/^(Participants|Quantity):\s*/, '') ?? undefined;
         const pdfBytes = await buildReceiptPdfBytes({
-          bookingNumber: Number(refDigits),
+          bookingNumber: Number(refDigits) || 0,
+          publicReference: publicReference || undefined,
           guestName: name || undefined,
+          guestEmail: to || undefined,
           listingTitle: title,
+          optionLabel: optionFromExtra,
           bookingDate,
           checkOutDate,
           listingKind,
+          partyLabel: partyFromExtra,
           guests: typeof guests === 'number' ? guests : undefined,
           amountPaid: amount,
           currency,
           paidAtIso: paidAtIsoFromDb,
           paymentIntentId: paymentIntentIdFromDb,
         });
+        const fileRef = (publicReference || refDigits || 'booking').replace(/[^\w.-]+/g, '');
         attachments.push({
-          filename: `Traverion-receipt-${refDigits}.pdf`,
+          filename: `Traverion-receipt-${fileRef}.pdf`,
           content: uint8ToBase64(pdfBytes),
         });
       } catch {

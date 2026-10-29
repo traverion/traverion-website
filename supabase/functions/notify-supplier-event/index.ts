@@ -2,6 +2,10 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.4';
 import {
+  EMAIL_THEME,
+  emailAmountBlock,
+  emailDetailRow,
+  emailProductBlock,
   escapeHtml,
   fieldDiffPlainText,
   fieldDiffTableHtml,
@@ -58,9 +62,13 @@ type Payload = {
   bookingDate?: string;
   /** Phase 1528: exclusive stay check-out when listingKind is stay. */
   checkOutDate?: string;
-  listingKind?: 'stay' | 'tour';
+  listingKind?: 'stay' | 'tour' | 'rental';
   guests?: number;
   guestName?: string;
+  /** Gross customer booking amount (major units). Never net earnings. */
+  bookingValue?: number;
+  guestPhone?: string;
+  listingImageUrl?: string;
   reviewRating?: number;
   reviewTitle?: string;
   /** new_review: traveler chose public anonymity (supplier still sees booking guest name). */
@@ -303,16 +311,38 @@ function eventBody(payload: Payload): string {
   if (payload.listingKind === 'stay' && payload.bookingDate) {
     lines.push(`Check-in: ${payload.bookingDate}`);
     if (payload.checkOutDate) lines.push(`Check-out: ${payload.checkOutDate}`);
+  } else if (payload.listingKind === 'rental' && payload.bookingDate) {
+    lines.push(`Pickup: ${payload.bookingDate}`);
+    if (payload.checkOutDate) lines.push(`Return: ${payload.checkOutDate}`);
   } else if (payload.bookingDate) {
     lines.push(`Date: ${payload.bookingDate}`);
   }
-  if (typeof payload.guests === 'number' && payload.guests > 0) lines.push(`Guests: ${payload.guests}`);
+  if (typeof payload.guests === 'number' && payload.guests > 0) {
+    lines.push(
+      payload.listingKind === 'rental'
+        ? `Quantity: ${payload.guests}`
+        : payload.listingKind === 'stay'
+          ? `Guests: ${payload.guests}`
+          : `Participants: ${payload.guests}`
+    );
+  }
   if (payload.optionLabel) lines.push(`Option: ${payload.optionLabel}`);
   if (payload.startTimeLabel) lines.push(`Start time: ${payload.startTimeLabel}`);
-  if (payload.guestName) lines.push(`Guest: ${payload.guestName}`);
+  if (payload.guestName) lines.push(`Customer: ${payload.guestName}`);
   // new_review: never include guest email — privacy (booking party name is enough).
   if (payload.guestEmail && payload.eventType !== 'new_review') {
-    lines.push(`Guest email: ${payload.guestEmail}`);
+    lines.push(`Customer email: ${payload.guestEmail}`);
+  }
+  if (payload.guestPhone && payload.eventType !== 'new_review') {
+    lines.push(`Customer phone: ${payload.guestPhone}`);
+  }
+  if (
+    payload.eventType === 'new_booking' &&
+    typeof payload.bookingValue === 'number' &&
+    Number.isFinite(payload.bookingValue)
+  ) {
+    const cur = (payload.currency ?? 'EUR').trim().toUpperCase() || 'EUR';
+    lines.push(`Booking value: ${cur} ${payload.bookingValue.toFixed(2)}`);
   }
   if (payload.eventType === 'new_review' && payload.reviewPostedAnonymously) {
     lines.push('Public display: Anonymous traveler');
@@ -354,7 +384,7 @@ function eventHtml(payload: Payload): string {
     const bodyText = escapeHtml(eventBody(payload)).replace(/\n/g, '<br/>');
     return transactionalEmailDocument({
       headline: 'Welcome to Traverion',
-      introHtml: `<p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.5;color:#3d4450;">${bodyText}</p>`,
+      introHtml: `<p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.55;color:${EMAIL_THEME.muted};">${bodyText}</p>`,
       bodyHtml: '',
       ctaUrl: portal,
       ctaLabel: 'Open supplier portal',
@@ -366,7 +396,7 @@ function eventHtml(payload: Payload): string {
     const settingsUrl = `${base}/partner/settings`;
     return transactionalEmailDocument({
       headline: 'Verification received',
-      introHtml: '<p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.5;color:#3d4450;">We received your business verification. Status updates appear in Settings.</p>',
+      introHtml: `<p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.55;color:${EMAIL_THEME.muted};">We received your business verification. Status updates appear in Settings.</p>`,
       bodyHtml: '',
       ctaUrl: settingsUrl,
       ctaLabel: 'Open Settings',
@@ -461,62 +491,59 @@ function eventHtml(payload: Payload): string {
   }
 
   const rows: string[] = [];
-  rows.push(`<tr><td style="padding:6px 0;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#6b7280;width:140px;vertical-align:top;">Experience</td><td style="padding:6px 0;font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#0b1f44;font-weight:700;">${listing}</td></tr>`);
+  // Product title/image live in emailProductBlock for new_booking — avoid duplicating the title row.
+  if (payload.eventType !== 'new_booking') {
+    const productKind =
+      payload.listingKind === 'stay' ? 'Stay' : payload.listingKind === 'rental' ? 'Rental' : 'Experience';
+    rows.push(emailDetailRow(productKind, payload.listingTitle ?? 'Your listing'));
+  }
   if (payload.bookingDate) {
     if (payload.listingKind === 'stay') {
-      rows.push(
-        `<tr><td style="padding:6px 0;font-size:14px;color:#6b7280;">Check-in</td><td style="padding:6px 0;font-size:14px;color:#111827;">${escapeHtml(payload.bookingDate)}</td></tr>`,
-      );
-      if (payload.checkOutDate) {
-        rows.push(
-          `<tr><td style="padding:6px 0;font-size:14px;color:#6b7280;">Check-out</td><td style="padding:6px 0;font-size:14px;color:#111827;">${escapeHtml(payload.checkOutDate)}</td></tr>`,
-        );
-      }
+      rows.push(emailDetailRow('Check-in', payload.bookingDate));
+      if (payload.checkOutDate) rows.push(emailDetailRow('Check-out', payload.checkOutDate));
+    } else if (payload.listingKind === 'rental') {
+      rows.push(emailDetailRow('Pickup', payload.bookingDate));
+      if (payload.checkOutDate) rows.push(emailDetailRow('Return', payload.checkOutDate));
     } else {
-      rows.push(
-        `<tr><td style="padding:6px 0;font-size:14px;color:#6b7280;">Date</td><td style="padding:6px 0;font-size:14px;color:#111827;">${escapeHtml(payload.bookingDate)}</td></tr>`,
-      );
+      rows.push(emailDetailRow('Date', payload.bookingDate));
     }
   }
   if (typeof payload.guests === 'number' && payload.guests > 0) {
     rows.push(
-      `<tr><td style="padding:6px 0;font-size:14px;color:#6b7280;">Guests</td><td style="padding:6px 0;font-size:14px;color:#111827;">${payload.guests}</td></tr>`,
+      emailDetailRow(
+        payload.listingKind === 'rental'
+          ? 'Quantity'
+          : payload.listingKind === 'stay'
+            ? 'Guests'
+            : 'Participants',
+        String(payload.guests)
+      )
     );
   }
   if (payload.publicReference) {
-    rows.push(
-      `<tr><td style="padding:6px 0;font-size:14px;color:#6b7280;">Reference</td><td style="padding:6px 0;font-size:14px;color:#111827;font-weight:600;">${escapeHtml(payload.publicReference)}</td></tr>`,
-    );
+    rows.push(emailDetailRow('Booking reference', payload.publicReference));
   }
-  if (payload.optionLabel) {
-    rows.push(
-      `<tr><td style="padding:6px 0;font-size:14px;color:#6b7280;">Option</td><td style="padding:6px 0;font-size:14px;color:#111827;">${escapeHtml(payload.optionLabel)}</td></tr>`,
-    );
+  // Option is shown under the product image for new_booking.
+  if (payload.optionLabel && payload.eventType !== 'new_booking') {
+    rows.push(emailDetailRow('Option', payload.optionLabel));
   }
   if (payload.startTimeLabel) {
-    rows.push(
-      `<tr><td style="padding:6px 0;font-size:14px;color:#6b7280;">Start time</td><td style="padding:6px 0;font-size:14px;color:#111827;">${escapeHtml(payload.startTimeLabel)}</td></tr>`,
-    );
+    rows.push(emailDetailRow('Start time', payload.startTimeLabel));
   }
   if (payload.guestName) {
-    rows.push(
-      `<tr><td style="padding:6px 0;font-size:14px;color:#6b7280;">Guest</td><td style="padding:6px 0;font-size:14px;color:#111827;">${escapeHtml(payload.guestName)}</td></tr>`,
-    );
+    rows.push(emailDetailRow('Customer', payload.guestName));
   }
   if (payload.eventType === 'new_review' && payload.reviewPostedAnonymously) {
-    rows.push(
-      `<tr><td style="padding:6px 0;font-size:14px;color:#6b7280;">Public display</td><td style="padding:6px 0;font-size:14px;color:#111827;">Anonymous traveler</td></tr>`,
-    );
+    rows.push(emailDetailRow('Public display', 'Anonymous traveler'));
   }
   if (payload.guestEmail && payload.eventType !== 'new_review') {
-    rows.push(
-      `<tr><td style="padding:6px 0;font-size:14px;color:#6b7280;">Guest email</td><td style="padding:6px 0;font-size:14px;color:#111827;">${escapeHtml(payload.guestEmail)}</td></tr>`,
-    );
+    rows.push(emailDetailRow('Customer email', payload.guestEmail));
+  }
+  if (payload.guestPhone && payload.eventType !== 'new_review') {
+    rows.push(emailDetailRow('Customer phone', payload.guestPhone));
   }
   if (payload.arrivalLabel && payload.arrivalPlace) {
-    rows.push(
-      `<tr><td style="padding:6px 0;font-size:14px;color:#6b7280;">${escapeHtml(payload.arrivalLabel)}</td><td style="padding:6px 0;font-size:14px;color:#111827;">${escapeHtml(payload.arrivalPlace)}</td></tr>`,
-    );
+    rows.push(emailDetailRow(payload.arrivalLabel, payload.arrivalPlace));
   }
   // Phase 1738: refund amounts for host Money honesty (parity with traveler mail).
   if (
@@ -524,32 +551,24 @@ function eventHtml(payload: Payload): string {
     typeof payload.refundAmount === 'number' &&
     Number.isFinite(payload.refundAmount)
   ) {
-    const cur = escapeHtml((payload.currency ?? 'EUR').trim().toUpperCase() || 'EUR');
+    const cur = (payload.currency ?? 'EUR').trim().toUpperCase() || 'EUR';
     const label = payload.eventType === 'partial_refund_recorded' ? 'Refunded this time' : 'Refunded';
-    rows.push(
-      `<tr><td style="padding:6px 0;font-size:14px;color:#6b7280;">${label}</td><td style="padding:6px 0;font-size:14px;color:#111827;font-weight:600;">${cur} ${payload.refundAmount.toFixed(2)}</td></tr>`,
-    );
+    rows.push(emailDetailRow(label, `${cur} ${payload.refundAmount.toFixed(2)}`));
   }
   if (
     payload.eventType === 'partial_refund_recorded' &&
     typeof payload.amountPaidRemaining === 'number' &&
     Number.isFinite(payload.amountPaidRemaining)
   ) {
-    const cur = escapeHtml((payload.currency ?? 'EUR').trim().toUpperCase() || 'EUR');
+    const cur = (payload.currency ?? 'EUR').trim().toUpperCase() || 'EUR';
     const remLabel = payload.cancelledRefundDue ? 'Refund due remaining' : 'Collected remaining';
-    rows.push(
-      `<tr><td style="padding:6px 0;font-size:14px;color:#6b7280;">${remLabel}</td><td style="padding:6px 0;font-size:14px;color:#111827;font-weight:600;">${cur} ${payload.amountPaidRemaining.toFixed(2)}</td></tr>`,
-    );
+    rows.push(emailDetailRow(remLabel, `${cur} ${payload.amountPaidRemaining.toFixed(2)}`));
   }
   if (typeof payload.reviewRating === 'number' && payload.reviewRating > 0) {
-    rows.push(
-      `<tr><td style="padding:6px 0;font-size:14px;color:#6b7280;">Rating</td><td style="padding:6px 0;font-size:14px;color:#111827;">${payload.reviewRating} / 5</td></tr>`,
-    );
+    rows.push(emailDetailRow('Rating', `${payload.reviewRating} / 5`));
   }
   if (payload.reviewTitle) {
-    rows.push(
-      `<tr><td style="padding:6px 0;font-size:14px;color:#6b7280;">Review</td><td style="padding:6px 0;font-size:14px;color:#111827;">${escapeHtml(payload.reviewTitle)}</td></tr>`,
-    );
+    rows.push(emailDetailRow('Review', payload.reviewTitle));
   }
   if (payload.messagePreview) {
     const previewLabel =
@@ -558,23 +577,36 @@ function eventHtml(payload: Payload): string {
         : payload.eventType === 'guest_message' && !(payload.fieldDiffs?.length)
           ? 'Message'
           : 'Latest note';
-    rows.push(
-      `<tr><td style="padding:6px 0;font-size:14px;color:#6b7280;vertical-align:top;">${previewLabel}</td><td style="padding:6px 0;font-size:14px;color:#111827;line-height:1.5;">${escapeHtml(payload.messagePreview)}</td></tr>`,
-    );
+    rows.push(emailDetailRow(previewLabel, payload.messagePreview));
   } else if (payload.eventType === 'new_review' && typeof payload.reviewRating === 'number') {
-    rows.push(
-      `<tr><td style="padding:6px 0;font-size:14px;color:#6b7280;vertical-align:top;">Comment</td><td style="padding:6px 0;font-size:14px;color:#111827;line-height:1.5;">Customer left a ${payload.reviewRating}-star rating.</td></tr>`,
-    );
+    rows.push(emailDetailRow('Comment', `Customer left a ${payload.reviewRating}-star rating.`));
   }
   if (payload.changeSummary) {
-    rows.push(
-      `<tr><td style="padding:6px 0;font-size:14px;color:#6b7280;vertical-align:top;">Changes</td><td style="padding:6px 0;font-size:14px;color:#111827;line-height:1.5;">${escapeHtml(payload.changeSummary)}</td></tr>`,
-    );
+    rows.push(emailDetailRow('Changes', payload.changeSummary));
   }
 
   const diffBlock =
     payload.fieldDiffs && payload.fieldDiffs.length > 0
       ? `<tr><td colspan="2" style="padding:12px 0 0;">${fieldDiffTableHtml(payload.fieldDiffs)}</td></tr>`
+      : '';
+
+  const productHtml =
+    payload.eventType === 'new_booking'
+      ? emailProductBlock({
+          title: payload.listingTitle ?? 'Your listing',
+          option: payload.optionLabel,
+          imageUrl: payload.listingImageUrl,
+        })
+      : '';
+  const bookingValueHtml =
+    payload.eventType === 'new_booking' &&
+    typeof payload.bookingValue === 'number' &&
+    Number.isFinite(payload.bookingValue)
+      ? emailAmountBlock({
+          label: 'Booking value',
+          amountLine: `${((payload.currency ?? 'EUR').trim().toUpperCase() || 'EUR')} ${payload.bookingValue.toFixed(2)}`,
+          status: 'Gross customer amount · payout details are in Income',
+        })
       : '';
 
   const ctaLabel =
@@ -585,12 +617,13 @@ function eventHtml(payload: Payload): string {
         : 'View booking';
   return transactionalEmailDocument({
     headline,
-    introHtml: `<p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.5;color:#3d4450;">${escapeHtml(sub)}</p>`,
-    bodyHtml: `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-top:1px solid #e6e8ec;">${rows.join('')}${diffBlock}</table>`,
+    introHtml: `<p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.55;color:${EMAIL_THEME.muted};">${escapeHtml(sub)}</p>`,
+    bodyHtml: `${productHtml}<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-top:1px solid ${EMAIL_THEME.divider};">${rows.join('')}${diffBlock}</table>${bookingValueHtml}`,
     ctaUrl: bookingsUrl,
     ctaLabel,
     preheader: headline,
     siteUrl: 'https://www.traverion.com',
+    statusChip: payload.eventType === 'new_booking' && payload.bookingPaymentStatus === 'paid' ? 'Paid' : undefined,
   });
 }
 
@@ -825,7 +858,12 @@ const handler = async (req: Request): Promise<Response> => {
     // forging them now requires citing a real booking/review that actually
     // belongs to the targeted supplier, not merely a real supplierId. See
     // ../_shared/notify-supplier-event-guard.ts.
-    let listingRow: { id?: string | null; supplier_id?: string | null; title?: string | null } | null = null;
+    let listingRow: {
+      id?: string | null;
+      supplier_id?: string | null;
+      title?: string | null;
+      image?: string | null;
+    } | null = null;
     let bookingRow:
       | {
           id?: string | null;
@@ -840,6 +878,8 @@ const handler = async (req: Request): Promise<Response> => {
           status?: string | null;
           refund_choice?: string | null;
           purchase_snapshot?: unknown;
+          amount_paid?: number | null;
+          currency?: string | null;
         }
       | null = null;
     let reviewRow:
@@ -858,7 +898,11 @@ const handler = async (req: Request): Promise<Response> => {
     if (isBookingTiedSupplierEvent(payload.eventType) || isReviewTiedSupplierEvent(payload.eventType)) {
       const listingId = String(payload.listingId ?? '').trim();
       if (listingId) {
-        const { data } = await admin.from('listings').select('id, supplier_id, title').eq('id', listingId).maybeSingle();
+        const { data } = await admin
+          .from('listings')
+          .select('id, supplier_id, title, image')
+          .eq('id', listingId)
+          .maybeSingle();
         listingRow = data;
       }
       if (isBookingTiedSupplierEvent(payload.eventType)) {
@@ -867,7 +911,7 @@ const handler = async (req: Request): Promise<Response> => {
           const { data } = await admin
             .from('bookings')
             .select(
-              'id, listing_id, guest_name, guest_email, booking_date, check_out, nights, guests, booking_number, public_reference, payment_status, status, purchase_snapshot, refund_choice'
+              'id, listing_id, guest_name, guest_email, booking_date, check_out, nights, guests, booking_number, public_reference, payment_status, status, purchase_snapshot, refund_choice, amount_paid, currency'
             )
             .eq('id', bookingId)
             .maybeSingle();
@@ -947,10 +991,59 @@ const handler = async (req: Request): Promise<Response> => {
         ? (bookingRow.purchase_snapshot as Record<string, unknown>)
         : null;
       const snapText = (key: string) => (typeof snap?.[key] === 'string' ? String(snap[key]).trim() : '');
+      const snapNum = (key: string) =>
+        typeof snap?.[key] === 'number' && Number.isFinite(snap[key] as number)
+          ? Number(snap[key])
+          : null;
       const hm = snapText('startTimeHm');
       const tz = snapText('departureTimezone');
-      effectivePayload.optionLabel = snapText('optionLabel') || undefined;
-      effectivePayload.startTimeLabel = hm ? travelerTimeLabel(hm, tz) : undefined;
+      const inventoryFamily = snapText('inventoryFamily');
+      if (inventoryFamily === 'rental') effectivePayload.listingKind = 'rental';
+      effectivePayload.optionLabel =
+        snapText('optionLabel') || snapText('variantName') || undefined;
+      if (inventoryFamily === 'rental') {
+        const pickupAt = snapText('pickupAt');
+        const returnAt = snapText('returnAt');
+        const zone = snapText('departureTimezone') || 'Europe/Helsinki';
+        const fmt = (iso: string) => {
+          const ms = Date.parse(iso);
+          if (!Number.isFinite(ms)) return iso;
+          try {
+            return new Intl.DateTimeFormat('en-GB', {
+              timeZone: zone,
+              year: 'numeric',
+              month: 'short',
+              day: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit',
+              hourCycle: 'h23',
+            }).format(new Date(ms));
+          } catch {
+            return iso;
+          }
+        };
+        if (pickupAt) {
+          effectivePayload.bookingDate = fmt(pickupAt);
+          effectivePayload.startTimeLabel = undefined;
+        }
+        if (returnAt) effectivePayload.checkOutDate = fmt(returnAt);
+        const qty = snapNum('quantity');
+        if (qty && qty > 0) effectivePayload.guests = qty;
+        if (snapText('pickupAddress')) {
+          effectivePayload.arrivalLabel = 'Pickup place';
+          effectivePayload.arrivalPlace = snapText('pickupAddress');
+        }
+      } else {
+        effectivePayload.startTimeLabel = hm ? travelerTimeLabel(hm, tz) : undefined;
+        const fulfillment = snapText('fulfillment');
+        if (fulfillment === 'pickup' && snapText('travelerPickupAddress')) {
+          effectivePayload.arrivalLabel = 'Pickup';
+          effectivePayload.arrivalPlace = snapText('travelerPickupAddress');
+        } else if (fulfillment === 'meeting_point' && snapText('meetingPoint')) {
+          effectivePayload.arrivalLabel = 'Meeting point';
+          effectivePayload.arrivalPlace = snapText('meetingPoint');
+        }
+      }
       effectivePayload.publicReference =
         typeof bookingRow.public_reference === 'string' && bookingRow.public_reference.trim()
           ? bookingRow.public_reference.trim()
@@ -959,14 +1052,22 @@ const handler = async (req: Request): Promise<Response> => {
         typeof bookingRow.guest_email === 'string' && bookingRow.guest_email.trim()
           ? bookingRow.guest_email.trim()
           : undefined;
-      const fulfillment = snapText('fulfillment');
-      if (fulfillment === 'pickup' && snapText('travelerPickupAddress')) {
-        effectivePayload.arrivalLabel = 'Pickup';
-        effectivePayload.arrivalPlace = snapText('travelerPickupAddress');
-      } else if (fulfillment === 'meeting_point' && snapText('meetingPoint')) {
-        effectivePayload.arrivalLabel = 'Meeting point';
-        effectivePayload.arrivalPlace = snapText('meetingPoint');
+      // Gross customer amount only (never commission / net earnings).
+      const paid = Number(bookingRow.amount_paid);
+      if (Number.isFinite(paid) && paid >= 0) {
+        effectivePayload.bookingValue = paid;
+        effectivePayload.currency =
+          typeof bookingRow.currency === 'string' && bookingRow.currency.trim()
+            ? bookingRow.currency.trim().toUpperCase()
+            : effectivePayload.currency;
       }
+      const phoneFromSnap = snapText('customerPhone') || snapText('guestPhone');
+      if (phoneFromSnap) effectivePayload.guestPhone = phoneFromSnap;
+      const listingImage =
+        typeof listingRow?.image === 'string' && listingRow.image.trim().startsWith('http')
+          ? listingRow.image.trim()
+          : '';
+      if (listingImage) effectivePayload.listingImageUrl = listingImage;
     }
     // Phase 1129: cancel unpaid copy from booking payment_status, not caller flag.
     if (effectivePayload.eventType === 'booking_cancelled' && bookingRow) {

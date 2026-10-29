@@ -17,8 +17,8 @@ describe('Paid stay receipt check-out honesty (Phase 1576)', () => {
 
   it('PDF draws Check-in/Check-out for stays', () => {
     expect(pdf).toContain('Phase 1576');
-    expect(pdf).toMatch(/Check-in: \$\{input\.bookingDate\}/);
-    expect(pdf).toMatch(/Check-out: \$\{checkOut\}/);
+    expect(pdf).toMatch(/kv\('Check-in',\s*input\.bookingDate\)/);
+    expect(pdf).toMatch(/kv\('Check-out',\s*checkOut\)/);
   });
 
   it('notify text and PDF pass checkOutDate for stays', () => {
