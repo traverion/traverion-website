@@ -166,6 +166,39 @@ export async function evaluateRentalAvailabilityRpc(input: {
   return (data ?? { ok: false, error: 'empty_response' }) as RentalEvaluateRpcResult;
 }
 
+export type RentalPublicOccupancyRpcResult = {
+  ok: boolean;
+  error?: string;
+  bufferMinutes?: number;
+  occupancies?: Array<{
+    variantId?: string | null;
+    quantity?: number;
+    startsAt?: string;
+    endsAt?: string;
+  }>;
+  blocks?: Array<{
+    variantId?: string | null;
+    startsAt?: string;
+    endsAt?: string;
+  }>;
+};
+
+/** Anonymized occupancy for published rentals (PDP slot guidance). */
+export async function fetchRentalPublicOccupancy(input: {
+  listingId: string;
+  rangeStartIso: string;
+  rangeEndIso: string;
+}): Promise<RentalPublicOccupancyRpcResult> {
+  if (!supabase) throw new Error('Supabase not configured');
+  const { data, error } = await supabase.rpc('rental_public_occupancy', {
+    p_listing_id: input.listingId,
+    p_range_start: input.rangeStartIso,
+    p_range_end: input.rangeEndIso,
+  });
+  if (error) throw error;
+  return (data ?? { ok: false, error: 'empty_response' }) as RentalPublicOccupancyRpcResult;
+}
+
 export async function fetchRentalVariantReservedQuantity(
   listingId: string,
   variantId: string,

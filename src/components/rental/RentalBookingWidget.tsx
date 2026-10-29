@@ -26,9 +26,20 @@ import {
   todayLocalYmd,
 } from '../../lib/rental-booking-interval';
 import { resolveDepartureTimezone } from '../../lib/tour-departure-cutoff';
-import { evaluateRentalAvailabilityRpc } from '../../data/supabase-rental-availability';
+import {
+  evaluateRentalAvailabilityRpc,
+  fetchRentalPublicOccupancy,
+} from '../../data/supabase-rental-availability';
 import { fetchRentalCheckoutCapability } from '../../data/rental-checkout-capability';
 import type { RentalCheckoutState } from '../../lib/rentalCheckoutUrl';
+import {
+  availableFromHint,
+  filterValidPickupTimes,
+  filterValidReturnTimes,
+  humanizeRentalAvailabilityError,
+  rentalPickupDayUnavailable,
+  type RentalPdpOccupancySnapshot,
+} from '../../lib/rental-pdp-slot-guide';
 import GuestStepper from '../booking/GuestStepper';
 import { TraverionSingleDateField } from '../calendar/TraverionSingleDateField';
 import { TraverionTimeListField } from '../calendar/TraverionTimeListField';
@@ -151,12 +162,70 @@ export default function RentalBookingWidget({
     message: string | null;
     available: number | null;
   }>({ loading: false, ok: null, message: null, available: null });
+  const [occupancy, setOccupancy] = useState<RentalPdpOccupancySnapshot | null>(null);
+  const [occupancyLoading, setOccupancyLoading] = useState(false);
+  const [autoPickupHint, setAutoPickupHint] = useState<string | null>(null);
 
   useEffect(() => {
     if (!variantId && variants[0]?.id) setVariantId(variants[0].id);
   }, [variantId, variants]);
 
   const selected: RentalVariant | undefined = selectedEarly;
+
+  useEffect(() => {
+    if (isRentalDevPreviewId(listingId)) {
+      setOccupancy({ bufferMinutes: rental.bufferMinutes ?? 0, occupancies: [], blocks: [] });
+      return;
+    }
+    let cancelled = false;
+    const rangeStart = new Date(bookingClockMs - 86_400_000).toISOString();
+    const rangeEnd = new Date(bookingClockMs + 120 * 86_400_000).toISOString();
+    setOccupancyLoading(true);
+    void fetchRentalPublicOccupancy({
+      listingId,
+      rangeStartIso: rangeStart,
+      rangeEndIso: rangeEnd,
+    })
+      .then((result) => {
+        if (cancelled) return;
+        if (!result.ok) {
+          setOccupancy(null);
+          return;
+        }
+        setOccupancy({
+          bufferMinutes:
+            typeof result.bufferMinutes === 'number'
+              ? result.bufferMinutes
+              : (rental.bufferMinutes ?? 0),
+          occupancies: (result.occupancies ?? [])
+            .map((row) => ({
+              variantId: typeof row.variantId === 'string' ? row.variantId : null,
+              quantity: typeof row.quantity === 'number' ? row.quantity : 0,
+              startsAt: typeof row.startsAt === 'string' ? row.startsAt : '',
+              endsAt: typeof row.endsAt === 'string' ? row.endsAt : '',
+            }))
+            .filter((row) => row.startsAt && row.endsAt),
+          blocks: (result.blocks ?? [])
+            .map((row) => ({
+              variantId: typeof row.variantId === 'string' ? row.variantId : null,
+              startsAt: typeof row.startsAt === 'string' ? row.startsAt : '',
+              endsAt: typeof row.endsAt === 'string' ? row.endsAt : '',
+            }))
+            .filter((row) => row.startsAt && row.endsAt),
+        });
+      })
+      .catch(() => {
+        if (!cancelled) setOccupancy(null);
+      })
+      .finally(() => {
+        if (!cancelled) setOccupancyLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // Refresh when the booking clock ticks past ~30m or listing changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional coarse refresh
+  }, [listingId, rental.bufferMinutes, Math.floor(bookingClockMs / 1_800_000)]);
 
   useEffect(() => {
     if (!selected) return;
@@ -288,17 +357,17 @@ export default function RentalBookingWidget({
             setAvailability({
               loading: false,
               ok: false,
-              message: result.error?.replace(/_/g, ' ') || 'Not available for these dates',
+              message: humanizeRentalAvailabilityError(result.error),
               available: result.available ?? 0,
             });
           }
         } catch {
           if (cancelled) return;
-          // Anon or RLS: soft-fail — still show quote; live stock confirmed at checkout.
+          // Soft-fail — server revalidates at checkout / paid promote (no unpaid holds).
           setAvailability({
             loading: false,
             ok: null,
-            message: 'Availability could not be checked yet.',
+            message: null,
             available: null,
           });
         }
@@ -341,7 +410,7 @@ export default function RentalBookingWidget({
       ? formatMinorAsEuro(pricing?.pricePerHourMinor)
       : formatMinorAsEuro(pricing?.pricePerDayMinor);
 
-  const pickupTimeOptions = useMemo(
+  const schedulePickupOptions = useMemo(
     () =>
       startDate
         ? rentalDayTimeOptions({
@@ -356,7 +425,39 @@ export default function RentalBookingWidget({
         : [],
     [rental.operatingDays, rental.bookingNoticeHours, startDate, listingTz, bookingClockMs]
   );
-  const returnTimeOptions = useMemo(
+
+  const pickupTimeOptions = useMemo(() => {
+    if (!startDate || !selected) return schedulePickupOptions;
+    if (!occupancy) return schedulePickupOptions;
+    return filterValidPickupTimes({
+      rental,
+      variant: selected,
+      quantity: Math.min(Math.max(1, quantity), configuredQty),
+      startDate,
+      durationUnit,
+      timeZone: listingTz,
+      nowMs: bookingClockMs,
+      snapshot: occupancy,
+      candidatePickupHms: schedulePickupOptions,
+      preferredEndDate: endDate || undefined,
+      preferredReturnHm: returnHm || undefined,
+    });
+  }, [
+    schedulePickupOptions,
+    startDate,
+    selected,
+    occupancy,
+    rental,
+    quantity,
+    configuredQty,
+    durationUnit,
+    listingTz,
+    bookingClockMs,
+    endDate,
+    returnHm,
+  ]);
+
+  const scheduleReturnOptions = useMemo(
     () =>
       endDate
         ? rentalDayTimeOptions({
@@ -372,25 +473,84 @@ export default function RentalBookingWidget({
     [rental.operatingDays, endDate, startDate, pickupHm, listingTz, bookingClockMs]
   );
 
+  const returnTimeOptions = useMemo(() => {
+    if (!startDate || !endDate || !selected) return scheduleReturnOptions;
+    if (!occupancy) return scheduleReturnOptions;
+    return filterValidReturnTimes({
+      rental,
+      variant: selected,
+      quantity: Math.min(Math.max(1, quantity), configuredQty),
+      startDate,
+      endDate,
+      pickupHm,
+      durationUnit,
+      timeZone: listingTz,
+      nowMs: bookingClockMs,
+      snapshot: occupancy,
+      candidateReturnHms: scheduleReturnOptions,
+    });
+  }, [
+    scheduleReturnOptions,
+    startDate,
+    endDate,
+    selected,
+    occupancy,
+    rental,
+    quantity,
+    configuredQty,
+    pickupHm,
+    durationUnit,
+    listingTz,
+    bookingClockMs,
+  ]);
+
   useEffect(() => {
-    if (!startDate || pickupTimeOptions.length === 0) return;
-    if (!pickupTimeOptions.includes(pickupHm)) setPickupHm(pickupTimeOptions[0]!);
-  }, [startDate, pickupTimeOptions, pickupHm]);
+    if (!startDate) return;
+    if (pickupTimeOptions.length === 0) {
+      if (schedulePickupOptions.length > 0 && occupancy) {
+        setAutoPickupHint('No pickup times available on this date');
+      }
+      return;
+    }
+    if (!pickupTimeOptions.includes(pickupHm)) {
+      const next = pickupTimeOptions[0]!;
+      setPickupHm(next);
+      setAutoPickupHint(availableFromHint(next));
+      return;
+    }
+    setAutoPickupHint((current) => (current?.startsWith('No pickup') ? null : current));
+  }, [startDate, pickupTimeOptions, pickupHm, schedulePickupOptions.length, occupancy]);
 
   useEffect(() => {
     if (!endDate || returnTimeOptions.length === 0) return;
     if (!returnTimeOptions.includes(returnHm)) setReturnHm(returnTimeOptions[0]!);
   }, [endDate, returnTimeOptions, returnHm]);
 
-  const isPickupDayDisabled = (ymd: string) =>
-    rentalDayClosed(rental.operatingDays, ymd) ||
-    rentalPickupDayExhausted({
-      operatingDays: rental.operatingDays,
+  const isPickupDayDisabled = (ymd: string) => {
+    if (rentalDayClosed(rental.operatingDays, ymd)) return true;
+    if (
+      rentalPickupDayExhausted({
+        operatingDays: rental.operatingDays,
+        ymd,
+        timeZone: listingTz,
+        bookingNoticeHours: rental.bookingNoticeHours,
+        nowMs: bookingClockMs,
+      })
+    ) {
+      return true;
+    }
+    if (!selected || !occupancy) return false;
+    return rentalPickupDayUnavailable({
+      rental,
+      variant: selected,
+      quantity: Math.min(Math.max(1, quantity), configuredQty),
       ymd,
+      durationUnit,
       timeZone: listingTz,
-      bookingNoticeHours: rental.bookingNoticeHours,
       nowMs: bookingClockMs,
+      snapshot: occupancy,
     });
+  };
 
   const showBreakdown =
     Boolean(quote?.ok) &&
@@ -403,6 +563,7 @@ export default function RentalBookingWidget({
     !interval.ok ||
     availability.ok === false ||
     availability.loading ||
+    (Boolean(startDate) && pickupTimeOptions.length === 0) ||
     !onContinue;
 
   return (
@@ -494,6 +655,7 @@ export default function RentalBookingWidget({
                 placeholder="Date"
                 isDayDisabled={isPickupDayDisabled}
                 onChange={(next) => {
+                  setAutoPickupHint(null);
                   setStartDate(next);
                   if (!endDate || endDate < next) {
                     if (durationUnit === 'hour') setEndDate(next);
@@ -519,7 +681,10 @@ export default function RentalBookingWidget({
                 options={pickupTimeOptions}
                 placeholder="Time"
                 hideIcon
-                onChange={(hm) => setPickupHm(normalizeHm(hm, pickupHm))}
+                onChange={(hm) => {
+                  setAutoPickupHint(null);
+                  setPickupHm(normalizeHm(hm, pickupHm));
+                }}
                 className="w-full"
               />
             </div>
@@ -606,7 +771,7 @@ export default function RentalBookingWidget({
       ) : null}
 
       <div className="min-h-[1rem] text-xs text-ink-muted" aria-live="polite">
-        {availability.loading ? (
+        {availability.loading || occupancyLoading ? (
           <span className="inline-flex items-center gap-1.5">
             <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
             Checking availability…
@@ -614,6 +779,12 @@ export default function RentalBookingWidget({
         ) : availability.message ? (
           <span className={availability.ok === false ? 'text-[#9f1239]' : undefined}>
             {availability.message}
+          </span>
+        ) : autoPickupHint ? (
+          <span>{autoPickupHint}</span>
+        ) : startDate && pickupTimeOptions.length === 0 ? (
+          <span className="text-[#9f1239]">
+            No pickup times available on this date. Choose another date or rental option.
           </span>
         ) : null}
       </div>

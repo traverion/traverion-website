@@ -38,6 +38,7 @@ import {
   buildRentalInterval,
   rentalScheduleIssue,
 } from '../lib/rental-booking-interval';
+import { humanizeRentalAvailabilityError } from '../lib/rental-pdp-slot-guide';
 import { formatMinorAsEuro } from '../lib/rental-details';
 import {
   rentalCancellationCustomerText,
@@ -277,7 +278,7 @@ export default function RentalBookingConfirm({ listing, rental, initial, onBackT
           setAvailability({
             loading: false,
             ok: false,
-            message: result.error?.replace(/_/g, ' ') || 'Not available for these dates',
+            message: humanizeRentalAvailabilityError(result.error),
             available: result.available ?? 0,
           });
         }

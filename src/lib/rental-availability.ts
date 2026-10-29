@@ -8,8 +8,8 @@
  * - Booking notice: pickup must be at least noticeHours after "now" in absolute time.
  * - Stock is tracked per stable variant id (pooled identical units).
  *
- * Not yet wired to public checkout. Supplier blocks written to DB are consumed by
- * these helpers once the claim path is extended for rentals.
+ * Used by the rental PDP slot guide (with public occupancy) and supplier day preview.
+ * Server `evaluate_rental_availability` remains authoritative at checkout / paid promote.
  */
 
 export type RentalInterval = {
