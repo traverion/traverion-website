@@ -74,7 +74,7 @@ import {
 
 import { canManageBookings } from '../../lib/supplierTeamRoles';
 import { useSupplierRole } from '../../hooks/useSupplierRole';
-import { publicStayListingUrl, publicTourListingUrl } from '../../lib/publicSiteUrl';
+import { publicListingProductUrlFromListing } from '../../lib/publicSiteUrl';
 import { getListingPublishBlockers, partnerListingCardPresentation, partnerListingDraftPublishSubtitle } from '../../lib/listingPublishGate';
 import {
   PARTNER_LISTINGS_BUSINESS_REVIEW_NOTE,
@@ -1566,9 +1566,7 @@ export default function SupplierListings() {
                     ? draftPublish?.subtitle ?? card.publishDisabledReason
                     : null
                 : liveAttention;
-              const publicUrl = isStay
-                ? publicStayListingUrl(listing.id)
-                : publicTourListingUrl(listing.id);
+              const publicUrl = publicListingProductUrlFromListing(listing);
               const primaryIsView = isLive;
               return (
                 <article key={listing.id} className="tv-ops-listing-row min-w-0">
@@ -1663,14 +1661,28 @@ export default function SupplierListings() {
 
                     <div className="tv-ops-listing-row__actions flex shrink-0 items-center justify-end gap-1.5">
                       {primaryIsView ? (
-                        <a
-                          href={publicUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="tv-ops-listing-row__primary lux-flat"
-                        >
-                          View
-                        </a>
+                        publicUrl ? (
+                          <a
+                            href={publicUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="tv-ops-listing-row__primary lux-flat"
+                          >
+                            View
+                          </a>
+                        ) : (
+                          <button
+                            type="button"
+                            className="tv-ops-listing-row__primary lux-flat"
+                            onClick={() =>
+                              setError(
+                                'This listing has no public product page for its category. Open Edit to check the listing type.'
+                              )
+                            }
+                          >
+                            View
+                          </button>
+                        )
                       ) : (
                         <button
                           type="button"
@@ -1789,22 +1801,37 @@ export default function SupplierListings() {
                 >
                   Edit
                 </button>
-                {menuIsLive ? (
-                  <a
-                    role="menuitem"
-                    href={
-                      menuIsStay
-                        ? publicStayListingUrl(menuListing.id)
-                        : publicTourListingUrl(menuListing.id)
-                    }
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={menuItemClass}
-                    onClick={() => closeListingActionsMenu()}
-                  >
-                    Preview
-                  </a>
-                ) : null}
+                {menuIsLive
+                  ? (() => {
+                      const menuPublicUrl = publicListingProductUrlFromListing(menuListing);
+                      return menuPublicUrl ? (
+                        <a
+                          role="menuitem"
+                          href={menuPublicUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className={menuItemClass}
+                          onClick={() => closeListingActionsMenu()}
+                        >
+                          Preview
+                        </a>
+                      ) : (
+                        <button
+                          type="button"
+                          role="menuitem"
+                          className={menuItemClass}
+                          onClick={() => {
+                            closeListingActionsMenu();
+                            setError(
+                              'This listing has no public product page for its category. Open Edit to check the listing type.'
+                            );
+                          }}
+                        >
+                          Preview
+                        </button>
+                      );
+                    })()
+                  : null}
                 <button
                   type="button"
                   role="menuitem"

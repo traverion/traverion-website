@@ -9,8 +9,10 @@ describe('Phase 1672 → listings row CTA: contextual primary + overflow menu', 
     expect(src).toMatch(/role="menuitem"[\s\S]*?\n\s*Edit\n/);
     expect(src).toContain('primaryIsView');
     expect(src).toContain('tv-ops-listing-row__primary');
-    expect(src).toContain('publicTourListingUrl');
-    expect(src).toContain('publicStayListingUrl');
+    expect(src).toContain('publicListingProductUrlFromListing');
+    expect(src).not.toMatch(
+      /isStay\s*\?\s*publicStayListingUrl[\s\S]*publicTourListingUrl/
+    );
     // Row identity must not navigate into the editor.
     expect(src).not.toContain('tv-ops-listing-row__identity flex min-w-0 items-start gap-3 text-left"');
     expect(src).not.toMatch(

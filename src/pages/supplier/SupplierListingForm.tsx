@@ -268,7 +268,7 @@ import {
 import type { RentalDetails } from '../../types/rental';
 import { fetchSupplierActiveCommercialTerms } from '../../data/supabase-earnings';
 
-import { publicStayListingUrl, publicTourListingUrl } from '../../lib/publicSiteUrl';
+import { publicListingProductUrl } from '../../lib/publicSiteUrl';
 import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
 import NoticeCallout from '../../components/NoticeCallout';
 
@@ -5929,9 +5929,10 @@ export default function SupplierListingForm({
                 settingsHref={`${PARTNER_APP_BASE}/business-profile`}
                 liveListingHref={
                   form.status === 'published' && editingId
-                    ? isStayForm
-                      ? publicStayListingUrl(editingId)
-                      : publicTourListingUrl(editingId)
+                    ? publicListingProductUrl(
+                        editingId,
+                        isRentalForm ? 'rental' : isStayForm ? 'stay' : 'tour'
+                      )
                     : null
                 }
                 isPublished={form.status === 'published'}
