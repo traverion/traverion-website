@@ -361,7 +361,7 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
         if (!cancelled) setReviewAggregates(reviews);
       })
       .catch(() => {
-        // Keep prior map — review load failure must not invent empty ratings.
+        if (!cancelled) setReviewAggregates(new Map());
       });
     return () => {
       cancelled = true;
@@ -404,6 +404,7 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
           const departures = tourBookableSellingDeparturesOnDate(opts, filterDate, {
             cutoffHoursBeforeStart: extras.bookingCutoffHoursBeforeStart,
             timeZone: extras.departureTimezone,
+            slotOverrides: extras.slotOverrides,
           }).map((d) => ({
             startTimeHm: d.startTime,
             maxSpots: d.maxSpotsPerSlot,
@@ -1031,11 +1032,7 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
             }}
             idPrefix="tours"
             trailing={
-              <button
-                type="submit"
-                className="mx-1 flex h-12 items-center justify-center gap-2 self-center rounded-full bg-finland px-6 text-sm font-semibold text-white shadow-sm hover:bg-finland-dark"
-                aria-label="Apply search"
-              >
+              <button type="submit" className="tv-browse-search-btn" aria-label="Apply search">
                 <Search className="h-4 w-4" aria-hidden />
                 Search
               </button>
@@ -1305,7 +1302,7 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
             <div className="mb-5 flex items-start justify-between gap-3">
               <div>
                 <p className="tv-eyebrow">Search</p>
-                <h2 id="tours-mobile-search-title" className="font-display text-2xl text-ink tracking-tight mt-1">
+                <h2 id="tours-mobile-search-title" className="tv-page-title mt-1">
                   Find a tour
                 </h2>
               </div>

@@ -14,6 +14,15 @@ import { travelerOptionPriceFacts } from '../../lib/price-categories';
 import { formatMoney } from '../../lib/money';
 import { departureTimesOnDate, FLEXIBLE_DEPARTURE_HM } from '../../lib/listing-option-schedules';
 import { optionCardPriceForSelection } from '../../lib/tour-option-card-price';
+import {
+  confirmedDepartureKey,
+  evaluateDepartureBookingWindow,
+} from '../../lib/last-minute-booking';
+import { findSlotOverride, resolveSlotCutoffHours } from '../../lib/listing-slot-overrides';
+import {
+  normalizeBookingCutoffHours,
+  resolveDepartureTimezone,
+} from '../../lib/tour-departure-cutoff';
 import NoticeCallout from '../NoticeCallout';
 
 type Props = {
@@ -37,6 +46,10 @@ type Props = {
    * (PriceHero 1550 / sticky 1547 parity).
    */
   hideSelectedCatalogPrice?: boolean;
+  /** `YYYY-MM-DD|HH:MM|optionId` keys for last-minute unlock (same as booking panel). */
+  confirmedDepartureKeys?: ReadonlySet<string>;
+  /** Soft clock so closed chips drop when cutoffs pass. */
+  nowMs?: number;
   onChoose: (variant: TourBookingVariant) => void;
   onChooseTime?: (variant: TourBookingVariant, time: string) => void;
   onChangeDate: () => void;
@@ -58,12 +71,20 @@ export default function TourAvailableOptions({
   currency,
   discounts = [],
   hideSelectedCatalogPrice = false,
+  confirmedDepartureKeys,
+  nowMs,
   onChoose,
   onChooseTime,
   onChangeDate,
   onChangeGuests,
 }: Props) {
   const headingDate = formatTourAvailabilityHeading(date);
+  const listingCutoffHours = normalizeBookingCutoffHours(
+    tour.listingExtras?.bookingCutoffHoursBeforeStart
+  );
+  const departureTimezone = resolveDepartureTimezone(tour.listingExtras?.departureTimezone);
+  const slotOverrides = tour.listingExtras?.slotOverrides;
+  const clockMs = nowMs ?? Date.now();
 
   return (
     <section
@@ -120,6 +141,11 @@ export default function TourAvailableOptions({
             mixSourceOption={mixSourceOption}
             todayIso={todayIso}
             hideCatalogPrice={hideSelectedCatalogPrice && selectedId === available[0].id}
+            listingCutoffHours={listingCutoffHours}
+            departureTimezone={departureTimezone}
+            slotOverrides={slotOverrides}
+            confirmedDepartureKeys={confirmedDepartureKeys}
+            nowMs={clockMs}
             onChoose={onChoose}
             onChooseTime={onChooseTime}
             date={date}
@@ -144,6 +170,11 @@ export default function TourAvailableOptions({
                 mixSourceOption={mixSourceOption}
                 todayIso={todayIso}
                 hideCatalogPrice={hideSelectedCatalogPrice && selectedId === variant.id}
+                listingCutoffHours={listingCutoffHours}
+                departureTimezone={departureTimezone}
+                slotOverrides={slotOverrides}
+                confirmedDepartureKeys={confirmedDepartureKeys}
+                nowMs={clockMs}
                 onChoose={onChoose}
                 onChooseTime={onChooseTime}
                 date={date}
@@ -176,6 +207,11 @@ function OptionRow({
   mixSourceOption,
   todayIso,
   hideCatalogPrice,
+  listingCutoffHours,
+  departureTimezone,
+  slotOverrides,
+  confirmedDepartureKeys,
+  nowMs,
   date,
   onChoose,
   onChooseTime,
@@ -192,6 +228,11 @@ function OptionRow({
   mixSourceOption: ListingBookingOption | null;
   todayIso: string;
   hideCatalogPrice?: boolean;
+  listingCutoffHours: number;
+  departureTimezone: string;
+  slotOverrides?: Array<{ date: string; startTimeHm: string; cutoffHours?: number }> | null;
+  confirmedDepartureKeys?: ReadonlySet<string>;
+  nowMs: number;
   date: string;
   onChoose: (variant: TourBookingVariant) => void;
   onChooseTime?: (variant: TourBookingVariant, time: string) => void;
@@ -202,8 +243,27 @@ function OptionRow({
   const detailLong = detail.length > 120;
   const [detailOpen, setDetailOpen] = useState(false);
   const [pricesOpen, setPricesOpen] = useState(false);
+  const optionCutoff = normalizeBookingCutoffHours(opt?.bookingCutoffHoursBeforeStart);
+  const baselineCutoff = optionCutoff > 0 ? optionCutoff : listingCutoffHours;
   const times = opt
-    ? departureTimesOnDate(opt, date).filter((time) => time && time !== FLEXIBLE_DEPARTURE_HM)
+    ? departureTimesOnDate(opt, date).filter((time) => {
+        if (!time || time === FLEXIBLE_DEPARTURE_HM) return false;
+        const cutoff = resolveSlotCutoffHours({
+          baselineCutoffHours: baselineCutoff,
+          override: findSlotOverride(slotOverrides, date, time),
+        });
+        return evaluateDepartureBookingWindow({
+          bookingDate: date,
+          startTimeHm: time,
+          cutoffHoursBeforeStart: cutoff,
+          nowMs,
+          timeZone: departureTimezone,
+          lastMinuteEnabled: opt.lastMinuteBookings === true,
+          lastMinuteUntil: opt.lastMinuteUntil,
+          confirmedPaidOnDeparture:
+            confirmedDepartureKeys?.has(confirmedDepartureKey(date, time, opt.id)) === true,
+        }).ok;
+      })
     : [];
   const price = optionCardPriceForSelection({
     tour,

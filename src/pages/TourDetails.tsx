@@ -1754,6 +1754,8 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
                     hideSelectedCatalogPrice={Boolean(
                       selectedBookingVariant && panelQuote && !panelQuote.ok
                     )}
+                    confirmedDepartureKeys={confirmedDepartureKeys}
+                    nowMs={bookingClockMs}
                     onChoose={handleSelectTourVariant}
                     onChooseTime={(variant, time) => handleSelectTourVariant(variant, time)}
                     onChangeDate={() => {

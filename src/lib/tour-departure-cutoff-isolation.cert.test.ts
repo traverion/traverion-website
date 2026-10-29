@@ -31,6 +31,15 @@ describe('Tour per-departure cutoff isolation (cert)', () => {
     expect(tour).toContain('slotOverrides: tour?.listingExtras?.slotOverrides');
     expect(tour).toContain('evaluateDepartureBookingWindow');
     expect(tour).toContain('bookingClockMs');
+    expect(tour).toContain('confirmedDepartureKeys={confirmedDepartureKeys}');
+  });
+
+  it('option cards and Packages browse filter cutoffs with slotOverrides', () => {
+    const cards = read('src/components/tour-detail/TourAvailableOptions.tsx');
+    expect(cards).toContain('evaluateDepartureBookingWindow');
+    expect(cards).toContain('resolveSlotCutoffHours');
+    const packages = read('src/pages/Packages.tsx');
+    expect(packages).toContain('slotOverrides: extras.slotOverrides');
   });
 
   it('shared last-minute module scopes confirmed keys to date|time|option', () => {
