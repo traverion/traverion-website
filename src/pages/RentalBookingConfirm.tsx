@@ -743,7 +743,7 @@ export default function RentalBookingConfirm({ listing, rental, initial, onBackT
                         lines={priceLines}
                         total={Number((quote.customerTotalMinor / 100).toFixed(2))}
                         hideTotal
-                        holdNote="Inventory is held only after payment starts successfully."
+                        holdNote="Inventory stays available until payment succeeds."
                       />
                     </div>
                   ) : (

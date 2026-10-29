@@ -2003,7 +2003,8 @@ export default function BookingPage({
               <p className="mt-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-muted">Total payable</p>
               <p className="mt-1 text-2xl font-bold tabular-nums text-ink">{totalLabel}</p>
               <p className="mt-2 text-sm text-ink-muted">
-                Spots are held for {CHECKOUT_HOLD_MINUTES} minutes while you pay.
+                Spots stay available until payment succeeds. Checkout closes after{' '}
+                {CHECKOUT_HOLD_MINUTES} minutes if you leave without paying.
               </p>
               <p className="mt-3 text-sm font-semibold text-ink">{cancellationShort}</p>
               <details className="mt-1">

@@ -152,7 +152,7 @@ export default function CartPage({ onNavigate }: Props) {
           <EmptyState
             icon={ShoppingBag}
             title="Your cart is empty"
-            body="A reservation appears here after you continue to payment, and leaves when it expires or when payment succeeds."
+            body="An unpaid checkout appears here after you continue to payment, and leaves when it expires or when payment succeeds. Inventory is not reserved until payment succeeds."
             action={
               <button type="button" className="tv-btn-primary" onClick={() => onNavigate('packages')}>
                 Browse tours
@@ -177,7 +177,9 @@ export default function CartPage({ onNavigate }: Props) {
                     {amount ? ` · ${amount}` : ''}
                   </p>
                   <p className="mt-2 text-sm font-medium tabular-nums text-ink">
-                    {remaining ? `Held for ${remaining}` : 'Hold time unavailable'}
+                    {remaining
+                      ? `Checkout open · not reserved · ${remaining}`
+                      : 'Checkout window unavailable'}
                   </p>
                   <button
                     type="button"

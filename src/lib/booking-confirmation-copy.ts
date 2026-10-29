@@ -150,7 +150,7 @@ export function bookingPayConfirmAfterPayCopy(holdMinutes: number): string {
   return (
     `After Stripe confirms payment, Traverion shows Booking confirmed with your reference. Manage the trip from Trips. ` +
     `${BOOKING_CONFIRMATION_EMAIL_DISCLAIMER} ` +
-    `If you leave Stripe without paying, the hold expires after ${holdMinutes} minutes and nothing is charged.`
+    `Inventory is reserved only after payment succeeds. If you leave Stripe without paying, the checkout window closes after ${holdMinutes} minutes and nothing is charged.`
   );
 }
 
@@ -159,10 +159,13 @@ export const STRIPE_CHECKOUT_CANCELLED_NO_EMAIL =
   'No confirmation email is sent for an unfinished checkout.';
 
 export const STRIPE_CHECKOUT_CANCELLED_TOUR_COPY =
-  `Checkout was cancelled. You were not charged. ${STRIPE_CHECKOUT_CANCELLED_NO_EMAIL} If a hold is still open on Trips, use Pay now to finish — you do not need to start over.`;
+  `Checkout was cancelled. You were not charged. ${STRIPE_CHECKOUT_CANCELLED_NO_EMAIL} If checkout is still open on Trips, use Pay now to finish — you do not need to start over. Spots were not reserved.`;
 
 export const STRIPE_CHECKOUT_CANCELLED_STAY_COPY =
-  `Checkout was cancelled and no payment was taken. ${STRIPE_CHECKOUT_CANCELLED_NO_EMAIL} If a hold is still open on Trips, use Pay now to finish — you do not need to choose dates again unless the hold already expired.`;
+  `Checkout was cancelled and no payment was taken. ${STRIPE_CHECKOUT_CANCELLED_NO_EMAIL} If checkout is still open on Trips, use Pay now to finish — you do not need to choose dates again unless the checkout window already closed. Dates were not reserved.`;
+
+export const STRIPE_CHECKOUT_CANCELLED_RENTAL_COPY =
+  `Checkout was cancelled. You were not charged. ${STRIPE_CHECKOUT_CANCELLED_NO_EMAIL} If checkout is still open on Trips, use Pay now to finish — you do not need to pick pickup and return again unless the checkout window already closed. Inventory was not reserved.`;
 
 /** Auth/SMTP confirmation request — do not claim inbox delivery as proven. */
 export const AUTH_CONFIRMATION_EMAIL_REQUESTED =
@@ -241,9 +244,9 @@ export const TRAVELER_OPENING_CHECKOUT_CTA = 'Opening checkout…';
 /** Traveler Trips / confirmation — pay CTA while Stripe is still in TEST mode. */
 export const TRAVELER_PAY_NOW_TEST_CTA = 'Pay now · test mode';
 
-/** Traveler Trips — Pay now after the inventory hold timed out. */
+/** Traveler Trips — Pay now after the unpaid Stripe checkout window closed. */
 export const TRAVELER_HOLD_EXPIRED_PAY_NOW_NOTE =
-  'Your Stripe checkout session ended before payment. Instant Book nights were never reserved. Pay now opens a new checkout if the dates are still available.';
+  'Your Stripe checkout session ended before payment. Inventory was never reserved. Pay now opens a new checkout if the selection is still available.';
 
 /** Tour / stay sticky + booking card — continue into checkout (Stripe TEST disclosed beside CTA). */
 export const TRAVELER_CONTINUE_TEST_CTA = 'Continue to checkout';

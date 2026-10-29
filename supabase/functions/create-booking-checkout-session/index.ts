@@ -883,6 +883,8 @@ serve(async (req) => {
       if (!claimRow || claimRow.ok !== true || !claimRow.booking_id) {
         const conflict =
           claimRow?.error === 'insufficient_stock' ||
+          claimRow?.error === 'unavailable' ||
+          claimRow?.error === 'blocked' ||
           claimRow?.error === 'hold_failed' ||
           typeof claimRow?.available === 'number';
         return json(
@@ -891,7 +893,9 @@ serve(async (req) => {
             error:
               claimRow?.error === 'insufficient_stock'
                 ? 'Not enough rental inventory for those dates.'
-                : claimRow?.error ?? 'Could not reserve this rental.',
+                : claimRow?.error === 'blocked'
+                  ? 'Those dates are blocked by the operator.'
+                  : claimRow?.error ?? 'This rental is not available for those dates.',
             available: claimRow?.available,
             timings: timing.snapshot(),
           },
