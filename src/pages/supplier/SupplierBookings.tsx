@@ -7,8 +7,6 @@ import {
   Trash2,
   CalendarDays,
 } from 'lucide-react';
-import RentalCollectionMap from '../../components/supplier/listing-creation/RentalCollectionMap';
-import { rentalReturnPoint } from '../../lib/rental-presentation';
 import type { TourPackage } from '../../types/tour';
 import { listingHeroImageSrc, orderedPhotoUrls, photoSlotsFromTourPackage } from '../../lib/listingPhotoGrid';
 import { formatMoney, normalizeCurrency } from '../../lib/money';
@@ -66,8 +64,11 @@ import StayRequestActions from '../../components/StayRequestActions';
 import BookingOpsNotesEditor from '../../components/supplier/BookingOpsNotesEditor';
 import StayOpsReservationCard from '../../components/supplier/StayOpsReservationCard';
 import StayOpsBookingDetail from '../../components/supplier/StayOpsBookingDetail';
+import RentalOpsBookingCard from '../../components/supplier/RentalOpsBookingCard';
+import RentalOpsBookingDetail from '../../components/supplier/RentalOpsBookingDetail';
 import TourOpsBookingCard from '../../components/supplier/TourOpsBookingCard';
 import TourOpsBookingDetail from '../../components/supplier/TourOpsBookingDetail';
+import PartnerConfirmModal from '../../components/supplier/PartnerConfirmModal';
 import { isStayRequestAwaitingHost } from '../../lib/stay-request-approval';
 import { insertSupplierExportRun } from '../../data/supabase-supplier-campaigns-exports';
 import { decrementAvailabilityBooked } from '../../data/supabase-availability';
@@ -101,8 +102,19 @@ import { formatPartnerCheckoutHoldLabel, partnerUnpaidCheckoutHoldsInventory } f
 import { formatStayNightHuman } from '../../lib/stay-calendar';
 import { formatBookingDateDisplay } from '../../lib/booking-flow';
 import { bookingIsRental, bookingIsStayNight, partnerBookingHasPickupAttention, resolvePartnerPickupCopy } from '../../lib/pickup-completeness';
-import { parseRentalPurchaseSnapshot, type RentalOpsStatus } from '../../lib/rental-booking-domain';
+import {
+  parseRentalPurchaseSnapshot,
+  validateRentalBookingTransition,
+  type RentalOpsStatus,
+} from '../../lib/rental-booking-domain';
 import { setRentalOpsStatus } from '../../data/supabase-rental-ops';
+import {
+  formatRentalOpsInstant,
+  formatRentalQuantityLabel,
+  rentalHandoverCompletedLabel,
+  rentalHandoverStatusLabel,
+  rentalReturnPoint,
+} from '../../lib/rental-presentation';
 import { parseListingExtras, materializedBookingOptions } from '../../types/listingExtras';
 import {
   applyPartnerBookingsDesk,
@@ -138,6 +150,7 @@ type ListingBookingMeta = {
   }>;
   stayCheckInTime: string | null;
   stayCheckOutTime: string | null;
+  rentalCategory: string | null;
 };
 
 function buildListingMeta(listing: TourPackage): ListingBookingMeta {
@@ -166,6 +179,7 @@ function buildListingMeta(listing: TourPackage): ListingBookingMeta {
     bookingOptions: opts,
     stayCheckInTime: extras.stay?.checkInTime?.trim() || null,
     stayCheckOutTime: extras.stay?.checkOutTime?.trim() || null,
+    rentalCategory: extras.rental?.category?.trim() || null,
   };
 }
 
@@ -403,6 +417,11 @@ export default function SupplierBookings({
   const [filtersSheetOpen, setFiltersSheetOpen] = useState(false);
   const [expandedStayId, setExpandedStayId] = useState<string | null>(null);
   const [expandedTourId, setExpandedTourId] = useState<string | null>(null);
+  const [expandedRentalId, setExpandedRentalId] = useState<string | null>(null);
+  const [rentalHandoverConfirm, setRentalHandoverConfirm] = useState<{
+    bookingId: string;
+    next: 'collected' | 'returned';
+  } | null>(null);
   const [expandedEarningsLabel, setExpandedEarningsLabel] = useState<string | null>(null);
   const [expandedCommissionLabel, setExpandedCommissionLabel] = useState<string | null>(null);
   const [expandedCommissionRateLabel, setExpandedCommissionRateLabel] = useState<string | null>(null);
@@ -822,21 +841,56 @@ export default function SupplierBookings({
     window.history.replaceState({}, '', `${url.pathname}${url.search}`);
   }, [filteredBookings, highlightBookingId]);
 
-  const handleRentalOps = useCallback(
-    async (booking: BookingRow, next: RentalOpsStatus) => {
+  const requestRentalHandover = useCallback(
+    (booking: BookingRow, next: 'collected' | 'returned') => {
       if (!canEditBookings) return;
-      setUpdatingId(booking.id);
-      setError(null);
-      const res = await setRentalOpsStatus(booking.id, next);
-      setUpdatingId(null);
-      if (!res.ok) {
-        setError(res.error);
+      const snap = parseRentalPurchaseSnapshot(booking.purchase_snapshot);
+      const paymentStatus = String(booking.payment_status ?? 'pending').toLowerCase();
+      const status = String(booking.status ?? 'pending').toLowerCase();
+      const validation = validateRentalBookingTransition(
+        {
+          status: status === 'confirmed' || status === 'cancelled' ? status : 'pending',
+          paymentStatus:
+            paymentStatus === 'paid' ||
+            paymentStatus === 'failed' ||
+            paymentStatus === 'refunded' ||
+            paymentStatus === 'authorized'
+              ? paymentStatus
+              : 'pending',
+          opsStatus: snap?.rentalOpsStatus ?? 'awaiting_pickup',
+          holdStatus: null,
+        },
+        next === 'collected' ? 'mark_collected' : 'mark_returned'
+      );
+      if (!validation.ok) {
+        setError(validation.error);
         return;
       }
-      await load();
+      setError(null);
+      setRentalHandoverConfirm({ bookingId: booking.id, next });
     },
-    [canEditBookings, load]
+    [canEditBookings]
   );
+
+  const confirmRentalHandover = useCallback(async () => {
+    if (!rentalHandoverConfirm || !canEditBookings) return;
+    const booking = bookings.find((b) => b.id === rentalHandoverConfirm.bookingId);
+    if (!booking) {
+      setRentalHandoverConfirm(null);
+      return;
+    }
+    const next: RentalOpsStatus = rentalHandoverConfirm.next;
+    setUpdatingId(booking.id);
+    setError(null);
+    const res = await setRentalOpsStatus(booking.id, next);
+    setUpdatingId(null);
+    if (!res.ok) {
+      setError(res.error);
+      return;
+    }
+    setRentalHandoverConfirm(null);
+    await load();
+  }, [rentalHandoverConfirm, canEditBookings, bookings, load]);
 
   const handleStatusChange = useCallback(
     async (
@@ -962,7 +1016,7 @@ export default function SupplierBookings({
     setExpandedCommissionLabel(null);
     setExpandedCommissionRateLabel(null);
     setExpandedGuestPaidLabel(null);
-    const expandId = expandedStayId || expandedTourId;
+    const expandId = expandedStayId || expandedTourId || expandedRentalId;
     if (!expandId) {
       setExpandedEarningsState('idle');
       return;
@@ -988,7 +1042,7 @@ export default function SupplierBookings({
     return () => {
       cancelled = true;
     };
-  }, [expandedStayId, expandedTourId]);
+  }, [expandedStayId, expandedTourId, expandedRentalId]);
 
   useEffect(() => {
     setCommercialSnapshot(null);
@@ -1053,9 +1107,9 @@ export default function SupplierBookings({
   const isRentalDesk = inventoryFamily === 'rental';
 
   const stayDetailMode = Boolean(isStayDesk && highlightBookingId);
-  // Rentals reuse the tour ops detail shell (interval + handover fields in snapshot).
-  const tourDetailMode = Boolean(!isStayDesk && highlightBookingId);
-  const listHidden = stayDetailMode || tourDetailMode;
+  const rentalDetailMode = Boolean(isRentalDesk && highlightBookingId);
+  const tourDetailMode = Boolean(!isStayDesk && !isRentalDesk && highlightBookingId);
+  const listHidden = stayDetailMode || tourDetailMode || rentalDetailMode;
 
   return (
     <div className={SUPPLIER_PAGE_CLASS}>
@@ -1070,7 +1124,7 @@ export default function SupplierBookings({
           isStayDesk
             ? 'Guests, nights, and property decisions.'
             : isRentalDesk
-              ? 'Customers, pickup windows, and rental handovers.'
+              ? 'Customers, collection windows, and rental handovers.'
               : 'Guests, departures, and booking details.'
         }
         actions={
@@ -1221,14 +1275,14 @@ export default function SupplierBookings({
                   value={filterDateFrom}
                   onChange={(e) => writeBookingsSearchToUrl({ view: 'range', from: e.target.value })}
                   className="tv-input w-full min-w-0"
-                  aria-label="Travel date from"
+                  aria-label={isRentalDesk ? 'Rental period from' : 'Travel date from'}
                 />
                 <input
                   type="date"
                   value={filterDateTo}
                   onChange={(e) => writeBookingsSearchToUrl({ view: 'range', to: e.target.value })}
                   className="tv-input w-full min-w-0"
-                  aria-label="Travel date to"
+                  aria-label={isRentalDesk ? 'Rental period to' : 'Travel date to'}
                 />
               </div>
               <PartnerSelect
@@ -1254,7 +1308,9 @@ export default function SupplierBookings({
                 options={[
                   { value: 'all', label: 'Any attention' },
                   { value: 'unpaid', label: 'Unpaid checkout' },
-                  ...(inventoryFamily === 'stay' ? [] : [{ value: 'pickup', label: 'Pickup details' }]),
+                  ...(inventoryFamily === 'stay' || inventoryFamily === 'rental'
+                    ? []
+                    : [{ value: 'pickup', label: 'Pickup details' }]),
                   { value: 'cancel', label: 'Cancellation waiting' },
                   { value: 'refund_due', label: 'Refund due' },
                 ]}
@@ -1479,7 +1535,7 @@ export default function SupplierBookings({
               value={filterDateFrom}
               onChange={(e) => writeBookingsSearchToUrl({ view: 'range', from: e.target.value })}
               className="tv-input w-[9.25rem]"
-              aria-label="Travel date from"
+              aria-label={isRentalDesk ? 'Rental period from' : 'Travel date from'}
             />
             <span className="shrink-0 text-sm text-ink-faint">–</span>
             <input
@@ -1487,7 +1543,7 @@ export default function SupplierBookings({
               value={filterDateTo}
               onChange={(e) => writeBookingsSearchToUrl({ view: 'range', to: e.target.value })}
               className="tv-input w-[9.25rem]"
-              aria-label="Travel date to"
+              aria-label={isRentalDesk ? 'Rental period to' : 'Travel date to'}
             />
           </div>
         ) : null}
@@ -1516,7 +1572,9 @@ export default function SupplierBookings({
               options={[
                 { value: 'all', label: 'Any attention' },
                 { value: 'unpaid', label: 'Unpaid checkout' },
-                ...(inventoryFamily === 'stay' ? [] : [{ value: 'pickup', label: 'Pickup details' }]),
+                ...(inventoryFamily === 'stay' || inventoryFamily === 'rental'
+                  ? []
+                  : [{ value: 'pickup', label: 'Pickup details' }]),
                 { value: 'cancel', label: 'Cancellation waiting' },
                 { value: 'refund_due', label: 'Refund due' },
               ]}
@@ -1888,6 +1946,7 @@ export default function SupplierBookings({
                     copied={copiedBookingId === booking.id}
                     onToggleExpand={() => {
                       setExpandedTourId(null);
+                      setExpandedRentalId(null);
                       setExpandedStayId((cur) => (cur === booking.id ? null : booking.id));
                     }}
                     onOpenDetails={() => {
@@ -1895,6 +1954,83 @@ export default function SupplierBookings({
                       setSelectedBookingId(booking.id);
                     }}
                     onMessageGuest={() => openBookingInbox(booking.id)}
+                    onCopyReference={copyReference}
+                  />
+                );
+              }
+
+              if (isRentalDesk) {
+                const rentalSnap = parseRentalPurchaseSnapshot(booking.purchase_snapshot);
+                const rentalReturn = rentalSnap ? rentalReturnPoint(rentalSnap) : null;
+                const collectionLabel = formatRentalOpsInstant(rentalSnap?.pickupAt) || dateLine;
+                const returnLabel = formatRentalOpsInstant(rentalSnap?.returnAt) || '—';
+                const periodLine =
+                  collectionLabel && returnLabel !== '—'
+                    ? `${collectionLabel} → ${returnLabel}`
+                    : collectionLabel;
+                const quantityLabel = formatRentalQuantityLabel(
+                  rentalSnap?.quantity ?? booking.guests ?? 1,
+                  meta?.rentalCategory
+                );
+                const handoverLabel = rentalHandoverStatusLabel(rentalSnap?.rentalOpsStatus);
+                const rentalExpanded = expandedRentalId === booking.id;
+                const financeReady = rentalExpanded && expandedEarningsState === 'ready';
+                const customerNotes = customerRequestNotes(booking.special_requests) || null;
+                return (
+                  <RentalOpsBookingCard
+                    key={booking.id}
+                    model={{
+                      id: booking.id,
+                      listingTitle: displayListingTitleFromPurchase(
+                        booking.purchase_snapshot,
+                        meta?.title,
+                        'Rental'
+                      ),
+                      variantLabel: rentalSnap?.variantName?.trim() || optionLabel || null,
+                      imageUrl: meta?.imageUrl ?? null,
+                      customerName: booking.guest_name?.trim() || 'Customer',
+                      customerEmail: booking.guest_email?.trim() || null,
+                      customerPhone: guestPhoneFromNotes(booking.special_requests),
+                      customerNotes,
+                      periodLine,
+                      collectionLabel,
+                      returnLabel,
+                      quantityLabel,
+                      statusLabel: partnerBookingLifecycleLabel(booking.status),
+                      statusClass: bookingStatusClass(booking.status, booking.payment_status),
+                      handoverLabel,
+                      handoverComplete: rentalSnap?.rentalOpsStatus === 'returned',
+                      referenceLabel,
+                      purchaseDateLabel,
+                      collectionPlace: rentalSnap?.pickupAddress?.trim() || null,
+                      returnPlace: rentalReturn?.address?.trim() || null,
+                      warning: cardWarning,
+                      guestPaidLabel: financeReady
+                        ? expandedGuestPaidLabel
+                        : rentalExpanded
+                          ? null
+                          : customerBookingTotal(booking),
+                      commissionLabel: financeReady ? expandedCommissionLabel : null,
+                      commissionRateLabel: financeReady ? expandedCommissionRateLabel : null,
+                      earningsLabel: financeReady ? expandedEarningsLabel : null,
+                      financeLoading: rentalExpanded && expandedEarningsState === 'loading',
+                      paymentLabel: partnerPaymentLabel(booking),
+                    }}
+                    expanded={rentalExpanded}
+                    selected={highlightBookingId === booking.id}
+                    busy={updatingId === booking.id}
+                    checkbox={checkbox}
+                    copied={copiedBookingId === booking.id}
+                    onToggleExpand={() => {
+                      setExpandedStayId(null);
+                      setExpandedTourId(null);
+                      setExpandedRentalId((cur) => (cur === booking.id ? null : booking.id));
+                    }}
+                    onOpenDetails={() => {
+                      setExpandedRentalId(null);
+                      setSelectedBookingId(booking.id);
+                    }}
+                    onMessageCustomer={() => openBookingInbox(booking.id)}
                     onCopyReference={copyReference}
                   />
                 );
@@ -1961,6 +2097,7 @@ export default function SupplierBookings({
                   copied={copiedBookingId === booking.id}
                   onToggleExpand={() => {
                     setExpandedStayId(null);
+                    setExpandedRentalId(null);
                     setExpandedTourId((cur) => (cur === booking.id ? null : booking.id));
                   }}
                   onOpenDetails={() => {
@@ -2061,12 +2198,7 @@ export default function SupplierBookings({
             className="tour-ops-detail__back lux-flat"
             onClick={() => leaveBookingDetail(highlightBookingId)}
           >
-            ←{' '}
-            {partnerInboxReturnMatches(highlightBookingId)
-              ? 'Back to Inbox'
-              : isRentalDesk
-                ? 'Back to rental bookings'
-                : 'Back to bookings'}
+            ← {partnerInboxReturnMatches(highlightBookingId) ? 'Back to Inbox' : 'Back to bookings'}
           </button>
           <h1 className="tour-ops-detail__ref">Booking unavailable</h1>
           <p className="tour-ops-detail__muted mt-2">
@@ -2210,11 +2342,7 @@ export default function SupplierBookings({
                 }
                 cancelBlocked={Boolean(openCancel)}
                 backLabel={
-                  partnerInboxReturnMatches(booking.id)
-                    ? 'Back to Inbox'
-                    : isRentalDesk
-                      ? 'Back to rental bookings'
-                      : 'Back to bookings'
+                  partnerInboxReturnMatches(booking.id) ? 'Back to Inbox' : 'Back to bookings'
                 }
                 onBack={() => leaveBookingDetail(booking.id)}
                 onCopyReference={() => {
@@ -2238,102 +2366,269 @@ export default function SupplierBookings({
                 }
                 onOpenPickupPlanner={() => openSupplierPickup(booking.id)}
                 extraNotices={
-                  <>
-                    {isRentalDesk
-                      ? (() => {
-                          const rentalSnap = parseRentalPurchaseSnapshot(booking.purchase_snapshot);
-                          const rentalReturn = rentalSnap ? rentalReturnPoint(rentalSnap) : null;
-                          const ops = rentalSnap?.rentalOpsStatus ?? 'awaiting_pickup';
-                          const paidReady =
-                            booking.status === 'confirmed' &&
-                            String(booking.payment_status ?? '').toLowerCase() === 'paid';
-                          return (
-                            <div className="mt-2 space-y-2 rounded-md border border-black/[0.06] bg-paper px-3 py-2.5">
-                              <p className="text-[13px] font-semibold text-ink">
-                                Handover ·{' '}
-                                {ops === 'awaiting_pickup'
-                                  ? 'Awaiting pickup'
-                                  : ops === 'collected'
-                                    ? 'Collected'
-                                    : ops === 'returned'
-                                      ? 'Returned'
-                                      : 'Cancelled'}
-                              </p>
-                              {rentalSnap ? (
-                                <div className="space-y-1 text-[12px] leading-snug text-ink-muted">
-                                  <p>
-                                    {rentalSnap.variantName ? `${rentalSnap.variantName} · ` : ''}
-                                    {rentalSnap.quantity} item{rentalSnap.quantity === 1 ? '' : 's'} ·{' '}
-                                    {new Date(rentalSnap.pickupAt).toLocaleString(undefined, {
-                                      dateStyle: 'medium',
-                                      timeStyle: 'short',
-                                    })}{' '}
-                                    →{' '}
-                                    {new Date(rentalSnap.returnAt).toLocaleString(undefined, {
-                                      dateStyle: 'medium',
-                                      timeStyle: 'short',
-                                    })}
-                                  </p>
-                                  {rentalSnap.pickupAddress ? <p>Pickup: {rentalSnap.pickupAddress}</p> : null}
-                                  {rentalReturn?.address ? (
-                                    <p>
-                                      Return: {rentalReturn.sameAsPickup ? `same place · ${rentalReturn.address}` : rentalReturn.address}
-                                    </p>
-                                  ) : null}
-                                  {!rentalReturn?.sameAsPickup && rentalSnap.returnInstructions ? (
-                                    <p>{rentalSnap.returnInstructions}</p>
-                                  ) : null}
-                                  {typeof rentalSnap.pickupLat === 'number' && typeof rentalSnap.pickupLng === 'number' ? (
-                                    <div className="max-w-md pt-1">
-                                      <RentalCollectionMap
-                                        lat={rentalSnap.pickupLat}
-                                        lng={rentalSnap.pickupLng}
-                                        label={rentalReturn?.sameAsPickup ? 'Pickup and return map' : 'Pickup location map'}
-                                      />
-                                    </div>
-                                  ) : null}
-                                  {rentalReturn && !rentalReturn.sameAsPickup && rentalReturn.lat != null && rentalReturn.lng != null ? (
-                                    <div className="max-w-md pt-1">
-                                      <RentalCollectionMap lat={rentalReturn.lat} lng={rentalReturn.lng} label="Return location map" />
-                                    </div>
-                                  ) : null}
-                                  {rentalSnap.cancellationLabel ? <p>{rentalSnap.cancellationLabel}</p> : null}
-                                  {rentalSnap.depositDisclosure ? <p>Deposit: {rentalSnap.depositDisclosure}</p> : null}
-                                </div>
-                              ) : null}
-                              {canEditBookings && paidReady && ops === 'awaiting_pickup' ? (
-                                <button
-                                  type="button"
-                                  className="tv-btn-primary min-h-9 text-sm"
-                                  disabled={busy}
-                                  onClick={() => void handleRentalOps(booking, 'collected')}
-                                >
-                                  Mark collected
-                                </button>
-                              ) : null}
-                              {canEditBookings && paidReady && ops === 'collected' ? (
-                                <button
-                                  type="button"
-                                  className="tv-btn-primary min-h-9 text-sm"
-                                  disabled={busy}
-                                  onClick={() => void handleRentalOps(booking, 'returned')}
-                                >
-                                  Mark returned
-                                </button>
-                              ) : null}
-                            </div>
-                          );
-                        })()
-                      : null}
-                    {['Refund due', 'Refund processing', 'Refund delayed'].includes(
-                      partnerPaymentLabel(booking)
-                    ) ? (
-                      <div className="mt-2 rounded-md border border-black/[0.06] border-l-[3px] border-l-amber-500 bg-paper px-3 py-2">
-                        <p className="text-[13px] font-semibold text-ink">{partnerPaymentLabel(booking)}</p>
-                        <p className="mt-0.5 text-[12px] leading-snug text-ink-muted">{REFUND_DUE_MANUAL_COPY}</p>
-                      </div>
-                    ) : null}
-                  </>
+                  ['Refund due', 'Refund processing', 'Refund delayed'].includes(
+                    partnerPaymentLabel(booking)
+                  ) ? (
+                    <div className="mt-2 rounded-md border border-black/[0.06] border-l-[3px] border-l-amber-500 bg-paper px-3 py-2">
+                      <p className="text-[13px] font-semibold text-ink">{partnerPaymentLabel(booking)}</p>
+                      <p className="mt-0.5 text-[12px] leading-snug text-ink-muted">{REFUND_DUE_MANUAL_COPY}</p>
+                    </div>
+                  ) : null
+                }
+                privateNotesSlot={
+                  user?.id ? (
+                    <BookingOpsNotesEditor
+                      supplierId={user.id}
+                      bookingId={booking.id}
+                      canEdit={canEditBookings}
+                    />
+                  ) : null
+                }
+              />
+            );
+          })()
+        : null}
+
+      {rentalDetailMode && loading && !selectedBooking ? (
+        <div className="tour-ops-detail tour-ops-detail--skeleton" aria-busy="true" aria-label="Loading rental booking">
+          <div className="h-4 w-36 rounded bg-black/[0.06] animate-pulse" />
+          <div className="mt-5 h-7 w-48 rounded bg-black/[0.07] animate-pulse" />
+          <div className="mt-3 h-4 w-24 rounded bg-black/[0.05] animate-pulse" />
+          <div className="tour-ops-detail__grid mt-8">
+            <div className="space-y-3">
+              <div className="h-28 rounded-xl bg-black/[0.04] animate-pulse" />
+              <div className="h-40 rounded-xl bg-black/[0.04] animate-pulse" />
+            </div>
+            <div className="space-y-3">
+              <div className="h-36 rounded-xl bg-black/[0.04] animate-pulse" />
+              <div className="h-24 rounded-xl bg-black/[0.04] animate-pulse" />
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {rentalDetailMode && !selectedBooking && !loading ? (
+        <div className="tour-ops-detail">
+          <button
+            type="button"
+            className="tour-ops-detail__back lux-flat"
+            onClick={() => leaveBookingDetail(highlightBookingId)}
+          >
+            ←{' '}
+            {partnerInboxReturnMatches(highlightBookingId)
+              ? 'Back to Inbox'
+              : 'Back to rental bookings'}
+          </button>
+          <h1 className="tour-ops-detail__ref">Rental booking unavailable</h1>
+          <p className="tour-ops-detail__muted mt-2">
+            This rental booking was not found, or you do not have access to it.
+          </p>
+        </div>
+      ) : null}
+
+      {rentalDetailMode && selectedBooking
+        ? (() => {
+            const booking = selectedBooking;
+            const meta = listingMeta[booking.listing_id];
+            const rentalSnap = parseRentalPurchaseSnapshot(booking.purchase_snapshot);
+            const rentalReturn = rentalSnap ? rentalReturnPoint(rentalSnap) : null;
+            const listingTitle = displayListingTitleFromPurchase(
+              booking.purchase_snapshot,
+              meta?.title,
+              'Rental'
+            );
+            const collectionLabel = formatRentalOpsInstant(rentalSnap?.pickupAt) || '—';
+            const returnLabel = formatRentalOpsInstant(rentalSnap?.returnAt) || '—';
+            const periodLine =
+              collectionLabel !== '—' && returnLabel !== '—'
+                ? `${collectionLabel} → ${returnLabel}`
+                : collectionLabel;
+            const quantityLabel = formatRentalQuantityLabel(
+              rentalSnap?.quantity ?? booking.guests ?? 1,
+              meta?.rentalCategory
+            );
+            const handoverLabel = rentalHandoverStatusLabel(rentalSnap?.rentalOpsStatus);
+            const completedNote = rentalHandoverCompletedLabel(rentalSnap?.rentalOpsStatus);
+            const paidReady =
+              booking.status === 'confirmed' &&
+              String(booking.payment_status ?? '').toLowerCase() === 'paid';
+            const ops = rentalSnap?.rentalOpsStatus ?? 'awaiting_pickup';
+            const handoverAction =
+              paidReady && ops === 'awaiting_pickup'
+                ? ('collected' as const)
+                : paidReady && ops === 'collected'
+                  ? ('returned' as const)
+                  : null;
+            const openCancelRaw = openCancels[booking.id];
+            const openCancel =
+              openCancelRaw &&
+              openHostCancelRequestVisible({
+                bookingStatus: booking.status,
+                requestStatus: openCancelRaw.status,
+              })
+                ? openCancelRaw
+                : undefined;
+            const busy = updatingId === booking.id;
+            const referenceLabel = bookingReferenceLabel(booking);
+            const customerPhone = guestPhoneFromNotes(booking.special_requests);
+            const requestNotes = customerRequestNotes(booking.special_requests);
+            const financeReady = commercialState === 'ready' && commercialSnapshot != null;
+            const commissionAdjusted =
+              commercialSnapshot != null &&
+              Number(commercialSnapshot.remaining_gross_minor) !== Number(commercialSnapshot.gross_minor);
+            return (
+              <RentalOpsBookingDetail
+                model={{
+                  referenceLabel,
+                  statusLabel: partnerBookingLifecycleLabel(booking.status),
+                  statusClass: bookingStatusClass(booking.status, booking.payment_status),
+                  listingTitle,
+                  variantLabel: rentalSnap?.variantName?.trim() || null,
+                  imageUrl: meta?.imageUrl ?? null,
+                  periodLine,
+                  quantityLabel,
+                  customerName: booking.guest_name?.trim() || 'Customer',
+                  customerEmail: booking.guest_email?.trim() || null,
+                  customerPhone,
+                  requestNotes: requestNotes || null,
+                  collectionLabel,
+                  returnLabel,
+                  collectionPlace: rentalSnap?.pickupAddress?.trim() || null,
+                  returnPlace: rentalReturn?.address?.trim() || null,
+                  returnSameAsCollection: rentalReturn?.sameAsPickup !== false,
+                  collectionInstructions: rentalSnap?.pickupInstructions?.trim() || null,
+                  returnInstructions: rentalSnap?.returnInstructions?.trim() || null,
+                  collectionLat: rentalSnap?.pickupLat ?? null,
+                  collectionLng: rentalSnap?.pickupLng ?? null,
+                  returnLat: rentalReturn?.lat ?? null,
+                  returnLng: rentalReturn?.lng ?? null,
+                  handoverLabel,
+                  handoverNote:
+                    ops === 'returned'
+                      ? 'Collection and return are complete.'
+                      : ops === 'collected'
+                        ? 'Item collected — mark returned when the customer brings it back.'
+                        : completedNote
+                          ? null
+                          : 'Confirm collection when the customer picks up the item.',
+                  unpaidHoldMessage: partnerBookingIsUnpaidCheckout(booking)
+                    ? partnerUnpaidCheckoutHoldsInventory(booking)
+                      ? `${formatPartnerCheckoutHoldLabel(booking)}. The traveler may still complete payment.`
+                      : 'Hold expired. Inventory is already released.'
+                    : null,
+                  cancelWaitingMessage: openCancel
+                    ? `Cancellation requested ${new Date(openCancel.created_at).toLocaleString(undefined, {
+                        dateStyle: 'medium',
+                        timeStyle: 'short',
+                      })}. Waiting for the traveler.`
+                    : null,
+                  finance: {
+                    state: commercialState,
+                    customerPaid: financeReady
+                      ? formatSnapshotMinor(
+                          commercialSnapshot.remaining_gross_minor,
+                          commercialSnapshot.currency
+                        )
+                      : customerBookingTotal(booking),
+                    commission: financeReady
+                      ? formatSnapshotMinor(
+                          commercialSnapshot.remaining_commission_minor,
+                          commercialSnapshot.currency
+                        )
+                      : null,
+                    commissionRate: financeReady
+                      ? formatCommissionPercentLabel(commercialSnapshot.commission_bps) || null
+                      : null,
+                    supplierEarnings: financeReady
+                      ? formatSnapshotMinor(
+                          commercialSnapshot.remaining_supplier_minor,
+                          commercialSnapshot.currency
+                        )
+                      : null,
+                    paymentStatus: partnerPaymentLabel(booking),
+                    commissionAdjusted,
+                  },
+                }}
+                activity={(() => {
+                  const items: Array<{
+                    id: string;
+                    label: string;
+                    detail?: string | null;
+                    at: string | null;
+                  }> = [];
+                  if (booking.created_at) {
+                    items.push({ id: 'booked', label: 'Booked', at: booking.created_at });
+                  }
+                  if (bookingPaymentWasCollected(booking.payment_status)) {
+                    items.push({
+                      id: 'paid',
+                      label: partnerCollectedAmountCaption(booking),
+                      at: null,
+                    });
+                  }
+                  if (ops === 'collected' || ops === 'returned') {
+                    items.push({ id: 'collected', label: 'Collected', at: null });
+                  }
+                  if (ops === 'returned') {
+                    items.push({ id: 'returned', label: 'Returned', at: null });
+                  }
+                  if (openCancel) {
+                    items.push({
+                      id: `cancel-${openCancel.id}`,
+                      label: 'Cancellation requested',
+                      at: openCancel.created_at,
+                    });
+                  }
+                  for (const event of activityEvents) {
+                    items.push({
+                      id: event.id,
+                      label: event.event_type.replace(/_/g, ' '),
+                      detail: event.details,
+                      at: event.created_at,
+                    });
+                  }
+                  return items;
+                })()}
+                busy={busy}
+                canEdit={canEditBookings}
+                copied={copiedBookingId === booking.id}
+                showConfirm={
+                  partnerBookingIsOperatingTrip(booking) &&
+                  booking.status === 'pending' &&
+                  String(booking.payment_status ?? '').toLowerCase() !== 'authorized'
+                }
+                showCancelRequest={
+                  partnerBookingIsOperatingTrip(booking) || partnerBookingIsUnpaidCheckout(booking)
+                }
+                cancelBlocked={Boolean(openCancel)}
+                handoverAction={handoverAction}
+                backLabel={
+                  partnerInboxReturnMatches(booking.id)
+                    ? 'Back to Inbox'
+                    : 'Back to rental bookings'
+                }
+                onBack={() => leaveBookingDetail(booking.id)}
+                onCopyReference={() => {
+                  void navigator.clipboard.writeText(referenceLabel).then(() => {
+                    setCopiedBookingId(booking.id);
+                    window.setTimeout(() => {
+                      setCopiedBookingId((current) => (current === booking.id ? null : current));
+                    }, 1500);
+                  });
+                }}
+                onMessageCustomer={() => openBookingInbox(booking.id)}
+                onConfirm={() => void handleStatusChange(booking, 'confirmed')}
+                onRequestCancel={() => {
+                  setCancelError(null);
+                  setCancelReasonText('');
+                  setCancelEvidence('');
+                  setCancelModal(booking);
+                }}
+                onOpenFinancialStatement={() =>
+                  navigateSupplierUrl(`${PARTNER_APP_BASE}/money?tab=documents`)
+                }
+                onHandoverAction={
+                  handoverAction ? () => requestRentalHandover(booking, handoverAction) : undefined
                 }
                 privateNotesSlot={
                   user?.id ? (
@@ -2764,6 +3059,32 @@ export default function SupplierBookings({
           </div>
         </SupplierModalShell>
       )}
+
+      <PartnerConfirmModal
+        open={Boolean(rentalHandoverConfirm)}
+        title={
+          rentalHandoverConfirm?.next === 'returned'
+            ? 'Mark rental returned?'
+            : 'Mark rental collected?'
+        }
+        description={
+          rentalHandoverConfirm?.next === 'returned'
+            ? 'Confirm the customer has returned the item. Inventory turnaround still follows your rental listing rules.'
+            : 'Confirm you have handed the item to the customer. You can mark it returned after collection.'
+        }
+        confirmLabel={
+          rentalHandoverConfirm?.next === 'returned' ? 'Mark returned' : 'Mark collected'
+        }
+        busy={Boolean(
+          rentalHandoverConfirm && updatingId === rentalHandoverConfirm.bookingId
+        )}
+        error={error}
+        onConfirm={() => void confirmRentalHandover()}
+        onCancel={() => {
+          if (rentalHandoverConfirm && updatingId === rentalHandoverConfirm.bookingId) return;
+          setRentalHandoverConfirm(null);
+        }}
+      />
     </div>
   );
 }

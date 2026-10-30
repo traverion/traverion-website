@@ -10,7 +10,7 @@ import {
   rentalLowestDayPriceMinor,
   rentalLowestHourPriceMinor,
 } from './rental-details';
-import type { RentalPurchaseSnapshot } from './rental-booking-domain';
+import type { RentalOpsStatus, RentalPurchaseSnapshot } from './rental-booking-domain';
 import type { RentalDetails, RentalOperatingDay, RentalVariant, RentalWeekday } from '../types/rental';
 
 const WEEKDAY_ORDER: RentalWeekday[] = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
@@ -363,6 +363,42 @@ export function formatRentalInstant(iso: string | undefined): string | null {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return null;
   return date.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+}
+
+/** Compact partner-desk date · time for collection / return rows. */
+export function formatRentalOpsInstant(iso: string | undefined): string | null {
+  if (!iso) return null;
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toLocaleString(undefined, {
+    day: 'numeric',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+/**
+ * Partner rental handover chip — collection/return ops, not tour pickup language.
+ * awaiting_pickup → Awaiting collection; collected → Awaiting return; returned → Returned.
+ */
+export function rentalHandoverStatusLabel(
+  ops: RentalOpsStatus | string | null | undefined
+): string {
+  const s = String(ops ?? 'awaiting_pickup').trim().toLowerCase();
+  if (s === 'collected') return 'Awaiting return';
+  if (s === 'returned') return 'Returned';
+  if (s === 'cancelled') return 'Cancelled';
+  return 'Awaiting collection';
+}
+
+export function rentalHandoverCompletedLabel(
+  ops: RentalOpsStatus | string | null | undefined
+): string | null {
+  const s = String(ops ?? '').trim().toLowerCase();
+  if (s === 'returned') return 'Handover complete';
+  if (s === 'collected') return 'Collected';
+  return null;
 }
 
 export function rentalTripFacts(snap: RentalPurchaseSnapshot): { label: string; value: string }[] {
