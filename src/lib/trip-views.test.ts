@@ -8,6 +8,8 @@ import {
   partnerBookingIsTodaySchedule,
   partnerBookingIsUpcomingSchedule,
   partnerBookingIsPastSchedule,
+  partnerBookingNextScheduleYmd,
+  partnerRentalScheduleYmds,
   travelerTripIsLive,
   travelerActiveCartHold,
   travelerHoldExpiresAtMs,
@@ -243,6 +245,28 @@ describe('trip list views', () => {
     expect(partnerBookingIsUpcomingSchedule(stay, '2026-09-19')).toBe(true);
     expect(partnerBookingIsUpcomingSchedule(stay, '2026-09-20')).toBe(false);
     expect(partnerBookingIsUpcomingSchedule(stay, '2026-09-21')).toBe(false);
+  });
+
+  it('schedules rentals on collection and return days (Today / Next 7 days)', () => {
+    const rental = {
+      status: 'confirmed',
+      payment_status: 'paid',
+      booking_date: '2026-09-20',
+      check_out: '2026-09-22',
+      purchase_snapshot: {
+        inventoryFamily: 'rental',
+        pickupAt: '2026-09-20T09:00:00+03:00',
+        returnAt: '2026-09-22T09:00:00+03:00',
+      },
+    };
+    expect(partnerRentalScheduleYmds(rental).sort()).toEqual(['2026-09-20', '2026-09-22']);
+    expect(partnerBookingIsTodaySchedule(rental, '2026-09-20')).toBe(true);
+    expect(partnerBookingIsTodaySchedule(rental, '2026-09-21')).toBe(false);
+    expect(partnerBookingIsTodaySchedule(rental, '2026-09-22')).toBe(true);
+    expect(partnerBookingIsUpcomingSchedule(rental, '2026-09-19')).toBe(true);
+    expect(partnerBookingNextScheduleYmd(rental, '2026-09-19')).toBe('2026-09-20');
+    expect(partnerBookingNextScheduleYmd(rental, '2026-09-20')).toBe('2026-09-22');
+    expect(partnerBookingIsUpcomingSchedule(rental, '2026-09-22')).toBe(false);
   });
 
   it('puts only finished stays in Past — not cancelled mid-stays', () => {

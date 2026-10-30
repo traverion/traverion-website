@@ -5,9 +5,15 @@ import {
   unpaidCheckoutSessionIsLive,
 } from './booking-hold';
 import { checkoutPaymentStatusCanResume } from './checkout-resume';
-import { bookingIsStayNight } from './pickup-completeness';
+import { bookingIsRental, bookingIsStayNight } from './pickup-completeness';
 import { nightsOccupiedByStay, stayRangeFromBooking } from './stayOccupancy';
-import { resolveLifecycleTimezone, ymdInTimeZone, addCalendarDaysYmd } from './booking-lifecycle-calendar';
+import {
+  resolveLifecycleTimezone,
+  ymdInTimeZone,
+  addCalendarDaysYmd,
+  lifecycleReminderAnchorYmd,
+  lifecycleRentalReturnYmd,
+} from './booking-lifecycle-calendar';
 import { localYmd } from './local-ymd';
 import { listingHasUpcomingBookableSeason } from './booking-quote';
 import { parseListingExtras } from '../types/listingExtras';
@@ -302,10 +308,39 @@ export function pickupMissingIsUrgentSoon(
 /** Partner Today: occupying operating trips on this local date — not refunded or cancelled.
  * Tours: departure date === today.
  * Stays: today is an occupied night in [checkIn, checkOut), or check-out day (host still has ops).
+ * Rentals: collection day and/or return day (experience-local).
  */
 export function partnerStayTouchesScheduleDay(checkIn: string, checkOut: string, dayIso: string): boolean {
   if (checkOut === dayIso) return true;
   return nightsOccupiedByStay(checkIn, checkOut).includes(dayIso);
+}
+
+/** Collection + return calendar days for a rental booking (deduped). */
+export function partnerRentalScheduleYmds(b: PartnerScheduleBooking): string[] {
+  if (!bookingIsRental(b)) return [];
+  const collection = lifecycleReminderAnchorYmd(b);
+  const ret = lifecycleRentalReturnYmd(b);
+  return [...new Set([collection, ret].filter((d): d is string => Boolean(d)))];
+}
+
+/** Next collection/return/departure/check-in after today — for Next 7 days sorting. */
+export function partnerBookingNextScheduleYmd(
+  b: PartnerScheduleBooking,
+  todayIso: string
+): string | null {
+  if (bookingIsRental(b)) {
+    const future = partnerRentalScheduleYmds(b)
+      .filter((d) => d > todayIso)
+      .sort();
+    return future[0] ?? null;
+  }
+  if (bookingIsStayNight(b)) {
+    const stay = stayRangeFromBooking(b);
+    if (!stay) return null;
+    return stay.checkIn > todayIso ? stay.checkIn : null;
+  }
+  const date = (b.booking_date ?? '').trim();
+  return date && date > todayIso ? date : null;
 }
 
 export function partnerBookingIsTodaySchedule(
@@ -315,6 +350,9 @@ export function partnerBookingIsTodaySchedule(
 ): boolean {
   if (!partnerBookingIsOperatingTrip(b)) return false;
   if (!bookingOccupiesInventory(b, nowMs)) return false;
+  if (bookingIsRental(b)) {
+    return partnerRentalScheduleYmds(b).includes(todayIso);
+  }
   if (bookingIsStayNight(b)) {
     const stay = stayRangeFromBooking(b);
     if (!stay) return false;
@@ -323,7 +361,7 @@ export function partnerBookingIsTodaySchedule(
   return (b.booking_date ?? '').trim() === todayIso;
 }
 
-/** Partner Today upcoming strip: future arrivals only (tour date or stay check-in after today). */
+/** Partner schedule strip: future tour departures, stay check-ins, or rental collection/return days. */
 export function partnerBookingIsUpcomingSchedule(
   b: PartnerScheduleBooking,
   todayIso: string,
@@ -331,6 +369,9 @@ export function partnerBookingIsUpcomingSchedule(
 ): boolean {
   if (!partnerBookingIsOperatingTrip(b)) return false;
   if (!bookingOccupiesInventory(b, nowMs)) return false;
+  if (bookingIsRental(b)) {
+    return partnerRentalScheduleYmds(b).some((d) => d > todayIso);
+  }
   if (bookingIsStayNight(b)) {
     const stay = stayRangeFromBooking(b);
     if (!stay) return false;
