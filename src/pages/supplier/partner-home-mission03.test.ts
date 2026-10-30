@@ -148,12 +148,15 @@ describe('Mission 03: Partner Home dashboard wiring', () => {
     expect(home).not.toContain('Your earnings');
     expect(home).not.toContain('remaining_supplier_minor');
 
-    expect(home).toContain('partnerBookingNextScheduleYmd');
+    expect(home).toContain('partnerHomeScheduleEventsForToday');
+    expect(home).toContain('partnerHomeScheduleEventsForNext7Days');
     expect(home).toContain('lifecycleRentalReturnYmd');
     expect(home).toContain('rentalReturnsToday');
     expect(home).toContain('Rental return today');
-    expect(home).toContain('Check-in');
-    expect(home).toContain('Check-out');
+    expect(home).toContain('Collection overdue');
+    expect(home).toContain('scheduleEvents.length');
+    expect(home).toMatch(/event\$\{scheduleEvents\.length === 1 \? '' : 's'\}/);
+    expect(home).toContain('partnerHomeScheduleEventKindLabel');
     expect(home).toContain('Collection');
     expect(home).toContain('Return');
     expect(home).toContain('formatRentalQuantityLabel');

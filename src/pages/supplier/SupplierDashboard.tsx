@@ -35,7 +35,6 @@ import {
 } from '../../lib/pickup-completeness';
 import { parseRentalPurchaseSnapshot } from '../../lib/rental-booking-domain';
 import {
-  formatRentalOpsInstant,
   formatRentalQuantityLabel,
   rentalHandoverStatusLabel,
 } from '../../lib/rental-presentation';
@@ -54,13 +53,16 @@ import { formatMoney } from '../../lib/money';
 import {
   partnerBookingIsOperatingTrip,
   partnerBookingIsTodaySchedule,
-  partnerBookingIsUpcomingSchedule,
   partnerBookingIsActiveUnpaidCheckout,
-  partnerBookingNextScheduleYmd,
   partnerTourMatchesExperienceDayOffset,
   pickupMissingIsUrgentSoon,
   scheduleTodayIsoForBooking,
 } from '../../lib/trip-views';
+import {
+  partnerHomeScheduleEventKindLabel,
+  partnerHomeScheduleEventsForNext7Days,
+  partnerHomeScheduleEventsForToday,
+} from '../../lib/partner-home-schedule';
 import { partnerTodayEmptyScheduleCopy } from '../../lib/partner-today-copy';
 import { formatBookingParticipantsLabel } from '../../lib/participant-mix';
 import { pgTimeToHm } from '../../data/supabase-listings';
@@ -68,7 +70,6 @@ import { stayRangeFromBooking } from '../../lib/stayOccupancy';
 import { formatStayNightHuman } from '../../lib/stay-calendar';
 import { experienceTodayIsoForListing } from '../../lib/booking-quote';
 import { wallHourInTimeZone } from '../../lib/tour-departure-cutoff';
-import { addCalendarDaysYmd } from '../../lib/booking-lifecycle-calendar';
 import { formatBookingDateDisplay } from '../../lib/booking-flow';
 import { PARTNER_INBOX_MESSAGE_FETCH_CAP } from '../../lib/partner-inbox-cap';
 import { parseListingExtras, materializedBookingOptions } from '../../types/listingExtras';
@@ -570,31 +571,15 @@ export default function SupplierDashboard() {
     timeZone: 'UTC',
   });
 
-  const weekAhead = useMemo(() => {
-    const nowMs = Date.now();
-    return supplierBookings
-      .map((b) => {
-        // Phase 1302: week window from experience-local today (+7 calendar days).
-        // Rentals use next collection/return day; stays use check-in; tours use departure.
-        const todayLocal = scheduleTodayIsoForBooking(b, nowMs);
-        if (!partnerBookingIsUpcomingSchedule(b, todayLocal, nowMs)) return null;
-        const nextYmd = partnerBookingNextScheduleYmd(b, todayLocal);
-        if (!nextYmd) return null;
-        const endYmd = addCalendarDaysYmd(todayLocal, 7);
-        if (!endYmd || nextYmd > endYmd) return null;
-        return { booking: b, nextYmd };
-      })
-      .filter((row): row is { booking: BookingRow; nextYmd: string } => Boolean(row))
-      .sort(
-        (a, b) =>
-          a.nextYmd.localeCompare(b.nextYmd) ||
-          (a.booking.created_at ?? '').localeCompare(b.booking.created_at ?? '')
-      )
-      .slice(0, 8)
-      .map((row) => row.booking);
-  }, [supplierBookings]);
-
-  const upcoming = weekAhead.slice(0, 6);
+  /** Mission 03.1: schedule rows are events (rental Collection ≠ Return), not unique bookings. */
+  const todayScheduleEvents = useMemo(
+    () => partnerHomeScheduleEventsForToday(supplierBookings),
+    [supplierBookings]
+  );
+  const weekScheduleEvents = useMemo(
+    () => partnerHomeScheduleEventsForNext7Days(supplierBookings, Date.now(), 12),
+    [supplierBookings]
+  );
 
   // Phase 1321/1322: greeting hour matches platform experience TZ (date strip parity).
   const hour = wallHourInTimeZone();
@@ -666,7 +651,7 @@ export default function SupplierDashboard() {
     navigateSupplierUrl(accountNavHref(profile, accountStatus.kind));
   };
 
-  const scheduleBookings = scheduleTab === 'today' ? todayDepartures : upcoming;
+  const scheduleEvents = scheduleTab === 'today' ? todayScheduleEvents : weekScheduleEvents;
 
   return (
     <div className={`${SUPPLIER_PAGE_CLASS} partner-home motion-safe:animate-fade-in`}>
@@ -1063,8 +1048,8 @@ export default function SupplierDashboard() {
         <SectionHead
           title="Upcoming schedule"
           meta={
-            !metricsLoading && !bookingsLoadFailed && scheduleBookings.length > 0
-              ? `${scheduleBookings.length} booking${scheduleBookings.length === 1 ? '' : 's'}`
+            !metricsLoading && !bookingsLoadFailed && scheduleEvents.length > 0
+              ? `${scheduleEvents.length} event${scheduleEvents.length === 1 ? '' : 's'}`
               : undefined
           }
           action={
@@ -1120,7 +1105,7 @@ export default function SupplierDashboard() {
               </button>
             </div>
           </div>
-        ) : scheduleBookings.length === 0 ? (
+        ) : scheduleEvents.length === 0 ? (
           <div className="partner-home__panel">
             <div className="partner-home__panel-empty">
               <div className="min-w-0">
@@ -1151,79 +1136,36 @@ export default function SupplierDashboard() {
           </div>
         ) : (
           <ul className="partner-home__panel">
-            {scheduleBookings.map((b) => {
+            {scheduleEvents.map((ev) => {
+              const b = ev.booking;
               const deskFamily = partnerBookingDeskFamily(b);
               const isRental = deskFamily === 'rental';
               const isStay = deskFamily === 'stay';
               const stay = isStay ? stayRangeFromBooking(b) : null;
               const rentalSnap = isRental ? parseRentalPurchaseSnapshot(b.purchase_snapshot) : null;
-              const experienceToday = scheduleTodayIsoForBooking(b);
-              const focusYmd =
-                scheduleTab === 'week'
-                  ? partnerBookingNextScheduleYmd(b, experienceToday) ??
-                    (b.booking_date ?? '').trim()
-                  : experienceToday;
-              const collectionYmd = isRental ? lifecycleReminderAnchorYmd(b) : null;
-              const returnYmd = isRental ? lifecycleRentalReturnYmd(b) : null;
-              const rentalFocus =
-                isRental && returnYmd && focusYmd === returnYmd && focusYmd !== collectionYmd
-                  ? 'return'
-                  : isRental &&
-                      collectionYmd &&
-                      returnYmd &&
-                      focusYmd === collectionYmd &&
-                      focusYmd === returnYmd
-                    ? 'both'
-                    : 'collection';
               const opsHm = pgTimeToHm(b.start_time) || pgTimeToHm(b.pickup_time) || null;
               const dep = partnerOpsDepartureDisplay(b.purchase_snapshot, opsHm);
-              let startHm = dep.displayHm || null;
-              let returnHm: string | null = null;
-              if (isRental && rentalSnap?.pickupAt) {
-                const collectLabel = formatRentalOpsInstant(rentalSnap.pickupAt);
-                if (collectLabel) {
-                  const parts = collectLabel.split(' ');
-                  startHm = parts.slice(-1)[0] || startHm;
-                }
-              }
-              if (isRental && rentalSnap?.returnAt) {
-                const retLabel = formatRentalOpsInstant(rentalSnap.returnAt);
-                if (retLabel) {
-                  const parts = retLabel.split(' ');
-                  returnHm = parts.slice(-1)[0] || null;
-                }
-              }
+              const eventHm =
+                isRental
+                  ? ev.timeHm
+                  : deskFamily === 'tour'
+                    ? dep.displayHm || null
+                    : null;
               const pickupMissing =
                 deskFamily === 'tour' && pickupGaps.some((g) => g.id === b.id);
+              const kindLabel = partnerHomeScheduleEventKindLabel(ev.kind);
+              // Event label (Collection/Return · time) stays separate from lifecycle status.
+              // Event clock/date stays separate from lifecycle status in meta (e.g. Awaiting collection).
               const timeLabel =
                 scheduleTab === 'week'
-                  ? formatBookingDateDisplay(focusYmd || b.booking_date || '')
-                  : isStay
-                    ? stay && stay.checkIn === experienceToday
-                      ? 'Check-in'
-                      : stay && stay.checkOut === experienceToday
-                        ? 'Check-out'
-                        : 'Stay'
-                    : isRental
-                      ? rentalFocus === 'return'
-                        ? returnHm || 'Return'
-                        : rentalFocus === 'both'
-                          ? startHm || 'Collect'
-                          : startHm || 'Collect'
-                      : startHm || '—';
-              const kindLabel = isRental
-                ? rentalFocus === 'return'
-                  ? 'Return'
-                  : rentalFocus === 'both'
-                    ? 'Rental'
-                    : 'Collection'
-                : isStay
-                  ? stay && stay.checkIn === (scheduleTab === 'today' ? experienceToday : focusYmd)
-                    ? 'Check-in'
-                    : stay && stay.checkOut === (scheduleTab === 'today' ? experienceToday : focusYmd)
-                      ? 'Check-out'
-                      : 'Stay'
-                  : 'Tour';
+                  ? formatBookingDateDisplay(ev.ymd)
+                  : isRental
+                    ? eventHm
+                      ? `${kindLabel} · ${eventHm}`
+                      : kindLabel
+                    : isStay
+                      ? kindLabel
+                      : eventHm || '—';
               const fallbackTitle = bookingProductNoun(b);
               const liveOpt =
                 deskFamily === 'tour'
@@ -1281,24 +1223,18 @@ export default function SupplierDashboard() {
                 customer,
                 participantLabel,
                 optionLabel || null,
-                scheduleTab === 'week'
-                  ? rentalFocus === 'return'
-                    ? returnHm
-                    : startHm
-                  : null,
+                scheduleTab === 'week' && isRental ? eventHm : null,
                 isStay && stay
                   ? `${formatStayNightHuman(stay.checkIn)} → ${formatStayNightHuman(stay.checkOut)}`
                   : null,
                 scheduleTab === 'today' && meetingPoint && deskFamily === 'tour'
                   ? meetingPoint
                   : null,
-                isRental && scheduleTab === 'today'
-                  ? rentalHandoverStatusLabel(rentalSnap?.rentalOpsStatus)
-                  : null,
+                isRental ? rentalHandoverStatusLabel(rentalSnap?.rentalOpsStatus) : null,
                 dep.purchasedNote || null,
               ].filter(Boolean);
               return (
-                <li key={`${b.id}-${focusYmd || 'row'}`}>
+                <li key={ev.key}>
                   <button
                     type="button"
                     onClick={() =>
@@ -1322,6 +1258,12 @@ export default function SupplierDashboard() {
                       <span className="partner-home__sched-meta" title={metaParts.join(' · ')}>
                         {metaParts.join(' · ')}
                       </span>
+                      {ev.collectionOverdue ? (
+                        <span className="partner-home__sched-flag">
+                          <span className="h-1.5 w-1.5 rounded-full bg-amber-500" aria-hidden />
+                          Collection overdue
+                        </span>
+                      ) : null}
                       {pickupMissing ? (
                         <span className="partner-home__sched-flag">
                           <span className="h-1.5 w-1.5 rounded-full bg-amber-500" aria-hidden />

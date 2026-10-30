@@ -248,7 +248,7 @@ export function partnerBookingNeedsLook(b: {
   return partnerBookingIsOperatingTrip(b);
 }
 
-type PartnerScheduleBooking = {
+export type PartnerScheduleBooking = {
   status?: string | null;
   payment_status?: string | null;
   booking_date?: string | null;
