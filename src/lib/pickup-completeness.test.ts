@@ -5,6 +5,7 @@ import {
   bookingNeedsPickupCopy,
   bookingProductNoun,
   listingPickupCopyIncomplete,
+  partnerBookingDeskFamily,
   partnerBookingHasPickupAttention,
   resolveBookingPickupCopy,
   resolvePartnerPickupCopy,
@@ -48,6 +49,27 @@ describe('pickup completeness', () => {
     expect(bookingNeedsPickupCopy(stayCol, '', '')).toBe(false);
     expect(bookingNeedsPickupCopy(stayNightsOnly, 'Meet', '')).toBe(false);
     expect(bookingNeedsPickupCopy(tour, 'Meet', '')).toBe(true);
+    // Rentals with collection address must never enter tour pickup attention.
+    expect(bookingNeedsPickupCopy(rentalWithReturnDay, '', '')).toBe(false);
+    expect(bookingNeedsPickupCopy(rentalWithReturnDay, 'Meet', '')).toBe(false);
+    expect(partnerBookingDeskFamily(rentalWithReturnDay)).toBe('rental');
+    expect(partnerBookingDeskFamily(stayCol)).toBe('stay');
+    expect(partnerBookingDeskFamily(tour)).toBe('tour');
+    expect(
+      partnerBookingHasPickupAttention(
+        {
+          status: 'confirmed',
+          payment_status: 'paid',
+          check_out: '2030-01-05',
+          purchase_snapshot: {
+            inventoryFamily: 'rental',
+            pickupAddress: 'Studio desk, Helsinki',
+          },
+        },
+        '',
+        ''
+      )
+    ).toBe(false);
   });
 
   it('resolves pickup attention once booking pickup_time is set', () => {

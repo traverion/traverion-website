@@ -8,7 +8,9 @@ import {
   parseBookingPickupInstructionsOverride,
 } from './booking-notes';
 import { travelerPickupAddressFromRecord } from './pickup-area';
-import { resolvePartnerPickupCopy } from './pickup-completeness';
+import { bookingIsRental, resolvePartnerPickupCopy } from './pickup-completeness';
+import { parseRentalPurchaseSnapshot } from './rental-booking-domain';
+import { rentalPickupPoint } from './rental-presentation';
 import {
   displayFulfillmentFromPurchase,
   displayIncludesFromPurchase,
@@ -107,6 +109,40 @@ export function resolvePartnerArrivalDisplay(params: {
   bookingOptions?: BookingOptionLite[] | null;
   pickupTimeHm?: string | null;
 }): PartnerArrivalDisplay {
+  // Rentals: collection place lives on purchase_snapshot.pickupAddress — never tour pickup validation.
+  if (
+    bookingIsRental({ purchase_snapshot: params.purchaseSnapshot }) ||
+    parseRentalPurchaseSnapshot(params.purchaseSnapshot)
+  ) {
+    const snap = parseRentalPurchaseSnapshot(params.purchaseSnapshot);
+    let place = (snap ? rentalPickupPoint(snap).address : '').trim();
+    if (!place && params.purchaseSnapshot && typeof params.purchaseSnapshot === 'object') {
+      const raw = (params.purchaseSnapshot as { pickupAddress?: unknown }).pickupAddress;
+      if (typeof raw === 'string') place = raw.trim();
+    }
+    const instructions =
+      (snap?.pickupInstructions ?? '').trim() ||
+      (params.purchaseSnapshot &&
+      typeof params.purchaseSnapshot === 'object' &&
+      typeof (params.purchaseSnapshot as { pickupInstructions?: unknown }).pickupInstructions ===
+        'string'
+        ? String(
+            (params.purchaseSnapshot as { pickupInstructions: string }).pickupInstructions
+          ).trim()
+        : '') ||
+      null;
+    const needsLocation = !place;
+    return {
+      fulfillment: null,
+      rail: needsLocation ? 'location_needed' : 'fixed_pickup',
+      railLabel: needsLocation ? 'Location needed' : 'Collection',
+      sectionLabel: 'Collection',
+      place: place || null,
+      instructions: instructions || null,
+      needsLocation,
+    };
+  }
+
   const fulfillment =
     displayFulfillmentFromPurchase(params.purchaseSnapshot) ||
     liveOptionFulfillment(params.bookingOptionId, params.bookingOptions);

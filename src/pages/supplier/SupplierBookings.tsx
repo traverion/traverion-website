@@ -748,6 +748,8 @@ export default function SupplierBookings({
       isRental: (b) => listingMeta[b.listing_id]?.family === 'rental' || bookingIsRental(b),
       pickupAttention: (b) => {
         if (opsFilter === 'pickup') {
+          // Rentals never enter tour pickup queues.
+          if (bookingIsRental(b) || listingMeta[b.listing_id]?.family === 'rental') return false;
           const meta = listingMeta[b.listing_id];
           // Phase 1751: pickup queue must honor note overrides (1742 Meet display parity).
           const copy = resolvePartnerPickupCopy({

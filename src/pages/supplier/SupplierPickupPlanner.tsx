@@ -34,7 +34,12 @@ import { parseBookingPickupInstructionsOverride, parsePickupDraft } from '../../
 import { effectiveMeetingTimeHm, pickupDepartureKey } from '../../lib/pickup-planner';
 import { travelerPublicBookingReference } from '../../lib/public-booking-reference';
 import { csvSafeCell } from '../../lib/csv-export';
-import { bookingIsStayNight, bookingNeedsPickupCopy, resolvePartnerPickupCopy } from '../../lib/pickup-completeness';
+import {
+  bookingIsRental,
+  bookingIsStayNight,
+  bookingNeedsPickupCopy,
+  resolvePartnerPickupCopy,
+} from '../../lib/pickup-completeness';
 import { parseListingExtras, materializedBookingOptions } from '../../types/listingExtras';
 import { inventoryFamilyFromListing } from '../../lib/inventory';
 import { partnerBookingNumberMatchesFilterQuery } from '../../lib/partner-bookings-search';
@@ -72,6 +77,8 @@ export default function SupplierPickupPlanner() {
     Record<string, Array<{ id: string; label: string; fulfillment: 'pickup' | 'meeting_point' | null; area: ReturnType<typeof pickupAreaFromOption>; instructions: string }>>
   >({});
   const [stayListingIds, setStayListingIds] = useState<Set<string>>(() => new Set());
+  /** Rental listings — collection/return ops, never tour pickup rows. */
+  const [rentalListingIds, setRentalListingIds] = useState<Set<string>>(() => new Set());
   const [loading, setLoading] = useState(true);
   const [dateFrom, setDateFrom] = useState(() => {
     if (typeof window === 'undefined') return '';
@@ -173,9 +180,12 @@ export default function SupplierPickupPlanner() {
         }));
         if (l.image) images[l.id] = l.image;
       };
+      const rentalIds = new Set<string>();
       listings.forEach((l) => {
         absorbListing(l);
-        if (inventoryFamilyFromListing(l) === 'stay') stayIds.add(l.id);
+        const family = inventoryFamilyFromListing(l);
+        if (family === 'stay') stayIds.add(l.id);
+        if (family === 'rental') rentalIds.add(l.id);
       });
       const listingIds = [...new Set(bookingsList.map((b) => b.listing_id))];
       for (const lid of listingIds) {
@@ -184,26 +194,28 @@ export default function SupplierPickupPlanner() {
         if (gen !== loadGenRef.current) return;
         if (listing) {
           absorbListing(listing);
-          if (inventoryFamilyFromListing(listing) === 'stay') stayIds.add(lid);
+          const family = inventoryFamilyFromListing(listing);
+          if (family === 'stay') stayIds.add(lid);
+          if (family === 'rental') rentalIds.add(lid);
         }
       }
       if (gen !== loadGenRef.current) return;
       setStayListingIds(stayIds);
-      setBookings(
-        bookingsList.filter(
-          (b) =>
-            partnerBookingIsLiveTrip(b) && !bookingIsStayNight(b) && !stayIds.has(b.listing_id)
-        )
-      );
+      setRentalListingIds(rentalIds);
+      const isTourPickupBooking = (b: (typeof bookingsList)[number]) =>
+        partnerBookingIsLiveTrip(b) &&
+        !bookingIsStayNight(b) &&
+        !bookingIsRental(b) &&
+        !stayIds.has(b.listing_id) &&
+        !rentalIds.has(b.listing_id);
+      setBookings(bookingsList.filter(isTourPickupBooking));
       setListingTitles(titles);
       setMeetingPoints(points);
       setPickupInstructions(instructions);
       setOptionsByListing(optionsMap);
       setPlannerOptions(planner);
       setThumbs(images);
-      bookingsLenRef.current = bookingsList.filter(
-        (b) => partnerBookingIsLiveTrip(b) && !bookingIsStayNight(b) && !stayIds.has(b.listing_id)
-      ).length;
+      bookingsLenRef.current = bookingsList.filter(isTourPickupBooking).length;
     } catch (e) {
       if (gen !== loadGenRef.current) return;
       setError(userFacingError(e, USER_ERROR.pickup));
@@ -222,6 +234,7 @@ export default function SupplierPickupPlanner() {
       setPlannerOptions({});
       setThumbs({});
       setStayListingIds(new Set());
+      setRentalListingIds(new Set());
       setError(null);
       setSelectedBookingId(null);
     };
@@ -317,12 +330,19 @@ export default function SupplierPickupPlanner() {
     window.history.replaceState({}, '', `${url.pathname}${url.search}`);
   }, []);
 
-  /** Tour pickup work only: hide stays, cancelled, refunded, and failed checkouts. */
+  /** Tour pickup work only: hide stays, rentals, cancelled, refunded, and failed checkouts. */
   const filtered = useMemo(() => {
     const nowMs = Date.now();
     return bookings.filter((b) => {
       if (!partnerBookingIsOperatingTrip(b)) return false;
-      if (bookingIsStayNight(b) || stayListingIds.has(b.listing_id)) return false;
+      if (
+        bookingIsStayNight(b) ||
+        bookingIsRental(b) ||
+        stayListingIds.has(b.listing_id) ||
+        rentalListingIds.has(b.listing_id)
+      ) {
+        return false;
+      }
 
       if (dayPreset === 'today') {
         return partnerTourMatchesExperienceDayOffset(b, 0, nowMs);
@@ -340,7 +360,7 @@ export default function SupplierPickupPlanner() {
       }
       return true;
     });
-  }, [bookings, dateFrom, dateTo, dayPreset, showAllDates, stayListingIds]);
+  }, [bookings, dateFrom, dateTo, dayPreset, showAllDates, stayListingIds, rentalListingIds]);
 
   const sorted = useMemo(
     () =>

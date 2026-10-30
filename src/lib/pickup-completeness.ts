@@ -42,6 +42,17 @@ export function bookingProductNoun(b: {
   return 'Tour';
 }
 
+/** Partner desk family from authoritative snapshot / stay columns — never infer from pickup fields. */
+export function partnerBookingDeskFamily(b: {
+  check_out?: string | null;
+  nights?: number | null;
+  purchase_snapshot?: unknown;
+}): 'tour' | 'stay' | 'rental' {
+  if (bookingIsRental(b)) return 'rental';
+  if (bookingIsStayNight(b)) return 'stay';
+  return 'tour';
+}
+
 export function bookingIsStayNight(b: {
   check_out?: string | null;
   special_requests?: string | null;
@@ -64,8 +75,9 @@ export function bookingIsStayNight(b: {
 
 /**
  * Tour pickup attention gap shared by Today, Pickup planner, and related filters.
- * Stay nights never count. Setting a booking-level pickup_time resolves the gap
- * even if listing meeting/pickup copy is still thin.
+ * Stay nights and rentals never count — rentals use collection/return, not tour pickup.
+ * Setting a booking-level pickup_time resolves the gap even if listing meeting/pickup
+ * copy is still thin.
  */
 export function bookingNeedsPickupCopy(
   b: {
@@ -73,10 +85,12 @@ export function bookingNeedsPickupCopy(
     special_requests?: string | null;
     nights?: number | null;
     pickup_time?: string | null;
+    purchase_snapshot?: unknown;
   },
   meetingPoint: string | null | undefined,
   pickupInstructions: string | null | undefined
 ): boolean {
+  if (bookingIsRental(b)) return false;
   if (bookingIsStayNight(b)) return false;
   if ((b.pickup_time ?? '').toString().trim()) return false;
   return listingPickupCopyIncomplete(meetingPoint, pickupInstructions);
@@ -160,6 +174,7 @@ export function partnerBookingHasPickupAttention(
     travelerStartInstructions?: string;
   }> | null
 ): boolean {
+  if (bookingIsRental(b)) return false;
   const st = (b.status ?? '').trim().toLowerCase();
   if (st === 'cancelled') return false;
   if (!isPaidPaymentStatus(b.payment_status)) return false;

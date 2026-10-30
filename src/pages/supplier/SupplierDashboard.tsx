@@ -25,7 +25,15 @@ import {
   fetchLatestBookingMessage,
 } from '../../data/supabase-booking-ops';
 import { countUnrepliedWrittenReviewsForSupplier } from '../../data/supabase-reviews';
-import { bookingNeedsPickupCopy, bookingIsStayNight, resolvePartnerPickupCopy } from '../../lib/pickup-completeness';
+import {
+  bookingNeedsPickupCopy,
+  bookingIsRental,
+  bookingIsStayNight,
+  bookingProductNoun,
+  partnerBookingDeskFamily,
+  resolvePartnerPickupCopy,
+} from '../../lib/pickup-completeness';
+import { parseRentalPurchaseSnapshot } from '../../lib/rental-booking-domain';
 import { bookingPaymentWasCollected, isCollectedBooking, isRefundDueBooking } from '../../lib/payment-states';
 import type { TourPackage } from '../../types/tour';
 import SupplierPortalNoticePanel from '../../components/supplier/SupplierPortalNoticePanel';
@@ -172,8 +180,28 @@ function bookingLabel(b: BookingRow | undefined, titles: Record<string, string>)
   return displayListingTitleFromPurchase(
     b.purchase_snapshot,
     titles[b.listing_id],
-    bookingIsStayNight(b) ? 'Stay' : 'Tour'
+    bookingProductNoun(b)
   );
+}
+
+function rentalCollectionDetail(b: BookingRow, titles: Record<string, string>): string {
+  const snap = parseRentalPurchaseSnapshot(b.purchase_snapshot);
+  const title = bookingLabel(b, titles) || 'Rental';
+  const qty = snap?.quantity ?? null;
+  const itemLabel =
+    qty != null && qty > 0 ? `${qty} item${qty === 1 ? '' : 's'}` : null;
+  let timeLabel: string | null = null;
+  if (snap?.pickupAt) {
+    const d = new Date(snap.pickupAt);
+    if (!Number.isNaN(d.getTime())) {
+      timeLabel = d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+    }
+  }
+  if (!timeLabel) {
+    const hm = pgTimeToHm(b.start_time) || pgTimeToHm(b.pickup_time);
+    if (hm) timeLabel = hm;
+  }
+  return [title, itemLabel, timeLabel].filter(Boolean).join(' · ');
 }
 
 export default function SupplierDashboard() {
@@ -433,6 +461,9 @@ export default function SupplierDashboard() {
     const nowMs = Date.now();
     return supplierBookings.filter((b) => {
       if (!partnerBookingIsOperatingTrip(b)) return false;
+      // Rentals use collection/return — never tour pickup attention.
+      if (bookingIsRental(b)) return false;
+      if (bookingIsStayNight(b)) return false;
       const listing = listingsById[b.listing_id];
       const opts = isPurchaseSnapshot(b.purchase_snapshot)
         ? null
@@ -453,6 +484,20 @@ export default function SupplierDashboard() {
     });
   }, [supplierBookings, listingsById]);
 
+  /** Paid rentals awaiting collection today — separate from tour pickup gaps. */
+  const rentalCollectionsToday = useMemo(() => {
+    const nowMs = Date.now();
+    return supplierBookings
+      .filter((b) => {
+        if (!bookingIsRental(b)) return false;
+        if (!partnerBookingIsOperatingTrip(b)) return false;
+        const snap = parseRentalPurchaseSnapshot(b.purchase_snapshot);
+        if (!snap || snap.rentalOpsStatus !== 'awaiting_pickup') return false;
+        return partnerTourMatchesExperienceDayOffset(b, 0, nowMs);
+      })
+      .sort((a, b) => (a.booking_date ?? '').localeCompare(b.booking_date ?? '') || a.id.localeCompare(b.id));
+  }, [supplierBookings]);
+
   const openCancelCount = openCancels.length;
   const overdueCancelCount = openCancels.filter(
     (r) => r.expires_at && new Date(r.expires_at).getTime() < Date.now()
@@ -468,6 +513,7 @@ export default function SupplierDashboard() {
     (draftListingsCount ?? 0) +
     (verificationNeedsAction ? 1 : 0) +
     pickupGaps.length +
+    rentalCollectionsToday.length +
     openCancelCount +
     refundDueCount +
     (unreadMessageCount ?? 0) +
@@ -577,6 +623,7 @@ export default function SupplierDashboard() {
   const firstCancelBooking = openCancels[0] ? bookingsById[openCancels[0].booking_id] : undefined;
   const firstUnreadBooking = firstUnreadBookingId ? bookingsById[firstUnreadBookingId] : undefined;
   const firstPickup = pickupGaps[0];
+  const firstRentalCollection = rentalCollectionsToday[0];
   const firstRefund = supplierBookings.find(isRefundDueBooking);
   const firstPending = pendingBookings[0];
 
@@ -798,7 +845,9 @@ export default function SupplierDashboard() {
                 onClick={() =>
                   navigateSupplierUrl(
                     partnerBookingDeskPath({
-                      isStay: firstCancelBooking ? bookingIsStayNight(firstCancelBooking) : false,
+                      family: firstCancelBooking
+                        ? partnerBookingDeskFamily(firstCancelBooking)
+                        : 'tour',
                       extraSearch: { ops: 'cancel' },
                     })
                   )
@@ -817,8 +866,31 @@ export default function SupplierDashboard() {
                 onClick={() =>
                   navigateSupplierUrl(
                     partnerBookingDeskPath({
-                      isStay: firstRefund ? bookingIsStayNight(firstRefund) : false,
+                      family: firstRefund ? partnerBookingDeskFamily(firstRefund) : 'tour',
                       extraSearch: { ops: 'refund_due' },
+                    })
+                  )
+                }
+              />
+            )}
+            {rentalCollectionsToday.length > 0 && (
+              <AttentionItem
+                tone="warn"
+                title={
+                  rentalCollectionsToday.length === 1
+                    ? 'Rental collection today'
+                    : `${rentalCollectionsToday.length} rental collections today`
+                }
+                detail={
+                  firstRentalCollection
+                    ? rentalCollectionDetail(firstRentalCollection, listingTitlesById)
+                    : 'Paid rentals awaiting collection'
+                }
+                onClick={() =>
+                  navigateSupplierUrl(
+                    partnerBookingDeskPath({
+                      family: 'rental',
+                      bookingId: firstRentalCollection?.id,
                     })
                   )
                 }
@@ -902,7 +974,7 @@ export default function SupplierDashboard() {
                 onClick={() =>
                   navigateSupplierUrl(
                     partnerBookingDeskPath({
-                      isStay: firstPending ? bookingIsStayNight(firstPending) : false,
+                      family: firstPending ? partnerBookingDeskFamily(firstPending) : 'tour',
                       extraSearch: { ops: 'unpaid' },
                     })
                   )
@@ -1043,13 +1115,27 @@ export default function SupplierDashboard() {
         ) : (
           <ul className="partner-home__panel">
             {scheduleBookings.map((b) => {
-              const isStay = bookingIsStayNight(b);
+              const deskFamily = partnerBookingDeskFamily(b);
+              const isRental = deskFamily === 'rental';
+              const isStay = deskFamily === 'stay';
               const stay = isStay ? stayRangeFromBooking(b) : null;
+              const rentalSnap = isRental ? parseRentalPurchaseSnapshot(b.purchase_snapshot) : null;
               const experienceToday = scheduleTodayIsoForBooking(b);
               const opsHm = pgTimeToHm(b.start_time) || pgTimeToHm(b.pickup_time) || null;
               const dep = partnerOpsDepartureDisplay(b.purchase_snapshot, opsHm);
-              const startHm = dep.displayHm || null;
-              const pickupMissing = pickupGaps.some((g) => g.id === b.id);
+              let startHm = dep.displayHm || null;
+              if (isRental && rentalSnap?.pickupAt) {
+                const d = new Date(rentalSnap.pickupAt);
+                if (!Number.isNaN(d.getTime())) {
+                  startHm = d.toLocaleTimeString(undefined, {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: false,
+                  });
+                }
+              }
+              const pickupMissing =
+                deskFamily === 'tour' && pickupGaps.some((g) => g.id === b.id);
               const timeLabel =
                 scheduleTab === 'week'
                   ? formatBookingDateDisplay(b.booking_date ?? '')
@@ -1059,51 +1145,69 @@ export default function SupplierDashboard() {
                       : stay && stay.checkOut === experienceToday
                         ? 'Departure'
                         : 'Stay'
-                    : (startHm ?? '—');
-              const fallbackTitle = isStay ? 'Stay' : 'Tour';
-              const liveOpt = !isStay
-                ? (() => {
-                    const opts = materializedBookingOptions(
-                      parseListingExtras(listingsById[b.listing_id]?.listingExtras as unknown).bookingOptions
-                    );
-                    return b.booking_option_id
-                      ? opts.find((o) => o.id === b.booking_option_id) ?? null
-                      : opts[0] ?? null;
-                  })()
-                : null;
+                    : isRental
+                      ? (startHm ?? 'Collect')
+                      : (startHm ?? '—');
+              const fallbackTitle = bookingProductNoun(b);
+              const liveOpt =
+                deskFamily === 'tour'
+                  ? (() => {
+                      const opts = materializedBookingOptions(
+                        parseListingExtras(listingsById[b.listing_id]?.listingExtras as unknown)
+                          .bookingOptions
+                      );
+                      return b.booking_option_id
+                        ? opts.find((o) => o.id === b.booking_option_id) ?? null
+                        : opts[0] ?? null;
+                    })()
+                  : null;
               const title = displayListingTitleFromPurchase(
                 b.purchase_snapshot,
                 listingTitlesById[b.listing_id],
                 fallbackTitle
               );
-              const optionLabel = displayOptionLabelFromPurchase(
-                b.purchase_snapshot,
-                liveOpt?.name?.trim() || ''
-              );
+              const optionLabel = isRental
+                ? rentalSnap?.variantName?.trim() || ''
+                : displayOptionLabelFromPurchase(
+                    b.purchase_snapshot,
+                    liveOpt?.name?.trim() || ''
+                  );
               // Phase 1742: Today Meet line honors Pickup planner overrides (Bookings parity).
               const listing = listingsById[b.listing_id];
-              const meetingPoint = resolvePartnerPickupCopy({
-                purchaseSnapshot: b.purchase_snapshot,
-                bookingOptionId: b.booking_option_id,
-                specialRequests: b.special_requests,
-                listingMeetingPoint: listing?.meetingPoint,
-                listingPickupInstructions: listing?.pickupInstructions,
-                bookingOptions: isPurchaseSnapshot(b.purchase_snapshot)
-                  ? null
-                  : materializedBookingOptions(
-                      parseListingExtras(listing?.listingExtras as unknown).bookingOptions
-                    ),
-              }).meetingPoint;
+              const meetingPoint =
+                deskFamily === 'tour'
+                  ? resolvePartnerPickupCopy({
+                      purchaseSnapshot: b.purchase_snapshot,
+                      bookingOptionId: b.booking_option_id,
+                      specialRequests: b.special_requests,
+                      listingMeetingPoint: listing?.meetingPoint,
+                      listingPickupInstructions: listing?.pickupInstructions,
+                      bookingOptions: isPurchaseSnapshot(b.purchase_snapshot)
+                        ? null
+                        : materializedBookingOptions(
+                            parseListingExtras(listing?.listingExtras as unknown).bookingOptions
+                          ),
+                    }).meetingPoint
+                  : isRental
+                    ? (rentalSnap?.pickupAddress ?? '').trim()
+                    : '';
               const guest = b.guest_name?.trim() || 'Guest';
+              const participantLabel = isRental
+                ? rentalSnap
+                  ? `${rentalSnap.quantity} item${rentalSnap.quantity === 1 ? '' : 's'}`
+                  : null
+                : formatBookingParticipantsLabel(b);
               const metaParts = [
                 guest,
-                formatBookingParticipantsLabel(b),
+                participantLabel,
                 optionLabel || null,
                 scheduleTab === 'week' && startHm ? startHm : null,
                 isStay && stay
                   ? `${formatStayNightHuman(stay.checkIn)} → ${formatStayNightHuman(stay.checkOut)}`
                   : null,
-                scheduleTab === 'today' && meetingPoint && !isStay ? meetingPoint : null,
+                scheduleTab === 'today' && meetingPoint && deskFamily === 'tour'
+                  ? meetingPoint
+                  : null,
                 dep.purchasedNote || null,
               ].filter(Boolean);
               return (
@@ -1114,7 +1218,7 @@ export default function SupplierDashboard() {
                       navigateSupplierUrl(
                         partnerBookingDeskPath({
                           bookingId: b.id,
-                          isStay,
+                          family: deskFamily,
                         })
                       )
                     }
@@ -1122,7 +1226,9 @@ export default function SupplierDashboard() {
                   >
                     <span className="min-w-0">
                       <span className="partner-home__sched-time">{timeLabel}</span>
-                      <span className="partner-home__sched-kind">{isStay ? 'Stay' : 'Tour'}</span>
+                      <span className="partner-home__sched-kind">
+                        {isRental ? 'Rental' : isStay ? 'Stay' : 'Tour'}
+                      </span>
                     </span>
                     <span className="min-w-0">
                       <span className="partner-home__sched-title" title={title}>
@@ -1205,7 +1311,7 @@ export default function SupplierDashboard() {
                         navigateSupplierUrl(
                           partnerBookingDeskPath({
                             bookingId: b.id,
-                            isStay: bookingIsStayNight(b),
+                            family: partnerBookingDeskFamily(b),
                           })
                         )
                       }
