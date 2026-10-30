@@ -1,5 +1,5 @@
 /**
- * Consumer hub: profile, trips, and saved tours and stays.
+ * Consumer hub: profile, trips, and saved tours, stays, and rentals.
  */
 import { useState, useEffect, useLayoutEffect, useCallback, useRef } from 'react';
 import {
@@ -7,6 +7,7 @@ import {
   Heart,
   ChevronRight,
   LogIn,
+  LogOut,
 } from 'lucide-react';
 import { SkeletonFormFields, SkeletonConsumerPage } from '../components/ui/Skeleton';
 import { USER_ERROR, userFacingError } from '../lib/userFacingError';
@@ -32,6 +33,10 @@ const ACCOUNT_HEADING_ID = 'account-heading';
 
 type HubStats = { bookings: number; wishlist: number };
 
+function profileFieldsEqual(a: { name: string; phone: string }, b: { name: string; phone: string }) {
+  return a.name.trim() === b.name.trim() && a.phone.trim() === b.phone.trim();
+}
+
 export default function AccountPage({ onNavigate }: AccountPageProps) {
   const { user, loading: authLoading, signOut } = useAuth();
   const [signingOut, setSigningOut] = useState(false);
@@ -40,6 +45,8 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
   const [statsError, setStatsError] = useState<string | null>(null);
   const [displayName, setDisplayName] = useState('');
   const [phone, setPhone] = useState('');
+  const [baselineName, setBaselineName] = useState('');
+  const [baselinePhone, setBaselinePhone] = useState('');
   const [profileLoading, setProfileLoading] = useState(false);
   const [profileError, setProfileError] = useState<string | null>(null);
   const [profileSaving, setProfileSaving] = useState(false);
@@ -101,13 +108,16 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
         [meta?.customer_first_name, meta?.customer_last_name].filter(Boolean).join(' ')
       ).trim();
       const resolvedName = (row?.display_name?.trim() || fromMeta || '').trim();
+      const resolvedPhone = row?.contact_phone?.trim() || fallbackPhone || '';
       setDisplayName(resolvedName);
-      setPhone(row?.contact_phone?.trim() || fallbackPhone || '');
+      setPhone(resolvedPhone);
+      setBaselineName(resolvedName);
+      setBaselinePhone(resolvedPhone);
       // Backfill empty consumer_profiles.display_name from signup metadata (existing users).
       if (user.id && fromMeta && !row?.display_name?.trim()) {
         void saveConsumerProfile(user.id, {
           displayName: fromMeta,
-          phone: row?.contact_phone?.trim() || fallbackPhone || '',
+          phone: resolvedPhone,
         });
       }
     } catch (e) {
@@ -130,6 +140,8 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
       setStatsError(null);
       setDisplayName('');
       setPhone('');
+      setBaselineName('');
+      setBaselinePhone('');
       setProfileMessage(null);
       setProfileError(null);
       return;
@@ -142,6 +154,8 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
       setStatsError(null);
       setDisplayName('');
       setPhone('');
+      setBaselineName('');
+      setBaselinePhone('');
       setProfileMessage(null);
       setProfileError(null);
     }
@@ -238,6 +252,13 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
   const badge = (n: number) =>
     statsLoading ? '…' : n > 99 ? '99+' : String(n);
 
+  const profileDirty = !profileFieldsEqual(
+    { name: displayName, phone },
+    { name: baselineName, phone: baselinePhone }
+  );
+  const identityName = displayName.trim() || user.email || 'Traveler';
+  const identityInitial = identityName.toString().trim().slice(0, 1).toUpperCase() || 'T';
+
   const tiles: {
     id: string;
     title: string;
@@ -257,7 +278,7 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
     {
       id: 'wishlist',
       title: 'Saved',
-      description: 'Tours and stays you want to revisit',
+      description: 'Tours, stays, and rentals you want to revisit',
       icon: Heart,
       count: stats != null ? badge(stats.wishlist) : undefined,
       onClick: () => onNavigate('wishlist'),
@@ -267,20 +288,26 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
   return (
     <div className="min-h-screen bg-paper tv-page">
       <div className="tv-shell px-4 sm:px-6 lg:px-8 py-6 sm:py-8 pb-12">
-        <header className="mb-6 border-b border-[#E8EBF0] pb-5 sm:mb-8">
+        <header className="tv-account-hero">
           <p className="tv-eyebrow">Traveler</p>
           <h1 id={ACCOUNT_HEADING_ID} className="tv-page-title">
             Account
           </h1>
-          <p
-            className="mt-2 max-w-2xl break-words text-[0.9375rem] font-semibold tracking-tight text-[#111827] [overflow-wrap:anywhere]"
-            title={user.email ?? undefined}
-          >
-            {displayName.trim() || user.email}
-          </p>
-          {displayName.trim() && user.email ? (
-            <p className="mt-0.5 break-all text-sm text-ink-muted [overflow-wrap:anywhere]">{user.email}</p>
-          ) : null}
+          <div className="tv-account-identity">
+            <span className="tv-account-identity__avatar" aria-hidden>
+              {identityInitial}
+            </span>
+            <div className="min-w-0">
+              <p className="tv-account-identity__name" title={identityName}>
+                {identityName}
+              </p>
+              {displayName.trim() && user.email ? (
+                <p className="tv-account-identity__email" title={user.email}>
+                  {user.email}
+                </p>
+              ) : null}
+            </div>
+          </div>
         </header>
 
         <section aria-labelledby={ACCOUNT_HEADING_ID}>
@@ -302,7 +329,7 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
                   }
                 />
               ) : null}
-              <ul className="grid gap-2.5 sm:grid-cols-2">
+              <ul className="grid gap-3 sm:grid-cols-2">
                 {tiles.map((tile) => {
                   const Icon = tile.icon;
                   return (
@@ -312,18 +339,12 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
                         onClick={tile.onClick}
                         className="lux-flat tv-account-tile group"
                       >
-                        <span
-                          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${
-                            tile.id === 'wishlist'
-                              ? 'bg-rose-50 text-rose-800 ring-1 ring-rose-100'
-                              : 'bg-finland/[0.08] text-finland ring-1 ring-finland/15'
-                          }`}
-                        >
-                          <Icon className="w-5 h-5" strokeWidth={tile.id === 'wishlist' ? 2 : 1.75} />
+                        <span className="tv-account-tile__icon">
+                          <Icon className="h-5 w-5" strokeWidth={1.85} aria-hidden />
                         </span>
                         <span className="min-w-0 flex-1">
                           <span className="flex items-center justify-between gap-2">
-                            <span className="font-semibold text-ink">{tile.title}</span>
+                            <span className="font-semibold tracking-tight text-ink">{tile.title}</span>
                             {tile.count != null ? (
                               <span className="font-sans text-sm font-bold tabular-nums tracking-tight text-[#111827]">
                                 {tile.count}
@@ -332,41 +353,36 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
                               <span className="tv-skeleton h-4 w-6 rounded" aria-hidden />
                             ) : null}
                           </span>
-                          <span className="mt-0.5 block text-sm text-ink-muted">{tile.description}</span>
+                          <span className="mt-0.5 block text-[0.8125rem] leading-snug text-ink-muted">
+                            {tile.description}
+                          </span>
                         </span>
-                        <ChevronRight className="w-4 h-4 shrink-0 text-ink-faint transition-transform motion-safe:group-hover:translate-x-0.5 group-hover:text-finland" />
+                        <ChevronRight className="h-4 w-4 shrink-0 text-ink-faint transition-transform motion-safe:group-hover:translate-x-0.5 group-hover:text-finland" />
                       </button>
                     </li>
                   );
                 })}
               </ul>
-              <p className="mt-3 text-xs text-ink-muted leading-relaxed max-w-lg">
-                Messages with hosts live on each booking — open{' '}
-                <button type="button" onClick={() => onNavigate('bookings')} className="font-semibold text-finland hover:underline">
-                  My bookings
-                </button>{' '}
-                to read and reply.
-              </p>
             </section>
 
-            <section className="rounded-[var(--tv-radius-lg,1rem)] bg-white p-4 sm:p-5 shadow-[var(--tv-elev-1)]">
-              <h2 className="text-sm font-bold tracking-tight text-[#111827]">Security</h2>
-              <p className="mt-1 text-sm leading-relaxed text-ink-muted">
-                Signing out does not change your bookings.
-              </p>
-              <button
-                type="button"
-                disabled={signingOut}
-                className="tv-btn-secondary mt-3.5 disabled:opacity-50"
-                onClick={() => {
-                  setSigningOut(true);
-                  void signOut().finally(() => {
-                    onNavigate('home');
-                  });
-                }}
-              >
-                {signingOut ? 'Signing out…' : 'Sign out'}
-              </button>
+            <section>
+              <h2 className="tv-section-heading mb-3.5">Security</h2>
+              <div className="tv-account-security">
+                <button
+                  type="button"
+                  disabled={signingOut}
+                  className="tv-account-security__btn lux-flat"
+                  onClick={() => {
+                    setSigningOut(true);
+                    void signOut().finally(() => {
+                      onNavigate('home');
+                    });
+                  }}
+                >
+                  <LogOut className="h-4 w-4 shrink-0" aria-hidden />
+                  {signingOut ? 'Signing out…' : 'Sign out'}
+                </button>
+              </div>
             </section>
           </div>
 
@@ -374,7 +390,7 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
             <h2 className="tv-section-heading mb-3.5">Your profile</h2>
             {profileLoading ? (
               <div
-                className="rounded-[var(--tv-radius-lg,1rem)] bg-white p-5 shadow-[var(--tv-elev-1)] sm:p-6"
+                className="tv-account-panel"
                 aria-busy="true"
                 aria-label="Loading profile"
               >
@@ -382,7 +398,7 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
               </div>
             ) : profileError ? (
               <ErrorState
-                className="rounded-[var(--tv-radius-lg,1rem)] bg-white p-5 shadow-[var(--tv-elev-1)] sm:p-6"
+                className="tv-account-panel"
                 title="Profile unavailable"
                 body={profileError}
                 retry={{ onClick: () => void loadProfile() }}
@@ -394,10 +410,10 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
               />
             ) : (
               <form
-                className="space-y-4 rounded-[var(--tv-radius-lg,1rem)] bg-white p-5 shadow-[var(--tv-elev-1)] sm:p-6"
+                className="tv-account-panel tv-account-form"
                 onSubmit={(e) => {
                   e.preventDefault();
-                  if (!user?.id) return;
+                  if (!user?.id || !profileDirty || profileSaving) return;
                   setProfileSaving(true);
                   setProfileMessage(null);
                   void (async () => {
@@ -410,8 +426,13 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
                     const res = await saveConsumerProfile(user.id, { displayName, phone });
                     setProfileSaving(false);
                     if (res.success) {
+                      const nextName = displayName.trim();
+                      const nextPhone = phone.trim();
+                      setDisplayName(nextName);
+                      setPhone(nextPhone);
+                      setBaselineName(nextName);
+                      setBaselinePhone(nextPhone);
                       setProfileMessage({ kind: 'ok', text: 'Profile saved.' });
-                      await loadProfile();
                     } else {
                       setProfileMessage({ kind: 'err', text: userFacingError(res.error, 'Could not save.') });
                     }
@@ -419,7 +440,7 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
                 }}
               >
                 <div>
-                  <label htmlFor="account-email" className="mb-1.5 block text-sm font-semibold tracking-tight text-[#111827]">
+                  <label htmlFor="account-email" className="tv-account-form__label">
                     Email
                   </label>
                   <input
@@ -427,12 +448,11 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
                     type="email"
                     value={user.email ?? ''}
                     readOnly
-                    className="tv-input bg-black/[0.03] text-ink-muted"
+                    className="tv-input tv-account-form__input-readonly"
                   />
-                  <p className="mt-1 text-xs text-ink-faint">Sign-in email — change via password reset or support.</p>
                 </div>
                 <div>
-                  <label htmlFor="account-display-name" className="mb-1.5 block text-sm font-semibold tracking-tight text-[#111827]">
+                  <label htmlFor="account-display-name" className="tv-account-form__label">
                     Display name
                   </label>
                   <input
@@ -440,14 +460,17 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
                     type="text"
                     name="name"
                     value={displayName}
-                    onChange={(e) => setDisplayName(e.target.value)}
+                    onChange={(e) => {
+                      setDisplayName(e.target.value);
+                      if (profileMessage) setProfileMessage(null);
+                    }}
                     autoComplete="name"
                     className="tv-input"
                     placeholder="Your name"
                   />
                 </div>
                 <div>
-                  <label htmlFor="account-phone" className="mb-1.5 block text-sm font-semibold tracking-tight text-[#111827]">
+                  <label htmlFor="account-phone" className="tv-account-form__label">
                     Phone <span className="font-normal text-ink-faint">(optional)</span>
                   </label>
                   <input
@@ -456,21 +479,31 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
                     name="tel"
                     inputMode="tel"
                     value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
+                    onChange={(e) => {
+                      setPhone(e.target.value);
+                      if (profileMessage) setProfileMessage(null);
+                    }}
                     autoComplete="tel"
                     className="tv-input"
                     placeholder="+358 40 123 4567"
                   />
                 </div>
-                {profileMessage ? (
-                  <NoticeCallout
-                    title={profileMessage.kind === 'ok' ? 'Saved' : 'Could not save'}
-                    tone={profileMessage.kind === 'ok' ? 'success' : 'danger'}
-                  >
-                    {profileMessage.text}
-                  </NoticeCallout>
-                ) : null}
-                <button type="submit" disabled={profileSaving} className="tv-btn-primary">
+                <div aria-live="polite">
+                  {profileMessage ? (
+                    <NoticeCallout
+                      title={profileMessage.kind === 'ok' ? 'Saved' : 'Could not save'}
+                      tone={profileMessage.kind === 'ok' ? 'success' : 'danger'}
+                    >
+                      {profileMessage.text}
+                    </NoticeCallout>
+                  ) : null}
+                </div>
+                <button
+                  type="submit"
+                  disabled={profileSaving || !profileDirty}
+                  className="tv-btn-primary disabled:opacity-50"
+                  aria-disabled={profileSaving || !profileDirty}
+                >
                   {profileSaving ? 'Saving…' : 'Save profile'}
                 </button>
               </form>

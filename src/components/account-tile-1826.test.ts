@@ -12,8 +12,12 @@ describe('Phase 1826: Account hub tile polish', () => {
   it('AccountPage uses display section head and account tiles', () => {
     const src = readFileSync(resolve(__dirname, '../pages/AccountPage.tsx'), 'utf8');
     expect(src).toContain('tv-account-tile');
-    expect(src).toContain('font-display text-[1.125rem]');
+    expect(src).toContain('tv-section-heading');
     expect(src).toContain('tv-skeleton');
+    expect(src).toContain('Tours, stays, and rentals you want to revisit');
+    expect(src).toContain('profileDirty');
+    expect(src).toContain('disabled={profileSaving || !profileDirty}');
     expect(src).not.toContain('animate-pulse rounded bg-black/[0.06]');
   });
 });
+

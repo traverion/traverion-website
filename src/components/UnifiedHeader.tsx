@@ -226,7 +226,7 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
             </button>
           </nav>
 
-          <div className="flex items-center justify-end gap-1 sm:gap-1.5 justify-self-end" ref={userMenuRef}>
+          <div className="flex items-center justify-end gap-1 sm:gap-1.5 justify-self-end">
             <button
               type="button"
               className="lux-flat inline-flex h-10 w-10 items-center justify-center rounded-full text-ink transition-colors duration-150 hover:bg-black/[0.04] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-finland"
@@ -279,14 +279,14 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
               </>
             ) : null}
             <TravelerTestModeBanner variant="chip" />
-            <div className="relative hidden lg:block">
+            <div className="relative hidden lg:block" ref={userMenuRef}>
               <button
                 type="button"
                 onClick={() => setIsUserMenuOpen((o) => !o)}
-                className="lux-tap-target flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-ink transition-colors duration-150 hover:text-finland focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-finland"
+                className="lux-flat lux-tap-target tv-profile-trigger"
                 aria-label={hasUnreadBookings ? 'Profile, unread trip updates' : 'Profile'}
                 aria-expanded={isUserMenuOpen}
-                aria-haspopup="true"
+                aria-haspopup="dialog"
                 aria-controls="profile-menu"
                 onPointerEnter={() => {
                   prefetchAuthPage();
@@ -296,18 +296,18 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                 }}
               >
                 {user ? (
-                  <span className="relative flex h-8 w-8 items-center justify-center rounded-full bg-finland/15 text-sm font-semibold text-finland ring-1 ring-black/[0.06]">
+                  <span className="tv-profile-trigger__avatar">
                     {travelerInitial}
                     {hasUnreadBookings ? (
                       <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-white" aria-hidden />
                     ) : null}
                   </span>
                 ) : (
-                  <span className="flex h-8 w-8 items-center justify-center rounded-full ring-1 ring-black/[0.08]">
+                  <span className="tv-profile-trigger__avatar bg-transparent text-ink shadow-[inset_0_0_0_1px_rgba(15,23,42,0.12)]">
                     <User className="h-4 w-4" />
                   </span>
                 )}
-                <span className="text-[10px] font-semibold uppercase tracking-wide text-ink-muted">Profile</span>
+                <span className="tv-profile-trigger__label">Profile</span>
               </button>
               {isUserMenuOpen && (
                 <div
@@ -315,11 +315,11 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                   ref={userMenuPanelRef}
                   role="dialog"
                   aria-label="Profile"
-                  className="absolute right-0 top-full mt-1.5 w-[17.5rem] origin-top-right overflow-hidden rounded-[var(--tv-radius-lg,1rem)] bg-white py-1.5 shadow-[var(--tv-elev-4)] ring-1 ring-black/[0.06] motion-safe:animate-slide-down"
+                  className="tv-profile-menu motion-safe:animate-slide-down"
                 >
                   {!isSupabaseConfigured() ? (
-                    <div className="px-3.5 py-3 space-y-2">
-                      <p className="text-xs text-ink-muted leading-snug">
+                    <div className="space-y-2 px-2.5 py-2.5">
+                      <p className="text-xs leading-snug text-ink-muted">
                         Online accounts are not available in this environment yet. You can still browse tours and contact us for help.
                       </p>
                       <button
@@ -328,7 +328,7 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                           setIsUserMenuOpen(false);
                           onNavigate('contact');
                         }}
-                        className="lux-flat lux-tap-target min-h-11 w-full text-left px-2.5 py-2 text-sm font-medium text-finland hover:bg-finland/5 rounded-xl"
+                        className="lux-flat tv-profile-menu__item is-active"
                       >
                         Contact support
                       </button>
@@ -338,38 +338,39 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                           setIsUserMenuOpen(false);
                           onNavigate('packages');
                         }}
-                        className="lux-flat lux-tap-target min-h-11 w-full text-left px-2.5 py-2 text-sm text-ink hover:bg-black/[0.04] rounded-xl"
+                        className="lux-flat tv-profile-menu__item"
                       >
                         Browse tours
                       </button>
                     </div>
                   ) : authLoading ? (
-                    <p className="px-3.5 py-3 text-sm text-ink-muted" aria-busy="true">
+                    <p className="px-3 py-3 text-sm text-ink-muted" aria-busy="true">
                       Checking session…
                     </p>
                   ) : user ? (
                     <>
-                      <div className="flex items-center gap-3 px-3.5 py-3 border-b border-black/[0.06] min-w-0">
-                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-finland/15 text-sm font-semibold text-finland ring-1 ring-finland/20">
-                          {travelerInitial}
-                        </span>
+                      <div className="tv-profile-menu__header">
+                        <span className="tv-profile-menu__avatar">{travelerInitial}</span>
                         <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-semibold text-ink">{travelerDisplayName || 'Traveler'}</p>
-                          <p className="truncate text-xs text-ink-muted" title={user.email ?? undefined}>
+                          <p className="tv-profile-menu__name">{travelerDisplayName || 'Traveler'}</p>
+                          <p className="tv-profile-menu__email" title={user.email ?? undefined}>
                             {user.email}
                           </p>
                         </div>
                       </div>
-                      <div className="py-1">
+                      <div className="tv-profile-menu__section">
                         <button
                           type="button"
                           onClick={() => {
                             setIsUserMenuOpen(false);
                             onNavigate('account');
                           }}
-                          className="lux-flat lux-tap-target min-h-11 w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-ink hover:bg-black/[0.04] text-left"
+                          aria-current={currentPage === 'account' ? 'page' : undefined}
+                          className={`lux-flat tv-profile-menu__item${
+                            currentPage === 'account' ? ' is-active' : ''
+                          }`}
                         >
-                          <LayoutDashboard className="h-4 w-4 shrink-0 text-ink-muted" aria-hidden />
+                          <LayoutDashboard className="tv-profile-menu__icon h-4 w-4" aria-hidden />
                           My account
                         </button>
                         <button
@@ -379,11 +380,11 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                             onNavigate('cart');
                           }}
                           aria-current={currentPage === 'cart' ? 'page' : undefined}
-                          className={`lux-flat lux-tap-target min-h-11 w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-left ${
-                            currentPage === 'cart' ? 'bg-finland/10 font-semibold text-finland' : 'text-ink hover:bg-black/[0.04]'
+                          className={`lux-flat tv-profile-menu__item${
+                            currentPage === 'cart' ? ' is-active' : ''
                           }`}
                         >
-                          <ShoppingBag className="h-4 w-4 shrink-0 text-ink-muted" aria-hidden />
+                          <ShoppingBag className="tv-profile-menu__icon h-4 w-4" aria-hidden />
                           Cart
                         </button>
                         <button
@@ -391,16 +392,16 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                           onClick={openBookings}
                           aria-current={currentPage === 'bookings' ? 'page' : undefined}
                           aria-label={hasUnreadBookings ? 'My bookings, unread updates' : 'My bookings'}
-                          className={`lux-flat lux-tap-target min-h-11 w-full flex items-center justify-between gap-2 px-3.5 py-2 text-sm text-left ${
-                            currentPage === 'bookings' ? 'bg-finland/10 font-semibold text-finland' : 'text-ink hover:bg-black/[0.04]'
+                          className={`lux-flat tv-profile-menu__item justify-between${
+                            currentPage === 'bookings' ? ' is-active' : ''
                           }`}
                         >
                           <span className="inline-flex items-center gap-2.5">
-                            <Calendar className="h-4 w-4 shrink-0 text-ink-muted" aria-hidden />
+                            <Calendar className="tv-profile-menu__icon h-4 w-4" aria-hidden />
                             My bookings
                           </span>
                           {hasUnreadBookings ? (
-                            <span className="h-2.5 w-2.5 rounded-full bg-red-500" aria-hidden />
+                            <span className="h-2 w-2 rounded-full bg-red-500" aria-hidden />
                           ) : null}
                         </button>
                         <button
@@ -410,11 +411,11 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                             onNavigate('wishlist');
                           }}
                           aria-current={currentPage === 'wishlist' ? 'page' : undefined}
-                          className={`lux-flat lux-tap-target min-h-11 w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-left ${
-                            currentPage === 'wishlist' ? 'bg-finland/10 font-semibold text-finland' : 'text-ink hover:bg-black/[0.04]'
+                          className={`lux-flat tv-profile-menu__item${
+                            currentPage === 'wishlist' ? ' is-active' : ''
                           }`}
                         >
-                          <Heart className="h-4 w-4 shrink-0 text-ink-muted" aria-hidden />
+                          <Heart className="tv-profile-menu__icon h-4 w-4" aria-hidden />
                           Saved
                         </button>
                         <button
@@ -423,19 +424,22 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                             setIsUserMenuOpen(false);
                             onNavigate('contact');
                           }}
-                          className="lux-flat lux-tap-target min-h-11 w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-ink hover:bg-black/[0.04] text-left"
+                          aria-current={currentPage === 'contact' ? 'page' : undefined}
+                          className={`lux-flat tv-profile-menu__item${
+                            currentPage === 'contact' ? ' is-active' : ''
+                          }`}
                         >
-                          <LifeBuoy className="h-4 w-4 shrink-0 text-ink-muted" aria-hidden />
+                          <LifeBuoy className="tv-profile-menu__icon h-4 w-4" aria-hidden />
                           Contact support
                         </button>
                       </div>
-                      <div className="border-t border-black/[0.06] py-1">
+                      <div className="tv-profile-menu__section">
                         <a
                           href={supplierPortalLandingHref()}
-                          className="lux-flat lux-tap-target min-h-11 flex items-center gap-2.5 px-3.5 py-2 text-sm text-ink hover:bg-black/[0.04]"
+                          className="lux-flat tv-profile-menu__item"
                           onClick={() => setIsUserMenuOpen(false)}
                         >
-                          <ExternalLink className="h-4 w-4 shrink-0 text-ink-muted" aria-hidden />
+                          <ExternalLink className="tv-profile-menu__icon h-4 w-4" aria-hidden />
                           Partner portal
                         </a>
                         <button
@@ -444,15 +448,15 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                             setIsUserMenuOpen(false);
                             void signOut();
                           }}
-                          className="lux-flat lux-tap-target min-h-11 w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-ink hover:bg-black/[0.04] text-left"
+                          className="lux-flat tv-profile-menu__item"
                         >
-                          <LogOut className="h-4 w-4 shrink-0 text-ink-muted" aria-hidden />
+                          <LogOut className="tv-profile-menu__icon h-4 w-4" aria-hidden />
                           Log out
                         </button>
                       </div>
                     </>
                   ) : (
-                    <div className="py-1">
+                    <div className="tv-profile-menu__section">
                       <button
                         type="button"
                         onClick={() => {
@@ -460,9 +464,9 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                           window.history.pushState({}, '', '/log-in?next=home');
                           onNavigate('auth');
                         }}
-                        className="lux-flat lux-tap-target min-h-11 w-full flex items-center gap-2.5 px-3.5 py-2 text-sm font-medium text-ink hover:bg-black/[0.04] text-left"
+                        className="lux-flat tv-profile-menu__item"
                       >
-                        <User className="h-4 w-4 shrink-0 text-ink-muted" aria-hidden />
+                        <User className="tv-profile-menu__icon h-4 w-4" aria-hidden />
                         Log in / Sign up
                       </button>
                       <button
@@ -471,17 +475,17 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                           setIsUserMenuOpen(false);
                           onNavigate('contact');
                         }}
-                        className="lux-flat lux-tap-target min-h-11 w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-ink hover:bg-black/[0.04] text-left"
+                        className="lux-flat tv-profile-menu__item"
                       >
-                        <LifeBuoy className="h-4 w-4 shrink-0 text-ink-muted" aria-hidden />
+                        <LifeBuoy className="tv-profile-menu__icon h-4 w-4" aria-hidden />
                         Contact support
                       </button>
                       <a
                         href={supplierPortalLandingHref()}
-                        className="lux-flat lux-tap-target min-h-11 flex items-center gap-2.5 px-3.5 py-2 text-sm text-ink hover:bg-black/[0.04]"
+                        className="lux-flat tv-profile-menu__item"
                         onClick={() => setIsUserMenuOpen(false)}
                       >
-                        <ExternalLink className="h-4 w-4 shrink-0 text-ink-muted" aria-hidden />
+                        <ExternalLink className="tv-profile-menu__icon h-4 w-4" aria-hidden />
                         Partner portal
                       </a>
                     </div>
@@ -633,9 +637,12 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                         onNavigate('account');
                         setIsMobileMenuOpen(false);
                       }}
-                      className="lux-flat w-full text-left px-4 py-3 rounded-lg text-ink hover:bg-black/[0.04] transition-colors duration-300 ease-lux flex items-center gap-2"
+                      aria-current={currentPage === 'account' ? 'page' : undefined}
+                      className={`lux-flat tv-profile-menu__item w-full ${
+                        currentPage === 'account' ? 'is-active' : ''
+                      }`}
                     >
-                      <LayoutDashboard className="w-5 h-5" />
+                      <LayoutDashboard className="tv-profile-menu__icon h-5 w-5" aria-hidden />
                       My account
                     </button>
                     <button
@@ -645,11 +652,11 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                         setIsMobileMenuOpen(false);
                       }}
                       aria-current={currentPage === 'cart' ? 'page' : undefined}
-                      className={`lux-flat w-full text-left px-4 py-3 rounded-lg transition-colors duration-300 ease-lux flex items-center gap-2 ${
-                        currentPage === 'cart' ? 'bg-finland/10 font-semibold text-finland' : 'text-ink hover:bg-black/[0.04]'
+                      className={`lux-flat tv-profile-menu__item w-full ${
+                        currentPage === 'cart' ? 'is-active' : ''
                       }`}
                     >
-                      <ShoppingBag className="w-5 h-5" />
+                      <ShoppingBag className="tv-profile-menu__icon h-5 w-5" aria-hidden />
                       Cart
                     </button>
                     <button
@@ -657,12 +664,12 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                       onClick={openBookings}
                       aria-current={currentPage === 'bookings' ? 'page' : undefined}
                       aria-label={hasUnreadBookings ? 'My bookings, unread updates' : 'My bookings'}
-                      className={`lux-flat w-full text-left px-4 py-3 rounded-lg transition-colors duration-300 ease-lux flex items-center justify-between gap-2 ${
-                        currentPage === 'bookings' ? 'bg-finland/10 font-semibold text-finland' : 'text-ink hover:bg-black/[0.04]'
+                      className={`lux-flat tv-profile-menu__item w-full justify-between ${
+                        currentPage === 'bookings' ? 'is-active' : ''
                       }`}
                     >
-                      <span className="inline-flex items-center gap-2">
-                        <Calendar className="w-5 h-5" />
+                      <span className="inline-flex items-center gap-2.5">
+                        <Calendar className="tv-profile-menu__icon h-5 w-5" aria-hidden />
                         My bookings
                       </span>
                       {hasUnreadBookings ? (
@@ -676,22 +683,22 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                         setIsMobileMenuOpen(false);
                       }}
                       aria-current={currentPage === 'wishlist' ? 'page' : undefined}
-                      className={`lux-flat w-full text-left px-4 py-3 rounded-lg transition-colors duration-300 ease-lux flex items-center gap-2 ${
-                        currentPage === 'wishlist' ? 'bg-finland/10 font-semibold text-finland' : 'text-ink hover:bg-black/[0.04]'
+                      className={`lux-flat tv-profile-menu__item w-full ${
+                        currentPage === 'wishlist' ? 'is-active' : ''
                       }`}
                     >
-                      <Heart className="w-5 h-5" />
+                      <Heart className="tv-profile-menu__icon h-5 w-5" aria-hidden />
                       Saved
                     </button>
                     <button
                       type="button"
                       onClick={() => {
-                        signOut();
+                        void signOut();
                         setIsMobileMenuOpen(false);
                       }}
-                      className="lux-flat w-full text-left px-4 py-3 rounded-lg text-ink hover:bg-black/[0.04] transition-colors duration-300 ease-lux flex items-center gap-2"
+                      className="lux-flat tv-profile-menu__item w-full"
                     >
-                      <LogOut className="w-5 h-5" />
+                      <LogOut className="tv-profile-menu__icon h-5 w-5" aria-hidden />
                       Log out
                     </button>
                   </>
