@@ -14,7 +14,7 @@ describe('Home rentals discovery section', () => {
     expect(whyIdx).toBeGreaterThan(rentalsIdx);
     expect(src).toContain('displayedRentalRows.length > 0');
     expect(src).toContain('Explore all rentals');
-    expect(src).toContain('EXPLORE MORE WITH TRAVERION');
+    expect(src).toContain('Explore more with Traverion');
     expect(src).toContain('prefetchRentalsPage');
     expect(src).toContain('goToRentals()');
   });

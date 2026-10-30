@@ -3083,7 +3083,19 @@ body[data-partner-overlay='1'] .partner-bottom-nav {
     0 12px 28px -14px rgba(7, 26, 58, 0.26),
     0 22px 48px -24px rgba(7, 26, 58, 0.22),
     0 0 0 1px rgba(15, 23, 42, 0.06);
-  transition: box-shadow var(--tv-duration-ui, 200ms) var(--tv-ease);
+  transition:
+    box-shadow var(--tv-duration-ui, 200ms) var(--tv-ease),
+    transform var(--tv-duration-hover, 180ms) var(--tv-ease);
+}
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  .tv-hero-search:hover:not(:focus-within) {
+    box-shadow:
+      0 1px 2px rgba(15, 23, 42, 0.06),
+      0 14px 30px -14px rgba(7, 26, 58, 0.28),
+      0 24px 50px -22px rgba(7, 26, 58, 0.22),
+      0 0 0 1px rgba(15, 23, 42, 0.07);
+    transform: translateY(-1px);
+  }
 }
 .tv-hero-search:focus-within {
   box-shadow:
@@ -3091,6 +3103,7 @@ body[data-partner-overlay='1'] .partner-bottom-nav {
     0 14px 32px -12px rgba(7, 26, 58, 0.3),
     0 24px 52px -22px rgba(7, 26, 58, 0.24),
     0 0 0 1px rgba(7, 88, 203, 0.2);
+  transform: none;
 }
 .tv-hero-search .relative.min-w-0 {
   transition: background-color var(--tv-duration-hover, 180ms) var(--tv-ease);
@@ -3900,9 +3913,9 @@ a:focus-visible,
 .page-hero-content .page-hero-eyebrow {
   font-size: clamp(2.35rem, 4.8vw, 3.85rem); /* ~58–62px on large desktops */
   font-weight: 750;
-  letter-spacing: -0.035em;
-  line-height: 1.05;
-  margin-bottom: 0.65rem;
+  letter-spacing: -0.038em;
+  line-height: 1.04;
+  margin-bottom: 0.55rem;
 }
 @media (min-width: 1280px) {
   .page-hero-content .page-hero-eyebrow {
@@ -3912,23 +3925,23 @@ a:focus-visible,
 .page-hero-content .page-hero-title {
   font-size: clamp(1.25rem, 1.9vw, 1.75rem);
   font-weight: 650;
-  letter-spacing: -0.022em;
-  line-height: 1.28;
-  margin-bottom: 0.6rem;
-  max-width: 38rem;
+  letter-spacing: -0.024em;
+  line-height: 1.3;
+  margin-bottom: 0.5rem;
+  max-width: 36rem;
 }
 .page-hero-content .page-hero-subtitle {
   font-size: clamp(0.9375rem, 1.15vw, 1.0625rem);
   font-weight: 450;
-  letter-spacing: -0.005em;
-  line-height: 1.6;
-  color: rgba(255, 255, 255, 0.92) !important;
-  margin-bottom: 1.25rem;
-  max-width: 30rem;
+  letter-spacing: -0.008em;
+  line-height: 1.55;
+  color: rgba(255, 255, 255, 0.9) !important;
+  margin-bottom: 1.15rem;
+  max-width: 28rem;
 }
 @media (min-width: 640px) {
   .page-hero-content .page-hero-subtitle {
-    margin-bottom: 1.5rem;
+    margin-bottom: 1.35rem;
   }
 }
 
@@ -4247,27 +4260,91 @@ a:focus-visible,
   border-top: 1px solid rgba(28, 25, 23, 0.06);
 }
 
-/* Destination discovery: fixed card width, start-aligned — does not stretch two cards full-bleed */
+/* Destination discovery: landscape cards, start-aligned — wider, not taller */
 .tv-dest-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(10.5rem, 13.5rem));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   justify-content: start;
-  gap: var(--tv-discover-gap, 1rem); /* 16px base */
+  gap: 0.75rem;
+}
+
+@media (min-width: 640px) {
+  .tv-dest-grid {
+    grid-template-columns: repeat(auto-fill, minmax(14.5rem, 17.5rem));
+    gap: var(--tv-discover-gap, 1rem);
+  }
 }
 
 @media (min-width: 1024px) {
   .tv-dest-grid {
-    grid-template-columns: repeat(auto-fill, minmax(11.5rem, 14rem));
-    gap: 1.25rem; /* 20px */
+    grid-template-columns: repeat(auto-fill, minmax(15.5rem, 18.5rem));
+    gap: 1.15rem;
   }
 }
 
+/* Homepage tours / stays / rentals — horizontal browse rail */
+.tv-home-rail {
+  display: flex;
+  align-items: stretch;
+  gap: 0.75rem;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+  scroll-snap-type: x mandatory;
+  scroll-padding-inline: 0.15rem;
+  padding-bottom: 0.35rem;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(15, 23, 42, 0.22) transparent;
+}
+
+.tv-home-rail::-webkit-scrollbar {
+  height: 0.35rem;
+}
+
+.tv-home-rail::-webkit-scrollbar-thumb {
+  background: rgba(15, 23, 42, 0.18);
+  border-radius: 9999px;
+}
+
+.tv-home-rail > * {
+  flex: 0 0 auto;
+  width: min(15.25rem, 78vw);
+  scroll-snap-align: start;
+}
+
+@media (min-width: 640px) {
+  .tv-home-rail {
+    gap: 0.875rem;
+  }
+
+  .tv-home-rail > * {
+    width: 15.75rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .tv-home-rail > * {
+    width: 16.25rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tv-home-rail {
+    scroll-snap-type: none;
+  }
+}
+
+.tv-home-destinations.tv-section {
+  padding-top: calc(var(--tv-section-y) - 0.15rem);
+  padding-bottom: calc(var(--tv-section-y) - 0.1rem);
+}
+
 .tv-home-destinations__intro {
-  margin-bottom: 1.35rem;
+  margin-bottom: 1.15rem;
 }
 @media (min-width: 640px) {
   .tv-home-destinations__intro {
-    margin-bottom: 1.6rem;
+    margin-bottom: 1.35rem;
   }
 }
 .tv-home-destinations__intro .tv-eyebrow {
@@ -4296,27 +4373,33 @@ a:focus-visible,
   position: relative;
   display: block;
   width: 100%;
-  max-width: 14rem;
+  max-width: none;
   overflow: hidden;
   border-radius: var(--tv-radius-lg, 1rem);
-  aspect-ratio: 3 / 4;
-  background: #1c1917;
+  aspect-ratio: 16 / 10;
+  background: #0f172a;
   text-align: left;
   box-shadow:
     0 1px 2px rgba(15, 23, 42, 0.04),
-    0 8px 20px -12px rgba(15, 23, 42, 0.18),
+    0 8px 20px -12px rgba(15, 23, 42, 0.16),
     0 0 0 1px rgba(28, 25, 23, 0.05);
   transition:
     box-shadow var(--tv-duration-hover, 200ms) var(--tv-ease),
     transform var(--tv-duration-hover, 200ms) var(--tv-ease);
 }
 
+@media (min-width: 640px) {
+  .tv-dest-tile {
+    max-width: 18.5rem;
+  }
+}
+
 @media (hover: hover) and (pointer: fine) {
   .tv-dest-tile:hover {
     box-shadow:
       0 2px 4px rgba(15, 23, 42, 0.05),
-      0 14px 28px -14px rgba(15, 23, 42, 0.28),
-      0 0 0 1px rgba(0, 53, 128, 0.1);
+      0 16px 32px -14px rgba(15, 23, 42, 0.26),
+      0 0 0 1px rgba(0, 53, 128, 0.12);
   }
 }
 
@@ -4330,12 +4413,13 @@ a:focus-visible,
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: center;
   transition: transform var(--tv-duration-drawer, 220ms) var(--tv-ease);
 }
 
 @media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
   .tv-dest-tile:hover img {
-    transform: scale(1.03);
+    transform: scale(1.04);
   }
 }
 
@@ -4365,12 +4449,12 @@ a:focus-visible,
 .tv-dest-tile-label {
   position: absolute;
   inset: auto 0 0 0;
-  padding: 2.75rem 0.9rem 0.9rem;
+  padding: 2.25rem 0.85rem 0.8rem;
   background: linear-gradient(
     to top,
-    rgba(0, 0, 0, 0.9) 0%,
-    rgba(0, 0, 0, 0.55) 42%,
-    rgba(0, 0, 0, 0.18) 72%,
+    rgba(7, 26, 58, 0.88) 0%,
+    rgba(7, 26, 58, 0.48) 48%,
+    rgba(7, 26, 58, 0.12) 78%,
     transparent 100%
   );
   color: #fff;
@@ -4379,25 +4463,84 @@ a:focus-visible,
 .tv-dest-tile-label__name {
   display: block;
   font-family: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
-  font-size: 1.0625rem;
+  font-size: 0.9375rem;
   font-weight: 700;
-  letter-spacing: -0.022em;
+  letter-spacing: -0.02em;
   line-height: 1.2;
 }
 @media (min-width: 640px) {
   .tv-dest-tile-label__name {
-    font-size: 1.125rem;
+    font-size: 1.0625rem;
   }
 }
 
 .tv-dest-tile-label__count {
   display: block;
-  margin-top: 0.3rem;
+  margin-top: 0.2rem;
   font-size: 0.6875rem;
   font-weight: 500;
   letter-spacing: -0.01em;
   line-height: 1.35;
-  color: rgba(255, 255, 255, 0.82);
+  color: rgba(255, 255, 255, 0.84);
+}
+
+/* Why book with Traverion — compact professional strip */
+.tv-home-why__list {
+  display: grid;
+  gap: 1.15rem;
+  margin: 0;
+  padding: 1.15rem 0 0;
+  border-top: 1px solid rgba(230, 234, 240, 0.95);
+  list-style: none;
+}
+
+@media (min-width: 640px) {
+  .tv-home-why__list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1.25rem 1.5rem;
+    padding-top: 1.35rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .tv-home-why__list {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 1.35rem 1.75rem;
+  }
+}
+
+.tv-home-why__item {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+}
+
+.tv-home-why__icon {
+  display: flex;
+  height: 2.35rem;
+  width: 2.35rem;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.75rem;
+  background: rgba(0, 53, 128, 0.06);
+  color: #003580;
+}
+
+.tv-home-why__title {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 650;
+  letter-spacing: -0.015em;
+  line-height: 1.3;
+  color: #111827;
+}
+
+.tv-home-why__body {
+  margin: 0.3rem 0 0;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: #57534e;
 }
 
 /* Phase 1802: section “All tours / All stays” affordance — OTA-style text CTA */

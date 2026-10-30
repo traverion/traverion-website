@@ -31,12 +31,12 @@ export default function Footer({ onNavigate }: { onNavigate?: (page: string) => 
 
   return (
     <footer className="bg-[#071A3A] text-white">
-      <div className="tv-shell px-4 sm:px-6 lg:px-8 py-9 sm:py-11">
-        <div className="grid grid-cols-2 gap-8 md:grid-cols-4 md:gap-10 lg:gap-12">
+      <div className="tv-shell px-4 sm:px-6 lg:px-8 py-8 sm:py-10">
+        <div className="grid grid-cols-2 gap-7 md:grid-cols-4 md:gap-8 lg:gap-10">
           <div className="col-span-2 md:col-span-1">
             <a
               href="/"
-              className="relative mb-3 inline-flex items-center gap-2.5 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
+              className="relative mb-2.5 inline-flex items-center gap-2.5 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
               aria-label="Traverion home"
             >
               <span className="tv-footer-logo-glow" aria-hidden />
@@ -51,8 +51,8 @@ export default function Footer({ onNavigate }: { onNavigate?: (page: string) => 
           </div>
 
           <div>
-            <h3 className="mb-3 text-[13px] font-semibold tracking-tight text-white">Support</h3>
-            <ul className="space-y-2">
+            <h3 className="mb-2.5 text-[13px] font-semibold tracking-tight text-white">Support</h3>
+            <ul className="space-y-1.5">
               <li>
                 <button type="button" onClick={() => nav('contact')} className={linkClass}>
                   Contact
@@ -87,8 +87,8 @@ export default function Footer({ onNavigate }: { onNavigate?: (page: string) => 
           </div>
 
           <div>
-            <h3 className="mb-3 text-[13px] font-semibold tracking-tight text-white">Company</h3>
-            <ul className="space-y-2">
+            <h3 className="mb-2.5 text-[13px] font-semibold tracking-tight text-white">Company</h3>
+            <ul className="space-y-1.5">
               <li>
                 <button type="button" onClick={() => nav('about')} className={linkClass}>
                   About Us
@@ -125,8 +125,8 @@ export default function Footer({ onNavigate }: { onNavigate?: (page: string) => 
           </div>
 
           <div>
-            <h3 className="mb-3 text-[13px] font-semibold tracking-tight text-white">Work with us</h3>
-            <ul className="space-y-2">
+            <h3 className="mb-2.5 text-[13px] font-semibold tracking-tight text-white">Work with us</h3>
+            <ul className="space-y-1.5">
               <li>
                 <a href={affiliateUrl} className={linkClass}>
                   Become an affiliate
@@ -147,12 +147,12 @@ export default function Footer({ onNavigate }: { onNavigate?: (page: string) => 
         </div>
       </div>
 
-      <div className="border-t border-white/10">
-        <div className="tv-shell flex flex-col items-center justify-between gap-3 px-4 py-3.5 sm:flex-row sm:px-6 lg:px-8">
-          <p className="text-center text-[12px] text-[#9AABC4] sm:text-left">
+      <div className="border-t border-white/[0.08]">
+        <div className="tv-shell flex flex-col items-center justify-between gap-2.5 px-4 py-3 sm:flex-row sm:px-6 lg:px-8">
+          <p className="text-center text-[12px] leading-snug text-[#9AABC4] sm:text-left">
             © 2026 Traverion – Original from Finland
           </p>
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1">
             <a
               href="https://instagram.com/traverionco"
               target="_blank"

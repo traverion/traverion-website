@@ -40,12 +40,12 @@ export function SkeletonCardGrid({ count = 8 }: { count?: number }) {
   );
 }
 
-/** Home “Places” photo tiles. */
+/** Home destination photo tiles — landscape proportion. */
 export function SkeletonPlaceGrid({ count = 6 }: { count?: number }) {
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+    <div className="tv-dest-grid" aria-hidden>
       {Array.from({ length: count }, (_, i) => (
-        <Skeleton key={i} className="h-56 sm:h-72 rounded-3xl" />
+        <Skeleton key={i} className="aspect-[16/10] w-full max-w-[18.5rem] rounded-[1rem]" />
       ))}
     </div>
   );

@@ -27,7 +27,7 @@ import { useTravelerWishlist } from '../hooks/useTravelerWishlist';
 import { supplierPortalLandingHref } from '../lib/partnerHost';
 import EmptyState from '../components/EmptyState';
 import ErrorState from '../components/ErrorState';
-import { SkeletonCardGrid, SkeletonPlaceGrid } from '../components/ui/Skeleton';
+import { SkeletonCard, SkeletonPlaceGrid } from '../components/ui/Skeleton';
 import { USER_ERROR, userFacingError } from '../lib/userFacingError';
 import { HERO_IMG } from '../lib/heroImages';
 import { destinationCoverSrc } from '../lib/destinationCover';
@@ -584,7 +584,7 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
         </div>
       </section>
 
-      <section className="tv-section tv-section-muted tv-section-divider">
+      <section className="tv-section tv-section-divider">
         <div className="tv-content">
           <div className="mb-4 flex items-end justify-between gap-3 sm:mb-5">
             <div>
@@ -617,8 +617,12 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
             />
           ) : null}
           {catalogLoading && allListings.length === 0 ? (
-            <div aria-busy="true" aria-label="Loading tours">
-              <SkeletonCardGrid count={4} />
+            <div className={HOME_DISCOVERY_GRID_CLASS} aria-busy="true" aria-label="Loading tours">
+              {Array.from({ length: 4 }, (_, i) => (
+                <div key={i}>
+                  <SkeletonCard />
+                </div>
+              ))}
             </div>
           ) : allListings.length === 0 && !listingsError ? (
             <EmptyState
@@ -661,7 +665,7 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
         </div>
       </section>
 
-      <section className="tv-section tv-section-muted tv-section-divider">
+      <section className="tv-section tv-section-divider">
         <div className="tv-content">
           <div className="mb-4 flex items-end justify-between gap-3 sm:mb-5">
             <div>
@@ -690,7 +694,13 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
             />
           ) : null}
           {catalogLoading && stayListings.length === 0 ? (
-            <SkeletonCardGrid count={3} />
+            <div className={HOME_DISCOVERY_GRID_CLASS} aria-busy="true" aria-label="Loading stays">
+              {Array.from({ length: 3 }, (_, i) => (
+                <div key={i}>
+                  <SkeletonCard />
+                </div>
+              ))}
+            </div>
           ) : stayListings.length === 0 && !listingsError ? (
             <EmptyState
               icon={Compass}
@@ -732,7 +742,7 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
       </section>
 
       {!catalogLoading && displayedRentalRows.length > 0 ? (
-        <section className="tv-section tv-section-muted tv-section-divider" aria-labelledby="home-rentals-heading">
+        <section className="tv-section tv-section-divider" aria-labelledby="home-rentals-heading">
           <div className="tv-content">
             <div className="mb-4 flex items-end justify-between gap-3 sm:mb-5">
               <div>
@@ -789,13 +799,13 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
         </section>
       ) : null}
 
-      <section className="tv-section tv-section-muted tv-section-divider">
+      <section className="tv-section tv-section-divider tv-home-why">
         <div className="tv-content">
           <h2 className="tv-section-heading mb-1.5 sm:text-[1.65rem]">Why book with Traverion</h2>
           <p className="tv-meta mb-5 max-w-xl leading-relaxed sm:mb-6">
             Tours, stays, and rentals from independent operators — with clear prices before you pay.
           </p>
-          <ul className="grid gap-5 border-t border-[#E6EAF0] pt-5 sm:grid-cols-2 sm:gap-6 sm:pt-6 lg:grid-cols-4">
+          <ul className="tv-home-why__list">
             {[
               {
                 icon: Compass,
@@ -820,13 +830,13 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
             ].map((item) => {
               const Icon = item.icon;
               return (
-                <li key={item.title} className="flex gap-3">
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#F5F6F8] text-[#0B397E]">
+                <li key={item.title} className="tv-home-why__item">
+                  <span className="tv-home-why__icon">
                     <Icon className="h-4 w-4" aria-hidden />
                   </span>
                   <div>
-                    <p className="font-semibold text-[#111827]">{item.title}</p>
-                    <p className="mt-1 text-sm leading-relaxed text-ink-muted">{item.body}</p>
+                    <p className="tv-home-why__title">{item.title}</p>
+                    <p className="tv-home-why__body">{item.body}</p>
                   </div>
                 </li>
               );
