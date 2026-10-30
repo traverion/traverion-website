@@ -35,7 +35,13 @@ import { rentalQuantityUnits } from '../lib/rental-presentation';
 import type { RentalCategoryId } from '../types/rental';
 import { isRentalCategoryId } from '../types/rental';
 import { nightsOccupiedByStay, stayRangeFromBooking } from '../lib/stayOccupancy';
-import { formatMoney, isStripeTestCheckoutSession, appStripeIsTestMode } from '../lib/money';
+import { formatMoney } from '../lib/money';
+import {
+  showStripeTestAmountBadge,
+  STRIPE_TEST_AMOUNT_BADGE,
+  TRAVELER_TEST_MODE_LABEL,
+  travelerPayNowCtaLabel,
+} from '../lib/traveler-env-presentation';
 import NoticeCallout from '../components/NoticeCallout';
 import StatusChip, { toneForPaymentLabel } from '../components/StatusChip';
 import {
@@ -71,8 +77,6 @@ import {
   bookingConfirmationCancelledBody,
   bookingConfirmationCancelledNextStep,
   TRAVELER_HOLD_EXPIRED_PAY_NOW_NOTE,
-  TRAVELER_OPENING_CHECKOUT_CTA,
-  TRAVELER_PAY_NOW_TEST_CTA,
   stayConfirmationPaidNightlyBreakdown,
   stayPaidAdjacentNightCount,
 } from '../lib/booking-confirmation-copy';
@@ -916,9 +920,9 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
                     ) : null}
                     <div className="mt-2 flex flex-wrap items-center gap-2">
                       <StatusChip tone="good">Paid · Confirmed</StatusChip>
-                      {isStripeTestCheckoutSession(booking.checkout_session_id) || appStripeIsTestMode() ? (
+                      {showStripeTestAmountBadge(booking.checkout_session_id) ? (
                         <span className="text-[11px] font-semibold uppercase tracking-wide text-amber-800">
-                          Test mode
+                          {TRAVELER_TEST_MODE_LABEL}
                         </span>
                       ) : null}
                     </div>
@@ -1194,8 +1198,11 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
                       {/* Phase 1861: money + TEST as siblings with an explicit space (avoid “€89TEST”). */}
                       <p className="mt-1 flex flex-wrap items-baseline gap-x-2 font-sans text-2xl font-bold tabular-nums text-ink">
                         <span>{formatMoney(Number(booking.amount_paid), booking.currency)}</span>
-                        {isStripeTestCheckoutSession(booking.checkout_session_id) || appStripeIsTestMode() ? (
-                          <span className="text-sm font-semibold text-amber-800">{' '}TEST</span>
+                        {showStripeTestAmountBadge(booking.checkout_session_id) ? (
+                          <span className="text-sm font-semibold text-amber-800">
+                            {' '}
+                            {STRIPE_TEST_AMOUNT_BADGE}
+                          </span>
                         ) : null}
                       </p>
                     </div>
@@ -1246,7 +1253,7 @@ export default function BookingConfirmationPage({ onNavigate }: BookingConfirmat
                     disabled={payingNow}
                     className="tv-btn-primary w-full"
                   >
-                    {payingNow ? TRAVELER_OPENING_CHECKOUT_CTA : TRAVELER_PAY_NOW_TEST_CTA}
+                    {travelerPayNowCtaLabel(payingNow)}
                   </button>
                 ) : null}
                 <button

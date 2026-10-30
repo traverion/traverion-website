@@ -9,10 +9,10 @@ describe('Phase 1605: traveler continue CTA without test-mode stamp', () => {
     expect(TRAVELER_CONTINUE_TEST_CTA.toLowerCase()).not.toContain('test mode');
   });
 
-  it('TourDetails still discloses Stripe TEST beside the booking card', () => {
+  it('TourDetails discloses Stripe TEST via env-aware footnote helper', () => {
     const src = readFileSync(resolve(__dirname, '../pages/TourDetails.tsx'), 'utf8');
-    expect(src).toContain('STRIPE_TEST_UNTIL_LIVE');
-    expect(src).toMatch(/Secure checkout · \{STRIPE_TEST_UNTIL_LIVE\}/);
+    expect(src).toContain('stripeSecureCheckoutFootnote');
+    expect(src).not.toContain('STRIPE_TEST_UNTIL_LIVE');
     expect(STRIPE_TEST_UNTIL_LIVE.toLowerCase()).toContain('test');
   });
 });

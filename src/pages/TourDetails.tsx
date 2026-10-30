@@ -55,10 +55,8 @@ import { departureSlotSpotsLeft, maxSpotsLeftAcrossDepartures, partyMaxCappedByR
 import { tourSoldOutDates } from '../lib/tour-calendar';
 import { addCalendarDays } from '../lib/stayOccupancy';
 import BookingPage from './BookingPage';
-import {
-  LISTING_REVIEWS_EMPTY_COPY,
-  STRIPE_TEST_UNTIL_LIVE,
-} from '../lib/booking-confirmation-copy';
+import { LISTING_REVIEWS_EMPTY_COPY } from '../lib/booking-confirmation-copy';
+import { stripeSecureCheckoutFootnote } from '../lib/traveler-env-presentation';
 import {
   getPartySizeBounds,
   getPartySizeBoundsForVariant,
@@ -2316,7 +2314,7 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
                           {listingShowsFreeCancellation(tour) ? null : (
                             <Shield className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#0F766E]" aria-hidden />
                           )}
-                          Secure checkout · {STRIPE_TEST_UNTIL_LIVE}
+                          {stripeSecureCheckoutFootnote()}
                         </p>
                       </div>
                     </div>

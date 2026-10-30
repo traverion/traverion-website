@@ -134,11 +134,10 @@ import {
   TRAVELER_CANCEL_UNPAID_CHECKOUT_POLICY,
   TRAVELER_ACCEPT_CANCEL_SUCCESS,
   TRAVELER_DECLINE_CANCEL_SUCCESS,
-  TRAVELER_OPENING_CHECKOUT_CTA,
-  TRAVELER_PAY_NOW_TEST_CTA,
   TRAVELER_HOLD_EXPIRED_PAY_NOW_NOTE,
   readStripeCheckoutReturnBanner,
 } from '../lib/booking-confirmation-copy';
+import { travelerPayNowCtaLabel } from '../lib/traveler-env-presentation';
 
 interface MyBookingsProps {
   onNavigate: (page: string) => void;
@@ -1359,7 +1358,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                         disabled={payingId === b.id}
                         className="tv-btn-primary"
                       >
-                        {payingId === b.id ? TRAVELER_OPENING_CHECKOUT_CTA : TRAVELER_PAY_NOW_TEST_CTA}
+                        {travelerPayNowCtaLabel(payingId === b.id)}
                       </button>
                     ) : null}
                     {openCancel && !open ? (
@@ -2001,7 +2000,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                         disabled={payingId === b.id}
                         className="tv-btn-primary !min-h-9"
                       >
-                        {payingId === b.id ? TRAVELER_OPENING_CHECKOUT_CTA : TRAVELER_PAY_NOW_TEST_CTA}
+                        {travelerPayNowCtaLabel(payingId === b.id)}
                       </button>
                     )}
                     {tripView === 'upcoming' &&

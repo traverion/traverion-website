@@ -86,8 +86,11 @@ import {
   STAY_LISTING_CONFIRMATION_NOTE,
   stayCheckInOutMissingCopy,
   LISTING_REVIEWS_EMPTY_COPY,
-  STRIPE_TEST_UNTIL_LIVE,
 } from '../lib/booking-confirmation-copy';
+import {
+  stayStickyPaymentHint,
+  stripeSecureCheckoutFootnote,
+} from '../lib/traveler-env-presentation';
 import { listingShowsFreeCancellation, publicReviewLabel } from '../lib/listingTruth';
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
 import { isSupabaseListingId } from '../lib/discount-display';
@@ -1463,7 +1466,7 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
               </button>
             )}
             <p className="mt-2 text-[11px] leading-relaxed text-ink-faint" title={STAY_LISTING_CONFIRMATION_NOTE}>
-              {STRIPE_TEST_UNTIL_LIVE} · confirmed stays appear in My bookings
+              {stripeSecureCheckoutFootnote('confirmed stays appear in My bookings')}
             </p>
           </aside>
           </div>
@@ -1741,9 +1744,7 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
               <p className="truncate text-xs text-ink-muted">
                 {checkIn && checkOut && stayQuote && !stayQuote.ok
                   ? stayQuote.error?.trim().slice(0, 72) || 'Adjust your dates or guests'
-                  : listingShowsFreeCancellation(stay)
-                    ? `Free cancellation · ${STRIPE_TEST_UNTIL_LIVE}`
-                    : `Pay via ${STRIPE_TEST_UNTIL_LIVE}`}
+                  : stayStickyPaymentHint(listingShowsFreeCancellation(stay))}
               </p>
             </div>
             {quoteOk ? (

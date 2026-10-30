@@ -12,10 +12,9 @@ import { fetchMyBookings, resumePendingBookingCheckout, type BookingRow } from '
 import { formatBookingDateDisplay } from '../lib/booking-flow';
 import {
   STRIPE_CHECKOUT_CANCELLED_TOUR_COPY,
-  TRAVELER_OPENING_CHECKOUT_CTA,
-  TRAVELER_PAY_NOW_TEST_CTA,
   readStripeCheckoutReturnBanner,
 } from '../lib/booking-confirmation-copy';
+import { travelerPayNowCtaLabel } from '../lib/traveler-env-presentation';
 import { formatMoney } from '../lib/money';
 import { travelerActiveCartHold, travelerHoldExpiresAtMs } from '../lib/trip-views';
 import { USER_ERROR, userFacingError } from '../lib/userFacingError';
@@ -187,7 +186,7 @@ export default function CartPage({ onNavigate }: Props) {
                     disabled={payingId === row.id}
                     onClick={() => void pay(row)}
                   >
-                    {payingId === row.id ? TRAVELER_OPENING_CHECKOUT_CTA : TRAVELER_PAY_NOW_TEST_CTA}
+                    {travelerPayNowCtaLabel(payingId === row.id)}
                   </button>
                 </li>
               );

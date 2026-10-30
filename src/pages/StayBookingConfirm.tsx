@@ -26,7 +26,7 @@ import { stayStickyBookCtaLabel } from '../lib/stay-sticky-cta';
 import { LISTING_SELF_BOOK_BLOCKED, LISTING_SELF_BOOK_CHECK_FAILED, viewerIsListingSupplierSide } from '../lib/listing-self-book';
 import { USER_ERROR, userFacingError } from '../lib/userFacingError';
 import { STAY_REQUEST_APPROVAL_HOURS } from '../lib/stay-booking-method';
-import { STRIPE_TEST_UNTIL_LIVE } from '../lib/booking-confirmation-copy';
+import { stripeTestPaymentDisclosure } from '../lib/traveler-env-presentation';
 import { listingShowsFreeCancellation } from '../lib/listingTruth';
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -768,7 +768,12 @@ export default function StayBookingConfirm({ stay, initial, onBackToListing }: P
               <div className="hidden lg:block">
                 {paymentButton}
                 <p className="mt-2 text-[11px] leading-relaxed text-ink-faint">
-                  {STRIPE_TEST_UNTIL_LIVE} · total confirmed on the server before payment
+                  {(() => {
+                    const testDisclosure = stripeTestPaymentDisclosure();
+                    return testDisclosure
+                      ? `${testDisclosure} · total confirmed on the server before payment`
+                      : 'Total confirmed on the server before payment';
+                  })()}
                 </p>
               </div>
             </div>

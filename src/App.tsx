@@ -36,7 +36,7 @@ import {
   buildPublicListingDeepLinkHref,
   resolvePublicListingDeepLinkTarget,
 } from './lib/public-listing-deep-link';
-import { STRIPE_TEST_UNTIL_LIVE } from './lib/booking-confirmation-copy';
+import { bookingConfirmedMetaDescription } from './lib/traveler-env-presentation';
 import {
   isTraverionAdminHost,
   isPublicTraverionMarketingHost,
@@ -610,7 +610,7 @@ function App() {
       cart: { title: 'Cart', description: 'Open checkouts you can finish — nights are not reserved until payment succeeds.' },
       'booking-confirmed': {
         title: 'Booking confirmed',
-        description: `Your tour or stay payment was successful. Checkout used ${STRIPE_TEST_UNTIL_LIVE}.`,
+        description: bookingConfirmedMetaDescription(),
       },
       blog: { title: 'Stories coming later', description: 'Traverion is not publishing editorial articles yet.' },
       contact: { title: 'Contact', description: 'Get in touch with Traverion.' },
