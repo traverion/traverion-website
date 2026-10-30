@@ -17,15 +17,15 @@ Distinguish **CONFIRMED** (code/design) vs **UNVERIFIED RISK** (needs runtime pr
 - **Solution:** Separate LIVE launch program: keys, webhook endpoints, reconciliation, legal MoR, monitoring.  
 - **Acceptance:** LIVE checkout in staging sandbox policy + runbooks; never accidental LIVE in preview.
 
-### LB-002 — Guest/host cancel does not auto-execute Stripe refunds
-- **Severity:** P0/P1  
+### LB-002 — Guest/host cancel Stripe refunds (updated 2026-10-30)
+- **Severity:** P1 (tours/stays) · P1/P2 (rentals)  
 - **Area:** Refunds / finance  
-- **Problem:** Cancel sets Refund due / prepares instruction; Stripe money movement is manual.  
-- **Impact:** Customers may wait; ops error risk; trust damage.  
-- **Evidence:** mig 241/256; admin tests forbid stripe.refunds.create.  
-- **Type:** CONFIRMED  
-- **Solution:** Ops playbook now; later execute-refund worker with idempotency.  
-- **Acceptance:** Documented SLA + tested manual path; ledger matches Stripe after refund webhook.
+- **Problem (historical):** Cancel set Refund due without Stripe execution.  
+- **Current:** Tours/stays queue durable refund instructions and `execute-booking-refund` creates Stripe refunds (idempotent); truth still lands via `charge.refunded` webhook. Rentals remain **no automatic refunds**.  
+- **Evidence:** mig 264/267; `tour-auto-refund.cert.test.ts`; `stay-auto-refund.cert.test.ts`; `rental-cancellation.ts`.  
+- **Type:** PARTIALLY RESOLVED (tour/stay) · OPEN (rental auto path + mailbox proof)  
+- **Solution:** Keep tour/stay auto path; founder decide rental auto-refund policy; prove mailbox + Dashboard refund drills.  
+- **Acceptance:** Paid cancel → processing → refunded labels; Stripe charge refunded; ledger reversed.
 
 ### LB-003 — Email delivery not proven in this audit
 - **Severity:** P0  
@@ -48,13 +48,14 @@ Distinguish **CONFIRMED** (code/design) vs **UNVERIFIED RISK** (needs runtime pr
 - **Acceptance:** Accept/decline/expire/withdraw all leave consistent booking+PI+calendar.
 
 ### LB-005 — Concurrent Instant Book correctness must be proven
-- **Severity:** P0  
+- **Severity:** P1 (tour/stay proven; rental re-cert open)  
 - **Area:** Inventory  
 - **Problem:** Design allows racing checkouts; first promote wins.  
 - **Impact:** Wrong refunds or oversell if promote/refund fails.  
 - **Evidence:** mig 257; promote conflict refund paths.  
-- **Type:** UNVERIFIED RISK  
-- **Solution:** Two-browser same-night TEST; assert one paid, one refunded.  
+- **Update 2026-10-30:** Tour last-seat + stay same-night Stripe TEST races **PASS** (`scripts/.cert-tour-stripe-race-report.json`, `.cert-stay-stripe-race-report.json`). Transient `inventory_conflict_refund_failed` then successful refund observed — monitor in LIVE. Rental dual-payer race still needs fresh runtime.  
+- **Type:** PARTIALLY VERIFIED  
+- **Solution:** Re-run rental last-unit race; alert on `needsIntervention`.  
 - **Acceptance:** No double occupy; both travelers see honest states.
 
 ### LB-006 — Admin allowlist / privileged wipe misuse
