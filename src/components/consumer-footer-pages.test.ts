@@ -18,7 +18,7 @@ describe('Consumer footer & page shell polish', () => {
     expect(src).toContain("nav('contact')");
     expect(src).toContain("nav('packages')");
     expect(src).toContain("nav('stays')");
-    expect(src).toContain("nav('cart')");
+    expect(src).not.toContain("nav('cart')");
     expect(src).toContain("nav('bookings')");
     expect(src).toContain("nav('wishlist')");
     expect(src).toContain('Become an affiliate');

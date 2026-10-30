@@ -109,11 +109,6 @@ export default function Footer({ onNavigate }: { onNavigate?: (page: string) => 
                   Rentals
                 </button>
               </li>
-              <li>
-                <button type="button" onClick={() => nav('cart')} className={linkClass}>
-                  Cart
-                </button>
-              </li>
               {/* Phase 1623: My bookings beside Tours/Stays — match primary nav wayfinding. */}
               <li>
                 <button type="button" onClick={() => nav('bookings')} className={linkClass}>

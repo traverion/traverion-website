@@ -17,7 +17,6 @@ const SECTIONS: SitemapSection[] = [
       { label: 'Stays', page: 'stays' },
       // Phase 1642: label matches behavior — destination cards live on Home.
       { label: 'Destination guides', page: 'home' },
-      { label: 'Cart', page: 'cart' },
       { label: 'My bookings', page: 'bookings' },
       { label: 'Saved', page: 'wishlist' },
       { label: 'Contact', page: 'contact' },
@@ -29,7 +28,6 @@ const SECTIONS: SitemapSection[] = [
     items: [
       { label: 'Sign in / Sign up', href: travelerLoginHref('account') },
       { label: 'My account', page: 'account' },
-      { label: 'Cart', page: 'cart' },
       { label: 'Saved', page: 'wishlist' },
       { label: 'My bookings', page: 'bookings' },
     ],
@@ -52,7 +50,6 @@ const SECTIONS: SitemapSection[] = [
       { label: 'About Us', page: 'about' },
       { label: 'Tours', page: 'packages' },
       { label: 'Stays', page: 'stays' },
-      { label: 'Cart', page: 'cart' },
       { label: 'My bookings', page: 'bookings' },
       { label: 'Saved', page: 'wishlist' },
     ],

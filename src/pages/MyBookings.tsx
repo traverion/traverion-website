@@ -610,11 +610,6 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
   );
 
   useEffect(() => {
-    if (paymentBanner !== 'cancelled') return;
-    onNavigate('cart');
-  }, [paymentBanner, onNavigate]);
-
-  useEffect(() => {
     if (typeof window === 'undefined') return;
     const url = new URL(window.location.href);
     if (!readStripeCheckoutReturnBanner(url.search)) return;
@@ -867,8 +862,8 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
             </p>
             <div className="mt-4 flex flex-wrap gap-2">
               {pendingPayBookings[0] ? (
-                <button type="button" onClick={() => onNavigate('cart')} className="tv-btn-primary">
-                  View cart
+                <button type="button" onClick={() => setPaymentBanner(null)} className="tv-btn-primary">
+                  Continue on My bookings
                 </button>
               ) : (
                 <>

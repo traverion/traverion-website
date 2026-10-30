@@ -11,7 +11,6 @@ import {
   LifeBuoy,
   ExternalLink,
   Search,
-  ShoppingBag,
   Compass,
   Map,
   Home,
@@ -375,20 +374,6 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                         </button>
                         <button
                           type="button"
-                          onClick={() => {
-                            setIsUserMenuOpen(false);
-                            onNavigate('cart');
-                          }}
-                          aria-current={currentPage === 'cart' ? 'page' : undefined}
-                          className={`lux-flat tv-profile-menu__item${
-                            currentPage === 'cart' ? ' is-active' : ''
-                          }`}
-                        >
-                          <ShoppingBag className="tv-profile-menu__icon h-4 w-4" aria-hidden />
-                          Cart
-                        </button>
-                        <button
-                          type="button"
                           onClick={openBookings}
                           aria-current={currentPage === 'bookings' ? 'page' : undefined}
                           aria-label={hasUnreadBookings ? 'My bookings, unread updates' : 'My bookings'}
@@ -644,20 +629,6 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                     >
                       <LayoutDashboard className="tv-profile-menu__icon h-5 w-5" aria-hidden />
                       My account
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        onNavigate('cart');
-                        setIsMobileMenuOpen(false);
-                      }}
-                      aria-current={currentPage === 'cart' ? 'page' : undefined}
-                      className={`lux-flat tv-profile-menu__item w-full ${
-                        currentPage === 'cart' ? 'is-active' : ''
-                      }`}
-                    >
-                      <ShoppingBag className="tv-profile-menu__icon h-5 w-5" aria-hidden />
-                      Cart
                     </button>
                     <button
                       type="button"
