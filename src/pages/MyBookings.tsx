@@ -72,7 +72,7 @@ import {
   type CancellationRequestRow,
 } from '../data/supabase-booking-ops';
 import BookingMessageThread from '../components/BookingMessageThread';
-import StatusChip, { toneForPaymentLabel, toneForTravelerTripCard } from '../components/StatusChip';
+import StatusChip, { toneForPaymentLabel } from '../components/StatusChip';
 import NoticeCallout from '../components/NoticeCallout';
 import {
   bookingIsRental,
@@ -932,8 +932,6 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                     onClick={() => selectTripView(id)}
                     className={`tv-trips-toolbar__tab lux-flat${
                       tripView === id ? ' is-active' : ''
-                    }${tripView === id && id === 'cancelled' ? ' is-cancelled' : ''}${
-                      tripView === id && id === 'past' ? ' is-past' : ''
                     }`}
                   >
                     {label}
@@ -1173,25 +1171,12 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                 travelerPublicBookingReference(b.public_reference) ??
                 travelerTripReferenceLabel(b.booking_number);
               const needsPay = travelerBookingNeedsPayNow(b);
-              const statusTone = toneForTravelerTripCard(lifecycle, payLabel, {
-                hostCancellation: Boolean(openCancel),
-              });
-              const statusAccent =
-                statusTone === 'good'
-                  ? 'border-l-[3px] border-l-emerald-500'
-                  : statusTone === 'warn'
-                    ? 'border-l-[3px] border-l-amber-500'
-                    : statusTone === 'bad'
-                      ? 'border-l-[3px] border-l-rose-500'
-                      : statusTone === 'info'
-                        ? 'border-l-[3px] border-l-finland'
-                        : 'border-l-[3px] border-l-black/10';
               return (
               <article
                 key={b.id}
                 data-open={open ? 'true' : 'false'}
-                className={`tv-trip-card ${statusAccent} ${
-                  openCancel && !open ? 'ring-1 ring-amber-300/80' : ''
+                className={`tv-trip-card${
+                  openCancel && !open ? ' tv-trip-card--host-cancel' : ''
                 }`}
               >
                 <button
@@ -1222,8 +1207,8 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                       src={thumb}
                       alt=""
                       className="tv-trip-card__thumb"
-                      width={84}
-                      height={84}
+                      width={88}
+                      height={88}
                       loading="lazy"
                       decoding="async"
                     />
@@ -1234,7 +1219,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                   )}
                   <div className="tv-trip-card__body min-w-0 flex-1">
                     <div className="tv-trip-card__top">
-                      <div className="min-w-0">
+                      <div className="tv-trip-card__lead min-w-0">
                         <h3 className="tv-trip-card__title" title={tripTitle}>
                           {tripTitle}
                         </h3>
@@ -1258,7 +1243,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                         <span className="tv-trip-card__view" aria-hidden>
                           {open ? 'Close' : 'View booking'}
                           <ChevronDown
-                            className={`h-3.5 w-3.5 transition-transform duration-180 motion-reduce:transition-none ${open ? 'rotate-180' : ''}`}
+                            className={`h-3.5 w-3.5 shrink-0 transition-transform duration-180 motion-reduce:transition-none ${open ? 'rotate-180' : ''}`}
                             aria-hidden
                           />
                         </span>
@@ -1277,7 +1262,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                       </span>
                       <span className="tv-trip-card__facts-inline">
                         {placeLine ? (
-                          <span className="inline-flex min-w-0 max-w-[14rem] items-center gap-1 truncate sm:max-w-[18rem]">
+                          <span className="tv-trip-card__place">
                             <MapPin className="h-3 w-3 shrink-0 text-ink-faint" aria-hidden />
                             <span className="truncate">{placeLine}</span>
                           </span>
@@ -1314,22 +1299,6 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                       <Star className="h-3.5 w-3.5 shrink-0" aria-hidden />
                       {reviewedListingIds.has(b.listing_id) ? 'Edit review' : 'Write review'}
                     </button>
-                    <span className="tv-trip-card__action-sep" aria-hidden>
-                      ·
-                    </span>
-                    <button
-                      type="button"
-                      className="tv-trip-card__action-link lux-flat"
-                      onClick={() => {
-                        setOpenTripId(b.id);
-                        setTripDetailTab('overview');
-                        const url = new URL(window.location.href);
-                        url.searchParams.set('booking', b.id);
-                        window.history.replaceState({}, '', `${url.pathname}${url.search}`);
-                      }}
-                    >
-                      View booking
-                    </button>
                   </div>
                 ) : null}
                 {!open && tripView === 'cancelled' ? (
@@ -1350,7 +1319,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                   </div>
                 ) : null}
                 {(needsPay && !open) || (openCancel && !open) ? (
-                  <div className="flex flex-wrap gap-2 border-t border-black/[0.05] px-3.5 py-3 sm:px-4">
+                  <div className="tv-trip-card__urgent">
                     {needsPay && !open ? (
                       <button
                         type="button"

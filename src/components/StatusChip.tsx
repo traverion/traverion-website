@@ -33,7 +33,7 @@ export function toneForPaymentLabel(label: string): Tone {
   return 'neutral';
 }
 
-/** Collapsed Trips row left accent — payment label wins when it differs from lifecycle (Refund due, Paid, …). */
+/** Traveler trip status tone — payment label wins when it differs from lifecycle (Refund due, Paid, …). */
 export function toneForTravelerTripCard(
   lifecycle: string,
   payLabel: string,
