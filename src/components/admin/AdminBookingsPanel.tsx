@@ -2,7 +2,9 @@ import { useCallback, useEffect, useState } from 'react';
 import { CalendarDays, Loader2, Search } from 'lucide-react';
 import { invokeAdminEdgeFunction } from '../../lib/adminEdgeFunction';
 import { isSupabaseConfigured } from '../../lib/supabase';
-import { formatMoney, isStripeTestCheckoutSession, appStripeIsTestMode } from '../../lib/money';
+import { formatMoney, isStripeTestCheckoutSession } from '../../lib/money';
+import { STRIPE_TEST_AMOUNT_BADGE } from '../../lib/traveler-env-presentation';
+import AdminStripeTestNotice from './AdminStripeTestNotice';
 import { isCollectedBooking, partnerPaymentLabel, type MoneyBookingRow } from '../../lib/payment-states';
 import { bookingLifecycleLabel } from '../../lib/status-language';
 import NoticeCallout from '../NoticeCallout';
@@ -343,13 +345,10 @@ export default function AdminBookingsPanel() {
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Refresh'}
           </button>
         </div>
-        {appStripeIsTestMode() ? (
-          <div className="mt-3">
-            <NoticeCallout title="Stripe TEST mode" tone="warn">
-              Amounts come from Traverion&apos;s Stripe TEST environment. No real money has moved.
-            </NoticeCallout>
-          </div>
-        ) : null}
+        <AdminStripeTestNotice
+          className="mt-3"
+          body="Amounts come from Traverion's Stripe TEST environment. No real money has moved."
+        />
         {!isSupabaseConfigured() ? (
           <div className="mt-3">
             <NoticeCallout title="Supabase not configured" tone="warn">
@@ -525,7 +524,7 @@ export default function AdminBookingsPanel() {
                 <p className="tabular-nums text-[13px] font-semibold text-[#18181b]">
                   {totalAmount != null ? formatMoney(totalAmount, booking.currency) : '—'}
                   {collected && isStripeTestCheckoutSession(booking.checkout_session_id) ? (
-                    <span className="ml-1 text-[11px] font-semibold text-amber-700">TEST</span>
+                    <span className="ml-1 text-[11px] font-semibold text-amber-700">{STRIPE_TEST_AMOUNT_BADGE}</span>
                   ) : null}
                 </p>
                 <p className="text-[11px] text-[#71717a]">{caption}</p>

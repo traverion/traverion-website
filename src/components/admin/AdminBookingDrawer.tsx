@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { X } from 'lucide-react';
 import { invokeAdminEdgeFunction } from '../../lib/adminEdgeFunction';
 import { formatMoney, appStripeIsTestMode, isStripeTestCheckoutSession } from '../../lib/money';
+import { ADMIN_STRIPE_TEST_LABEL, showStripeTestAmountBadge } from '../../lib/traveler-env-presentation';
 import { bookingLifecycleLabel } from '../../lib/status-language';
 import { partnerPaymentLabel, isPaidPaymentStatus } from '../../lib/payment-states';
 import { travelerPublicBookingReference } from '../../lib/public-booking-reference';
@@ -293,9 +294,9 @@ export default function AdminBookingDrawer({
           ) : null}
           {booking && !loading ? (
             <div className="space-y-4 font-sans text-[13px] text-[#18181b]">
-              {appStripeIsTestMode() || isStripeTestCheckoutSession(booking.checkout_session_id) ? (
+              {showStripeTestAmountBadge(booking.checkout_session_id) ? (
                 <p className="rounded-md bg-amber-50 px-3 py-2 text-[12px] text-amber-900">
-                  Stripe TEST. This is not a live charge or a live payout.
+                  {ADMIN_STRIPE_TEST_LABEL}. This is not a live charge or a live payout.
                 </p>
               ) : null}
               <section>

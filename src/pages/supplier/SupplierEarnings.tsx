@@ -42,7 +42,10 @@ import {
   ledgerRecoveryTotal,
 } from '../../lib/supplier-ledger-balance';
 import { formatBpsAsPercent, fromMinorUnits, planDefinition } from '../../lib/commercial-money';
-import { appStripeIsTestMode } from '../../lib/money';
+import {
+  showAdminStripeTestDiagnostics,
+  SUPPLIER_TEST_DATA_LABEL,
+} from '../../lib/traveler-env-presentation';
 import { fetchMyListings } from '../../data/supabase-listings';
 import { fetchSupplierLedger, type SupplierLedgerEntry } from '../../data/supabase-booking-ops';
 import { PARTNER_MONEY_PAYOUT_STATUS_NOTE, PARTNER_MONEY_EMPTY_TITLE, PARTNER_MONEY_EMPTY_BODY, PARTNER_MONEY_LOAD_ERROR_TITLE, PARTNER_MONEY_FILTER_EMPTY_BODY, PARTNER_MONEY_PERIOD_NOT_PAID_OUT_LABEL } from '../../lib/booking-confirmation-copy';
@@ -924,12 +927,12 @@ export default function SupplierEarnings() {
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <h1 className="tv-income-title">Income & Payouts</h1>
-            {appStripeIsTestMode() ? (
+            {showAdminStripeTestDiagnostics() ? (
               <span
                 className="rounded-md border border-amber-300 bg-amber-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em] text-amber-950"
                 title="This environment uses test financial data. Amounts are not real bank transfers."
               >
-                Test data
+                {SUPPLIER_TEST_DATA_LABEL}
               </span>
             ) : null}
           </div>

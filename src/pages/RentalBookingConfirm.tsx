@@ -14,7 +14,10 @@ import NoticeCallout from '../components/NoticeCallout';
 import { checkoutPayBlockedByConsent } from '../lib/checkout-consent';
 import { LISTING_SELF_BOOK_BLOCKED, LISTING_SELF_BOOK_CHECK_FAILED, viewerIsListingSupplierSide } from '../lib/listing-self-book';
 import { USER_ERROR, userFacingError } from '../lib/userFacingError';
-import { stripeTestPaymentDisclosure } from '../lib/traveler-env-presentation';
+import {
+  showStripeTestPaymentDisclosure,
+  TRAVELER_TEST_MODE_LABEL,
+} from '../lib/traveler-env-presentation';
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import {
@@ -865,7 +868,9 @@ export default function RentalBookingConfirm({ listing, rental, initial, onBackT
                         Back to rental
                       </button>
                       <p className="text-[11px] leading-relaxed text-ink-faint">
-                        {stripeTestPaymentDisclosure() ?? 'Secure checkout'}
+                        {showStripeTestPaymentDisclosure()
+                          ? `${TRAVELER_TEST_MODE_LABEL} · no real charge`
+                          : 'Secure checkout'}
                       </p>
                     </div>
                   </div>

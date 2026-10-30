@@ -2,7 +2,8 @@ import { useCallback, useEffect, useState } from 'react';
 import { Loader2, RefreshCw, Wallet, Banknote } from 'lucide-react';
 import { invokeAdminEdgeFunction } from '../../lib/adminEdgeFunction';
 import { isSupabaseConfigured } from '../../lib/supabase';
-import { formatMoney, appStripeIsTestMode, SUPPORTED_CURRENCIES } from '../../lib/money';
+import { formatMoney, SUPPORTED_CURRENCIES } from '../../lib/money';
+import AdminStripeTestNotice from './AdminStripeTestNotice';
 import { REFUND_DUE_MANUAL_COPY } from '../../lib/payment-states';
 import NoticeCallout from '../NoticeCallout';
 import EmptyState from '../EmptyState';
@@ -289,14 +290,10 @@ export default function AdminFinancePanel() {
           </div>
         </div>
 
-        {appStripeIsTestMode() ? (
-          <div className="mb-4">
-            <NoticeCallout title="Stripe TEST mode" tone="warn">
-              Every figure below reflects Traverion's Stripe TEST environment. No real money has moved, and this
-              will keep saying TEST until Stripe is switched to live.
-            </NoticeCallout>
-          </div>
-        ) : null}
+        <AdminStripeTestNotice
+          className="mb-4"
+          body="Every figure below reflects Traverion's Stripe TEST environment. No real money has moved."
+        />
 
         {!isSupabaseConfigured() ? (
           <NoticeCallout title="Supabase not configured" tone="warn">

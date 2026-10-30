@@ -21,8 +21,12 @@ describe('traveler env presentation', () => {
     expect(mod.showStripeTestPaymentDisclosure()).toBe(true);
     expect(mod.stripeTestPaymentDisclosure()).toBe(STRIPE_TEST_UNTIL_LIVE);
     expect(mod.travelerPayNowCtaLabel(false)).toBe(TRAVELER_PAY_NOW_TEST_CTA);
-    expect(mod.stripeSecureCheckoutFootnote()).toContain('test-mode');
+    expect(mod.travelerShowsTestModeBanner()).toBe(true);
+    expect(mod.showAdminStripeTestDiagnostics()).toBe(true);
     expect(mod.bookingConfirmedMetaDescription()).toContain(STRIPE_TEST_UNTIL_LIVE);
+    // Browse footnotes stay visually production-ready; header chip + pay CTAs disclose TEST.
+    expect(mod.stripeSecureCheckoutFootnote()).toBe('Secure checkout');
+    expect(mod.stayStickyPaymentHint(true)).toBe('Free cancellation');
   });
 
   it('keeps production payment UI clean when publishable key is live', async () => {
@@ -34,5 +38,6 @@ describe('traveler env presentation', () => {
     expect(mod.stripeSecureCheckoutFootnote()).toBe('Secure checkout');
     expect(mod.bookingConfirmedMetaDescription()).not.toMatch(/test/i);
     expect(mod.travelerShowsTestModeBanner()).toBe(false);
+    expect(mod.showAdminStripeTestDiagnostics()).toBe(false);
   });
 });

@@ -24,7 +24,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { invokeAdminEdgeFunction, type AdminStatsPayload } from '../../lib/adminEdgeFunction';
 import { isSupabaseConfigured } from '../../lib/supabase';
 import { publicMarketingSiteUrl } from '../../lib/adminHost';
-import { appStripeIsTestMode } from '../../lib/money';
+import AdminStripeTestNotice from './AdminStripeTestNotice';
 import { prefetchAdminTab } from '../../lib/admin-tab-prefetch';
 
 const AdminSupplierVerificationPanel = lazy(() => import('./AdminSupplierVerificationPanel'));
@@ -205,11 +205,7 @@ function LiveOverview({ onJump }: { onJump: (tab: AdminTab) => void }) {
         </button>
       }
     >
-      {appStripeIsTestMode() ? (
-        <NoticeCallout title="Stripe TEST mode" tone="warn">
-          Payments and Money are sandbox. No live charges until you explicitly go LIVE.
-        </NoticeCallout>
-      ) : null}
+      <AdminStripeTestNotice />
 
       {error ? (
         <NoticeCallout title="Live stats unavailable" tone="danger">
@@ -749,11 +745,7 @@ export default function AdminShell() {
           <p className="text-xs text-ink-muted mt-1.5 truncate" title={user?.email ?? undefined}>
             {user?.email ?? '—'}
           </p>
-          {appStripeIsTestMode() ? (
-            <span className="inline-block mt-2 text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded bg-amber-100 text-amber-900">
-              Stripe TEST
-            </span>
-          ) : null}
+          <AdminStripeTestNotice variant="chip" />
         </div>
         <nav className="px-2 pb-4 space-y-4 flex-1" aria-label="Admin">
           {groups.map((group) => (

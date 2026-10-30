@@ -38,7 +38,7 @@ import { stayRangeFromBooking, nightsOccupiedByStay } from '../lib/stayOccupancy
 import {
   stayPaidAdjacentNightCount,
 } from '../lib/booking-confirmation-copy';
-import { formatMoney, isStripeTestCheckoutSession, appStripeIsTestMode } from '../lib/money';
+import { formatMoney } from '../lib/money';
 import {
   travelerPaymentLabel,
   REFUND_DUE_MANUAL_COPY,
@@ -137,7 +137,11 @@ import {
   TRAVELER_HOLD_EXPIRED_PAY_NOW_NOTE,
   readStripeCheckoutReturnBanner,
 } from '../lib/booking-confirmation-copy';
-import { travelerPayNowCtaLabel } from '../lib/traveler-env-presentation';
+import {
+  showStripeTestAmountBadge,
+  STRIPE_TEST_AMOUNT_BADGE,
+  travelerPayNowCtaLabel,
+} from '../lib/traveler-env-presentation';
 
 interface MyBookingsProps {
   onNavigate: (page: string) => void;
@@ -1230,8 +1234,8 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                         bookingPaymentWasCollected(b.payment_status) ? (
                           <p className="tv-trip-card__price">
                             {formatMoney(Number(b.amount_paid), b.currency)}
-                            {isStripeTestCheckoutSession(b.checkout_session_id) || appStripeIsTestMode() ? (
-                              <span className="tv-trip-card__test">Test</span>
+                            {showStripeTestAmountBadge(b.checkout_session_id) ? (
+                              <span className="tv-trip-card__test">{STRIPE_TEST_AMOUNT_BADGE}</span>
                             ) : null}
                           </p>
                         ) : null}
