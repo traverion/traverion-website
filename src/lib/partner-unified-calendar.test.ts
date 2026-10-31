@@ -5,8 +5,11 @@ import {
   groupPartnerUnifiedEventsByDate,
   parsePartnerUnifiedCalendarView,
   parsePartnerUnifiedCategoryFilter,
-  partnerUnifiedAgendaRange,
   partnerUnifiedEventIsUpcomingOrOngoing,
+  partnerUnifiedNormalizeRange,
+  partnerUnifiedRollingRange,
+  partnerUnifiedShiftRange,
+  partnerUnifiedWeeksCoveringRange,
   summarizePartnerUnifiedMonthDays,
 } from './partner-unified-calendar';
 
@@ -185,10 +188,20 @@ describe('partner-unified-calendar', () => {
     expect((day?.total ?? 0) >= 2).toBe(true);
   });
 
-  it('builds a 14-day agenda window from the anchor', () => {
-    const range = partnerUnifiedAgendaRange('2026-10-01');
-    expect(range.fromYmd).toBe('2026-10-01');
-    expect(range.toYmd).toBe('2026-10-14');
+  it('defaults to a rolling 30-day range and shifts by range length', () => {
+    const range = partnerUnifiedRollingRange('2026-11-01');
+    expect(range.fromYmd).toBe('2026-11-01');
+    expect(range.toYmd).toBe('2026-11-30');
+
+    const shifted = partnerUnifiedShiftRange(range.fromYmd, range.toYmd, 1);
+    expect(shifted.fromYmd).toBe('2026-12-01');
+    expect(shifted.toYmd).toBe('2026-12-30');
+
+    const custom = partnerUnifiedNormalizeRange('2026-11-01', '2026-11-30');
+    const weeks = partnerUnifiedWeeksCoveringRange(custom.fromYmd, custom.toYmd);
+    expect(weeks[0]?.iso <= '2026-11-01').toBe(true);
+    expect(weeks.some((c) => c.iso === '2026-11-01' && c.inRange)).toBe(true);
+    expect(weeks.some((c) => !c.inRange)).toBe(true);
   });
 
   it('hides past events by default while keeping ongoing stay nights and future returns', () => {

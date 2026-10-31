@@ -110,6 +110,35 @@ export function buildPartnerUnifiedTourDepartureEvents(params: {
   return deps.map((d) => workspaceDepartureToEvent(d, tourListings, nowMs));
 }
 
+function subtractHoursFromHm(startTimeHm: string, hours: number): string | null {
+  const m = /^(\d{1,2}):(\d{2})$/.exec((startTimeHm || '').trim());
+  if (!m) return null;
+  const total = Number(m[1]) * 60 + Number(m[2]) - Math.max(0, Math.floor(hours)) * 60;
+  // Same-day close time only; overnight cutoffs fall back to hours label.
+  if (total < 0 || total >= 24 * 60) return null;
+  const hh = String(Math.floor(total / 60)).padStart(2, '0');
+  const mm = String(total % 60).padStart(2, '0');
+  return `${hh}:${mm}`;
+}
+
+function tourCutoffCardLabel(params: {
+  status: DepartureAvailStatus;
+  cutoffHours: number;
+  startTimeHm: string;
+}): string | null {
+  const hours = Math.max(0, Math.floor(params.cutoffHours));
+  if (params.status === 'closed') return 'Day blocked';
+  if (params.status === 'cutoff') {
+    const closedAt = subtractHoursFromHm(params.startTimeHm, hours);
+    if (closedAt) return `Closed at ${closedAt}`;
+    return hours > 0 ? `Cutoff: ${hours}h before` : 'Past cutoff';
+  }
+  if (hours <= 0) return 'Until departure';
+  const closedAt = subtractHoursFromHm(params.startTimeHm, hours);
+  if (closedAt) return `Cutoff: ${hours}h before · closes ${closedAt}`;
+  return `Cutoff: ${hours}h before`;
+}
+
 function workspaceDepartureToEvent(
   d: WorkspaceDeparture,
   listings: TourPackage[],
@@ -120,7 +149,12 @@ function workspaceDepartureToEvent(
     experienceTodayIsoForListing(listing?.listingExtras?.departureTimezone, nowMs) ||
     d.iso;
   const status = d.status;
-  const qty = `${d.booked}/${d.capacity} booked · ${d.remaining} left`;
+  const qty = `Booked ${d.booked} · Cap ${d.capacity} · Avail ${d.remaining}`;
+  const cutoffLabel = tourCutoffCardLabel({
+    status,
+    cutoffHours: d.cutoffHours,
+    startTimeHm: d.startTimeHm,
+  });
   return {
     key: `dep:${d.key}`,
     ymd: d.iso,
@@ -138,6 +172,11 @@ function workspaceDepartureToEvent(
     activeTodayIso,
     source: 'schedule',
     departureStatus: status,
+    bookedCount: d.booked,
+    capacityCount: d.capacity,
+    remainingCount: d.remaining,
+    cutoffHours: d.cutoffHours,
+    cutoffLabel,
   };
 }
 

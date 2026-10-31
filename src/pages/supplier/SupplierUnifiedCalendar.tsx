@@ -1,6 +1,6 @@
 /**
- * Mission 05.1–05.6.2 — Unified Partner Calendar.
- * Full-width Agenda/Month with inline expandable editing (no side panel).
+ * Mission 05.1–05.6.x — Unified Partner Calendar.
+ * Full-width Agenda/Month, rolling date ranges, inline expandable editing.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -26,7 +26,6 @@ import {
 } from '../../data/supabase-rental-availability';
 import type { TourPackage } from '../../types/tour';
 import { experienceTodayIsoForListing } from '../../lib/booking-quote';
-import { buildMonthCells } from '../../lib/availability-ops';
 import { localYmd } from '../../lib/local-ymd';
 import { addCalendarDaysYmd } from '../../lib/booking-lifecycle-calendar';
 import { inventoryFamilyFromListing } from '../../lib/inventory';
@@ -38,15 +37,18 @@ import {
   listingsForUnifiedCategoryFilter,
   parsePartnerUnifiedCalendarView,
   parsePartnerUnifiedCategoryFilter,
-  partnerUnifiedAgendaRange,
   partnerUnifiedEventKindLabel,
-  partnerUnifiedMonthRange,
+  partnerUnifiedNormalizeRange,
   partnerUnifiedOptionChoices,
-  summarizePartnerUnifiedMonthDays,
+  partnerUnifiedRollingRange,
+  partnerUnifiedShiftRange,
+  partnerUnifiedWeeksCoveringRange,
   type PartnerUnifiedCalendarEvent,
   type PartnerUnifiedCalendarView,
   type PartnerUnifiedCategoryFilter,
+  type PartnerUnifiedMonthDaySummary,
 } from '../../lib/partner-unified-calendar';
+import { TraverionSingleDateField } from '../../components/calendar/TraverionSingleDateField';
 import {
   annotateStayMonthSummaries,
   buildPartnerUnifiedRentalBlockEvents,
@@ -94,34 +96,31 @@ function formatDayShort(iso: string): string {
   });
 }
 
-function formatMonthLabel(year: number, monthIndex0: number): string {
-  return new Date(Date.UTC(year, monthIndex0, 1)).toLocaleDateString('en-GB', {
-    month: 'long',
-    year: 'numeric',
-    timeZone: 'UTC',
-  });
-}
-
 function shortListingTitle(title: string): string {
   const t = title.trim();
-  if (t.length <= 36) return t;
-  return `${t.slice(0, 34)}…`;
+  if (t.length <= 42) return t;
+  return `${t.slice(0, 40)}…`;
 }
 
 function statusText(event: PartnerUnifiedCalendarEvent): string | null {
+  if (event.departureStatus === 'closed' || event.kind === 'stay_blocked' || event.kind === 'rental_block') {
+    return 'Blocked';
+  }
   if (event.departureStatus === 'available') return 'Open';
   if (event.departureStatus === 'limited') return 'Limited';
   if (event.departureStatus === 'sold_out') return 'Full';
-  if (event.departureStatus === 'closed') return 'Closed';
   if (event.departureStatus === 'cutoff') return 'Cutoff';
-  if (event.kind === 'stay_blocked' || event.kind === 'rental_block') return 'Blocked';
   if (event.kind === 'rental_ongoing') return 'On rent';
   return null;
 }
 
-function capacityText(event: PartnerUnifiedCalendarEvent): string | null {
-  if (event.kind === 'tour_departure' || event.kind === 'tour') {
-    return event.quantityLabel;
+function inventoryLine(event: PartnerUnifiedCalendarEvent): string | null {
+  if (
+    event.bookedCount != null &&
+    event.capacityCount != null &&
+    event.remainingCount != null
+  ) {
+    return `Booked ${event.bookedCount}  ·  Cap ${event.capacityCount}  ·  Avail ${event.remainingCount}`;
   }
   return event.quantityLabel;
 }
@@ -129,7 +128,18 @@ function capacityText(event: PartnerUnifiedCalendarEvent): string | null {
 function monthChipLabel(event: PartnerUnifiedCalendarEvent): string {
   const time = event.timeHm ? `${event.timeHm} ` : '';
   const name = event.optionLabel || partnerUnifiedEventKindLabel(event.kind);
-  return `${time}${name}`.trim();
+  const blocked =
+    event.departureStatus === 'closed' ||
+    event.kind === 'stay_blocked' ||
+    event.kind === 'rental_block'
+      ? ' · Blocked'
+      : '';
+  return `${time}${name}${blocked}`.trim();
+}
+
+function parseIsoParam(raw: string | null | undefined): string | null {
+  const v = (raw ?? '').trim();
+  return /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null;
 }
 
 function CategoryGlyph({ category }: { category: PartnerUnifiedCalendarEvent['category'] }) {
@@ -157,18 +167,23 @@ export default function SupplierUnifiedCalendar() {
 
   const initial = useMemo(() => {
     const q = readSearch();
+    const rolling = partnerUnifiedRollingRange(todayIso);
+    const fromRaw = parseIsoParam(q.get('from')) ?? parseIsoParam(q.get('date'));
+    const toRaw = parseIsoParam(q.get('to'));
+    const range = partnerUnifiedNormalizeRange(
+      fromRaw ?? rolling.fromYmd,
+      toRaw ?? (fromRaw ? addCalendarDaysYmd(fromRaw, 29) ?? rolling.toYmd : rolling.toYmd),
+      todayIso
+    );
     return {
       view: parsePartnerUnifiedCalendarView(q.get('view')),
       category: parsePartnerUnifiedCategoryFilter(q.get('category')),
       listingId: (q.get('listing') ?? '').trim(),
       optionKey: (q.get('option') ?? '').trim(),
       includePast: q.get('history') === '1',
-      anchorYmd: /^\d{4}-\d{2}-\d{2}$/.test((q.get('date') ?? '').trim())
-        ? (q.get('date') as string).trim()
-        : todayIso,
-      selectedYmd: /^\d{4}-\d{2}-\d{2}$/.test((q.get('day') ?? '').trim())
-        ? (q.get('day') as string).trim()
-        : todayIso,
+      fromYmd: range.fromYmd,
+      toYmd: range.toYmd,
+      selectedYmd: parseIsoParam(q.get('day')) ?? todayIso,
     };
   }, [todayIso]);
 
@@ -177,7 +192,8 @@ export default function SupplierUnifiedCalendar() {
   const [listingId, setListingId] = useState(initial.listingId);
   const [optionKey, setOptionKey] = useState(initial.optionKey);
   const [includePast, setIncludePast] = useState(initial.includePast);
-  const [anchorYmd, setAnchorYmd] = useState(initial.anchorYmd);
+  const [fromYmd, setFromYmd] = useState(initial.fromYmd);
+  const [toYmd, setToYmd] = useState(initial.toYmd);
   const [selectedYmd, setSelectedYmd] = useState(initial.selectedYmd);
   const [listings, setListings] = useState<TourPackage[]>([]);
   const [bookings, setBookings] = useState<BookingRow[]>([]);
@@ -196,9 +212,10 @@ export default function SupplierUnifiedCalendar() {
   const [visibilityNote, setVisibilityNote] = useState<string | null>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
 
-  const anchorDate = useMemo(() => new Date(`${anchorYmd}T12:00:00Z`), [anchorYmd]);
-  const year = anchorDate.getUTCFullYear();
-  const monthIndex0 = anchorDate.getUTCMonth();
+  const range = useMemo(
+    () => partnerUnifiedNormalizeRange(fromYmd, toYmd, todayIso),
+    [fromYmd, toYmd, todayIso]
+  );
 
   const load = useCallback(async () => {
     if (!user?.id || !isSupabase) {
@@ -231,6 +248,7 @@ export default function SupplierUnifiedCalendar() {
     if (typeof window === 'undefined') return;
     const url = new URL(window.location.href);
     const q = url.searchParams;
+    const rolling = partnerUnifiedRollingRange(todayIso);
     if (view === 'agenda') q.delete('view');
     else q.set('view', view);
     if (category === 'all') q.delete('category');
@@ -241,18 +259,30 @@ export default function SupplierUnifiedCalendar() {
     else q.delete('option');
     if (includePast) q.set('history', '1');
     else q.delete('history');
-    if (anchorYmd !== todayIso) q.set('date', anchorYmd);
-    else q.delete('date');
+    q.delete('date');
+    if (range.fromYmd !== rolling.fromYmd || range.toYmd !== rolling.toYmd) {
+      q.set('from', range.fromYmd);
+      q.set('to', range.toYmd);
+    } else {
+      q.delete('from');
+      q.delete('to');
+    }
     if (selectedYmd && selectedYmd !== todayIso) q.set('day', selectedYmd);
-    else if (selectedYmd === todayIso) q.delete('day');
     else q.delete('day');
     const qs = q.toString();
     window.history.replaceState({}, '', qs ? `${url.pathname}?${qs}` : url.pathname);
-  }, [view, category, listingId, optionKey, includePast, anchorYmd, selectedYmd, todayIso]);
+  }, [view, category, listingId, optionKey, includePast, range.fromYmd, range.toYmd, selectedYmd, todayIso]);
 
   useEffect(() => {
     setExpandedKey(null);
-  }, [view, category, listingId, optionKey, anchorYmd]);
+  }, [view, category, listingId, optionKey, range.fromYmd, range.toYmd]);
+
+  useEffect(() => {
+    if (fromYmd !== range.fromYmd || toYmd !== range.toYmd) {
+      setFromYmd(range.fromYmd);
+      setToYmd(range.toYmd);
+    }
+  }, [fromYmd, toYmd, range.fromYmd, range.toYmd]);
 
   useEffect(() => {
     if (!expandedKey || view !== 'month') return;
@@ -270,11 +300,6 @@ export default function SupplierUnifiedCalendar() {
     for (const l of listings) map.set(l.id, l.title || 'Listing');
     return map;
   }, [listings]);
-
-  const range = useMemo(() => {
-    if (view === 'month') return partnerUnifiedMonthRange(year, monthIndex0);
-    return partnerUnifiedAgendaRange(anchorYmd);
-  }, [view, year, monthIndex0, anchorYmd]);
 
   const selectedListing = useMemo(
     () => (listingId ? listings.find((l) => l.id === listingId) ?? null : null),
@@ -497,9 +522,26 @@ export default function SupplierUnifiedCalendar() {
     [filteredEvents]
   );
 
-  const monthCells = useMemo(() => buildMonthCells(year, monthIndex0), [year, monthIndex0]);
+  const monthCells = useMemo(
+    () => partnerUnifiedWeeksCoveringRange(range.fromYmd, range.toYmd),
+    [range.fromYmd, range.toYmd]
+  );
+
   const monthSummaries = useMemo(() => {
-    const base = summarizePartnerUnifiedMonthDays(filteredEvents, year, monthIndex0);
+    const base = new Map<string, PartnerUnifiedMonthDaySummary>(
+      monthCells.map((cell) => [
+        cell.iso,
+        { iso: cell.iso, total: 0, tour: 0, stay: 0, rental: 0 },
+      ])
+    );
+    for (const e of filteredEvents) {
+      const row = base.get(e.ymd);
+      if (!row) continue;
+      row.total += 1;
+      if (e.category === 'tour') row.tour += 1;
+      else if (e.category === 'stay') row.stay += 1;
+      else row.rental += 1;
+    }
     if (selectedListing && selectedFamily === 'stay') {
       return annotateStayMonthSummaries({
         summaries: base,
@@ -509,7 +551,7 @@ export default function SupplierUnifiedCalendar() {
       });
     }
     return base;
-  }, [filteredEvents, year, monthIndex0, selectedListing, selectedFamily, bookings, stayCaps]);
+  }, [filteredEvents, monthCells, selectedListing, selectedFamily, bookings, stayCaps]);
 
   const eventsByDay = useMemo(() => {
     const map = new Map<string, PartnerUnifiedCalendarEvent[]>();
@@ -570,19 +612,30 @@ export default function SupplierUnifiedCalendar() {
     if (optionKey && !optionChoices.some((o) => o.value === optionKey)) setOptionKey('');
   }, [optionKey, optionChoices]);
 
-  const shiftAgenda = (deltaDays: number) => {
-    const next = addCalendarDaysYmd(anchorYmd, deltaDays);
-    if (next) setAnchorYmd(next);
-  };
-
-  const shiftMonth = (delta: number) => {
-    const d = new Date(Date.UTC(year, monthIndex0 + delta, 1));
-    setAnchorYmd(d.toISOString().slice(0, 10));
+  const shiftRange = (direction: 1 | -1) => {
+    const next = partnerUnifiedShiftRange(range.fromYmd, range.toYmd, direction);
+    setFromYmd(next.fromYmd);
+    setToYmd(next.toYmd);
+    setSelectedYmd(next.fromYmd);
   };
 
   const goToday = () => {
-    setAnchorYmd(todayIso);
+    const rolling = partnerUnifiedRollingRange(todayIso);
+    setFromYmd(rolling.fromYmd);
+    setToYmd(rolling.toYmd);
     setSelectedYmd(todayIso);
+  };
+
+  const setRangeFrom = (iso: string) => {
+    const next = partnerUnifiedNormalizeRange(iso, toYmd < iso ? iso : toYmd, todayIso);
+    setFromYmd(next.fromYmd);
+    setToYmd(next.toYmd);
+  };
+
+  const setRangeTo = (iso: string) => {
+    const next = partnerUnifiedNormalizeRange(fromYmd, iso, todayIso);
+    setFromYmd(next.fromYmd);
+    setToYmd(next.toYmd);
   };
 
   const refreshAfterEdit = useCallback(() => {
@@ -604,9 +657,7 @@ export default function SupplierUnifiedCalendar() {
     listings.find((l) => l.id === event.listingId) ?? null;
 
   const emptyPastHint =
-    !includePast &&
-    ((view === 'agenda' && range.toYmd < todayIso) ||
-      (view === 'month' && selectedYmd < todayIso && (eventsByDay.get(selectedYmd)?.length ?? 0) === 0));
+    !includePast && range.toYmd < todayIso;
 
   if (!isSupabase) {
     return (
@@ -671,8 +722,8 @@ export default function SupplierUnifiedCalendar() {
             <button
               type="button"
               className="partner-unified-cal__nav-btn"
-              onClick={() => (view === 'month' ? shiftMonth(-1) : shiftAgenda(-7))}
-              aria-label={view === 'month' ? 'Previous month' : 'Previous week'}
+              onClick={() => shiftRange(-1)}
+              aria-label="Previous range"
             >
               <ChevronLeft className="h-4 w-4" aria-hidden />
             </button>
@@ -682,17 +733,34 @@ export default function SupplierUnifiedCalendar() {
             <button
               type="button"
               className="partner-unified-cal__nav-btn"
-              onClick={() => (view === 'month' ? shiftMonth(1) : shiftAgenda(7))}
-              aria-label={view === 'month' ? 'Next month' : 'Next week'}
+              onClick={() => shiftRange(1)}
+              aria-label="Next range"
             >
               <ChevronRight className="h-4 w-4" aria-hidden />
             </button>
             <p className="partner-unified-cal__period">
-              {view === 'month'
-                ? formatMonthLabel(year, monthIndex0)
-                : `${formatDayShort(range.fromYmd)} – ${formatDayShort(range.toYmd)}`}
+              {formatDayShort(range.fromYmd)} – {formatDayShort(range.toYmd)}
             </p>
           </div>
+        </div>
+
+        <div className="partner-unified-cal__range">
+          <TraverionSingleDateField
+            id="unified-cal-from"
+            label="From"
+            value={range.fromYmd}
+            onChange={setRangeFrom}
+            minIso=""
+            tone="premium"
+          />
+          <TraverionSingleDateField
+            id="unified-cal-to"
+            label="To"
+            value={range.toYmd}
+            onChange={setRangeTo}
+            minIso=""
+            tone="premium"
+          />
         </div>
 
         <div className="partner-unified-cal__filters">
@@ -789,13 +857,17 @@ export default function SupplierUnifiedCalendar() {
                     const expanded = expandedKey === event.key;
                     const listing = listingForEvent(event);
                     const status = statusText(event);
-                    const cap = capacityText(event);
+                    const inventory = inventoryLine(event);
+                    const blocked =
+                      status === 'Blocked' || event.departureStatus === 'closed';
                     return (
                       <article
                         key={event.key}
                         className={`partner-unified-cal__card partner-unified-cal__card--${event.category}${
                           expanded ? ' is-expanded' : ''
-                        }${event.departureStatus ? ` is-${event.departureStatus}` : ''}`}
+                        }${blocked ? ' is-blocked' : ''}${
+                          event.departureStatus === 'cutoff' ? ' is-cutoff' : ''
+                        }${event.departureStatus === 'sold_out' ? ' is-sold_out' : ''}`}
                       >
                         <button
                           type="button"
@@ -816,34 +888,43 @@ export default function SupplierUnifiedCalendar() {
                                 {partnerUnifiedEventKindLabel(event.kind)}
                               </span>
                               {status ? (
-                                <span className="partner-unified-cal__status">{status}</span>
+                                <span
+                                  className={`partner-unified-cal__badge${
+                                    blocked ? ' is-blocked' : ''
+                                  }`}
+                                >
+                                  {status}
+                                </span>
                               ) : null}
                             </span>
                             <span className="partner-unified-cal__card-title">
                               {shortListingTitle(event.listingTitle)}
-                              {event.optionLabel ? (
-                                <span className="partner-unified-cal__opt"> · {event.optionLabel}</span>
-                              ) : null}
                             </span>
-                            {cap ? (
-                              <span className="partner-unified-cal__card-meta">{cap}</span>
+                            {event.optionLabel ? (
+                              <span className="partner-unified-cal__card-option">
+                                {event.optionLabel}
+                              </span>
+                            ) : null}
+                            {inventory ? (
+                              <span className="partner-unified-cal__card-inventory">
+                                {inventory}
+                              </span>
+                            ) : null}
+                            {event.cutoffLabel ? (
+                              <span className="partner-unified-cal__card-cutoff">
+                                {event.cutoffLabel}
+                              </span>
+                            ) : null}
+                            {(event.guestName || event.reference) &&
+                            (event.category === 'stay' || event.category === 'rental') ? (
+                              <span className="partner-unified-cal__card-guest">
+                                {[event.guestName, event.reference].filter(Boolean).join(' · ')}
+                              </span>
                             ) : null}
                           </span>
                         </button>
                         {expanded && listing ? (
                           <div className="partner-unified-cal__card-expand">
-                            {eventOpensBooking(event) && event.bookingId ? (
-                              <button
-                                type="button"
-                                className="partner-unified-cal__open-booking"
-                                onClick={() =>
-                                  openSupplierBooking(event.bookingId!, { family: event.category })
-                                }
-                              >
-                                Open booking
-                                {event.guestName ? ` · ${event.guestName}` : ''}
-                              </button>
-                            ) : null}
                             <PartnerUnifiedInlineAvailabilityEdit
                               iso={event.ymd}
                               listing={listing}
@@ -888,13 +969,21 @@ export default function SupplierUnifiedCalendar() {
                   role="gridcell"
                   className={[
                     'partner-unified-cal__cell',
-                    cell.inMonth ? '' : 'is-outside',
+                    cell.inRange ? '' : 'is-outside-range',
                     isToday ? 'is-today' : '',
                     isSelected ? 'is-selected' : '',
                     cell.iso < todayIso ? 'is-past' : '',
                     nightKind === 'blocked' ? 'is-blocked' : '',
                     nightKind === 'booked' ? 'is-booked' : '',
                     nightKind === 'available' && selectedFamily === 'stay' ? 'is-free' : '',
+                    dayEvents.some(
+                      (e) =>
+                        e.departureStatus === 'closed' ||
+                        e.kind === 'stay_blocked' ||
+                        e.kind === 'rental_block'
+                    )
+                      ? 'has-blocked'
+                      : '',
                   ]
                     .filter(Boolean)
                     .join(' ')}
@@ -983,7 +1072,6 @@ export default function SupplierUnifiedCalendar() {
                         onClick={() => {
                           setSelectedYmd(cell.iso);
                           setView('agenda');
-                          setAnchorYmd(cell.iso);
                         }}
                       >
                         +{more} more

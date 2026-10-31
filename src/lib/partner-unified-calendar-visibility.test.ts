@@ -76,7 +76,7 @@ describe('partner-unified-calendar-visibility', () => {
     expect(events).toHaveLength(2);
     expect(events.every((e) => e.kind === 'tour_departure')).toBe(true);
     expect(events.every((e) => e.bookingId === null)).toBe(true);
-    expect(events.some((e) => e.metaLine?.includes('0/8'))).toBe(true);
+    expect(events.some((e) => e.remainingCount === 8 && e.capacityCount === 8)).toBe(true);
   });
 
   it('aggregates multiple bookings on the same departure into one row', () => {
@@ -111,8 +111,11 @@ describe('partner-unified-calendar-visibility', () => {
       nowMs: Date.parse('2026-10-01T12:00:00+03:00'),
     });
     const morning = departures.find((e) => e.timeHm === '09:00');
-    expect(morning?.quantityLabel).toMatch(/5\/8/);
+    expect(morning?.bookedCount).toBe(5);
+    expect(morning?.capacityCount).toBe(8);
+    expect(morning?.remainingCount).toBe(3);
     expect(morning?.departureStatus).toBe('available');
+    expect(morning?.cutoffLabel).toBeTruthy();
 
     const bookingEvents = buildPartnerUnifiedCalendarEvents({
       bookings,

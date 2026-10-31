@@ -88,6 +88,13 @@ export type PartnerUnifiedCalendarEvent = {
     | 'cutoff'
     | 'no_schedule'
     | null;
+  /** Structured inventory counts when known (tour departures). */
+  bookedCount?: number | null;
+  capacityCount?: number | null;
+  remainingCount?: number | null;
+  cutoffHours?: number | null;
+  /** Partner-facing cutoff line, e.g. "Cutoff: 5h before" or "Closed at 13:30". */
+  cutoffLabel?: string | null;
 };
 
 export type PartnerUnifiedMonthDaySummary = {
@@ -484,12 +491,58 @@ export function listingsForUnifiedCategoryFilter<T extends InventoryListingSlice
   return listings.filter((l) => inventoryFamilyFromListing(l) === category);
 }
 
-/** Inclusive agenda window length (days) from anchor. */
-export const PARTNER_UNIFIED_AGENDA_DAYS = 14;
+/** Default rolling window length (inclusive of today). */
+export const PARTNER_UNIFIED_DEFAULT_RANGE_DAYS = 30;
+
+/** @deprecated Prefer PARTNER_UNIFIED_DEFAULT_RANGE_DAYS / partnerUnifiedRollingRange. */
+export const PARTNER_UNIFIED_AGENDA_DAYS = PARTNER_UNIFIED_DEFAULT_RANGE_DAYS;
+
+export function partnerUnifiedRollingRange(todayIso: string): { fromYmd: string; toYmd: string } {
+  const toYmd =
+    addCalendarDaysYmd(todayIso, PARTNER_UNIFIED_DEFAULT_RANGE_DAYS - 1) ?? todayIso;
+  return { fromYmd: todayIso, toYmd };
+}
+
+/** Inclusive day count for a From/To pair (invalid → 0). */
+export function partnerUnifiedRangeDayCount(fromYmd: string, toYmd: string): number {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(fromYmd) || !/^\d{4}-\d{2}-\d{2}$/.test(toYmd)) return 0;
+  if (fromYmd > toYmd) return 0;
+  const a = Date.parse(`${fromYmd}T12:00:00Z`);
+  const b = Date.parse(`${toYmd}T12:00:00Z`);
+  if (!Number.isFinite(a) || !Number.isFinite(b)) return 0;
+  return Math.floor((b - a) / 86_400_000) + 1;
+}
+
+/** Normalize and clamp a custom From/To pair. */
+export function partnerUnifiedNormalizeRange(
+  fromYmd: string,
+  toYmd: string,
+  todayIso?: string
+): { fromYmd: string; toYmd: string } {
+  const from = /^\d{4}-\d{2}-\d{2}$/.test(fromYmd) ? fromYmd : todayIso ?? fromYmd;
+  let to = /^\d{4}-\d{2}-\d{2}$/.test(toYmd) ? toYmd : from;
+  if (to < from) to = from;
+  // Soft cap to keep visibility fetches bounded (1 year).
+  const max = addCalendarDaysYmd(from, 365) ?? to;
+  if (to > max) to = max;
+  return { fromYmd: from, toYmd: to };
+}
+
+/** Shift the selected range by its own length (Previous / Next). */
+export function partnerUnifiedShiftRange(
+  fromYmd: string,
+  toYmd: string,
+  direction: 1 | -1
+): { fromYmd: string; toYmd: string } {
+  const days = Math.max(1, partnerUnifiedRangeDayCount(fromYmd, toYmd));
+  const delta = direction * days;
+  const nextFrom = addCalendarDaysYmd(fromYmd, delta) ?? fromYmd;
+  const nextTo = addCalendarDaysYmd(toYmd, delta) ?? toYmd;
+  return partnerUnifiedNormalizeRange(nextFrom, nextTo);
+}
 
 export function partnerUnifiedAgendaRange(anchorYmd: string): { fromYmd: string; toYmd: string } {
-  const toYmd = addCalendarDaysYmd(anchorYmd, PARTNER_UNIFIED_AGENDA_DAYS - 1) ?? anchorYmd;
-  return { fromYmd: anchorYmd, toYmd };
+  return partnerUnifiedRollingRange(anchorYmd);
 }
 
 export function partnerUnifiedMonthRange(
@@ -500,4 +553,48 @@ export function partnerUnifiedMonthRange(
   const first = cells[0]?.iso ?? `${year}-${String(monthIndex0 + 1).padStart(2, '0')}-01`;
   const last = cells[cells.length - 1]?.iso ?? first;
   return { fromYmd: first, toYmd: last };
+}
+
+export type PartnerUnifiedRangeCell = {
+  iso: string;
+  day: number;
+  /** True when the cell falls inside the selected From/To range. */
+  inRange: boolean;
+  weekdayMon0: number;
+};
+
+/**
+ * Monday–Sunday weeks covering [fromYmd, toYmd], including partial first/last weeks.
+ * Cells outside the selected range are still returned (inRange: false) for grid stability.
+ */
+export function partnerUnifiedWeeksCoveringRange(
+  fromYmd: string,
+  toYmd: string
+): PartnerUnifiedRangeCell[] {
+  const range = partnerUnifiedNormalizeRange(fromYmd, toYmd);
+  const start = new Date(`${range.fromYmd}T12:00:00Z`);
+  const startPad = (start.getUTCDay() + 6) % 7;
+  const gridStart = new Date(start);
+  gridStart.setUTCDate(start.getUTCDate() - startPad);
+
+  const end = new Date(`${range.toYmd}T12:00:00Z`);
+  const endMon0 = (end.getUTCDay() + 6) % 7;
+  const endPad = 6 - endMon0;
+  const gridEnd = new Date(end);
+  gridEnd.setUTCDate(end.getUTCDate() + endPad);
+
+  const cells: PartnerUnifiedRangeCell[] = [];
+  const cursor = new Date(gridStart);
+  while (cursor.getTime() <= gridEnd.getTime() && cells.length < 54) {
+    const iso = cursor.toISOString().slice(0, 10);
+    const weekdayMon0 = (cursor.getUTCDay() + 6) % 7;
+    cells.push({
+      iso,
+      day: cursor.getUTCDate(),
+      inRange: iso >= range.fromYmd && iso <= range.toYmd,
+      weekdayMon0,
+    });
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+  }
+  return cells;
 }

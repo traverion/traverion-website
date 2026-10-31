@@ -19167,6 +19167,179 @@ details:not([open]) > :not(summary) {
   color: var(--puc-ink);
 }
 
+
+.partner-unified-cal__range {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem 0.65rem;
+  max-width: 28rem;
+}
+
+.partner-unified-cal__card-option {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--puc-muted);
+}
+
+.partner-unified-cal__card-inventory {
+  margin-top: 0.12rem;
+  font-size: 0.74rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--puc-ink);
+  letter-spacing: 0.01em;
+}
+
+.partner-unified-cal__card-cutoff,
+.partner-unified-cal__card-guest {
+  font-size: 0.7rem;
+  color: var(--puc-muted);
+}
+
+.partner-unified-cal__badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.08rem 0.4rem;
+  border-radius: 999px;
+  background: var(--partner-surface-muted, #f1f3f6);
+  color: var(--puc-muted);
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.partner-unified-cal__badge.is-blocked {
+  background: color-mix(in srgb, #be123c 12%, white);
+  color: #9f1239;
+}
+
+.partner-unified-cal__card.is-blocked {
+  border-color: color-mix(in srgb, #be123c 18%, transparent);
+}
+
+.partner-unified-cal__cell.is-outside-range {
+  opacity: 0.34;
+  background: #f8fafc;
+}
+
+.partner-unified-cal__cell.has-blocked {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, #be123c 22%, transparent);
+}
+
+.partner-unified-cal__cell {
+  min-height: 4.75rem;
+}
+
+.puc-inline__stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.puc-inline__status-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.65rem;
+  font-size: 0.75rem;
+  color: var(--puc-muted);
+}
+
+.puc-inline__pill {
+  display: inline-flex;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  background: var(--partner-surface-muted, #f1f3f6);
+  color: var(--puc-ink);
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.puc-inline__pill.is-blocked {
+  background: color-mix(in srgb, #be123c 12%, white);
+  color: #9f1239;
+}
+
+.puc-inline__pill.is-booked {
+  background: color-mix(in srgb, #0f766e 12%, white);
+  color: #0f766e;
+}
+
+.puc-inline__switch {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.35rem 0.65rem;
+  align-items: start;
+  cursor: pointer;
+}
+
+.puc-inline__switch input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.puc-inline__switch-ui {
+  width: 2.35rem;
+  height: 1.3rem;
+  margin-top: 0.15rem;
+  border-radius: 999px;
+  background: #d0d5dd;
+  position: relative;
+  transition: background-color 0.15s ease;
+}
+
+.puc-inline__switch-ui::after {
+  content: '';
+  position: absolute;
+  top: 0.15rem;
+  left: 0.15rem;
+  width: 1rem;
+  height: 1rem;
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(12, 17, 24, 0.18);
+  transition: transform 0.15s ease;
+}
+
+.puc-inline__switch input:checked + .puc-inline__switch-ui {
+  background: var(--puc-accent, #073b83);
+}
+
+.puc-inline__switch input:checked + .puc-inline__switch-ui::after {
+  transform: translateX(1.05rem);
+}
+
+.puc-inline__switch input:disabled + .puc-inline__switch-ui {
+  opacity: 0.45;
+}
+
+.puc-inline__switch-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.puc-inline__switch-copy strong {
+  font-size: 0.78rem;
+  font-weight: 650;
+  color: var(--puc-ink);
+}
+
+.puc-inline__switch-copy small {
+  font-size: 0.68rem;
+  color: var(--puc-muted);
+}
+
+@media (min-width: 720px) {
+  .partner-unified-cal__cell {
+    min-height: 5.25rem;
+  }
+}
+
 .partner-unified-cal__filters {
   display: grid;
   grid-template-columns: minmax(5.5rem, 7.5rem) minmax(0, 1fr) minmax(6rem, 9rem) auto;
