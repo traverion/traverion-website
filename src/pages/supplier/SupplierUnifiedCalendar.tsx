@@ -3,15 +3,7 @@
  * Full-width Agenda/Month, rolling date ranges, inline expandable editing.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import {
-  BedDouble,
-  CalendarDays,
-  ChevronLeft,
-  ChevronRight,
-  Compass,
-  KeyRound,
-  Pencil,
-} from 'lucide-react';
+import { CalendarDays, ChevronLeft, ChevronRight, Pencil } from 'lucide-react';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import { useSupplierRole } from '../../hooks/useSupplierRole';
 import { canManageBookings } from '../../lib/supplierTeamRoles';
@@ -120,9 +112,23 @@ function inventoryLine(event: PartnerUnifiedCalendarEvent): string | null {
     event.capacityCount != null &&
     event.remainingCount != null
   ) {
-    return `Booked ${event.bookedCount}  ·  Cap ${event.capacityCount}  ·  Avail ${event.remainingCount}`;
+    return `${event.bookedCount} booked · ${event.capacityCount} capacity · ${event.remainingCount} available`;
   }
   return event.quantityLabel;
+}
+
+/** Presentation-only cutoff label for cards. */
+function cutoffCardLabel(event: PartnerUnifiedCalendarEvent): string | null {
+  const raw = (event.cutoffLabel ?? '').trim();
+  if (!raw) return null;
+  const closed = raw.match(/(?:Closed at|closes)\s+(\d{1,2}:\d{2})/i);
+  if (closed?.[1]) return `Cutoff ${closed[1]}`;
+  if (event.cutoffHours != null && event.cutoffHours > 0) {
+    return `Cutoff ${event.cutoffHours}h`;
+  }
+  if (/until departure/i.test(raw)) return 'Until departure';
+  if (/day blocked/i.test(raw)) return null;
+  return raw.replace(/^Cutoff:\s*/i, 'Cutoff ').split('·')[0]?.trim() || null;
 }
 
 function monthChipLabel(event: PartnerUnifiedCalendarEvent): string {
@@ -140,12 +146,6 @@ function monthChipLabel(event: PartnerUnifiedCalendarEvent): string {
 function parseIsoParam(raw: string | null | undefined): string | null {
   const v = (raw ?? '').trim();
   return /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null;
-}
-
-function CategoryGlyph({ category }: { category: PartnerUnifiedCalendarEvent['category'] }) {
-  if (category === 'stay') return <BedDouble className="h-3 w-3 shrink-0" aria-hidden />;
-  if (category === 'rental') return <KeyRound className="h-3 w-3 shrink-0" aria-hidden />;
-  return <Compass className="h-3 w-3 shrink-0" aria-hidden />;
 }
 
 function eventOpensBooking(event: PartnerUnifiedCalendarEvent): boolean {
@@ -858,8 +858,12 @@ export default function SupplierUnifiedCalendar() {
                     const listing = listingForEvent(event);
                     const status = statusText(event);
                     const inventory = inventoryLine(event);
+                    const cutoff = cutoffCardLabel(event);
                     const blocked =
                       status === 'Blocked' || event.departureStatus === 'closed';
+                    const showGuest =
+                      (event.category === 'stay' || event.category === 'rental') &&
+                      Boolean(event.guestName || event.reference || event.quantityLabel);
                     return (
                       <article
                         key={event.key}
@@ -882,21 +886,6 @@ export default function SupplierUnifiedCalendar() {
                             {event.timeHm ?? '—'}
                           </span>
                           <span className="partner-unified-cal__card-body">
-                            <span className="partner-unified-cal__card-top">
-                              <span className={`partner-unified-cal__kind is-${event.category}`}>
-                                <CategoryGlyph category={event.category} />
-                                {partnerUnifiedEventKindLabel(event.kind)}
-                              </span>
-                              {status ? (
-                                <span
-                                  className={`partner-unified-cal__badge${
-                                    blocked ? ' is-blocked' : ''
-                                  }`}
-                                >
-                                  {status}
-                                </span>
-                              ) : null}
-                            </span>
                             <span className="partner-unified-cal__card-title">
                               {shortListingTitle(event.listingTitle)}
                             </span>
@@ -904,21 +893,45 @@ export default function SupplierUnifiedCalendar() {
                               <span className="partner-unified-cal__card-option">
                                 {event.optionLabel}
                               </span>
+                            ) : (
+                              <span className="partner-unified-cal__card-option">
+                                {partnerUnifiedEventKindLabel(event.kind)}
+                              </span>
+                            )}
+                            {cutoff ? (
+                              <span className="partner-unified-cal__card-cutoff">{cutoff}</span>
                             ) : null}
-                            {inventory ? (
+                            {showGuest ? (
+                              <span className="partner-unified-cal__card-guest">
+                                {[
+                                  event.guestName,
+                                  event.category === 'rental' ? event.quantityLabel : null,
+                                  event.reference,
+                                ]
+                                  .filter(Boolean)
+                                  .join(' · ')}
+                              </span>
+                            ) : null}
+                          </span>
+                          <span className="partner-unified-cal__card-aside">
+                            {status ? (
+                              <span
+                                className={`partner-unified-cal__badge${
+                                  blocked
+                                    ? ' is-blocked'
+                                    : event.departureStatus === 'sold_out'
+                                      ? ' is-full'
+                                      : event.departureStatus === 'cutoff'
+                                        ? ' is-cutoff'
+                                        : ''
+                                }`}
+                              >
+                                {status}
+                              </span>
+                            ) : null}
+                            {inventory && event.category === 'tour' ? (
                               <span className="partner-unified-cal__card-inventory">
                                 {inventory}
-                              </span>
-                            ) : null}
-                            {event.cutoffLabel ? (
-                              <span className="partner-unified-cal__card-cutoff">
-                                {event.cutoffLabel}
-                              </span>
-                            ) : null}
-                            {(event.guestName || event.reference) &&
-                            (event.category === 'stay' || event.category === 'rental') ? (
-                              <span className="partner-unified-cal__card-guest">
-                                {[event.guestName, event.reference].filter(Boolean).join(' · ')}
                               </span>
                             ) : null}
                           </span>

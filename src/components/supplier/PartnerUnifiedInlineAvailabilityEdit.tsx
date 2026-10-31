@@ -244,36 +244,44 @@ export default function PartnerUnifiedInlineAvailabilityEdit({
 
       {family === 'tour' && focusedDep ? (
         <div className="puc-inline__stack">
-          <div className="puc-inline__status-row">
-            <span className={`puc-inline__pill${dayClosed ? ' is-blocked' : ''}`}>{tourStatus}</span>
-            <span>
-              Booked {focusedDep.occupying} · Cap {focusedDep.capacity} · Avail {focusedDep.remaining}
+          <div className="puc-inline__row puc-inline__row--status">
+            <span
+              className={`puc-inline__pill${
+                dayClosed
+                  ? ' is-blocked'
+                  : event?.departureStatus === 'sold_out'
+                    ? ' is-full'
+                    : event?.departureStatus === 'cutoff'
+                      ? ' is-cutoff'
+                      : ''
+              }`}
+            >
+              {tourStatus}
             </span>
+            <label className="puc-inline__switch">
+              <input
+                type="checkbox"
+                checked={dayClosed}
+                disabled={!canEdit || saving}
+                onChange={() =>
+                  void run(() =>
+                    partnerUnifiedSetTourDayClosed({
+                      listingId: listing.id,
+                      iso,
+                      closed: !dayClosed,
+                    })
+                  )
+                }
+              />
+              <span className="puc-inline__switch-ui" aria-hidden />
+              <span className="puc-inline__switch-copy">
+                <strong>Block entire day</strong>
+                <small>All departures on this date</small>
+              </span>
+            </label>
           </div>
 
-          <label className="puc-inline__switch">
-            <input
-              type="checkbox"
-              checked={dayClosed}
-              disabled={!canEdit || saving}
-              onChange={() =>
-                void run(() =>
-                  partnerUnifiedSetTourDayClosed({
-                    listingId: listing.id,
-                    iso,
-                    closed: !dayClosed,
-                  })
-                )
-              }
-            />
-            <span className="puc-inline__switch-ui" aria-hidden />
-            <span className="puc-inline__switch-copy">
-              <strong>Block entire day</strong>
-              <small>Closes every departure on this date for new bookings.</small>
-            </span>
-          </label>
-
-          <div className="puc-inline__grid">
+          <div className="puc-inline__row puc-inline__row--fields">
             <label className="puc-inline__field">
               Capacity
               <input
@@ -286,12 +294,14 @@ export default function PartnerUnifiedInlineAvailabilityEdit({
                 onChange={(e) => setSpots(e.target.value)}
               />
             </label>
-            <AvailabilityCutoffField
-              id={`inline-cutoff-${listing.id}-${iso}-${focusedDep.key}`}
-              value={cutoffHours}
-              disabled={!canEdit || saving || dayClosed}
-              onChange={setCutoffHours}
-            />
+            <div className="puc-inline__field puc-inline__field--cutoff">
+              <AvailabilityCutoffField
+                id={`inline-cutoff-${listing.id}-${iso}-${focusedDep.key}`}
+                value={cutoffHours}
+                disabled={!canEdit || saving || dayClosed}
+                onChange={setCutoffHours}
+              />
+            </div>
             {canEdit ? (
               <button
                 type="button"
@@ -317,9 +327,7 @@ export default function PartnerUnifiedInlineAvailabilityEdit({
             ) : null}
           </div>
           {dayClosed ? (
-            <p className="puc-inline__muted">
-              Capacity and cutoff are locked while the day is blocked.
-            </p>
+            <p className="puc-inline__muted">Capacity and cutoff locked while blocked.</p>
           ) : null}
         </div>
       ) : null}
@@ -330,7 +338,7 @@ export default function PartnerUnifiedInlineAvailabilityEdit({
 
       {family === 'stay' && staySummary ? (
         <div className="puc-inline__stack">
-          <div className="puc-inline__status-row">
+          <div className="puc-inline__row puc-inline__row--status">
             <span
               className={`puc-inline__pill${
                 staySummary.blocked ? ' is-blocked' : staySummary.occupying.length ? ' is-booked' : ''
@@ -338,56 +346,48 @@ export default function PartnerUnifiedInlineAvailabilityEdit({
             >
               {stayCalendarNightKindLabel(staySummary.kind)}
             </span>
-            {staySummary.occupying.length > 0 ? (
-              <span>
-                {staySummary.occupying.length} reservation
-                {staySummary.occupying.length === 1 ? '' : 's'}
-              </span>
-            ) : (
-              <span>No reservations</span>
-            )}
-          </div>
-          <label className="puc-inline__switch">
-            <input
-              type="checkbox"
-              checked={staySummary.blocked}
-              disabled={
-                !canEdit ||
-                saving ||
-                (!staySummary.blocked && !staySummary.canBlock) ||
-                (staySummary.blocked && !staySummary.canUnblock)
-              }
-              onChange={() => {
-                if (staySummary.blocked) {
-                  void run(() =>
-                    partnerUnifiedUnblockStayNight({
-                      listingId: listing.id,
-                      iso,
-                      bookings: listingBookings,
-                      caps: caps.map((c) => ({
-                        listing_id: c.listing_id,
-                        available_date: c.available_date,
-                        capacity: c.capacity,
-                      })),
-                    })
-                  );
-                } else {
-                  void run(() =>
-                    partnerUnifiedBlockStayNight({
-                      listingId: listing.id,
-                      iso,
-                      bookings: listingBookings,
-                    })
-                  );
+            <label className="puc-inline__switch">
+              <input
+                type="checkbox"
+                checked={staySummary.blocked}
+                disabled={
+                  !canEdit ||
+                  saving ||
+                  (!staySummary.blocked && !staySummary.canBlock) ||
+                  (staySummary.blocked && !staySummary.canUnblock)
                 }
-              }}
-            />
-            <span className="puc-inline__switch-ui" aria-hidden />
-            <span className="puc-inline__switch-copy">
-              <strong>Block night</strong>
-              <small>Stops new check-ins for this date.</small>
-            </span>
-          </label>
+                onChange={() => {
+                  if (staySummary.blocked) {
+                    void run(() =>
+                      partnerUnifiedUnblockStayNight({
+                        listingId: listing.id,
+                        iso,
+                        bookings: listingBookings,
+                        caps: caps.map((c) => ({
+                          listing_id: c.listing_id,
+                          available_date: c.available_date,
+                          capacity: c.capacity,
+                        })),
+                      })
+                    );
+                  } else {
+                    void run(() =>
+                      partnerUnifiedBlockStayNight({
+                        listingId: listing.id,
+                        iso,
+                        bookings: listingBookings,
+                      })
+                    );
+                  }
+                }}
+              />
+              <span className="puc-inline__switch-ui" aria-hidden />
+              <span className="puc-inline__switch-copy">
+                <strong>Block night</strong>
+                <small>Stops new check-ins</small>
+              </span>
+            </label>
+          </div>
           {!staySummary.canBlock && staySummary.occupying.length > 0 ? (
             <p className="puc-inline__muted">Occupied nights cannot be blocked.</p>
           ) : null}
@@ -396,16 +396,52 @@ export default function PartnerUnifiedInlineAvailabilityEdit({
 
       {family === 'rental' && focusedVariant ? (
         <div className="puc-inline__stack">
-          <div className="puc-inline__status-row">
+          <div className="puc-inline__row puc-inline__row--status">
             <span className={`puc-inline__pill${focusedVariant.blocked ? ' is-blocked' : ''}`}>
-              {focusedVariant.blocked ? 'Blocked' : 'Available'}
+              {focusedVariant.blocked ? 'Blocked' : 'Open'}
             </span>
-            <span>
-              Stock {focusedVariant.stock} · Reserved {focusedVariant.reserved} · Avail{' '}
-              {focusedVariant.available}
+            <span className="puc-inline__meta">
+              {focusedVariant.reserved} reserved · {focusedVariant.available} available
             </span>
+            <label className="puc-inline__switch">
+              <input
+                type="checkbox"
+                checked={focusedVariant.blocked}
+                disabled={
+                  !canEdit ||
+                  saving ||
+                  (focusedVariant.blocked &&
+                    focusedVariant.multiDayBlock &&
+                    focusedVariant.exactBlockIds.length === 0)
+                }
+                onChange={() => {
+                  if (focusedVariant.blocked) {
+                    void run(() =>
+                      partnerUnifiedUnblockRentalDay({
+                        exactBlockIds: focusedVariant.exactBlockIds,
+                        multiDayBlock: focusedVariant.multiDayBlock,
+                      })
+                    );
+                  } else {
+                    void run(() =>
+                      partnerUnifiedBlockRentalDay({
+                        listingId: listing.id,
+                        iso,
+                        variantId: focusedVariant.variantId,
+                        createdBy: userId,
+                      })
+                    );
+                  }
+                }}
+              />
+              <span className="puc-inline__switch-ui" aria-hidden />
+              <span className="puc-inline__switch-copy">
+                <strong>Block day</strong>
+                <small>This option</small>
+              </span>
+            </label>
           </div>
-          <div className="puc-inline__grid">
+          <div className="puc-inline__row puc-inline__row--fields">
             <label className="puc-inline__field">
               Stock
               <input
@@ -434,50 +470,13 @@ export default function PartnerUnifiedInlineAvailabilityEdit({
                   )
                 }
               >
-                Save stock
+                Save
               </button>
             ) : null}
           </div>
-          <label className="puc-inline__switch">
-            <input
-              type="checkbox"
-              checked={focusedVariant.blocked}
-              disabled={
-                !canEdit ||
-                saving ||
-                (focusedVariant.blocked &&
-                  focusedVariant.multiDayBlock &&
-                  focusedVariant.exactBlockIds.length === 0)
-              }
-              onChange={() => {
-                if (focusedVariant.blocked) {
-                  void run(() =>
-                    partnerUnifiedUnblockRentalDay({
-                      exactBlockIds: focusedVariant.exactBlockIds,
-                      multiDayBlock: focusedVariant.multiDayBlock,
-                    })
-                  );
-                } else {
-                  void run(() =>
-                    partnerUnifiedBlockRentalDay({
-                      listingId: listing.id,
-                      iso,
-                      variantId: focusedVariant.variantId,
-                      createdBy: userId,
-                    })
-                  );
-                }
-              }}
-            />
-            <span className="puc-inline__switch-ui" aria-hidden />
-            <span className="puc-inline__switch-copy">
-              <strong>Block day</strong>
-              <small>Blocks this option for the selected date.</small>
-            </span>
-          </label>
           {focusedVariant.multiDayBlock && focusedVariant.exactBlockIds.length === 0 ? (
             <p className="puc-inline__muted">
-              Covered by a multi-day block — unblock from the rental calendar or bulk tools.
+              Covered by a multi-day block — use bulk edit or the rental calendar to unblock.
             </p>
           ) : null}
         </div>
