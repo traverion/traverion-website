@@ -1,6 +1,7 @@
 /**
  * Partner Home Upcoming schedule — expands rentals into separate Collection / Return events.
  * Tour and stay rows stay one booking → one event (existing semantics).
+ * Mission 04: schedule facts only — no handover statuses or overdue collection warnings.
  */
 
 import { bookingOccupiesInventory } from './booking-hold';
@@ -38,32 +39,9 @@ export type PartnerHomeScheduleEvent<B extends PartnerScheduleBooking = PartnerS
   kind: PartnerHomeScheduleEventKind;
   /** Experience-local HH:mm when known. */
   timeHm: string | null;
-  /** Collection day passed and ops still awaiting_pickup. */
+  /** @deprecated Mission 04 — always false; kept for call-site compat. */
   collectionOverdue: boolean;
 };
-
-function rentalOpsStatus(b: PartnerScheduleBooking): string {
-  const snap = parseRentalPurchaseSnapshot(b.purchase_snapshot);
-  return String(snap?.rentalOpsStatus ?? 'awaiting_pickup').trim().toLowerCase();
-}
-
-/** Completed handover — nothing left on the operational schedule. */
-export function partnerHomeRentalHandoverComplete(b: PartnerScheduleBooking): boolean {
-  if (!bookingIsRental(b)) return false;
-  const ops = rentalOpsStatus(b);
-  return ops === 'returned' || ops === 'cancelled';
-}
-
-export function partnerHomeRentalCollectionOverdue(
-  b: PartnerScheduleBooking,
-  todayIso: string
-): boolean {
-  if (!bookingIsRental(b)) return false;
-  if (partnerHomeRentalHandoverComplete(b)) return false;
-  if (rentalOpsStatus(b) !== 'awaiting_pickup') return false;
-  const collection = lifecycleReminderAnchorYmd(b);
-  return Boolean(collection && collection < todayIso);
-}
 
 function hmFromIsoInTz(iso: string | null | undefined, timeZone: string): string | null {
   if (!iso) return null;
@@ -141,7 +119,6 @@ function stayKindForDay(
 
 /**
  * Today tab: one event per tour/stay touch; separate Collection and Return when both are today.
- * Overdue uncollected rentals get a Collection warning row without hiding today’s Return.
  */
 export function partnerHomeScheduleEventsForToday<B extends PartnerScheduleBooking>(
   bookings: B[],
@@ -156,27 +133,11 @@ export function partnerHomeScheduleEventsForToday<B extends PartnerScheduleBooki
     const todayIso = scheduleTodayIsoForBooking(b, nowMs);
 
     if (bookingIsRental(b)) {
-      if (partnerHomeRentalHandoverComplete(b)) continue;
       const collectionYmd = lifecycleReminderAnchorYmd(b);
       const returnYmd = lifecycleRentalReturnYmd(b);
       const { collectionHm, returnHm } = rentalEventTimes(b);
-      const ops = rentalOpsStatus(b);
-      const overdue = partnerHomeRentalCollectionOverdue(b, todayIso);
 
-      // Overdue collection warning (collection day already passed, still awaiting pickup).
-      if (overdue && collectionYmd) {
-        pushUnique(out, seen, {
-          key: `${b.id}:rental_collection:${collectionYmd}:overdue`,
-          booking: b,
-          ymd: collectionYmd,
-          kind: 'rental_collection',
-          timeHm: collectionHm,
-          collectionOverdue: true,
-        });
-      }
-
-      // Scheduled collection today — only while still awaiting pickup (not after collected).
-      if (collectionYmd === todayIso && ops === 'awaiting_pickup' && !overdue) {
+      if (collectionYmd === todayIso) {
         pushUnique(out, seen, {
           key: `${b.id}:rental_collection:${collectionYmd}`,
           booking: b,
@@ -187,8 +148,7 @@ export function partnerHomeScheduleEventsForToday<B extends PartnerScheduleBooki
         });
       }
 
-      // Scheduled return today — keep even when collection is overdue / still awaiting pickup.
-      if (returnYmd === todayIso && ops !== 'returned') {
+      if (returnYmd === todayIso) {
         pushUnique(out, seen, {
           key: `${b.id}:rental_return:${returnYmd}`,
           booking: b,
@@ -236,7 +196,6 @@ export function partnerHomeScheduleEventsForToday<B extends PartnerScheduleBooki
 /**
  * Next 7 days tab: days strictly after experience-local today through +7.
  * Rentals emit Collection and Return as separate events when each falls in the window.
- * Overdue uncollected rentals that still have a return in-window also surface Collection overdue.
  */
 export function partnerHomeScheduleEventsForNext7Days<B extends PartnerScheduleBooking>(
   bookings: B[],
@@ -254,34 +213,11 @@ export function partnerHomeScheduleEventsForNext7Days<B extends PartnerScheduleB
     if (!endYmd) continue;
 
     if (bookingIsRental(b)) {
-      if (partnerHomeRentalHandoverComplete(b)) continue;
       const collectionYmd = lifecycleReminderAnchorYmd(b);
       const returnYmd = lifecycleRentalReturnYmd(b);
       const { collectionHm, returnHm } = rentalEventTimes(b);
-      const ops = rentalOpsStatus(b);
-      const overdue = partnerHomeRentalCollectionOverdue(b, todayIso);
 
-      const collectionInWindow =
-        Boolean(collectionYmd) &&
-        collectionYmd! > todayIso &&
-        collectionYmd! <= endYmd &&
-        ops === 'awaiting_pickup';
-      const returnInWindow =
-        Boolean(returnYmd) && returnYmd! > todayIso && returnYmd! <= endYmd && ops !== 'returned';
-
-      // Overdue collection stays visible when the return (or future collection) is in the week strip.
-      if (overdue && collectionYmd && (returnInWindow || collectionInWindow)) {
-        pushUnique(out, seen, {
-          key: `${b.id}:rental_collection:${collectionYmd}:overdue`,
-          booking: b,
-          ymd: collectionYmd,
-          kind: 'rental_collection',
-          timeHm: collectionHm,
-          collectionOverdue: true,
-        });
-      }
-
-      if (collectionInWindow && collectionYmd) {
+      if (collectionYmd && collectionYmd > todayIso && collectionYmd <= endYmd) {
         pushUnique(out, seen, {
           key: `${b.id}:rental_collection:${collectionYmd}`,
           booking: b,
@@ -292,7 +228,7 @@ export function partnerHomeScheduleEventsForNext7Days<B extends PartnerScheduleB
         });
       }
 
-      if (returnInWindow && returnYmd) {
+      if (returnYmd && returnYmd > todayIso && returnYmd <= endYmd) {
         pushUnique(out, seen, {
           key: `${b.id}:rental_return:${returnYmd}`,
           booking: b,

@@ -1,5 +1,5 @@
 /**
- * Dedicated rental booking details — collection/return handover workflow.
+ * Dedicated rental booking details — schedule, customer, terms, messaging (no handover workflow).
  */
 import { type ReactNode } from 'react';
 import RentalCollectionMap from './listing-creation/RentalCollectionMap';
@@ -37,8 +37,9 @@ export type RentalOpsDetailModel = {
   collectionLng: number | null;
   returnLat: number | null;
   returnLng: number | null;
-  handoverLabel: string;
-  handoverNote: string | null;
+  /** Cancellation / deposit / damage liability text frozen on the booking. */
+  cancellationLabel: string | null;
+  depositDisclosure: string | null;
   unpaidHoldMessage: string | null;
   cancelWaitingMessage: string | null;
   finance: TourOpsDetailFinance;
@@ -60,8 +61,6 @@ type Props = {
   showConfirm?: boolean;
   showCancelRequest?: boolean;
   cancelBlocked?: boolean;
-  /** Next handover action when paid + confirmed. */
-  handoverAction?: 'collected' | 'returned' | null;
   onBack: () => void;
   backLabel?: string;
   onCopyReference: () => void;
@@ -69,7 +68,6 @@ type Props = {
   onConfirm?: () => void;
   onRequestCancel?: () => void;
   onOpenFinancialStatement?: () => void;
-  onHandoverAction?: () => void;
   privateNotesSlot?: ReactNode;
 };
 
@@ -89,7 +87,6 @@ export default function RentalOpsBookingDetail({
   showConfirm,
   showCancelRequest,
   cancelBlocked,
-  handoverAction,
   onBack,
   backLabel = 'Back to rental bookings',
   onCopyReference,
@@ -97,7 +94,6 @@ export default function RentalOpsBookingDetail({
   onConfirm,
   onRequestCancel,
   onOpenFinancialStatement,
-  onHandoverAction,
   privateNotesSlot,
 }: Props) {
   const phoneHref = model.customerPhone ? `tel:${model.customerPhone.replace(/[^\d+]/g, '')}` : '';
@@ -108,6 +104,7 @@ export default function RentalOpsBookingDetail({
     typeof model.returnLng === 'number';
   const showCollectionMap =
     typeof model.collectionLat === 'number' && typeof model.collectionLng === 'number';
+  const hasTerms = Boolean(model.cancellationLabel?.trim() || model.depositDisclosure?.trim());
 
   return (
     <div className="tour-ops-detail">
@@ -130,7 +127,6 @@ export default function RentalOpsBookingDetail({
           <>
             <span>{model.periodLine}</span>
             <span>{model.quantityLabel}</span>
-            <span>{model.handoverLabel}</span>
           </>
         }
       />
@@ -224,27 +220,27 @@ export default function RentalOpsBookingDetail({
             ) : null}
           </section>
 
-          <section className="tour-ops-detail__section">
-            <h2 className="tour-ops-detail__heading">Handover</h2>
-            <p className="text-[14px] font-semibold tracking-tight text-ink">{model.handoverLabel}</p>
-            {model.handoverNote ? (
-              <p className="mt-1 text-[13px] leading-relaxed text-ink-muted">{model.handoverNote}</p>
-            ) : null}
-            {canEdit && handoverAction && onHandoverAction ? (
-              <button
-                type="button"
-                className="tv-btn-primary mt-3 min-h-9 text-sm"
-                disabled={busy}
-                onClick={onHandoverAction}
-              >
-                {busy
-                  ? 'Saving…'
-                  : handoverAction === 'collected'
-                    ? 'Mark collected'
-                    : 'Mark returned'}
-              </button>
-            ) : null}
-          </section>
+          {hasTerms ? (
+            <section className="tour-ops-detail__section">
+              <h2 className="tour-ops-detail__heading">Rental terms</h2>
+              <p className="text-[13px] leading-relaxed text-ink-muted">
+                Damage liability and deposits are agreed in these terms. Traverion does not charge
+                automatic damage fees from this screen.
+              </p>
+              <dl className="tour-ops-detail__facts mt-2">
+                {model.cancellationLabel?.trim() ? (
+                  <BookingOpsFact label="Cancellation">
+                    <span className="tour-ops-detail__body-text">{model.cancellationLabel.trim()}</span>
+                  </BookingOpsFact>
+                ) : null}
+                {model.depositDisclosure?.trim() ? (
+                  <BookingOpsFact label="Deposit / damage">
+                    <span className="tour-ops-detail__body-text">{model.depositDisclosure.trim()}</span>
+                  </BookingOpsFact>
+                ) : null}
+              </dl>
+            </section>
+          ) : null}
 
           {activity.length > 0 ? (
             <section className="tour-ops-detail__section">

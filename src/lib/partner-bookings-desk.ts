@@ -6,10 +6,12 @@ import {
   partnerBookingIsPastSchedule,
   partnerBookingIsUnpaidCheckout,
   partnerBookingIsOperatingTrip,
+  partnerRentalScheduleYmds,
   scheduleTodayIsoForBooking,
+  partnerStayTouchesScheduleDay,
 } from './trip-views';
 import { nightsOccupiedByStay, stayRangeFromBooking } from './stayOccupancy';
-import { partnerStayTouchesScheduleDay } from './trip-views';
+import { bookingIsRental } from './pickup-completeness';
 
 export type PartnerBookingsTravelWindow = 'all' | 'today' | 'tomorrow' | 'upcoming' | 'past' | 'range';
 export type PartnerBookingsSort =
@@ -156,12 +158,16 @@ function matchesTravel(
     if (query.ops === 'refund_due' || query.ops === 'unpaid' || query.ops === 'cancel') return true;
     if (!partnerBookingIsOperatingTrip(row)) return false;
     const dayIso = query.travel === 'today' ? experienceToday : experienceTomorrow;
+    if (bookingIsRental(row)) return partnerRentalScheduleYmds(row).includes(dayIso);
     if (stayRange) return partnerStayTouchesScheduleDay(stayRange.checkIn, stayRange.checkOut, dayIso);
     return row.booking_date === dayIso;
   }
   if (query.travel === 'upcoming') {
     if (query.ops === 'refund_due' || query.ops === 'unpaid' || query.ops === 'cancel') return true;
     if (!partnerBookingIsOperatingTrip(row)) return false;
+    if (bookingIsRental(row)) {
+      return partnerRentalScheduleYmds(row).some((d) => d > experienceToday);
+    }
     if (stayRange) return stayRange.checkIn > experienceToday;
     return Boolean(row.booking_date && row.booking_date > experienceToday);
   }
@@ -172,6 +178,13 @@ function matchesTravel(
   const from = query.travelFrom;
   const to = query.travelTo;
   if (!from && !to) return true;
+  if (bookingIsRental(row)) {
+    const days = partnerRentalScheduleYmds(row);
+    if (days.length === 0) return false;
+    const overlapsFrom = !from || days.some((d) => d >= from);
+    const overlapsTo = !to || days.some((d) => d <= to);
+    return overlapsFrom && overlapsTo;
+  }
   if (stayRange) {
     const nights = nightsOccupiedByStay(stayRange.checkIn, stayRange.checkOut);
     const overlapsFrom = !from || nights.some((n) => n >= from);

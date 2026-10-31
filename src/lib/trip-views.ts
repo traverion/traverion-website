@@ -381,8 +381,12 @@ export function partnerBookingIsUpcomingSchedule(
   return Boolean(date) && date > todayIso;
 }
 
-/** Partner Bookings Past: schedule finished (tour date before today, or stay after check-out day). Includes cancelled history. */
+/** Partner Bookings Past: schedule finished (tour date before today, stay after check-out, rental after return day). Includes cancelled history. */
 export function partnerBookingIsPastSchedule(b: PartnerScheduleBooking, todayIso: string): boolean {
+  if (bookingIsRental(b)) {
+    const ret = lifecycleRentalReturnYmd(b) ?? (b.booking_date ?? '').trim();
+    return Boolean(ret) && ret < todayIso;
+  }
   if (bookingIsStayNight(b)) {
     const stay = stayRangeFromBooking(b);
     if (!stay) return false;
@@ -415,6 +419,11 @@ export function bookingMatchesTripView(
   if (cancelled) return false;
   if (travelerBookingNeedsPayNow(b)) return false;
   if (bookingIsFailedCheckout(b)) return false;
+  if (bookingIsRental(b)) {
+    const ret = lifecycleRentalReturnYmd(b) ?? (b.booking_date ?? '').trim();
+    const past = Boolean(ret) && ret < day;
+    return view === 'past' ? past : !past;
+  }
   if (bookingIsStayNight(b)) {
     const stay = stayRangeFromBooking(b);
     if (!stay) return view === 'upcoming';

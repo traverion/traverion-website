@@ -102,19 +102,13 @@ import { formatPartnerCheckoutHoldLabel, partnerUnpaidCheckoutHoldsInventory } f
 import { formatStayNightHuman } from '../../lib/stay-calendar';
 import { formatBookingDateDisplay } from '../../lib/booking-flow';
 import { bookingIsRental, bookingIsStayNight, partnerBookingHasPickupAttention, resolvePartnerPickupCopy } from '../../lib/pickup-completeness';
-import {
-  parseRentalPurchaseSnapshot,
-  validateRentalBookingTransition,
-  type RentalOpsStatus,
-} from '../../lib/rental-booking-domain';
-import { setRentalOpsStatus } from '../../data/supabase-rental-ops';
+import { parseRentalPurchaseSnapshot } from '../../lib/rental-booking-domain';
 import {
   formatRentalOpsInstant,
   formatRentalQuantityLabel,
-  rentalHandoverCompletedLabel,
-  rentalHandoverStatusLabel,
   rentalReturnPoint,
 } from '../../lib/rental-presentation';
+import { rentalBookingSimpleStatusLabel } from '../../lib/rental-booking-status';
 import { parseListingExtras, materializedBookingOptions } from '../../types/listingExtras';
 import {
   applyPartnerBookingsDesk,
@@ -418,10 +412,6 @@ export default function SupplierBookings({
   const [expandedStayId, setExpandedStayId] = useState<string | null>(null);
   const [expandedTourId, setExpandedTourId] = useState<string | null>(null);
   const [expandedRentalId, setExpandedRentalId] = useState<string | null>(null);
-  const [rentalHandoverConfirm, setRentalHandoverConfirm] = useState<{
-    bookingId: string;
-    next: 'collected' | 'returned';
-  } | null>(null);
   const [expandedEarningsLabel, setExpandedEarningsLabel] = useState<string | null>(null);
   const [expandedCommissionLabel, setExpandedCommissionLabel] = useState<string | null>(null);
   const [expandedCommissionRateLabel, setExpandedCommissionRateLabel] = useState<string | null>(null);
@@ -841,57 +831,6 @@ export default function SupplierBookings({
     window.history.replaceState({}, '', `${url.pathname}${url.search}`);
   }, [filteredBookings, highlightBookingId]);
 
-  const requestRentalHandover = useCallback(
-    (booking: BookingRow, next: 'collected' | 'returned') => {
-      if (!canEditBookings) return;
-      const snap = parseRentalPurchaseSnapshot(booking.purchase_snapshot);
-      const paymentStatus = String(booking.payment_status ?? 'pending').toLowerCase();
-      const status = String(booking.status ?? 'pending').toLowerCase();
-      const validation = validateRentalBookingTransition(
-        {
-          status: status === 'confirmed' || status === 'cancelled' ? status : 'pending',
-          paymentStatus:
-            paymentStatus === 'paid' ||
-            paymentStatus === 'failed' ||
-            paymentStatus === 'refunded' ||
-            paymentStatus === 'authorized'
-              ? paymentStatus
-              : 'pending',
-          opsStatus: snap?.rentalOpsStatus ?? 'awaiting_pickup',
-          holdStatus: null,
-        },
-        next === 'collected' ? 'mark_collected' : 'mark_returned'
-      );
-      if (!validation.ok) {
-        setError(validation.error);
-        return;
-      }
-      setError(null);
-      setRentalHandoverConfirm({ bookingId: booking.id, next });
-    },
-    [canEditBookings]
-  );
-
-  const confirmRentalHandover = useCallback(async () => {
-    if (!rentalHandoverConfirm || !canEditBookings) return;
-    const booking = bookings.find((b) => b.id === rentalHandoverConfirm.bookingId);
-    if (!booking) {
-      setRentalHandoverConfirm(null);
-      return;
-    }
-    const next: RentalOpsStatus = rentalHandoverConfirm.next;
-    setUpdatingId(booking.id);
-    setError(null);
-    const res = await setRentalOpsStatus(booking.id, next);
-    setUpdatingId(null);
-    if (!res.ok) {
-      setError(res.error);
-      return;
-    }
-    setRentalHandoverConfirm(null);
-    await load();
-  }, [rentalHandoverConfirm, canEditBookings, bookings, load]);
-
   const handleStatusChange = useCallback(
     async (
       booking: BookingRow,
@@ -1124,7 +1063,7 @@ export default function SupplierBookings({
           isStayDesk
             ? 'Guests, nights, and property decisions.'
             : isRentalDesk
-              ? 'Customers, collection windows, and rental handovers.'
+              ? 'Customers, collection and return times, and booking details.'
               : 'Guests, departures, and booking details.'
         }
         actions={
@@ -1972,10 +1911,13 @@ export default function SupplierBookings({
                   rentalSnap?.quantity ?? booking.guests ?? 1,
                   meta?.rentalCategory
                 );
-                const handoverLabel = rentalHandoverStatusLabel(rentalSnap?.rentalOpsStatus);
                 const rentalExpanded = expandedRentalId === booking.id;
                 const financeReady = rentalExpanded && expandedEarningsState === 'ready';
                 const customerNotes = customerRequestNotes(booking.special_requests) || null;
+                const termsSummary =
+                  [rentalSnap?.cancellationLabel?.trim(), rentalSnap?.depositDisclosure?.trim()]
+                    .filter(Boolean)
+                    .join(' · ') || null;
                 return (
                   <RentalOpsBookingCard
                     key={booking.id}
@@ -1996,10 +1938,8 @@ export default function SupplierBookings({
                       collectionLabel,
                       returnLabel,
                       quantityLabel,
-                      statusLabel: partnerBookingLifecycleLabel(booking.status),
+                      statusLabel: rentalBookingSimpleStatusLabel(booking),
                       statusClass: bookingStatusClass(booking.status, booking.payment_status),
-                      handoverLabel,
-                      handoverComplete: rentalSnap?.rentalOpsStatus === 'returned',
                       referenceLabel,
                       purchaseDateLabel,
                       collectionPlace: rentalSnap?.pickupAddress?.trim() || null,
@@ -2015,6 +1955,7 @@ export default function SupplierBookings({
                       earningsLabel: financeReady ? expandedEarningsLabel : null,
                       financeLoading: rentalExpanded && expandedEarningsState === 'loading',
                       paymentLabel: partnerPaymentLabel(booking),
+                      termsSummary,
                     }}
                     expanded={rentalExpanded}
                     selected={highlightBookingId === booking.id}
@@ -2447,18 +2388,6 @@ export default function SupplierBookings({
               rentalSnap?.quantity ?? booking.guests ?? 1,
               meta?.rentalCategory
             );
-            const handoverLabel = rentalHandoverStatusLabel(rentalSnap?.rentalOpsStatus);
-            const completedNote = rentalHandoverCompletedLabel(rentalSnap?.rentalOpsStatus);
-            const paidReady =
-              booking.status === 'confirmed' &&
-              String(booking.payment_status ?? '').toLowerCase() === 'paid';
-            const ops = rentalSnap?.rentalOpsStatus ?? 'awaiting_pickup';
-            const handoverAction =
-              paidReady && ops === 'awaiting_pickup'
-                ? ('collected' as const)
-                : paidReady && ops === 'collected'
-                  ? ('returned' as const)
-                  : null;
             const openCancelRaw = openCancels[booking.id];
             const openCancel =
               openCancelRaw &&
@@ -2480,7 +2409,7 @@ export default function SupplierBookings({
               <RentalOpsBookingDetail
                 model={{
                   referenceLabel,
-                  statusLabel: partnerBookingLifecycleLabel(booking.status),
+                  statusLabel: rentalBookingSimpleStatusLabel(booking),
                   statusClass: bookingStatusClass(booking.status, booking.payment_status),
                   listingTitle,
                   variantLabel: rentalSnap?.variantName?.trim() || null,
@@ -2502,15 +2431,8 @@ export default function SupplierBookings({
                   collectionLng: rentalSnap?.pickupLng ?? null,
                   returnLat: rentalReturn?.lat ?? null,
                   returnLng: rentalReturn?.lng ?? null,
-                  handoverLabel,
-                  handoverNote:
-                    ops === 'returned'
-                      ? 'Collection and return are complete.'
-                      : ops === 'collected'
-                        ? 'Item collected — mark returned when the customer brings it back.'
-                        : completedNote
-                          ? null
-                          : 'Confirm collection when the customer picks up the item.',
+                  cancellationLabel: rentalSnap?.cancellationLabel?.trim() || null,
+                  depositDisclosure: rentalSnap?.depositDisclosure?.trim() || null,
                   unpaidHoldMessage: partnerBookingIsUnpaidCheckout(booking)
                     ? partnerUnpaidCheckoutHoldsInventory(booking)
                       ? `${formatPartnerCheckoutHoldLabel(booking)}. The traveler may still complete payment.`
@@ -2566,12 +2488,6 @@ export default function SupplierBookings({
                       at: null,
                     });
                   }
-                  if (ops === 'collected' || ops === 'returned') {
-                    items.push({ id: 'collected', label: 'Collected', at: null });
-                  }
-                  if (ops === 'returned') {
-                    items.push({ id: 'returned', label: 'Returned', at: null });
-                  }
                   if (openCancel) {
                     items.push({
                       id: `cancel-${openCancel.id}`,
@@ -2601,7 +2517,6 @@ export default function SupplierBookings({
                   partnerBookingIsOperatingTrip(booking) || partnerBookingIsUnpaidCheckout(booking)
                 }
                 cancelBlocked={Boolean(openCancel)}
-                handoverAction={handoverAction}
                 backLabel={
                   partnerInboxReturnMatches(booking.id)
                     ? 'Back to Inbox'
@@ -2626,9 +2541,6 @@ export default function SupplierBookings({
                 }}
                 onOpenFinancialStatement={() =>
                   navigateSupplierUrl(`${PARTNER_APP_BASE}/money?tab=documents`)
-                }
-                onHandoverAction={
-                  handoverAction ? () => requestRentalHandover(booking, handoverAction) : undefined
                 }
                 privateNotesSlot={
                   user?.id ? (
@@ -3060,31 +2972,6 @@ export default function SupplierBookings({
         </SupplierModalShell>
       )}
 
-      <PartnerConfirmModal
-        open={Boolean(rentalHandoverConfirm)}
-        title={
-          rentalHandoverConfirm?.next === 'returned'
-            ? 'Mark rental returned?'
-            : 'Mark rental collected?'
-        }
-        description={
-          rentalHandoverConfirm?.next === 'returned'
-            ? 'Confirm the customer has returned the item. Inventory turnaround still follows your rental listing rules.'
-            : 'Confirm you have handed the item to the customer. You can mark it returned after collection.'
-        }
-        confirmLabel={
-          rentalHandoverConfirm?.next === 'returned' ? 'Mark returned' : 'Mark collected'
-        }
-        busy={Boolean(
-          rentalHandoverConfirm && updatingId === rentalHandoverConfirm.bookingId
-        )}
-        error={error}
-        onConfirm={() => void confirmRentalHandover()}
-        onCancel={() => {
-          if (rentalHandoverConfirm && updatingId === rentalHandoverConfirm.bookingId) return;
-          setRentalHandoverConfirm(null);
-        }}
-      />
     </div>
   );
 }

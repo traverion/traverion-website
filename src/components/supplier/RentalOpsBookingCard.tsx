@@ -1,5 +1,5 @@
 /**
- * Expandable rental booking row — collection/return ops, not tour pickup language.
+ * Expandable rental booking row — collection/return schedule facts, not handover workflow.
  */
 import { type MouseEvent, type ReactNode } from 'react';
 import { CalendarDays, ChevronDown, Copy, Mail } from 'lucide-react';
@@ -20,8 +20,6 @@ export type RentalOpsCardModel = {
   quantityLabel: string;
   statusLabel: string;
   statusClass: string;
-  handoverLabel: string;
-  handoverComplete: boolean;
   referenceLabel: string;
   purchaseDateLabel: string | null;
   collectionPlace: string | null;
@@ -33,6 +31,8 @@ export type RentalOpsCardModel = {
   earningsLabel: string | null;
   financeLoading: boolean;
   paymentLabel: string;
+  /** Optional rental terms / damage liability summary. */
+  termsSummary: string | null;
 };
 
 type Props = {
@@ -106,18 +106,6 @@ export default function RentalOpsBookingCard({
               <div className="tour-ops-card__rail">
                 <div className="tour-ops-card__rail-stack">
                   <span className={`tour-ops-card__status ${model.statusClass}`}>{model.statusLabel}</span>
-                  <span
-                    className={`tour-ops-card__arrival${
-                      model.handoverComplete
-                        ? ''
-                        : model.handoverLabel === 'Awaiting collection'
-                          ? ' is-warn'
-                          : ''
-                    }`}
-                    title={model.handoverLabel}
-                  >
-                    {model.handoverLabel}
-                  </span>
                 </div>
                 <ChevronDown
                   className={`tour-ops-card__chevron${expanded ? ' is-open' : ''}`}
@@ -196,7 +184,9 @@ export default function RentalOpsBookingCard({
             {model.returnPlace && model.returnPlace !== model.collectionPlace ? (
               <p className="tour-ops-card__summary-note">Return: {model.returnPlace}</p>
             ) : null}
-            <p className="tour-ops-card__summary-meta mt-1">{model.handoverLabel}</p>
+            {model.termsSummary ? (
+              <p className="tour-ops-card__summary-note mt-1.5">{model.termsSummary}</p>
+            ) : null}
           </section>
 
           <section className="tour-ops-card__summary-block tour-ops-card__summary-block--finance">

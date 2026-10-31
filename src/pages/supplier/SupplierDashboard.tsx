@@ -34,15 +34,9 @@ import {
   resolvePartnerPickupCopy,
 } from '../../lib/pickup-completeness';
 import { parseRentalPurchaseSnapshot } from '../../lib/rental-booking-domain';
-import {
-  formatRentalQuantityLabel,
-  rentalHandoverStatusLabel,
-} from '../../lib/rental-presentation';
-import {
-  lifecycleReminderAnchorYmd,
-  lifecycleRentalReturnYmd,
-} from '../../lib/booking-lifecycle-calendar';
+import { formatRentalQuantityLabel } from '../../lib/rental-presentation';
 import { computePartnerHomeSales30d } from '../../lib/partner-home-sales';
+import { rentalBookingSimpleStatusLabel } from '../../lib/rental-booking-status';
 import { bookingPaymentWasCollected, isCollectedBooking, isRefundDueBooking } from '../../lib/payment-states';
 import type { TourPackage } from '../../types/tour';
 import SupplierPortalNoticePanel from '../../components/supplier/SupplierPortalNoticePanel';
@@ -174,6 +168,12 @@ function recentBookingStatus(b: BookingRow): { label: string; tone: 'ok' | 'warn
   if (st === 'cancelled') return { label: 'Cancelled', tone: 'bad' };
   if (isRefundDueBooking(b)) return { label: 'Refund due', tone: 'bad' };
   if (partnerBookingIsActiveUnpaidCheckout(b)) return { label: 'Pending payment', tone: 'warn' };
+  if (bookingIsRental(b)) {
+    const label = rentalBookingSimpleStatusLabel(b);
+    if (label === 'Completed') return { label, tone: 'neutral' };
+    if (label === 'Confirmed') return { label, tone: 'ok' };
+    return { label, tone: 'neutral' };
+  }
   if (isCollectedBooking(b)) return { label: 'Confirmed', tone: 'ok' };
   if (st) return { label: st.charAt(0).toUpperCase() + st.slice(1), tone: 'neutral' };
   return { label: 'Booked', tone: 'neutral' };
@@ -194,26 +194,6 @@ function bookingLabel(b: BookingRow | undefined, titles: Record<string, string>)
     titles[b.listing_id],
     bookingProductNoun(b)
   );
-}
-
-function rentalCollectionDetail(b: BookingRow, titles: Record<string, string>): string {
-  const snap = parseRentalPurchaseSnapshot(b.purchase_snapshot);
-  const title = bookingLabel(b, titles) || 'Rental';
-  const qty = snap?.quantity ?? null;
-  const itemLabel =
-    qty != null && qty > 0 ? `${qty} item${qty === 1 ? '' : 's'}` : null;
-  let timeLabel: string | null = null;
-  if (snap?.pickupAt) {
-    const d = new Date(snap.pickupAt);
-    if (!Number.isNaN(d.getTime())) {
-      timeLabel = d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
-    }
-  }
-  if (!timeLabel) {
-    const hm = pgTimeToHm(b.start_time) || pgTimeToHm(b.pickup_time);
-    if (hm) timeLabel = hm;
-  }
-  return [title, itemLabel, timeLabel].filter(Boolean).join(' · ');
 }
 
 export default function SupplierDashboard() {
@@ -496,36 +476,6 @@ export default function SupplierDashboard() {
     });
   }, [supplierBookings, listingsById]);
 
-  /** Paid rentals awaiting collection today — separate from tour pickup gaps. */
-  const rentalCollectionsToday = useMemo(() => {
-    const nowMs = Date.now();
-    return supplierBookings
-      .filter((b) => {
-        if (!bookingIsRental(b)) return false;
-        if (!partnerBookingIsOperatingTrip(b)) return false;
-        const snap = parseRentalPurchaseSnapshot(b.purchase_snapshot);
-        if (!snap || snap.rentalOpsStatus !== 'awaiting_pickup') return false;
-        const todayIso = scheduleTodayIsoForBooking(b, nowMs);
-        return lifecycleReminderAnchorYmd(b) === todayIso;
-      })
-      .sort((a, b) => (a.booking_date ?? '').localeCompare(b.booking_date ?? '') || a.id.localeCompare(b.id));
-  }, [supplierBookings]);
-
-  /** Collected rentals with return due today. */
-  const rentalReturnsToday = useMemo(() => {
-    const nowMs = Date.now();
-    return supplierBookings
-      .filter((b) => {
-        if (!bookingIsRental(b)) return false;
-        if (!partnerBookingIsOperatingTrip(b)) return false;
-        const snap = parseRentalPurchaseSnapshot(b.purchase_snapshot);
-        if (!snap || snap.rentalOpsStatus !== 'collected') return false;
-        const todayIso = scheduleTodayIsoForBooking(b, nowMs);
-        return lifecycleRentalReturnYmd(b) === todayIso;
-      })
-      .sort((a, b) => (a.booking_date ?? '').localeCompare(b.booking_date ?? '') || a.id.localeCompare(b.id));
-  }, [supplierBookings]);
-
   const openCancelCount = openCancels.length;
   const overdueCancelCount = openCancels.filter(
     (r) => r.expires_at && new Date(r.expires_at).getTime() < Date.now()
@@ -541,8 +491,6 @@ export default function SupplierDashboard() {
     (draftListingsCount ?? 0) +
     (verificationNeedsAction ? 1 : 0) +
     pickupGaps.length +
-    rentalCollectionsToday.length +
-    rentalReturnsToday.length +
     openCancelCount +
     refundDueCount +
     (unreadMessageCount ?? 0) +
@@ -631,8 +579,6 @@ export default function SupplierDashboard() {
   const firstCancelBooking = openCancels[0] ? bookingsById[openCancels[0].booking_id] : undefined;
   const firstUnreadBooking = firstUnreadBookingId ? bookingsById[firstUnreadBookingId] : undefined;
   const firstPickup = pickupGaps[0];
-  const firstRentalCollection = rentalCollectionsToday[0];
-  const firstRentalReturn = rentalReturnsToday[0];
   const firstRefund = supplierBookings.find(isRefundDueBooking);
   const firstPending = pendingBookings[0];
 
@@ -867,52 +813,6 @@ export default function SupplierDashboard() {
                     partnerBookingDeskPath({
                       family: firstRefund ? partnerBookingDeskFamily(firstRefund) : 'tour',
                       extraSearch: { ops: 'refund_due' },
-                    })
-                  )
-                }
-              />
-            )}
-            {rentalCollectionsToday.length > 0 && (
-              <AttentionItem
-                tone="warn"
-                title={
-                  rentalCollectionsToday.length === 1
-                    ? 'Rental collection today'
-                    : `${rentalCollectionsToday.length} rental collections today`
-                }
-                detail={
-                  firstRentalCollection
-                    ? rentalCollectionDetail(firstRentalCollection, listingTitlesById)
-                    : 'Paid rentals awaiting collection'
-                }
-                onClick={() =>
-                  navigateSupplierUrl(
-                    partnerBookingDeskPath({
-                      family: 'rental',
-                      bookingId: firstRentalCollection?.id,
-                    })
-                  )
-                }
-              />
-            )}
-            {rentalReturnsToday.length > 0 && (
-              <AttentionItem
-                tone="warn"
-                title={
-                  rentalReturnsToday.length === 1
-                    ? 'Rental return today'
-                    : `${rentalReturnsToday.length} rental returns today`
-                }
-                detail={
-                  firstRentalReturn
-                    ? rentalCollectionDetail(firstRentalReturn, listingTitlesById)
-                    : 'Collected rentals due for return'
-                }
-                onClick={() =>
-                  navigateSupplierUrl(
-                    partnerBookingDeskPath({
-                      family: 'rental',
-                      bookingId: firstRentalReturn?.id,
                     })
                   )
                 }
@@ -1230,7 +1130,6 @@ export default function SupplierDashboard() {
                 scheduleTab === 'today' && meetingPoint && deskFamily === 'tour'
                   ? meetingPoint
                   : null,
-                isRental ? rentalHandoverStatusLabel(rentalSnap?.rentalOpsStatus) : null,
                 dep.purchasedNote || null,
               ].filter(Boolean);
               return (
@@ -1258,12 +1157,6 @@ export default function SupplierDashboard() {
                       <span className="partner-home__sched-meta" title={metaParts.join(' · ')}>
                         {metaParts.join(' · ')}
                       </span>
-                      {ev.collectionOverdue ? (
-                        <span className="partner-home__sched-flag">
-                          <span className="h-1.5 w-1.5 rounded-full bg-amber-500" aria-hidden />
-                          Collection overdue
-                        </span>
-                      ) : null}
                       {pickupMissing ? (
                         <span className="partner-home__sched-flag">
                           <span className="h-1.5 w-1.5 rounded-full bg-amber-500" aria-hidden />

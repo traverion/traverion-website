@@ -137,10 +137,11 @@ describe('Mission 01: booking category routing', () => {
     expect(planner).toContain('!bookingIsRental(b)');
 
     const home = readFileSync(resolve(__dirname, 'SupplierDashboard.tsx'), 'utf8');
-    expect(home).toContain('rentalCollectionsToday');
-    expect(home).toContain('Rental collection today');
-    expect(home).toContain("family: 'rental'");
+    expect(home).toContain('partnerHomeScheduleEventsForToday');
+    expect(home).toContain("deskFamily === 'rental'");
     expect(home).toContain('partnerBookingDeskFamily');
     expect(home).toContain('if (bookingIsRental(b)) return false');
+    expect(home).not.toContain('rentalCollectionsToday');
+    expect(home).not.toContain('Rental collection today');
   });
 });

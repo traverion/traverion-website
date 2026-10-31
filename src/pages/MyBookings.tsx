@@ -84,6 +84,7 @@ import {
 import { parseRentalPurchaseSnapshot } from '../lib/rental-booking-domain';
 import RentalCollectionMap from '../components/supplier/listing-creation/RentalCollectionMap';
 import { formatRentalQuantityLabel, rentalReturnPoint } from '../lib/rental-presentation';
+import { rentalBookingSimpleStatusLabel } from '../lib/rental-booking-status';
 import { isRentalCategoryId } from '../types/rental';
 import { travelerPickupAddressFromRecord } from '../lib/pickup-area';
 import {
@@ -1015,18 +1016,20 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
           <div className="space-y-3">
             {visibleBookings.map((b) => {
               const open = openTripId === b.id;
-              const lifecycle = bookingLifecycleLabel(
-                b.status,
-                b.payment_status,
-                {
-                  hold_expires_at: b.hold_expires_at,
-                  created_at: b.created_at,
-                },
-                {
-                  approval_status: b.approval_status,
-                  approval_expires_at: b.approval_expires_at,
-                }
-              );
+              const lifecycle = bookingIsRental(b)
+                ? rentalBookingSimpleStatusLabel(b)
+                : bookingLifecycleLabel(
+                    b.status,
+                    b.payment_status,
+                    {
+                      hold_expires_at: b.hold_expires_at,
+                      created_at: b.created_at,
+                    },
+                    {
+                      approval_status: b.approval_status,
+                      approval_expires_at: b.approval_expires_at,
+                    }
+                  );
               const payLabel = travelerPaymentLabel(b);
               const guestNotes = guestFacingBookingNotes(b.special_requests);
               const openCancelRaw = cancelRequests[b.id];
@@ -1112,7 +1115,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                 return (ops?.city || ops?.destination || '').trim() || null;
               })();
               const placeLabel = rentalSnap?.pickupAddress?.trim()
-                ? 'Pickup'
+                ? 'Collection'
                 : displayCheckInAddressFromPurchase(
                       b.purchase_snapshot,
                       b.payment_status
@@ -1565,6 +1568,25 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                         {isRental && rentalReturn && !rentalReturn.sameAsPickup && rentalReturn.lat != null && rentalReturn.lng != null ? (
                           <div className="mt-3 max-w-md">
                             <RentalCollectionMap lat={rentalReturn.lat} lng={rentalReturn.lng} label="Return location map" />
+                          </div>
+                        ) : null}
+                        {isRental &&
+                        (rentalSnap?.cancellationLabel?.trim() || rentalSnap?.depositDisclosure?.trim()) ? (
+                          <div className="mt-3">
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-faint">
+                              Rental terms
+                            </p>
+                            {rentalSnap?.cancellationLabel?.trim() ? (
+                              <p className="mt-1 text-sm text-ink">{rentalSnap.cancellationLabel.trim()}</p>
+                            ) : null}
+                            {rentalSnap?.depositDisclosure?.trim() ? (
+                              <p className="mt-1 text-sm text-ink-muted">
+                                {rentalSnap.depositDisclosure.trim()}
+                              </p>
+                            ) : null}
+                            <p className="mt-1 text-[12px] text-ink-faint">
+                              Damage liability follows these terms. Traverion does not add automatic damage charges.
+                            </p>
                           </div>
                         ) : null}
                       </div>

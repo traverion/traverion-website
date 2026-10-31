@@ -150,28 +150,25 @@ describe('Mission 03: Partner Home dashboard wiring', () => {
 
     expect(home).toContain('partnerHomeScheduleEventsForToday');
     expect(home).toContain('partnerHomeScheduleEventsForNext7Days');
-    expect(home).toContain('lifecycleRentalReturnYmd');
-    expect(home).toContain('rentalReturnsToday');
-    expect(home).toContain('Rental return today');
-    expect(home).toContain('Collection overdue');
     expect(home).toContain('scheduleEvents.length');
     expect(home).toMatch(/event\$\{scheduleEvents\.length === 1 \? '' : 's'\}/);
     expect(home).toContain('partnerHomeScheduleEventKindLabel');
-    expect(home).toContain('Collection');
-    expect(home).toContain('Return');
     expect(home).toContain('formatRentalQuantityLabel');
-    expect(home).toContain('rentalHandoverStatusLabel');
+    expect(home).toContain('rentalBookingSimpleStatusLabel');
+    expect(home).not.toContain('Collection overdue');
+    expect(home).not.toContain('rentalHandoverStatusLabel');
+    expect(home).not.toContain('rentalReturnsToday');
 
     expect(home).toContain('>Customer<');
     expect(home).toContain('>Listing<');
     expect(home).toContain('>Details<');
     expect(home).toContain('>Paid<');
-    expect(home).toContain("family: 'rental'");
+    expect(home).toContain("deskFamily === 'rental'");
     expect(home).toContain('partnerBookingDeskFamily');
+    expect(home).toContain('family: deskFamily');
 
-    // Tour pickup gaps stay tour-only; rentals use collection/return alerts.
+    // Tour pickup gaps stay tour-only.
     expect(home).toContain('if (bookingIsRental(b)) return false');
-    expect(home).toContain('Rental collection today');
     expect(home).toContain('openSupplierReviews');
   });
 });
