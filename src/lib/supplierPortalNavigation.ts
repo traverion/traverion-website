@@ -113,8 +113,39 @@ export function openSupplierPickup(
   navigateSupplierUrl(qs ? `${path}?${qs}` : path);
 }
 
-/** Open Tours & Activities → Departures & Availability (optionally focus a tour listing). */
+/**
+ * Open Unified Partner Calendar (Mission 05.3) with optional listing / day focus.
+ * Legacy family calendars remain at openSupplierTourAvailability / Stay / Rental helpers.
+ */
 export function openSupplierCalendar(
+  listingId?: string,
+  opts?: {
+    from?: string;
+    to?: string;
+    view?: string;
+    day?: string;
+    category?: 'tour' | 'stay' | 'rental' | 'all';
+  }
+): void {
+  const q = new URLSearchParams();
+  const id = String(listingId ?? '').trim();
+  if (id) q.set('listing', id);
+  const day =
+    (opts?.day && /^\d{4}-\d{2}-\d{2}$/.test(opts.day) && opts.day) ||
+    (opts?.from && /^\d{4}-\d{2}-\d{2}$/.test(opts.from) && opts.from) ||
+    '';
+  if (day) {
+    q.set('day', day);
+    q.set('date', day);
+  }
+  if (opts?.view && opts.view !== 'agenda') q.set('view', opts.view);
+  if (opts?.category && opts.category !== 'all') q.set('category', opts.category);
+  const qs = q.toString();
+  navigateSupplierUrl(qs ? `${PARTNER_APP_BASE}/calendar?${qs}` : `${PARTNER_APP_BASE}/calendar`);
+}
+
+/** Legacy tour Departures & Availability desk (kept until feature parity is retired). */
+export function openSupplierTourAvailability(
   listingId?: string,
   opts?: { from?: string; to?: string; view?: string }
 ): void {
@@ -127,27 +158,22 @@ export function openSupplierCalendar(
   navigateSupplierUrl(qs ? `${PARTNER_APP_BASE}/availability?${qs}` : `${PARTNER_APP_BASE}/availability`);
 }
 
-/** Open Stays → Stay Calendar (optionally focus a property and date range). */
-/** Open Rentals → Rental calendar (optionally focus a listing). */
+/** Legacy rental calendar deep link. */
 export function openSupplierRentalCalendar(listingId?: string): void {
-  const q = new URLSearchParams();
-  const id = String(listingId ?? '').trim();
-  if (id) q.set('listing', id);
-  const qs = q.toString();
-  navigateSupplierUrl(qs ? `${PARTNER_APP_BASE}/rental-calendar?${qs}` : `${PARTNER_APP_BASE}/rental-calendar`);
+  openSupplierCalendar(listingId, { category: 'rental', view: 'month' });
 }
 
+/** Legacy stay calendar deep link → unified calendar. */
 export function openSupplierStayCalendar(
   listingId?: string,
   opts?: { from?: string; to?: string; view?: string }
 ): void {
-  const q = new URLSearchParams();
-  if (listingId) q.set('listing', listingId);
-  if (opts?.from && /^\d{4}-\d{2}-\d{2}$/.test(opts.from)) q.set('from', opts.from);
-  if (opts?.to && /^\d{4}-\d{2}-\d{2}$/.test(opts.to)) q.set('to', opts.to);
-  if (opts?.view && opts.view !== 'agenda') q.set('view', opts.view);
-  const qs = q.toString();
-  navigateSupplierUrl(qs ? `${PARTNER_APP_BASE}/stay-calendar?${qs}` : `${PARTNER_APP_BASE}/stay-calendar`);
+  openSupplierCalendar(listingId, {
+    from: opts?.from,
+    day: opts?.from,
+    view: opts?.view,
+    category: 'stay',
+  });
 }
 
 /** Open Reviews with optional reply filter and highlighted review card. */

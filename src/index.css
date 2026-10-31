@@ -19484,3 +19484,240 @@ details:not([open]) > :not(summary) {
     transition: none;
   }
 }
+
+/* —— Unified day availability panel (Mission 05.3) —— */
+.partner-unified-cal__agenda-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(17rem, 0.9fr);
+  gap: 0.85rem 1rem;
+  align-items: start;
+}
+
+.partner-unified-cal__day-select {
+  display: flex;
+  width: 100%;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.35rem 0.75rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.partner-unified-cal__day-select:hover .partner-unified-cal__day-count {
+  color: var(--finland, #2563eb);
+}
+
+.partner-unified-cal__day.is-selected {
+  outline: 1px solid color-mix(in srgb, var(--finland, #2563eb) 28%, transparent);
+  outline-offset: 4px;
+  border-radius: 10px;
+}
+
+.partner-unified-cal__side--edit {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.partner-unified-cal__side-bookings {
+  max-height: 12rem;
+  overflow: auto;
+}
+
+.partner-unified-day {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid rgba(15, 23, 42, 0.07);
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 1px 1px rgba(15, 23, 42, 0.02);
+}
+
+.partner-unified-day__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0.55rem 0.85rem;
+}
+
+.partner-unified-day__eyebrow {
+  margin: 0;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.partner-unified-day__title {
+  margin: 0.1rem 0 0;
+  font-size: 0.95rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  color: var(--ink, #0f172a);
+}
+
+.partner-unified-day__listing {
+  display: flex;
+  min-width: min(100%, 14rem);
+  flex: 1 1 12rem;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.partner-unified-day__listing label,
+.partner-unified-day__rental-filter label {
+  font-size: 0.68rem;
+  font-weight: 650;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.partner-unified-day__section-label {
+  margin: 0 0 0.35rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.partner-unified-day__muted,
+.partner-unified-day__hint {
+  margin: 0;
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+.partner-unified-day__hint {
+  max-width: 36rem;
+  line-height: 1.4;
+}
+
+.partner-unified-day__status {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--ink, #0f172a);
+}
+
+.partner-unified-day__bookings ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.partner-unified-day__booking-link {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.4rem 0.5rem;
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  border-radius: 8px;
+  background: #f8fafc;
+  text-align: left;
+  font-size: 0.78rem;
+  color: var(--ink, #0f172a);
+  cursor: pointer;
+}
+
+.partner-unified-day__booking-link:hover {
+  border-color: color-mix(in srgb, var(--finland, #2563eb) 30%, transparent);
+}
+
+.partner-unified-day__row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.55rem;
+}
+
+.partner-unified-day__deps {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.partner-unified-day__dep {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding: 0.55rem 0.6rem;
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  border-radius: 10px;
+  background: #fafbfc;
+}
+
+.partner-unified-day__dep-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.25rem 0.65rem;
+  font-size: 0.8rem;
+}
+
+.partner-unified-day__dep-head strong {
+  font-weight: 650;
+  color: var(--ink, #0f172a);
+}
+
+.partner-unified-day__dep-head span {
+  color: #64748b;
+}
+
+.partner-unified-day__dep-fields {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.45rem 0.55rem;
+}
+
+.partner-unified-day__dep-fields label {
+  display: flex;
+  min-width: 5.5rem;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-size: 0.68rem;
+  font-weight: 650;
+  color: #64748b;
+}
+
+.partner-unified-day__dep-fields .tv-input {
+  min-height: 2.25rem;
+  width: 5.5rem;
+}
+
+.partner-unified-day__rental-filter {
+  display: flex;
+  max-width: 16rem;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-bottom: 0.35rem;
+}
+
+.partner-unified-day__family {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+@media (max-width: 960px) {
+  .partner-unified-cal__agenda-layout {
+    grid-template-columns: 1fr;
+  }
+}

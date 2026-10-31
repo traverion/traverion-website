@@ -63,8 +63,6 @@ import {
   navigateSupplierUrl,
   openSupplierListingEditor,
   openSupplierCalendar,
-  openSupplierStayCalendar,
-  openSupplierRentalCalendar,
 } from '../../lib/supplierPortalNavigation';
 import {
   isSupplierBusinessProfileCompleteForPublish,
@@ -1621,9 +1619,10 @@ export default function SupplierListings() {
                             type="button"
                             onClick={() => {
                               const family = inventoryFamilyFromListing(listing);
-                              if (family === 'stay') openSupplierStayCalendar(listing.id);
-                              else if (family === 'rental') openSupplierRentalCalendar(listing.id);
-                              else openSupplierCalendar(listing.id);
+                              openSupplierCalendar(listing.id, {
+                                category:
+                                  family === 'stay' ? 'stay' : family === 'rental' ? 'rental' : 'tour',
+                              });
                             }}
                             className="tv-ops-listing-row__flash mt-1 text-[11px] font-semibold text-finland hover:underline"
                           >
@@ -1838,9 +1837,9 @@ export default function SupplierListings() {
                   className={`${menuItemClass} items-center gap-2`}
                   onClick={() => {
                     closeListingActionsMenu();
-                    if (menuIsStay) openSupplierStayCalendar(menuListing.id);
-                    else if (menuIsRental) openSupplierRentalCalendar(menuListing.id);
-                    else openSupplierCalendar(menuListing.id);
+                    openSupplierCalendar(menuListing.id, {
+                      category: menuIsStay ? 'stay' : menuIsRental ? 'rental' : 'tour',
+                    });
                   }}
                 >
                   <CalendarDays className="h-3.5 w-3.5 shrink-0" aria-hidden />

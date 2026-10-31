@@ -1,7 +1,7 @@
 /**
- * Mission 05.1–05.2 — Unified Partner Calendar.
+ * Mission 05.1–05.3 — Unified Partner Calendar.
  * Agenda (default) + Month across Tours, Stays, and Rentals.
- * Default hides past/completed events; history toggle restores them.
+ * Single-date availability editing reuses family availability APIs.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
@@ -13,6 +13,8 @@ import {
   KeyRound,
 } from 'lucide-react';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
+import { useSupplierRole } from '../../hooks/useSupplierRole';
+import { canManageBookings } from '../../lib/supplierTeamRoles';
 import { fetchMyListings } from '../../data/supabase-listings';
 import { fetchBookingsForSupplier, type BookingRow } from '../../data/supabase-bookings';
 import type { TourPackage } from '../../types/tour';
@@ -44,6 +46,7 @@ import {
   SupplierPageHero,
 } from '../../components/supplier/supplierUi';
 import PartnerSelect from '../../components/supplier/PartnerSelect';
+import PartnerUnifiedDayAvailabilityPanel from '../../components/supplier/PartnerUnifiedDayAvailabilityPanel';
 import ErrorState from '../../components/ErrorState';
 import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
 
@@ -115,6 +118,8 @@ function EventRow({ event }: { event: PartnerUnifiedCalendarEvent }) {
 
 export default function SupplierUnifiedCalendar() {
   const { user, isSupabase } = useSupplierAuth();
+  const { role } = useSupplierRole();
+  const canEdit = canManageBookings(role);
   const todayIso = useMemo(() => experienceTodayIsoForListing(undefined) || localYmd(new Date()), []);
 
   const initial = useMemo(() => {
@@ -193,7 +198,8 @@ export default function SupplierUnifiedCalendar() {
     else q.delete('history');
     if (anchorYmd !== todayIso) q.set('date', anchorYmd);
     else q.delete('date');
-    if (view === 'month' && selectedYmd) q.set('day', selectedYmd);
+    if (selectedYmd && selectedYmd !== todayIso) q.set('day', selectedYmd);
+    else if (selectedYmd === todayIso) q.delete('day');
     else q.delete('day');
     const qs = q.toString();
     window.history.replaceState({}, '', qs ? `${url.pathname}?${qs}` : url.pathname);
@@ -457,27 +463,50 @@ export default function SupplierUnifiedCalendar() {
             }
           />
         ) : (
-          <div className="partner-unified-cal__agenda">
-            {agendaGroups.map((group) => (
-              <section key={group.iso} className="partner-unified-cal__day">
-                <header className="partner-unified-cal__day-head">
-                  <h2>
-                    {formatDayHeading(group.iso)}
-                    {group.iso === todayIso ? (
-                      <span className="partner-unified-cal__today-pill">Today</span>
-                    ) : null}
-                  </h2>
-                  <span className="partner-unified-cal__day-count">
-                    {group.events.length} event{group.events.length === 1 ? '' : 's'}
-                  </span>
-                </header>
-                <div className="partner-unified-cal__day-list">
-                  {group.events.map((event) => (
-                    <EventRow key={event.key} event={event} />
-                  ))}
-                </div>
-              </section>
-            ))}
+          <div className="partner-unified-cal__agenda-layout">
+            <div className="partner-unified-cal__agenda">
+              {agendaGroups.map((group) => (
+                <section
+                  key={group.iso}
+                  className={`partner-unified-cal__day${
+                    group.iso === selectedYmd ? ' is-selected' : ''
+                  }`}
+                >
+                  <header className="partner-unified-cal__day-head">
+                    <button
+                      type="button"
+                      className="partner-unified-cal__day-select"
+                      onClick={() => setSelectedYmd(group.iso)}
+                    >
+                      <h2>
+                        {formatDayHeading(group.iso)}
+                        {group.iso === todayIso ? (
+                          <span className="partner-unified-cal__today-pill">Today</span>
+                        ) : null}
+                      </h2>
+                      <span className="partner-unified-cal__day-count">
+                        {group.events.length} event{group.events.length === 1 ? '' : 's'} · Edit
+                      </span>
+                    </button>
+                  </header>
+                  <div className="partner-unified-cal__day-list">
+                    {group.events.map((event) => (
+                      <EventRow key={event.key} event={event} />
+                    ))}
+                  </div>
+                </section>
+              ))}
+            </div>
+            <PartnerUnifiedDayAvailabilityPanel
+              iso={selectedYmd}
+              listings={listingsForUnifiedCategoryFilter(listings, category)}
+              bookings={bookings}
+              dayEvents={selectedDayEvents}
+              initialListingId={listingId}
+              canEdit={canEdit}
+              userId={user?.id}
+              onListingsChange={setListings}
+            />
           </div>
         )
       ) : (
@@ -533,42 +562,51 @@ export default function SupplierUnifiedCalendar() {
             </div>
           </div>
 
-          <aside className="partner-unified-cal__side">
-            <header className="partner-unified-cal__day-head">
-              <h2>
-                {formatDayHeading(selectedYmd)}
-                {selectedYmd === todayIso ? (
-                  <span className="partner-unified-cal__today-pill">Today</span>
-                ) : null}
-              </h2>
-            </header>
-            {selectedDayEvents.length === 0 ? (
-              <div className="partner-unified-cal__side-empty">
-                <p>
-                  {selectedYmd < todayIso && !includePast
-                    ? 'Past events are hidden. Turn on Show past to inspect history.'
-                    : 'No bookings on this day.'}
-                </p>
-                {selectedYmd < todayIso && !includePast ? (
-                  <button
-                    type="button"
-                    className="partner-unified-cal__history-btn"
-                    onClick={() => setIncludePast(true)}
-                  >
-                    Show past
-                  </button>
-                ) : null}
-              </div>
-            ) : (
-              <div className="partner-unified-cal__day-list">
+          <aside className="partner-unified-cal__side partner-unified-cal__side--edit">
+            {selectedDayEvents.length > 0 ? (
+              <div className="partner-unified-cal__day-list partner-unified-cal__side-bookings">
                 {selectedDayEvents.map((event) => (
                   <EventRow key={event.key} event={event} />
                 ))}
               </div>
-            )}
+            ) : selectedYmd < todayIso && !includePast ? (
+              <div className="partner-unified-cal__side-empty">
+                <p>Past booking events are hidden. Availability can still be edited below.</p>
+                <button
+                  type="button"
+                  className="partner-unified-cal__history-btn"
+                  onClick={() => setIncludePast(true)}
+                >
+                  Show past
+                </button>
+              </div>
+            ) : null}
+            <PartnerUnifiedDayAvailabilityPanel
+              iso={selectedYmd}
+              listings={listingsForUnifiedCategoryFilter(listings, category)}
+              bookings={bookings}
+              dayEvents={selectedDayEvents}
+              initialListingId={listingId}
+              canEdit={canEdit}
+              userId={user?.id}
+              onListingsChange={setListings}
+            />
           </aside>
         </div>
       )}
+
+      {view === 'agenda' && agendaGroups.length === 0 && listings.length > 0 ? (
+        <PartnerUnifiedDayAvailabilityPanel
+          iso={selectedYmd}
+          listings={listingsForUnifiedCategoryFilter(listings, category)}
+          bookings={bookings}
+          dayEvents={selectedDayEvents}
+          initialListingId={listingId}
+          canEdit={canEdit}
+          userId={user?.id}
+          onListingsChange={setListings}
+        />
+      ) : null}
     </div>
   );
 }
