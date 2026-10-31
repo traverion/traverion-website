@@ -25,13 +25,13 @@ describe('partner nav open groups preference', () => {
     vi.unstubAllGlobals();
   });
 
-  it('defaults to groups marked defaultOpen', () => {
-    expect(readPartnerNavOpenGroups().sort()).toEqual(['stays', 'tours']);
+  it('defaults to empty when the sidebar has no collapsible groups', () => {
+    expect(readPartnerNavOpenGroups()).toEqual([]);
   });
 
-  it('persists and restores known group ids only', () => {
+  it('ignores unknown stored group ids when no groups exist', () => {
     writePartnerNavOpenGroups(['tours', 'unknown', 'stays']);
     expect(store.get(PARTNER_NAV_OPEN_GROUPS_KEY)).toBe('tours,unknown,stays');
-    expect(readPartnerNavOpenGroups()).toEqual(['tours', 'stays']);
+    expect(readPartnerNavOpenGroups()).toEqual([]);
   });
 });

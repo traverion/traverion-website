@@ -7,6 +7,7 @@ import { CalendarDays, ChevronDown, Copy, Mail } from 'lucide-react';
 export type RentalOpsCardModel = {
   id: string;
   listingTitle: string;
+  categoryLabel?: string | null;
   variantLabel: string | null;
   imageUrl: string | null;
   customerName: string;
@@ -105,6 +106,9 @@ export default function RentalOpsBookingCard({
               </div>
               <div className="tour-ops-card__rail">
                 <div className="tour-ops-card__rail-stack">
+                  {model.categoryLabel ? (
+                    <span className="tour-ops-card__category">{model.categoryLabel}</span>
+                  ) : null}
                   <span className={`tour-ops-card__status ${model.statusClass}`}>{model.statusLabel}</span>
                 </div>
                 <ChevronDown

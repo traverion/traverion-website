@@ -22,7 +22,7 @@ describe('partner primary nav', () => {
     expect(PARTNER_PRIMARY_NAV_SECTION_IDS).not.toContain('availability');
   });
 
-  it('highlights More for Income but not for Calendar', () => {
+  it('highlights More for Income but not for Calendar or Bookings', () => {
     expect(partnerMoreNavIncludesSection('earnings')).toBe(true);
     expect(partnerMoreNavIncludesSection('calendar')).toBe(false);
     expect(partnerMoreNavIncludesSection('availability')).toBe(false);
@@ -30,5 +30,8 @@ describe('partner primary nav', () => {
     expect(PARTNER_MORE_NAV_SECTION_IDS).not.toContain('calendar');
     expect(PARTNER_MORE_NAV_SECTION_IDS).not.toContain('availability');
     expect(PARTNER_MORE_NAV_SECTION_IDS).not.toContain('bookings');
+    expect(PARTNER_MORE_NAV_SECTION_IDS).not.toContain('pickup');
+    expect(PARTNER_MORE_NAV_SECTION_IDS).not.toContain('reservations');
+    expect(PARTNER_MORE_NAV_SECTION_IDS).not.toContain('rental-bookings');
   });
 });

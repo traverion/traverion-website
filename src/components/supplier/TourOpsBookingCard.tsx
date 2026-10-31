@@ -7,6 +7,8 @@ import { CalendarDays, ChevronDown, Copy, Mail, MapPin, User } from 'lucide-reac
 export type TourOpsCardModel = {
   id: string;
   listingTitle: string;
+  /** Shown on the unified bookings desk only. */
+  categoryLabel?: string | null;
   optionLabel: string;
   imageUrl: string | null;
   guestName: string;
@@ -132,6 +134,9 @@ export default function TourOpsBookingCard({
               </div>
               <div className="tour-ops-card__rail">
                 <div className="tour-ops-card__rail-stack">
+                  {model.categoryLabel ? (
+                    <span className="tour-ops-card__category">{model.categoryLabel}</span>
+                  ) : null}
                   <span className={`tour-ops-card__status ${model.statusClass}`}>{model.statusLabel}</span>
                   {model.arrivalRailLabel ? (
                     <span

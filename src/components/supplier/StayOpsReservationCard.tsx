@@ -8,6 +8,7 @@ import { CalendarDays, ChevronDown, Copy, Mail } from 'lucide-react';
 export type StayOpsCardModel = {
   id: string;
   listingTitle: string;
+  categoryLabel?: string | null;
   imageUrl: string | null;
   guestName: string;
   dateLine: string;
@@ -99,6 +100,9 @@ export default function StayOpsReservationCard({
               </div>
               <div className="tour-ops-card__rail">
                 <div className="tour-ops-card__rail-stack">
+                  {model.categoryLabel ? (
+                    <span className="tour-ops-card__category">{model.categoryLabel}</span>
+                  ) : null}
                   <span className={`tour-ops-card__status ${model.statusClass}`}>{model.statusLabel}</span>
                 </div>
                 <ChevronDown

@@ -1275,7 +1275,7 @@ export default function SupplierLayout() {
                     {section === 'listings' && <SupplierListings />}
                     {section === 'calendar' && <SupplierUnifiedCalendar />}
                     {section === 'availability' && <SupplierAvailability />}
-                    {section === 'bookings' && <SupplierBookings inventoryFamily="tour" />}
+                    {section === 'bookings' && <SupplierBookings />}
                     {section === 'reservations' && <SupplierBookings inventoryFamily="stay" />}
                     {section === 'rental-bookings' && <SupplierBookings inventoryFamily="rental" />}
                     {section === 'stay-calendar' && <SupplierStayCalendar />}

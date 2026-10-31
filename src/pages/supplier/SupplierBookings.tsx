@@ -90,7 +90,7 @@ import {
   formatCommissionPercentLabel,
   resolvePartnerArrivalDisplay,
 } from '../../lib/partner-booking-logistics';
-import { PARTNER_APP_BASE, PARTNER_CREATE_PATH, PARTNER_RESERVATIONS_PATH } from '../../lib/partnerPortalPaths';
+import { PARTNER_APP_BASE, PARTNER_CREATE_PATH } from '../../lib/partnerPortalPaths';
 import { inventoryFamilyFromListing } from '../../lib/inventory';
 import { nightsOccupiedByStay, stayRangeFromBooking } from '../../lib/stayOccupancy';
 import {
@@ -101,7 +101,14 @@ import { addCalendarDaysYmd } from '../../lib/booking-lifecycle-calendar';
 import { formatPartnerCheckoutHoldLabel, partnerUnpaidCheckoutHoldsInventory } from '../../lib/booking-hold';
 import { formatStayNightHuman } from '../../lib/stay-calendar';
 import { formatBookingDateDisplay } from '../../lib/booking-flow';
-import { bookingIsRental, bookingIsStayNight, partnerBookingHasPickupAttention, resolvePartnerPickupCopy } from '../../lib/pickup-completeness';
+import {
+  bookingIsRental,
+  bookingIsStayNight,
+  partnerBookingDeskFamily,
+  partnerBookingHasPickupAttention,
+  resolvePartnerPickupCopy,
+} from '../../lib/pickup-completeness';
+import type { PartnerBookingDeskFamily } from '../../lib/partner-booking-desk-path';
 import { parseRentalPurchaseSnapshot } from '../../lib/rental-booking-domain';
 import {
   formatRentalOpsInstant,
@@ -126,6 +133,23 @@ import { displayListingTitleFromPurchase, displayOptionLabelFromPurchase, displa
 import { optionLogisticsLines, readOptionLogistics } from '../../lib/option-logistics';
 
 const BOOKINGS_PAGE_SIZE = 20;
+
+const CATEGORY_LABEL: Record<PartnerBookingDeskFamily, string> = {
+  tour: 'Tour',
+  stay: 'Stay',
+  rental: 'Rental',
+};
+
+function resolveBookingFamily(
+  booking: BookingRow,
+  listingMeta: Record<string, ListingBookingMeta>
+): PartnerBookingDeskFamily {
+  const listed = listingMeta[booking.listing_id]?.family;
+  if (listed === 'rental' || bookingIsRental(booking)) return 'rental';
+  if (listed === 'stay' || bookingIsStayNight(booking)) return 'stay';
+  if (listed === 'tour') return 'tour';
+  return partnerBookingDeskFamily(booking);
+}
 
 type ListingBookingMeta = {
   title: string;
@@ -442,7 +466,14 @@ export default function SupplierBookings({
     if (typeof window === 'undefined') return '';
     return new URLSearchParams(window.location.search).get('q') ?? '';
   });
+  const [categoryFilter, setCategoryFilter] = useState<'' | PartnerBookingDeskFamily>(() => {
+    if (typeof window === 'undefined' || inventoryFamily) return '';
+    const c = (new URLSearchParams(window.location.search).get('category') ?? '').trim().toLowerCase();
+    return c === 'tour' || c === 'stay' || c === 'rental' ? c : '';
+  });
   const [searchDraft, setSearchDraft] = useState(filterQuery);
+
+  const isUnifiedDesk = !inventoryFamily;
 
   const [bookingsListPage, setBookingsListPage] = useState(1);
   const [highlightBookingId, setHighlightBookingId] = useState<string | null>(() => {
@@ -536,17 +567,23 @@ export default function SupplierBookings({
     void load();
   }, [load]);
 
-  // Wrong-desk deep links → correct family section.
+  // Wrong-desk / unified deep links → correct family detail section.
   useEffect(() => {
-    if (!inventoryFamily || !highlightBookingId || loading) return;
+    if (!highlightBookingId || loading) return;
     const booking = bookings.find((b) => b.id === highlightBookingId);
     if (!booking) return;
-    const isRental =
-      listingMeta[booking.listing_id]?.family === 'rental' || bookingIsRental(booking);
-    const isStay =
-      !isRental &&
-      (listingMeta[booking.listing_id]?.family === 'stay' || bookingIsStayNight(booking));
-    const actualFamily: 'tour' | 'stay' | 'rental' = isRental ? 'rental' : isStay ? 'stay' : 'tour';
+    const actualFamily = resolveBookingFamily(booking, listingMeta);
+    if (isUnifiedDesk) {
+      if (actualFamily === 'tour') return;
+      navigateSupplierUrl(
+        partnerBookingDeskPathPreservingSearch({
+          family: actualFamily,
+          bookingId: highlightBookingId,
+          currentSearch: window.location.search,
+        })
+      );
+      return;
+    }
     if (actualFamily === inventoryFamily) return;
     navigateSupplierUrl(
       partnerBookingDeskPathPreservingSearch({
@@ -555,7 +592,7 @@ export default function SupplierBookings({
         currentSearch: window.location.search,
       })
     );
-  }, [inventoryFamily, highlightBookingId, bookings, listingMeta, loading]);
+  }, [inventoryFamily, isUnifiedDesk, highlightBookingId, bookings, listingMeta, loading]);
 
   useEffect(() => {
     const syncFromUrl = () => {
@@ -608,11 +645,17 @@ export default function SupplierBookings({
       const to = (params.get('to') ?? '').trim();
       setFilterDateFrom(/^\d{4}-\d{2}-\d{2}$/.test(from) ? from : '');
       setFilterDateTo(/^\d{4}-\d{2}-\d{2}$/.test(to) ? to : '');
+      if (!inventoryFamily) {
+        const category = (params.get('category') ?? '').trim().toLowerCase();
+        setCategoryFilter(
+          category === 'tour' || category === 'stay' || category === 'rental' ? category : ''
+        );
+      }
     };
     syncFromUrl();
     window.addEventListener('popstate', syncFromUrl);
     return () => window.removeEventListener('popstate', syncFromUrl);
-  }, []);
+  }, [inventoryFamily]);
 
   const writeBookingsSearchToUrl = useCallback(
     (patch: {
@@ -626,6 +669,7 @@ export default function SupplierBookings({
       purchasedFrom?: string;
       purchasedTo?: string;
       q?: string;
+      category?: '' | PartnerBookingDeskFamily;
     }) => {
       const listingId = patch.listingId !== undefined ? patch.listingId : filterListingId;
       const from = patch.from !== undefined ? patch.from : filterDateFrom;
@@ -637,6 +681,7 @@ export default function SupplierBookings({
       const nextPurchasedFrom = patch.purchasedFrom !== undefined ? patch.purchasedFrom : purchaseFrom;
       const nextPurchasedTo = patch.purchasedTo !== undefined ? patch.purchasedTo : purchaseTo;
       const nextQuery = patch.q !== undefined ? patch.q : filterQuery;
+      const nextCategory = patch.category !== undefined ? patch.category : categoryFilter;
       if (patch.listingId !== undefined) setFilterListingId(patch.listingId);
       if (patch.from !== undefined) setFilterDateFrom(patch.from);
       if (patch.to !== undefined) setFilterDateTo(patch.to);
@@ -646,6 +691,7 @@ export default function SupplierBookings({
       if (patch.pay !== undefined) setPaymentFilter(patch.pay);
       if (patch.purchasedFrom !== undefined) setPurchaseFrom(patch.purchasedFrom);
       if (patch.purchasedTo !== undefined) setPurchaseTo(patch.purchasedTo);
+      if (patch.category !== undefined) setCategoryFilter(patch.category);
       if (patch.q !== undefined) {
         setFilterQuery(patch.q);
         setSearchDraft(patch.q);
@@ -671,10 +717,25 @@ export default function SupplierBookings({
       else url.searchParams.set('purchasedTo', nextPurchasedTo);
       if (!nextQuery.trim()) url.searchParams.delete('q');
       else url.searchParams.set('q', nextQuery.trim());
+      if (!isUnifiedDesk || !nextCategory) url.searchParams.delete('category');
+      else url.searchParams.set('category', nextCategory);
       window.history.replaceState({}, '', `${url.pathname}${url.search}`);
       setBookingsListPage(1);
     },
-    [filterListingId, filterDateFrom, filterDateTo, view, sortBy, statusFilter, paymentFilter, purchaseFrom, purchaseTo, filterQuery]
+    [
+      filterListingId,
+      filterDateFrom,
+      filterDateTo,
+      view,
+      sortBy,
+      statusFilter,
+      paymentFilter,
+      purchaseFrom,
+      purchaseTo,
+      filterQuery,
+      categoryFilter,
+      isUnifiedDesk,
+    ]
   );
 
   useEffect(() => {
@@ -688,13 +749,19 @@ export default function SupplierBookings({
   const setSelectedBookingId = useCallback(
     (id: string | null) => {
       const path = window.location.pathname;
-      const family: 'tour' | 'stay' | 'rental' =
+      let family: PartnerBookingDeskFamily =
         inventoryFamily ??
         (path.includes('/rental-bookings')
           ? 'rental'
           : path.includes('/reservations')
             ? 'stay'
             : 'tour');
+      if (id) {
+        const booking = bookings.find((b) => b.id === id);
+        if (booking) family = resolveBookingFamily(booking, listingMeta);
+      } else if (isUnifiedDesk) {
+        family = 'tour';
+      }
       const url = new URL(window.location.href);
       url.searchParams.delete('booking');
       const next = partnerBookingDeskPath({
@@ -704,8 +771,12 @@ export default function SupplierBookings({
       });
       window.history.pushState({}, '', next);
       setHighlightBookingId(id);
+      // Family desk routes remount via layout when path section changes.
+      if (family !== 'tour' || path.includes('/reservations') || path.includes('/rental-bookings')) {
+        navigateSupplierUrl(next);
+      }
     },
-    [inventoryFamily]
+    [inventoryFamily, isUnifiedDesk, bookings, listingMeta]
   );
 
   const leaveBookingDetail = useCallback(
@@ -714,9 +785,16 @@ export default function SupplierBookings({
         openSupplierInbox(bookingId, { fromBookingDetail: true });
         return;
       }
+      if (inventoryFamily === 'stay' || inventoryFamily === 'rental') {
+        const url = new URL(window.location.href);
+        url.searchParams.delete('booking');
+        const qs = url.searchParams.toString();
+        navigateSupplierUrl(`${PARTNER_APP_BASE}/bookings${qs ? `?${qs}` : ''}`);
+        return;
+      }
       setSelectedBookingId(null);
     },
-    [setSelectedBookingId]
+    [inventoryFamily, setSelectedBookingId]
   );
 
   const openBookingInbox = useCallback((bookingId: string) => {
@@ -746,7 +824,7 @@ export default function SupplierBookings({
       listingId: filterListingId,
       ops: opsFilter,
       sort: sortBy,
-      inventoryFamily,
+      inventoryFamily: inventoryFamily ?? (categoryFilter || undefined),
       highlightBookingId,
     }, {
       nowMs,
@@ -787,7 +865,7 @@ export default function SupplierBookings({
         displayListingTitleFromPurchase(b.purchase_snapshot, listingMeta[b.listing_id]?.title, ''),
       startHm: (b) => (b.start_time ? pgTimeToHm(b.start_time) ?? '' : ''),
     });
-  }, [bookings, filterDateFrom, filterDateTo, filterListingId, filterQuery, listingMeta, view, opsFilter, openCancels, inventoryFamily, highlightBookingId, purchaseFrom, purchaseTo, statusFilter, paymentFilter, sortBy]);
+  }, [bookings, filterDateFrom, filterDateTo, filterListingId, filterQuery, listingMeta, view, opsFilter, openCancels, inventoryFamily, categoryFilter, highlightBookingId, purchaseFrom, purchaseTo, statusFilter, paymentFilter, sortBy]);
 
   const totalPages = Math.max(1, Math.ceil(filteredBookings.length / BOOKINGS_PAGE_SIZE));
   const safePage = Math.min(Math.max(bookingsListPage, 1), totalPages);
@@ -1022,6 +1100,7 @@ export default function SupplierBookings({
     paymentFilter,
     opsFilter !== 'all' ? opsFilter : '',
     purchaseFrom || purchaseTo ? 'purchased' : '',
+    isUnifiedDesk && categoryFilter ? categoryFilter : '',
   ].filter(Boolean).length;
 
   const resetBookingFilters = () => {
@@ -1036,6 +1115,7 @@ export default function SupplierBookings({
       purchasedFrom: '',
       purchasedTo: '',
       q: '',
+      category: '',
     });
     setOpsFilterAndUrl('all');
     setSelectedIds(new Set());
@@ -1064,7 +1144,9 @@ export default function SupplierBookings({
             ? 'Guests, nights, and property decisions.'
             : isRentalDesk
               ? 'Customers, collection and return times, and booking details.'
-              : 'Guests, departures, and booking details.'
+              : isUnifiedDesk
+                ? 'Tours, stays, and rentals in one place.'
+                : 'Guests, departures, and booking details.'
         }
         actions={
           bookings.length > 0 ? (
@@ -1190,13 +1272,32 @@ export default function SupplierBookings({
                   { value: 'cancelled', label: 'Cancelled' },
                 ]}
               />
+              {isUnifiedDesk ? (
+                <PartnerSelect
+                  id="bookings-filter-category-mobile"
+                  aria-label="Category"
+                  searchable={false}
+                  value={categoryFilter}
+                  onChange={(category) =>
+                    writeBookingsSearchToUrl({
+                      category: (category as '' | PartnerBookingDeskFamily) || '',
+                    })
+                  }
+                  options={[
+                    { value: '', label: 'All categories' },
+                    { value: 'tour', label: 'Tours' },
+                    { value: 'stay', label: 'Stays' },
+                    { value: 'rental', label: 'Rentals' },
+                  ]}
+                />
+              ) : null}
               <PartnerSelect
                 id="bookings-filter-listing-mobile"
                 aria-label="Experience"
                 value={filterListingId}
                 onChange={(listingId) => writeBookingsSearchToUrl({ listingId })}
                 options={[
-                  { value: '', label: 'All experiences' },
+                  { value: '', label: isStayDesk ? 'All properties' : 'All listings' },
                   ...listingOptions.map((option) => ({ value: option.id, label: option.title })),
                 ]}
               />
@@ -1247,7 +1348,10 @@ export default function SupplierBookings({
                 options={[
                   { value: 'all', label: 'Any attention' },
                   { value: 'unpaid', label: 'Unpaid checkout' },
-                  ...(inventoryFamily === 'stay' || inventoryFamily === 'rental'
+                  ...(inventoryFamily === 'stay' ||
+                  inventoryFamily === 'rental' ||
+                  (isUnifiedDesk && categoryFilter === 'stay') ||
+                  (isUnifiedDesk && categoryFilter === 'rental')
                     ? []
                     : [{ value: 'pickup', label: 'Pickup details' }]),
                   { value: 'cancel', label: 'Cancellation waiting' },
@@ -1335,11 +1439,12 @@ export default function SupplierBookings({
               ? 'No traveler has reserved a stay night yet. That is normal until a stay is live and someone checks out. When they do, reservations appear here.'
               : inventoryFamily === 'rental'
                 ? 'Rental checkout is not open to travelers yet. When certified bookings complete, they will appear here with pickup and return details.'
-                : 'No traveler has booked your tours yet. That is normal until a listing is live and someone checks out. When they do, bookings appear here.'
+                : isUnifiedDesk
+                  ? 'No traveler has booked your listings yet. When they do, tours, stays, and rentals appear here together.'
+                  : 'No traveler has booked your tours yet. That is normal until a listing is live and someone checks out. When they do, bookings appear here.'
           }
           action={
             <div className="flex flex-wrap gap-2">
-              {/* Phase 1698: Calendar/Offers dual-CTA parity when bookings are empty. */}
               <button
                 type="button"
                 onClick={() => navigateSupplierUrl(PARTNER_CREATE_PATH)}
@@ -1354,23 +1459,6 @@ export default function SupplierBookings({
               >
                 Your listings
               </button>
-              {inventoryFamily === 'stay' ? (
-                <button
-                  type="button"
-                  onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/bookings`)}
-                  className="tv-btn-ghost"
-                >
-                  Tour bookings
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => navigateSupplierUrl(PARTNER_RESERVATIONS_PATH)}
-                  className="tv-btn-ghost"
-                >
-                  Stay reservations
-                </button>
-              )}
             </div>
           }
         />
@@ -1428,18 +1516,40 @@ export default function SupplierBookings({
                 { value: 'cancelled', label: 'Cancelled' },
               ]}
             />
+            {isUnifiedDesk ? (
+              <PartnerSelect
+                id="bookings-filter-category"
+                aria-label="Category"
+                searchable={false}
+                value={categoryFilter}
+                onChange={(category) =>
+                  writeBookingsSearchToUrl({
+                    category: (category as '' | PartnerBookingDeskFamily) || '',
+                  })
+                }
+                options={[
+                  { value: '', label: 'All categories' },
+                  { value: 'tour', label: 'Tours' },
+                  { value: 'stay', label: 'Stays' },
+                  { value: 'rental', label: 'Rentals' },
+                ]}
+              />
+            ) : null}
             <PartnerSelect
               id="bookings-filter-listing"
               aria-labelledby="bookings-filter-listing-label"
               value={filterListingId}
               onChange={(listingId) => writeBookingsSearchToUrl({ listingId })}
               options={[
-                { value: '', label: isStayDesk ? 'All properties' : 'All experiences' },
+                {
+                  value: '',
+                  label: isStayDesk ? 'All properties' : isUnifiedDesk ? 'All listings' : 'All experiences',
+                },
                 ...listingOptions.map((option) => ({ value: option.id, label: option.title })),
               ]}
             />
             <span id="bookings-filter-listing-label" className="sr-only">
-              {isStayDesk ? 'Property' : 'Experience'}
+              {isStayDesk ? 'Property' : 'Listing'}
             </span>
             <PartnerSelect
               id="bookings-filter-travel"
@@ -1511,7 +1621,10 @@ export default function SupplierBookings({
               options={[
                 { value: 'all', label: 'Any attention' },
                 { value: 'unpaid', label: 'Unpaid checkout' },
-                ...(inventoryFamily === 'stay' || inventoryFamily === 'rental'
+                ...(inventoryFamily === 'stay' ||
+                inventoryFamily === 'rental' ||
+                (isUnifiedDesk && categoryFilter === 'stay') ||
+                (isUnifiedDesk && categoryFilter === 'rental')
                   ? []
                   : [{ value: 'pickup', label: 'Pickup details' }]),
                 { value: 'cancel', label: 'Cancellation waiting' },
@@ -1620,6 +1733,7 @@ export default function SupplierBookings({
                     purchasedFrom: '',
                     purchasedTo: '',
                     q: '',
+                    category: '',
                   });
                   setOpsFilterAndUrl('all');
                   setBookingsListPage(1);
@@ -1688,6 +1802,8 @@ export default function SupplierBookings({
               const dep = partnerOpsDepartureDisplay(booking.purchase_snapshot, opsStartHm);
               const startHm = dep.displayHm || null;
               const meta = listingMeta[booking.listing_id];
+              const rowFamily = inventoryFamily ?? resolveBookingFamily(booking, listingMeta);
+              const categoryLabel = isUnifiedDesk ? CATEGORY_LABEL[rowFamily] : null;
               const liveOptionLabel =
                 booking.booking_option_id && meta?.bookingOptions?.length
                   ? meta.bookingOptions.find((o) => o.id === booking.booking_option_id)?.name?.trim() || ''
@@ -1699,7 +1815,7 @@ export default function SupplierBookings({
               const listingTitle = displayListingTitleFromPurchase(
                 booking.purchase_snapshot,
                 meta?.title,
-                meta?.family === 'stay' ? 'Stay' : 'Tour'
+                rowFamily === 'stay' ? 'Stay' : rowFamily === 'rental' ? 'Rental' : 'Tour'
               );
               // Phase 1742: honor Pickup planner note overrides (Trips 1716 / reminder 1741 parity).
               const rowPickup = resolvePartnerPickupCopy({
@@ -1815,7 +1931,7 @@ export default function SupplierBookings({
                 });
               };
 
-              if (isStayDesk) {
+              if (rowFamily === 'stay') {
                 const stayInTime =
                   displayStayCheckInTimeFromPurchase(booking.purchase_snapshot, meta?.stayCheckInTime) || '';
                 const stayOutTime =
@@ -1851,6 +1967,7 @@ export default function SupplierBookings({
                     model={{
                       id: booking.id,
                       listingTitle,
+                      categoryLabel,
                       imageUrl: meta?.imageUrl ?? null,
                       guestName: booking.guest_name?.trim() || 'Guest',
                       dateLine: stayDayChip ? `${stayDayChip} · ${dateLine}` : dateLine,
@@ -1898,7 +2015,7 @@ export default function SupplierBookings({
                 );
               }
 
-              if (isRentalDesk) {
+              if (rowFamily === 'rental') {
                 const rentalSnap = parseRentalPurchaseSnapshot(booking.purchase_snapshot);
                 const rentalReturn = rentalSnap ? rentalReturnPoint(rentalSnap) : null;
                 const collectionLabel = formatRentalOpsInstant(rentalSnap?.pickupAt) || dateLine;
@@ -1928,6 +2045,7 @@ export default function SupplierBookings({
                         meta?.title,
                         'Rental'
                       ),
+                      categoryLabel,
                       variantLabel: rentalSnap?.variantName?.trim() || optionLabel || null,
                       imageUrl: meta?.imageUrl ?? null,
                       customerName: booking.guest_name?.trim() || 'Customer',
@@ -1999,6 +2117,7 @@ export default function SupplierBookings({
                   model={{
                     id: booking.id,
                     listingTitle,
+                    categoryLabel,
                     optionLabel,
                     imageUrl: meta?.imageUrl ?? null,
                     guestName: booking.guest_name?.trim() || 'Guest',

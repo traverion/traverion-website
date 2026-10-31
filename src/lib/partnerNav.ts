@@ -1,11 +1,10 @@
 /**
  * Partner information architecture — single source for sidebar / More sheet labels.
  *
- * Hierarchy (Phase 1 premium sidebar):
- *   Create · Overview · Tours & Activities · Stays · Business · Help/Settings
+ * Flat workspace nav (unified Bookings):
+ *   Home · Calendar · Bookings · Listings · Inbox · Income · Analytics · Support · Settings
  *
- * Listing type (tour / stay) is chosen at Create. Mobile bottom tabs stay in
- * PARTNER_PRIMARY_NAV_SECTION_IDS.
+ * Category-specific booking desks remain as deep-link routes only.
  */
 import type { LucideIcon } from 'lucide-react';
 import {
@@ -23,9 +22,6 @@ import {
   Settings,
   Info,
   BedDouble,
-  Compass,
-  Hotel,
-  KeyRound,
 } from 'lucide-react';
 
 export type PartnerNavSectionId =
@@ -138,7 +134,7 @@ export const PARTNER_NAV_CALENDAR: PartnerNavItem = {
   icon: CalendarDays,
 };
 
-/** Tour ops under Tours & Activities. */
+/** @deprecated Deep-link only — Pickups remain via booking/calendar workflows. */
 export const PARTNER_NAV_TOURS_CHILDREN: PartnerSidebarChild[] = [
   { id: 'bookings', label: 'Bookings', icon: Calendar },
   { id: 'pickup', label: 'Pickups', icon: Car },
@@ -150,12 +146,12 @@ export const PARTNER_NAV_BOOKINGS_CHILDREN: PartnerNavItem[] = [
   { id: 'pickup', label: 'Pickups', icon: Car },
 ];
 
-/** Stay ops under Stays. */
+/** @deprecated Deep-link only — stay desk remains at `/partner/reservations`. */
 export const PARTNER_NAV_STAYS_CHILDREN: PartnerSidebarChild[] = [
   { id: 'reservations', label: 'Reservations', icon: BedDouble },
 ];
 
-/** Rental ops under Rentals. */
+/** @deprecated Deep-link only — rental desk remains at `/partner/rental-bookings`. */
 export const PARTNER_NAV_RENTALS_CHILDREN: PartnerSidebarChild[] = [
   { id: 'rental-bookings', label: 'Rental bookings', icon: Calendar },
 ];
@@ -166,43 +162,16 @@ export const PARTNER_NAV_RESERVATIONS_CHILDREN: PartnerNavItem[] = [
 ];
 
 /**
- * Desktop sidebar — Create, Overview, product ops groups, Business, footer for Help/Settings.
+ * Desktop sidebar — flat partner workspace. No category groups.
  */
 export const PARTNER_SIDEBAR_PRIMARY: PartnerSidebarEntry[] = [
-  { kind: 'section', id: 'overview', label: 'Overview' },
   { kind: 'item', id: 'dashboard', label: 'Home', icon: LayoutDashboard },
   { kind: 'item', id: 'calendar', label: 'Calendar', icon: CalendarDays },
+  { kind: 'item', id: 'bookings', label: 'Bookings', icon: Calendar },
   { kind: 'item', id: 'listings', label: 'Listings', icon: MapPin },
   { kind: 'item', id: 'inbox', label: 'Inbox', icon: MessageSquare },
-  {
-    kind: 'group',
-    id: 'tours',
-    label: 'Tours & Activities',
-    icon: Compass,
-    defaultOpen: true,
-    children: PARTNER_NAV_TOURS_CHILDREN,
-  },
-  {
-    kind: 'group',
-    id: 'stays',
-    label: 'Stays',
-    icon: Hotel,
-    defaultOpen: true,
-    children: PARTNER_NAV_STAYS_CHILDREN,
-  },
-  {
-    kind: 'group',
-    id: 'rentals',
-    label: 'Rentals',
-    icon: KeyRound,
-    defaultOpen: true,
-    children: PARTNER_NAV_RENTALS_CHILDREN,
-  },
-  { kind: 'section', id: 'business', label: 'Business' },
   { kind: 'item', id: 'earnings', label: 'Income & Payouts', icon: Wallet },
   { kind: 'item', id: 'performance', label: 'Analytics', icon: TrendingUp },
-  { kind: 'item', id: 'reviews', label: 'Reviews', icon: Star },
-  { kind: 'item', id: 'discounts', label: 'Offers', icon: Percent },
 ];
 
 export const PARTNER_SIDEBAR_FOOTER: PartnerNavItem[] = [
@@ -210,7 +179,7 @@ export const PARTNER_SIDEBAR_FOOTER: PartnerNavItem[] = [
   { id: 'business-profile', label: 'Settings', icon: Settings },
 ];
 
-/** Shared Offers leaf — also pinned in PARTNER_SIDEBAR_PRIMARY for discoverability. */
+/** Shared Offers leaf — reachable via More / deep links. */
 export const PARTNER_NAV_OFFERS: PartnerNavItem = {
   id: 'discounts',
   label: 'Offers',
@@ -319,28 +288,14 @@ export function writePartnerNavOpenGroups(ids: readonly string[]): void {
 }
 
 /**
- * Mobile More sheet — mirrors sidebar product groups without duplicating bottom tabs.
+ * Mobile More sheet — account/business destinations not on the bottom strip.
+ * Category booking desks and Pickups stay as deep links only.
  */
 export const PARTNER_MORE_GROUPS: PartnerNavGroup[] = [
   {
     id: 'operate',
     label: 'Overview',
     items: [{ id: 'inbox', label: 'Inbox', icon: MessageSquare }],
-  },
-  {
-    id: 'tours',
-    label: 'Tours & Activities',
-    items: [{ id: 'pickup', label: 'Pickups', icon: Car }],
-  },
-  {
-    id: 'stays',
-    label: 'Stays',
-    items: [...PARTNER_NAV_RESERVATIONS_CHILDREN],
-  },
-  {
-    id: 'rentals',
-    label: 'Rentals',
-    items: [{ id: 'rental-bookings', label: 'Rental bookings', icon: Calendar }],
   },
   {
     id: 'business',
