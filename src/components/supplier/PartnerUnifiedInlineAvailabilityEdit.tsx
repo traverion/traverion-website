@@ -397,11 +397,26 @@ export default function PartnerUnifiedInlineAvailabilityEdit({
       {family === 'rental' && focusedVariant ? (
         <div className="puc-inline__stack">
           <div className="puc-inline__row puc-inline__row--status">
-            <span className={`puc-inline__pill${focusedVariant.blocked ? ' is-blocked' : ''}`}>
-              {focusedVariant.blocked ? 'Blocked' : 'Open'}
+            <span
+              className={`puc-inline__pill${
+                focusedVariant.blocked
+                  ? ' is-blocked'
+                  : focusedVariant.available <= 0
+                    ? ' is-full'
+                    : ''
+              }`}
+            >
+              {focusedVariant.blocked
+                ? 'Blocked'
+                : focusedVariant.available > 0
+                  ? 'Active'
+                  : 'No stock'}
             </span>
             <span className="puc-inline__meta">
-              {focusedVariant.reserved} reserved · {focusedVariant.available} available
+              {focusedVariant.reserved} reserved
+              {focusedVariant.available > 0
+                ? ` · ${focusedVariant.available} available`
+                : ' · none left'}
             </span>
             <label className="puc-inline__switch">
               <input

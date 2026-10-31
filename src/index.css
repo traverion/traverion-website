@@ -19298,12 +19298,12 @@ details:not([open]) > :not(summary) {
 
 .partner-unified-cal__card-main {
   display: grid;
-  grid-template-columns: 3.1rem minmax(0, 1fr) minmax(7.5rem, 11.5rem);
-  gap: 0.55rem 0.7rem;
+  grid-template-columns: 3rem minmax(0, 1fr) minmax(5.75rem, 7.75rem);
+  gap: 0.45rem 0.65rem;
   align-items: center;
   width: 100%;
   min-height: 4.15rem;
-  padding: 0.45rem 0.7rem;
+  padding: 0.42rem 0.7rem;
   border: 0;
   background: transparent;
   text-align: left;
@@ -19322,7 +19322,7 @@ details:not([open]) > :not(summary) {
   display: flex;
   min-width: 0;
   flex-direction: column;
-  gap: 0.05rem;
+  gap: 0.06rem;
 }
 
 .partner-unified-cal__card-title {
@@ -19336,21 +19336,26 @@ details:not([open]) > :not(summary) {
 }
 
 .partner-unified-cal__card-option {
+  display: -webkit-box;
   overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
   font-size: 0.74rem;
   font-weight: 500;
   color: var(--puc-muted);
-  line-height: 1.25;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.3;
+  word-break: break-word;
 }
 
 .partner-unified-cal__card-cutoff,
 .partner-unified-cal__card-guest {
+  overflow: hidden;
   font-size: 0.68rem;
   font-weight: 500;
   color: var(--puc-faint);
   line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .partner-unified-cal__card-aside {
@@ -19358,20 +19363,21 @@ details:not([open]) > :not(summary) {
   min-width: 0;
   flex-direction: column;
   align-items: flex-end;
-  gap: 0.18rem;
+  gap: 0.14rem;
   text-align: right;
 }
 
 .partner-unified-cal__badge {
   display: inline-flex;
   align-items: center;
-  padding: 0.08rem 0.38rem;
+  padding: 0.06rem 0.34rem;
   border-radius: 999px;
   background: var(--partner-surface-muted, #f1f3f6);
   color: var(--puc-muted);
-  font-size: 0.62rem;
+  font-size: 0.6rem;
   font-weight: 650;
   line-height: 1.2;
+  white-space: nowrap;
 }
 
 .partner-unified-cal__badge.is-blocked {
@@ -19389,13 +19395,31 @@ details:not([open]) > :not(summary) {
   color: #475569;
 }
 
+.partner-unified-cal__badge.is-rental-kind {
+  background: color-mix(in srgb, #ca8a04 12%, white);
+  color: #92400e;
+}
+
 .partner-unified-cal__card-inventory {
+  display: flex;
   max-width: 100%;
-  font-size: 0.66rem;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.02rem;
   font-variant-numeric: tabular-nums;
+  line-height: 1.25;
+}
+
+.partner-unified-cal__card-inventory-primary {
+  font-size: 0.74rem;
+  font-weight: 650;
+  color: var(--puc-ink);
+}
+
+.partner-unified-cal__card-inventory-secondary {
+  font-size: 0.66rem;
   font-weight: 500;
   color: var(--puc-muted);
-  line-height: 1.3;
 }
 
 .partner-unified-cal__card-expand {
@@ -19571,10 +19595,25 @@ details:not([open]) > :not(summary) {
   margin-bottom: 0.2rem;
 }
 
-.partner-unified-cal__popover-head strong {
+.partner-unified-cal__popover-titles {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.08rem;
+}
+
+.partner-unified-cal__popover-titles strong {
   font-size: 0.78rem;
   font-weight: 650;
   color: var(--puc-ink);
+  line-height: 1.25;
+}
+
+.partner-unified-cal__popover-titles span {
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: var(--puc-muted);
+  line-height: 1.25;
 }
 
 .partner-unified-cal__popover-close {
@@ -19635,6 +19674,12 @@ details:not([open]) > :not(summary) {
 
 .puc-inline__row--status {
   align-items: center;
+  padding-bottom: 0.35rem;
+  border-bottom: 1px solid var(--puc-border, #e4e7ec);
+}
+
+.puc-inline__row--fields {
+  align-items: end;
 }
 
 .puc-inline__meta {
@@ -19739,6 +19784,7 @@ details:not([open]) > :not(summary) {
 
 .puc-inline__field {
   display: flex;
+  flex: 0 0 auto;
   flex-direction: column;
   gap: 0.15rem;
   min-width: 5rem;
@@ -19748,21 +19794,49 @@ details:not([open]) > :not(summary) {
 }
 
 .puc-inline__field--cutoff {
-  min-width: 8.5rem;
-  flex: 1 1 9rem;
+  min-width: 7.5rem;
+  max-width: 10.5rem;
+  flex: 0 1 10.5rem;
 }
 
-.puc-inline__field .tv-input,
-.puc-inline__field--cutoff .tv-input,
-.puc-inline__field--cutoff select {
+.puc-inline__field .tv-input {
+  width: 4.5rem;
   min-height: 2.05rem;
   font-size: 0.78rem;
+}
+
+.puc-inline__field--cutoff .tv-avail-cutoff {
+  width: 100%;
+  max-width: 10.5rem;
+}
+
+.puc-inline__field--cutoff .tv-avail-cutoff__label {
+  margin-bottom: 0.15rem;
+  font-size: 0.66rem;
+  font-weight: 600;
+  color: var(--puc-muted);
+}
+
+.puc-inline__field--cutoff .partner-select,
+.puc-inline__field--cutoff .partner-select__trigger {
+  width: 100%;
+  max-width: 10.5rem;
+}
+
+.puc-inline__field--cutoff .partner-select__trigger {
+  min-height: 2.05rem;
+  font-size: 0.78rem;
+}
+
+.puc-inline__field--cutoff .tv-avail-cutoff__hint {
+  display: none;
 }
 
 .puc-inline__btn {
   min-height: 2.05rem !important;
   padding: 0 0.75rem !important;
   font-size: 0.74rem !important;
+  flex: 0 0 auto;
 }
 
 .puc-inline__grid {
@@ -19972,18 +20046,27 @@ details:not([open]) > :not(summary) {
   }
 
   .partner-unified-cal__card-main {
-    grid-template-columns: 2.6rem minmax(0, 1fr) auto;
+    grid-template-columns: 2.5rem minmax(0, 1fr) minmax(4.75rem, 6.25rem);
     min-height: 3.85rem;
     padding: 0.38rem 0.55rem;
-    gap: 0.4rem 0.5rem;
+    gap: 0.35rem 0.45rem;
   }
 
   .partner-unified-cal__card-aside {
-    max-width: 6.5rem;
+    max-width: 6.25rem;
   }
 
-  .partner-unified-cal__card-inventory {
+  .partner-unified-cal__card-inventory-primary {
+    font-size: 0.68rem;
+  }
+
+  .partner-unified-cal__card-inventory-secondary {
     font-size: 0.6rem;
+  }
+
+  .puc-inline__field--cutoff {
+    max-width: 100%;
+    flex: 1 1 8rem;
   }
 
   .partner-unified-cal__popover {

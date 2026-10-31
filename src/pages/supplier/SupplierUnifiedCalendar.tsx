@@ -88,33 +88,55 @@ function formatDayShort(iso: string): string {
   });
 }
 
-function shortListingTitle(title: string): string {
-  const t = title.trim();
-  if (t.length <= 42) return t;
-  return `${t.slice(0, 40)}…`;
+function truncateLabel(text: string, max: number): string {
+  const t = text.trim();
+  if (t.length <= max) return t;
+  return `${t.slice(0, Math.max(1, max - 1))}…`;
 }
 
 function statusText(event: PartnerUnifiedCalendarEvent): string | null {
   if (event.departureStatus === 'closed' || event.kind === 'stay_blocked' || event.kind === 'rental_block') {
     return 'Blocked';
   }
+  if (event.kind === 'rental_collection') return 'Collection';
+  if (event.kind === 'rental_return') return 'Return';
+  if (event.kind === 'rental_ongoing') return 'On rent';
   if (event.departureStatus === 'available') return 'Open';
   if (event.departureStatus === 'limited') return 'Limited';
   if (event.departureStatus === 'sold_out') return 'Full';
   if (event.departureStatus === 'cutoff') return 'Cutoff';
-  if (event.kind === 'rental_ongoing') return 'On rent';
   return null;
 }
 
-function inventoryLine(event: PartnerUnifiedCalendarEvent): string | null {
+function badgeToneClass(event: PartnerUnifiedCalendarEvent, blocked: boolean): string {
+  if (blocked) return ' is-blocked';
+  if (event.departureStatus === 'sold_out') return ' is-full';
+  if (event.departureStatus === 'cutoff') return ' is-cutoff';
+  if (
+    event.kind === 'rental_collection' ||
+    event.kind === 'rental_return' ||
+    event.kind === 'rental_ongoing'
+  ) {
+    return ' is-rental-kind';
+  }
+  return '';
+}
+
+/** Tour inventory for the card aside — presentation only. */
+function inventoryParts(
+  event: PartnerUnifiedCalendarEvent
+): { primary: string; secondary: string } | null {
   if (
     event.bookedCount != null &&
     event.capacityCount != null &&
     event.remainingCount != null
   ) {
-    return `${event.bookedCount} booked · ${event.capacityCount} capacity · ${event.remainingCount} available`;
+    return {
+      primary: `${event.bookedCount} / ${event.capacityCount} booked`,
+      secondary: `${event.remainingCount} available`,
+    };
   }
-  return event.quantityLabel;
+  return null;
 }
 
 /** Presentation-only cutoff label for cards. */
@@ -131,9 +153,23 @@ function cutoffCardLabel(event: PartnerUnifiedCalendarEvent): string | null {
   return raw.replace(/^Cutoff:\s*/i, 'Cutoff ').split('·')[0]?.trim() || null;
 }
 
+function agendaOptionLine(event: PartnerUnifiedCalendarEvent): string | null {
+  const option = (event.optionLabel ?? '').trim();
+  if (option) return option;
+  if (event.category === 'rental') return null;
+  return partnerUnifiedEventKindLabel(event.kind);
+}
+
 function monthChipLabel(event: PartnerUnifiedCalendarEvent): string {
   const time = event.timeHm ? `${event.timeHm} ` : '';
-  const name = event.optionLabel || partnerUnifiedEventKindLabel(event.kind);
+  const kind = partnerUnifiedEventKindLabel(event.kind);
+  const option = (event.optionLabel ?? '').trim();
+  let name: string;
+  if (event.category === 'rental' && (event.kind === 'rental_collection' || event.kind === 'rental_return')) {
+    name = option ? `${kind} · ${truncateLabel(option, 16)}` : kind;
+  } else {
+    name = truncateLabel(option || kind, 20);
+  }
   const blocked =
     event.departureStatus === 'closed' ||
     event.kind === 'stay_blocked' ||
@@ -141,6 +177,16 @@ function monthChipLabel(event: PartnerUnifiedCalendarEvent): string {
       ? ' · Blocked'
       : '';
   return `${time}${name}${blocked}`.trim();
+}
+
+function monthChipTitle(event: PartnerUnifiedCalendarEvent): string {
+  return [
+    event.listingTitle?.trim(),
+    event.optionLabel?.trim(),
+    partnerUnifiedEventKindLabel(event.kind),
+  ]
+    .filter(Boolean)
+    .join(' · ');
 }
 
 function parseIsoParam(raw: string | null | undefined): string | null {
@@ -857,13 +903,20 @@ export default function SupplierUnifiedCalendar() {
                     const expanded = expandedKey === event.key;
                     const listing = listingForEvent(event);
                     const status = statusText(event);
-                    const inventory = inventoryLine(event);
+                    const inventory = inventoryParts(event);
                     const cutoff = cutoffCardLabel(event);
+                    const optionLine = agendaOptionLine(event);
                     const blocked =
                       status === 'Blocked' || event.departureStatus === 'closed';
+                    const rentalQty =
+                      event.category === 'rental' &&
+                      event.quantityLabel &&
+                      !/^(Blocked|On rent)$/i.test(event.quantityLabel)
+                        ? event.quantityLabel
+                        : null;
                     const showGuest =
                       (event.category === 'stay' || event.category === 'rental') &&
-                      Boolean(event.guestName || event.reference || event.quantityLabel);
+                      Boolean(event.guestName || event.reference || rentalQty);
                     return (
                       <article
                         key={event.key}
@@ -881,33 +934,26 @@ export default function SupplierUnifiedCalendar() {
                             toggleExpand(event.key, event);
                           }}
                           aria-expanded={expanded}
+                          title={[event.listingTitle, optionLine].filter(Boolean).join(' · ')}
                         >
                           <span className="partner-unified-cal__card-time">
                             {event.timeHm ?? '—'}
                           </span>
                           <span className="partner-unified-cal__card-body">
                             <span className="partner-unified-cal__card-title">
-                              {shortListingTitle(event.listingTitle)}
+                              {event.listingTitle}
                             </span>
-                            {event.optionLabel ? (
+                            {optionLine ? (
                               <span className="partner-unified-cal__card-option">
-                                {event.optionLabel}
+                                {optionLine}
                               </span>
-                            ) : (
-                              <span className="partner-unified-cal__card-option">
-                                {partnerUnifiedEventKindLabel(event.kind)}
-                              </span>
-                            )}
+                            ) : null}
                             {cutoff ? (
                               <span className="partner-unified-cal__card-cutoff">{cutoff}</span>
                             ) : null}
                             {showGuest ? (
                               <span className="partner-unified-cal__card-guest">
-                                {[
-                                  event.guestName,
-                                  event.category === 'rental' ? event.quantityLabel : null,
-                                  event.reference,
-                                ]
+                                {[event.guestName, rentalQty, event.reference]
                                   .filter(Boolean)
                                   .join(' · ')}
                               </span>
@@ -916,22 +962,19 @@ export default function SupplierUnifiedCalendar() {
                           <span className="partner-unified-cal__card-aside">
                             {status ? (
                               <span
-                                className={`partner-unified-cal__badge${
-                                  blocked
-                                    ? ' is-blocked'
-                                    : event.departureStatus === 'sold_out'
-                                      ? ' is-full'
-                                      : event.departureStatus === 'cutoff'
-                                        ? ' is-cutoff'
-                                        : ''
-                                }`}
+                                className={`partner-unified-cal__badge${badgeToneClass(event, blocked)}`}
                               >
                                 {status}
                               </span>
                             ) : null}
                             {inventory && event.category === 'tour' ? (
                               <span className="partner-unified-cal__card-inventory">
-                                {inventory}
+                                <span className="partner-unified-cal__card-inventory-primary">
+                                  {inventory.primary}
+                                </span>
+                                <span className="partner-unified-cal__card-inventory-secondary">
+                                  {inventory.secondary}
+                                </span>
                               </span>
                             ) : null}
                           </span>
@@ -1024,6 +1067,7 @@ export default function SupplierUnifiedCalendar() {
                             className={`partner-unified-cal__chip is-${event.category}${
                               expanded ? ' is-active' : ''
                             }`}
+                            title={monthChipTitle(event)}
                             onClick={(e) => {
                               e.stopPropagation();
                               setSelectedYmd(event.ymd);
@@ -1040,7 +1084,14 @@ export default function SupplierUnifiedCalendar() {
                               aria-label="Edit availability"
                             >
                               <div className="partner-unified-cal__popover-head">
-                                <strong>{shortListingTitle(event.listingTitle)}</strong>
+                                <div className="partner-unified-cal__popover-titles">
+                                  <strong>{event.listingTitle}</strong>
+                                  {event.optionLabel ? (
+                                    <span>{event.optionLabel}</span>
+                                  ) : (
+                                    <span>{partnerUnifiedEventKindLabel(event.kind)}</span>
+                                  )}
+                                </div>
                                 <button
                                   type="button"
                                   className="partner-unified-cal__popover-close"
