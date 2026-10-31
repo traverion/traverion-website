@@ -1,8 +1,9 @@
 /**
- * Mission 05.1–05.2 — Unified Partner Calendar.
+ * Mission 05.1–05.5 — Unified Partner Calendar.
  * Aggregates Tours / Stays / Rentals into Agenda + Month views.
  * Reuses booking occupancy + lifecycle calendar helpers; no separate inventory engine.
  * Default view hides completed/past events; ongoing stays/rentals stay visible.
+ * Mission 05.5 adds schedule/availability overlays (see partner-unified-calendar-visibility).
  */
 
 import { bookingOccupiesInventory } from './booking-hold';
@@ -47,17 +48,27 @@ export type PartnerUnifiedCalendarBooking = PartnerScheduleBooking & {
   purchase_snapshot?: unknown;
 };
 
+export type PartnerUnifiedCalendarEventKind =
+  | PartnerHomeScheduleEventKind
+  | 'tour_departure'
+  | 'stay_blocked'
+  | 'rental_ongoing'
+  | 'rental_block';
+
+export type PartnerUnifiedCalendarEventSource = 'booking' | 'schedule' | 'availability';
+
 export type PartnerUnifiedCalendarEvent = {
   key: string;
   ymd: string;
-  kind: PartnerHomeScheduleEventKind;
+  kind: PartnerUnifiedCalendarEventKind;
   category: PartnerBookingDeskFamily;
   listingId: string;
   listingTitle: string;
   optionLabel: string | null;
   guestName: string | null;
   reference: string | null;
-  bookingId: string;
+  /** Null for schedule/availability overlays (open day panel instead of a booking). */
+  bookingId: string | null;
   timeHm: string | null;
   /** Tour guests / stay guests / rental qty. */
   quantityLabel: string | null;
@@ -67,6 +78,16 @@ export type PartnerUnifiedCalendarEvent = {
    * Ongoing stay/rental days use ymd >= activeTodayIso so mid-stay nights stay visible.
    */
   activeTodayIso: string;
+  source?: PartnerUnifiedCalendarEventSource;
+  /** Tour departure operational status when kind is tour_departure. */
+  departureStatus?:
+    | 'available'
+    | 'limited'
+    | 'sold_out'
+    | 'closed'
+    | 'cutoff'
+    | 'no_schedule'
+    | null;
 };
 
 export type PartnerUnifiedMonthDaySummary = {
@@ -75,6 +96,8 @@ export type PartnerUnifiedMonthDaySummary = {
   tour: number;
   stay: number;
   rental: number;
+  /** When a stay listing is selected — night inventory without per-available events. */
+  stayNightKind?: 'available' | 'booked' | 'blocked' | null;
 };
 
 export function parsePartnerUnifiedCalendarView(
@@ -173,11 +196,12 @@ function sortUnifiedEvents(a: PartnerUnifiedCalendarEvent, b: PartnerUnifiedCale
   const tb = b.timeHm ?? '99:99';
   const byTime = ta.localeCompare(tb);
   if (byTime) return byTime;
-  const kindRank = (k: PartnerHomeScheduleEventKind): number => {
-    if (k === 'rental_collection' || k === 'stay_check_in') return 0;
+  const kindRank = (k: PartnerUnifiedCalendarEventKind): number => {
+    if (k === 'rental_collection' || k === 'stay_check_in' || k === 'tour_departure') return 0;
     if (k === 'rental_return' || k === 'stay_check_out') return 1;
-    if (k === 'stay_occupied') return 2;
-    return 3;
+    if (k === 'stay_occupied' || k === 'rental_ongoing') return 2;
+    if (k === 'stay_blocked' || k === 'rental_block') return 3;
+    return 4;
   };
   const byKind = kindRank(a.kind) - kindRank(b.kind);
   if (byKind) return byKind;
@@ -255,6 +279,7 @@ export function buildPartnerUnifiedCalendarEvents(params: {
           quantityLabel: qty,
           metaLine: [optionLabel, qty].filter(Boolean).join(' · ') || null,
           activeTodayIso,
+          source: 'booking',
         });
       }
       if (returnYmd) {
@@ -273,6 +298,7 @@ export function buildPartnerUnifiedCalendarEvents(params: {
           quantityLabel: qty,
           metaLine: [optionLabel, qty].filter(Boolean).join(' · ') || null,
           activeTodayIso,
+          source: 'booking',
         });
       }
       continue;
@@ -307,6 +333,7 @@ export function buildPartnerUnifiedCalendarEvents(params: {
               quantityLabel: quantityLabelFor(b, kind),
               metaLine: quantityLabelFor(b, kind),
               activeTodayIso,
+              source: 'booking',
             });
           }
         }
@@ -336,6 +363,7 @@ export function buildPartnerUnifiedCalendarEvents(params: {
       quantityLabel: qty,
       metaLine: [optionLabel, qty].filter(Boolean).join(' · ') || qty,
       activeTodayIso,
+      source: 'booking',
     });
   }
 
@@ -413,7 +441,17 @@ export function summarizePartnerUnifiedMonthDays(
   return map;
 }
 
-export function partnerUnifiedEventKindLabel(kind: PartnerHomeScheduleEventKind): string {
+export function partnerUnifiedEventKindLabel(kind: PartnerUnifiedCalendarEventKind): string {
+  if (
+    kind === 'tour_departure' ||
+    kind === 'stay_blocked' ||
+    kind === 'rental_ongoing' ||
+    kind === 'rental_block'
+  ) {
+    if (kind === 'tour_departure') return 'Departure';
+    if (kind === 'stay_blocked' || kind === 'rental_block') return 'Blocked';
+    return 'On rent';
+  }
   return partnerHomeScheduleEventKindLabel(kind);
 }
 

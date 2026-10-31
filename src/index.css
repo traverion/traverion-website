@@ -19872,3 +19872,80 @@ details:not([open]) > :not(summary) {
   gap: 0.5rem;
   padding-top: 0.25rem;
 }
+
+/* —— Unified calendar visibility (Mission 05.5) —— */
+.partner-unified-cal__visibility-note {
+  margin: 0 0 0.65rem;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid rgba(180, 83, 9, 0.2);
+  border-radius: 10px;
+  background: #fffbeb;
+  font-size: 0.8rem;
+  color: #92400e;
+}
+
+.partner-unified-cal__row--sold_out,
+.partner-unified-cal__row--closed {
+  border-color: rgba(185, 28, 28, 0.18);
+  background: #fff8f8;
+}
+
+.partner-unified-cal__row--cutoff {
+  border-color: rgba(146, 64, 14, 0.18);
+  background: #fffbeb;
+}
+
+.partner-unified-cal__row--available,
+.partner-unified-cal__row--limited {
+  border-color: rgba(15, 118, 110, 0.14);
+}
+
+.partner-unified-cal__cell.is-blocked {
+  background: color-mix(in srgb, #b91c1c 6%, white);
+}
+
+.partner-unified-cal__cell.is-available {
+  background: color-mix(in srgb, #0f766e 5%, white);
+}
+
+.partner-unified-cal__cell.is-booked-night {
+  background: color-mix(in srgb, #0f766e 8%, white);
+}
+
+.partner-unified-cal__dots i.is-blocked {
+  background: #b91c1c;
+}
+
+.partner-unified-cal__stock {
+  margin: 0 0 0.65rem;
+  padding: 0.55rem 0.65rem;
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+.partner-unified-cal__stock-title {
+  margin: 0 0 0.35rem;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.partner-unified-cal__stock ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.3rem;
+}
+
+.partner-unified-cal__stock li {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.25rem 0.75rem;
+  font-size: 0.75rem;
+  color: #334155;
+}

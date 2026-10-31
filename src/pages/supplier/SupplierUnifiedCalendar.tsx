@@ -1,6 +1,6 @@
 /**
- * Mission 05.1–05.4 — Unified Partner Calendar.
- * Agenda + Month, single-date editing, and bulk availability edits.
+ * Mission 05.1–05.5 — Unified Partner Calendar.
+ * Agenda + Month, single-date editing, bulk edits, and operational visibility.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
@@ -16,11 +16,21 @@ import { useSupplierRole } from '../../hooks/useSupplierRole';
 import { canManageBookings } from '../../lib/supplierTeamRoles';
 import { fetchMyListings } from '../../data/supabase-listings';
 import { fetchBookingsForSupplier, type BookingRow } from '../../data/supabase-bookings';
+import { fetchAvailabilityByListingId } from '../../data/supabase-availability';
+import {
+  fetchRentalAvailabilityBlocks,
+  fetchRentalInventoryHolds,
+  rentalVariantsFromListingExtras,
+  type RentalAvailabilityBlockRow,
+  type RentalInventoryHoldRow,
+} from '../../data/supabase-rental-availability';
 import type { TourPackage } from '../../types/tour';
 import { experienceTodayIsoForListing } from '../../lib/booking-quote';
 import { buildMonthCells } from '../../lib/availability-ops';
 import { localYmd } from '../../lib/local-ymd';
 import { addCalendarDaysYmd } from '../../lib/booking-lifecycle-calendar';
+import { inventoryFamilyFromListing } from '../../lib/inventory';
+import { materializedBookingOptions } from '../../types/listingExtras';
 import {
   buildPartnerUnifiedCalendarEvents,
   filterPartnerUnifiedCalendarEvents,
@@ -38,6 +48,16 @@ import {
   type PartnerUnifiedCalendarView,
   type PartnerUnifiedCategoryFilter,
 } from '../../lib/partner-unified-calendar';
+import {
+  annotateStayMonthSummaries,
+  buildPartnerUnifiedRentalBlockEvents,
+  buildPartnerUnifiedRentalOngoingEvents,
+  buildPartnerUnifiedStayBlockedEvents,
+  buildPartnerUnifiedTourDepartureEvents,
+  mergePartnerUnifiedVisibilityEvents,
+  partnerUnifiedRentalDayStockSummary,
+} from '../../lib/partner-unified-calendar-visibility';
+import { partnerUnifiedDayBoundsUtc } from '../../lib/partner-unified-day-edits';
 import { openSupplierBooking } from '../../lib/supplierPortalNavigation';
 import {
   SUPPLIER_PAGE_CLASS,
@@ -90,13 +110,39 @@ function CategoryGlyph({ category }: { category: PartnerUnifiedCalendarEvent['ca
   return <Compass className="h-3.5 w-3.5 shrink-0" aria-hidden />;
 }
 
-function EventRow({ event }: { event: PartnerUnifiedCalendarEvent }) {
-  const meta = [event.guestName, event.metaLine, event.reference].filter(Boolean).join(' · ');
+function EventRow({
+  event,
+  onOpenOperational,
+}: {
+  event: PartnerUnifiedCalendarEvent;
+  onOpenOperational: (event: PartnerUnifiedCalendarEvent) => void;
+}) {
+  const meta = [event.optionLabel, event.guestName, event.metaLine, event.reference]
+    .filter(Boolean)
+    .join(' · ');
+  const statusClass = event.departureStatus
+    ? ` partner-unified-cal__row--${event.departureStatus}`
+    : event.kind === 'stay_blocked' || event.kind === 'rental_block'
+      ? ' partner-unified-cal__row--closed'
+      : '';
+  const opensBooking =
+    Boolean(event.bookingId) &&
+    (event.source === 'booking' || event.source == null) &&
+    event.kind !== 'tour_departure' &&
+    event.kind !== 'stay_blocked' &&
+    event.kind !== 'rental_block';
+
   return (
     <button
       type="button"
-      className="partner-unified-cal__row"
-      onClick={() => openSupplierBooking(event.bookingId, { family: event.category })}
+      className={`partner-unified-cal__row${statusClass}`}
+      onClick={() => {
+        if (opensBooking && event.bookingId) {
+          openSupplierBooking(event.bookingId, { family: event.category });
+          return;
+        }
+        onOpenOperational(event);
+      }}
     >
       <span className="partner-unified-cal__time" aria-hidden={!event.timeHm}>
         {event.timeHm ?? '—'}
@@ -152,6 +198,15 @@ export default function SupplierUnifiedCalendar() {
   const [error, setError] = useState<string | null>(null);
   const [bulkOpen, setBulkOpen] = useState(false);
   const [calendarEpoch, setCalendarEpoch] = useState(0);
+  const [dayCapsByListing, setDayCapsByListing] = useState<Map<string, Map<string, number>>>(
+    () => new Map()
+  );
+  const [stayCaps, setStayCaps] = useState<
+    Array<{ listing_id: string; available_date: string; capacity: number }>
+  >([]);
+  const [rentalBlocks, setRentalBlocks] = useState<RentalAvailabilityBlockRow[]>([]);
+  const [rentalHolds, setRentalHolds] = useState<RentalInventoryHoldRow[]>([]);
+  const [visibilityNote, setVisibilityNote] = useState<string | null>(null);
 
   const anchorDate = useMemo(() => new Date(`${anchorYmd}T12:00:00Z`), [anchorYmd]);
   const year = anchorDate.getUTCFullYear();
@@ -218,19 +273,226 @@ export default function SupplierUnifiedCalendar() {
     return partnerUnifiedAgendaRange(anchorYmd);
   }, [view, year, monthIndex0, anchorYmd]);
 
-  const allEvents = useMemo(
+  const selectedListing = useMemo(
+    () => (listingId ? listings.find((l) => l.id === listingId) ?? null : null),
+    [listings, listingId]
+  );
+  const selectedFamily = selectedListing
+    ? inventoryFamilyFromListing(selectedListing)
+    : null;
+
+  const scopedListings = useMemo(
+    () => listingsForUnifiedCategoryFilter(listings, category),
+    [listings, category]
+  );
+
+  const tourListingsInScope = useMemo(
+    () => scopedListings.filter((l) => inventoryFamilyFromListing(l) === 'tour'),
+    [scopedListings]
+  );
+
+  // Load day caps for tour schedules (+ stay caps / rental blocks when a listing is selected).
+  useEffect(() => {
+    if (!isSupabase || listings.length === 0) {
+      setDayCapsByListing(new Map());
+      setStayCaps([]);
+      setRentalBlocks([]);
+      setRentalHolds([]);
+      setVisibilityNote(null);
+      return;
+    }
+
+    let cancelled = false;
+    void (async () => {
+      const notes: string[] = [];
+      try {
+        const needTourCaps = category === 'all' || category === 'tour';
+        const nextCaps = new Map<string, Map<string, number>>();
+        if (needTourCaps && tourListingsInScope.length > 0) {
+          const results = await Promise.all(
+            tourListingsInScope.map(async (l) => {
+              try {
+                const rows = await fetchAvailabilityByListingId(l.id, {
+                  fromDate: range.fromYmd,
+                  toDate: range.toYmd,
+                });
+                return { id: l.id, rows, ok: true as const };
+              } catch {
+                return { id: l.id, rows: [], ok: false as const };
+              }
+            })
+          );
+          let failed = 0;
+          for (const r of results) {
+            if (!r.ok) failed += 1;
+            const m = new Map<string, number>();
+            for (const row of r.rows) {
+              m.set(row.available_date, Number(row.capacity));
+            }
+            nextCaps.set(r.id, m);
+          }
+          if (failed > 0) {
+            notes.push(
+              `Could not load closed-day overrides for ${failed} tour listing${
+                failed === 1 ? '' : 's'
+              }. Open/full/cutoff still use schedule + bookings.`
+            );
+          }
+        }
+        if (!cancelled) setDayCapsByListing(nextCaps);
+
+        if (selectedListing && selectedFamily === 'stay') {
+          try {
+            const rows = await fetchAvailabilityByListingId(selectedListing.id, {
+              fromDate: range.fromYmd,
+              toDate: range.toYmd,
+            });
+            if (!cancelled) {
+              setStayCaps(
+                rows.map((r) => ({
+                  listing_id: r.listing_id,
+                  available_date: r.available_date,
+                  capacity: Number(r.capacity),
+                }))
+              );
+            }
+          } catch {
+            if (!cancelled) {
+              setStayCaps([]);
+              notes.push('Stay blocked nights unavailable — caps could not be loaded.');
+            }
+          }
+        } else if (!cancelled) {
+          setStayCaps([]);
+        }
+
+        if (selectedListing && selectedFamily === 'rental') {
+          try {
+            const start = partnerUnifiedDayBoundsUtc(range.fromYmd);
+            const endExclusive = addCalendarDaysYmd(range.toYmd, 1) ?? range.toYmd;
+            const endIso = `${endExclusive}T00:00:00.000Z`;
+            const [blocks, holds] = await Promise.all([
+              fetchRentalAvailabilityBlocks(selectedListing.id, start.startIso, endIso),
+              fetchRentalInventoryHolds(selectedListing.id, start.startIso, endIso),
+            ]);
+            if (!cancelled) {
+              setRentalBlocks(blocks);
+              setRentalHolds(holds);
+            }
+          } catch {
+            if (!cancelled) {
+              setRentalBlocks([]);
+              setRentalHolds([]);
+              notes.push('Rental blocks/stock unavailable for this range.');
+            }
+          }
+        } else if (!cancelled) {
+          setRentalBlocks([]);
+          setRentalHolds([]);
+        }
+
+        if (!cancelled) setVisibilityNote(notes[0] ?? null);
+      } catch (e) {
+        if (!cancelled) {
+          setVisibilityNote(userFacingError(e, USER_ERROR.calendar));
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    isSupabase,
+    listings,
+    tourListingsInScope,
+    category,
+    range.fromYmd,
+    range.toYmd,
+    selectedListing,
+    selectedFamily,
+    calendarEpoch,
+  ]);
+
+  const bookingEvents = useMemo(
     () =>
       buildPartnerUnifiedCalendarEvents({
         bookings,
         fromYmd: range.fromYmd,
         toYmd: range.toYmd,
         titlesByListingId,
-        includeOccupiedNights: view === 'agenda',
+        includeOccupiedNights: view === 'agenda' || Boolean(listingId && selectedFamily === 'stay'),
       }),
     // calendarEpoch forces rebuild after bulk/day edits refresh bookings/listings
     // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional refresh bump
-    [bookings, range.fromYmd, range.toYmd, titlesByListingId, view, calendarEpoch]
+    [bookings, range.fromYmd, range.toYmd, titlesByListingId, view, listingId, selectedFamily, calendarEpoch]
   );
+
+  const allEvents = useMemo(() => {
+    const needTours = category === 'all' || category === 'tour';
+    const tourDepartures = needTours
+      ? buildPartnerUnifiedTourDepartureEvents({
+          listings: tourListingsInScope,
+          bookings,
+          dayCaps: dayCapsByListing,
+          fromYmd: range.fromYmd,
+          toYmd: range.toYmd,
+          listingIdFilter: listingId || null,
+        })
+      : [];
+
+    const stayBlocked =
+      selectedListing && selectedFamily === 'stay'
+        ? buildPartnerUnifiedStayBlockedEvents({
+            listing: selectedListing,
+            bookings,
+            caps: stayCaps,
+            fromYmd: range.fromYmd,
+            toYmd: range.toYmd,
+          })
+        : [];
+
+    const rentalOngoing =
+      selectedListing && selectedFamily === 'rental'
+        ? buildPartnerUnifiedRentalOngoingEvents({
+            listing: selectedListing,
+            bookings,
+            fromYmd: range.fromYmd,
+            toYmd: range.toYmd,
+          })
+        : [];
+
+    const rentalBlockEvents =
+      selectedListing && selectedFamily === 'rental'
+        ? buildPartnerUnifiedRentalBlockEvents({
+            listing: selectedListing,
+            blocks: rentalBlocks,
+            fromYmd: range.fromYmd,
+            toYmd: range.toYmd,
+          })
+        : [];
+
+    return mergePartnerUnifiedVisibilityEvents({
+      bookingEvents,
+      tourDepartures,
+      stayBlocked,
+      rentalOngoing,
+      rentalBlocks: rentalBlockEvents,
+    });
+  }, [
+    bookingEvents,
+    category,
+    tourListingsInScope,
+    bookings,
+    dayCapsByListing,
+    range.fromYmd,
+    range.toYmd,
+    listingId,
+    selectedListing,
+    selectedFamily,
+    stayCaps,
+    rentalBlocks,
+  ]);
 
   const filteredEvents = useMemo(
     () =>
@@ -249,10 +511,44 @@ export default function SupplierUnifiedCalendar() {
   );
 
   const monthCells = useMemo(() => buildMonthCells(year, monthIndex0), [year, monthIndex0]);
-  const monthSummaries = useMemo(
-    () => summarizePartnerUnifiedMonthDays(filteredEvents, year, monthIndex0),
-    [filteredEvents, year, monthIndex0]
-  );
+  const monthSummaries = useMemo(() => {
+    const base = summarizePartnerUnifiedMonthDays(filteredEvents, year, monthIndex0);
+    if (selectedListing && selectedFamily === 'stay') {
+      return annotateStayMonthSummaries({
+        summaries: base,
+        listingId: selectedListing.id,
+        bookings,
+        caps: stayCaps,
+      });
+    }
+    return base;
+  }, [
+    filteredEvents,
+    year,
+    monthIndex0,
+    selectedListing,
+    selectedFamily,
+    bookings,
+    stayCaps,
+  ]);
+
+  const rentalStockForSelectedDay = useMemo(() => {
+    if (!selectedListing || selectedFamily !== 'rental' || !selectedYmd) return [];
+    return partnerUnifiedRentalDayStockSummary({
+      listing: selectedListing,
+      iso: selectedYmd,
+      blocks: rentalBlocks,
+      holds: rentalHolds,
+    });
+  }, [selectedListing, selectedFamily, selectedYmd, rentalBlocks, rentalHolds]);
+
+  const openOperationalEvent = useCallback((event: PartnerUnifiedCalendarEvent) => {
+    setSelectedYmd(event.ymd);
+    setListingId(event.listingId);
+    if (event.bookingId && (event.kind === 'rental_ongoing' || event.kind === 'rental_collection' || event.kind === 'rental_return')) {
+      openSupplierBooking(event.bookingId, { family: event.category });
+    }
+  }, []);
 
   const selectedDayEvents = useMemo(
     () => filteredEvents.filter((e) => e.ymd === selectedYmd),
@@ -268,7 +564,7 @@ export default function SupplierUnifiedCalendar() {
   }, [listings, category]);
 
   const optionChoices = useMemo(() => {
-    const base = partnerUnifiedOptionChoices(
+    const fromEvents = partnerUnifiedOptionChoices(
       filterPartnerUnifiedCalendarEvents(allEvents, {
         category,
         listingId: listingId || null,
@@ -276,8 +572,29 @@ export default function SupplierUnifiedCalendar() {
         includePast: true,
       })
     );
-    return [{ value: '', label: 'All options' }, ...base];
-  }, [allEvents, category, listingId]);
+    const seen = new Map(fromEvents.map((o) => [o.value, o]));
+    const pool = listingId
+      ? listings.filter((l) => l.id === listingId)
+      : listingsForUnifiedCategoryFilter(listings, category);
+    for (const l of pool) {
+      if (inventoryFamilyFromListing(l) === 'tour') {
+        for (const o of materializedBookingOptions(l.listingExtras?.bookingOptions)) {
+          const label = (o.name ?? '').trim();
+          if (label && !seen.has(label)) seen.set(label, { value: label, label });
+        }
+      }
+      if (inventoryFamilyFromListing(l) === 'rental') {
+        for (const v of rentalVariantsFromListingExtras(l.listingExtras)) {
+          const label = (v.name ?? '').trim();
+          if (label && !seen.has(label)) seen.set(label, { value: label, label });
+        }
+      }
+    }
+    return [
+      { value: '', label: 'All options' },
+      ...[...seen.values()].sort((a, b) => a.label.localeCompare(b.label)),
+    ];
+  }, [allEvents, category, listingId, listings]);
 
   useEffect(() => {
     if (listingId && !listingOptions.some((o) => o.value === listingId)) {
@@ -342,6 +659,11 @@ export default function SupplierUnifiedCalendar() {
 
       {error ? (
         <ErrorState title="Could not load" body={error} retry={{ onClick: () => void load() }} />
+      ) : null}
+      {visibilityNote ? (
+        <p className="partner-unified-cal__visibility-note" role="status">
+          {visibilityNote}
+        </p>
       ) : null}
 
       <div className="partner-unified-cal__toolbar">
@@ -506,7 +828,11 @@ export default function SupplierUnifiedCalendar() {
                   </header>
                   <div className="partner-unified-cal__day-list">
                     {group.events.map((event) => (
-                      <EventRow key={event.key} event={event} />
+                      <EventRow
+                        key={event.key}
+                        event={event}
+                        onOpenOperational={openOperationalEvent}
+                      />
                     ))}
                   </div>
                 </section>
@@ -541,6 +867,7 @@ export default function SupplierUnifiedCalendar() {
                 const isSelected = cell.iso === selectedYmd;
                 const isPast = cell.iso < todayIso;
                 const count = summary?.total ?? 0;
+                const nightKind = summary?.stayNightKind;
                 return (
                   <button
                     key={cell.iso}
@@ -553,11 +880,16 @@ export default function SupplierUnifiedCalendar() {
                       isSelected ? 'is-selected' : '',
                       isPast ? 'is-past' : '',
                       count > 0 ? 'has-events' : '',
+                      nightKind === 'blocked' ? 'is-blocked' : '',
+                      nightKind === 'available' && selectedFamily === 'stay' ? 'is-available' : '',
+                      nightKind === 'booked' ? 'is-booked-night' : '',
                     ]
                       .filter(Boolean)
                       .join(' ')}
                     onClick={() => setSelectedYmd(cell.iso)}
-                    aria-label={`${cell.iso}${count ? `, ${count} events` : ''}`}
+                    aria-label={`${cell.iso}${count ? `, ${count} events` : ''}${
+                      nightKind ? `, ${nightKind}` : ''
+                    }`}
                     aria-pressed={isSelected}
                   >
                     <span className="partner-unified-cal__cell-top">
@@ -568,8 +900,11 @@ export default function SupplierUnifiedCalendar() {
                     </span>
                     <span className="partner-unified-cal__dots" aria-hidden>
                       {(summary?.tour ?? 0) > 0 ? <i className="is-tour" /> : null}
-                      {(summary?.stay ?? 0) > 0 ? <i className="is-stay" /> : null}
+                      {(summary?.stay ?? 0) > 0 || nightKind === 'booked' ? (
+                        <i className="is-stay" />
+                      ) : null}
                       {(summary?.rental ?? 0) > 0 ? <i className="is-rental" /> : null}
+                      {nightKind === 'blocked' ? <i className="is-blocked" /> : null}
                     </span>
                   </button>
                 );
@@ -578,10 +913,31 @@ export default function SupplierUnifiedCalendar() {
           </div>
 
           <aside className="partner-unified-cal__side partner-unified-cal__side--edit">
+            {rentalStockForSelectedDay.length > 0 ? (
+              <div className="partner-unified-cal__stock" aria-label="Rental stock">
+                <p className="partner-unified-cal__stock-title">Stock today</p>
+                <ul>
+                  {rentalStockForSelectedDay.map((row) => (
+                    <li key={row.optionName}>
+                      <span>{row.optionName}</span>
+                      <span>
+                        {row.blocked
+                          ? 'Blocked'
+                          : `${row.available} free · ${row.reserved} reserved · ${row.stock} stock`}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
             {selectedDayEvents.length > 0 ? (
               <div className="partner-unified-cal__day-list partner-unified-cal__side-bookings">
                 {selectedDayEvents.map((event) => (
-                  <EventRow key={event.key} event={event} />
+                  <EventRow
+                    key={event.key}
+                    event={event}
+                    onOpenOperational={openOperationalEvent}
+                  />
                 ))}
               </div>
             ) : selectedYmd < todayIso && !includePast ? (
