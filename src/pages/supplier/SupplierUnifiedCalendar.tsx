@@ -1,8 +1,8 @@
 /**
- * Mission 05.1–05.5 — Unified Partner Calendar.
- * Agenda + Month, single-date editing, bulk edits, and operational visibility.
+ * Mission 05.1–05.6.2 — Unified Partner Calendar.
+ * Full-width Agenda/Month with inline expandable editing (no side panel).
  */
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   BedDouble,
   CalendarDays,
@@ -10,6 +10,7 @@ import {
   ChevronRight,
   Compass,
   KeyRound,
+  Pencil,
 } from 'lucide-react';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import { useSupplierRole } from '../../hooks/useSupplierRole';
@@ -22,7 +23,6 @@ import {
   fetchRentalInventoryHolds,
   rentalVariantsFromListingExtras,
   type RentalAvailabilityBlockRow,
-  type RentalInventoryHoldRow,
 } from '../../data/supabase-rental-availability';
 import type { TourPackage } from '../../types/tour';
 import { experienceTodayIsoForListing } from '../../lib/booking-quote';
@@ -39,7 +39,6 @@ import {
   parsePartnerUnifiedCalendarView,
   parsePartnerUnifiedCategoryFilter,
   partnerUnifiedAgendaRange,
-  partnerUnifiedCategoryLabel,
   partnerUnifiedEventKindLabel,
   partnerUnifiedMonthRange,
   partnerUnifiedOptionChoices,
@@ -55,7 +54,6 @@ import {
   buildPartnerUnifiedStayBlockedEvents,
   buildPartnerUnifiedTourDepartureEvents,
   mergePartnerUnifiedVisibilityEvents,
-  partnerUnifiedRentalDayStockSummary,
 } from '../../lib/partner-unified-calendar-visibility';
 import { partnerUnifiedDayBoundsUtc } from '../../lib/partner-unified-day-edits';
 import { openSupplierBooking } from '../../lib/supplierPortalNavigation';
@@ -65,12 +63,13 @@ import {
   SupplierPageHero,
 } from '../../components/supplier/supplierUi';
 import PartnerSelect from '../../components/supplier/PartnerSelect';
-import PartnerUnifiedDayAvailabilityPanel from '../../components/supplier/PartnerUnifiedDayAvailabilityPanel';
 import PartnerUnifiedBulkEditPanel from '../../components/supplier/PartnerUnifiedBulkEditPanel';
+import PartnerUnifiedInlineAvailabilityEdit from '../../components/supplier/PartnerUnifiedInlineAvailabilityEdit';
 import ErrorState from '../../components/ErrorState';
 import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
 
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+const MONTH_CELL_MAX = 3;
 
 function readSearch(): URLSearchParams {
   if (typeof window === 'undefined') return new URLSearchParams();
@@ -82,7 +81,6 @@ function formatDayHeading(iso: string): string {
     weekday: 'long',
     day: 'numeric',
     month: 'long',
-    year: 'numeric',
     timeZone: 'UTC',
   });
 }
@@ -104,61 +102,50 @@ function formatMonthLabel(year: number, monthIndex0: number): string {
   });
 }
 
-function CategoryGlyph({ category }: { category: PartnerUnifiedCalendarEvent['category'] }) {
-  if (category === 'stay') return <BedDouble className="h-3.5 w-3.5 shrink-0" aria-hidden />;
-  if (category === 'rental') return <KeyRound className="h-3.5 w-3.5 shrink-0" aria-hidden />;
-  return <Compass className="h-3.5 w-3.5 shrink-0" aria-hidden />;
+function shortListingTitle(title: string): string {
+  const t = title.trim();
+  if (t.length <= 36) return t;
+  return `${t.slice(0, 34)}…`;
 }
 
-function EventRow({
-  event,
-  onOpenOperational,
-}: {
-  event: PartnerUnifiedCalendarEvent;
-  onOpenOperational: (event: PartnerUnifiedCalendarEvent) => void;
-}) {
-  const meta = [event.optionLabel, event.guestName, event.metaLine, event.reference]
-    .filter(Boolean)
-    .join(' · ');
-  const statusClass = event.departureStatus
-    ? ` partner-unified-cal__row--${event.departureStatus}`
-    : event.kind === 'stay_blocked' || event.kind === 'rental_block'
-      ? ' partner-unified-cal__row--closed'
-      : '';
-  const opensBooking =
-    Boolean(event.bookingId) &&
-    (event.source === 'booking' || event.source == null) &&
-    event.kind !== 'tour_departure' &&
-    event.kind !== 'stay_blocked' &&
-    event.kind !== 'rental_block';
+function statusText(event: PartnerUnifiedCalendarEvent): string | null {
+  if (event.departureStatus === 'available') return 'Open';
+  if (event.departureStatus === 'limited') return 'Limited';
+  if (event.departureStatus === 'sold_out') return 'Full';
+  if (event.departureStatus === 'closed') return 'Closed';
+  if (event.departureStatus === 'cutoff') return 'Cutoff';
+  if (event.kind === 'stay_blocked' || event.kind === 'rental_block') return 'Blocked';
+  if (event.kind === 'rental_ongoing') return 'On rent';
+  return null;
+}
 
-  return (
-    <button
-      type="button"
-      className={`partner-unified-cal__row${statusClass}`}
-      onClick={() => {
-        if (opensBooking && event.bookingId) {
-          openSupplierBooking(event.bookingId, { family: event.category });
-          return;
-        }
-        onOpenOperational(event);
-      }}
-    >
-      <span className="partner-unified-cal__time" aria-hidden={!event.timeHm}>
-        {event.timeHm ?? '—'}
-      </span>
-      <span className="partner-unified-cal__body">
-        <span className="partner-unified-cal__title-row">
-          <span className={`partner-unified-cal__kind partner-unified-cal__kind--${event.category}`}>
-            <CategoryGlyph category={event.category} />
-            {partnerUnifiedEventKindLabel(event.kind)}
-          </span>
-          <span className="partner-unified-cal__cat">{partnerUnifiedCategoryLabel(event.category)}</span>
-        </span>
-        <span className="partner-unified-cal__title">{event.listingTitle}</span>
-        {meta ? <span className="partner-unified-cal__meta">{meta}</span> : null}
-      </span>
-    </button>
+function capacityText(event: PartnerUnifiedCalendarEvent): string | null {
+  if (event.kind === 'tour_departure' || event.kind === 'tour') {
+    return event.quantityLabel;
+  }
+  return event.quantityLabel;
+}
+
+function monthChipLabel(event: PartnerUnifiedCalendarEvent): string {
+  const time = event.timeHm ? `${event.timeHm} ` : '';
+  const name = event.optionLabel || partnerUnifiedEventKindLabel(event.kind);
+  return `${time}${name}`.trim();
+}
+
+function CategoryGlyph({ category }: { category: PartnerUnifiedCalendarEvent['category'] }) {
+  if (category === 'stay') return <BedDouble className="h-3 w-3 shrink-0" aria-hidden />;
+  if (category === 'rental') return <KeyRound className="h-3 w-3 shrink-0" aria-hidden />;
+  return <Compass className="h-3 w-3 shrink-0" aria-hidden />;
+}
+
+function eventOpensBooking(event: PartnerUnifiedCalendarEvent): boolean {
+  return Boolean(
+    event.bookingId &&
+      (event.source === 'booking' || event.source == null) &&
+      event.kind !== 'tour_departure' &&
+      event.kind !== 'stay_blocked' &&
+      event.kind !== 'rental_block' &&
+      event.kind !== 'rental_ongoing'
   );
 }
 
@@ -198,6 +185,7 @@ export default function SupplierUnifiedCalendar() {
   const [error, setError] = useState<string | null>(null);
   const [bulkOpen, setBulkOpen] = useState(false);
   const [calendarEpoch, setCalendarEpoch] = useState(0);
+  const [expandedKey, setExpandedKey] = useState<string | null>(null);
   const [dayCapsByListing, setDayCapsByListing] = useState<Map<string, Map<string, number>>>(
     () => new Map()
   );
@@ -205,8 +193,8 @@ export default function SupplierUnifiedCalendar() {
     Array<{ listing_id: string; available_date: string; capacity: number }>
   >([]);
   const [rentalBlocks, setRentalBlocks] = useState<RentalAvailabilityBlockRow[]>([]);
-  const [rentalHolds, setRentalHolds] = useState<RentalInventoryHoldRow[]>([]);
   const [visibilityNote, setVisibilityNote] = useState<string | null>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
 
   const anchorDate = useMemo(() => new Date(`${anchorYmd}T12:00:00Z`), [anchorYmd]);
   const year = anchorDate.getUTCFullYear();
@@ -262,6 +250,21 @@ export default function SupplierUnifiedCalendar() {
     window.history.replaceState({}, '', qs ? `${url.pathname}?${qs}` : url.pathname);
   }, [view, category, listingId, optionKey, includePast, anchorYmd, selectedYmd, todayIso]);
 
+  useEffect(() => {
+    setExpandedKey(null);
+  }, [view, category, listingId, optionKey, anchorYmd]);
+
+  useEffect(() => {
+    if (!expandedKey || view !== 'month') return;
+    const onDoc = (e: MouseEvent) => {
+      if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
+        setExpandedKey(null);
+      }
+    };
+    document.addEventListener('mousedown', onDoc);
+    return () => document.removeEventListener('mousedown', onDoc);
+  }, [expandedKey, view]);
+
   const titlesByListingId = useMemo(() => {
     const map = new Map<string, string>();
     for (const l of listings) map.set(l.id, l.title || 'Listing');
@@ -277,9 +280,7 @@ export default function SupplierUnifiedCalendar() {
     () => (listingId ? listings.find((l) => l.id === listingId) ?? null : null),
     [listings, listingId]
   );
-  const selectedFamily = selectedListing
-    ? inventoryFamilyFromListing(selectedListing)
-    : null;
+  const selectedFamily = selectedListing ? inventoryFamilyFromListing(selectedListing) : null;
 
   const scopedListings = useMemo(
     () => listingsForUnifiedCategoryFilter(listings, category),
@@ -291,13 +292,11 @@ export default function SupplierUnifiedCalendar() {
     [scopedListings]
   );
 
-  // Load day caps for tour schedules (+ stay caps / rental blocks when a listing is selected).
   useEffect(() => {
     if (!isSupabase || listings.length === 0) {
       setDayCapsByListing(new Map());
       setStayCaps([]);
       setRentalBlocks([]);
-      setRentalHolds([]);
       setVisibilityNote(null);
       return;
     }
@@ -326,16 +325,12 @@ export default function SupplierUnifiedCalendar() {
           for (const r of results) {
             if (!r.ok) failed += 1;
             const m = new Map<string, number>();
-            for (const row of r.rows) {
-              m.set(row.available_date, Number(row.capacity));
-            }
+            for (const row of r.rows) m.set(row.available_date, Number(row.capacity));
             nextCaps.set(r.id, m);
           }
           if (failed > 0) {
             notes.push(
-              `Could not load closed-day overrides for ${failed} tour listing${
-                failed === 1 ? '' : 's'
-              }. Open/full/cutoff still use schedule + bookings.`
+              `Closed-day overrides unavailable for ${failed} tour listing${failed === 1 ? '' : 's'}.`
             );
           }
         }
@@ -359,7 +354,7 @@ export default function SupplierUnifiedCalendar() {
           } catch {
             if (!cancelled) {
               setStayCaps([]);
-              notes.push('Stay blocked nights unavailable — caps could not be loaded.');
+              notes.push('Stay blocks unavailable.');
             }
           }
         } else if (!cancelled) {
@@ -371,31 +366,24 @@ export default function SupplierUnifiedCalendar() {
             const start = partnerUnifiedDayBoundsUtc(range.fromYmd);
             const endExclusive = addCalendarDaysYmd(range.toYmd, 1) ?? range.toYmd;
             const endIso = `${endExclusive}T00:00:00.000Z`;
-            const [blocks, holds] = await Promise.all([
+            const [blocks] = await Promise.all([
               fetchRentalAvailabilityBlocks(selectedListing.id, start.startIso, endIso),
               fetchRentalInventoryHolds(selectedListing.id, start.startIso, endIso),
             ]);
-            if (!cancelled) {
-              setRentalBlocks(blocks);
-              setRentalHolds(holds);
-            }
+            if (!cancelled) setRentalBlocks(blocks);
           } catch {
             if (!cancelled) {
               setRentalBlocks([]);
-              setRentalHolds([]);
-              notes.push('Rental blocks/stock unavailable for this range.');
+              notes.push('Rental blocks unavailable.');
             }
           }
         } else if (!cancelled) {
           setRentalBlocks([]);
-          setRentalHolds([]);
         }
 
         if (!cancelled) setVisibilityNote(notes[0] ?? null);
       } catch (e) {
-        if (!cancelled) {
-          setVisibilityNote(userFacingError(e, USER_ERROR.calendar));
-        }
+        if (!cancelled) setVisibilityNote(userFacingError(e, USER_ERROR.calendar));
       }
     })();
 
@@ -423,8 +411,7 @@ export default function SupplierUnifiedCalendar() {
         titlesByListingId,
         includeOccupiedNights: view === 'agenda' || Boolean(listingId && selectedFamily === 'stay'),
       }),
-    // calendarEpoch forces rebuild after bulk/day edits refresh bookings/listings
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional refresh bump
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- calendarEpoch refresh
     [bookings, range.fromYmd, range.toYmd, titlesByListingId, view, listingId, selectedFamily, calendarEpoch]
   );
 
@@ -522,38 +509,17 @@ export default function SupplierUnifiedCalendar() {
       });
     }
     return base;
-  }, [
-    filteredEvents,
-    year,
-    monthIndex0,
-    selectedListing,
-    selectedFamily,
-    bookings,
-    stayCaps,
-  ]);
+  }, [filteredEvents, year, monthIndex0, selectedListing, selectedFamily, bookings, stayCaps]);
 
-  const rentalStockForSelectedDay = useMemo(() => {
-    if (!selectedListing || selectedFamily !== 'rental' || !selectedYmd) return [];
-    return partnerUnifiedRentalDayStockSummary({
-      listing: selectedListing,
-      iso: selectedYmd,
-      blocks: rentalBlocks,
-      holds: rentalHolds,
-    });
-  }, [selectedListing, selectedFamily, selectedYmd, rentalBlocks, rentalHolds]);
-
-  const openOperationalEvent = useCallback((event: PartnerUnifiedCalendarEvent) => {
-    setSelectedYmd(event.ymd);
-    setListingId(event.listingId);
-    if (event.bookingId && (event.kind === 'rental_ongoing' || event.kind === 'rental_collection' || event.kind === 'rental_return')) {
-      openSupplierBooking(event.bookingId, { family: event.category });
+  const eventsByDay = useMemo(() => {
+    const map = new Map<string, PartnerUnifiedCalendarEvent[]>();
+    for (const e of filteredEvents) {
+      const list = map.get(e.ymd);
+      if (list) list.push(e);
+      else map.set(e.ymd, [e]);
     }
-  }, []);
-
-  const selectedDayEvents = useMemo(
-    () => filteredEvents.filter((e) => e.ymd === selectedYmd),
-    [filteredEvents, selectedYmd]
-  );
+    return map;
+  }, [filteredEvents]);
 
   const listingOptions = useMemo(() => {
     const scoped = listingsForUnifiedCategoryFilter(listings, category);
@@ -597,15 +563,11 @@ export default function SupplierUnifiedCalendar() {
   }, [allEvents, category, listingId, listings]);
 
   useEffect(() => {
-    if (listingId && !listingOptions.some((o) => o.value === listingId)) {
-      setListingId('');
-    }
+    if (listingId && !listingOptions.some((o) => o.value === listingId)) setListingId('');
   }, [listingId, listingOptions]);
 
   useEffect(() => {
-    if (optionKey && !optionChoices.some((o) => o.value === optionKey)) {
-      setOptionKey('');
-    }
+    if (optionKey && !optionChoices.some((o) => o.value === optionKey)) setOptionKey('');
   }, [optionKey, optionChoices]);
 
   const shiftAgenda = (deltaDays: number) => {
@@ -615,9 +577,7 @@ export default function SupplierUnifiedCalendar() {
 
   const shiftMonth = (delta: number) => {
     const d = new Date(Date.UTC(year, monthIndex0 + delta, 1));
-    const iso = d.toISOString().slice(0, 10);
-    setAnchorYmd(iso);
-    setSelectedYmd(iso);
+    setAnchorYmd(d.toISOString().slice(0, 10));
   };
 
   const goToday = () => {
@@ -625,10 +585,28 @@ export default function SupplierUnifiedCalendar() {
     setSelectedYmd(todayIso);
   };
 
+  const refreshAfterEdit = useCallback(() => {
+    void load().then(() => setCalendarEpoch((n) => n + 1));
+  }, [load]);
+
+  const toggleExpand = (key: string, event?: PartnerUnifiedCalendarEvent) => {
+    if (event) {
+      setSelectedYmd(event.ymd);
+      if (eventOpensBooking(event) && event.bookingId && expandedKey !== key) {
+        // First click on a pure booking can open details; second expands edit.
+        // Prefer: click expands; separate "Open booking" in inline panel.
+      }
+    }
+    setExpandedKey((prev) => (prev === key ? null : key));
+  };
+
+  const listingForEvent = (event: PartnerUnifiedCalendarEvent) =>
+    listings.find((l) => l.id === event.listingId) ?? null;
+
   const emptyPastHint =
     !includePast &&
     ((view === 'agenda' && range.toYmd < todayIso) ||
-      (view === 'month' && selectedYmd < todayIso && selectedDayEvents.length === 0));
+      (view === 'month' && selectedYmd < todayIso && (eventsByDay.get(selectedYmd)?.length ?? 0) === 0));
 
   if (!isSupabase) {
     return (
@@ -641,16 +619,16 @@ export default function SupplierUnifiedCalendar() {
   return (
     <div className={`${SUPPLIER_PAGE_CLASS} partner-unified-cal`}>
       <SupplierPageHero
-        badge="Overview"
         title="Calendar"
-        description="Tours, stays, and rentals in one place."
+        description="Upcoming operations across tours, stays, and rentals."
         actions={
           canEdit && listings.length > 0 ? (
             <button
               type="button"
-              className="tv-btn-secondary inline-flex min-h-10 items-center px-3 text-sm font-semibold"
+              className="tv-btn-primary inline-flex min-h-10 items-center gap-1.5 px-3.5 text-sm font-semibold"
               onClick={() => setBulkOpen(true)}
             >
+              <Pencil className="h-3.5 w-3.5" aria-hidden />
               Bulk edit
             </button>
           ) : null
@@ -661,68 +639,63 @@ export default function SupplierUnifiedCalendar() {
         <ErrorState title="Could not load" body={error} retry={{ onClick: () => void load() }} />
       ) : null}
       {visibilityNote ? (
-        <p className="partner-unified-cal__visibility-note" role="status">
+        <p className="partner-unified-cal__note" role="status">
           {visibilityNote}
         </p>
       ) : null}
 
-      <div className="partner-unified-cal__toolbar">
-        <div className="tv-avail-switch" role="tablist" aria-label="Calendar view">
-          <button
-            type="button"
-            role="tab"
-            aria-selected={view === 'agenda'}
-            className={`tv-avail-switch__btn${view === 'agenda' ? ' is-active' : ''}`}
-            onClick={() => setView('agenda')}
-          >
-            Agenda
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={view === 'month'}
-            className={`tv-avail-switch__btn${view === 'month' ? ' is-active' : ''}`}
-            onClick={() => setView('month')}
-          >
-            Month
-          </button>
+      <div className="partner-unified-cal__chrome">
+        <div className="partner-unified-cal__toolbar">
+          <div className="partner-unified-cal__switch" role="tablist" aria-label="Calendar view">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={view === 'agenda'}
+              className={view === 'agenda' ? 'is-active' : undefined}
+              onClick={() => setView('agenda')}
+            >
+              Agenda
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={view === 'month'}
+              className={view === 'month' ? 'is-active' : undefined}
+              onClick={() => setView('month')}
+            >
+              Month
+            </button>
+          </div>
+
+          <div className="partner-unified-cal__nav">
+            <button
+              type="button"
+              className="partner-unified-cal__nav-btn"
+              onClick={() => (view === 'month' ? shiftMonth(-1) : shiftAgenda(-7))}
+              aria-label={view === 'month' ? 'Previous month' : 'Previous week'}
+            >
+              <ChevronLeft className="h-4 w-4" aria-hidden />
+            </button>
+            <button type="button" className="partner-unified-cal__today" onClick={goToday}>
+              Today
+            </button>
+            <button
+              type="button"
+              className="partner-unified-cal__nav-btn"
+              onClick={() => (view === 'month' ? shiftMonth(1) : shiftAgenda(7))}
+              aria-label={view === 'month' ? 'Next month' : 'Next week'}
+            >
+              <ChevronRight className="h-4 w-4" aria-hidden />
+            </button>
+            <p className="partner-unified-cal__period">
+              {view === 'month'
+                ? formatMonthLabel(year, monthIndex0)
+                : `${formatDayShort(range.fromYmd)} – ${formatDayShort(range.toYmd)}`}
+            </p>
+          </div>
         </div>
 
-        <div className="partner-unified-cal__nav">
-          <button
-            type="button"
-            className="tv-btn-secondary inline-flex min-h-9 items-center gap-1 px-2"
-            onClick={() => (view === 'month' ? shiftMonth(-1) : shiftAgenda(-7))}
-            aria-label={view === 'month' ? 'Previous month' : 'Previous week'}
-          >
-            <ChevronLeft className="h-4 w-4" aria-hidden />
-          </button>
-          <button
-            type="button"
-            className="tv-btn-secondary inline-flex min-h-9 items-center px-2.5 text-sm font-semibold"
-            onClick={goToday}
-          >
-            Today
-          </button>
-          <button
-            type="button"
-            className="tv-btn-secondary inline-flex min-h-9 items-center gap-1 px-2"
-            onClick={() => (view === 'month' ? shiftMonth(1) : shiftAgenda(7))}
-            aria-label={view === 'month' ? 'Next month' : 'Next week'}
-          >
-            <ChevronRight className="h-4 w-4" aria-hidden />
-          </button>
-          <p className="partner-unified-cal__period">
-            {view === 'month'
-              ? formatMonthLabel(year, monthIndex0)
-              : `${formatDayShort(range.fromYmd)} – ${formatDayShort(range.toYmd)}`}
-          </p>
-        </div>
-      </div>
-
-      <div className="partner-unified-cal__filters">
-        <div className="partner-unified-cal__filter">
-          <label htmlFor="unified-cal-category">Category</label>
+        <div className="partner-unified-cal__filters">
           <PartnerSelect
             id="unified-cal-category"
             aria-label="Category"
@@ -735,9 +708,6 @@ export default function SupplierUnifiedCalendar() {
               { value: 'rental', label: 'Rentals' },
             ]}
           />
-        </div>
-        <div className="partner-unified-cal__filter partner-unified-cal__filter--grow">
-          <label htmlFor="unified-cal-listing">Listing</label>
           <PartnerSelect
             id="unified-cal-listing"
             aria-label="Listing"
@@ -745,9 +715,6 @@ export default function SupplierUnifiedCalendar() {
             onChange={setListingId}
             options={listingOptions}
           />
-        </div>
-        <div className="partner-unified-cal__filter">
-          <label htmlFor="unified-cal-option">Option</label>
           <PartnerSelect
             id="unified-cal-option"
             aria-label="Option"
@@ -756,26 +723,26 @@ export default function SupplierUnifiedCalendar() {
             options={optionChoices}
             disabled={optionChoices.length <= 1}
           />
-        </div>
-        <div className="partner-unified-cal__history">
           <button
             type="button"
-            className={`partner-unified-cal__history-btn${includePast ? ' is-active' : ''}`}
+            className={`partner-unified-cal__history${includePast ? ' is-active' : ''}`}
             aria-pressed={includePast}
             onClick={() => setIncludePast((v) => !v)}
           >
-            {includePast ? 'Showing past' : 'Show past'}
+            {includePast ? 'Past on' : 'Show past'}
           </button>
         </div>
       </div>
 
       {loading ? (
-        <p className="partner-unified-cal__loading">Loading calendar…</p>
+        <div className="partner-unified-cal__loading" aria-busy="true">
+          Loading calendar…
+        </div>
       ) : listings.length === 0 ? (
         <SupplierEmptyState
           icon={CalendarDays}
           title="No listings yet"
-          body="Create a tour, stay, or rental to see bookings on this calendar."
+          body="Create a tour, stay, or rental to see operations here."
         />
       ) : view === 'agenda' ? (
         agendaGroups.length === 0 ? (
@@ -784,8 +751,8 @@ export default function SupplierUnifiedCalendar() {
             title={emptyPastHint ? 'Past window' : 'Nothing upcoming'}
             body={
               emptyPastHint
-                ? 'Past booking events are hidden by default. Turn on Show past, or jump to Today.'
-                : 'No upcoming departures, stays, or rentals in this range. Try another filter or Show past.'
+                ? 'Past events are hidden. Turn on Show past, or jump to Today.'
+                : 'No departures, stays, or rentals in this range.'
             }
             action={
               !includePast ? (
@@ -794,190 +761,241 @@ export default function SupplierUnifiedCalendar() {
                   className="tv-btn-secondary inline-flex min-h-10 items-center px-3 text-sm font-semibold"
                   onClick={() => setIncludePast(true)}
                 >
-                  Show past events
+                  Show past
                 </button>
               ) : undefined
             }
           />
         ) : (
-          <div className="partner-unified-cal__agenda-layout">
-            <div className="partner-unified-cal__agenda">
-              {agendaGroups.map((group) => (
-                <section
-                  key={group.iso}
-                  className={`partner-unified-cal__day${
-                    group.iso === selectedYmd ? ' is-selected' : ''
-                  }`}
-                >
-                  <header className="partner-unified-cal__day-head">
-                    <button
-                      type="button"
-                      className="partner-unified-cal__day-select"
-                      onClick={() => setSelectedYmd(group.iso)}
-                    >
-                      <h2>
-                        {formatDayHeading(group.iso)}
-                        {group.iso === todayIso ? (
-                          <span className="partner-unified-cal__today-pill">Today</span>
-                        ) : null}
-                      </h2>
-                      <span className="partner-unified-cal__day-count">
-                        {group.events.length} event{group.events.length === 1 ? '' : 's'} · Edit
-                      </span>
-                    </button>
-                  </header>
-                  <div className="partner-unified-cal__day-list">
-                    {group.events.map((event) => (
-                      <EventRow
+          <div className="partner-unified-cal__agenda">
+            {agendaGroups.map((group) => (
+              <section
+                key={group.iso}
+                className={`partner-unified-cal__day${group.iso === todayIso ? ' is-today' : ''}${
+                  group.iso === selectedYmd ? ' is-selected' : ''
+                }`}
+              >
+                <header className="partner-unified-cal__day-head">
+                  <h2>
+                    {formatDayHeading(group.iso)}
+                    {group.iso === todayIso ? (
+                      <span className="partner-unified-cal__today-pill">Today</span>
+                    ) : null}
+                  </h2>
+                  <span>{group.events.length}</span>
+                </header>
+                <div className="partner-unified-cal__cards">
+                  {group.events.map((event) => {
+                    const expanded = expandedKey === event.key;
+                    const listing = listingForEvent(event);
+                    const status = statusText(event);
+                    const cap = capacityText(event);
+                    return (
+                      <article
                         key={event.key}
-                        event={event}
-                        onOpenOperational={openOperationalEvent}
-                      />
-                    ))}
-                  </div>
-                </section>
-              ))}
-            </div>
-            <PartnerUnifiedDayAvailabilityPanel
-              iso={selectedYmd}
-              listings={listingsForUnifiedCategoryFilter(listings, category)}
-              bookings={bookings}
-              dayEvents={selectedDayEvents}
-              initialListingId={listingId}
-              canEdit={canEdit}
-              userId={user?.id}
-              onListingsChange={setListings}
-            />
+                        className={`partner-unified-cal__card partner-unified-cal__card--${event.category}${
+                          expanded ? ' is-expanded' : ''
+                        }${event.departureStatus ? ` is-${event.departureStatus}` : ''}`}
+                      >
+                        <button
+                          type="button"
+                          className="partner-unified-cal__card-main"
+                          onClick={() => {
+                            setSelectedYmd(event.ymd);
+                            toggleExpand(event.key, event);
+                          }}
+                          aria-expanded={expanded}
+                        >
+                          <span className="partner-unified-cal__card-time">
+                            {event.timeHm ?? '—'}
+                          </span>
+                          <span className="partner-unified-cal__card-body">
+                            <span className="partner-unified-cal__card-top">
+                              <span className={`partner-unified-cal__kind is-${event.category}`}>
+                                <CategoryGlyph category={event.category} />
+                                {partnerUnifiedEventKindLabel(event.kind)}
+                              </span>
+                              {status ? (
+                                <span className="partner-unified-cal__status">{status}</span>
+                              ) : null}
+                            </span>
+                            <span className="partner-unified-cal__card-title">
+                              {shortListingTitle(event.listingTitle)}
+                              {event.optionLabel ? (
+                                <span className="partner-unified-cal__opt"> · {event.optionLabel}</span>
+                              ) : null}
+                            </span>
+                            {cap ? (
+                              <span className="partner-unified-cal__card-meta">{cap}</span>
+                            ) : null}
+                          </span>
+                        </button>
+                        {expanded && listing ? (
+                          <div className="partner-unified-cal__card-expand">
+                            {eventOpensBooking(event) && event.bookingId ? (
+                              <button
+                                type="button"
+                                className="partner-unified-cal__open-booking"
+                                onClick={() =>
+                                  openSupplierBooking(event.bookingId!, { family: event.category })
+                                }
+                              >
+                                Open booking
+                                {event.guestName ? ` · ${event.guestName}` : ''}
+                              </button>
+                            ) : null}
+                            <PartnerUnifiedInlineAvailabilityEdit
+                              iso={event.ymd}
+                              listing={listing}
+                              bookings={bookings}
+                              event={event}
+                              canEdit={canEdit}
+                              userId={user?.id}
+                              onListingsChange={setListings}
+                              onSaved={refreshAfterEdit}
+                            />
+                          </div>
+                        ) : null}
+                      </article>
+                    );
+                  })}
+                </div>
+              </section>
+            ))}
           </div>
         )
       ) : (
-        <div className="partner-unified-cal__month-layout">
-          <div className="partner-unified-cal__month" role="grid" aria-label="Month">
-            <div className="partner-unified-cal__weekdays" role="row">
-              {WEEKDAYS.map((d) => (
-                <div key={d} className="partner-unified-cal__weekday" role="columnheader">
-                  {d}
-                </div>
-              ))}
-            </div>
-            <div className="partner-unified-cal__grid">
-              {monthCells.map((cell) => {
-                const summary = monthSummaries.get(cell.iso);
-                const isToday = cell.iso === todayIso;
-                const isSelected = cell.iso === selectedYmd;
-                const isPast = cell.iso < todayIso;
-                const count = summary?.total ?? 0;
-                const nightKind = summary?.stayNightKind;
-                return (
-                  <button
-                    key={cell.iso}
-                    type="button"
-                    role="gridcell"
-                    className={[
-                      'partner-unified-cal__cell',
-                      cell.inMonth ? '' : 'is-outside',
-                      isToday ? 'is-today' : '',
-                      isSelected ? 'is-selected' : '',
-                      isPast ? 'is-past' : '',
-                      count > 0 ? 'has-events' : '',
-                      nightKind === 'blocked' ? 'is-blocked' : '',
-                      nightKind === 'available' && selectedFamily === 'stay' ? 'is-available' : '',
-                      nightKind === 'booked' ? 'is-booked-night' : '',
-                    ]
-                      .filter(Boolean)
-                      .join(' ')}
-                    onClick={() => setSelectedYmd(cell.iso)}
-                    aria-label={`${cell.iso}${count ? `, ${count} events` : ''}${
-                      nightKind ? `, ${nightKind}` : ''
-                    }`}
-                    aria-pressed={isSelected}
-                  >
-                    <span className="partner-unified-cal__cell-top">
-                      <span className="partner-unified-cal__cell-num">{cell.day}</span>
-                      {count > 0 ? (
-                        <span className="partner-unified-cal__cell-count">{count}</span>
-                      ) : null}
-                    </span>
-                    <span className="partner-unified-cal__dots" aria-hidden>
-                      {(summary?.tour ?? 0) > 0 ? <i className="is-tour" /> : null}
-                      {(summary?.stay ?? 0) > 0 || nightKind === 'booked' ? (
-                        <i className="is-stay" />
-                      ) : null}
-                      {(summary?.rental ?? 0) > 0 ? <i className="is-rental" /> : null}
-                      {nightKind === 'blocked' ? <i className="is-blocked" /> : null}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
+        <div className="partner-unified-cal__month" role="grid" aria-label="Month">
+          <div className="partner-unified-cal__weekdays" role="row">
+            {WEEKDAYS.map((d) => (
+              <div key={d} className="partner-unified-cal__weekday" role="columnheader">
+                {d}
+              </div>
+            ))}
           </div>
-
-          <aside className="partner-unified-cal__side partner-unified-cal__side--edit">
-            {rentalStockForSelectedDay.length > 0 ? (
-              <div className="partner-unified-cal__stock" aria-label="Rental stock">
-                <p className="partner-unified-cal__stock-title">Stock today</p>
-                <ul>
-                  {rentalStockForSelectedDay.map((row) => (
-                    <li key={row.optionName}>
-                      <span>{row.optionName}</span>
-                      <span>
-                        {row.blocked
-                          ? 'Blocked'
-                          : `${row.available} free · ${row.reserved} reserved · ${row.stock} stock`}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ) : null}
-            {selectedDayEvents.length > 0 ? (
-              <div className="partner-unified-cal__day-list partner-unified-cal__side-bookings">
-                {selectedDayEvents.map((event) => (
-                  <EventRow
-                    key={event.key}
-                    event={event}
-                    onOpenOperational={openOperationalEvent}
-                  />
-                ))}
-              </div>
-            ) : selectedYmd < todayIso && !includePast ? (
-              <div className="partner-unified-cal__side-empty">
-                <p>Past booking events are hidden. Availability can still be edited below.</p>
-                <button
-                  type="button"
-                  className="partner-unified-cal__history-btn"
-                  onClick={() => setIncludePast(true)}
+          <div className="partner-unified-cal__grid">
+            {monthCells.map((cell) => {
+              const dayEvents = eventsByDay.get(cell.iso) ?? [];
+              const summary = monthSummaries.get(cell.iso);
+              const nightKind = summary?.stayNightKind;
+              const isToday = cell.iso === todayIso;
+              const isSelected = cell.iso === selectedYmd;
+              const shown = dayEvents.slice(0, MONTH_CELL_MAX);
+              const more = dayEvents.length - shown.length;
+              return (
+                <div
+                  key={cell.iso}
+                  role="gridcell"
+                  className={[
+                    'partner-unified-cal__cell',
+                    cell.inMonth ? '' : 'is-outside',
+                    isToday ? 'is-today' : '',
+                    isSelected ? 'is-selected' : '',
+                    cell.iso < todayIso ? 'is-past' : '',
+                    nightKind === 'blocked' ? 'is-blocked' : '',
+                    nightKind === 'booked' ? 'is-booked' : '',
+                    nightKind === 'available' && selectedFamily === 'stay' ? 'is-free' : '',
+                  ]
+                    .filter(Boolean)
+                    .join(' ')}
                 >
-                  Show past
-                </button>
-              </div>
-            ) : null}
-            <PartnerUnifiedDayAvailabilityPanel
-              iso={selectedYmd}
-              listings={listingsForUnifiedCategoryFilter(listings, category)}
-              bookings={bookings}
-              dayEvents={selectedDayEvents}
-              initialListingId={listingId}
-              canEdit={canEdit}
-              userId={user?.id}
-              onListingsChange={setListings}
-            />
-          </aside>
+                  <button
+                    type="button"
+                    className="partner-unified-cal__cell-num"
+                    onClick={() => {
+                      setSelectedYmd(cell.iso);
+                      if (dayEvents[0]) toggleExpand(dayEvents[0].key, dayEvents[0]);
+                      else setExpandedKey(null);
+                    }}
+                    aria-label={cell.iso}
+                  >
+                    {cell.day}
+                  </button>
+                  <div className="partner-unified-cal__cell-events">
+                    {shown.map((event) => {
+                      const expanded = expandedKey === event.key;
+                      const listing = listingForEvent(event);
+                      return (
+                        <div key={event.key} className="partner-unified-cal__chip-wrap">
+                          <button
+                            type="button"
+                            className={`partner-unified-cal__chip is-${event.category}${
+                              expanded ? ' is-active' : ''
+                            }`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedYmd(event.ymd);
+                              toggleExpand(event.key, event);
+                            }}
+                          >
+                            {monthChipLabel(event)}
+                          </button>
+                          {expanded && listing ? (
+                            <div
+                              ref={popoverRef}
+                              className="partner-unified-cal__popover"
+                              role="dialog"
+                              aria-label="Edit availability"
+                            >
+                              <div className="partner-unified-cal__popover-head">
+                                <strong>{shortListingTitle(event.listingTitle)}</strong>
+                                <button
+                                  type="button"
+                                  className="partner-unified-cal__popover-close"
+                                  onClick={() => setExpandedKey(null)}
+                                  aria-label="Close"
+                                >
+                                  ×
+                                </button>
+                              </div>
+                              {eventOpensBooking(event) && event.bookingId ? (
+                                <button
+                                  type="button"
+                                  className="partner-unified-cal__open-booking"
+                                  onClick={() =>
+                                    openSupplierBooking(event.bookingId!, {
+                                      family: event.category,
+                                    })
+                                  }
+                                >
+                                  Open booking
+                                </button>
+                              ) : null}
+                              <PartnerUnifiedInlineAvailabilityEdit
+                                iso={event.ymd}
+                                listing={listing}
+                                bookings={bookings}
+                                event={event}
+                                canEdit={canEdit}
+                                userId={user?.id}
+                                onListingsChange={setListings}
+                                onSaved={refreshAfterEdit}
+                              />
+                            </div>
+                          ) : null}
+                        </div>
+                      );
+                    })}
+                    {more > 0 ? (
+                      <button
+                        type="button"
+                        className="partner-unified-cal__more"
+                        onClick={() => {
+                          setSelectedYmd(cell.iso);
+                          setView('agenda');
+                          setAnchorYmd(cell.iso);
+                        }}
+                      >
+                        +{more} more
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
-
-      {view === 'agenda' && agendaGroups.length === 0 && listings.length > 0 ? (
-        <PartnerUnifiedDayAvailabilityPanel
-          iso={selectedYmd}
-          listings={listingsForUnifiedCategoryFilter(listings, category)}
-          bookings={bookings}
-          dayEvents={selectedDayEvents}
-          initialListingId={listingId}
-          canEdit={canEdit}
-          userId={user?.id}
-          onListingsChange={setListings}
-        />
-      ) : null}
 
       <PartnerUnifiedBulkEditPanel
         open={bulkOpen}
@@ -990,9 +1008,7 @@ export default function SupplierUnifiedCalendar() {
         canEdit={canEdit}
         userId={user?.id}
         onListingsChange={setListings}
-        onApplied={() => {
-          void load().then(() => setCalendarEpoch((n) => n + 1));
-        }}
+        onApplied={refreshAfterEdit}
       />
     </div>
   );

@@ -1,8 +1,7 @@
 /**
- * Mission 05.4 — Bulk availability edit panel for Unified Partner Calendar.
+ * Mission 05.4 / 05.6 — Bulk availability edit drawer for Unified Partner Calendar.
  */
 import { useEffect, useMemo, useState } from 'react';
-import { X } from 'lucide-react';
 import type { TourPackage } from '../../types/tour';
 import type { BookingRow } from '../../data/supabase-bookings';
 import {
@@ -11,6 +10,7 @@ import {
 } from '../../data/supabase-availability';
 import AvailabilityCutoffField from './AvailabilityCutoffField';
 import PartnerSelect from './PartnerSelect';
+import PartnerUnifiedCalendarDrawer from './PartnerUnifiedCalendarDrawer';
 import NoticeCallout from '../NoticeCallout';
 import { TraverionSingleDateField } from '../calendar/TraverionSingleDateField';
 import {
@@ -286,24 +286,35 @@ export default function PartnerUnifiedBulkEditPanel({
   };
 
   return (
-    <div className="partner-unified-bulk" role="dialog" aria-modal="true" aria-label="Bulk edit">
-      <div className="partner-unified-bulk__backdrop" onClick={onClose} aria-hidden />
-      <div className="partner-unified-bulk__panel">
-        <header className="partner-unified-bulk__head">
-          <div>
-            <p className="partner-unified-bulk__eyebrow">Availability</p>
-            <h2 className="partner-unified-bulk__title">Bulk edit</h2>
-          </div>
+    <PartnerUnifiedCalendarDrawer
+      open={open}
+      onClose={onClose}
+      title="Bulk edit"
+      subtitle="Availability"
+      size="wide"
+      aria-label="Bulk edit"
+      footer={
+        <>
           <button
             type="button"
-            className="partner-unified-bulk__close"
+            className="tv-btn-secondary inline-flex min-h-10 items-center px-3 text-sm font-semibold"
             onClick={onClose}
-            aria-label="Close bulk edit"
+            disabled={saving}
           >
-            <X className="h-4 w-4" aria-hidden />
+            Cancel
           </button>
-        </header>
-
+          <button
+            type="button"
+            className="tv-btn-primary inline-flex min-h-10 items-center px-3 text-sm font-semibold"
+            disabled={!canEdit || saving || !preview?.canApply}
+            onClick={() => void onApply()}
+          >
+            {saving ? 'Applying…' : 'Apply'}
+          </button>
+        </>
+      }
+    >
+      <div className="partner-unified-bulk">
         {error ? <NoticeCallout title={error} tone="danger" /> : null}
         {note && !error ? <NoticeCallout title={note} tone="success" /> : null}
 
@@ -471,26 +482,7 @@ export default function PartnerUnifiedBulkEditPanel({
             ) : null}
           </div>
         ) : null}
-
-        <footer className="partner-unified-bulk__footer">
-          <button
-            type="button"
-            className="tv-btn-secondary inline-flex min-h-10 items-center px-3 text-sm font-semibold"
-            onClick={onClose}
-            disabled={saving}
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            className="tv-btn-primary inline-flex min-h-10 items-center px-3 text-sm font-semibold"
-            disabled={!canEdit || saving || !preview?.canApply}
-            onClick={() => void onApply()}
-          >
-            {saving ? 'Applying…' : 'Apply'}
-          </button>
-        </footer>
       </div>
-    </div>
+    </PartnerUnifiedCalendarDrawer>
   );
 }

@@ -37,7 +37,14 @@ import {
 import { stayCalendarNightKindLabel } from '../../lib/stay-calendar-workspace';
 import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
 import { openSupplierBooking } from '../../lib/supplierPortalNavigation';
-import type { PartnerUnifiedCalendarEvent } from '../../lib/partner-unified-calendar';
+import {
+  partnerUnifiedEventKindLabel,
+  type PartnerUnifiedCalendarEvent,
+} from '../../lib/partner-unified-calendar';
+
+function partnerUnifiedEventLabel(e: PartnerUnifiedCalendarEvent): string {
+  return e.guestName || e.optionLabel || partnerUnifiedEventKindLabel(e.kind);
+}
 
 type Props = {
   iso: string;
@@ -48,6 +55,10 @@ type Props = {
   canEdit: boolean;
   userId?: string | null;
   onListingsChange: (next: TourPackage[]) => void;
+  /** When true, hide booking list — used inside the edit drawer. */
+  hideBookings?: boolean;
+  /** Compact chrome when nested in the calendar drawer. */
+  embedded?: boolean;
 };
 
 export default function PartnerUnifiedDayAvailabilityPanel({
@@ -59,6 +70,8 @@ export default function PartnerUnifiedDayAvailabilityPanel({
   canEdit,
   userId,
   onListingsChange,
+  hideBookings = false,
+  embedded = false,
 }: Props) {
   const [listingId, setListingId] = useState(() => {
     if (initialListingId && listings.some((l) => l.id === initialListingId)) return initialListingId;
@@ -201,21 +214,40 @@ export default function PartnerUnifiedDayAvailabilityPanel({
   };
 
   return (
-    <section className="partner-unified-day" aria-label="Day availability">
-      <header className="partner-unified-day__head">
-        <div>
-          <p className="partner-unified-day__eyebrow">Availability</p>
-          <h3 className="partner-unified-day__title">
-            {new Date(`${iso}T12:00:00Z`).toLocaleDateString('en-GB', {
-              weekday: 'long',
-              day: 'numeric',
-              month: 'long',
-              year: 'numeric',
-              timeZone: 'UTC',
-            })}
-          </h3>
-        </div>
-        <div className="partner-unified-day__listing">
+    <section
+      className={`partner-unified-day${embedded ? ' partner-unified-day--embedded' : ''}`}
+      aria-label="Day availability"
+    >
+      {!embedded ? (
+        <header className="partner-unified-day__head">
+          <div>
+            <p className="partner-unified-day__eyebrow">Availability</p>
+            <h3 className="partner-unified-day__title">
+              {new Date(`${iso}T12:00:00Z`).toLocaleDateString('en-GB', {
+                weekday: 'long',
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric',
+                timeZone: 'UTC',
+              })}
+            </h3>
+          </div>
+          <div className="partner-unified-day__listing">
+            <label htmlFor="unified-day-listing">Listing</label>
+            <PartnerSelect
+              id="unified-day-listing"
+              aria-label="Listing for availability"
+              value={listingId}
+              onChange={setListingId}
+              options={listings.map((l) => ({
+                value: l.id,
+                label: l.title || 'Untitled',
+              }))}
+            />
+          </div>
+        </header>
+      ) : (
+        <div className="partner-unified-day__listing partner-unified-day__listing--embedded">
           <label htmlFor="unified-day-listing">Listing</label>
           <PartnerSelect
             id="unified-day-listing"
@@ -228,7 +260,7 @@ export default function PartnerUnifiedDayAvailabilityPanel({
             }))}
           />
         </div>
-      </header>
+      )}
 
       {note ? <NoticeCallout title={note} tone="success" /> : null}
       {error ? <NoticeCallout title={error} tone="danger" /> : null}
@@ -239,30 +271,42 @@ export default function PartnerUnifiedDayAvailabilityPanel({
         <p className="partner-unified-day__muted">Select a listing to manage availability.</p>
       ) : (
         <>
-          {listingEvents.length > 0 ? (
-            <div className="partner-unified-day__bookings">
-              <p className="partner-unified-day__section-label">Bookings this day</p>
-              <ul>
-                {listingEvents.map((e) => (
-                  <li key={e.key}>
-                    <button
-                      type="button"
-                      className="partner-unified-day__booking-link"
-                      onClick={() => openSupplierBooking(e.bookingId, { family: e.category })}
-                    >
-                      <span>
-                        {e.timeHm ? `${e.timeHm} · ` : ''}
-                        {e.guestName || 'Guest'} · {e.listingTitle}
-                      </span>
-                      <span>{e.quantityLabel}</span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : (
-            <p className="partner-unified-day__muted">No bookings on this listing for this day.</p>
-          )}
+          {!hideBookings ? (
+            listingEvents.length > 0 ? (
+              <div className="partner-unified-day__bookings">
+                <p className="partner-unified-day__section-label">Bookings this day</p>
+                <ul>
+                  {listingEvents.map((e) => (
+                    <li key={e.key}>
+                      {e.bookingId ? (
+                        <button
+                          type="button"
+                          className="partner-unified-day__booking-link"
+                          onClick={() => openSupplierBooking(e.bookingId!, { family: e.category })}
+                        >
+                          <span>
+                            {e.timeHm ? `${e.timeHm} · ` : ''}
+                            {e.guestName || partnerUnifiedEventLabel(e)} · {e.listingTitle}
+                          </span>
+                          <span>{e.quantityLabel}</span>
+                        </button>
+                      ) : (
+                        <div className="partner-unified-day__booking-link is-static">
+                          <span>
+                            {e.timeHm ? `${e.timeHm} · ` : ''}
+                            {partnerUnifiedEventLabel(e)} · {e.listingTitle}
+                          </span>
+                          <span>{e.quantityLabel}</span>
+                        </div>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : (
+              <p className="partner-unified-day__muted">No schedule items on this listing for this day.</p>
+            )
+          ) : null}
 
           {family === 'tour' ? (
             <div className="partner-unified-day__family">
