@@ -1,7 +1,6 @@
 /**
- * Mission 05.1–05.3 — Unified Partner Calendar.
- * Agenda (default) + Month across Tours, Stays, and Rentals.
- * Single-date availability editing reuses family availability APIs.
+ * Mission 05.1–05.4 — Unified Partner Calendar.
+ * Agenda + Month, single-date editing, and bulk availability edits.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
@@ -47,6 +46,7 @@ import {
 } from '../../components/supplier/supplierUi';
 import PartnerSelect from '../../components/supplier/PartnerSelect';
 import PartnerUnifiedDayAvailabilityPanel from '../../components/supplier/PartnerUnifiedDayAvailabilityPanel';
+import PartnerUnifiedBulkEditPanel from '../../components/supplier/PartnerUnifiedBulkEditPanel';
 import ErrorState from '../../components/ErrorState';
 import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
 
@@ -150,6 +150,8 @@ export default function SupplierUnifiedCalendar() {
   const [bookings, setBookings] = useState<BookingRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [calendarEpoch, setCalendarEpoch] = useState(0);
 
   const anchorDate = useMemo(() => new Date(`${anchorYmd}T12:00:00Z`), [anchorYmd]);
   const year = anchorDate.getUTCFullYear();
@@ -225,7 +227,9 @@ export default function SupplierUnifiedCalendar() {
         titlesByListingId,
         includeOccupiedNights: view === 'agenda',
       }),
-    [bookings, range.fromYmd, range.toYmd, titlesByListingId, view]
+    // calendarEpoch forces rebuild after bulk/day edits refresh bookings/listings
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional refresh bump
+    [bookings, range.fromYmd, range.toYmd, titlesByListingId, view, calendarEpoch]
   );
 
   const filteredEvents = useMemo(
@@ -323,6 +327,17 @@ export default function SupplierUnifiedCalendar() {
         badge="Overview"
         title="Calendar"
         description="Tours, stays, and rentals in one place."
+        actions={
+          canEdit && listings.length > 0 ? (
+            <button
+              type="button"
+              className="tv-btn-secondary inline-flex min-h-10 items-center px-3 text-sm font-semibold"
+              onClick={() => setBulkOpen(true)}
+            >
+              Bulk edit
+            </button>
+          ) : null
+        }
       />
 
       {error ? (
@@ -607,6 +622,22 @@ export default function SupplierUnifiedCalendar() {
           onListingsChange={setListings}
         />
       ) : null}
+
+      <PartnerUnifiedBulkEditPanel
+        open={bulkOpen}
+        onClose={() => setBulkOpen(false)}
+        listings={listings}
+        bookings={bookings}
+        initialCategory={category}
+        initialListingId={listingId}
+        initialFromIso={selectedYmd || todayIso}
+        canEdit={canEdit}
+        userId={user?.id}
+        onListingsChange={setListings}
+        onApplied={() => {
+          void load().then(() => setCalendarEpoch((n) => n + 1));
+        }}
+      />
     </div>
   );
 }
