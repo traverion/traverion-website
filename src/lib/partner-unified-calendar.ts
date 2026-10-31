@@ -1,7 +1,8 @@
 /**
- * Mission 05.1 — Unified Partner Calendar (read-only).
+ * Mission 05.1–05.2 — Unified Partner Calendar.
  * Aggregates Tours / Stays / Rentals into Agenda + Month views.
  * Reuses booking occupancy + lifecycle calendar helpers; no separate inventory engine.
+ * Default view hides completed/past events; ongoing stays/rentals stay visible.
  */
 
 import { bookingOccupiesInventory } from './booking-hold';
@@ -19,6 +20,7 @@ import { stayRangeFromBooking } from './stayOccupancy';
 import {
   partnerBookingIsOperatingTrip,
   partnerStayTouchesScheduleDay,
+  scheduleTodayIsoForBooking,
   type PartnerScheduleBooking,
 } from './trip-views';
 import {
@@ -60,6 +62,11 @@ export type PartnerUnifiedCalendarEvent = {
   /** Tour guests / stay guests / rental qty. */
   quantityLabel: string | null;
   metaLine: string | null;
+  /**
+   * Listing-local "today" when the event was built (for upcoming vs past).
+   * Ongoing stay/rental days use ymd >= activeTodayIso so mid-stay nights stay visible.
+   */
+  activeTodayIso: string;
 };
 
 export type PartnerUnifiedMonthDaySummary = {
@@ -221,6 +228,7 @@ export function buildPartnerUnifiedCalendarEvents(params: {
     const optionLabel = optionLabelFor(b);
     const guestName = (b.guest_name ?? '').trim() || null;
     const reference = (b.public_reference ?? '').trim() || null;
+    const activeTodayIso = scheduleTodayIsoForBooking(b, nowMs);
 
     if (bookingIsRental(b)) {
       const collectionYmd = lifecycleReminderAnchorYmd(b);
@@ -246,6 +254,7 @@ export function buildPartnerUnifiedCalendarEvents(params: {
           timeHm: collectionHm,
           quantityLabel: qty,
           metaLine: [optionLabel, qty].filter(Boolean).join(' · ') || null,
+          activeTodayIso,
         });
       }
       if (returnYmd) {
@@ -263,6 +272,7 @@ export function buildPartnerUnifiedCalendarEvents(params: {
           timeHm: returnHm,
           quantityLabel: qty,
           metaLine: [optionLabel, qty].filter(Boolean).join(' · ') || null,
+          activeTodayIso,
         });
       }
       continue;
@@ -296,6 +306,7 @@ export function buildPartnerUnifiedCalendarEvents(params: {
               timeHm: null,
               quantityLabel: quantityLabelFor(b, kind),
               metaLine: quantityLabelFor(b, kind),
+              activeTodayIso,
             });
           }
         }
@@ -324,10 +335,22 @@ export function buildPartnerUnifiedCalendarEvents(params: {
       timeHm: tourTimeHm(b),
       quantityLabel: qty,
       metaLine: [optionLabel, qty].filter(Boolean).join(' · ') || qty,
+      activeTodayIso,
     });
   }
 
   return out.sort(sortUnifiedEvents);
+}
+
+/**
+ * Upcoming mode: keep events on/after listing-local today.
+ * Mid-stay occupied nights and future check-outs / returns stay visible even when
+ * check-in / collection already happened.
+ */
+export function partnerUnifiedEventIsUpcomingOrOngoing(
+  event: PartnerUnifiedCalendarEvent
+): boolean {
+  return event.ymd >= event.activeTodayIso;
 }
 
 export function filterPartnerUnifiedCalendarEvents(
@@ -336,11 +359,15 @@ export function filterPartnerUnifiedCalendarEvents(
     category: PartnerUnifiedCategoryFilter;
     listingId: string | null;
     optionKey: string | null;
+    /** When false (default), hide past completed events. */
+    includePast?: boolean;
   }
 ): PartnerUnifiedCalendarEvent[] {
   const listingId = (filters.listingId ?? '').trim();
   const optionKey = (filters.optionKey ?? '').trim();
+  const includePast = filters.includePast === true;
   return events.filter((e) => {
+    if (!includePast && !partnerUnifiedEventIsUpcomingOrOngoing(e)) return false;
     if (filters.category !== 'all' && e.category !== filters.category) return false;
     if (listingId && e.listingId !== listingId) return false;
     if (optionKey) {

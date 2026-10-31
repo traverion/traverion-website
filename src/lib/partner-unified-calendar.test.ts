@@ -6,6 +6,7 @@ import {
   parsePartnerUnifiedCalendarView,
   parsePartnerUnifiedCategoryFilter,
   partnerUnifiedAgendaRange,
+  partnerUnifiedEventIsUpcomingOrOngoing,
   summarizePartnerUnifiedMonthDays,
 } from './partner-unified-calendar';
 
@@ -138,6 +139,7 @@ describe('partner-unified-calendar', () => {
   });
 
   it('filters by category and listing together', () => {
+    const nowMs = Date.parse('2026-10-12T12:00:00+03:00');
     const events = buildPartnerUnifiedCalendarEvents({
       bookings: [
         tourBooking({ booking_date: '2026-10-12' }),
@@ -148,11 +150,13 @@ describe('partner-unified-calendar', () => {
       ],
       fromYmd: '2026-10-12',
       toYmd: '2026-10-12',
+      nowMs,
     });
     const rentals = filterPartnerUnifiedCalendarEvents(events, {
       category: 'rental',
       listingId: 'listing-rental',
       optionKey: null,
+      includePast: false,
     });
     expect(rentals.every((e) => e.category === 'rental')).toBe(true);
     expect(rentals.length).toBe(2);
@@ -185,5 +189,52 @@ describe('partner-unified-calendar', () => {
     const range = partnerUnifiedAgendaRange('2026-10-01');
     expect(range.fromYmd).toBe('2026-10-01');
     expect(range.toYmd).toBe('2026-10-14');
+  });
+
+  it('hides past events by default while keeping ongoing stay nights and future returns', () => {
+    // Listing-local Europe/Helsinki noon on 13 Oct — mid-stay, mid-rental.
+    const nowMs = Date.parse('2026-10-13T12:00:00+03:00');
+    const events = buildPartnerUnifiedCalendarEvents({
+      bookings: [
+        tourBooking({ id: 'past-tour', booking_date: '2026-10-12' }),
+        tourBooking({ id: 'today-tour', booking_date: '2026-10-13' }),
+        stayBooking({ id: 'ongoing-stay', checkIn: '2026-10-11', checkOut: '2026-10-15' }),
+        rentalBooking({
+          id: 'ongoing-rental',
+          pickupAt: '2026-10-12T09:00:00+03:00',
+          returnAt: '2026-10-14T18:00:00+03:00',
+        }),
+      ],
+      fromYmd: '2026-10-11',
+      toYmd: '2026-10-15',
+      includeOccupiedNights: true,
+      nowMs,
+    });
+
+    const upcoming = filterPartnerUnifiedCalendarEvents(events, {
+      category: 'all',
+      listingId: null,
+      optionKey: null,
+      includePast: false,
+    });
+    const keys = upcoming.map((e) => e.key);
+    expect(keys.some((k) => k.includes('past-tour'))).toBe(false);
+    expect(keys.some((k) => k.includes('today-tour'))).toBe(true);
+    expect(keys).toContain('ongoing-stay:stay_occupied:2026-10-13');
+    expect(keys).toContain('ongoing-stay:stay_occupied:2026-10-14');
+    expect(keys).toContain('ongoing-stay:stay_check_out:2026-10-15');
+    expect(keys).not.toContain('ongoing-stay:stay_check_in:2026-10-11');
+    expect(keys).not.toContain('ongoing-rental:rental_collection:2026-10-12');
+    expect(keys).toContain('ongoing-rental:rental_return:2026-10-14');
+    expect(upcoming.every(partnerUnifiedEventIsUpcomingOrOngoing)).toBe(true);
+
+    const withHistory = filterPartnerUnifiedCalendarEvents(events, {
+      category: 'all',
+      listingId: null,
+      optionKey: null,
+      includePast: true,
+    });
+    expect(withHistory.length).toBeGreaterThan(upcoming.length);
+    expect(withHistory.some((e) => e.key.includes('past-tour'))).toBe(true);
   });
 });

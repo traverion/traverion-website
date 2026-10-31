@@ -3,12 +3,13 @@ export const PARTNER_PRIMARY_NAV_SECTION_IDS = [
   'dashboard',
   'bookings',
   'listings',
-  'availability',
+  'calendar',
 ] as const;
 
 /**
  * Mobile More-tab destinations (not in the bottom primary strip).
  * Income lives here; Calendar does not (it is primary).
+ * Family calendars stay as deep links only (Mission 05.2).
  */
 export const PARTNER_MORE_NAV_SECTION_IDS = [
   'create', // More sheet primary CTA — not listed in PARTNER_MORE_GROUPS items
@@ -17,7 +18,7 @@ export const PARTNER_MORE_NAV_SECTION_IDS = [
   'discounts',
   'pickup',
   'reservations',
-  'stay-calendar',
+  'rental-bookings',
   'earnings',
   'performance',
   'support',
@@ -30,7 +31,7 @@ export const PARTNER_MORE_NAV_SECTION_IDS = [
 export function partnerPrimaryNavIncludesCalendar(
   ids: readonly string[] = PARTNER_PRIMARY_NAV_SECTION_IDS
 ): boolean {
-  return ids.includes('availability');
+  return ids.includes('calendar') || ids.includes('availability');
 }
 
 export function partnerMoreNavIncludesSection(

@@ -15,16 +15,19 @@ describe('partner primary nav', () => {
       'dashboard',
       'bookings',
       'listings',
-      'availability',
+      'calendar',
     ]);
     expect(PARTNER_PRIMARY_NAV_SECTION_IDS).not.toContain('earnings');
     expect(PARTNER_PRIMARY_NAV_SECTION_IDS).not.toContain('inbox');
+    expect(PARTNER_PRIMARY_NAV_SECTION_IDS).not.toContain('availability');
   });
 
   it('highlights More for Income but not for Calendar', () => {
     expect(partnerMoreNavIncludesSection('earnings')).toBe(true);
+    expect(partnerMoreNavIncludesSection('calendar')).toBe(false);
     expect(partnerMoreNavIncludesSection('availability')).toBe(false);
     expect(PARTNER_MORE_NAV_SECTION_IDS).toContain('earnings');
+    expect(PARTNER_MORE_NAV_SECTION_IDS).not.toContain('calendar');
     expect(PARTNER_MORE_NAV_SECTION_IDS).not.toContain('availability');
     expect(PARTNER_MORE_NAV_SECTION_IDS).not.toContain('bookings');
   });

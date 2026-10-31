@@ -1,6 +1,7 @@
 /**
- * Mission 05.1 — Unified Partner Calendar (read-only).
+ * Mission 05.1–05.2 — Unified Partner Calendar.
  * Agenda (default) + Month across Tours, Stays, and Rentals.
+ * Default hides past/completed events; history toggle restores them.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
@@ -63,6 +64,15 @@ function formatDayHeading(iso: string): string {
   });
 }
 
+function formatDayShort(iso: string): string {
+  return new Date(`${iso}T12:00:00Z`).toLocaleDateString('en-GB', {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    timeZone: 'UTC',
+  });
+}
+
 function formatMonthLabel(year: number, monthIndex0: number): string {
   return new Date(Date.UTC(year, monthIndex0, 1)).toLocaleDateString('en-GB', {
     month: 'long',
@@ -72,35 +82,32 @@ function formatMonthLabel(year: number, monthIndex0: number): string {
 }
 
 function CategoryGlyph({ category }: { category: PartnerUnifiedCalendarEvent['category'] }) {
-  if (category === 'stay') return <BedDouble className="h-3.5 w-3.5" aria-hidden />;
-  if (category === 'rental') return <KeyRound className="h-3.5 w-3.5" aria-hidden />;
-  return <Compass className="h-3.5 w-3.5" aria-hidden />;
+  if (category === 'stay') return <BedDouble className="h-3.5 w-3.5 shrink-0" aria-hidden />;
+  if (category === 'rental') return <KeyRound className="h-3.5 w-3.5 shrink-0" aria-hidden />;
+  return <Compass className="h-3.5 w-3.5 shrink-0" aria-hidden />;
 }
 
 function EventRow({ event }: { event: PartnerUnifiedCalendarEvent }) {
+  const meta = [event.guestName, event.metaLine, event.reference].filter(Boolean).join(' · ');
   return (
     <button
       type="button"
       className="partner-unified-cal__row"
       onClick={() => openSupplierBooking(event.bookingId, { family: event.category })}
     >
-      <span className={`partner-unified-cal__kind partner-unified-cal__kind--${event.category}`}>
-        <CategoryGlyph category={event.category} />
-        <span>{partnerUnifiedEventKindLabel(event.kind)}</span>
+      <span className="partner-unified-cal__time" aria-hidden={!event.timeHm}>
+        {event.timeHm ?? '—'}
       </span>
-      <span className="partner-unified-cal__time">{event.timeHm ?? '—'}</span>
       <span className="partner-unified-cal__body">
-        <span className="partner-unified-cal__title">{event.listingTitle}</span>
-        <span className="partner-unified-cal__meta">
-          {[
-            event.guestName,
-            event.metaLine,
-            event.reference,
-            partnerUnifiedCategoryLabel(event.category),
-          ]
-            .filter(Boolean)
-            .join(' · ')}
+        <span className="partner-unified-cal__title-row">
+          <span className={`partner-unified-cal__kind partner-unified-cal__kind--${event.category}`}>
+            <CategoryGlyph category={event.category} />
+            {partnerUnifiedEventKindLabel(event.kind)}
+          </span>
+          <span className="partner-unified-cal__cat">{partnerUnifiedCategoryLabel(event.category)}</span>
         </span>
+        <span className="partner-unified-cal__title">{event.listingTitle}</span>
+        {meta ? <span className="partner-unified-cal__meta">{meta}</span> : null}
       </span>
     </button>
   );
@@ -117,6 +124,7 @@ export default function SupplierUnifiedCalendar() {
       category: parsePartnerUnifiedCategoryFilter(q.get('category')),
       listingId: (q.get('listing') ?? '').trim(),
       optionKey: (q.get('option') ?? '').trim(),
+      includePast: q.get('history') === '1',
       anchorYmd: /^\d{4}-\d{2}-\d{2}$/.test((q.get('date') ?? '').trim())
         ? (q.get('date') as string).trim()
         : todayIso,
@@ -130,6 +138,7 @@ export default function SupplierUnifiedCalendar() {
   const [category, setCategory] = useState<PartnerUnifiedCategoryFilter>(initial.category);
   const [listingId, setListingId] = useState(initial.listingId);
   const [optionKey, setOptionKey] = useState(initial.optionKey);
+  const [includePast, setIncludePast] = useState(initial.includePast);
   const [anchorYmd, setAnchorYmd] = useState(initial.anchorYmd);
   const [selectedYmd, setSelectedYmd] = useState(initial.selectedYmd);
   const [listings, setListings] = useState<TourPackage[]>([]);
@@ -180,13 +189,15 @@ export default function SupplierUnifiedCalendar() {
     else q.delete('listing');
     if (optionKey) q.set('option', optionKey);
     else q.delete('option');
+    if (includePast) q.set('history', '1');
+    else q.delete('history');
     if (anchorYmd !== todayIso) q.set('date', anchorYmd);
     else q.delete('date');
     if (view === 'month' && selectedYmd) q.set('day', selectedYmd);
     else q.delete('day');
     const qs = q.toString();
     window.history.replaceState({}, '', qs ? `${url.pathname}?${qs}` : url.pathname);
-  }, [view, category, listingId, optionKey, anchorYmd, selectedYmd, todayIso]);
+  }, [view, category, listingId, optionKey, includePast, anchorYmd, selectedYmd, todayIso]);
 
   const titlesByListingId = useMemo(() => {
     const map = new Map<string, string>();
@@ -217,8 +228,9 @@ export default function SupplierUnifiedCalendar() {
         category,
         listingId: listingId || null,
         optionKey: optionKey || null,
+        includePast,
       }),
-    [allEvents, category, listingId, optionKey]
+    [allEvents, category, listingId, optionKey, includePast]
   );
 
   const agendaGroups = useMemo(
@@ -251,6 +263,7 @@ export default function SupplierUnifiedCalendar() {
         category,
         listingId: listingId || null,
         optionKey: null,
+        includePast: true,
       })
     );
     return [{ value: '', label: 'All options' }, ...base];
@@ -285,6 +298,11 @@ export default function SupplierUnifiedCalendar() {
     setSelectedYmd(todayIso);
   };
 
+  const emptyPastHint =
+    !includePast &&
+    ((view === 'agenda' && range.toYmd < todayIso) ||
+      (view === 'month' && selectedYmd < todayIso && selectedDayEvents.length === 0));
+
   if (!isSupabase) {
     return (
       <div className={SUPPLIER_PAGE_CLASS}>
@@ -298,7 +316,7 @@ export default function SupplierUnifiedCalendar() {
       <SupplierPageHero
         badge="Overview"
         title="Calendar"
-        description="All tours, stays, and rentals in one place. Read-only — editing arrives next."
+        description="Tours, stays, and rentals in one place."
       />
 
       {error ? (
@@ -330,7 +348,7 @@ export default function SupplierUnifiedCalendar() {
         <div className="partner-unified-cal__nav">
           <button
             type="button"
-            className="tv-btn-secondary inline-flex min-h-10 items-center gap-1 px-2.5"
+            className="tv-btn-secondary inline-flex min-h-9 items-center gap-1 px-2"
             onClick={() => (view === 'month' ? shiftMonth(-1) : shiftAgenda(-7))}
             aria-label={view === 'month' ? 'Previous month' : 'Previous week'}
           >
@@ -338,14 +356,14 @@ export default function SupplierUnifiedCalendar() {
           </button>
           <button
             type="button"
-            className="tv-btn-secondary inline-flex min-h-10 items-center px-3 text-sm font-semibold"
+            className="tv-btn-secondary inline-flex min-h-9 items-center px-2.5 text-sm font-semibold"
             onClick={goToday}
           >
             Today
           </button>
           <button
             type="button"
-            className="tv-btn-secondary inline-flex min-h-10 items-center gap-1 px-2.5"
+            className="tv-btn-secondary inline-flex min-h-9 items-center gap-1 px-2"
             onClick={() => (view === 'month' ? shiftMonth(1) : shiftAgenda(7))}
             aria-label={view === 'month' ? 'Next month' : 'Next week'}
           >
@@ -354,13 +372,13 @@ export default function SupplierUnifiedCalendar() {
           <p className="partner-unified-cal__period">
             {view === 'month'
               ? formatMonthLabel(year, monthIndex0)
-              : `${formatDayHeading(range.fromYmd).replace(/,.*/, '')} – ${formatDayHeading(range.toYmd)}`}
+              : `${formatDayShort(range.fromYmd)} – ${formatDayShort(range.toYmd)}`}
           </p>
         </div>
       </div>
 
-      <div className="partner-unified-cal__filters tv-avail-filters">
-        <div className="tv-avail-filters__field">
+      <div className="partner-unified-cal__filters">
+        <div className="partner-unified-cal__filter">
           <label htmlFor="unified-cal-category">Category</label>
           <PartnerSelect
             id="unified-cal-category"
@@ -375,7 +393,7 @@ export default function SupplierUnifiedCalendar() {
             ]}
           />
         </div>
-        <div className="tv-avail-filters__field tv-avail-filters__field--grow">
+        <div className="partner-unified-cal__filter partner-unified-cal__filter--grow">
           <label htmlFor="unified-cal-listing">Listing</label>
           <PartnerSelect
             id="unified-cal-listing"
@@ -385,7 +403,7 @@ export default function SupplierUnifiedCalendar() {
             options={listingOptions}
           />
         </div>
-        <div className="tv-avail-filters__field">
+        <div className="partner-unified-cal__filter">
           <label htmlFor="unified-cal-option">Option</label>
           <PartnerSelect
             id="unified-cal-option"
@@ -396,10 +414,20 @@ export default function SupplierUnifiedCalendar() {
             disabled={optionChoices.length <= 1}
           />
         </div>
+        <div className="partner-unified-cal__history">
+          <button
+            type="button"
+            className={`partner-unified-cal__history-btn${includePast ? ' is-active' : ''}`}
+            aria-pressed={includePast}
+            onClick={() => setIncludePast((v) => !v)}
+          >
+            {includePast ? 'Showing past' : 'Show past'}
+          </button>
+        </div>
       </div>
 
       {loading ? (
-        <p className="text-sm text-ink-muted">Loading calendar…</p>
+        <p className="partner-unified-cal__loading">Loading calendar…</p>
       ) : listings.length === 0 ? (
         <SupplierEmptyState
           icon={CalendarDays}
@@ -410,8 +438,23 @@ export default function SupplierUnifiedCalendar() {
         agendaGroups.length === 0 ? (
           <SupplierEmptyState
             icon={CalendarDays}
-            title="Nothing in this window"
-            body="Try another date range or clear filters. Family calendars still manage availability."
+            title={emptyPastHint ? 'Past window' : 'Nothing upcoming'}
+            body={
+              emptyPastHint
+                ? 'Past booking events are hidden by default. Turn on Show past, or jump to Today.'
+                : 'No upcoming departures, stays, or rentals in this range. Try another filter or Show past.'
+            }
+            action={
+              !includePast ? (
+                <button
+                  type="button"
+                  className="tv-btn-secondary inline-flex min-h-10 items-center px-3 text-sm font-semibold"
+                  onClick={() => setIncludePast(true)}
+                >
+                  Show past events
+                </button>
+              ) : undefined
+            }
           />
         ) : (
           <div className="partner-unified-cal__agenda">
@@ -424,6 +467,9 @@ export default function SupplierUnifiedCalendar() {
                       <span className="partner-unified-cal__today-pill">Today</span>
                     ) : null}
                   </h2>
+                  <span className="partner-unified-cal__day-count">
+                    {group.events.length} event{group.events.length === 1 ? '' : 's'}
+                  </span>
                 </header>
                 <div className="partner-unified-cal__day-list">
                   {group.events.map((event) => (
@@ -436,7 +482,7 @@ export default function SupplierUnifiedCalendar() {
         )
       ) : (
         <div className="partner-unified-cal__month-layout">
-          <div className="partner-unified-cal__month partner-avail-month" role="grid" aria-label="Month">
+          <div className="partner-unified-cal__month" role="grid" aria-label="Month">
             <div className="partner-unified-cal__weekdays" role="row">
               {WEEKDAYS.map((d) => (
                 <div key={d} className="partner-unified-cal__weekday" role="columnheader">
@@ -449,6 +495,7 @@ export default function SupplierUnifiedCalendar() {
                 const summary = monthSummaries.get(cell.iso);
                 const isToday = cell.iso === todayIso;
                 const isSelected = cell.iso === selectedYmd;
+                const isPast = cell.iso < todayIso;
                 const count = summary?.total ?? 0;
                 return (
                   <button
@@ -460,6 +507,7 @@ export default function SupplierUnifiedCalendar() {
                       cell.inMonth ? '' : 'is-outside',
                       isToday ? 'is-today' : '',
                       isSelected ? 'is-selected' : '',
+                      isPast ? 'is-past' : '',
                       count > 0 ? 'has-events' : '',
                     ]
                       .filter(Boolean)
@@ -468,10 +516,12 @@ export default function SupplierUnifiedCalendar() {
                     aria-label={`${cell.iso}${count ? `, ${count} events` : ''}`}
                     aria-pressed={isSelected}
                   >
-                    <span className="partner-unified-cal__cell-num">{cell.day}</span>
-                    {count > 0 ? (
-                      <span className="partner-unified-cal__cell-count">{count}</span>
-                    ) : null}
+                    <span className="partner-unified-cal__cell-top">
+                      <span className="partner-unified-cal__cell-num">{cell.day}</span>
+                      {count > 0 ? (
+                        <span className="partner-unified-cal__cell-count">{count}</span>
+                      ) : null}
+                    </span>
                     <span className="partner-unified-cal__dots" aria-hidden>
                       {(summary?.tour ?? 0) > 0 ? <i className="is-tour" /> : null}
                       {(summary?.stay ?? 0) > 0 ? <i className="is-stay" /> : null}
@@ -493,7 +543,22 @@ export default function SupplierUnifiedCalendar() {
               </h2>
             </header>
             {selectedDayEvents.length === 0 ? (
-              <p className="text-sm text-ink-muted">No bookings on this day.</p>
+              <div className="partner-unified-cal__side-empty">
+                <p>
+                  {selectedYmd < todayIso && !includePast
+                    ? 'Past events are hidden. Turn on Show past to inspect history.'
+                    : 'No bookings on this day.'}
+                </p>
+                {selectedYmd < todayIso && !includePast ? (
+                  <button
+                    type="button"
+                    className="partner-unified-cal__history-btn"
+                    onClick={() => setIncludePast(true)}
+                  >
+                    Show past
+                  </button>
+                ) : null}
+              </div>
             ) : (
               <div className="partner-unified-cal__day-list">
                 {selectedDayEvents.map((event) => (

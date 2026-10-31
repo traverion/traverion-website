@@ -121,13 +121,17 @@ export const PARTNER_NAV_HOME: PartnerNavItem = {
   icon: LayoutDashboard,
 };
 
-/** Unified Partner Calendar (Mission 05.1) — read-only Tours + Stays + Rentals. */
+/** Unified Partner Calendar (Mission 05.1–05.2) — Tours + Stays + Rentals. */
 export const PARTNER_NAV_UNIFIED_CALENDAR: PartnerNavItem = {
   id: 'calendar',
   label: 'Calendar',
   icon: CalendarDays,
 };
 
+/**
+ * @deprecated Family tour calendar — legacy route `/partner/availability` still works;
+ * sidebar uses {@link PARTNER_NAV_UNIFIED_CALENDAR} instead (Mission 05.2).
+ */
 export const PARTNER_NAV_CALENDAR: PartnerNavItem = {
   id: 'availability',
   label: 'Departures & availability',
@@ -137,7 +141,6 @@ export const PARTNER_NAV_CALENDAR: PartnerNavItem = {
 /** Tour ops under Tours & Activities. */
 export const PARTNER_NAV_TOURS_CHILDREN: PartnerSidebarChild[] = [
   { id: 'bookings', label: 'Bookings', icon: Calendar },
-  PARTNER_NAV_CALENDAR,
   { id: 'pickup', label: 'Pickups', icon: Car },
 ];
 
@@ -150,13 +153,11 @@ export const PARTNER_NAV_BOOKINGS_CHILDREN: PartnerNavItem[] = [
 /** Stay ops under Stays. */
 export const PARTNER_NAV_STAYS_CHILDREN: PartnerSidebarChild[] = [
   { id: 'reservations', label: 'Reservations', icon: BedDouble },
-  { id: 'stay-calendar', label: 'Stay Calendar', icon: CalendarDays },
 ];
 
-/** Rental ops under Rentals (calendar live; bookings desk ready for paid rentals). */
+/** Rental ops under Rentals. */
 export const PARTNER_NAV_RENTALS_CHILDREN: PartnerSidebarChild[] = [
   { id: 'rental-bookings', label: 'Rental bookings', icon: Calendar },
-  { id: 'rental-calendar', label: 'Rental calendar', icon: KeyRound },
 ];
 
 /** @deprecated Use PARTNER_NAV_STAYS_CHILDREN navigable items */
@@ -324,10 +325,7 @@ export const PARTNER_MORE_GROUPS: PartnerNavGroup[] = [
   {
     id: 'operate',
     label: 'Overview',
-    items: [
-      PARTNER_NAV_UNIFIED_CALENDAR,
-      { id: 'inbox', label: 'Inbox', icon: MessageSquare },
-    ],
+    items: [{ id: 'inbox', label: 'Inbox', icon: MessageSquare }],
   },
   {
     id: 'tours',
@@ -337,18 +335,12 @@ export const PARTNER_MORE_GROUPS: PartnerNavGroup[] = [
   {
     id: 'stays',
     label: 'Stays',
-    items: [
-      ...PARTNER_NAV_RESERVATIONS_CHILDREN,
-      { id: 'stay-calendar', label: 'Stay Calendar', icon: CalendarDays },
-    ],
+    items: [...PARTNER_NAV_RESERVATIONS_CHILDREN],
   },
   {
     id: 'rentals',
     label: 'Rentals',
-    items: [
-      { id: 'rental-bookings', label: 'Rental bookings', icon: Calendar },
-      { id: 'rental-calendar', label: 'Rental calendar', icon: KeyRound },
-    ],
+    items: [{ id: 'rental-bookings', label: 'Rental bookings', icon: Calendar }],
   },
   {
     id: 'business',
