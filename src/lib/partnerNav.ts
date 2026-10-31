@@ -31,6 +31,7 @@ import {
 export type PartnerNavSectionId =
   | 'dashboard'
   | 'create'
+  | 'calendar'
   | 'availability'
   | 'bookings'
   | 'reservations'
@@ -120,6 +121,13 @@ export const PARTNER_NAV_HOME: PartnerNavItem = {
   icon: LayoutDashboard,
 };
 
+/** Unified Partner Calendar (Mission 05.1) — read-only Tours + Stays + Rentals. */
+export const PARTNER_NAV_UNIFIED_CALENDAR: PartnerNavItem = {
+  id: 'calendar',
+  label: 'Calendar',
+  icon: CalendarDays,
+};
+
 export const PARTNER_NAV_CALENDAR: PartnerNavItem = {
   id: 'availability',
   label: 'Departures & availability',
@@ -162,6 +170,7 @@ export const PARTNER_NAV_RESERVATIONS_CHILDREN: PartnerNavItem[] = [
 export const PARTNER_SIDEBAR_PRIMARY: PartnerSidebarEntry[] = [
   { kind: 'section', id: 'overview', label: 'Overview' },
   { kind: 'item', id: 'dashboard', label: 'Home', icon: LayoutDashboard },
+  { kind: 'item', id: 'calendar', label: 'Calendar', icon: CalendarDays },
   { kind: 'item', id: 'listings', label: 'Listings', icon: MapPin },
   { kind: 'item', id: 'inbox', label: 'Inbox', icon: MessageSquare },
   {
@@ -211,6 +220,7 @@ export const PARTNER_NAV_OFFERS: PartnerNavItem = {
 export const PARTNER_SECTION_TITLES: Record<PartnerNavSectionId, string> = {
   dashboard: 'Home',
   create: 'Create listing',
+  calendar: 'Calendar',
   listings: 'Listings',
   bookings: 'Bookings',
   pickup: 'Pickups',
@@ -314,7 +324,10 @@ export const PARTNER_MORE_GROUPS: PartnerNavGroup[] = [
   {
     id: 'operate',
     label: 'Overview',
-    items: [{ id: 'inbox', label: 'Inbox', icon: MessageSquare }],
+    items: [
+      PARTNER_NAV_UNIFIED_CALENDAR,
+      { id: 'inbox', label: 'Inbox', icon: MessageSquare },
+    ],
   },
   {
     id: 'tours',

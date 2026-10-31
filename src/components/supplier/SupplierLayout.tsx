@@ -99,6 +99,7 @@ const SupplierDashboard = lazy(() => import('../../pages/supplier/SupplierDashbo
 const SupplierListings = lazy(() => import('../../pages/supplier/SupplierListings'));
 const SupplierBookings = lazy(() => import('../../pages/supplier/SupplierBookings'));
 const SupplierAvailability = lazy(() => import('../../pages/supplier/SupplierAvailability'));
+const SupplierUnifiedCalendar = lazy(() => import('../../pages/supplier/SupplierUnifiedCalendar'));
 const SupplierStayCalendar = lazy(() => import('../../pages/supplier/SupplierStayCalendar'));
 const SupplierRentalCalendar = lazy(() => import('../../pages/supplier/SupplierRentalCalendar'));
 const SupplierEarnings = lazy(() => import('../../pages/supplier/SupplierEarnings'));
@@ -164,6 +165,7 @@ type SupplierSection =
   | 'create'
   | 'onboarding'
   | 'listings'
+  | 'calendar'
   | 'availability'
   | 'bookings'
   | 'reservations'
@@ -210,7 +212,7 @@ const PATH_ALIASES: Record<string, SupplierSection> = {
   today: 'dashboard',
   home: 'dashboard',
   tours: 'listings',
-  calendar: 'availability',
+  calendar: 'calendar',
   money: 'earnings',
   income: 'earnings',
   verification: 'verification',
@@ -243,6 +245,7 @@ const PATH_ALIASES: Record<string, SupplierSection> = {
 function pathForSection(s: SupplierSection): string {
   if (s === 'dashboard') return PARTNER_APP_BASE;
   if (s === 'listings') return `${PARTNER_APP_BASE}/listings`;
+  if (s === 'calendar') return `${PARTNER_APP_BASE}/calendar`;
   if (s === 'availability') return `${PARTNER_APP_BASE}/availability`;
   if (s === 'earnings') return `${PARTNER_APP_BASE}/money`;
   if (s === 'verification') return `${PARTNER_APP_BASE}/verification`;
@@ -1215,7 +1218,11 @@ export default function SupplierLayout() {
               section === 'verification'
                 ? 'min-h-0 flex-1 bg-white p-0'
                 : partnerPageFrameClass(
-                    section === 'availability' ? 'ops' : section === 'dashboard' ? 'home' : 'default'
+                    section === 'availability' || section === 'calendar'
+                      ? 'ops'
+                      : section === 'dashboard'
+                        ? 'home'
+                        : 'default'
                   )
             }
           >
@@ -1266,6 +1273,7 @@ export default function SupplierLayout() {
                     {section === 'dashboard' && <SupplierDashboard />}
                     {section === 'create' && <PartnerCreateListingPage />}
                     {section === 'listings' && <SupplierListings />}
+                    {section === 'calendar' && <SupplierUnifiedCalendar />}
                     {section === 'availability' && <SupplierAvailability />}
                     {section === 'bookings' && <SupplierBookings inventoryFamily="tour" />}
                     {section === 'reservations' && <SupplierBookings inventoryFamily="stay" />}

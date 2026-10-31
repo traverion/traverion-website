@@ -28,13 +28,13 @@ import {
   deleteRentalAvailabilityBlock,
   fetchRentalAvailabilityBlocks,
   fetchRentalInventoryHolds,
-  fetchRentalVariantReservedQuantity,
   previewDayAvailability,
   rentalDetailsFromListingExtras,
   rentalVariantsFromListingExtras,
   type RentalAvailabilityBlockRow,
   type RentalInventoryHoldRow,
 } from '../../data/supabase-rental-availability';
+import { maxConcurrentReservedQuantity, type RentalInterval } from '../../lib/rental-availability';
 import type { RentalVariant } from '../../types/rental';
 
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -74,7 +74,6 @@ export default function SupplierRentalCalendar() {
   const [variantFilter, setVariantFilter] = useState<string>('all');
   const [blocks, setBlocks] = useState<RentalAvailabilityBlockRow[]>([]);
   const [holds, setHolds] = useState<RentalInventoryHoldRow[]>([]);
-  const [reservedByVariant, setReservedByVariant] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -135,7 +134,6 @@ export default function SupplierRentalCalendar() {
     if (!listingId) {
       setBlocks([]);
       setHolds([]);
-      setReservedByVariant({});
       return;
     }
     const { start, end } = monthRangeIso(year, monthIndex0);
@@ -146,18 +144,37 @@ export default function SupplierRentalCalendar() {
       ]);
       setBlocks(b);
       setHolds(h);
-      const ids = variantIdsKey ? variantIdsKey.split(',').filter(Boolean) : [];
-      const reserved: Record<string, number> = {};
-      await Promise.all(
-        ids.map(async (id) => {
-          reserved[id] = await fetchRentalVariantReservedQuantity(listingId, id);
-        })
-      );
-      setReservedByVariant(reserved);
     } catch (e) {
       setError(userFacingError(e, USER_ERROR.calendar));
     }
-  }, [listingId, year, monthIndex0, variantIdsKey]);
+  }, [listingId, year, monthIndex0]);
+
+  /** Peak concurrent reserved in the visible month — not a sum of sequential holds. */
+  const reservedByVariant = useMemo(() => {
+    const { start, end } = monthRangeIso(year, monthIndex0);
+    const window: RentalInterval = {
+      startMs: Date.parse(start),
+      endMs: Date.parse(end),
+    };
+    const ids = variantIdsKey ? variantIdsKey.split(',').filter(Boolean) : [];
+    const reserved: Record<string, number> = {};
+    const occupancies = holds
+      .map((h) => {
+        const startMs = Date.parse(h.starts_at);
+        const endMs = Date.parse(h.ends_at);
+        if (!Number.isFinite(startMs) || !Number.isFinite(endMs) || !(endMs > startMs)) return null;
+        return {
+          variantId: h.variant_id,
+          quantity: h.quantity,
+          interval: { startMs, endMs },
+        };
+      })
+      .filter((x): x is NonNullable<typeof x> => Boolean(x));
+    for (const id of ids) {
+      reserved[id] = maxConcurrentReservedQuantity(id, window, occupancies);
+    }
+    return reserved;
+  }, [holds, year, monthIndex0, variantIdsKey]);
 
   useEffect(() => {
     void loadListings();

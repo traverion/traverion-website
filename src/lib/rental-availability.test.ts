@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import {
   evaluateRentalAvailability,
   intervalsOverlap,
+  maxConcurrentReservedQuantity,
   occupiedWindowWithBuffer,
+  reservedQuantityInWindow,
 } from './rental-availability';
 
 describe('rental availability intervals', () => {
@@ -137,5 +139,59 @@ describe('rental availability intervals', () => {
       ],
     });
     expect(freeSlot.ok).toBe(true);
+  });
+
+  it('does not sum sequential non-overlapping bookings as concurrent reserved (calendar header)', () => {
+    // Sony A7 IV style: Total 1, two sequential holds of qty 1 — peak concurrent is 1, not 2.
+    const month: { startMs: number; endMs: number } = {
+      startMs: Date.parse('2026-10-01T00:00:00Z'),
+      endMs: Date.parse('2026-11-01T00:00:00Z'),
+    };
+    const occupancies = [
+      {
+        variantId: 'a7iv',
+        quantity: 1,
+        interval: {
+          startMs: Date.parse('2026-10-05T09:00:00Z'),
+          endMs: Date.parse('2026-10-07T18:00:00Z'),
+        },
+      },
+      {
+        variantId: 'a7iv',
+        quantity: 1,
+        interval: {
+          startMs: Date.parse('2026-10-10T09:00:00Z'),
+          endMs: Date.parse('2026-10-12T18:00:00Z'),
+        },
+      },
+    ];
+    expect(reservedQuantityInWindow('a7iv', month, occupancies)).toBe(2);
+    expect(maxConcurrentReservedQuantity('a7iv', month, occupancies)).toBe(1);
+  });
+
+  it('reports peak concurrent when holds overlap inside the window', () => {
+    const window = {
+      startMs: Date.parse('2026-10-01T00:00:00Z'),
+      endMs: Date.parse('2026-11-01T00:00:00Z'),
+    };
+    const occupancies = [
+      {
+        variantId: 'cam',
+        quantity: 1,
+        interval: {
+          startMs: Date.parse('2026-10-05T09:00:00Z'),
+          endMs: Date.parse('2026-10-08T18:00:00Z'),
+        },
+      },
+      {
+        variantId: 'cam',
+        quantity: 1,
+        interval: {
+          startMs: Date.parse('2026-10-07T09:00:00Z'),
+          endMs: Date.parse('2026-10-09T18:00:00Z'),
+        },
+      },
+    ];
+    expect(maxConcurrentReservedQuantity('cam', window, occupancies)).toBe(2);
   });
 });

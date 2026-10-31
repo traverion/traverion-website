@@ -77,6 +77,12 @@ export function noticeSatisfied(
 
 /**
  * Units of `variantId` already reserved for intervals overlapping `window`.
+ *
+ * Note: summing every overlapping occupancy is correct when `window` is the
+ * *requested* rental interval (claim/evaluate). It is NOT safe as a headline
+ * “Reserved” total across a wide calendar range — sequential non-overlapping
+ * bookings all overlap a month-long window and would be double-counted.
+ * Prefer {@link maxConcurrentReservedQuantity} for partner calendar headers.
  */
 export function reservedQuantityInWindow(
   variantId: string,
@@ -90,6 +96,42 @@ export function reservedQuantityInWindow(
     used += Math.max(0, Math.floor(row.quantity));
   }
   return used;
+}
+
+/**
+ * Peak concurrent units of `variantId` reserved inside `window` (sweep line).
+ * Use for partner calendar “Reserved / Available” summaries so sequential
+ * bookings do not inflate reserved past stock.
+ */
+export function maxConcurrentReservedQuantity(
+  variantId: string,
+  window: RentalInterval,
+  occupancies: RentalStockOccupancy[]
+): number {
+  if (!isValidHalfOpenInterval(window)) return 0;
+  type Edge = { t: number; delta: number };
+  const edges: Edge[] = [];
+  for (const row of occupancies) {
+    if (row.variantId !== variantId) continue;
+    if (!isValidHalfOpenInterval(row.interval)) continue;
+    if (!intervalsOverlap(window, row.interval)) continue;
+    const startMs = Math.max(window.startMs, row.interval.startMs);
+    const endMs = Math.min(window.endMs, row.interval.endMs);
+    if (!(endMs > startMs)) continue;
+    const qty = Math.max(0, Math.floor(row.quantity));
+    if (!qty) continue;
+    edges.push({ t: startMs, delta: qty });
+    edges.push({ t: endMs, delta: -qty });
+  }
+  if (edges.length === 0) return 0;
+  edges.sort((a, b) => a.t - b.t || a.delta - b.delta);
+  let current = 0;
+  let peak = 0;
+  for (const e of edges) {
+    current += e.delta;
+    if (current > peak) peak = current;
+  }
+  return peak;
 }
 
 export function isFullyBlocked(window: RentalInterval, blocks: RentalInterval[]): boolean {

@@ -9,6 +9,8 @@ import { inventoryFamilyFromListing, type InventoryListingSlice } from './invent
 export const PARTNER_TOUR_AVAILABILITY_PATH = `${PARTNER_APP_BASE}/availability`;
 export const PARTNER_STAY_CALENDAR_PATH = `${PARTNER_APP_BASE}/stay-calendar`;
 export const PARTNER_RENTAL_CALENDAR_PATH = `${PARTNER_APP_BASE}/rental-calendar`;
+/** Unified read-only calendar (Mission 05.1). Family calendars remain at paths above. */
+export const PARTNER_UNIFIED_CALENDAR_PATH = `${PARTNER_APP_BASE}/calendar`;
 
 export function listingIsStayForCalendarDesk(listing: InventoryListingSlice): boolean {
   return inventoryFamilyFromListing(listing) === 'stay';

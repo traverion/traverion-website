@@ -19064,3 +19064,286 @@ details:not([open]) > :not(summary) {
     transition: none;
   }
 }
+
+/* —— Partner Unified Calendar (Mission 05.1) —— */
+.partner-unified-cal {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.partner-unified-cal__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1rem;
+}
+
+.partner-unified-cal__nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.partner-unified-cal__period {
+  margin: 0;
+  padding-left: 0.35rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--ink, #0f172a);
+}
+
+.partner-unified-cal__filters {
+  margin-top: 0.15rem;
+}
+
+.partner-unified-cal__agenda {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.partner-unified-cal__day-head {
+  margin-bottom: 0.45rem;
+}
+
+.partner-unified-cal__day-head h2 {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  color: var(--ink, #0f172a);
+}
+
+.partner-unified-cal__today-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--finland, #2563eb) 12%, white);
+  color: var(--finland, #2563eb);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.partner-unified-cal__day-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.partner-unified-cal__row {
+  display: grid;
+  grid-template-columns: minmax(5.5rem, 7rem) 3.25rem minmax(0, 1fr);
+  gap: 0.55rem 0.75rem;
+  align-items: center;
+  width: 100%;
+  padding: 0.65rem 0.8rem;
+  border: 1px solid rgba(15, 23, 42, 0.07);
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.partner-unified-cal__row:hover {
+  border-color: color-mix(in srgb, var(--finland, #2563eb) 35%, transparent);
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.05);
+}
+
+.partner-unified-cal__row:focus-visible {
+  outline: 2px solid var(--finland, #2563eb);
+  outline-offset: 2px;
+}
+
+.partner-unified-cal__kind {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+  color: #475569;
+}
+
+.partner-unified-cal__kind--tour {
+  color: #1d4ed8;
+}
+
+.partner-unified-cal__kind--stay {
+  color: #0f766e;
+}
+
+.partner-unified-cal__kind--rental {
+  color: #a16207;
+}
+
+.partner-unified-cal__time {
+  font-variant-numeric: tabular-nums;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.partner-unified-cal__body {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.partner-unified-cal__title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--ink, #0f172a);
+}
+
+.partner-unified-cal__meta {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+.partner-unified-cal__month-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(16rem, 0.9fr);
+  gap: 1rem 1.25rem;
+  align-items: start;
+}
+
+.partner-unified-cal__weekdays,
+.partner-unified-cal__grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0.3rem;
+}
+
+.partner-unified-cal__weekday {
+  padding: 0.25rem 0;
+  text-align: center;
+  font-size: 0.68rem;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.partner-unified-cal__cell {
+  display: flex;
+  min-height: 4.25rem;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.2rem;
+  padding: 0.4rem 0.45rem;
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  border-radius: 10px;
+  background: #fff;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.partner-unified-cal__cell.is-outside {
+  opacity: 0.45;
+}
+
+.partner-unified-cal__cell.is-today {
+  border-color: color-mix(in srgb, var(--finland, #2563eb) 45%, transparent);
+}
+
+.partner-unified-cal__cell.is-selected {
+  background: color-mix(in srgb, var(--finland, #2563eb) 7%, white);
+  border-color: var(--finland, #2563eb);
+}
+
+.partner-unified-cal__cell:hover {
+  border-color: color-mix(in srgb, var(--finland, #2563eb) 30%, transparent);
+}
+
+.partner-unified-cal__cell:focus-visible {
+  outline: 2px solid var(--finland, #2563eb);
+  outline-offset: 2px;
+}
+
+.partner-unified-cal__cell-num {
+  font-size: 0.8rem;
+  font-weight: 650;
+  color: var(--ink, #0f172a);
+}
+
+.partner-unified-cal__cell-count {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #475569;
+}
+
+.partner-unified-cal__dots {
+  display: flex;
+  gap: 0.2rem;
+  margin-top: auto;
+}
+
+.partner-unified-cal__dots i {
+  display: block;
+  width: 0.35rem;
+  height: 0.35rem;
+  border-radius: 999px;
+}
+
+.partner-unified-cal__dots i.is-tour {
+  background: #2563eb;
+}
+
+.partner-unified-cal__dots i.is-stay {
+  background: #0f766e;
+}
+
+.partner-unified-cal__dots i.is-rental {
+  background: #ca8a04;
+}
+
+.partner-unified-cal__side {
+  padding: 0.85rem 0.95rem;
+  border: 1px solid rgba(15, 23, 42, 0.07);
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
+}
+
+@media (max-width: 900px) {
+  .partner-unified-cal__month-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .partner-unified-cal__row {
+    grid-template-columns: minmax(4.75rem, 6rem) 2.75rem minmax(0, 1fr);
+    padding: 0.55rem 0.65rem;
+  }
+
+  .partner-unified-cal__cell {
+    min-height: 3.5rem;
+    padding: 0.3rem 0.35rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .partner-unified-cal__row,
+  .partner-unified-cal__cell {
+    transition: none;
+  }
+}

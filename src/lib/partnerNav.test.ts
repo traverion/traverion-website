@@ -22,6 +22,7 @@ describe('partnerNav IA', () => {
     expect(PARTNER_SIDEBAR_PRIMARY.map((e) => e.id)).toEqual([
       'overview',
       'dashboard',
+      'calendar',
       'listings',
       'inbox',
       'tours',
@@ -58,14 +59,26 @@ describe('partnerNav IA', () => {
   });
 
   it('nests Rental calendar under Rentals', () => {
-    expect(PARTNER_NAV_RENTALS_CHILDREN.map((i) => i.id)).toEqual(['rental-calendar']);
+    expect(PARTNER_NAV_RENTALS_CHILDREN.map((i) => i.id)).toEqual([
+      'rental-bookings',
+      'rental-calendar',
+    ]);
     expect(partnerSidebarGroupContaining('rental-calendar')?.id).toBe('rentals');
     expect(partnerSidebarNavigableIds()).toContain('rental-calendar');
     expect(partnerSectionTitle('rental-calendar')).toBe('Rental calendar');
   });
 
+  it('exposes unified Calendar under Overview without removing family calendars', () => {
+    expect(partnerSidebarNavigableIds()).toContain('calendar');
+    expect(partnerSectionTitle('calendar')).toBe('Calendar');
+    expect(partnerSidebarNavigableIds()).toContain('availability');
+    expect(partnerSidebarNavigableIds()).toContain('stay-calendar');
+    expect(partnerSidebarNavigableIds()).toContain('rental-calendar');
+  });
+
   it('does not duplicate Bookings and Reservations as top-level leaves', () => {
     const leaves = PARTNER_SIDEBAR_PRIMARY.filter((e) => e.kind === 'item').map((e) => e.id);
+    expect(leaves).toContain('calendar');
     expect(leaves).not.toContain('bookings');
     expect(leaves).not.toContain('reservations');
     expect(leaves).not.toContain('availability');
@@ -82,6 +95,7 @@ describe('partnerNav IA', () => {
     expect(PARTNER_SIDEBAR_PRIMARY.some((e) => e.id === 'discounts')).toBe(true);
     const moreIds = PARTNER_MORE_GROUPS.flatMap((g) => g.items.map((i) => i.id));
     expect(moreIds).toContain('discounts');
+    expect(moreIds).toContain('calendar');
     expect(moreIds).toContain('inbox');
     expect(moreIds).toContain('pickup');
     expect(moreIds).toContain('reservations');
