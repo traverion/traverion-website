@@ -94,6 +94,7 @@ function truncateLabel(text: string, max: number): string {
   return `${t.slice(0, Math.max(1, max - 1))}…`;
 }
 
+/** Operational badges only — skip routine Open/Limited noise. */
 function statusText(event: PartnerUnifiedCalendarEvent): string | null {
   if (event.departureStatus === 'closed' || event.kind === 'stay_blocked' || event.kind === 'rental_block') {
     return 'Blocked';
@@ -101,8 +102,6 @@ function statusText(event: PartnerUnifiedCalendarEvent): string | null {
   if (event.kind === 'rental_collection') return 'Collection';
   if (event.kind === 'rental_return') return 'Return';
   if (event.kind === 'rental_ongoing') return 'On rent';
-  if (event.departureStatus === 'available') return 'Open';
-  if (event.departureStatus === 'limited') return 'Limited';
   if (event.departureStatus === 'sold_out') return 'Full';
   if (event.departureStatus === 'cutoff') return 'Cutoff';
   return null;
@@ -123,18 +122,9 @@ function badgeToneClass(event: PartnerUnifiedCalendarEvent, blocked: boolean): s
 }
 
 /** Tour inventory for the card aside — presentation only. */
-function inventoryParts(
-  event: PartnerUnifiedCalendarEvent
-): { primary: string; secondary: string } | null {
-  if (
-    event.bookedCount != null &&
-    event.capacityCount != null &&
-    event.remainingCount != null
-  ) {
-    return {
-      primary: `${event.bookedCount} / ${event.capacityCount} booked`,
-      secondary: `${event.remainingCount} available`,
-    };
+function inventoryLine(event: PartnerUnifiedCalendarEvent): string | null {
+  if (event.bookedCount != null && event.remainingCount != null) {
+    return `${event.bookedCount} booked · ${event.remainingCount} available`;
   }
   return null;
 }
@@ -166,9 +156,9 @@ function monthChipLabel(event: PartnerUnifiedCalendarEvent): string {
   const option = (event.optionLabel ?? '').trim();
   let name: string;
   if (event.category === 'rental' && (event.kind === 'rental_collection' || event.kind === 'rental_return')) {
-    name = option ? `${kind} · ${truncateLabel(option, 16)}` : kind;
+    name = option ? `${kind} · ${truncateLabel(option, 22)}` : kind;
   } else {
-    name = truncateLabel(option || kind, 20);
+    name = truncateLabel(option || kind, 28);
   }
   const blocked =
     event.departureStatus === 'closed' ||
@@ -743,108 +733,112 @@ export default function SupplierUnifiedCalendar() {
 
       <div className="partner-unified-cal__chrome">
         <div className="partner-unified-cal__toolbar">
-          <div className="partner-unified-cal__switch" role="tablist" aria-label="Calendar view">
-            <button
-              type="button"
-              role="tab"
-              aria-selected={view === 'agenda'}
-              className={view === 'agenda' ? 'is-active' : undefined}
-              onClick={() => setView('agenda')}
-            >
-              Agenda
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={view === 'month'}
-              className={view === 'month' ? 'is-active' : undefined}
-              onClick={() => setView('month')}
-            >
-              Month
-            </button>
+          <div className="partner-unified-cal__toolbar-lead">
+            <div className="partner-unified-cal__switch" role="tablist" aria-label="Calendar view">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={view === 'agenda'}
+                className={view === 'agenda' ? 'is-active' : undefined}
+                onClick={() => setView('agenda')}
+              >
+                Agenda
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={view === 'month'}
+                className={view === 'month' ? 'is-active' : undefined}
+                onClick={() => setView('month')}
+              >
+                Month
+              </button>
+            </div>
+
+            <div className="partner-unified-cal__nav">
+              <button
+                type="button"
+                className="partner-unified-cal__nav-btn"
+                onClick={() => shiftRange(-1)}
+                aria-label="Previous range"
+              >
+                <ChevronLeft className="h-4 w-4" aria-hidden />
+              </button>
+              <button type="button" className="partner-unified-cal__today" onClick={goToday}>
+                Today
+              </button>
+              <button
+                type="button"
+                className="partner-unified-cal__nav-btn"
+                onClick={() => shiftRange(1)}
+                aria-label="Next range"
+              >
+                <ChevronRight className="h-4 w-4" aria-hidden />
+              </button>
+              <p className="partner-unified-cal__period">
+                {formatDayShort(range.fromYmd)} – {formatDayShort(range.toYmd)}
+              </p>
+            </div>
           </div>
 
-          <div className="partner-unified-cal__nav">
-            <button
-              type="button"
-              className="partner-unified-cal__nav-btn"
-              onClick={() => shiftRange(-1)}
-              aria-label="Previous range"
-            >
-              <ChevronLeft className="h-4 w-4" aria-hidden />
-            </button>
-            <button type="button" className="partner-unified-cal__today" onClick={goToday}>
-              Today
-            </button>
-            <button
-              type="button"
-              className="partner-unified-cal__nav-btn"
-              onClick={() => shiftRange(1)}
-              aria-label="Next range"
-            >
-              <ChevronRight className="h-4 w-4" aria-hidden />
-            </button>
-            <p className="partner-unified-cal__period">
-              {formatDayShort(range.fromYmd)} – {formatDayShort(range.toYmd)}
-            </p>
+          <div className="partner-unified-cal__toolbar-controls">
+            <div className="partner-unified-cal__range">
+              <TraverionSingleDateField
+                id="unified-cal-from"
+                label="From"
+                value={range.fromYmd}
+                onChange={setRangeFrom}
+                minIso=""
+                tone="premium"
+              />
+              <TraverionSingleDateField
+                id="unified-cal-to"
+                label="To"
+                value={range.toYmd}
+                onChange={setRangeTo}
+                minIso=""
+                tone="premium"
+              />
+            </div>
+
+            <div className="partner-unified-cal__filters">
+              <PartnerSelect
+                id="unified-cal-category"
+                aria-label="Category"
+                value={category}
+                onChange={(v) => setCategory(parsePartnerUnifiedCategoryFilter(v))}
+                options={[
+                  { value: 'all', label: 'All' },
+                  { value: 'tour', label: 'Tours' },
+                  { value: 'stay', label: 'Stays' },
+                  { value: 'rental', label: 'Rentals' },
+                ]}
+              />
+              <PartnerSelect
+                id="unified-cal-listing"
+                aria-label="Listing"
+                value={listingId}
+                onChange={setListingId}
+                options={listingOptions}
+              />
+              <PartnerSelect
+                id="unified-cal-option"
+                aria-label="Option"
+                value={optionKey}
+                onChange={setOptionKey}
+                options={optionChoices}
+                disabled={optionChoices.length <= 1}
+              />
+              <button
+                type="button"
+                className={`partner-unified-cal__history${includePast ? ' is-active' : ''}`}
+                aria-pressed={includePast}
+                onClick={() => setIncludePast((v) => !v)}
+              >
+                {includePast ? 'Past on' : 'Show past'}
+              </button>
+            </div>
           </div>
-        </div>
-
-        <div className="partner-unified-cal__range">
-          <TraverionSingleDateField
-            id="unified-cal-from"
-            label="From"
-            value={range.fromYmd}
-            onChange={setRangeFrom}
-            minIso=""
-            tone="premium"
-          />
-          <TraverionSingleDateField
-            id="unified-cal-to"
-            label="To"
-            value={range.toYmd}
-            onChange={setRangeTo}
-            minIso=""
-            tone="premium"
-          />
-        </div>
-
-        <div className="partner-unified-cal__filters">
-          <PartnerSelect
-            id="unified-cal-category"
-            aria-label="Category"
-            value={category}
-            onChange={(v) => setCategory(parsePartnerUnifiedCategoryFilter(v))}
-            options={[
-              { value: 'all', label: 'All' },
-              { value: 'tour', label: 'Tours' },
-              { value: 'stay', label: 'Stays' },
-              { value: 'rental', label: 'Rentals' },
-            ]}
-          />
-          <PartnerSelect
-            id="unified-cal-listing"
-            aria-label="Listing"
-            value={listingId}
-            onChange={setListingId}
-            options={listingOptions}
-          />
-          <PartnerSelect
-            id="unified-cal-option"
-            aria-label="Option"
-            value={optionKey}
-            onChange={setOptionKey}
-            options={optionChoices}
-            disabled={optionChoices.length <= 1}
-          />
-          <button
-            type="button"
-            className={`partner-unified-cal__history${includePast ? ' is-active' : ''}`}
-            aria-pressed={includePast}
-            onClick={() => setIncludePast((v) => !v)}
-          >
-            {includePast ? 'Past on' : 'Show past'}
-          </button>
         </div>
       </div>
 
@@ -903,7 +897,7 @@ export default function SupplierUnifiedCalendar() {
                     const expanded = expandedKey === event.key;
                     const listing = listingForEvent(event);
                     const status = statusText(event);
-                    const inventory = inventoryParts(event);
+                    const inventory = inventoryLine(event);
                     const cutoff = cutoffCardLabel(event);
                     const optionLine = agendaOptionLine(event);
                     const blocked =
@@ -968,14 +962,7 @@ export default function SupplierUnifiedCalendar() {
                               </span>
                             ) : null}
                             {inventory && event.category === 'tour' ? (
-                              <span className="partner-unified-cal__card-inventory">
-                                <span className="partner-unified-cal__card-inventory-primary">
-                                  {inventory.primary}
-                                </span>
-                                <span className="partner-unified-cal__card-inventory-secondary">
-                                  {inventory.secondary}
-                                </span>
-                              </span>
+                              <span className="partner-unified-cal__card-inventory">{inventory}</span>
                             ) : null}
                           </span>
                         </button>
