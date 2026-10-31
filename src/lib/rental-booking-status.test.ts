@@ -3,6 +3,8 @@ import {
   rentalBookingIsScheduleCompleted,
   rentalBookingSimpleStatus,
   rentalBookingSimpleStatusLabel,
+  rentalScheduledReturnAtMs,
+  rentalScheduledReturnElapsed,
 } from './rental-booking-status';
 
 function rental(partial: {
@@ -27,29 +29,38 @@ function rental(partial: {
   };
 }
 
-describe('Mission 04: rental simple booking status', () => {
-  it('maps confirmed rentals to Confirmed before scheduled return', () => {
+describe('Mission 04.1: rental Completed at exact return datetime', () => {
+  const returnAt = '2026-09-22T18:00:00+03:00';
+  const returnMs = Date.parse(returnAt);
+
+  it('resolves scheduled return to the listing-local instant', () => {
     const b = rental({
       pickupAt: '2026-09-20T09:00:00+03:00',
-      returnAt: '2026-09-22T18:00:00+03:00',
-      rentalOpsStatus: 'awaiting_pickup',
+      returnAt,
     });
-    expect(rentalBookingSimpleStatus(b, '2026-09-21')).toBe('confirmed');
-    expect(rentalBookingSimpleStatusLabel(b, '2026-09-21')).toBe('Confirmed');
-    expect(rentalBookingIsScheduleCompleted(b, '2026-09-21')).toBe(false);
+    expect(rentalScheduledReturnAtMs(b)).toBe(returnMs);
   });
 
-  it('completes automatically after scheduled return without handover ops', () => {
+  it('stays Confirmed until the exact return instant', () => {
     const b = rental({
       pickupAt: '2026-09-20T09:00:00+03:00',
-      returnAt: '2026-09-22T18:00:00+03:00',
-      // Legacy ops ignored — still Completed by schedule.
+      returnAt,
       rentalOpsStatus: 'awaiting_pickup',
     });
-    expect(rentalBookingIsScheduleCompleted(b, '2026-09-23')).toBe(true);
-    expect(rentalBookingSimpleStatusLabel(b, '2026-09-23')).toBe('Completed');
-    // Return day itself remains Confirmed.
-    expect(rentalBookingSimpleStatusLabel(b, '2026-09-22')).toBe('Confirmed');
+    expect(rentalBookingIsScheduleCompleted(b, returnMs - 1)).toBe(false);
+    expect(rentalBookingSimpleStatusLabel(b, returnMs - 1)).toBe('Confirmed');
+    expect(rentalScheduledReturnElapsed(b, returnMs - 1)).toBe(false);
+  });
+
+  it('becomes Completed at the return instant (same calendar day after time)', () => {
+    const b = rental({
+      pickupAt: '2026-09-20T09:00:00+03:00',
+      returnAt,
+      rentalOpsStatus: 'awaiting_pickup',
+    });
+    expect(rentalBookingIsScheduleCompleted(b, returnMs)).toBe(true);
+    expect(rentalBookingSimpleStatusLabel(b, returnMs)).toBe('Completed');
+    expect(rentalBookingSimpleStatus(b, returnMs + 60_000)).toBe('completed');
   });
 
   it('keeps Cancelled for cancelled / refunded rows', () => {
@@ -59,9 +70,9 @@ describe('Mission 04: rental simple booking status', () => {
           status: 'cancelled',
           payment_status: 'paid',
           pickupAt: '2026-09-20T09:00:00+03:00',
-          returnAt: '2026-09-22T18:00:00+03:00',
+          returnAt,
         }),
-        '2026-09-30'
+        returnMs + 86_400_000
       )
     ).toBe('Cancelled');
     expect(
@@ -70,9 +81,9 @@ describe('Mission 04: rental simple booking status', () => {
           status: 'confirmed',
           payment_status: 'refunded',
           pickupAt: '2026-09-20T09:00:00+03:00',
-          returnAt: '2026-09-22T18:00:00+03:00',
+          returnAt,
         }),
-        '2026-09-30'
+        returnMs + 86_400_000
       )
     ).toBe('Cancelled');
   });
@@ -80,16 +91,16 @@ describe('Mission 04: rental simple booking status', () => {
   it('ignores collected/returned ops for status chips (soft migrate)', () => {
     const collected = rental({
       pickupAt: '2026-09-20T09:00:00+03:00',
-      returnAt: '2026-09-22T18:00:00+03:00',
+      returnAt,
       rentalOpsStatus: 'collected',
     });
     const returnedEarly = rental({
       pickupAt: '2026-09-20T09:00:00+03:00',
-      returnAt: '2026-09-22T18:00:00+03:00',
+      returnAt,
       rentalOpsStatus: 'returned',
     });
-    expect(rentalBookingSimpleStatusLabel(collected, '2026-09-21')).toBe('Confirmed');
-    expect(rentalBookingSimpleStatusLabel(returnedEarly, '2026-09-21')).toBe('Confirmed');
-    expect(rentalBookingSimpleStatusLabel(returnedEarly, '2026-09-23')).toBe('Completed');
+    expect(rentalBookingSimpleStatusLabel(collected, returnMs - 1)).toBe('Confirmed');
+    expect(rentalBookingSimpleStatusLabel(returnedEarly, returnMs - 1)).toBe('Confirmed');
+    expect(rentalBookingSimpleStatusLabel(returnedEarly, returnMs)).toBe('Completed');
   });
 });

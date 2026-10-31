@@ -173,7 +173,7 @@ function matchesTravel(
   }
   if (query.travel === 'past') {
     if (query.ops === 'refund_due' || query.ops === 'unpaid' || query.ops === 'cancel') return true;
-    return partnerBookingIsPastSchedule(row, experienceToday);
+    return partnerBookingIsPastSchedule(row, experienceToday, nowMs);
   }
   const from = query.travelFrom;
   const to = query.travelTo;

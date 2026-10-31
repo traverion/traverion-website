@@ -14,6 +14,7 @@ import {
   lifecycleReminderAnchorYmd,
   lifecycleRentalReturnYmd,
 } from './booking-lifecycle-calendar';
+import { rentalScheduledReturnElapsed } from './rental-booking-status';
 import { localYmd } from './local-ymd';
 import { listingHasUpcomingBookableSeason } from './booking-quote';
 import { parseListingExtras } from '../types/listingExtras';
@@ -381,11 +382,14 @@ export function partnerBookingIsUpcomingSchedule(
   return Boolean(date) && date > todayIso;
 }
 
-/** Partner Bookings Past: schedule finished (tour date before today, stay after check-out, rental after return day). Includes cancelled history. */
-export function partnerBookingIsPastSchedule(b: PartnerScheduleBooking, todayIso: string): boolean {
+/** Partner Bookings Past: schedule finished (tour date before today, stay after check-out, rental after return instant). Includes cancelled history. */
+export function partnerBookingIsPastSchedule(
+  b: PartnerScheduleBooking,
+  todayIso: string,
+  nowMs: number = Date.now()
+): boolean {
   if (bookingIsRental(b)) {
-    const ret = lifecycleRentalReturnYmd(b) ?? (b.booking_date ?? '').trim();
-    return Boolean(ret) && ret < todayIso;
+    return rentalScheduledReturnElapsed(b, nowMs);
   }
   if (bookingIsStayNight(b)) {
     const stay = stayRangeFromBooking(b);
@@ -420,8 +424,7 @@ export function bookingMatchesTripView(
   if (travelerBookingNeedsPayNow(b)) return false;
   if (bookingIsFailedCheckout(b)) return false;
   if (bookingIsRental(b)) {
-    const ret = lifecycleRentalReturnYmd(b) ?? (b.booking_date ?? '').trim();
-    const past = Boolean(ret) && ret < day;
+    const past = rentalScheduledReturnElapsed(b, nowMs);
     return view === 'past' ? past : !past;
   }
   if (bookingIsStayNight(b)) {

@@ -269,7 +269,9 @@ describe('trip list views', () => {
     expect(partnerBookingIsUpcomingSchedule(rental, '2026-09-22')).toBe(false);
   });
 
-  it('puts rentals in Past only after scheduled return day (Mission 04)', () => {
+  it('puts rentals in Past at the exact scheduled return instant (Mission 04.1)', () => {
+    const returnAt = '2026-09-22T18:00:00+03:00';
+    const returnMs = Date.parse(returnAt);
     const rental = {
       status: 'confirmed',
       payment_status: 'paid',
@@ -278,16 +280,16 @@ describe('trip list views', () => {
       purchase_snapshot: {
         inventoryFamily: 'rental',
         pickupAt: '2026-09-20T09:00:00+03:00',
-        returnAt: '2026-09-22T09:00:00+03:00',
+        returnAt,
         departureTimezone: 'Europe/Helsinki',
       },
     };
-    expect(partnerBookingIsPastSchedule(rental, '2026-09-22')).toBe(false);
-    expect(partnerBookingIsPastSchedule(rental, '2026-09-23')).toBe(true);
-    expect(bookingMatchesTripView(rental, 'upcoming', '2026-09-22')).toBe(true);
-    expect(bookingMatchesTripView(rental, 'past', '2026-09-22')).toBe(false);
-    expect(bookingMatchesTripView(rental, 'past', '2026-09-23')).toBe(true);
-    expect(bookingMatchesTripView(rental, 'upcoming', '2026-09-23')).toBe(false);
+    expect(partnerBookingIsPastSchedule(rental, '2026-09-22', returnMs - 1)).toBe(false);
+    expect(partnerBookingIsPastSchedule(rental, '2026-09-22', returnMs)).toBe(true);
+    expect(bookingMatchesTripView(rental, 'upcoming', '2026-09-22', returnMs - 1)).toBe(true);
+    expect(bookingMatchesTripView(rental, 'past', '2026-09-22', returnMs - 1)).toBe(false);
+    expect(bookingMatchesTripView(rental, 'past', '2026-09-22', returnMs)).toBe(true);
+    expect(bookingMatchesTripView(rental, 'upcoming', '2026-09-22', returnMs)).toBe(false);
   });
 
   it('puts only finished stays in Past — not cancelled mid-stays', () => {
