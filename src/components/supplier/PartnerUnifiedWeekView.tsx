@@ -1,7 +1,7 @@
 /**
  * Unified Calendar — Monday–Sunday week grid with compact event tiles.
  */
-import { useEffect, useMemo, useRef } from 'react';
+import { useMemo, useRef, type Dispatch, type SetStateAction } from 'react';
 import { addCalendarDaysYmd } from '../../lib/booking-lifecycle-calendar';
 import {
   partnerUnifiedEventKindLabel,
@@ -9,8 +9,7 @@ import {
 } from '../../lib/partner-unified-calendar';
 import type { TourPackage } from '../../types/tour';
 import type { BookingRow } from '../../data/supabase-bookings';
-import PartnerUnifiedInlineAvailabilityEdit from './PartnerUnifiedInlineAvailabilityEdit';
-import { openSupplierBooking } from '../../lib/supplierPortalNavigation';
+import PartnerUnifiedEventEditPopover from './PartnerUnifiedEventEditPopover';
 
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const WEEK_TILE_LIMIT = 6;
@@ -29,7 +28,8 @@ type Props = {
   onToggleEvent: (event: PartnerUnifiedCalendarEvent) => void;
   onCloseExpand: () => void;
   onShowMoreDay: (iso: string) => void;
-  onListingsChange: (next: TourPackage[]) => void;
+  onListingsChange: Dispatch<SetStateAction<TourPackage[]>>;
+  /** Local availability refresh — must not remount / scroll-reset the calendar. */
   onSaved: () => void;
 };
 
@@ -49,19 +49,6 @@ function statusText(event: PartnerUnifiedCalendarEvent): string | null {
   if (event.departureStatus === 'sold_out') return 'Full';
   if (event.departureStatus === 'cutoff') return 'Cutoff';
   return null;
-}
-
-function eventOpensBooking(event: PartnerUnifiedCalendarEvent): boolean {
-  return Boolean(
-    event.bookingId &&
-      (event.source === 'booking' || event.source == null) &&
-      event.kind !== 'tour_departure' &&
-      event.kind !== 'stay_blocked' &&
-      event.kind !== 'stay_listing' &&
-      event.kind !== 'rental_block' &&
-      event.kind !== 'rental_listing' &&
-      event.kind !== 'rental_ongoing'
-  );
 }
 
 function weekTilePrimary(event: PartnerUnifiedCalendarEvent): string {
@@ -124,6 +111,74 @@ function weekTileTitleAttr(event: PartnerUnifiedCalendarEvent): string {
     .join(' · ');
 }
 
+function WeekEventTile({
+  event,
+  expanded,
+  listing,
+  bookings,
+  canEdit,
+  userId,
+  onToggleEvent,
+  onCloseExpand,
+  onListingsChange,
+  onSaved,
+}: {
+  event: PartnerUnifiedCalendarEvent;
+  expanded: boolean;
+  listing: TourPackage | null;
+  bookings: BookingRow[];
+  canEdit: boolean;
+  userId?: string;
+  onToggleEvent: (event: PartnerUnifiedCalendarEvent) => void;
+  onCloseExpand: () => void;
+  onListingsChange: Dispatch<SetStateAction<TourPackage[]>>;
+  onSaved: () => void;
+}) {
+  const anchorRef = useRef<HTMLButtonElement>(null);
+  const status = statusText(event);
+  const meta = weekTileMeta(event);
+  const blocked = status === 'Blocked' || event.departureStatus === 'closed';
+
+  return (
+    <div className="partner-unified-cal__week-tile-wrap">
+      <button
+        ref={anchorRef}
+        type="button"
+        className={`partner-unified-cal__week-tile is-${event.category}${
+          expanded ? ' is-active' : ''
+        }${blocked ? ' is-blocked' : ''}${
+          event.departureStatus === 'sold_out' ? ' is-full' : ''
+        }${event.departureStatus === 'cutoff' ? ' is-cutoff' : ''}`}
+        title={weekTileTitleAttr(event)}
+        aria-expanded={expanded}
+        onClick={() => onToggleEvent(event)}
+      >
+        <span className="partner-unified-cal__week-tile-top">
+          <span className="partner-unified-cal__week-tile-time">{weekTilePrimary(event)}</span>
+          {status ? <span className="partner-unified-cal__week-tile-status">{status}</span> : null}
+        </span>
+        <span className="partner-unified-cal__week-tile-title">{weekTileTitle(event)}</span>
+        {meta ? <span className="partner-unified-cal__week-tile-meta">{meta}</span> : null}
+      </button>
+      {expanded && listing ? (
+        <PartnerUnifiedEventEditPopover
+          open
+          anchorRef={anchorRef}
+          event={event}
+          listing={listing}
+          bookings={bookings}
+          canEdit={canEdit}
+          userId={userId}
+          onClose={onCloseExpand}
+          onListingsChange={onListingsChange}
+          onSaved={onSaved}
+          panelClassName="partner-unified-cal__week-popover"
+        />
+      ) : null}
+    </div>
+  );
+}
+
 export default function PartnerUnifiedWeekView({
   weekFromYmd,
   todayIso,
@@ -141,24 +196,10 @@ export default function PartnerUnifiedWeekView({
   onListingsChange,
   onSaved,
 }: Props) {
-  const popoverRef = useRef<HTMLDivElement>(null);
   const days = useMemo(
     () => Array.from({ length: 7 }, (_, i) => addCalendarDaysYmd(weekFromYmd, i) ?? weekFromYmd),
     [weekFromYmd]
   );
-
-  useEffect(() => {
-    if (!expandedKey) return;
-    const onDoc = (e: MouseEvent) => {
-      if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
-        const tile = (e.target as HTMLElement | null)?.closest?.('.partner-unified-cal__week-tile');
-        if (tile) return;
-        onCloseExpand();
-      }
-    };
-    document.addEventListener('mousedown', onDoc);
-    return () => document.removeEventListener('mousedown', onDoc);
-  }, [expandedKey, onCloseExpand]);
 
   return (
     <div className="partner-unified-cal__week" role="grid" aria-label="Week">
@@ -215,91 +256,21 @@ export default function PartnerUnifiedWeekView({
                 </button>
               ) : (
                 visible.map((event) => {
-                  const expanded = expandedKey === event.key;
                   const listing = listings.find((l) => l.id === event.listingId) ?? null;
-                  const status = statusText(event);
-                  const meta = weekTileMeta(event);
-                  const blocked =
-                    status === 'Blocked' || event.departureStatus === 'closed';
                   return (
-                    <div key={event.key} className="partner-unified-cal__week-tile-wrap">
-                      <button
-                        type="button"
-                        className={`partner-unified-cal__week-tile is-${event.category}${
-                          expanded ? ' is-active' : ''
-                        }${blocked ? ' is-blocked' : ''}${
-                          event.departureStatus === 'sold_out' ? ' is-full' : ''
-                        }${event.departureStatus === 'cutoff' ? ' is-cutoff' : ''}`}
-                        title={weekTileTitleAttr(event)}
-                        aria-expanded={expanded}
-                        onClick={() => onToggleEvent(event)}
-                      >
-                        <span className="partner-unified-cal__week-tile-top">
-                          <span className="partner-unified-cal__week-tile-time">
-                            {weekTilePrimary(event)}
-                          </span>
-                          {status ? (
-                            <span className="partner-unified-cal__week-tile-status">{status}</span>
-                          ) : null}
-                        </span>
-                        <span className="partner-unified-cal__week-tile-title">
-                          {weekTileTitle(event)}
-                        </span>
-                        {meta ? (
-                          <span className="partner-unified-cal__week-tile-meta">{meta}</span>
-                        ) : null}
-                      </button>
-                      {expanded && listing ? (
-                        <div
-                          ref={popoverRef}
-                          className="partner-unified-cal__popover partner-unified-cal__week-popover"
-                          role="dialog"
-                          aria-label="Event details"
-                        >
-                          <div className="partner-unified-cal__popover-head">
-                            <div className="partner-unified-cal__popover-titles">
-                              <strong>{event.listingTitle}</strong>
-                              {event.optionLabel ? (
-                                <span>{event.optionLabel}</span>
-                              ) : (
-                                <span>{partnerUnifiedEventKindLabel(event.kind)}</span>
-                              )}
-                            </div>
-                            <button
-                              type="button"
-                              className="partner-unified-cal__popover-close"
-                              onClick={onCloseExpand}
-                              aria-label="Close"
-                            >
-                              ×
-                            </button>
-                          </div>
-                          {eventOpensBooking(event) && event.bookingId ? (
-                            <button
-                              type="button"
-                              className="partner-unified-cal__open-booking"
-                              onClick={() =>
-                                openSupplierBooking(event.bookingId!, {
-                                  family: event.category,
-                                })
-                              }
-                            >
-                              Open booking
-                            </button>
-                          ) : null}
-                          <PartnerUnifiedInlineAvailabilityEdit
-                            iso={event.ymd}
-                            listing={listing}
-                            bookings={bookings}
-                            event={event}
-                            canEdit={canEdit}
-                            userId={userId}
-                            onListingsChange={onListingsChange}
-                            onSaved={onSaved}
-                          />
-                        </div>
-                      ) : null}
-                    </div>
+                    <WeekEventTile
+                      key={event.key}
+                      event={event}
+                      expanded={expandedKey === event.key}
+                      listing={listing}
+                      bookings={bookings}
+                      canEdit={canEdit}
+                      userId={userId}
+                      onToggleEvent={onToggleEvent}
+                      onCloseExpand={onCloseExpand}
+                      onListingsChange={onListingsChange}
+                      onSaved={onSaved}
+                    />
                   );
                 })
               )}

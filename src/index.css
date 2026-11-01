@@ -20302,12 +20302,6 @@ details:not([open]) > :not(summary) {
   white-space: nowrap;
 }
 
-.partner-unified-cal__week-popover {
-  left: 0;
-  right: auto;
-  width: min(19rem, 78vw);
-}
-
 @media (max-width: 900px) {
   .partner-unified-cal__week-grid {
     min-height: 0;
@@ -20649,16 +20643,50 @@ details:not([open]) > :not(summary) {
 }
 
 .partner-unified-cal__popover {
-  position: absolute;
   z-index: 40;
-  top: calc(100% + 0.2rem);
-  left: 0;
-  width: min(19rem, 82vw);
+  box-sizing: border-box;
   padding: 0.7rem 0.75rem 0.8rem;
   border: 1px solid var(--puc-border);
   border-radius: 12px;
   background: var(--puc-surface);
   box-shadow: 0 12px 32px rgba(12, 17, 24, 0.12);
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.partner-unified-cal__popover--anchored {
+  /* position/size applied inline via computeAnchoredPopoverBox */
+}
+
+.partner-unified-cal__popover--anchored.is-enter {
+  animation: puc-expand-in 0.18s ease;
+}
+
+.partner-unified-cal__popover-sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.partner-unified-cal__popover-sheet-backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: rgba(12, 17, 24, 0.4);
+  cursor: default;
+}
+
+.partner-unified-cal__popover--sheet {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 28rem);
+  max-height: min(78vh, 34rem);
+  margin: 0;
+  border-radius: 16px 16px 0 0;
   animation: puc-expand-in 0.18s ease;
 }
 
@@ -21201,12 +21229,5 @@ details:not([open]) > :not(summary) {
     flex: 1 1 8rem;
   }
 
-  .partner-unified-cal__popover {
-    position: fixed;
-    left: 0.65rem;
-    right: 0.65rem;
-    top: auto;
-    bottom: 0.65rem;
-    width: auto;
-  }
+  /* Mobile sheet positioning is handled by PartnerUnifiedEventEditPopover. */
 }

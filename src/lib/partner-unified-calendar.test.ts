@@ -130,7 +130,13 @@ describe('partner-unified-calendar', () => {
     expect(page).toContain('PartnerUnifiedWeekView');
     expect(page).toContain('partnerUnifiedDisplayRangeForView');
     expect(week).toContain('WEEK_TILE_LIMIT');
-    expect(week).toContain('Open booking');
+    expect(week).toContain('PartnerUnifiedEventEditPopover');
+    const popover = readFileSync(
+      resolve(__dirname, '../components/supplier/PartnerUnifiedEventEditPopover.tsx'),
+      'utf8'
+    );
+    expect(popover).toContain('Open booking');
+    expect(popover).toContain('computeAnchoredPopoverBox');
   });
 
   it('wires stay/rental presence overlays for zero-booking listings', () => {

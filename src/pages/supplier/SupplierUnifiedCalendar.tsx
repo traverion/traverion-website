@@ -2,7 +2,15 @@
  * Mission 05.1–05.6.x — Unified Partner Calendar.
  * Full-width Agenda/Week/Month, rolling date ranges, inline expandable editing.
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type Dispatch,
+  type SetStateAction,
+} from 'react';
 import { CalendarDays, ChevronLeft, ChevronRight, Pencil } from 'lucide-react';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import { useSupplierRole } from '../../hooks/useSupplierRole';
@@ -72,7 +80,6 @@ import {
   sortMonthCellEvents,
 } from '../../lib/partner-unified-calendar-month';
 import { partnerUnifiedDayBoundsUtc } from '../../lib/partner-unified-day-edits';
-import { openSupplierBooking } from '../../lib/supplierPortalNavigation';
 import {
   SUPPLIER_PAGE_CLASS,
   SupplierEmptyState,
@@ -81,6 +88,7 @@ import {
 import PartnerSelect from '../../components/supplier/PartnerSelect';
 import PartnerUnifiedBulkEditPanel from '../../components/supplier/PartnerUnifiedBulkEditPanel';
 import PartnerUnifiedInlineAvailabilityEdit from '../../components/supplier/PartnerUnifiedInlineAvailabilityEdit';
+import PartnerUnifiedEventEditPopover from '../../components/supplier/PartnerUnifiedEventEditPopover';
 import PartnerUnifiedWeekView from '../../components/supplier/PartnerUnifiedWeekView';
 import ErrorState from '../../components/ErrorState';
 import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
@@ -181,16 +189,60 @@ function parseIsoParam(raw: string | null | undefined): string | null {
   return /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null;
 }
 
-function eventOpensBooking(event: PartnerUnifiedCalendarEvent): boolean {
-  return Boolean(
-    event.bookingId &&
-      (event.source === 'booking' || event.source == null) &&
-      event.kind !== 'tour_departure' &&
-      event.kind !== 'stay_blocked' &&
-      event.kind !== 'stay_listing' &&
-      event.kind !== 'rental_block' &&
-      event.kind !== 'rental_listing' &&
-      event.kind !== 'rental_ongoing'
+function MonthEventChip({
+  event,
+  expanded,
+  listing,
+  bookings,
+  canEdit,
+  userId,
+  onToggle,
+  onClose,
+  onListingsChange,
+  onSaved,
+}: {
+  event: PartnerUnifiedCalendarEvent;
+  expanded: boolean;
+  listing: TourPackage | null;
+  bookings: BookingRow[];
+  canEdit: boolean;
+  userId?: string;
+  onToggle: () => void;
+  onClose: () => void;
+  onListingsChange: Dispatch<SetStateAction<TourPackage[]>>;
+  onSaved: () => void;
+}) {
+  const anchorRef = useRef<HTMLButtonElement>(null);
+  return (
+    <div className="partner-unified-cal__chip-wrap">
+      <button
+        ref={anchorRef}
+        type="button"
+        className={`partner-unified-cal__chip is-${event.category}${expanded ? ' is-active' : ''}`}
+        title={monthChipTitle(event)}
+        aria-expanded={expanded}
+        onClick={(e) => {
+          e.stopPropagation();
+          onToggle();
+        }}
+      >
+        {monthChipLabel(event)}
+      </button>
+      {expanded && listing ? (
+        <PartnerUnifiedEventEditPopover
+          open
+          anchorRef={anchorRef}
+          event={event}
+          listing={listing}
+          bookings={bookings}
+          canEdit={canEdit}
+          userId={userId}
+          onClose={onClose}
+          onListingsChange={onListingsChange}
+          onSaved={onSaved}
+        />
+      ) : null}
+    </div>
   );
 }
 
@@ -261,7 +313,6 @@ export default function SupplierUnifiedCalendar() {
   const [rentalBlocks, setRentalBlocks] = useState<RentalAvailabilityBlockRow[]>([]);
   const [rentalHolds, setRentalHolds] = useState<RentalInventoryHoldRow[]>([]);
   const [visibilityNote, setVisibilityNote] = useState<string | null>(null);
-  const popoverRef = useRef<HTMLDivElement>(null);
   /** Last Agenda From/To so Week/Month switches can restore it when focus still falls inside. */
   const agendaRangeRef = useRef<{ fromYmd: string; toYmd: string } | null>(
     initial.view === 'agenda' ? { fromYmd: initial.fromYmd, toYmd: initial.toYmd } : null
@@ -371,21 +422,18 @@ export default function SupplierUnifiedCalendar() {
   }, [view, fromYmd, toYmd, range.fromYmd, range.toYmd]);
 
   useEffect(() => {
-    if ((!expandedKey && !monthDaySheetIso) || (view !== 'month' && view !== 'week')) return;
+    // Week/Month edit popovers handle their own outside-click + Escape.
+    // This only closes the Month "+N more" day sheet.
+    if (!monthDaySheetIso || view !== 'month') return;
     const onDoc = (e: MouseEvent) => {
-      const target = e.target as Node;
       const el = e.target as HTMLElement | null;
-      if (el?.closest?.('.partner-unified-cal__week-popover')) return;
       if (el?.closest?.('.partner-unified-cal__day-sheet')) return;
       if (el?.closest?.('.partner-unified-cal__more')) return;
-      if (expandedKey && popoverRef.current && !popoverRef.current.contains(target)) {
-        setExpandedKey(null);
-      }
-      if (monthDaySheetIso) setMonthDaySheetIso(null);
+      setMonthDaySheetIso(null);
     };
     document.addEventListener('mousedown', onDoc);
     return () => document.removeEventListener('mousedown', onDoc);
-  }, [expandedKey, monthDaySheetIso, view]);
+  }, [monthDaySheetIso, view]);
 
   useEffect(() => {
     if (view !== 'agenda') return;
@@ -905,6 +953,11 @@ export default function SupplierUnifiedCalendar() {
     void load().then(() => setCalendarEpoch((n) => n + 1));
   }, [load]);
 
+  /** Week/Month saves: refresh availability overlays only — keep scroll + selected day. */
+  const refreshAvailabilityLocal = useCallback(() => {
+    setCalendarEpoch((n) => n + 1);
+  }, []);
+
   /** Agenda ops: patch local caches only — never full-list reload. */
   const applyTourAgendaPatch = useCallback((patch: PartnerUnifiedAgendaTourPatch) => {
     if (patch.type === 'dayClosed') {
@@ -1403,7 +1456,7 @@ export default function SupplierUnifiedCalendar() {
             setView('agenda');
           }}
           onListingsChange={setListings}
-          onSaved={refreshAfterEdit}
+          onSaved={refreshAvailabilityLocal}
         />
       ) : (
         <div className="partner-unified-cal__month" role="grid" aria-label="Month">
@@ -1464,78 +1517,24 @@ export default function SupplierUnifiedCalendar() {
                     {cell.day}
                   </button>
                   <div className="partner-unified-cal__cell-events">
-                    {shown.map((event) => {
-                      const expanded = expandedKey === event.key;
-                      const listing = listingForEvent(event);
-                      return (
-                        <div key={event.key} className="partner-unified-cal__chip-wrap">
-                          <button
-                            type="button"
-                            className={`partner-unified-cal__chip is-${event.category}${
-                              expanded ? ' is-active' : ''
-                            }`}
-                            title={monthChipTitle(event)}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setMonthDaySheetIso(null);
-                              toggleExpand(event.key, event);
-                            }}
-                          >
-                            {monthChipLabel(event)}
-                          </button>
-                          {expanded && listing ? (
-                            <div
-                              ref={popoverRef}
-                              className="partner-unified-cal__popover"
-                              role="dialog"
-                              aria-label="Edit availability"
-                            >
-                              <div className="partner-unified-cal__popover-head">
-                                <div className="partner-unified-cal__popover-titles">
-                                  <strong>{event.listingTitle}</strong>
-                                  {event.optionLabel ? (
-                                    <span>{event.optionLabel}</span>
-                                  ) : (
-                                    <span>{partnerUnifiedEventKindLabel(event.kind)}</span>
-                                  )}
-                                </div>
-                                <button
-                                  type="button"
-                                  className="partner-unified-cal__popover-close"
-                                  onClick={() => setExpandedKey(null)}
-                                  aria-label="Close"
-                                >
-                                  ×
-                                </button>
-                              </div>
-                              {eventOpensBooking(event) && event.bookingId ? (
-                                <button
-                                  type="button"
-                                  className="partner-unified-cal__open-booking"
-                                  onClick={() =>
-                                    openSupplierBooking(event.bookingId!, {
-                                      family: event.category,
-                                    })
-                                  }
-                                >
-                                  Open booking
-                                </button>
-                              ) : null}
-                              <PartnerUnifiedInlineAvailabilityEdit
-                                iso={event.ymd}
-                                listing={listing}
-                                bookings={bookings}
-                                event={event}
-                                canEdit={canEdit}
-                                userId={user?.id}
-                                onListingsChange={setListings}
-                                onSaved={refreshAfterEdit}
-                              />
-                            </div>
-                          ) : null}
-                        </div>
-                      );
-                    })}
+                    {shown.map((event) => (
+                      <MonthEventChip
+                        key={event.key}
+                        event={event}
+                        expanded={expandedKey === event.key}
+                        listing={listingForEvent(event)}
+                        bookings={bookings}
+                        canEdit={canEdit}
+                        userId={user?.id}
+                        onToggle={() => {
+                          setMonthDaySheetIso(null);
+                          toggleExpand(event.key, event);
+                        }}
+                        onClose={() => setExpandedKey(null)}
+                        onListingsChange={setListings}
+                        onSaved={refreshAvailabilityLocal}
+                      />
+                    ))}
                     {more > 0 ? (
                       <button
                         type="button"

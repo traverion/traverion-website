@@ -96,6 +96,45 @@ describe('computeAnchoredPopoverBox', () => {
       expect(box.top + box.maxHeight).toBeLessThanOrEqual(700 - 8 + 0.5);
     }
   });
+
+  it('opens left for a rightmost calendar column at 1440px desktop', () => {
+    // Chip in the Sunday column near the right edge.
+    const box = computeAnchoredPopoverBox({
+      anchorRect: rect(1320, 180, 96, 28),
+      viewportWidth: 1440,
+      viewportHeight: 900,
+      preferredWidth: 19 * 16,
+      estimatedHeight: 320,
+      edge: 8,
+      gap: 8,
+    });
+    expect(box.mode).toBe('popover');
+    if (box.mode === 'popover') {
+      expect(box.left).toBeGreaterThanOrEqual(8);
+      expect(box.left + box.width).toBeLessThanOrEqual(1440 - 8);
+      // End-aligned to the chip rather than starting past the viewport.
+      expect(box.left).toBeLessThanOrEqual(1320);
+      expect(box.placement).toBe('below');
+    }
+  });
+
+  it('flips above for a bottom-row chip', () => {
+    const box = computeAnchoredPopoverBox({
+      anchorRect: rect(200, 820, 120, 28),
+      viewportWidth: 1440,
+      viewportHeight: 900,
+      preferredWidth: 19 * 16,
+      estimatedHeight: 320,
+      edge: 8,
+      gap: 8,
+    });
+    expect(box.mode).toBe('popover');
+    if (box.mode === 'popover') {
+      expect(box.placement).toBe('above');
+      expect(box.top).toBeGreaterThanOrEqual(8);
+      expect(box.top + Math.min(box.maxHeight, 320)).toBeLessThanOrEqual(820 - 8 + 0.5);
+    }
+  });
 });
 
 describe('computeAnchoredActionMenuBox', () => {

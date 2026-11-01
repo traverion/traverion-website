@@ -39,7 +39,12 @@ export function computeAnchoredPopoverBox(params: {
   }
 
   const width = Math.min(params.preferredWidth, params.viewportWidth - edge * 2);
+  // Prefer start-align under the anchor; when that overflows the right edge, open left
+  // by end-aligning to the anchor, then clamp into the viewport.
   let left = params.anchorRect.left;
+  if (left + width > params.viewportWidth - edge) {
+    left = params.anchorRect.right - width;
+  }
   if (left + width > params.viewportWidth - edge) {
     left = Math.max(edge, params.viewportWidth - width - edge);
   }
