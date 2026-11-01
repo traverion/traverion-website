@@ -198,6 +198,26 @@ serve(async (req) => {
       });
     }
 
+    // Mission 06.5: rentals never use cancel auto-refund. Manual Stripe refund + webhook only.
+    const snapFamily = String(
+      (booking.purchase_snapshot as { inventoryFamily?: unknown } | null)?.inventoryFamily ?? ''
+    )
+      .trim()
+      .toLowerCase();
+    if (snapFamily === 'rental') {
+      return json(
+        {
+          success: false,
+          error: 'rental_no_auto_refund',
+          skipped: true,
+          bookingId,
+          message:
+            'Rental cancellations do not auto-refund. Refund in Stripe; charge.refunded syncs Traverion.',
+        },
+        400
+      );
+    }
+
     if ((booking.status ?? '').toLowerCase() !== 'cancelled') {
       return json({ success: false, error: 'Booking is not cancelled' }, 400);
     }

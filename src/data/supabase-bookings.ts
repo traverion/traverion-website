@@ -1386,8 +1386,16 @@ export async function cancelBookingAsCustomer(
   const notifyWarning = softNotifyWarningFromResults(...softResults) ?? undefined;
 
   // Phase 2 / Step 2.3: queue Stay+Tour auto-refund with Stripe (idempotent). Soft-fail — cancel already committed.
+  // Mission 06.5: rentals never auto-refund (manual Stripe + webhook only).
+  const isRentalCancel =
+    String(
+      (bookingMeta?.purchase_snapshot as { inventoryFamily?: unknown } | null | undefined)
+        ?.inventoryFamily ?? ''
+    )
+      .trim()
+      .toLowerCase() === 'rental';
   let refundExecution: Awaited<ReturnType<typeof executeBookingRefund>> | undefined;
-  if (!unpaidCheckout && serverChoice === 'full_refund') {
+  if (!unpaidCheckout && serverChoice === 'full_refund' && !isRentalCancel) {
     refundExecution = await executeBookingRefund(bookingId);
   }
 

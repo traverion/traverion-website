@@ -1,0 +1,397 @@
+{
+  "ok": true,
+  "mission": "06.5",
+  "phase": "rental_cancel_refund",
+  "startedAt": "2026-11-01T22:02:52.982Z",
+  "runId": "3f15bbad",
+  "environment": {
+    "project": "gedktutbpfwnstcbffsc",
+    "productionRefRejected": "xcopqllkulxfkpunetbc",
+    "stripeMode": "test",
+    "policy": "Rentals: no automatic refunds. Cancel releases inventory. Earnings reverse on full Stripe refund via reverse_paid_booking_earnings (webhook path)."
+  },
+  "sequence": [
+    {
+      "name": "staging_target_ok",
+      "ok": true,
+      "at": "2026-11-01T22:02:52.990Z",
+      "project": "gedktutbpfwnstcbffsc"
+    },
+    {
+      "name": "identities_ready",
+      "ok": true,
+      "at": "2026-11-01T22:02:57.508Z"
+    },
+    {
+      "name": "fixture_listing",
+      "ok": true,
+      "at": "2026-11-01T22:03:00.511Z",
+      "listingId": "98bd6667"
+    },
+    {
+      "name": "paid_booking_ready",
+      "ok": true,
+      "at": "2026-11-01T22:03:16.901Z",
+      "bookingId": "5addd2da",
+      "hold": "confirmed",
+      "earning": "pending",
+      "pi": "pi_3UX6qBC3B"
+    },
+    {
+      "name": "traveler_cancel",
+      "ok": true,
+      "at": "2026-11-01T22:03:17.116Z",
+      "refund_choice": "full_refund",
+      "unpaid": false
+    },
+    {
+      "name": "inventory_released_on_cancel",
+      "ok": true,
+      "at": "2026-11-01T22:03:28.335Z",
+      "releasedCount": 1,
+      "confirmedLeft": 0
+    },
+    {
+      "name": "payout_blocked_after_cancel",
+      "ok": true,
+      "at": "2026-11-01T22:03:28.335Z",
+      "blocked": true,
+      "earningStatus": "reversed"
+    },
+    {
+      "name": "no_auto_refund_instruction",
+      "ok": true,
+      "at": "2026-11-01T22:03:28.335Z",
+      "count": 0
+    },
+    {
+      "name": "execute_booking_refund_probe",
+      "ok": true,
+      "at": "2026-11-01T22:03:29.102Z",
+      "http": 200,
+      "success": false,
+      "error": "rental_no_auto_refund",
+      "skipped": true
+    },
+    {
+      "name": "execute_booking_refund_blocked_for_rental",
+      "ok": true,
+      "at": "2026-11-01T22:03:29.102Z",
+      "error": "rental_no_auto_refund",
+      "skipped": true
+    },
+    {
+      "name": "stripe_manual_full_refund",
+      "ok": true,
+      "at": "2026-11-01T22:03:30.445Z",
+      "refundId": "re_3UX6qBC3BaJIHpM60Yyj5kAN",
+      "status": "succeeded",
+      "amount": 2500
+    },
+    {
+      "name": "stripe_refund_idempotent",
+      "ok": true,
+      "at": "2026-11-01T22:03:30.622Z",
+      "refundId": "re_3UX6qBC3BaJIHpM60Yyj5kAN"
+    },
+    {
+      "name": "earnings_reversed",
+      "ok": true,
+      "at": "2026-11-01T22:03:43.176Z",
+      "status": "reversed",
+      "amount_minor": 0
+    },
+    {
+      "name": "reverse_idempotent",
+      "ok": true,
+      "at": "2026-11-01T22:03:45.600Z",
+      "status": "reversed"
+    },
+    {
+      "name": "inventory_still_single_release",
+      "ok": true,
+      "at": "2026-11-01T22:03:45.600Z",
+      "released": 1
+    },
+    {
+      "name": "stripe_partial_refund",
+      "ok": true,
+      "at": "2026-11-01T22:03:57.824Z",
+      "refundId": "re_3UX6qtC3BaJIHpM60xGkCitt",
+      "amount": 1250
+    },
+    {
+      "name": "partial_keeps_paid_confirmed",
+      "ok": true,
+      "at": "2026-11-01T22:04:09.095Z",
+      "amount_paid": "12.50",
+      "payment_status": "paid",
+      "status": "confirmed"
+    },
+    {
+      "name": "partial_inventory_retained",
+      "ok": true,
+      "at": "2026-11-01T22:04:09.096Z",
+      "holds": [
+        {
+          "status": "confirmed"
+        }
+      ]
+    },
+    {
+      "name": "partial_earnings_not_fully_reversed",
+      "ok": true,
+      "at": "2026-11-01T22:04:09.096Z",
+      "status": "pending",
+      "amount_minor": 1063,
+      "shrinkOk": true
+    },
+    {
+      "name": "refund_without_cancel_blocked",
+      "ok": true,
+      "at": "2026-11-01T22:04:10.036Z",
+      "error": "Booking is not cancelled",
+      "success": false
+    },
+    {
+      "name": "trips_cancelled_surface",
+      "ok": true,
+      "at": "2026-11-01T22:04:14.428Z",
+      "cancelledView": true,
+      "upcomingView": false,
+      "label": "Cancelled",
+      "eventCount": 0,
+      "kinds": []
+    },
+    {
+      "name": "calendar_excludes_cancelled",
+      "ok": true,
+      "at": "2026-11-01T22:04:14.428Z",
+      "eventCount": 0
+    },
+    {
+      "name": "mission_06_5_complete",
+      "ok": true,
+      "at": "2026-11-01T22:04:14.428Z"
+    },
+    {
+      "name": "cleanup_listing",
+      "ok": true,
+      "at": "2026-11-01T22:04:14.852Z"
+    },
+    {
+      "name": "cleanup_identities",
+      "ok": true,
+      "at": "2026-11-01T22:04:15.120Z"
+    }
+  ],
+  "findings": [],
+  "defects": [],
+  "evidence": {
+    "preCancel": {
+      "booking": {
+        "amount_paid": "25.00",
+        "booking_date": "2035-08-10",
+        "id": "5addd2da-bf8e-4ea4-86a0-d5707e989ca3",
+        "payment_intent_id": "pi_3UX6qBC3BaJIHpM60U0tT70u",
+        "payment_status": "paid",
+        "public_reference": "TV-QLM9H2FC",
+        "purchase_snapshot": {
+          "cancellationLabel": "Flexible. Customers may request cancellation until 24 hours before pickup. Traverion does not issue automatic rental refunds.",
+          "cancellationPreset": "flexible_24h",
+          "checkoutIdempotencyKey": "rental:98bd6667-16c0-4bbf-a67b-97ec6e914d24:cert-cancel-unit:2035-08-10T09:00:00+03:00:2035-08-11T18:00:00+03:00:1:bf0c8834-ff2b-43e1-ab5e-83d76a93d673",
+          "collectionNotes": null,
+          "commissionBps": 1500,
+          "commissionMinor": 375,
+          "currency": "EUR",
+          "customerTotalMinor": 2500,
+          "depositAmountMinor": null,
+          "depositDisclosure": null,
+          "discountApplied": false,
+          "durationCount": 1,
+          "durationUnit": "day",
+          "holdId": "43d33dfb-82b9-4f2c-9ab2-8da61845c1ab",
+          "inventoryFamily": "rental",
+          "listingTitle": "CERT cancel rental 3f15bbad",
+          "pickupAddress": "CERT Cancel Desk",
+          "pickupAt": "2035-08-10T09:00:00+03:00",
+          "pickupInstructions": null,
+          "pickupLat": null,
+          "pickupLng": null,
+          "priceBreakdown": {
+            "discountApplied": false,
+            "durationCount": 1,
+            "durationUnit": "day",
+            "quantity": 1,
+            "unitMinor": 2500
+          },
+          "quantity": 1,
+          "rentalOpsStatus": "awaiting_pickup",
+          "returnAddress": null,
+          "returnAt": "2035-08-11T18:00:00+03:00",
+          "returnCollectionNotes": null,
+          "returnInstructions": null,
+          "returnLat": null,
+          "returnLng": null,
+          "returnSameAsPickup": true,
+          "returnStaffAssisted": null,
+          "staffAssisted": null,
+          "supplierEarningsMinor": 2125,
+          "unitMinor": 2500,
+          "variantId": "cert-cancel-unit",
+          "variantName": "Cancel Kit"
+        },
+        "refund_choice": null,
+        "status": "confirmed"
+      },
+      "holds": [
+        {
+          "id": "43d33dfb-82b9-4f2c-9ab2-8da61845c1ab",
+          "quantity": 1,
+          "status": "confirmed"
+        }
+      ],
+      "earning": {
+        "amount_minor": 2125,
+        "commission_minor": 375,
+        "gross_minor": 2500,
+        "id": "b2ff689e-f46a-47a3-9b3d-befa6a3bf883",
+        "status": "pending"
+      }
+    },
+    "travelerCancel": {
+      "http": 200,
+      "body": {
+        "ok": true,
+        "refund_choice": "full_refund",
+        "unpaid_checkout": false,
+        "auto_refund_queued": false,
+        "refund_instruction_id": null,
+        "closed_host_cancel_requests": 0
+      }
+    },
+    "afterCancel": {
+      "booking": {
+        "auto_refund_status": null,
+        "cancellation_origin": "traveler",
+        "cancellation_resolution": "full_refund",
+        "cancelled_at": "2026-11-01 22:03:17.128474+00",
+        "payment_status": "paid",
+        "refund_choice": "full_refund",
+        "status": "cancelled"
+      },
+      "holds": [
+        {
+          "status": "released"
+        }
+      ],
+      "instructions": [],
+      "earning": {
+        "amount_minor": 0,
+        "status": "reversed"
+      },
+      "payoutBlocked": true
+    },
+    "executeBookingRefundAfterCancel": {
+      "http": 200,
+      "body": {
+        "success": false,
+        "error": "rental_no_auto_refund",
+        "skipped": true
+      }
+    },
+    "stripeRefund": {
+      "id": "re_3UX6qBC3BaJIHpM60Yyj5kAN",
+      "status": "succeeded",
+      "amount": 2500,
+      "duplicateId": "re_3UX6qBC3BaJIHpM60Yyj5kAN"
+    },
+    "reverse": {
+      "first": {
+        "commission_reversal_id": null,
+        "ok": true,
+        "recovery": null,
+        "refund_id": null,
+        "was_paid": false
+      },
+      "second": {
+        "commission_reversal_id": null,
+        "ok": true,
+        "recovery": null,
+        "refund_id": null,
+        "was_paid": false
+      }
+    },
+    "afterFullRefund": {
+      "booking": {
+        "amount_paid": "25.00",
+        "payment_status": "refunded",
+        "refund_choice": "full_refund",
+        "status": "cancelled"
+      },
+      "earning": {
+        "amount_minor": 0,
+        "commission_minor": 375,
+        "gross_minor": 2500,
+        "status": "reversed"
+      },
+      "holds": [
+        {
+          "status": "released"
+        }
+      ]
+    },
+    "partial": {
+      "stripeRefundId": "re_3UX6qtC3BaJIHpM60xGkCitt",
+      "shrink": {
+        "before_commission": 3.75,
+        "before_supplier": 21.25,
+        "commission_minor": 187,
+        "item_status": "pending",
+        "ok": true,
+        "recovery": null,
+        "remaining_gross_minor": 1250,
+        "shrunk": true,
+        "supplier_minor": 1063
+      },
+      "booking": {
+        "amount_paid": "12.50",
+        "payment_status": "paid",
+        "status": "confirmed"
+      },
+      "earning": {
+        "amount_minor": 1063,
+        "gross_minor": 2500,
+        "status": "pending"
+      },
+      "holds": [
+        {
+          "status": "confirmed"
+        }
+      ]
+    },
+    "refundWithoutCancel": {
+      "http": 400,
+      "body": {
+        "success": false,
+        "error": "Booking is not cancelled"
+      }
+    },
+    "surfaces": {
+      "cancelledView": true,
+      "upcomingView": false,
+      "label": "Cancelled",
+      "eventCount": 0,
+      "kinds": []
+    }
+  },
+  "ids": {
+    "guestId": "bf0c8834-ff2b-43e1-ab5e-83d76a93d673",
+    "supplierId": "45c5753a-7ff7-4fa9-881b-941227bc22fe",
+    "listingId": "98bd6667-16c0-4bbf-a67b-97ec6e914d24",
+    "bookingId": "5addd2da-bf8e-4ea4-86a0-d5707e989ca3",
+    "bookingIdPartial": "9856d6b9-d8ab-4d3d-96ca-d50654f5aa04"
+  },
+  "verdict": "PASS",
+  "finishedAt": "2026-11-01T22:04:15.120Z"
+}
