@@ -1,6 +1,6 @@
 /**
  * Mission 05.1–05.6.x — Unified Partner Calendar.
- * Full-width Agenda/Month, rolling date ranges, inline expandable editing.
+ * Full-width Agenda/Week/Month, rolling date ranges, inline expandable editing.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { CalendarDays, ChevronLeft, ChevronRight, Pencil } from 'lucide-react';
@@ -25,6 +25,7 @@ import { materializedBookingOptions } from '../../types/listingExtras';
 import {
   buildPartnerUnifiedCalendarEvents,
   filterPartnerUnifiedCalendarEvents,
+  formatPartnerUnifiedWeekLabel,
   groupPartnerUnifiedEventsByDate,
   listingsForUnifiedCategoryFilter,
   parsePartnerUnifiedCalendarView,
@@ -34,6 +35,8 @@ import {
   partnerUnifiedOptionChoices,
   partnerUnifiedRollingRange,
   partnerUnifiedShiftRange,
+  partnerUnifiedShiftWeek,
+  partnerUnifiedWeekRangeContaining,
   partnerUnifiedWeeksCoveringRange,
   type PartnerUnifiedCalendarEvent,
   type PartnerUnifiedCalendarView,
@@ -59,6 +62,7 @@ import {
 import PartnerSelect from '../../components/supplier/PartnerSelect';
 import PartnerUnifiedBulkEditPanel from '../../components/supplier/PartnerUnifiedBulkEditPanel';
 import PartnerUnifiedInlineAvailabilityEdit from '../../components/supplier/PartnerUnifiedInlineAvailabilityEdit';
+import PartnerUnifiedWeekView from '../../components/supplier/PartnerUnifiedWeekView';
 import ErrorState from '../../components/ErrorState';
 import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
 
@@ -204,22 +208,27 @@ export default function SupplierUnifiedCalendar() {
   const initial = useMemo(() => {
     const q = readSearch();
     const rolling = partnerUnifiedRollingRange(todayIso);
+    const view = parsePartnerUnifiedCalendarView(q.get('view'));
     const fromRaw = parseIsoParam(q.get('from')) ?? parseIsoParam(q.get('date'));
     const toRaw = parseIsoParam(q.get('to'));
-    const range = partnerUnifiedNormalizeRange(
+    const selectedYmd = parseIsoParam(q.get('day')) ?? todayIso;
+    let range = partnerUnifiedNormalizeRange(
       fromRaw ?? rolling.fromYmd,
       toRaw ?? (fromRaw ? addCalendarDaysYmd(fromRaw, 29) ?? rolling.toYmd : rolling.toYmd),
       todayIso
     );
+    if (view === 'week') {
+      range = partnerUnifiedWeekRangeContaining(fromRaw ?? selectedYmd ?? todayIso);
+    }
     return {
-      view: parsePartnerUnifiedCalendarView(q.get('view')),
+      view,
       category: parsePartnerUnifiedCategoryFilter(q.get('category')),
       listingId: (q.get('listing') ?? '').trim(),
       optionKey: (q.get('option') ?? '').trim(),
       includePast: q.get('history') === '1',
       fromYmd: range.fromYmd,
       toYmd: range.toYmd,
-      selectedYmd: parseIsoParam(q.get('day')) ?? todayIso,
+      selectedYmd,
     };
   }, [todayIso]);
 
@@ -321,15 +330,30 @@ export default function SupplierUnifiedCalendar() {
   }, [fromYmd, toYmd, range.fromYmd, range.toYmd]);
 
   useEffect(() => {
-    if (!expandedKey || view !== 'month') return;
+    if (!expandedKey || (view !== 'month' && view !== 'week')) return;
     const onDoc = (e: MouseEvent) => {
-      if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
+      const target = e.target as Node;
+      if (popoverRef.current && !popoverRef.current.contains(target)) {
+        const weekPopover = (e.target as HTMLElement | null)?.closest?.(
+          '.partner-unified-cal__week-popover'
+        );
+        if (weekPopover) return;
         setExpandedKey(null);
       }
     };
     document.addEventListener('mousedown', onDoc);
     return () => document.removeEventListener('mousedown', onDoc);
   }, [expandedKey, view]);
+
+  /** Keep Week locked to a Monday–Sunday window. */
+  useEffect(() => {
+    if (view !== 'week') return;
+    const week = partnerUnifiedWeekRangeContaining(range.fromYmd);
+    if (week.fromYmd !== range.fromYmd || week.toYmd !== range.toYmd) {
+      setFromYmd(week.fromYmd);
+      setToYmd(week.toYmd);
+    }
+  }, [view, range.fromYmd, range.toYmd]);
 
   const titlesByListingId = useMemo(() => {
     const map = new Map<string, string>();
@@ -470,7 +494,10 @@ export default function SupplierUnifiedCalendar() {
         fromYmd: range.fromYmd,
         toYmd: range.toYmd,
         titlesByListingId,
-        includeOccupiedNights: view === 'agenda' || Boolean(listingId && selectedFamily === 'stay'),
+        includeOccupiedNights:
+          view === 'agenda' ||
+          view === 'week' ||
+          Boolean(listingId && selectedFamily === 'stay'),
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- calendarEpoch refresh
     [bookings, range.fromYmd, range.toYmd, titlesByListingId, view, listingId, selectedFamily, calendarEpoch]
@@ -596,6 +623,14 @@ export default function SupplierUnifiedCalendar() {
       if (list) list.push(e);
       else map.set(e.ymd, [e]);
     }
+    for (const list of map.values()) {
+      list.sort((a, b) => {
+        const ta = a.timeHm ?? '99:99';
+        const tb = b.timeHm ?? '99:99';
+        if (ta !== tb) return ta.localeCompare(tb);
+        return a.key.localeCompare(b.key);
+      });
+    }
     return map;
   }, [filteredEvents]);
 
@@ -648,7 +683,27 @@ export default function SupplierUnifiedCalendar() {
     if (optionKey && !optionChoices.some((o) => o.value === optionKey)) setOptionKey('');
   }, [optionKey, optionChoices]);
 
+  const selectView = (next: PartnerUnifiedCalendarView) => {
+    setView(next);
+    if (next === 'week') {
+      const week = partnerUnifiedWeekRangeContaining(selectedYmd || range.fromYmd || todayIso);
+      setFromYmd(week.fromYmd);
+      setToYmd(week.toYmd);
+    } else if (next === 'agenda') {
+      const rolling = partnerUnifiedRollingRange(selectedYmd || todayIso);
+      setFromYmd(rolling.fromYmd);
+      setToYmd(rolling.toYmd);
+    }
+  };
+
   const shiftRange = (direction: 1 | -1) => {
+    if (view === 'week') {
+      const next = partnerUnifiedShiftWeek(range.fromYmd, direction);
+      setFromYmd(next.fromYmd);
+      setToYmd(next.toYmd);
+      setSelectedYmd(next.fromYmd);
+      return;
+    }
     const next = partnerUnifiedShiftRange(range.fromYmd, range.toYmd, direction);
     setFromYmd(next.fromYmd);
     setToYmd(next.toYmd);
@@ -656,23 +711,48 @@ export default function SupplierUnifiedCalendar() {
   };
 
   const goToday = () => {
+    setSelectedYmd(todayIso);
+    if (view === 'week') {
+      const week = partnerUnifiedWeekRangeContaining(todayIso);
+      setFromYmd(week.fromYmd);
+      setToYmd(week.toYmd);
+      return;
+    }
     const rolling = partnerUnifiedRollingRange(todayIso);
     setFromYmd(rolling.fromYmd);
     setToYmd(rolling.toYmd);
-    setSelectedYmd(todayIso);
   };
 
   const setRangeFrom = (iso: string) => {
+    if (view === 'week') {
+      const week = partnerUnifiedWeekRangeContaining(iso);
+      setFromYmd(week.fromYmd);
+      setToYmd(week.toYmd);
+      setSelectedYmd(iso);
+      return;
+    }
     const next = partnerUnifiedNormalizeRange(iso, toYmd < iso ? iso : toYmd, todayIso);
     setFromYmd(next.fromYmd);
     setToYmd(next.toYmd);
   };
 
   const setRangeTo = (iso: string) => {
+    if (view === 'week') {
+      const week = partnerUnifiedWeekRangeContaining(iso);
+      setFromYmd(week.fromYmd);
+      setToYmd(week.toYmd);
+      setSelectedYmd(iso);
+      return;
+    }
     const next = partnerUnifiedNormalizeRange(fromYmd, iso, todayIso);
     setFromYmd(next.fromYmd);
     setToYmd(next.toYmd);
   };
+
+  const periodLabel =
+    view === 'week'
+      ? formatPartnerUnifiedWeekLabel(range.fromYmd, range.toYmd)
+      : `${formatDayShort(range.fromYmd)} – ${formatDayShort(range.toYmd)}`;
 
   const refreshAfterEdit = useCallback(() => {
     void load().then(() => setCalendarEpoch((n) => n + 1));
@@ -740,16 +820,25 @@ export default function SupplierUnifiedCalendar() {
                 role="tab"
                 aria-selected={view === 'agenda'}
                 className={view === 'agenda' ? 'is-active' : undefined}
-                onClick={() => setView('agenda')}
+                onClick={() => selectView('agenda')}
               >
                 Agenda
               </button>
               <button
                 type="button"
                 role="tab"
+                aria-selected={view === 'week'}
+                className={view === 'week' ? 'is-active' : undefined}
+                onClick={() => selectView('week')}
+              >
+                Week
+              </button>
+              <button
+                type="button"
+                role="tab"
                 aria-selected={view === 'month'}
                 className={view === 'month' ? 'is-active' : undefined}
-                onClick={() => setView('month')}
+                onClick={() => selectView('month')}
               >
                 Month
               </button>
@@ -760,7 +849,7 @@ export default function SupplierUnifiedCalendar() {
                 type="button"
                 className="partner-unified-cal__nav-btn"
                 onClick={() => shiftRange(-1)}
-                aria-label="Previous range"
+                aria-label={view === 'week' ? 'Previous week' : 'Previous range'}
               >
                 <ChevronLeft className="h-4 w-4" aria-hidden />
               </button>
@@ -771,13 +860,11 @@ export default function SupplierUnifiedCalendar() {
                 type="button"
                 className="partner-unified-cal__nav-btn"
                 onClick={() => shiftRange(1)}
-                aria-label="Next range"
+                aria-label={view === 'week' ? 'Next week' : 'Next range'}
               >
                 <ChevronRight className="h-4 w-4" aria-hidden />
               </button>
-              <p className="partner-unified-cal__period">
-                {formatDayShort(range.fromYmd)} – {formatDayShort(range.toYmd)}
-              </p>
+              <p className="partner-unified-cal__period">{periodLabel}</p>
             </div>
           </div>
 
@@ -988,6 +1075,29 @@ export default function SupplierUnifiedCalendar() {
             ))}
           </div>
         )
+      ) : view === 'week' ? (
+        <PartnerUnifiedWeekView
+          weekFromYmd={range.fromYmd}
+          todayIso={todayIso}
+          selectedYmd={selectedYmd}
+          eventsByDay={eventsByDay}
+          expandedKey={expandedKey}
+          listings={listings}
+          bookings={bookings}
+          canEdit={canEdit}
+          userId={user?.id}
+          onSelectDay={setSelectedYmd}
+          onToggleEvent={(event) => toggleExpand(event.key, event)}
+          onCloseExpand={() => setExpandedKey(null)}
+          onShowMoreDay={(iso) => {
+            setSelectedYmd(iso);
+            setFromYmd(iso);
+            setToYmd(iso);
+            setView('agenda');
+          }}
+          onListingsChange={setListings}
+          onSaved={refreshAfterEdit}
+        />
       ) : (
         <div className="partner-unified-cal__month" role="grid" aria-label="Month">
           <div className="partner-unified-cal__weekdays" role="row">

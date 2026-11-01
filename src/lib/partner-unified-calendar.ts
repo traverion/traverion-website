@@ -1,6 +1,6 @@
 /**
  * Mission 05.1–05.5 — Unified Partner Calendar.
- * Aggregates Tours / Stays / Rentals into Agenda + Month views.
+ * Aggregates Tours / Stays / Rentals into Agenda + Week + Month views.
  * Reuses booking occupancy + lifecycle calendar helpers; no separate inventory engine.
  * Default view hides completed/past events; ongoing stays/rentals stay visible.
  * Mission 05.5 adds schedule/availability overlays (see partner-unified-calendar-visibility).
@@ -30,7 +30,7 @@ import {
 } from './partner-home-schedule';
 import type { PartnerBookingDeskFamily } from './partner-booking-desk-path';
 
-export type PartnerUnifiedCalendarView = 'agenda' | 'month';
+export type PartnerUnifiedCalendarView = 'agenda' | 'week' | 'month';
 export type PartnerUnifiedCategoryFilter = 'all' | 'tour' | 'stay' | 'rental';
 
 export type PartnerUnifiedCalendarBooking = PartnerScheduleBooking & {
@@ -110,7 +110,62 @@ export type PartnerUnifiedMonthDaySummary = {
 export function parsePartnerUnifiedCalendarView(
   raw: string | null | undefined
 ): PartnerUnifiedCalendarView {
-  return raw === 'month' ? 'month' : 'agenda';
+  if (raw === 'week' || raw === 'month') return raw;
+  return 'agenda';
+}
+
+/** Monday–Sunday week containing `iso` (UTC date-only). */
+export function partnerUnifiedWeekRangeContaining(iso: string): {
+  fromYmd: string;
+  toYmd: string;
+} {
+  const anchor = /^\d{4}-\d{2}-\d{2}$/.test(iso) ? iso : '';
+  if (!anchor) return { fromYmd: iso, toYmd: iso };
+  const d = new Date(`${anchor}T12:00:00Z`);
+  const mon0 = (d.getUTCDay() + 6) % 7;
+  const fromYmd = addCalendarDaysYmd(anchor, -mon0) ?? anchor;
+  const toYmd = addCalendarDaysYmd(fromYmd, 6) ?? fromYmd;
+  return { fromYmd, toYmd };
+}
+
+/** Shift a Monday–Sunday week by ±N weeks. */
+export function partnerUnifiedShiftWeek(
+  fromYmd: string,
+  deltaWeeks: number
+): { fromYmd: string; toYmd: string } {
+  const nextFrom = addCalendarDaysYmd(fromYmd, Math.floor(deltaWeeks) * 7) ?? fromYmd;
+  return partnerUnifiedWeekRangeContaining(nextFrom);
+}
+
+/** Compact week label for chrome (Mon–Sun, UTC date-only). */
+export function formatPartnerUnifiedWeekLabel(fromYmd: string, toYmd: string): string {
+  const a = new Date(`${fromYmd}T12:00:00Z`);
+  const b = new Date(`${toYmd}T12:00:00Z`);
+  const sameMonth = a.getUTCMonth() === b.getUTCMonth() && a.getUTCFullYear() === b.getUTCFullYear();
+  if (sameMonth) {
+    return `${a.toLocaleDateString('en-GB', { day: 'numeric', timeZone: 'UTC' })}–${b.toLocaleDateString(
+      'en-GB',
+      { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }
+    )}`;
+  }
+  const sameYear = a.getUTCFullYear() === b.getUTCFullYear();
+  if (sameYear) {
+    return `${a.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' })} – ${b.toLocaleDateString(
+      'en-GB',
+      { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }
+    )}`;
+  }
+  return `${a.toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    timeZone: 'UTC',
+  })} – ${b.toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    timeZone: 'UTC',
+  })}`;
 }
 
 export function parsePartnerUnifiedCategoryFilter(

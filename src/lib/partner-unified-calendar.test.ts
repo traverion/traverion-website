@@ -1,9 +1,14 @@
+import { readFileSync } from 'fs';
+import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
 import {
   buildPartnerUnifiedCalendarEvents,
   filterPartnerUnifiedCalendarEvents,
   groupPartnerUnifiedEventsByDate,
+  formatPartnerUnifiedWeekLabel,
   parsePartnerUnifiedCalendarView,
+  partnerUnifiedShiftWeek,
+  partnerUnifiedWeekRangeContaining,
   parsePartnerUnifiedCategoryFilter,
   partnerUnifiedEventIsUpcomingOrOngoing,
   partnerUnifiedNormalizeRange,
@@ -105,11 +110,42 @@ function rentalBooking(params: {
 }
 
 describe('partner-unified-calendar', () => {
+  it('wires Week view into SupplierUnifiedCalendar', () => {
+    const page = readFileSync(resolve(__dirname, '../pages/supplier/SupplierUnifiedCalendar.tsx'), 'utf8');
+    const week = readFileSync(
+      resolve(__dirname, '../components/supplier/PartnerUnifiedWeekView.tsx'),
+      'utf8'
+    );
+    expect(page).toContain("selectView('week')");
+    expect(page).toContain('PartnerUnifiedWeekView');
+    expect(page).toContain('partnerUnifiedWeekRangeContaining');
+    expect(week).toContain('WEEK_TILE_LIMIT');
+    expect(week).toContain('Open booking');
+  });
+
   it('defaults view to agenda and category to all', () => {
     expect(parsePartnerUnifiedCalendarView(null)).toBe('agenda');
+    expect(parsePartnerUnifiedCalendarView('week')).toBe('week');
     expect(parsePartnerUnifiedCalendarView('month')).toBe('month');
     expect(parsePartnerUnifiedCategoryFilter('rentals')).toBe('all');
     expect(parsePartnerUnifiedCategoryFilter('rental')).toBe('rental');
+  });
+
+  it('snaps week ranges to Monday–Sunday and shifts by weeks', () => {
+    // 2026-11-04 is Wednesday
+    expect(partnerUnifiedWeekRangeContaining('2026-11-04')).toEqual({
+      fromYmd: '2026-11-02',
+      toYmd: '2026-11-08',
+    });
+    expect(partnerUnifiedShiftWeek('2026-11-02', 1)).toEqual({
+      fromYmd: '2026-11-09',
+      toYmd: '2026-11-15',
+    });
+    expect(partnerUnifiedShiftWeek('2026-11-02', -1)).toEqual({
+      fromYmd: '2026-10-26',
+      toYmd: '2026-11-01',
+    });
+    expect(formatPartnerUnifiedWeekLabel('2026-11-02', '2026-11-08')).toMatch(/2.*8.*Nov.*2026/i);
   });
 
   it('builds mixed tour, stay, and rental events in a range', () => {
