@@ -655,19 +655,115 @@ export function partnerUnifiedShiftFocusByMonths(focusYmd: string, deltaMonths: 
 
 /**
  * Shared focus date used when switching Agenda ↔ Week ↔ Month.
- * Prefers an explicit day when present; otherwise clamps to the visible range start.
+ * Prefers an explicit selected day. Only falls back to fromYmd for Agenda bootstrap —
+ * never for Week/Month, where fromYmd may be the Monday of a cross-month week (e.g. Oct 26
+ * when focus is Nov 1) and would wrongly pull Month into October.
  */
 export function partnerUnifiedSharedFocusYmd(args: {
   selectedYmd?: string | null;
   fromYmd?: string | null;
   toYmd?: string | null;
   todayIso: string;
+  /** When false, ignore fromYmd so week Mondays cannot become the Month anchor. Default true. */
+  allowFromFallback?: boolean;
 }): string {
   const selected = (args.selectedYmd ?? '').trim();
   if (/^\d{4}-\d{2}-\d{2}$/.test(selected)) return selected;
-  const from = (args.fromYmd ?? '').trim();
-  if (/^\d{4}-\d{2}-\d{2}$/.test(from)) return from;
-  return /^\d{4}-\d{2}-\d{2}$/.test(args.todayIso) ? args.todayIso : from || args.todayIso;
+  if (args.allowFromFallback !== false) {
+    const from = (args.fromYmd ?? '').trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(from)) return from;
+  }
+  return /^\d{4}-\d{2}-\d{2}$/.test(args.todayIso) ? args.todayIso : args.todayIso;
+}
+
+export type PartnerUnifiedNavState = {
+  view: PartnerUnifiedCalendarView;
+  focusYmd: string;
+  fromYmd: string;
+  toYmd: string;
+  agendaRange: { fromYmd: string; toYmd: string } | null;
+};
+
+/**
+ * Pure view switch: Week/Month ranges always re-derive from focusYmd (never inherit
+ * the previous view's from/to). Agenda restores a remembered window when it still
+ * contains focus; otherwise defaults to the next 30 days from focus.
+ */
+export function partnerUnifiedApplyViewChange(
+  state: PartnerUnifiedNavState,
+  nextView: PartnerUnifiedCalendarView
+): PartnerUnifiedNavState {
+  const focus = state.focusYmd;
+  if (nextView === state.view) return state;
+
+  if (nextView === 'week' || nextView === 'month') {
+    const range = partnerUnifiedDisplayRangeForView({ view: nextView, focusYmd: focus });
+    return {
+      ...state,
+      view: nextView,
+      focusYmd: focus,
+      fromYmd: range.fromYmd,
+      toYmd: range.toYmd,
+      agendaRange:
+        state.view === 'agenda'
+          ? { fromYmd: state.fromYmd, toYmd: state.toYmd }
+          : state.agendaRange,
+    };
+  }
+
+  // → Agenda
+  const remembered =
+    state.view === 'agenda'
+      ? { fromYmd: state.fromYmd, toYmd: state.toYmd }
+      : state.agendaRange;
+  if (remembered && partnerUnifiedFocusInRange(focus, remembered.fromYmd, remembered.toYmd)) {
+    return {
+      ...state,
+      view: 'agenda',
+      focusYmd: focus,
+      fromYmd: remembered.fromYmd,
+      toYmd: remembered.toYmd,
+      agendaRange: remembered,
+    };
+  }
+  const rolling = partnerUnifiedRollingRange(focus);
+  return {
+    ...state,
+    view: 'agenda',
+    focusYmd: focus,
+    fromYmd: rolling.fromYmd,
+    toYmd: rolling.toYmd,
+    agendaRange: rolling,
+  };
+}
+
+/** Pure Prev/Next: updates focus and the view-appropriate range together. */
+export function partnerUnifiedApplyShift(
+  state: PartnerUnifiedNavState,
+  direction: 1 | -1
+): PartnerUnifiedNavState {
+  if (state.view === 'week') {
+    const focusYmd = partnerUnifiedShiftFocusByWeeks(state.focusYmd, direction);
+    const range = partnerUnifiedDisplayRangeForView({ view: 'week', focusYmd });
+    return { ...state, focusYmd, fromYmd: range.fromYmd, toYmd: range.toYmd };
+  }
+  if (state.view === 'month') {
+    const focusYmd = partnerUnifiedShiftFocusByMonths(state.focusYmd, direction);
+    const range = partnerUnifiedDisplayRangeForView({ view: 'month', focusYmd });
+    return { ...state, focusYmd, fromYmd: range.fromYmd, toYmd: range.toYmd };
+  }
+  const next = partnerUnifiedShiftRange(state.fromYmd, state.toYmd, direction);
+  const span = Math.max(1, partnerUnifiedRangeDayCount(state.fromYmd, state.toYmd));
+  const focusYmd = partnerUnifiedFocusInRange(state.focusYmd, state.fromYmd, state.toYmd)
+    ? addCalendarDaysYmd(state.focusYmd, direction * span) ?? next.fromYmd
+    : next.fromYmd;
+  return {
+    ...state,
+    focusYmd,
+    fromYmd: next.fromYmd,
+    toYmd: next.toYmd,
+    agendaRange: { fromYmd: next.fromYmd, toYmd: next.toYmd },
+  };
 }
 
 export function formatPartnerUnifiedMonthLabel(fromYmd: string): string {

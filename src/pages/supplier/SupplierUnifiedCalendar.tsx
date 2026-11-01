@@ -32,17 +32,15 @@ import {
   listingsForUnifiedCategoryFilter,
   parsePartnerUnifiedCalendarView,
   parsePartnerUnifiedCategoryFilter,
+  partnerUnifiedApplyShift,
+  partnerUnifiedApplyViewChange,
   partnerUnifiedDisplayRangeForView,
   partnerUnifiedEventKindLabel,
   partnerUnifiedFocusInRange,
   partnerUnifiedNormalizeRange,
   partnerUnifiedOptionChoices,
-  partnerUnifiedRangeDayCount,
   partnerUnifiedRollingRange,
   partnerUnifiedSharedFocusYmd,
-  partnerUnifiedShiftFocusByMonths,
-  partnerUnifiedShiftFocusByWeeks,
-  partnerUnifiedShiftRange,
   partnerUnifiedWeeksCoveringRange,
   type PartnerUnifiedCalendarEvent,
   type PartnerUnifiedCalendarView,
@@ -269,21 +267,27 @@ export default function SupplierUnifiedCalendar() {
     initial.view === 'agenda' ? { fromYmd: initial.fromYmd, toYmd: initial.toYmd } : null
   );
 
-  const range = useMemo(
-    () => partnerUnifiedNormalizeRange(fromYmd, toYmd, todayIso),
-    [fromYmd, toYmd, todayIso]
-  );
-
+  /**
+   * Focus never falls back to fromYmd here — on Week, fromYmd is Monday and may be the
+   * prior month (Nov 1 focus → Oct 26 from). Falling back would make Month show October.
+   */
   const focusYmd = useMemo(
     () =>
       partnerUnifiedSharedFocusYmd({
         selectedYmd,
-        fromYmd: range.fromYmd,
-        toYmd: range.toYmd,
         todayIso,
+        allowFromFallback: false,
       }),
-    [selectedYmd, range.fromYmd, range.toYmd, todayIso]
+    [selectedYmd, todayIso]
   );
+
+  /** Week/Month always derive from focus; Agenda uses explicit From/To. */
+  const range = useMemo(() => {
+    if (view === 'week' || view === 'month') {
+      return partnerUnifiedDisplayRangeForView({ view, focusYmd });
+    }
+    return partnerUnifiedNormalizeRange(fromYmd, toYmd, todayIso);
+  }, [view, focusYmd, fromYmd, toYmd, todayIso]);
 
   const load = useCallback(async () => {
     if (!user?.id || !isSupabase) {
@@ -341,7 +345,10 @@ export default function SupplierUnifiedCalendar() {
       q.delete('from');
       q.delete('to');
     }
-    if (focusYmd && focusYmd !== todayIso) q.set('day', focusYmd);
+    // Always persist focus for Week/Month so cross-month weeks (Nov 1 → Oct 26–Nov 1)
+    // still restore November after refresh. Agenda omits day when it equals today.
+    if (view === 'week' || view === 'month') q.set('day', focusYmd);
+    else if (focusYmd && focusYmd !== todayIso) q.set('day', focusYmd);
     else q.delete('day');
     const qs = q.toString();
     const next = qs ? `${url.pathname}?${qs}` : url.pathname;
@@ -355,11 +362,13 @@ export default function SupplierUnifiedCalendar() {
   }, [view, category, listingId, optionKey, range.fromYmd, range.toYmd]);
 
   useEffect(() => {
+    // Keep agenda From/To state normalized; Week/Month ignore fromYmd/toYmd state.
+    if (view !== 'agenda') return;
     if (fromYmd !== range.fromYmd || toYmd !== range.toYmd) {
       setFromYmd(range.fromYmd);
       setToYmd(range.toYmd);
     }
-  }, [fromYmd, toYmd, range.fromYmd, range.toYmd]);
+  }, [view, fromYmd, toYmd, range.fromYmd, range.toYmd]);
 
   useEffect(() => {
     if ((!expandedKey && !monthDaySheetIso) || (view !== 'month' && view !== 'week')) return;
@@ -811,92 +820,62 @@ export default function SupplierUnifiedCalendar() {
     if (optionKey && !optionChoices.some((o) => o.value === optionKey)) setOptionKey('');
   }, [optionKey, optionChoices]);
 
-  /** Keep one shared focus date; Week/Month ranges always re-derive from it. */
+  /** Keep one shared focus date; Week/Month ranges re-derive from it automatically. */
   const focusOnDate = (iso: string) => {
     setSelectedYmd(iso);
-    if (view === 'week' || view === 'month') {
-      const derived = partnerUnifiedDisplayRangeForView({ view, focusYmd: iso });
-      setFromYmd(derived.fromYmd);
-      setToYmd(derived.toYmd);
-    }
   };
 
   const selectView = (next: PartnerUnifiedCalendarView) => {
     if (next === view) return;
-    const focus = focusYmd;
-    setSelectedYmd(focus);
-    setView(next);
-    if (next === 'agenda') {
-      const remembered = agendaRangeRef.current;
-      if (
-        remembered &&
-        partnerUnifiedFocusInRange(focus, remembered.fromYmd, remembered.toYmd)
-      ) {
-        setFromYmd(remembered.fromYmd);
-        setToYmd(remembered.toYmd);
-        return;
-      }
-      const rolling = partnerUnifiedRollingRange(focus);
-      setFromYmd(rolling.fromYmd);
-      setToYmd(rolling.toYmd);
-      return;
-    }
-    const derived = partnerUnifiedDisplayRangeForView({ view: next, focusYmd: focus });
-    setFromYmd(derived.fromYmd);
-    setToYmd(derived.toYmd);
+    const applied = partnerUnifiedApplyViewChange(
+      {
+        view,
+        focusYmd,
+        fromYmd: range.fromYmd,
+        toYmd: range.toYmd,
+        agendaRange: agendaRangeRef.current,
+      },
+      next
+    );
+    setSelectedYmd(applied.focusYmd);
+    setView(applied.view);
+    setFromYmd(applied.fromYmd);
+    setToYmd(applied.toYmd);
+    agendaRangeRef.current = applied.agendaRange;
   };
 
   const shiftRange = (direction: 1 | -1) => {
-    const focus = focusYmd;
-    if (view === 'week') {
-      const nextFocus = partnerUnifiedShiftFocusByWeeks(focus, direction);
-      setSelectedYmd(nextFocus);
-      const next = partnerUnifiedDisplayRangeForView({ view: 'week', focusYmd: nextFocus });
-      setFromYmd(next.fromYmd);
-      setToYmd(next.toYmd);
-      return;
-    }
-    if (view === 'month') {
-      const nextFocus = partnerUnifiedShiftFocusByMonths(focus, direction);
-      setSelectedYmd(nextFocus);
-      const next = partnerUnifiedDisplayRangeForView({ view: 'month', focusYmd: nextFocus });
-      setFromYmd(next.fromYmd);
-      setToYmd(next.toYmd);
-      return;
-    }
-    const next = partnerUnifiedShiftRange(range.fromYmd, range.toYmd, direction);
-    const span = Math.max(1, partnerUnifiedRangeDayCount(range.fromYmd, range.toYmd));
-    const nextFocus = partnerUnifiedFocusInRange(focus, range.fromYmd, range.toYmd)
-      ? addCalendarDaysYmd(focus, direction * span) ?? next.fromYmd
-      : next.fromYmd;
-    setSelectedYmd(nextFocus);
-    setFromYmd(next.fromYmd);
-    setToYmd(next.toYmd);
+    const applied = partnerUnifiedApplyShift(
+      {
+        view,
+        focusYmd,
+        fromYmd: range.fromYmd,
+        toYmd: range.toYmd,
+        agendaRange: agendaRangeRef.current,
+      },
+      direction
+    );
+    setSelectedYmd(applied.focusYmd);
+    setFromYmd(applied.fromYmd);
+    setToYmd(applied.toYmd);
+    agendaRangeRef.current = applied.agendaRange;
   };
 
   const goToday = () => {
     const iso =
       experienceTodayIsoForListing(selectedListing ?? undefined) || todayIso;
     setSelectedYmd(iso);
-    if (view === 'week' || view === 'month') {
-      const derived = partnerUnifiedDisplayRangeForView({ view, focusYmd: iso });
-      setFromYmd(derived.fromYmd);
-      setToYmd(derived.toYmd);
-      return;
+    if (view === 'agenda') {
+      const rolling = partnerUnifiedRollingRange(iso);
+      setFromYmd(rolling.fromYmd);
+      setToYmd(rolling.toYmd);
+      agendaRangeRef.current = rolling;
     }
-    const rolling = partnerUnifiedRollingRange(iso);
-    setFromYmd(rolling.fromYmd);
-    setToYmd(rolling.toYmd);
   };
 
   const setRangeFrom = (iso: string) => {
     setSelectedYmd(iso);
-    if (view === 'week' || view === 'month') {
-      const derived = partnerUnifiedDisplayRangeForView({ view, focusYmd: iso });
-      setFromYmd(derived.fromYmd);
-      setToYmd(derived.toYmd);
-      return;
-    }
+    if (view === 'week' || view === 'month') return;
     const next = partnerUnifiedNormalizeRange(iso, toYmd < iso ? iso : toYmd, todayIso);
     setFromYmd(next.fromYmd);
     setToYmd(next.toYmd);
@@ -905,9 +884,6 @@ export default function SupplierUnifiedCalendar() {
   const setRangeTo = (iso: string) => {
     if (view === 'week' || view === 'month') {
       setSelectedYmd(iso);
-      const derived = partnerUnifiedDisplayRangeForView({ view, focusYmd: iso });
-      setFromYmd(derived.fromYmd);
-      setToYmd(derived.toYmd);
       return;
     }
     const next = partnerUnifiedNormalizeRange(fromYmd, iso, todayIso);

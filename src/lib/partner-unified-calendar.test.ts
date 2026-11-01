@@ -8,6 +8,8 @@ import {
   groupPartnerUnifiedEventsByDate,
   formatPartnerUnifiedWeekLabel,
   parsePartnerUnifiedCalendarView,
+  partnerUnifiedApplyShift,
+  partnerUnifiedApplyViewChange,
   partnerUnifiedDisplayRangeForView,
   partnerUnifiedFocusInRange,
   partnerUnifiedMonthRangeContaining,
@@ -230,8 +232,10 @@ describe('partner-unified-calendar', () => {
     const page = readFileSync(resolve(__dirname, '../pages/supplier/SupplierUnifiedCalendar.tsx'), 'utf8');
     expect(page).toContain('partnerUnifiedDisplayRangeForView');
     expect(page).toContain('formatPartnerUnifiedMonthLabel');
-    expect(page).toContain('partnerUnifiedShiftFocusByMonths');
+    expect(page).toContain('partnerUnifiedApplyViewChange');
+    expect(page).toContain('partnerUnifiedApplyShift');
     expect(page).toContain('partnerUnifiedSharedFocusYmd');
+    expect(page).toContain('allowFromFallback: false');
     expect(page).toContain('agendaRangeRef');
   });
 
@@ -239,37 +243,63 @@ describe('partner-unified-calendar', () => {
     const focus = '2026-11-01';
     const today = '2026-11-01';
     expect(partnerUnifiedSharedFocusYmd({ selectedYmd: focus, todayIso: today })).toBe(focus);
+    // Week Monday must not become Month focus when selected day is absent.
+    expect(
+      partnerUnifiedSharedFocusYmd({
+        selectedYmd: null,
+        fromYmd: '2026-10-26',
+        todayIso: today,
+        allowFromFallback: false,
+      })
+    ).toBe(today);
 
-    const agenda = partnerUnifiedDisplayRangeForView({ view: 'agenda', focusYmd: focus });
-    expect(agenda).toEqual({ fromYmd: '2026-11-01', toYmd: '2026-11-30' });
+    let nav = {
+      view: 'agenda' as const,
+      focusYmd: focus,
+      fromYmd: '2026-11-01',
+      toYmd: '2026-11-30',
+      agendaRange: { fromYmd: '2026-11-01', toYmd: '2026-11-30' },
+    };
 
+    nav = partnerUnifiedApplyViewChange(nav, 'week');
     // Nov 1 2026 is Sunday → week is Mon Oct 26 – Sun Nov 1
-    const week = partnerUnifiedDisplayRangeForView({
+    expect(nav).toMatchObject({
       view: 'week',
       focusYmd: focus,
-      fromYmd: agenda.fromYmd,
-      toYmd: agenda.toYmd,
+      fromYmd: '2026-10-26',
+      toYmd: '2026-11-01',
     });
-    expect(week).toEqual({ fromYmd: '2026-10-26', toYmd: '2026-11-01' });
 
-    const month = partnerUnifiedDisplayRangeForView({
+    nav = partnerUnifiedApplyViewChange(nav, 'month');
+    // Must show November even though the week from/to started in October.
+    expect(nav).toMatchObject({
       view: 'month',
       focusYmd: focus,
-      fromYmd: week.fromYmd,
-      toYmd: week.toYmd,
+      fromYmd: '2026-11-01',
+      toYmd: '2026-11-30',
     });
-    expect(month).toEqual({ fromYmd: '2026-11-01', toYmd: '2026-11-30' });
+    expect(formatPartnerUnifiedMonthLabel(nav.fromYmd)).toMatch(/November 2026/i);
 
-    // Returning to Agenda restores the remembered window that still contains focus.
-    expect(partnerUnifiedFocusInRange(focus, agenda.fromYmd, agenda.toYmd)).toBe(true);
-    expect(
-      partnerUnifiedDisplayRangeForView({
-        view: 'agenda',
-        focusYmd: focus,
-        fromYmd: agenda.fromYmd,
-        toYmd: agenda.toYmd,
-      })
-    ).toEqual(agenda);
+    nav = partnerUnifiedApplyViewChange(nav, 'agenda');
+    expect(nav).toMatchObject({
+      view: 'agenda',
+      focusYmd: focus,
+      fromYmd: '2026-11-01',
+      toYmd: '2026-11-30',
+    });
+
+    // Navigating within Week updates focus for subsequent Month switches.
+    nav = partnerUnifiedApplyViewChange(nav, 'week');
+    nav = partnerUnifiedApplyShift(nav, 1);
+    expect(nav.focusYmd).toBe('2026-11-08');
+    expect(nav.fromYmd).toBe('2026-11-02');
+    nav = partnerUnifiedApplyViewChange(nav, 'month');
+    expect(nav).toMatchObject({
+      view: 'month',
+      focusYmd: '2026-11-08',
+      fromYmd: '2026-11-01',
+      toYmd: '2026-11-30',
+    });
 
     // Prev/Next keep day-of-month / weekday across boundaries.
     expect(partnerUnifiedShiftFocusByWeeks(focus, 1)).toBe('2026-11-08');
@@ -278,20 +308,21 @@ describe('partner-unified-calendar', () => {
     expect(partnerUnifiedShiftFocusByMonths('2026-03-31', -1)).toBe('2026-02-28');
 
     // Year boundary: Dec focus → Jan month/week.
-    const decFocus = '2026-12-28';
-    expect(partnerUnifiedDisplayRangeForView({ view: 'month', focusYmd: decFocus })).toEqual({
+    let boundary = {
+      view: 'month' as const,
+      focusYmd: '2026-12-28',
       fromYmd: '2026-12-01',
       toYmd: '2026-12-31',
-    });
-    const janFocus = partnerUnifiedShiftFocusByMonths(decFocus, 1);
-    expect(janFocus).toBe('2027-01-28');
-    expect(partnerUnifiedDisplayRangeForView({ view: 'month', focusYmd: janFocus })).toEqual({
-      fromYmd: '2027-01-01',
-      toYmd: '2027-01-31',
-    });
-    expect(partnerUnifiedDisplayRangeForView({ view: 'week', focusYmd: janFocus })).toEqual({
+      agendaRange: null,
+    };
+    boundary = partnerUnifiedApplyShift(boundary, 1);
+    expect(boundary.focusYmd).toBe('2027-01-28');
+    expect(boundary).toMatchObject({ fromYmd: '2027-01-01', toYmd: '2027-01-31' });
+    boundary = partnerUnifiedApplyViewChange(boundary, 'week');
+    expect(boundary).toMatchObject({
       fromYmd: '2027-01-25',
       toYmd: '2027-01-31',
+      focusYmd: '2027-01-28',
     });
   });
 
