@@ -6,6 +6,8 @@ import {
   RefreshCw,
   Trash2,
   CalendarDays,
+  Search,
+  X,
 } from 'lucide-react';
 import type { TourPackage } from '../../types/tour';
 import { listingHeroImageSrc, orderedPhotoUrls, photoSlotsFromTourPackage } from '../../lib/listingPhotoGrid';
@@ -32,6 +34,7 @@ import {
   type CancellationRequestRow,
 } from '../../data/supabase-booking-ops';
 import PartnerSelect from '../../components/supplier/PartnerSelect';
+import { TraverionDateRangeField } from '../../components/calendar/TraverionDateRangeField';
 import SupplierSupportCaseRespond from '../../components/supplier/SupplierSupportCaseRespond';
 import NoticeCallout from '../../components/NoticeCallout';
 import {
@@ -121,13 +124,10 @@ import {
   applyPartnerBookingsDesk,
   partnerBookingLifecycleLabel,
   partnerBookingListBadgeLabel,
-  PARTNER_BOOKINGS_SORTS,
-  PARTNER_BOOKINGS_TRAVEL,
   type PartnerBookingsOps,
-  type PartnerBookingsPaymentFilter,
-  type PartnerBookingsSort,
   type PartnerBookingsTravelWindow,
 } from '../../lib/partner-bookings-desk';
+import { normalizeRentalDetails } from '../../lib/rental-details';
 import { travelerPublicBookingReference } from '../../lib/public-booking-reference';
 import { fetchSupplierBookingEvents, type SupplierBookingEventRow } from '../../data/supabase-booking-events';
 import { displayListingTitleFromPurchase, displayOptionLabelFromPurchase, displayDurationFromPurchase, displayStayCheckInTimeFromPurchase, displayStayCheckOutTimeFromPurchase, displayCheckInAddressFromPurchase, displayStayHouseRulesFromPurchase, partnerOpsDepartureDisplay, isPurchaseSnapshot, partnerListingFilterLabelFromBookings, type PurchaseSnapshot } from '../../lib/purchase-snapshot';
@@ -167,6 +167,8 @@ type ListingBookingMeta = {
     optionInfo: string;
     travelerStartInstructions?: string;
   }>;
+  /** Tour options or rental variants available for the Option filter. */
+  selectableOptions: Array<{ id: string; name: string }>;
   stayCheckInTime: string | null;
   stayCheckOutTime: string | null;
   rentalCategory: string | null;
@@ -187,6 +189,14 @@ function buildListingMeta(listing: TourPackage): ListingBookingMeta {
     optionInfo: o.optionInfo,
     travelerStartInstructions: o.travelerStartInstructions,
   }));
+  const rental = normalizeRentalDetails(extras.rental);
+  const rentalVariants = (rental?.variants ?? [])
+    .map((v) => ({ id: v.id, name: (v.name ?? '').trim() }))
+    .filter((v) => v.id && v.name);
+  const selectableOptions =
+    opts.filter((o) => o.id && o.name).map((o) => ({ id: o.id, name: o.name })).length > 0
+      ? opts.filter((o) => o.id && o.name).map((o) => ({ id: o.id, name: o.name }))
+      : rentalVariants;
   return {
     title: listing.title,
     imageUrl,
@@ -196,6 +206,7 @@ function buildListingMeta(listing: TourPackage): ListingBookingMeta {
     meetingPoint: listing.meetingPoint?.trim() || null,
     pickupInstructions: listing.pickupInstructions?.trim() || null,
     bookingOptions: opts,
+    selectableOptions,
     stayCheckInTime: extras.stay?.checkInTime?.trim() || null,
     stayCheckOutTime: extras.stay?.checkOutTime?.trim() || null,
     rentalCategory: extras.rental?.category?.trim() || null,
@@ -282,20 +293,6 @@ function readTravelWindow(raw: string | null): PartnerBookingsTravelWindow {
     return raw;
   }
   return 'all';
-}
-
-function readSort(raw: string | null): PartnerBookingsSort {
-  if (
-    raw === 'oldest' ||
-    raw === 'travel_asc' ||
-    raw === 'travel_desc' ||
-    raw === 'value_asc' ||
-    raw === 'value_desc' ||
-    raw === 'newest'
-  ) {
-    return raw;
-  }
-  return 'newest';
 }
 
 function bookingReferenceLabel(booking: BookingRow): string {
@@ -434,32 +431,6 @@ export default function SupplierBookings({
     return readTravelWindow(new URLSearchParams(window.location.search).get('view'));
   });
   const [opsFilter, setOpsFilter] = useState<OpsFilter>('all');
-  const [sortBy, setSortBy] = useState<PartnerBookingsSort>(() => {
-    if (typeof window === 'undefined') return 'newest';
-    return readSort(new URLSearchParams(window.location.search).get('sort'));
-  });
-  const [statusFilter, setStatusFilter] = useState(() => {
-    if (typeof window === 'undefined') return '';
-    const s = (new URLSearchParams(window.location.search).get('status') ?? '').trim().toLowerCase();
-    return s === 'confirmed' || s === 'pending' || s === 'cancelled' ? s : '';
-  });
-  const [paymentFilter, setPaymentFilter] = useState<PartnerBookingsPaymentFilter>(() => {
-    if (typeof window === 'undefined') return '';
-    const p = (new URLSearchParams(window.location.search).get('pay') ?? '').trim();
-    return p === 'paid' || p === 'unpaid' || p === 'refund_due' || p === 'refunded' ? p : '';
-  });
-  const [purchaseFrom, setPurchaseFrom] = useState(() => {
-    if (typeof window === 'undefined') return '';
-    const d = (new URLSearchParams(window.location.search).get('purchasedFrom') ?? '').trim();
-    return /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : '';
-  });
-  const [purchaseTo, setPurchaseTo] = useState(() => {
-    if (typeof window === 'undefined') return '';
-    const d = (new URLSearchParams(window.location.search).get('purchasedTo') ?? '').trim();
-    return /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : '';
-  });
-  const [moreFiltersOpen, setMoreFiltersOpen] = useState(false);
-  const [filtersSheetOpen, setFiltersSheetOpen] = useState(false);
   const [expandedStayId, setExpandedStayId] = useState<string | null>(null);
   const [expandedTourId, setExpandedTourId] = useState<string | null>(null);
   const [expandedRentalId, setExpandedRentalId] = useState<string | null>(null);
@@ -488,6 +459,10 @@ export default function SupplierBookings({
     if (typeof window === 'undefined') return '';
     const d = (new URLSearchParams(window.location.search).get('to') ?? '').trim();
     return /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : '';
+  });
+  const [filterOptionId, setFilterOptionId] = useState(() => {
+    if (typeof window === 'undefined') return '';
+    return (new URLSearchParams(window.location.search).get('option') ?? '').trim();
   });
   const [filterQuery, setFilterQuery] = useState(() => {
     if (typeof window === 'undefined') return '';
@@ -662,20 +637,13 @@ export default function SupplierBookings({
       ) {
         if (!(ops === 'refund_due' || ops === 'unpaid' || ops === 'cancel')) setView(v);
       }
-      setSortBy(readSort(params.get('sort')));
-      const status = (params.get('status') ?? '').trim().toLowerCase();
-      setStatusFilter(status === 'confirmed' || status === 'pending' || status === 'cancelled' ? status : '');
-      const pay = (params.get('pay') ?? '').trim();
-      setPaymentFilter(pay === 'paid' || pay === 'unpaid' || pay === 'refund_due' || pay === 'refunded' ? pay : '');
-      const purchasedFrom = (params.get('purchasedFrom') ?? '').trim();
-      const purchasedTo = (params.get('purchasedTo') ?? '').trim();
-      setPurchaseFrom(/^\d{4}-\d{2}-\d{2}$/.test(purchasedFrom) ? purchasedFrom : '');
-      setPurchaseTo(/^\d{4}-\d{2}-\d{2}$/.test(purchasedTo) ? purchasedTo : '');
       const q = params.get('q') ?? '';
       setFilterQuery(q);
       setSearchDraft(q);
       const listing = (params.get('listing') ?? '').trim();
       setFilterListingId(listing);
+      const option = (params.get('option') ?? '').trim();
+      setFilterOptionId(option);
       const from = (params.get('from') ?? '').trim();
       const to = (params.get('to') ?? '').trim();
       setFilterDateFrom(/^\d{4}-\d{2}-\d{2}$/.test(from) ? from : '');
@@ -695,37 +663,40 @@ export default function SupplierBookings({
   const writeBookingsSearchToUrl = useCallback(
     (patch: {
       listingId?: string;
+      optionId?: string;
       from?: string;
       to?: string;
       view?: BookingView;
-      sort?: PartnerBookingsSort;
-      status?: string;
-      pay?: PartnerBookingsPaymentFilter;
-      purchasedFrom?: string;
-      purchasedTo?: string;
       q?: string;
       category?: '' | PartnerBookingDeskFamily;
     }) => {
-      const listingId = patch.listingId !== undefined ? patch.listingId : filterListingId;
+      let listingId = patch.listingId !== undefined ? patch.listingId : filterListingId;
+      let optionId = patch.optionId !== undefined ? patch.optionId : filterOptionId;
       const from = patch.from !== undefined ? patch.from : filterDateFrom;
       const to = patch.to !== undefined ? patch.to : filterDateTo;
       const nextView = patch.view !== undefined ? patch.view : view;
-      const nextSort = patch.sort !== undefined ? patch.sort : sortBy;
-      const nextStatus = patch.status !== undefined ? patch.status : statusFilter;
-      const nextPay = patch.pay !== undefined ? patch.pay : paymentFilter;
-      const nextPurchasedFrom = patch.purchasedFrom !== undefined ? patch.purchasedFrom : purchaseFrom;
-      const nextPurchasedTo = patch.purchasedTo !== undefined ? patch.purchasedTo : purchaseTo;
       const nextQuery = patch.q !== undefined ? patch.q : filterQuery;
       const nextCategory = patch.category !== undefined ? patch.category : categoryFilter;
-      if (patch.listingId !== undefined) setFilterListingId(patch.listingId);
+
+      if (patch.category !== undefined && listingId) {
+        const listedFamily = listingMeta[listingId]?.family;
+        if (patch.category && listedFamily && listedFamily !== patch.category) {
+          listingId = '';
+          optionId = '';
+        }
+      }
+      if (patch.listingId !== undefined) {
+        optionId = patch.optionId !== undefined ? patch.optionId : '';
+      } else if (listingId && optionId) {
+        const valid = listingMeta[listingId]?.selectableOptions.some((o) => o.id === optionId);
+        if (!valid) optionId = '';
+      }
+
+      if (patch.listingId !== undefined || listingId !== filterListingId) setFilterListingId(listingId);
+      if (patch.optionId !== undefined || optionId !== filterOptionId) setFilterOptionId(optionId);
       if (patch.from !== undefined) setFilterDateFrom(patch.from);
       if (patch.to !== undefined) setFilterDateTo(patch.to);
       if (patch.view !== undefined) setView(patch.view);
-      if (patch.sort !== undefined) setSortBy(patch.sort);
-      if (patch.status !== undefined) setStatusFilter(patch.status);
-      if (patch.pay !== undefined) setPaymentFilter(patch.pay);
-      if (patch.purchasedFrom !== undefined) setPurchaseFrom(patch.purchasedFrom);
-      if (patch.purchasedTo !== undefined) setPurchaseTo(patch.purchasedTo);
       if (patch.category !== undefined) setCategoryFilter(patch.category);
       if (patch.q !== undefined) {
         setFilterQuery(patch.q);
@@ -734,22 +705,20 @@ export default function SupplierBookings({
       const url = new URL(window.location.href);
       if (!listingId) url.searchParams.delete('listing');
       else url.searchParams.set('listing', listingId);
+      if (!optionId) url.searchParams.delete('option');
+      else url.searchParams.set('option', optionId);
       if (!from) url.searchParams.delete('from');
       else url.searchParams.set('from', from);
       if (!to) url.searchParams.delete('to');
       else url.searchParams.set('to', to);
       if (nextView === 'all') url.searchParams.delete('view');
       else url.searchParams.set('view', nextView);
-      if (nextSort === 'newest') url.searchParams.delete('sort');
-      else url.searchParams.set('sort', nextSort);
-      if (!nextStatus) url.searchParams.delete('status');
-      else url.searchParams.set('status', nextStatus);
-      if (!nextPay) url.searchParams.delete('pay');
-      else url.searchParams.set('pay', nextPay);
-      if (!nextPurchasedFrom) url.searchParams.delete('purchasedFrom');
-      else url.searchParams.set('purchasedFrom', nextPurchasedFrom);
-      if (!nextPurchasedTo) url.searchParams.delete('purchasedTo');
-      else url.searchParams.set('purchasedTo', nextPurchasedTo);
+      // Retired toolbar filters — drop stale URL params.
+      url.searchParams.delete('sort');
+      url.searchParams.delete('status');
+      url.searchParams.delete('pay');
+      url.searchParams.delete('purchasedFrom');
+      url.searchParams.delete('purchasedTo');
       if (!nextQuery.trim()) url.searchParams.delete('q');
       else url.searchParams.set('q', nextQuery.trim());
       if (!isUnifiedDesk || !nextCategory) url.searchParams.delete('category');
@@ -759,17 +728,14 @@ export default function SupplierBookings({
     },
     [
       filterListingId,
+      filterOptionId,
       filterDateFrom,
       filterDateTo,
       view,
-      sortBy,
-      statusFilter,
-      paymentFilter,
-      purchaseFrom,
-      purchaseTo,
       filterQuery,
       categoryFilter,
       isUnifiedDesk,
+      listingMeta,
     ]
   );
 
@@ -852,13 +818,14 @@ export default function SupplierBookings({
       travel: view === 'range' || filterDateFrom || filterDateTo ? (view === 'all' && (filterDateFrom || filterDateTo) ? 'range' : view) : view,
       travelFrom: filterDateFrom,
       travelTo: filterDateTo,
-      purchaseFrom,
-      purchaseTo,
-      status: statusFilter,
-      payment: paymentFilter,
+      purchaseFrom: '',
+      purchaseTo: '',
+      status: '',
+      payment: '',
       listingId: filterListingId,
+      optionId: filterOptionId,
       ops: opsFilter,
-      sort: sortBy,
+      sort: 'newest',
       inventoryFamily: inventoryFamily ?? (categoryFilter || undefined),
       highlightBookingId,
     }, {
@@ -909,9 +876,19 @@ export default function SupplierBookings({
         const rentalSnap = parseRentalPurchaseSnapshot(b.purchase_snapshot);
         return rentalSnap?.variantName?.trim() || '';
       },
+      optionId: (b) => {
+        const rentalSnap = parseRentalPurchaseSnapshot(b.purchase_snapshot);
+        if (rentalSnap?.variantId) return rentalSnap.variantId;
+        if (b.booking_option_id) return b.booking_option_id;
+        if (isPurchaseSnapshot(b.purchase_snapshot) && b.purchase_snapshot.optionId) {
+          return b.purchase_snapshot.optionId;
+        }
+        return '';
+      },
+      guestPhone: (b) => guestPhoneFromNotes(b.special_requests) || '',
       startHm: (b) => (b.start_time ? pgTimeToHm(b.start_time) ?? '' : ''),
     });
-  }, [bookings, filterDateFrom, filterDateTo, filterListingId, filterQuery, listingMeta, view, opsFilter, openCancels, inventoryFamily, categoryFilter, highlightBookingId, purchaseFrom, purchaseTo, statusFilter, paymentFilter, sortBy]);
+  }, [bookings, filterDateFrom, filterDateTo, filterListingId, filterOptionId, filterQuery, listingMeta, view, opsFilter, openCancels, inventoryFamily, categoryFilter, highlightBookingId]);
 
   const totalPages = Math.max(1, Math.ceil(filteredBookings.length / BOOKINGS_PAGE_SIZE));
   const safePage = Math.min(Math.max(bookingsListPage, 1), totalPages);
@@ -927,18 +904,7 @@ export default function SupplierBookings({
 
   useEffect(() => {
     setBookingsListPage(1);
-  }, [
-    view,
-    filterListingId,
-    filterDateFrom,
-    filterDateTo,
-    filterQuery,
-    opsFilter,
-    categoryFilter,
-    statusFilter,
-    paymentFilter,
-    sortBy,
-  ]);
+  }, [view, filterListingId, filterOptionId, filterDateFrom, filterDateTo, filterQuery, opsFilter, categoryFilter]);
 
   useEffect(() => {
     if (!highlightBookingId) return;
@@ -1070,15 +1036,31 @@ export default function SupplierBookings({
     () =>
       Object.entries(listingMeta)
         .filter(([, m]) => {
-          if (!inventoryFamily) return true;
-          return m.family === inventoryFamily;
+          if (inventoryFamily) return m.family === inventoryFamily;
+          if (categoryFilter) return m.family === categoryFilter;
+          return true;
         })
         .map(([id, m]) => ({
           id,
           title: partnerListingFilterLabelFromBookings(id, m.title, bookings),
         })),
-    [listingMeta, inventoryFamily, bookings]
+    [listingMeta, inventoryFamily, categoryFilter, bookings]
   );
+
+  const optionFilterChoices = useMemo(() => {
+    if (!filterListingId) return [] as Array<{ id: string; name: string }>;
+    return listingMeta[filterListingId]?.selectableOptions ?? [];
+  }, [filterListingId, listingMeta]);
+
+  useEffect(() => {
+    if (!filterOptionId) return;
+    if (!filterListingId || !optionFilterChoices.some((o) => o.id === filterOptionId)) {
+      setFilterOptionId('');
+      const url = new URL(window.location.href);
+      url.searchParams.delete('option');
+      window.history.replaceState({}, '', `${url.pathname}${url.search}`);
+    }
+  }, [filterListingId, filterOptionId, optionFilterChoices]);
 
   const selectedBooking = useMemo(
     () => (highlightBookingId ? bookings.find((b) => b.id === highlightBookingId) ?? null : null),
@@ -1150,13 +1132,12 @@ export default function SupplierBookings({
   }, [user?.id, highlightBookingId]);
 
   const activeBookingFilterCount = [
-    statusFilter,
     filterListingId,
+    filterOptionId,
     view !== 'all' ? view : '',
     filterDateFrom || filterDateTo ? 'travel' : '',
-    paymentFilter,
     opsFilter !== 'all' ? opsFilter : '',
-    purchaseFrom || purchaseTo ? 'purchased' : '',
+    filterQuery.trim(),
     isUnifiedDesk && categoryFilter ? categoryFilter : '',
   ].filter(Boolean).length;
 
@@ -1164,13 +1145,9 @@ export default function SupplierBookings({
     writeBookingsSearchToUrl({
       view: 'all',
       listingId: '',
+      optionId: '',
       from: '',
       to: '',
-      sort: 'newest',
-      status: '',
-      pay: '',
-      purchasedFrom: '',
-      purchasedTo: '',
       q: '',
       category: '',
     });
@@ -1274,11 +1251,10 @@ export default function SupplierBookings({
                       surface: 'bookings',
                       view,
                       opsFilter,
-                      sort: sortBy,
-                      status: statusFilter || null,
-                      payment: paymentFilter || null,
                       listingId: filterListingId || null,
+                      optionId: filterOptionId || null,
                       query: filterQuery.trim() || null,
+                      category: categoryFilter || null,
                       inventoryFamily: inventoryFamily ?? null,
                       rowCount: filteredBookings.length,
                     },
@@ -1306,129 +1282,6 @@ export default function SupplierBookings({
       >
       </SupplierPageHero>
       </>
-      ) : null}
-
-      {filtersSheetOpen ? (
-        <SupplierDetailDrawer variant="sheet" label="Filters" onClose={() => setFiltersSheetOpen(false)}>
-          <div id="bookings-filter-sheet" className="flex min-h-0 w-full flex-1 flex-col bg-white">
-            <SupplierModalHeader
-              title="Filters"
-              onClose={() => setFiltersSheetOpen(false)}
-            />
-            <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-3">
-              <PartnerSelect
-                id="bookings-filter-status-mobile"
-                aria-label="Booking status"
-                searchable={false}
-                value={statusFilter}
-                onChange={(status) => writeBookingsSearchToUrl({ status })}
-                options={[
-                  { value: '', label: 'All statuses' },
-                  { value: 'confirmed', label: 'Confirmed' },
-                  { value: 'pending', label: 'Pending' },
-                  { value: 'cancelled', label: 'Cancelled' },
-                ]}
-              />
-              <PartnerSelect
-                id="bookings-filter-listing-mobile"
-                aria-label="Experience"
-                value={filterListingId}
-                onChange={(listingId) => writeBookingsSearchToUrl({ listingId })}
-                options={[
-                  { value: '', label: isStayDesk ? 'All properties' : 'All listings' },
-                  ...listingOptions.map((option) => ({ value: option.id, label: option.title })),
-                ]}
-              />
-              <PartnerSelect
-                id="bookings-filter-travel-mobile"
-                aria-label="Travel date"
-                searchable={false}
-                value={view}
-                onChange={(next) => writeBookingsSearchToUrl({ view: next as BookingView })}
-                options={PARTNER_BOOKINGS_TRAVEL.map((item) => ({ value: item.value, label: item.label }))}
-              />
-              <div className="grid grid-cols-2 gap-2">
-                <input
-                  type="date"
-                  value={filterDateFrom}
-                  onChange={(e) => writeBookingsSearchToUrl({ view: 'range', from: e.target.value })}
-                  className="tv-input w-full min-w-0"
-                  aria-label={isRentalDesk ? 'Rental period from' : 'Travel date from'}
-                />
-                <input
-                  type="date"
-                  value={filterDateTo}
-                  onChange={(e) => writeBookingsSearchToUrl({ view: 'range', to: e.target.value })}
-                  className="tv-input w-full min-w-0"
-                  aria-label={isRentalDesk ? 'Rental period to' : 'Travel date to'}
-                />
-              </div>
-              <PartnerSelect
-                id="bookings-filter-payment-mobile"
-                aria-label="Payment status"
-                searchable={false}
-                value={paymentFilter}
-                onChange={(pay) => writeBookingsSearchToUrl({ pay: pay as PartnerBookingsPaymentFilter })}
-                options={[
-                  { value: '', label: 'Any payment' },
-                  { value: 'paid', label: 'Paid' },
-                  { value: 'unpaid', label: 'Unpaid' },
-                  { value: 'refund_due', label: 'Refund due' },
-                  { value: 'refunded', label: 'Refunded' },
-                ]}
-              />
-              <PartnerSelect
-                id="bookings-filter-ops-mobile"
-                aria-label="Operational attention"
-                searchable={false}
-                value={opsFilter}
-                onChange={(next) => setOpsFilterAndUrl(next as OpsFilter)}
-                options={[
-                  { value: 'all', label: 'Any attention' },
-                  { value: 'unpaid', label: 'Unpaid checkout' },
-                  ...(inventoryFamily === 'stay' ||
-                  inventoryFamily === 'rental' ||
-                  (isUnifiedDesk && categoryFilter === 'stay') ||
-                  (isUnifiedDesk && categoryFilter === 'rental')
-                    ? []
-                    : [{ value: 'pickup', label: 'Pickup details' }]),
-                  { value: 'cancel', label: 'Cancellation waiting' },
-                  { value: 'refund_due', label: 'Refund due' },
-                ]}
-              />
-              <div className="grid grid-cols-2 gap-2">
-                <div className="flex min-w-0 flex-col gap-1">
-                  <label className="text-[11px] font-medium uppercase tracking-wide text-ink-faint">Purchased from</label>
-                  <input
-                    type="date"
-                    value={purchaseFrom}
-                    onChange={(e) => writeBookingsSearchToUrl({ purchasedFrom: e.target.value })}
-                    className="tv-input w-full min-w-0"
-                    aria-label="Purchase date from"
-                  />
-                </div>
-                <div className="flex min-w-0 flex-col gap-1">
-                  <label className="text-[11px] font-medium uppercase tracking-wide text-ink-faint">Purchased to</label>
-                  <input
-                    type="date"
-                    value={purchaseTo}
-                    onChange={(e) => writeBookingsSearchToUrl({ purchasedTo: e.target.value })}
-                    className="tv-input w-full min-w-0"
-                    aria-label="Purchase date to"
-                  />
-                </div>
-              </div>
-            </div>
-            <div className="flex shrink-0 items-center justify-between gap-2 border-t border-black/[0.06] px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-              <button type="button" onClick={resetBookingFilters} className="tv-btn-ghost">
-                Reset
-              </button>
-              <button type="button" onClick={() => setFiltersSheetOpen(false)} className="tv-btn-primary">
-                Apply
-              </button>
-            </div>
-          </div>
-        </SupplierDetailDrawer>
       ) : null}
 
       {error && (
@@ -1529,31 +1382,6 @@ export default function SupplierBookings({
               </button>
             ))}
           </div>
-          <label className="partner-bookings-workspace__daypick-wrap">
-            <span className="sr-only">Pick a travel date</span>
-            <input
-              type="date"
-              className={`partner-bookings-workspace__daypick${
-                view === 'range' && filterDateFrom && (!filterDateTo || filterDateTo === filterDateFrom)
-                  ? ' is-active'
-                  : ''
-              }`}
-              value={
-                view === 'range' && filterDateFrom && (!filterDateTo || filterDateTo === filterDateFrom)
-                  ? filterDateFrom
-                  : ''
-              }
-              onChange={(e) => {
-                const day = e.target.value;
-                if (!day) {
-                  writeBookingsSearchToUrl({ view: 'all', from: '', to: '' });
-                  return;
-                }
-                writeBookingsSearchToUrl({ view: 'range', from: day, to: day });
-              }}
-              aria-label="Custom travel date"
-            />
-          </label>
           {isUnifiedDesk ? (
             <div className="partner-bookings-workspace__seg" role="group" aria-label="Category">
               {(
@@ -1577,217 +1405,106 @@ export default function SupplierBookings({
             </div>
           ) : null}
         </div>
+
         <div className="partner-bookings-workspace__controls">
           <label className="partner-bookings-workspace__search">
             <span className="sr-only">{isStayDesk ? 'Search reservations' : 'Search bookings'}</span>
+            <span className="partner-bookings-workspace__search-icon" aria-hidden>
+              <Search strokeWidth={2} />
+            </span>
             <input
               type="search"
               value={searchDraft}
               onChange={(e) => setSearchDraft(e.target.value)}
-              placeholder={
-                isStayDesk
-                  ? 'Search guest, property, option or reference…'
-                  : isRentalDesk
-                    ? 'Search customer, listing, option or reference…'
-                    : 'Search guest, listing, option or reference…'
-              }
-              className="tv-input w-full"
-              aria-label="Search by guest, listing, option or booking reference"
+              placeholder="Search guest, phone, listing, option or reference…"
+              className="tv-input partner-bookings-workspace__search-input"
+              aria-label="Search by guest, phone, listing, option or booking reference"
             />
-          </label>
-          <div className="flex items-center gap-2 lg:hidden">
-            <button
-              type="button"
-              className="tv-btn-ghost h-10 shrink-0"
-              aria-expanded={filtersSheetOpen}
-              aria-controls="bookings-filter-sheet"
-              onClick={() => setFiltersSheetOpen(true)}
-            >
-              Filters{activeBookingFilterCount > 0 ? ` (${activeBookingFilterCount})` : ''}
-            </button>
-            <div className="min-w-0 flex-1">
-              <PartnerSelect
-                id="bookings-filter-sort-mobile"
-                aria-label="Sort bookings"
-                searchable={false}
-                value={sortBy}
-                onChange={(next) => writeBookingsSearchToUrl({ sort: next as PartnerBookingsSort })}
-                options={PARTNER_BOOKINGS_SORTS.map((item) => ({ value: item.value, label: item.label }))}
-              />
-            </div>
-          </div>
-          <div className="partner-bookings-workspace__filters">
-            <PartnerSelect
-              id="bookings-filter-status"
-              aria-label="Booking status"
-              searchable={false}
-              value={statusFilter}
-              onChange={(status) => writeBookingsSearchToUrl({ status })}
-              options={[
-                { value: '', label: 'All statuses' },
-                { value: 'confirmed', label: 'Confirmed' },
-                { value: 'pending', label: 'Pending' },
-                { value: 'cancelled', label: 'Cancelled' },
-              ]}
-            />
-            <PartnerSelect
-              id="bookings-filter-listing"
-              aria-labelledby="bookings-filter-listing-label"
-              value={filterListingId}
-              onChange={(listingId) => writeBookingsSearchToUrl({ listingId })}
-              options={[
-                {
-                  value: '',
-                  label: isStayDesk ? 'All properties' : isUnifiedDesk ? 'All listings' : 'All experiences',
-                },
-                ...listingOptions.map((option) => ({ value: option.id, label: option.title })),
-              ]}
-            />
-            <span id="bookings-filter-listing-label" className="sr-only">
-              {isStayDesk ? 'Property' : 'Listing'}
-            </span>
-            <PartnerSelect
-              id="bookings-filter-sort"
-              aria-label="Sort bookings"
-              searchable={false}
-              value={sortBy}
-              onChange={(next) => writeBookingsSearchToUrl({ sort: next as PartnerBookingsSort })}
-              options={PARTNER_BOOKINGS_SORTS.map((item) => ({ value: item.value, label: item.label }))}
-            />
-            <button
-              type="button"
-              aria-expanded={moreFiltersOpen}
-              onClick={() => setMoreFiltersOpen((open) => !open)}
-              className="tv-btn-ghost partner-bookings-workspace__more h-10 shrink-0 !px-2.5 text-[13px]"
-            >
-              More{activeBookingFilterCount > 0 ? ` (${activeBookingFilterCount})` : ''}
-            </button>
-          </div>
-        </div>
-        {view === 'range' && filterDateFrom && filterDateTo && filterDateFrom !== filterDateTo ? (
-          <div className="partner-bookings-workspace__range hidden items-center gap-1.5 lg:flex">
-            <input
-              type="date"
-              value={filterDateFrom}
-              onChange={(e) => writeBookingsSearchToUrl({ view: 'range', from: e.target.value })}
-              className="tv-input w-[9.25rem]"
-              aria-label={isRentalDesk ? 'Rental period from' : 'Travel date from'}
-            />
-            <span className="shrink-0 text-sm text-ink-faint">–</span>
-            <input
-              type="date"
-              value={filterDateTo}
-              onChange={(e) => writeBookingsSearchToUrl({ view: 'range', to: e.target.value })}
-              className="tv-input w-[9.25rem]"
-              aria-label={isRentalDesk ? 'Rental period to' : 'Travel date to'}
-            />
-          </div>
-        ) : null}
-        {moreFiltersOpen ? (
-          <div className="partner-bookings-workspace__more-panel">
-            <PartnerSelect
-              id="bookings-filter-travel"
-              aria-label="Travel window"
-              searchable={false}
-              value={view}
-              onChange={(next) => {
-                const nextView = next as BookingView;
-                if (nextView === 'yesterday' || nextView === 'today' || nextView === 'tomorrow') {
-                  writeBookingsSearchToUrl({ view: nextView, from: '', to: '' });
-                  return;
-                }
-                writeBookingsSearchToUrl({ view: nextView });
-              }}
-              options={PARTNER_BOOKINGS_TRAVEL.map((item) => ({ value: item.value, label: item.label }))}
-            />
-            <PartnerSelect
-              id="bookings-filter-payment"
-              aria-label="Payment status"
-              searchable={false}
-              value={paymentFilter}
-              onChange={(pay) => writeBookingsSearchToUrl({ pay: pay as PartnerBookingsPaymentFilter })}
-              options={[
-                { value: '', label: 'Any payment' },
-                { value: 'paid', label: 'Paid' },
-                { value: 'unpaid', label: 'Unpaid' },
-                { value: 'refund_due', label: 'Refund due' },
-                { value: 'refunded', label: 'Refunded' },
-              ]}
-            />
-            <PartnerSelect
-              id="bookings-filter-ops"
-              aria-label="Operational attention"
-              searchable={false}
-              value={opsFilter}
-              onChange={(next) => setOpsFilterAndUrl(next as OpsFilter)}
-              options={[
-                { value: 'all', label: 'Any attention' },
-                { value: 'unpaid', label: 'Unpaid checkout' },
-                ...(inventoryFamily === 'stay' ||
-                inventoryFamily === 'rental' ||
-                (isUnifiedDesk && categoryFilter === 'stay') ||
-                (isUnifiedDesk && categoryFilter === 'rental')
-                  ? []
-                  : [{ value: 'pickup', label: 'Pickup details' }]),
-                { value: 'cancel', label: 'Cancellation waiting' },
-                { value: 'refund_due', label: 'Refund due' },
-              ]}
-            />
-            <div className="flex flex-col gap-1">
-              <label className="text-[11px] font-medium uppercase tracking-wide text-ink-faint">Purchased from</label>
-              <input
-                type="date"
-                value={purchaseFrom}
-                onChange={(e) => writeBookingsSearchToUrl({ purchasedFrom: e.target.value })}
-                className="tv-input"
-                aria-label="Purchase date from"
-              />
-            </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-[11px] font-medium uppercase tracking-wide text-ink-faint">Purchased to</label>
-              <input
-                type="date"
-                value={purchaseTo}
-                onChange={(e) => writeBookingsSearchToUrl({ purchasedTo: e.target.value })}
-                className="tv-input"
-                aria-label="Purchase date to"
-              />
-            </div>
-          </div>
-        ) : null}
-        {!isStayDesk ||
-        filterQuery ||
-        filterListingId ||
-        filterDateFrom ||
-        filterDateTo ||
-        opsFilter !== 'all' ||
-        statusFilter ||
-        paymentFilter ||
-        sortBy !== 'newest' ||
-        purchaseFrom ||
-        purchaseTo ||
-        view !== 'all' ? (
-          <div className="partner-bookings-workspace__meta">
-            {/* Phase 1663: ops filters count as active filters. */}
-            {filterQuery ||
-            filterListingId ||
-            filterDateFrom ||
-            filterDateTo ||
-            opsFilter !== 'all' ||
-            statusFilter ||
-            paymentFilter ||
-            sortBy !== 'newest' ||
-            purchaseFrom ||
-            purchaseTo ||
-            view !== 'all' ? (
+            {searchDraft ? (
               <button
                 type="button"
-                onClick={resetBookingFilters}
-                className="tv-btn-ghost hidden h-8 !px-2.5 text-[12.5px] lg:inline-flex"
+                className="partner-bookings-workspace__search-clear lux-flat"
+                aria-label="Clear search"
+                onClick={() => {
+                  setSearchDraft('');
+                  writeBookingsSearchToUrl({ q: '' });
+                }}
               >
-                Reset filters
+                <X strokeWidth={2} aria-hidden />
               </button>
             ) : null}
+          </label>
+
+          <TraverionDateRangeField
+            id="bookings-filter-dates"
+            from={view === 'range' ? filterDateFrom : ''}
+            to={view === 'range' ? filterDateTo : ''}
+            presetLabel={
+              view === 'yesterday'
+                ? 'Yesterday'
+                : view === 'today'
+                  ? 'Today'
+                  : view === 'tomorrow'
+                    ? 'Tomorrow'
+                    : null
+            }
+            placeholder="Travel dates"
+            aria-label="Travel date period"
+            onChange={({ from, to }) => {
+              if (!from && !to) {
+                writeBookingsSearchToUrl({ view: 'all', from: '', to: '' });
+                return;
+              }
+              writeBookingsSearchToUrl({ view: 'range', from, to });
+            }}
+          />
+
+          <PartnerSelect
+            id="bookings-filter-listing"
+            aria-label={isStayDesk ? 'Property' : 'Listing'}
+            searchable
+            value={filterListingId}
+            onChange={(listingId) => writeBookingsSearchToUrl({ listingId })}
+            options={[
+              {
+                value: '',
+                label: isStayDesk ? 'All properties' : 'All listings',
+              },
+              ...listingOptions.map((option) => ({ value: option.id, label: option.title })),
+            ]}
+          />
+
+          {filterListingId && optionFilterChoices.length > 0 ? (
+            <PartnerSelect
+              id="bookings-filter-option"
+              aria-label="Option"
+              searchable
+              value={filterOptionId}
+              onChange={(optionId) => writeBookingsSearchToUrl({ optionId })}
+              options={[
+                { value: '', label: 'All options' },
+                ...optionFilterChoices.map((option) => ({ value: option.id, label: option.name })),
+              ]}
+            />
+          ) : null}
+        </div>
+
+        {(filterQuery ||
+          filterListingId ||
+          filterOptionId ||
+          filterDateFrom ||
+          filterDateTo ||
+          opsFilter !== 'all' ||
+          categoryFilter ||
+          view !== 'all') && (
+          <div className="partner-bookings-workspace__meta">
+            <button
+              type="button"
+              onClick={resetBookingFilters}
+              className="tv-btn-ghost partner-bookings-workspace__reset"
+            >
+              Reset filters
+            </button>
             <p className="partner-bookings-workspace__count" aria-live="polite">
               <span className="font-semibold tabular-nums text-ink">{filteredBookings.length}</span>
               {filteredBookings.length === 1
@@ -1800,9 +1517,12 @@ export default function SupplierBookings({
               {selectedIds.size > 0 ? (
                 <span className="text-ink-muted"> · {selectedIds.size} selected</span>
               ) : null}
+              {activeBookingFilterCount > 0 ? (
+                <span className="text-ink-faint"> · {activeBookingFilterCount} filters</span>
+              ) : null}
             </p>
           </div>
-        ) : null}
+        )}
       </div>
         <div
           id={PARTNER_BOOKINGS_LIST_ID}
@@ -1824,19 +1544,7 @@ export default function SupplierBookings({
               <button
                 type="button"
                 onClick={() => {
-                  writeBookingsSearchToUrl({
-                    view: 'all',
-                    listingId: '',
-                    from: '',
-                    to: '',
-                    sort: 'newest',
-                    status: '',
-                    pay: '',
-                    purchasedFrom: '',
-                    purchasedTo: '',
-                    q: '',
-                    category: '',
-                  });
+                  resetBookingFilters();
                   setOpsFilterAndUrl('all');
                   setBookingsListPage(1);
                 }}

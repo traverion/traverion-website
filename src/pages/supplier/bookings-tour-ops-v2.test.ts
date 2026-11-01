@@ -6,11 +6,8 @@ import { createElement } from 'react';
 import TourOpsBookingCard, {
   type TourOpsCardModel,
 } from '../../components/supplier/TourOpsBookingCard';
-import {
-  PARTNER_BOOKINGS_SORTS,
-  PARTNER_BOOKINGS_TRAVEL,
-  partnerBookingListBadgeLabel,
-} from '../../lib/partner-bookings-desk';
+import { formatPartnerTravelRangeLabel } from '../../components/calendar/TraverionDateRangeField';
+import { partnerBookingListBadgeLabel } from '../../lib/partner-bookings-desk';
 
 const baseModel: TourOpsCardModel = {
   id: 'b1',
@@ -53,11 +50,15 @@ describe('Bookings V4 — tour ops card & detail page', () => {
     expect(src).toContain('partner-bookings-workspace__controls');
     expect(src).toContain('partner-bookings-workspace__quick');
     expect(src).toContain('partner-bookings-workspace__seg');
+    expect(src).toContain('TraverionDateRangeField');
+    expect(src).toContain('filterOptionId');
     expect(src).toContain('expandedTourId');
     expect(src).toContain('tourDetailMode');
     expect(src).toContain('resolvePartnerArrivalDisplay');
     expect(src).toContain('partnerBookingDeskPath');
     expect(src).toContain('listStatusBadge');
+    expect(src).not.toContain('bookings-filter-status');
+    expect(src).not.toContain('bookings-filter-sort');
     expect(src).not.toContain('Mark as reviewed');
     expect(src).not.toContain('Acknowledge');
     expect(src).toContain('openBookingInbox(booking.id)');
@@ -90,7 +91,7 @@ describe('Bookings V4 — tour ops card & detail page', () => {
     expect(primitives).toContain('Message customer');
   });
 
-  it('defines tour-ops and single-row desktop toolbar styles', () => {
+  it('defines tour-ops and premium toolbar styles', () => {
     const css = readFileSync(resolve(__dirname, '../../index.css'), 'utf8');
     expect(css).toContain('.partner-bookings-workspace');
     expect(css).toContain('.tour-ops-card');
@@ -99,21 +100,19 @@ describe('Bookings V4 — tour ops card & detail page', () => {
     expect(css).toContain('.tour-ops-detail__grid');
     expect(css).toContain('prefers-reduced-motion');
     expect(css).toContain('One horizontal desktop row');
-    expect(css).toContain('flex-wrap: nowrap');
     expect(css).toContain('.tour-ops-card__summary-grid');
     expect(css).toContain('.tour-ops-card__facts');
     expect(css).toContain('.tour-ops-card__expand');
     expect(css).toContain('.partner-bookings-workspace__seg');
-    expect(css).toContain('.partner-bookings-workspace__daypick');
+    expect(css).toContain('.partner-bookings-daterange__trigger');
     expect(css).toContain('--pb-control-h');
     expect(css).toContain('.tour-ops-card__finance-note');
   });
 
-  it('uses short readable travel and sort filter labels', () => {
-    expect(PARTNER_BOOKINGS_TRAVEL.find((t) => t.value === 'yesterday')?.label).toBe('Yesterday');
-    expect(PARTNER_BOOKINGS_TRAVEL.find((t) => t.value === 'today')?.label).toBe('Today');
-    expect(PARTNER_BOOKINGS_TRAVEL.find((t) => t.value === 'tomorrow')?.label).toBe('Tomorrow');
-    expect(PARTNER_BOOKINGS_SORTS.find((s) => s.value === 'newest')?.label).toBe('Newest');
+  it('formats compact travel range labels', () => {
+    expect(formatPartnerTravelRangeLabel('2026-11-12', '2026-11-12')).toMatch(/12/);
+    expect(formatPartnerTravelRangeLabel('2026-11-12', '2026-11-15')).toContain('–');
+    expect(formatPartnerTravelRangeLabel('', '')).toBe('');
   });
 
   it('hides Confirmed badges on the list while keeping exceptional statuses', () => {

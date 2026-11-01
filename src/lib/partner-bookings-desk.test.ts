@@ -33,6 +33,7 @@ const baseQuery = {
   status: '',
   payment: '' as const,
   listingId: '',
+  optionId: '',
   ops: 'all' as const,
   sort: 'newest' as const,
 };
@@ -58,7 +59,7 @@ describe('partner bookings desk', () => {
     expect(ordered.map((r) => r.id)).toEqual(['a', 'c', 'b']);
   });
 
-  it('searches name, email, reference, option, and booking id across the full set', () => {
+  it('searches name, email, phone, reference, option, and booking id across the full set', () => {
     expect(applyPartnerBookingsDesk(rows, { ...baseQuery, search: 'grace' }, extras).map((r) => r.id)).toEqual(['a']);
     expect(applyPartnerBookingsDesk(rows, { ...baseQuery, search: 'ADA@' }, extras).map((r) => r.id)).toEqual(['c', 'b']);
     expect(applyPartnerBookingsDesk(rows, { ...baseQuery, search: 'tv-ab23' }, extras)).toHaveLength(3);
@@ -69,6 +70,19 @@ describe('partner bookings desk', () => {
       optionLabel: (b) => (b.id === 'a' ? 'Aurora evening' : ''),
     });
     expect(withOption.map((r) => r.id)).toEqual(['a']);
+    const withPhone = applyPartnerBookingsDesk(rows, { ...baseQuery, search: '401234' }, {
+      ...extras,
+      guestPhone: (b) => (b.id === 'a' ? '+358 40 123 4567' : ''),
+    });
+    expect(withPhone.map((r) => r.id)).toEqual(['a']);
+  });
+
+  it('filters by option id when provided', () => {
+    const filtered = applyPartnerBookingsDesk(rows, { ...baseQuery, optionId: 'opt-a' }, {
+      ...extras,
+      optionId: (b) => (b.id === 'a' ? 'opt-a' : 'opt-other'),
+    });
+    expect(filtered.map((r) => r.id)).toEqual(['a']);
   });
 
   it('hides Confirmed on list badges', () => {

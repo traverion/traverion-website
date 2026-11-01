@@ -41,6 +41,8 @@ export type PartnerBookingsDeskQuery = {
   status: string;
   payment: PartnerBookingsPaymentFilter;
   listingId: string;
+  /** Booked option / rental variant id when filtering a single listing. */
+  optionId: string;
   ops: PartnerBookingsOps;
   sort: PartnerBookingsSort;
   inventoryFamily?: 'tour' | 'stay' | 'rental';
@@ -114,9 +116,14 @@ export function partnerBookingsDeskFiltersActive(query: PartnerBookingsDeskQuery
       query.status ||
       query.payment ||
       query.listingId ||
+      query.optionId ||
       query.ops !== 'all' ||
       query.sort !== 'newest'
   );
+}
+
+function digitsOnly(value: string): string {
+  return value.replace(/\D+/g, '');
 }
 
 function createdDay(iso: string): string {
@@ -245,10 +252,15 @@ export function applyPartnerBookingsDesk<T extends PartnerBookingsDeskRow>(
     title: (row: T) => string;
     /** Purchased option / variant label shown on the booking row. */
     optionLabel?: (row: T) => string;
+    /** Booked option / rental variant id for listing option filters. */
+    optionId?: (row: T) => string;
+    /** Guest phone for search (often stored in special_requests). */
+    guestPhone?: (row: T) => string;
     startHm: (row: T) => string;
   }
 ): T[] {
   const q = query.search.trim().toLowerCase();
+  const qDigits = digitsOnly(q);
   const filtered = rows.filter((b) => {
     const isStay = extras.isStay(b);
     const isRental = extras.isRental?.(b) ?? false;
@@ -258,6 +270,10 @@ export function applyPartnerBookingsDesk<T extends PartnerBookingsDeskRow>(
     if (query.inventoryFamily === 'tour' && (isStay || isRental)) return false;
     if (query.inventoryFamily === 'rental' && !isRental) return false;
     if (query.listingId && b.listing_id !== query.listingId) return false;
+    if (query.optionId) {
+      const rowOption = (extras.optionId?.(b) ?? '').trim();
+      if (!rowOption || rowOption !== query.optionId) return false;
+    }
     if (query.status && (b.status ?? '').trim().toLowerCase() !== query.status) return false;
     if (!matchesPayment(b, query.payment)) return false;
     if (!matchesTravel(b, query, isStay, extras.nowMs)) return false;
@@ -276,6 +292,9 @@ export function applyPartnerBookingsDesk<T extends PartnerBookingsDeskRow>(
     // Phase 1484: search must match booking # shown on rows (admin 1053 parity).
     const title = extras.title(b).toLowerCase();
     const option = (extras.optionLabel?.(b) ?? '').toLowerCase();
+    const phone = extras.guestPhone?.(b) ?? '';
+    const phoneLower = phone.toLowerCase();
+    const phoneDigits = digitsOnly(phone);
     const idLower = b.id.toLowerCase();
     const guestName = (b.guest_name ?? '').toLowerCase();
     const guestEmail = (b.guest_email ?? '').toLowerCase();
@@ -287,7 +306,9 @@ export function applyPartnerBookingsDesk<T extends PartnerBookingsDeskRow>(
       idLower.includes(q) ||
       reference.includes(q) ||
       guestName.includes(q) ||
-      guestEmail.includes(q)
+      guestEmail.includes(q) ||
+      phoneLower.includes(q) ||
+      (qDigits.length >= 3 && phoneDigits.includes(qDigits))
     );
   });
   filtered.sort((a, b) => comparePartnerBookingsDesk(a, b, query.sort, (row) => extras.startHm(row as T)));
