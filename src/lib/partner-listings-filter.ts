@@ -11,14 +11,63 @@ import {
 import { materializedBookingOptions, parseListingExtras } from '../types/listingExtras';
 import type { TourPackage } from '../types/tour';
 
-export type PartnerListingsWorkspaceFilter = 'all' | 'tour' | 'stay' | 'draft' | 'published';
+/** Publication status filter (URL `filter` when status-only). */
+export type PartnerListingsStatusFilter = 'all' | 'draft' | 'published';
+
+/**
+ * Legacy workspace filter — status + family mixed.
+ * Prefer statusFilter + familyFilter for new UI; keep for URL compatibility.
+ */
+export type PartnerListingsWorkspaceFilter =
+  | PartnerListingsStatusFilter
+  | 'tour'
+  | 'stay'
+  | 'rental';
+
+/** Quick category chips: All / Tours / Stays / Rentals. */
+export type PartnerListingsFamilyFilter = 'all' | 'tour' | 'stay' | 'rental';
 
 /** Experience / inventory type chips — only show when supported by data. */
 export type PartnerListingsTypeFilter = 'all' | 'tour' | 'ticket' | 'transportation' | 'stay' | 'rental';
 
 export function parsePartnerListingsWorkspaceFilter(raw: string | null | undefined): PartnerListingsWorkspaceFilter {
-  if (raw === 'tour' || raw === 'stay' || raw === 'draft' || raw === 'published') return raw;
+  if (
+    raw === 'tour' ||
+    raw === 'stay' ||
+    raw === 'rental' ||
+    raw === 'draft' ||
+    raw === 'published'
+  ) {
+    return raw;
+  }
   return 'all';
+}
+
+export function parsePartnerListingsFamilyFilter(
+  raw: string | null | undefined
+): PartnerListingsFamilyFilter {
+  if (raw === 'tour' || raw === 'stay' || raw === 'rental') return raw;
+  return 'all';
+}
+
+export function parsePartnerListingsStatusFilter(
+  raw: string | null | undefined
+): PartnerListingsStatusFilter {
+  if (raw === 'draft' || raw === 'published') return raw;
+  return 'all';
+}
+
+/** Split a legacy workspace `filter` value into status + family. */
+export function partnerListingsFiltersFromWorkspace(
+  workspace: PartnerListingsWorkspaceFilter
+): { status: PartnerListingsStatusFilter; family: PartnerListingsFamilyFilter } {
+  if (workspace === 'tour' || workspace === 'stay' || workspace === 'rental') {
+    return { status: 'all', family: workspace };
+  }
+  if (workspace === 'draft' || workspace === 'published') {
+    return { status: workspace, family: 'all' };
+  }
+  return { status: 'all', family: 'all' };
 }
 
 export function parsePartnerListingsTypeFilter(raw: string | null | undefined): PartnerListingsTypeFilter {
@@ -79,47 +128,67 @@ export function filterPartnerListings<
   listings: T[],
   workspaceFilter: PartnerListingsWorkspaceFilter,
   query: string,
-  typeFilter: PartnerListingsTypeFilter = 'all'
+  typeFilter: PartnerListingsTypeFilter = 'all',
+  familyFilter: PartnerListingsFamilyFilter = 'all',
+  statusFilter: PartnerListingsStatusFilter = 'all'
 ): T[] {
+  const legacy = partnerListingsFiltersFromWorkspace(workspaceFilter);
+  const family = familyFilter !== 'all' ? familyFilter : legacy.family;
+  const status = statusFilter !== 'all' ? statusFilter : legacy.status;
+
   return listings.filter((listing) => {
     if (!partnerListingMatchesQuery(listing, query)) return false;
-    const family = inventoryFamilyFromListing(listing);
+    const invFamily = inventoryFamilyFromListing(listing);
     const isLive = listing.status !== 'draft';
-    if (workspaceFilter === 'tour') {
-      if (family !== 'tour') return false;
-    } else if (workspaceFilter === 'stay') {
-      if (family !== 'stay') return false;
-    } else if (workspaceFilter === 'draft') {
-      if (isLive) return false;
-    } else if (workspaceFilter === 'published') {
-      if (!isLive) return false;
-    }
+    if (family === 'tour' && invFamily !== 'tour') return false;
+    if (family === 'stay' && invFamily !== 'stay') return false;
+    if (family === 'rental' && invFamily !== 'rental') return false;
+    if (status === 'draft' && isLive) return false;
+    if (status === 'published' && !isLive) return false;
     if (typeFilter !== 'all' && partnerListingExperienceKind(listing) !== typeFilter) return false;
     return true;
   });
 }
 
-export function partnerListingsWorkspaceCounts(
+export function partnerListingsFamilyCounts(
   listings: Array<InventoryListingSlice & { status?: string | null }>
-): Record<PartnerListingsWorkspaceFilter, number> {
+): Record<PartnerListingsFamilyFilter, number> {
   let tour = 0;
   let stay = 0;
+  let rental = 0;
+  for (const listing of listings) {
+    const family = inventoryFamilyFromListing(listing);
+    if (family === 'tour') tour += 1;
+    else if (family === 'stay') stay += 1;
+    else if (family === 'rental') rental += 1;
+  }
+  return { all: listings.length, tour, stay, rental };
+}
+
+export function partnerListingsStatusCounts(
+  listings: Array<{ status?: string | null }>
+): Record<PartnerListingsStatusFilter, number> {
   let draft = 0;
   let published = 0;
   for (const listing of listings) {
-    const family = inventoryFamilyFromListing(listing);
-    const isLive = listing.status !== 'draft';
-    if (family === 'tour') tour += 1;
-    if (family === 'stay') stay += 1;
-    if (!isLive) draft += 1;
-    else published += 1;
+    if (listing.status !== 'draft') published += 1;
+    else draft += 1;
   }
+  return { all: listings.length, draft, published };
+}
+
+export function partnerListingsWorkspaceCounts(
+  listings: Array<InventoryListingSlice & { status?: string | null }>
+): Record<PartnerListingsWorkspaceFilter, number> {
+  const family = partnerListingsFamilyCounts(listings);
+  const status = partnerListingsStatusCounts(listings);
   return {
     all: listings.length,
-    tour,
-    stay,
-    draft,
-    published,
+    tour: family.tour,
+    stay: family.stay,
+    rental: family.rental,
+    draft: status.draft,
+    published: status.published,
   };
 }
 
@@ -146,6 +215,7 @@ const WORKSPACE_FILTER_ORDER: PartnerListingsWorkspaceFilter[] = [
   'draft',
   'tour',
   'stay',
+  'rental',
 ];
 
 /** Hide empty family/status tabs unless that tab is currently selected. */
@@ -154,6 +224,15 @@ export function partnerListingsVisibleWorkspaceFilters(
   current: PartnerListingsWorkspaceFilter
 ): PartnerListingsWorkspaceFilter[] {
   return WORKSPACE_FILTER_ORDER.filter((id) => id === 'all' || counts[id] > 0 || current === id);
+}
+
+export function partnerListingsVisibleFamilyFilters(
+  counts: Record<PartnerListingsFamilyFilter, number>,
+  current: PartnerListingsFamilyFilter
+): PartnerListingsFamilyFilter[] {
+  return (['all', 'tour', 'stay', 'rental'] as const).filter(
+    (id) => id === 'all' || counts[id] > 0 || current === id
+  );
 }
 
 const TYPE_FILTER_ORDER: PartnerListingsTypeFilter[] = [
@@ -231,7 +310,7 @@ export function partnerListingCommerceSummary(
       typeLabel,
       amount,
       qualifier: 'night',
-      optionsLine: 'Stay · nightly',
+      optionsLine: '',
     };
   }
 
@@ -249,6 +328,22 @@ export function partnerListingCommerceSummary(
         ? `${opts.length} booking option${opts.length === 1 ? '' : 's'}`
         : 'No booking options',
   };
+}
+
+/** Display unit after starting price — never invents a price. */
+export function partnerListingPriceUnitLabel(
+  family: 'tour' | 'stay' | 'rental',
+  qualifier: string | null
+): string | null {
+  if (family === 'stay') return 'per night';
+  if (family === 'rental') {
+    return qualifier === 'hour' ? 'per hour' : 'per day';
+  }
+  const q = (qualifier ?? '').trim().toLowerCase();
+  if (!q) return 'per person';
+  if (q === 'group') return 'per group';
+  if (q === 'person' || q === 'guest') return 'per person';
+  return `per ${q}`;
 }
 
 export type PartnerListingsSort =

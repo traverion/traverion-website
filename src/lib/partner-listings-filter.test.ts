@@ -10,7 +10,9 @@ import {
   partnerListingCommerceSummary,
   partnerListingExperienceKind,
   partnerListingMatchesQuery,
+  partnerListingPriceUnitLabel,
   partnerListingTypeLabel,
+  partnerListingsFamilyCounts,
   sortPartnerListings,
 } from './partner-listings-filter';
 
@@ -75,6 +77,7 @@ describe('partner listings filter', () => {
 
   it('parses workspace filter from URL', () => {
     expect(parsePartnerListingsWorkspaceFilter('stay')).toBe('stay');
+    expect(parsePartnerListingsWorkspaceFilter('rental')).toBe('rental');
     expect(parsePartnerListingsWorkspaceFilter('bogus')).toBe('all');
     expect(parsePartnerListingsWorkspaceFilter(null)).toBe('all');
     expect(parsePartnerListingsTypeFilter('ticket')).toBe('ticket');
@@ -107,16 +110,27 @@ describe('partner listings filter', () => {
     expect(commerce.qualifier).toBe('day');
     expect(commerce.optionsLine).toMatch(/1 rental option/);
     expect(commerce.optionsLine).toMatch(/4 units/);
-    expect(partnerListingCommerceSummary(stay).optionsLine).toBe('Stay · nightly');
+    expect(partnerListingCommerceSummary(stay).optionsLine).toBe('');
     expect(partnerListingCommerceSummary(tour).optionsLine).toMatch(/booking option|No booking/);
+    expect(partnerListingPriceUnitLabel('rental', 'day')).toBe('per day');
+    expect(partnerListingPriceUnitLabel('stay', 'night')).toBe('per night');
+    expect(partnerListingPriceUnitLabel('tour', 'adult')).toBe('per adult');
+    expect(partnerListingPriceUnitLabel('tour', null)).toBe('per person');
+    expect(partnerListingsFamilyCounts([tour, stay, rental])).toEqual({
+      all: 3,
+      tour: 1,
+      stay: 1,
+      rental: 1,
+    });
   });
 
   it('counts workspace tabs from inventory truth', () => {
-    expect(partnerListingsWorkspaceCounts([tour, stay])).toEqual({
-      all: 2,
+    expect(partnerListingsWorkspaceCounts([tour, stay, rental])).toEqual({
+      all: 3,
       tour: 1,
       stay: 1,
-      draft: 1,
+      rental: 1,
+      draft: 2,
       published: 1,
     });
     expect(partnerListingsTypeCounts([tour, ticket, stay, rental])).toMatchObject({

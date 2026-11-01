@@ -85,15 +85,18 @@ import {
   filterPartnerListings,
   sortPartnerListings,
   type PartnerListingsSort,
+  parsePartnerListingsFamilyFilter,
+  parsePartnerListingsStatusFilter,
   parsePartnerListingsTypeFilter,
   parsePartnerListingsWorkspaceFilter,
   partnerListingCommerceSummary,
-  partnerListingsTypeCounts,
-  partnerListingsVisibleTypeFilters,
-  partnerListingsVisibleWorkspaceFilters,
-  partnerListingsWorkspaceCounts,
-  type PartnerListingsTypeFilter,
-  type PartnerListingsWorkspaceFilter,
+  partnerListingPriceUnitLabel,
+  partnerListingsFamilyCounts,
+  partnerListingsFiltersFromWorkspace,
+  partnerListingsStatusCounts,
+  partnerListingsVisibleFamilyFilters,
+  type PartnerListingsFamilyFilter,
+  type PartnerListingsStatusFilter,
 } from '../../lib/partner-listings-filter';
 import { normalizeListingForDraftSave } from '../../lib/listingDraftUtils';
 import { SkeletonListItem } from '../../components/ui/Skeleton';
@@ -120,17 +123,27 @@ export default function SupplierListings() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formFocusSection, setFormFocusSection] = useState<string | null>(null);
   const [listings, setListings] = useState<TourPackage[]>([]);
-  const [workspaceFilter, setWorkspaceFilter] = useState<PartnerListingsWorkspaceFilter>(() => {
+  const [familyFilter, setFamilyFilter] = useState<PartnerListingsFamilyFilter>(() => {
     if (typeof window === 'undefined') return 'all';
-    return parsePartnerListingsWorkspaceFilter(new URLSearchParams(window.location.search).get('filter'));
+    const params = new URLSearchParams(window.location.search);
+    const fromCategory = parsePartnerListingsFamilyFilter(params.get('category'));
+    if (fromCategory !== 'all') return fromCategory;
+    const legacy = parsePartnerListingsWorkspaceFilter(params.get('filter'));
+    return partnerListingsFiltersFromWorkspace(legacy).family;
+  });
+  const [statusFilter, setStatusFilter] = useState<PartnerListingsStatusFilter>(() => {
+    if (typeof window === 'undefined') return 'all';
+    const params = new URLSearchParams(window.location.search);
+    const legacy = parsePartnerListingsWorkspaceFilter(params.get('filter'));
+    if (legacy === 'tour' || legacy === 'stay' || legacy === 'rental') {
+      return parsePartnerListingsStatusFilter(params.get('status'));
+    }
+    if (params.get('status')) return parsePartnerListingsStatusFilter(params.get('status'));
+    return partnerListingsFiltersFromWorkspace(legacy).status;
   });
   const [listQuery, setListQuery] = useState(() => {
     if (typeof window === 'undefined') return '';
     return (new URLSearchParams(window.location.search).get('q') ?? '').trim();
-  });
-  const [typeFilter, setTypeFilter] = useState<PartnerListingsTypeFilter>(() => {
-    if (typeof window === 'undefined') return 'all';
-    return parsePartnerListingsTypeFilter(new URLSearchParams(window.location.search).get('type'));
   });
   const [listSort, setListSort] = useState<PartnerListingsSort>(() => {
     if (typeof window === 'undefined') return 'updated';
@@ -233,14 +246,14 @@ export default function SupplierListings() {
   const filteredListings = useMemo(
     () =>
       sortPartnerListings(
-        filterPartnerListings(listings, workspaceFilter, listQuery, typeFilter),
+        filterPartnerListings(listings, 'all', listQuery, 'all', familyFilter, statusFilter),
         listSort
       ),
-    [listings, workspaceFilter, listQuery, typeFilter, listSort]
+    [listings, listQuery, familyFilter, statusFilter, listSort]
   );
 
-  const workspaceCounts = useMemo(() => partnerListingsWorkspaceCounts(listings), [listings]);
-  const typeCounts = useMemo(() => partnerListingsTypeCounts(listings), [listings]);
+  const familyCounts = useMemo(() => partnerListingsFamilyCounts(listings), [listings]);
+  const statusCounts = useMemo(() => partnerListingsStatusCounts(listings), [listings]);
 
   // Phase 1490: confirm must not run before upcoming-paid honesty (fast click ≠ zero trips).
   const deleteUpcomingPaidCheckPending = partnerListingUpcomingPaidCheckPending({
@@ -255,48 +268,83 @@ export default function SupplierListings() {
     checkFailed: deactivateUpcomingPaidCheckFailed,
   });
 
-  const setWorkspaceFilterAndUrl = useCallback((next: PartnerListingsWorkspaceFilter) => {
-    setWorkspaceFilter(next);
-    if (typeof window === 'undefined') return;
-    const url = new URL(window.location.href);
-    if (next === 'all') url.searchParams.delete('filter');
-    else url.searchParams.set('filter', next);
-    window.history.replaceState({}, '', `${url.pathname}${url.search}`);
-  }, []);
+  const writeListingsFilterUrl = useCallback(
+    (next: {
+      family?: PartnerListingsFamilyFilter;
+      status?: PartnerListingsStatusFilter;
+      q?: string;
+      sort?: PartnerListingsSort;
+    }) => {
+      if (typeof window === 'undefined') return;
+      const url = new URL(window.location.href);
+      const family = next.family ?? familyFilter;
+      const status = next.status ?? statusFilter;
+      const q = next.q ?? listQuery;
+      const sort = next.sort ?? listSort;
+      if (family === 'all') url.searchParams.delete('category');
+      else url.searchParams.set('category', family);
+      if (status === 'all') url.searchParams.delete('filter');
+      else url.searchParams.set('filter', status);
+      url.searchParams.delete('type');
+      url.searchParams.delete('status');
+      const trimmed = q.trim();
+      if (!trimmed) url.searchParams.delete('q');
+      else url.searchParams.set('q', trimmed);
+      if (sort === 'updated') url.searchParams.delete('sort');
+      else url.searchParams.set('sort', sort);
+      window.history.replaceState({}, '', `${url.pathname}${url.search}`);
+    },
+    [familyFilter, statusFilter, listQuery, listSort]
+  );
 
-  const setListQueryAndUrl = useCallback((next: string) => {
-    setListQuery(next);
-    if (typeof window === 'undefined') return;
-    const url = new URL(window.location.href);
-    const trimmed = next.trim();
-    if (!trimmed) url.searchParams.delete('q');
-    else url.searchParams.set('q', trimmed);
-    window.history.replaceState({}, '', `${url.pathname}${url.search}`);
-  }, []);
+  const setFamilyFilterAndUrl = useCallback(
+    (next: PartnerListingsFamilyFilter) => {
+      setFamilyFilter(next);
+      writeListingsFilterUrl({ family: next });
+    },
+    [writeListingsFilterUrl]
+  );
 
-  const setTypeFilterAndUrl = useCallback((next: PartnerListingsTypeFilter) => {
-    setTypeFilter(next);
-    if (typeof window === 'undefined') return;
-    const url = new URL(window.location.href);
-    if (next === 'all') url.searchParams.delete('type');
-    else url.searchParams.set('type', next);
-    window.history.replaceState({}, '', `${url.pathname}${url.search}`);
-  }, []);
+  const setStatusFilterAndUrl = useCallback(
+    (next: PartnerListingsStatusFilter) => {
+      setStatusFilter(next);
+      writeListingsFilterUrl({ status: next });
+    },
+    [writeListingsFilterUrl]
+  );
 
-  const setListSortAndUrl = useCallback((next: PartnerListingsSort) => {
-    setListSort(next);
-    if (typeof window === 'undefined') return;
-    const url = new URL(window.location.href);
-    if (next === 'updated') url.searchParams.delete('sort');
-    else url.searchParams.set('sort', next);
-    window.history.replaceState({}, '', `${url.pathname}${url.search}`);
-  }, []);
+  const setListQueryAndUrl = useCallback(
+    (next: string) => {
+      setListQuery(next);
+      writeListingsFilterUrl({ q: next });
+    },
+    [writeListingsFilterUrl]
+  );
+
+  const setListSortAndUrl = useCallback(
+    (next: PartnerListingsSort) => {
+      setListSort(next);
+      writeListingsFilterUrl({ sort: next });
+    },
+    [writeListingsFilterUrl]
+  );
 
   useEffect(() => {
     const syncFromUrl = () => {
       const params = new URLSearchParams(window.location.search);
-      setWorkspaceFilter(parsePartnerListingsWorkspaceFilter(params.get('filter')));
-      setTypeFilter(parsePartnerListingsTypeFilter(params.get('type')));
+      const legacy = parsePartnerListingsWorkspaceFilter(params.get('filter'));
+      const fromCategory = parsePartnerListingsFamilyFilter(params.get('category'));
+      if (fromCategory !== 'all') setFamilyFilter(fromCategory);
+      else setFamilyFilter(partnerListingsFiltersFromWorkspace(legacy).family);
+      if (legacy === 'tour' || legacy === 'stay' || legacy === 'rental') {
+        setStatusFilter(parsePartnerListingsStatusFilter(params.get('status')));
+      } else if (params.get('status')) {
+        setStatusFilter(parsePartnerListingsStatusFilter(params.get('status')));
+      } else {
+        setStatusFilter(partnerListingsFiltersFromWorkspace(legacy).status);
+      }
+      // Preserve deep-link experience-type filters if present.
+      void parsePartnerListingsTypeFilter(params.get('type'));
       setListQuery((params.get('q') ?? '').trim());
       const sortRaw = params.get('sort');
       if (
@@ -999,7 +1047,7 @@ export default function SupplierListings() {
       } else {
         setSupplierListings([...getSupplierListings(), duplicate]);
       }
-      setWorkspaceFilterAndUrl('draft');
+      setStatusFilterAndUrl('draft');
       setJustDuplicatedId(freshId);
       window.setTimeout(() => setJustDuplicatedId((id) => (id === freshId ? null : id)), 8000);
       refresh();
@@ -1113,25 +1161,6 @@ export default function SupplierListings() {
           </label>
           <div className="partner-listings-workspace__filters">
             <PartnerSelect
-              id="listings-type"
-              aria-label="Product type"
-              value={typeFilter}
-              onChange={(v) => setTypeFilterAndUrl((v as PartnerListingsTypeFilter) || 'all')}
-              options={partnerListingsVisibleTypeFilters(typeCounts, typeFilter).map((id) => ({
-                value: id,
-                label:
-                  id === 'all'
-                    ? 'All types'
-                    : id === 'tour'
-                      ? 'Tours & activities'
-                      : id === 'ticket'
-                        ? 'Tickets'
-                        : id === 'transportation'
-                          ? 'Transportation'
-                          : 'Stays',
-              }))}
-            />
-            <PartnerSelect
               id="listings-sort"
               aria-label="Sort listings"
               value={listSort}
@@ -1148,39 +1177,61 @@ export default function SupplierListings() {
           </div>
         </div>
         <div className="partner-listings-workspace__tabs-row">
-          <div className="partner-listings-workspace__tabs" role="tablist" aria-label="Listing status">
+          <div className="partner-listings-workspace__tabs" role="tablist" aria-label="Listing category">
             {(
               [
-                { id: 'all', label: 'All' },
-                { id: 'published', label: 'Live' },
-                { id: 'draft', label: 'Drafts' },
-                { id: 'tour', label: 'Tours' },
-                { id: 'stay', label: 'Stays' },
+                { id: 'all' as const, label: 'All' },
+                { id: 'tour' as const, label: 'Tours' },
+                { id: 'stay' as const, label: 'Stays' },
+                { id: 'rental' as const, label: 'Rentals' },
               ] as const
             )
               .filter((tab) =>
-                partnerListingsVisibleWorkspaceFilters(workspaceCounts, workspaceFilter).includes(
-                  tab.id
-                )
+                partnerListingsVisibleFamilyFilters(familyCounts, familyFilter).includes(tab.id)
               )
               .map((tab) => (
                 <button
                   key={tab.id}
                   type="button"
                   role="tab"
-                  aria-selected={workspaceFilter === tab.id}
-                  onClick={() => setWorkspaceFilterAndUrl(tab.id)}
+                  aria-selected={familyFilter === tab.id}
+                  onClick={() => setFamilyFilterAndUrl(tab.id)}
                   className="partner-listings-workspace__tab lux-flat"
                 >
                   {tab.label}
-                  <span className="partner-listings-workspace__tab-count">
-                    {workspaceCounts[tab.id]}
-                  </span>
-                  {workspaceFilter === tab.id ? (
+                  <span className="partner-listings-workspace__tab-count">{familyCounts[tab.id]}</span>
+                  {familyFilter === tab.id ? (
                     <span className="partner-listings-workspace__tab-indicator" aria-hidden />
                   ) : null}
                 </button>
               ))}
+          </div>
+          <div
+            className="partner-listings-workspace__status-tabs"
+            role="tablist"
+            aria-label="Publication status"
+          >
+            {(
+              [
+                { id: 'all' as const, label: 'Any status' },
+                { id: 'published' as const, label: 'Live' },
+                { id: 'draft' as const, label: 'Drafts' },
+              ] as const
+            ).map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                role="tab"
+                aria-selected={statusFilter === tab.id}
+                onClick={() => setStatusFilterAndUrl(tab.id)}
+                className="partner-listings-workspace__status-tab lux-flat"
+              >
+                {tab.label}
+                {tab.id !== 'all' ? (
+                  <span className="partner-listings-workspace__tab-count">{statusCounts[tab.id]}</span>
+                ) : null}
+              </button>
+            ))}
           </div>
           <p className="partner-listings-workspace__count" aria-live="polite">
             {filteredListings.length === listings.length
@@ -1497,8 +1548,8 @@ export default function SupplierListings() {
                       type="button"
                       onClick={() => {
                         setListQueryAndUrl('');
-                        setWorkspaceFilterAndUrl('all');
-                        setTypeFilterAndUrl('all');
+                        setFamilyFilterAndUrl('all');
+                        setStatusFilterAndUrl('all');
                       }}
                       className="tv-btn-secondary"
                     >
@@ -1509,13 +1560,10 @@ export default function SupplierListings() {
               </div>
             ) : (
           <div className="tv-ops-listings-table" aria-busy={loading || undefined}>
-            <div
-              className="tv-ops-listings-head hidden px-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-faint lg:grid"
-              aria-hidden
-            >
-              <span>Product</span>
+            <div className="tv-ops-listings-head hidden lg:grid" aria-hidden>
+              <span>Listing</span>
               <span>Status</span>
-              <span>Commercial</span>
+              <span>From</span>
               <span className="text-right">Actions</span>
             </div>
             {filteredListings.map((listing) => {
@@ -1529,12 +1577,14 @@ export default function SupplierListings() {
                 commerce.amount == null || commerce.amount <= 0
                   ? null
                   : formatMoney(commerce.amount, currency);
+              const unitLabel = money
+                ? partnerListingPriceUnitLabel(family, commerce.qualifier)
+                : null;
               const place = [listing.city, listing.country ?? listing.destination]
                 .filter(Boolean)
                 .join(', ');
               const heroSrc = listingHeroImageSrc(listing.image);
               const draftPublish = !isLive ? partnerListingDraftPublishSubtitle(listing) : null;
-              // Phase 1272: Live cards surface any publish-bar drift (season, capacity, photos…).
               const liveBlockers = isLive ? getListingPublishBlockers(listing) : [];
               const liveAttention = liveBlockers[0] ?? null;
               const card = partnerListingCardPresentation({
@@ -1543,7 +1593,6 @@ export default function SupplierListings() {
                 accountEligible: canPostNewListing,
                 liveAttention,
               });
-              // One clear status chip — avoid Draft + Ready / Incomplete duplicates.
               const displayStatus = isLive
                 ? card.statusLabel
                 : card.primaryCta === 'publish'
@@ -1564,13 +1613,29 @@ export default function SupplierListings() {
                     ? draftPublish?.subtitle ?? card.publishDisabledReason
                     : null
                 : liveAttention;
-              const publicUrl = publicListingProductUrlFromListing(listing);
-              const primaryIsView = isLive;
+              const inventoryLine =
+                commerce.optionsLine && !commerce.optionsLine.startsWith('No ')
+                  ? commerce.optionsLine
+                  : null;
+              const openManage = () => {
+                if (!canEditListings) return;
+                openSupplierListingEditor(listing.id);
+              };
+              const primaryLabel =
+                !isLive && (card.primaryCta === 'continue' || card.draftStateLabel === 'Incomplete')
+                  ? 'Continue editing'
+                  : 'Manage';
               return (
                 <article key={listing.id} className="tv-ops-listing-row min-w-0">
                   <div className="tv-ops-listing-row__grid">
                     <div className="tv-ops-listing-row__identity flex min-w-0 items-start gap-3">
-                      <div className="tv-ops-listing-row__thumb relative shrink-0 overflow-hidden bg-black/[0.04]">
+                      <button
+                        type="button"
+                        className="tv-ops-listing-row__thumb relative shrink-0 overflow-hidden bg-black/[0.04] lux-flat"
+                        onClick={openManage}
+                        disabled={!canEditListings}
+                        aria-label={`Manage ${listing.title}`}
+                      >
                         {heroSrc ? (
                           <img src={heroSrc} alt="" className="h-full w-full object-cover" draggable={false} />
                         ) : (
@@ -1578,38 +1643,41 @@ export default function SupplierListings() {
                             No photo
                           </span>
                         )}
-                      </div>
+                      </button>
                       <div className="tv-ops-listing-row__copy min-w-0 flex-1">
                         <div className="tv-ops-listing-row__mobile-meta mb-1 flex flex-wrap items-center gap-1.5 lg:hidden">
                           <StatusChip tone={statusTone}>{displayStatus}</StatusChip>
-                          <span className="tv-ops-listing-row__type-pill">{typeLabel}</span>
                         </div>
-                        <h2 title={listing.title} className="tv-ops-listing-row__title">
-                          {listing.title}
-                        </h2>
+                        <button
+                          type="button"
+                          className="tv-ops-listing-row__title-btn lux-flat"
+                          onClick={openManage}
+                          disabled={!canEditListings}
+                          title={listing.title}
+                        >
+                          <h2 className="tv-ops-listing-row__title">{listing.title}</h2>
+                        </button>
                         <p className="tv-ops-listing-row__place">
-                          <span className="truncate">{place || 'Destination not set'}</span>
+                          <span className="tv-ops-listing-row__place-type">{typeLabel}</span>
                           <span className="tv-ops-listing-row__place-sep" aria-hidden>
                             ·
                           </span>
-                          <span className="tv-ops-listing-row__place-type">{typeLabel}</span>
+                          <span className="truncate">{place || 'Destination not set'}</span>
                         </p>
+                        {inventoryLine ? (
+                          <p className="tv-ops-listing-row__inventory-inline">{inventoryLine}</p>
+                        ) : null}
                         <p className="tv-ops-listing-row__mobile-commerce lg:hidden">
                           {money ? (
                             <>
                               <span className="tv-ops-listing-row__price-emph">From {money}</span>
-                              {commerce.qualifier ? (
-                                <span className="tv-ops-listing-row__price-qual"> / {commerce.qualifier}</span>
+                              {unitLabel ? (
+                                <span className="tv-ops-listing-row__price-qual"> {unitLabel}</span>
                               ) : null}
                             </>
                           ) : (
                             <span className="tv-ops-listing-row__price-muted">Price not set</span>
                           )}
-                          {family === 'rental' || family === 'tour'
-                            ? commerce.optionsLine.startsWith('No ')
-                              ? ''
-                              : ` · ${commerce.optionsLine}`
-                            : ''}
                         </p>
                         {detailLine ? (
                           <p className="tv-ops-listing-row__detail">{detailLine}</p>
@@ -1618,7 +1686,6 @@ export default function SupplierListings() {
                           <button
                             type="button"
                             onClick={() => {
-                              const family = inventoryFamilyFromListing(listing);
                               openSupplierCalendar(listing.id, {
                                 category:
                                   family === 'stay' ? 'stay' : family === 'rental' ? 'rental' : 'tour',
@@ -1637,9 +1704,8 @@ export default function SupplierListings() {
                       </div>
                     </div>
 
-                    <div className="tv-ops-listing-row__status hidden min-w-0 lg:flex lg:flex-col lg:justify-center lg:gap-1">
+                    <div className="tv-ops-listing-row__status hidden min-w-0 lg:flex lg:items-center">
                       <StatusChip tone={statusTone}>{displayStatus}</StatusChip>
-                      <span className="tv-ops-listing-row__status-type">{typeLabel}</span>
                     </div>
 
                     <div className="tv-ops-listing-row__commerce hidden min-w-0 lg:flex lg:flex-col lg:justify-center">
@@ -1647,51 +1713,25 @@ export default function SupplierListings() {
                         {money ? (
                           <>
                             <span className="tv-ops-listing-row__price-emph">From {money}</span>
-                            {commerce.qualifier ? (
-                              <span className="tv-ops-listing-row__price-qual"> / {commerce.qualifier}</span>
+                            {unitLabel ? (
+                              <span className="tv-ops-listing-row__price-qual"> {unitLabel}</span>
                             ) : null}
                           </>
                         ) : (
                           <span className="tv-ops-listing-row__price-muted">Price not set</span>
                         )}
                       </p>
-                      <p className="tv-ops-listing-row__inventory">{commerce.optionsLine}</p>
                     </div>
 
                     <div className="tv-ops-listing-row__actions flex shrink-0 items-center justify-end gap-1.5">
-                      {primaryIsView ? (
-                        publicUrl ? (
-                          <a
-                            href={publicUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="tv-ops-listing-row__primary lux-flat"
-                          >
-                            View
-                          </a>
-                        ) : (
-                          <button
-                            type="button"
-                            className="tv-ops-listing-row__primary lux-flat"
-                            onClick={() =>
-                              setError(
-                                'This listing has no public product page for its category. Open Edit to check the listing type.'
-                              )
-                            }
-                          >
-                            View
-                          </button>
-                        )
-                      ) : (
-                        <button
-                          type="button"
-                          disabled={!canEditListings}
-                          onClick={() => openSupplierListingEditor(listing.id)}
-                          className="tv-ops-listing-row__primary lux-flat disabled:opacity-40"
-                        >
-                          Edit
-                        </button>
-                      )}
+                      <button
+                        type="button"
+                        disabled={!canEditListings}
+                        onClick={openManage}
+                        className="tv-ops-listing-row__primary lux-flat disabled:opacity-40"
+                      >
+                        {primaryLabel}
+                      </button>
                       <button
                         type="button"
                         data-listing-gear={listing.id}
