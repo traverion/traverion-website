@@ -610,6 +610,65 @@ export function partnerUnifiedMonthRange(
   return { fromYmd: first, toYmd: last };
 }
 
+/** Calendar month bounds (1st–last) containing `iso` — not the padded grid. */
+export function partnerUnifiedMonthRangeContaining(iso: string): {
+  fromYmd: string;
+  toYmd: string;
+} {
+  const anchor = /^\d{4}-\d{2}-\d{2}$/.test(iso) ? iso : '';
+  if (!anchor) return { fromYmd: iso, toYmd: iso };
+  const d = new Date(`${anchor}T12:00:00Z`);
+  const y = d.getUTCFullYear();
+  const m = d.getUTCMonth();
+  const fromYmd = `${y}-${String(m + 1).padStart(2, '0')}-01`;
+  const lastDay = new Date(Date.UTC(y, m + 1, 0)).getUTCDate();
+  const toYmd = `${y}-${String(m + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+  return { fromYmd, toYmd };
+}
+
+/** Shift by ±N calendar months from a date inside the current month. */
+export function partnerUnifiedShiftMonth(
+  fromYmd: string,
+  deltaMonths: number
+): { fromYmd: string; toYmd: string } {
+  const anchor = /^\d{4}-\d{2}-\d{2}$/.test(fromYmd) ? fromYmd : '';
+  if (!anchor) return partnerUnifiedMonthRangeContaining(fromYmd);
+  const d = new Date(`${anchor}T12:00:00Z`);
+  const next = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + Math.floor(deltaMonths), 1));
+  return partnerUnifiedMonthRangeContaining(next.toISOString().slice(0, 10));
+}
+
+export function formatPartnerUnifiedMonthLabel(fromYmd: string): string {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(fromYmd)) return fromYmd;
+  return new Date(`${fromYmd}T12:00:00Z`).toLocaleDateString('en-GB', {
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'UTC',
+  });
+}
+
+/**
+ * Derive display From/To for a view from a shared focus date.
+ * Agenda keeps an explicit custom range when provided; Week/Month always re-derive.
+ */
+export function partnerUnifiedDisplayRangeForView(args: {
+  view: PartnerUnifiedCalendarView;
+  focusYmd: string;
+  fromYmd?: string | null;
+  toYmd?: string | null;
+}): { fromYmd: string; toYmd: string } {
+  const focus =
+    /^\d{4}-\d{2}-\d{2}$/.test(args.focusYmd) ? args.focusYmd : args.fromYmd || args.focusYmd;
+  if (args.view === 'week') return partnerUnifiedWeekRangeContaining(focus);
+  if (args.view === 'month') return partnerUnifiedMonthRangeContaining(focus);
+  const from = (args.fromYmd ?? '').trim();
+  const to = (args.toYmd ?? '').trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(from) && /^\d{4}-\d{2}-\d{2}$/.test(to)) {
+    return partnerUnifiedNormalizeRange(from, to, focus);
+  }
+  return partnerUnifiedRollingRange(focus);
+}
+
 export type PartnerUnifiedRangeCell = {
   iso: string;
   day: number;

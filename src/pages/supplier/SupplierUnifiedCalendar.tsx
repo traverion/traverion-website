@@ -25,18 +25,20 @@ import { materializedBookingOptions } from '../../types/listingExtras';
 import {
   buildPartnerUnifiedCalendarEvents,
   filterPartnerUnifiedCalendarEvents,
+  formatPartnerUnifiedMonthLabel,
   formatPartnerUnifiedWeekLabel,
   groupPartnerUnifiedEventsByDate,
   listingsForUnifiedCategoryFilter,
   parsePartnerUnifiedCalendarView,
   parsePartnerUnifiedCategoryFilter,
+  partnerUnifiedDisplayRangeForView,
   partnerUnifiedEventKindLabel,
   partnerUnifiedNormalizeRange,
   partnerUnifiedOptionChoices,
   partnerUnifiedRollingRange,
   partnerUnifiedShiftRange,
+  partnerUnifiedShiftMonth,
   partnerUnifiedShiftWeek,
-  partnerUnifiedWeekRangeContaining,
   partnerUnifiedWeeksCoveringRange,
   type PartnerUnifiedCalendarEvent,
   type PartnerUnifiedCalendarView,
@@ -212,14 +214,21 @@ export default function SupplierUnifiedCalendar() {
     const fromRaw = parseIsoParam(q.get('from')) ?? parseIsoParam(q.get('date'));
     const toRaw = parseIsoParam(q.get('to'));
     const selectedYmd = parseIsoParam(q.get('day')) ?? todayIso;
-    let range = partnerUnifiedNormalizeRange(
-      fromRaw ?? rolling.fromYmd,
-      toRaw ?? (fromRaw ? addCalendarDaysYmd(fromRaw, 29) ?? rolling.toYmd : rolling.toYmd),
-      todayIso
-    );
-    if (view === 'week') {
-      range = partnerUnifiedWeekRangeContaining(fromRaw ?? selectedYmd ?? todayIso);
-    }
+    const focus = selectedYmd || fromRaw || todayIso;
+    const range = partnerUnifiedDisplayRangeForView({
+      view,
+      focusYmd: focus,
+      fromYmd:
+        fromRaw ??
+        (view === 'agenda' ? rolling.fromYmd : null),
+      toYmd:
+        toRaw ??
+        (view === 'agenda'
+          ? fromRaw
+            ? addCalendarDaysYmd(fromRaw, 29) ?? rolling.toYmd
+            : rolling.toYmd
+          : null),
+    });
     return {
       view,
       category: parsePartnerUnifiedCategoryFilter(q.get('category')),
@@ -345,15 +354,18 @@ export default function SupplierUnifiedCalendar() {
     return () => document.removeEventListener('mousedown', onDoc);
   }, [expandedKey, view]);
 
-  /** Keep Week locked to a Monday–Sunday window. */
+  /** Week/Month derive display bounds from the shared focus date — never inherit the other view's range. */
   useEffect(() => {
-    if (view !== 'week') return;
-    const week = partnerUnifiedWeekRangeContaining(range.fromYmd);
-    if (week.fromYmd !== range.fromYmd || week.toYmd !== range.toYmd) {
-      setFromYmd(week.fromYmd);
-      setToYmd(week.toYmd);
+    if (view !== 'week' && view !== 'month') return;
+    const next = partnerUnifiedDisplayRangeForView({
+      view,
+      focusYmd: selectedYmd || range.fromYmd || todayIso,
+    });
+    if (next.fromYmd !== range.fromYmd || next.toYmd !== range.toYmd) {
+      setFromYmd(next.fromYmd);
+      setToYmd(next.toYmd);
     }
-  }, [view, range.fromYmd, range.toYmd]);
+  }, [view, selectedYmd, range.fromYmd, range.toYmd, todayIso]);
 
   const titlesByListingId = useMemo(() => {
     const map = new Map<string, string>();
@@ -684,21 +696,31 @@ export default function SupplierUnifiedCalendar() {
   }, [optionKey, optionChoices]);
 
   const selectView = (next: PartnerUnifiedCalendarView) => {
+    const focus = selectedYmd || range.fromYmd || todayIso;
     setView(next);
-    if (next === 'week') {
-      const week = partnerUnifiedWeekRangeContaining(selectedYmd || range.fromYmd || todayIso);
-      setFromYmd(week.fromYmd);
-      setToYmd(week.toYmd);
-    } else if (next === 'agenda') {
-      const rolling = partnerUnifiedRollingRange(selectedYmd || todayIso);
+    if (next === 'agenda') {
+      // Preserve Agenda custom range when already in Agenda; otherwise start a rolling window.
+      if (view === 'agenda') return;
+      const rolling = partnerUnifiedRollingRange(focus);
       setFromYmd(rolling.fromYmd);
       setToYmd(rolling.toYmd);
+      return;
     }
+    const derived = partnerUnifiedDisplayRangeForView({ view: next, focusYmd: focus });
+    setFromYmd(derived.fromYmd);
+    setToYmd(derived.toYmd);
   };
 
   const shiftRange = (direction: 1 | -1) => {
     if (view === 'week') {
       const next = partnerUnifiedShiftWeek(range.fromYmd, direction);
+      setFromYmd(next.fromYmd);
+      setToYmd(next.toYmd);
+      setSelectedYmd(next.fromYmd);
+      return;
+    }
+    if (view === 'month') {
+      const next = partnerUnifiedShiftMonth(range.fromYmd, direction);
       setFromYmd(next.fromYmd);
       setToYmd(next.toYmd);
       setSelectedYmd(next.fromYmd);
@@ -712,10 +734,10 @@ export default function SupplierUnifiedCalendar() {
 
   const goToday = () => {
     setSelectedYmd(todayIso);
-    if (view === 'week') {
-      const week = partnerUnifiedWeekRangeContaining(todayIso);
-      setFromYmd(week.fromYmd);
-      setToYmd(week.toYmd);
+    if (view === 'week' || view === 'month') {
+      const derived = partnerUnifiedDisplayRangeForView({ view, focusYmd: todayIso });
+      setFromYmd(derived.fromYmd);
+      setToYmd(derived.toYmd);
       return;
     }
     const rolling = partnerUnifiedRollingRange(todayIso);
@@ -724,11 +746,11 @@ export default function SupplierUnifiedCalendar() {
   };
 
   const setRangeFrom = (iso: string) => {
-    if (view === 'week') {
-      const week = partnerUnifiedWeekRangeContaining(iso);
-      setFromYmd(week.fromYmd);
-      setToYmd(week.toYmd);
-      setSelectedYmd(iso);
+    setSelectedYmd(iso);
+    if (view === 'week' || view === 'month') {
+      const derived = partnerUnifiedDisplayRangeForView({ view, focusYmd: iso });
+      setFromYmd(derived.fromYmd);
+      setToYmd(derived.toYmd);
       return;
     }
     const next = partnerUnifiedNormalizeRange(iso, toYmd < iso ? iso : toYmd, todayIso);
@@ -737,11 +759,11 @@ export default function SupplierUnifiedCalendar() {
   };
 
   const setRangeTo = (iso: string) => {
-    if (view === 'week') {
-      const week = partnerUnifiedWeekRangeContaining(iso);
-      setFromYmd(week.fromYmd);
-      setToYmd(week.toYmd);
+    if (view === 'week' || view === 'month') {
       setSelectedYmd(iso);
+      const derived = partnerUnifiedDisplayRangeForView({ view, focusYmd: iso });
+      setFromYmd(derived.fromYmd);
+      setToYmd(derived.toYmd);
       return;
     }
     const next = partnerUnifiedNormalizeRange(fromYmd, iso, todayIso);
@@ -752,7 +774,9 @@ export default function SupplierUnifiedCalendar() {
   const periodLabel =
     view === 'week'
       ? formatPartnerUnifiedWeekLabel(range.fromYmd, range.toYmd)
-      : `${formatDayShort(range.fromYmd)} – ${formatDayShort(range.toYmd)}`;
+      : view === 'month'
+        ? formatPartnerUnifiedMonthLabel(range.fromYmd)
+        : `${formatDayShort(range.fromYmd)} – ${formatDayShort(range.toYmd)}`;
 
   const refreshAfterEdit = useCallback(() => {
     void load().then(() => setCalendarEpoch((n) => n + 1));

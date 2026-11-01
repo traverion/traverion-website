@@ -4,9 +4,13 @@ import { describe, expect, it } from 'vitest';
 import {
   buildPartnerUnifiedCalendarEvents,
   filterPartnerUnifiedCalendarEvents,
+  formatPartnerUnifiedMonthLabel,
   groupPartnerUnifiedEventsByDate,
   formatPartnerUnifiedWeekLabel,
   parsePartnerUnifiedCalendarView,
+  partnerUnifiedDisplayRangeForView,
+  partnerUnifiedMonthRangeContaining,
+  partnerUnifiedShiftMonth,
   partnerUnifiedShiftWeek,
   partnerUnifiedWeekRangeContaining,
   parsePartnerUnifiedCategoryFilter,
@@ -118,7 +122,7 @@ describe('partner-unified-calendar', () => {
     );
     expect(page).toContain("selectView('week')");
     expect(page).toContain('PartnerUnifiedWeekView');
-    expect(page).toContain('partnerUnifiedWeekRangeContaining');
+    expect(page).toContain('partnerUnifiedDisplayRangeForView');
     expect(week).toContain('WEEK_TILE_LIMIT');
     expect(week).toContain('Open booking');
   });
@@ -146,6 +150,73 @@ describe('partner-unified-calendar', () => {
       toYmd: '2026-11-01',
     });
     expect(formatPartnerUnifiedWeekLabel('2026-11-02', '2026-11-08')).toMatch(/2.*8.*Nov.*2026/i);
+  });
+
+  it('Month ignores week from/to query params and expands to the full calendar month', () => {
+    // Exact failing URL: ?view=month&from=2026-11-02&to=2026-11-08&day=2026-11-05
+    const focus = '2026-11-05';
+    const weekFrom = '2026-11-02';
+    const weekTo = '2026-11-08';
+    const month = partnerUnifiedDisplayRangeForView({
+      view: 'month',
+      focusYmd: focus,
+      fromYmd: weekFrom,
+      toYmd: weekTo,
+    });
+    expect(month).toEqual({ fromYmd: '2026-11-01', toYmd: '2026-11-30' });
+    expect(partnerUnifiedMonthRangeContaining(focus)).toEqual(month);
+    expect(formatPartnerUnifiedMonthLabel(month.fromYmd)).toMatch(/November 2026/i);
+
+    const cells = partnerUnifiedWeeksCoveringRange(month.fromYmd, month.toYmd);
+    const inRange = cells.filter((c) => c.inRange);
+    expect(inRange[0]?.iso).toBe('2026-11-01');
+    expect(inRange[inRange.length - 1]?.iso).toBe('2026-11-30');
+    expect(inRange).toHaveLength(30);
+    // Padded adjacent-month days stay out of range so the grid still renders a full month.
+    expect(cells.some((c) => !c.inRange)).toBe(true);
+    expect(cells.some((c) => c.iso === '2026-11-02' && c.inRange)).toBe(true);
+    expect(cells.some((c) => c.iso === '2026-11-08' && c.inRange)).toBe(true);
+
+    // Week → Month → Week → Month must keep re-deriving independently from focus.
+    const afterWeek = partnerUnifiedDisplayRangeForView({
+      view: 'week',
+      focusYmd: focus,
+      fromYmd: month.fromYmd,
+      toYmd: month.toYmd,
+    });
+    expect(afterWeek).toEqual({ fromYmd: '2026-11-02', toYmd: '2026-11-08' });
+    expect(
+      partnerUnifiedDisplayRangeForView({
+        view: 'month',
+        focusYmd: focus,
+        fromYmd: afterWeek.fromYmd,
+        toYmd: afterWeek.toYmd,
+      })
+    ).toEqual({ fromYmd: '2026-11-01', toYmd: '2026-11-30' });
+
+    expect(partnerUnifiedShiftMonth('2026-11-01', 1)).toEqual({
+      fromYmd: '2026-12-01',
+      toYmd: '2026-12-31',
+    });
+    expect(partnerUnifiedShiftMonth('2026-11-01', -1)).toEqual({
+      fromYmd: '2026-10-01',
+      toYmd: '2026-10-31',
+    });
+
+    // Agenda keeps an explicit custom range; Week/Month never inherit it as a clipped window.
+    expect(
+      partnerUnifiedDisplayRangeForView({
+        view: 'agenda',
+        focusYmd: focus,
+        fromYmd: weekFrom,
+        toYmd: weekTo,
+      })
+    ).toEqual({ fromYmd: weekFrom, toYmd: weekTo });
+
+    const page = readFileSync(resolve(__dirname, '../pages/supplier/SupplierUnifiedCalendar.tsx'), 'utf8');
+    expect(page).toContain('partnerUnifiedDisplayRangeForView');
+    expect(page).toContain('formatPartnerUnifiedMonthLabel');
+    expect(page).toContain('partnerUnifiedShiftMonth');
   });
 
   it('builds mixed tour, stay, and rental events in a range', () => {
