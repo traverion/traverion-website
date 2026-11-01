@@ -1,6 +1,10 @@
 /**
  * Viewport-aware event edit popover for Week/Month calendar tiles.
  * Uses computeAnchoredPopoverBox (same positioning library as Stay booking).
+ *
+ * Important: the panel is portaled to document.body, so it must carry its own
+ * --puc-* tokens (see .partner-unified-cal__popover). Do not add the
+ * .partner-unified-cal shell class — that sets width:100% and blows the panel up.
  */
 import {
   useCallback,
@@ -10,7 +14,6 @@ import {
   useRef,
   useState,
   type Dispatch,
-  type ReactNode,
   type RefObject,
   type SetStateAction,
 } from 'react';
@@ -29,8 +32,10 @@ import type { BookingRow } from '../../data/supabase-bookings';
 import type { TourPackage } from '../../types/tour';
 import PartnerUnifiedInlineAvailabilityEdit from './PartnerUnifiedInlineAvailabilityEdit';
 
-const PREFERRED_WIDTH = 19 * 16;
-const ESTIMATED_HEIGHT = 320;
+/** Compact edit panel — mid of the 320–380px brief. */
+const PREFERRED_WIDTH = 340;
+const ESTIMATED_HEIGHT = 280;
+const MAX_MEASURED_HEIGHT = 420;
 
 type Props = {
   open: boolean;
@@ -44,13 +49,21 @@ type Props = {
   onListingsChange: Dispatch<SetStateAction<TourPackage[]>>;
   /** Local availability refresh only — must not remount the calendar. */
   onSaved?: () => void;
-  /** Extra class on the portaled panel (e.g. week marker for outside-click guards). */
+  /** Extra class on the portaled panel (e.g. week marker). */
   panelClassName?: string;
-  children?: ReactNode;
 };
 
 function eventOpensBooking(event: PartnerUnifiedCalendarEvent): boolean {
-  return Boolean(event.bookingId);
+  return Boolean(
+    event.bookingId &&
+      (event.source === 'booking' || event.source == null) &&
+      event.kind !== 'tour_departure' &&
+      event.kind !== 'stay_blocked' &&
+      event.kind !== 'stay_listing' &&
+      event.kind !== 'rental_block' &&
+      event.kind !== 'rental_listing' &&
+      event.kind !== 'rental_ongoing'
+  );
 }
 
 export default function PartnerUnifiedEventEditPopover({
@@ -83,8 +96,11 @@ export default function PartnerUnifiedEventEditPopover({
     if (!el || typeof window === 'undefined') return;
     const panelNode = panelRef.current;
     if (panelNode) {
-      const h = panelNode.getBoundingClientRect().height;
-      if (h > 0) measuredHeightRef.current = h;
+      // Prefer scrollHeight so we estimate full content, then cap for flip math.
+      const raw = Math.max(panelNode.scrollHeight, panelNode.getBoundingClientRect().height);
+      if (raw > 0) {
+        measuredHeightRef.current = Math.min(MAX_MEASURED_HEIGHT, Math.max(ESTIMATED_HEIGHT, raw));
+      }
     }
     const vv = window.visualViewport;
     const viewportWidth = vv?.width ?? window.innerWidth;
@@ -95,8 +111,8 @@ export default function PartnerUnifiedEventEditPopover({
       viewportHeight,
       preferredWidth: PREFERRED_WIDTH,
       estimatedHeight: measuredHeightRef.current,
-      edge: 8,
-      gap: 8,
+      edge: 10,
+      gap: 6,
     });
     setPanelBox((prev) => {
       if (!prev) return next;
@@ -120,6 +136,7 @@ export default function PartnerUnifiedEventEditPopover({
     if (!open) {
       setPanelBox(null);
       setEnterAnim(false);
+      measuredHeightRef.current = ESTIMATED_HEIGHT;
       return;
     }
     setEnterAnim(true);
@@ -134,12 +151,12 @@ export default function PartnerUnifiedEventEditPopover({
         placePanel();
       });
     };
-    // Short measurement loop so maxHeight tracks content after inline controls load.
+    // Brief measure loop while inline controls finish loading.
     let frames = 0;
     const measureLoop = () => {
       placePanel();
       frames += 1;
-      if (frames < 8) rafLoop = window.requestAnimationFrame(measureLoop);
+      if (frames < 10) rafLoop = window.requestAnimationFrame(measureLoop);
     };
     rafLoop = window.requestAnimationFrame(measureLoop);
 
@@ -171,6 +188,11 @@ export default function PartnerUnifiedEventEditPopover({
     const onPointer = (e: MouseEvent) => {
       const t = e.target as Node;
       if (anchorRef.current?.contains(t) || panelRef.current?.contains(t)) return;
+      // PartnerSelect / cutoff menus portal elsewhere — don't close when using them.
+      const el = e.target as HTMLElement | null;
+      if (el?.closest?.('.partner-select__menu, .tv-avail-cutoff__menu, [data-radix-popper-content-wrapper]')) {
+        return;
+      }
       onClose();
     };
     document.addEventListener('mousedown', onPointer);
@@ -273,6 +295,7 @@ export default function PartnerUnifiedEventEditPopover({
         top: panelBox.top,
         left: panelBox.left,
         width: panelBox.width,
+        maxWidth: PREFERRED_WIDTH,
         maxHeight: panelBox.maxHeight,
         zIndex: 80,
       }}

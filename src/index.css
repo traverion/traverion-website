@@ -20642,13 +20642,37 @@ details:not([open]) > :not(summary) {
   white-space: nowrap;
 }
 
+/*
+ * Popover tokens are declared on the panel itself so portaled editors
+ * (document.body) keep compact Traverion metrics — they leave .partner-unified-cal.
+ */
 .partner-unified-cal__popover {
+  --puc-accent: var(--partner-accent, #073b83);
+  --puc-ink: var(--partner-ink, #0c1118);
+  --puc-muted: var(--partner-ink-muted, #4b5563);
+  --puc-faint: var(--partner-ink-faint, #6b7280);
+  --puc-border: color-mix(in srgb, var(--partner-border, #e4e7ec) 88%, #d0d5dd);
+  --puc-surface: var(--partner-surface, #fff);
+  --puc-soft: var(--partner-accent-soft, #eef3fa);
+  --puc-wash: #f7f8fa;
+  --puc-font: "Plus Jakarta Sans", var(--font-sans, var(--partner-font, ui-sans-serif, system-ui, sans-serif));
+  --puc-size: 0.8125rem;
+  --puc-size-sm: 0.75rem;
+  --puc-size-xs: 0.6875rem;
+  --puc-weight: 500;
+  --puc-weight-strong: 600;
   z-index: 40;
   box-sizing: border-box;
   padding: 0.7rem 0.75rem 0.8rem;
   border: 1px solid var(--puc-border);
   border-radius: 12px;
   background: var(--puc-surface);
+  color: var(--puc-ink);
+  font-family: var(--puc-font);
+  font-size: var(--puc-size);
+  font-weight: var(--puc-weight);
+  letter-spacing: -0.005em;
+  line-height: 1.35;
   box-shadow: 0 12px 32px rgba(12, 17, 24, 0.12);
   overflow-x: hidden;
   overflow-y: auto;
@@ -20657,10 +20681,33 @@ details:not([open]) > :not(summary) {
 
 .partner-unified-cal__popover--anchored {
   /* position/size applied inline via computeAnchoredPopoverBox */
+  width: min(22.5rem, calc(100vw - 1rem));
+  max-width: 22.5rem; /* 360px — compact edit panel */
+  min-width: 18rem;
 }
 
 .partner-unified-cal__popover--anchored.is-enter {
   animation: puc-expand-in 0.18s ease;
+}
+
+.partner-unified-cal__popover--anchored .puc-inline {
+  gap: 0.45rem;
+  padding-top: 0.4rem;
+}
+
+.partner-unified-cal__popover--anchored .puc-inline__row--fields {
+  gap: 0.4rem 0.55rem;
+}
+
+.partner-unified-cal__popover--anchored .puc-inline__field .tv-input,
+.partner-unified-cal__popover--anchored .puc-inline__field--cutoff .partner-select__trigger {
+  min-height: 2.15rem;
+  font-size: var(--puc-size-sm);
+}
+
+.partner-unified-cal__popover--anchored .puc-inline__muted,
+.partner-unified-cal__popover--anchored .puc-inline__booking {
+  font-size: var(--puc-size-sm);
 }
 
 .partner-unified-cal__popover-sheet {
@@ -20683,8 +20730,9 @@ details:not([open]) > :not(summary) {
 .partner-unified-cal__popover--sheet {
   position: relative;
   z-index: 1;
-  width: min(100%, 28rem);
-  max-height: min(78vh, 34rem);
+  width: min(100%, 22.5rem);
+  max-width: 22.5rem;
+  max-height: min(72vh, 28rem);
   margin: 0;
   border-radius: 16px 16px 0 0;
   animation: puc-expand-in 0.18s ease;
