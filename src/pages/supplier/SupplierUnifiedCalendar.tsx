@@ -64,6 +64,12 @@ import {
   buildPartnerUnifiedTourDepartureEvents,
   mergePartnerUnifiedVisibilityEvents,
 } from '../../lib/partner-unified-calendar-visibility';
+import {
+  PARTNER_UNIFIED_MONTH_CELL_MAX,
+  monthChipLabel,
+  monthChipTitle,
+  sortMonthCellEvents,
+} from '../../lib/partner-unified-calendar-month';
 import { partnerUnifiedDayBoundsUtc } from '../../lib/partner-unified-day-edits';
 import { openSupplierBooking } from '../../lib/supplierPortalNavigation';
 import {
@@ -79,7 +85,7 @@ import ErrorState from '../../components/ErrorState';
 import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
 
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-const MONTH_CELL_MAX = 3;
+const MONTH_CELL_MAX = PARTNER_UNIFIED_MONTH_CELL_MAX;
 
 function readSearch(): URLSearchParams {
   if (typeof window === 'undefined') return new URLSearchParams();
@@ -169,35 +175,6 @@ function agendaOptionLine(event: PartnerUnifiedCalendarEvent): string | null {
   return partnerUnifiedEventKindLabel(event.kind);
 }
 
-function monthChipLabel(event: PartnerUnifiedCalendarEvent): string {
-  const time = event.timeHm ? `${event.timeHm} ` : '';
-  const kind = partnerUnifiedEventKindLabel(event.kind);
-  const option = (event.optionLabel ?? '').trim();
-  let name: string;
-  if (event.category === 'rental' && (event.kind === 'rental_collection' || event.kind === 'rental_return')) {
-    name = option ? `${kind} · ${truncateLabel(option, 22)}` : kind;
-  } else {
-    name = truncateLabel(option || kind, 28);
-  }
-  const blocked =
-    event.departureStatus === 'closed' ||
-    event.kind === 'stay_blocked' ||
-    event.kind === 'rental_block'
-      ? ' · Blocked'
-      : '';
-  return `${time}${name}${blocked}`.trim();
-}
-
-function monthChipTitle(event: PartnerUnifiedCalendarEvent): string {
-  return [
-    event.listingTitle?.trim(),
-    event.optionLabel?.trim(),
-    partnerUnifiedEventKindLabel(event.kind),
-  ]
-    .filter(Boolean)
-    .join(' · ');
-}
-
 function parseIsoParam(raw: string | null | undefined): string | null {
   const v = (raw ?? '').trim();
   return /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null;
@@ -271,6 +248,8 @@ export default function SupplierUnifiedCalendar() {
   const [bulkOpen, setBulkOpen] = useState(false);
   const [calendarEpoch, setCalendarEpoch] = useState(0);
   const [expandedKey, setExpandedKey] = useState<string | null>(null);
+  /** Month "+N more" day sheet — lists every event for that date without leaving Month. */
+  const [monthDaySheetIso, setMonthDaySheetIso] = useState<string | null>(null);
   const [dayCapsByListing, setDayCapsByListing] = useState<Map<string, Map<string, number>>>(
     () => new Map()
   );
@@ -345,6 +324,7 @@ export default function SupplierUnifiedCalendar() {
 
   useEffect(() => {
     setExpandedKey(null);
+    setMonthDaySheetIso(null);
   }, [view, category, listingId, optionKey, range.fromYmd, range.toYmd]);
 
   useEffect(() => {
@@ -355,20 +335,21 @@ export default function SupplierUnifiedCalendar() {
   }, [fromYmd, toYmd, range.fromYmd, range.toYmd]);
 
   useEffect(() => {
-    if (!expandedKey || (view !== 'month' && view !== 'week')) return;
+    if ((!expandedKey && !monthDaySheetIso) || (view !== 'month' && view !== 'week')) return;
     const onDoc = (e: MouseEvent) => {
       const target = e.target as Node;
-      if (popoverRef.current && !popoverRef.current.contains(target)) {
-        const weekPopover = (e.target as HTMLElement | null)?.closest?.(
-          '.partner-unified-cal__week-popover'
-        );
-        if (weekPopover) return;
+      const el = e.target as HTMLElement | null;
+      if (el?.closest?.('.partner-unified-cal__week-popover')) return;
+      if (el?.closest?.('.partner-unified-cal__day-sheet')) return;
+      if (el?.closest?.('.partner-unified-cal__more')) return;
+      if (expandedKey && popoverRef.current && !popoverRef.current.contains(target)) {
         setExpandedKey(null);
       }
+      if (monthDaySheetIso) setMonthDaySheetIso(null);
     };
     document.addEventListener('mousedown', onDoc);
     return () => document.removeEventListener('mousedown', onDoc);
-  }, [expandedKey, view]);
+  }, [expandedKey, monthDaySheetIso, view]);
 
   /** Week/Month derive display bounds from the shared focus date — never inherit the other view's range. */
   useEffect(() => {
@@ -1411,11 +1392,12 @@ export default function SupplierUnifiedCalendar() {
           </div>
           <div className="partner-unified-cal__grid">
             {monthCells.map((cell) => {
-              const dayEvents = eventsByDay.get(cell.iso) ?? [];
+              const dayEvents = sortMonthCellEvents(eventsByDay.get(cell.iso) ?? []);
               const summary = monthSummaries.get(cell.iso);
               const nightKind = summary?.stayNightKind;
               const isToday = cell.iso === todayIso;
               const isSelected = cell.iso === selectedYmd;
+              const daySheetOpen = monthDaySheetIso === cell.iso;
               const shown = dayEvents.slice(0, MONTH_CELL_MAX);
               const more = dayEvents.length - shown.length;
               return (
@@ -1439,6 +1421,7 @@ export default function SupplierUnifiedCalendar() {
                     )
                       ? 'has-blocked'
                       : '',
+                    daySheetOpen ? 'is-day-sheet-open' : '',
                   ]
                     .filter(Boolean)
                     .join(' ')}
@@ -1448,6 +1431,7 @@ export default function SupplierUnifiedCalendar() {
                     className="partner-unified-cal__cell-num"
                     onClick={() => {
                       setSelectedYmd(cell.iso);
+                      setMonthDaySheetIso(null);
                       if (dayEvents[0]) toggleExpand(dayEvents[0].key, dayEvents[0]);
                       else setExpandedKey(null);
                     }}
@@ -1470,6 +1454,7 @@ export default function SupplierUnifiedCalendar() {
                             onClick={(e) => {
                               e.stopPropagation();
                               setSelectedYmd(event.ymd);
+                              setMonthDaySheetIso(null);
                               toggleExpand(event.key, event);
                             }}
                           >
@@ -1532,15 +1517,64 @@ export default function SupplierUnifiedCalendar() {
                       <button
                         type="button"
                         className="partner-unified-cal__more"
-                        onClick={() => {
+                        onClick={(e) => {
+                          e.stopPropagation();
                           setSelectedYmd(cell.iso);
-                          setView('agenda');
+                          setExpandedKey(null);
+                          setMonthDaySheetIso(daySheetOpen ? null : cell.iso);
                         }}
                       >
                         +{more} more
                       </button>
                     ) : null}
                   </div>
+                  {daySheetOpen ? (
+                    <div
+                      className="partner-unified-cal__day-sheet"
+                      role="dialog"
+                      aria-label={`Events on ${cell.iso}`}
+                    >
+                      <div className="partner-unified-cal__day-sheet-head">
+                        <strong>
+                          {new Date(`${cell.iso}T12:00:00`).toLocaleDateString(undefined, {
+                            weekday: 'short',
+                            month: 'short',
+                            day: 'numeric',
+                          })}
+                        </strong>
+                        <button
+                          type="button"
+                          className="partner-unified-cal__popover-close"
+                          onClick={() => setMonthDaySheetIso(null)}
+                          aria-label="Close"
+                        >
+                          ×
+                        </button>
+                      </div>
+                      <ul className="partner-unified-cal__day-sheet-list">
+                        {dayEvents.map((event) => (
+                          <li key={event.key}>
+                            <button
+                              type="button"
+                              className={`partner-unified-cal__day-sheet-item is-${event.category}`}
+                              title={monthChipTitle(event)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setMonthDaySheetIso(null);
+                                setSelectedYmd(event.ymd);
+                                toggleExpand(event.key, event);
+                              }}
+                            >
+                              <span className="partner-unified-cal__day-sheet-dot" aria-hidden />
+                              <span className="partner-unified-cal__day-sheet-label">
+                                {monthChipLabel(event)}
+                              </span>
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
                 </div>
               );
             })}

@@ -20378,6 +20378,11 @@ details:not([open]) > :not(summary) {
   background: var(--puc-surface);
 }
 
+/* Let the month "+N more" day sheet escape cell/grid clipping. */
+.partner-unified-cal__grid:has(.partner-unified-cal__cell.is-day-sheet-open) {
+  overflow: visible;
+}
+
 .partner-unified-cal__cell {
   position: relative;
   display: flex;
@@ -20464,6 +20469,7 @@ details:not([open]) > :not(summary) {
 .partner-unified-cal__chip {
   display: block;
   width: 100%;
+  max-width: 100%;
   overflow: hidden;
   padding: 0.14rem 0.28rem;
   border: 0;
@@ -20521,6 +20527,125 @@ details:not([open]) > :not(summary) {
   text-align: left;
   cursor: pointer;
   padding: 0.05rem 0.2rem;
+  border-radius: 4px;
+}
+
+.partner-unified-cal__more:hover {
+  color: var(--puc-ink);
+  background: color-mix(in srgb, var(--puc-soft) 70%, white);
+}
+
+.partner-unified-cal__cell.is-day-sheet-open {
+  z-index: 25;
+  overflow: visible;
+}
+
+.partner-unified-cal__day-sheet {
+  position: absolute;
+  z-index: 45;
+  top: 1.7rem;
+  left: 0.2rem;
+  right: 0.2rem;
+  width: auto;
+  min-width: min(14.5rem, 78vw);
+  max-width: min(18rem, 86vw);
+  max-height: min(16rem, 55vh);
+  display: flex;
+  flex-direction: column;
+  padding: 0.45rem 0.4rem 0.5rem;
+  border: 1px solid var(--puc-border);
+  border-radius: 10px;
+  background: var(--puc-surface);
+  box-shadow: 0 10px 28px rgba(12, 17, 24, 0.14);
+  animation: puc-expand-in 0.16s ease;
+}
+
+.partner-unified-cal__day-sheet-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.35rem;
+  padding: 0.1rem 0.2rem 0.35rem;
+  border-bottom: 1px solid var(--puc-border);
+  margin-bottom: 0.3rem;
+}
+
+.partner-unified-cal__day-sheet-head strong {
+  font-size: var(--puc-size-sm);
+  font-weight: var(--puc-weight-strong);
+  color: var(--puc-ink);
+}
+
+.partner-unified-cal__day-sheet-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.12rem;
+}
+
+.partner-unified-cal__day-sheet-item {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  width: 100%;
+  min-width: 0;
+  padding: 0.28rem 0.35rem;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  font-family: inherit;
+  font-size: var(--puc-size-xs);
+  font-weight: var(--puc-weight-strong);
+  line-height: 1.3;
+  text-align: left;
+  cursor: pointer;
+  color: #1e3a8a;
+}
+
+.partner-unified-cal__day-sheet-item:hover {
+  background: color-mix(in srgb, #2563eb 8%, white);
+}
+
+.partner-unified-cal__day-sheet-item.is-stay {
+  color: #065f46;
+}
+
+.partner-unified-cal__day-sheet-item.is-stay:hover {
+  background: color-mix(in srgb, #0f766e 9%, white);
+}
+
+.partner-unified-cal__day-sheet-item.is-rental {
+  color: #854d0e;
+}
+
+.partner-unified-cal__day-sheet-item.is-rental:hover {
+  background: color-mix(in srgb, #ca8a04 10%, white);
+}
+
+.partner-unified-cal__day-sheet-dot {
+  flex: 0 0 auto;
+  width: 0.35rem;
+  height: 0.35rem;
+  border-radius: 999px;
+  background: #2563eb;
+}
+
+.partner-unified-cal__day-sheet-item.is-stay .partner-unified-cal__day-sheet-dot {
+  background: #0f766e;
+}
+
+.partner-unified-cal__day-sheet-item.is-rental .partner-unified-cal__day-sheet-dot {
+  background: #ca8a04;
+}
+
+.partner-unified-cal__day-sheet-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .partner-unified-cal__popover {
