@@ -1,0 +1,286 @@
+{
+  "ok": true,
+  "phase": "rental_e2e_integration",
+  "mission": "06.4",
+  "startedAt": "2026-11-01T21:52:53.610Z",
+  "runId": "3423fa37",
+  "environment": {
+    "project": "gedktutbpfwnstcbffsc",
+    "productionRefRejected": "xcopqllkulxfkpunetbc",
+    "stripeMode": "test",
+    "listingStatus": "draft_publish_blocked",
+    "note": "Staging has 0 published rentals; draft rental checkout is allowed when RENTAL_CHECKOUT_ENABLED=1 (same gate as prior certs). No staging web host available for browser UI."
+  },
+  "surfaces": {
+    "checkout_confirmation": {
+      "verdict": "PASS",
+      "evidence": [
+        "API-tested: create-booking-checkout-session + Stripe payment_pages confirm + reconcile",
+        "reference=TV-9A82K87H",
+        "amount_paid=25.00 EUR",
+        "option=E2E Day Kit",
+        "pickup=2035-07-10T09:00:00+03:00",
+        "return=2035-07-11T18:00:00+03:00",
+        "hold=confirmed"
+      ]
+    },
+    "customer_trips": {
+      "verdict": "PASS",
+      "evidence": [
+        "API/lib-tested via bookingMatchesTripView + rentalBookingSimpleStatusLabel (same libs as MyBookings)",
+        "Browser UI not exercised — no staging web host in CERT env",
+        "{\"upcomingBeforeReturn\":true,\"pastBeforeReturn\":false,\"pastAfterReturn\":true,\"upcomingAfterReturn\":false,\"statusBefore\":\"Confirmed\",\"statusAfter\":\"Completed\"}"
+      ]
+    },
+    "supplier_bookings": {
+      "verdict": "PASS",
+      "evidence": [
+        "API-tested: supplier JWT REST read of booking row (unified Bookings data source)",
+        "Browser Bookings UI not exercised",
+        "guest=CERT E2E Guest",
+        "option=E2E Day Kit",
+        "qty=1"
+      ]
+    },
+    "supplier_calendar": {
+      "verdict": "PASS",
+      "evidence": [
+        "Lib-tested via buildPartnerUnifiedCalendarEvents (same builder as Partner Calendar)",
+        "Browser Calendar UI not exercised",
+        "{\"kinds\":[\"rental_collection\",\"rental_return\"],\"collectionYmd\":\"2035-07-10\",\"returnYmd\":\"2035-07-11\",\"collectionBookingId\":\"96c037c2-8f93-4dc7-9ec9-743c860eeb43\",\"returnBookingId\":\"96c037c2-8f93-4dc7-9ec9-743c860eeb43\",\"optionLabel\":\"E2E Day Kit\"}"
+      ]
+    },
+    "inbox_messaging": {
+      "verdict": "PASS",
+      "evidence": [
+        "API-tested: post_booking_message RPC as guest + supplier",
+        "Browser Inbox UI not exercised",
+        "guestRpc=200",
+        "supplierRpc=200",
+        "roles=[\"traveler\",\"supplier\"]",
+        "guestBody={\"id\":\"bdba6072-94be-4373-b073-b2e69e96994e\",\"ok\":true}",
+        "supplierBody={\"id\":\"1dadbf68-03b1-47a0-9df5-548408fcaa2d\",\"ok\":true}"
+      ]
+    },
+    "supplier_income": {
+      "verdict": "PASS",
+      "evidence": [
+        "API-tested: supplier_earning_items after promote/record_paid_booking_earnings",
+        "Browser Income UI not exercised",
+        "{\"amount_minor\":2125,\"commission_bps\":1500,\"commission_minor\":375,\"currency\":\"EUR\",\"eligible_at\":\"2035-07-13 15:00:00+00\",\"gross_minor\":2500,\"id\":\"10e285ff-5854-40a3-872f-9e335ff400b6\",\"service_completed_at\":\"2035-07-11 15:00:00+00\",\"status\":\"pending\"}"
+      ]
+    },
+    "cross_surface_consistency": {
+      "verdict": "PARTIAL",
+      "evidence": [
+        "API-tested: shared booking id across confirm/calendar/income",
+        "cancel status=cancelled",
+        "holds=[{\"status\":\"released\"}]",
+        "earningAfterCancel={\"amount_minor\":2125,\"status\":\"pending\"}",
+        "NOTE: synthetic SQL payment_status=refunded did not reverse supplier_earning_items (likely needs Stripe refund webhook / reverse_paid_booking_earnings path)",
+        "Browser sync not exercised"
+      ]
+    }
+  },
+  "steps": [
+    {
+      "name": "staging_rental_checkout_enabled",
+      "ok": true,
+      "at": "2026-11-01T21:52:53.958Z"
+    },
+    {
+      "name": "identities_ready",
+      "ok": true,
+      "at": "2026-11-01T21:52:55.071Z"
+    },
+    {
+      "name": "fixture_listing_draft",
+      "ok": true,
+      "at": "2026-11-01T21:52:58.495Z",
+      "listingId": "f8f682d6"
+    },
+    {
+      "name": "listing_remain_draft",
+      "ok": true,
+      "at": "2026-11-01T21:52:58.689Z",
+      "error": "psql failed: ERROR:  Rental listings cannot be published yet. Save as a draft until Traverion Rentals launches traveler booking.\nCONTEXT:  PL/pgSQL function enforce_listing_publish_content_minimums() line 17 at RAISE\n"
+    },
+    {
+      "name": "availability_ok",
+      "ok": true,
+      "at": "2026-11-01T21:53:00.658Z",
+      "available": 2,
+      "buffer_minutes": 0,
+      "occupied_end": "2035-07-11T15:00:00+00:00",
+      "occupied_start": "2035-07-10T06:00:00+00:00",
+      "reserved": 0,
+      "stock": 2
+    },
+    {
+      "name": "checkout_session_created",
+      "ok": true,
+      "at": "2026-11-01T21:53:04.473Z",
+      "bookingId": "96c037c2",
+      "quotedTotal": 25,
+      "unpaidHolds": 0
+    },
+    {
+      "name": "paid_and_reconciled",
+      "ok": true,
+      "at": "2026-11-01T21:53:09.529Z",
+      "http": 200,
+      "promoted": true
+    },
+    {
+      "name": "surface_checkout_confirmation",
+      "ok": true,
+      "at": "2026-11-01T21:53:15.563Z",
+      "verdict": "PASS"
+    },
+    {
+      "name": "surface_customer_trips",
+      "ok": true,
+      "at": "2026-11-01T21:53:17.025Z",
+      "verdict": "PASS",
+      "upcomingBeforeReturn": true,
+      "pastBeforeReturn": false,
+      "pastAfterReturn": true,
+      "upcomingAfterReturn": false,
+      "statusBefore": "Confirmed",
+      "statusAfter": "Completed"
+    },
+    {
+      "name": "surface_supplier_bookings",
+      "ok": true,
+      "at": "2026-11-01T21:53:17.087Z",
+      "verdict": "PASS",
+      "http": 200
+    },
+    {
+      "name": "surface_supplier_calendar",
+      "ok": true,
+      "at": "2026-11-01T21:53:17.087Z",
+      "verdict": "PASS",
+      "kinds": [
+        "rental_collection",
+        "rental_return"
+      ],
+      "collectionYmd": "2035-07-10",
+      "returnYmd": "2035-07-11",
+      "collectionBookingId": "96c037c2-8f93-4dc7-9ec9-743c860eeb43",
+      "returnBookingId": "96c037c2-8f93-4dc7-9ec9-743c860eeb43",
+      "optionLabel": "E2E Day Kit"
+    },
+    {
+      "name": "surface_inbox_messaging",
+      "ok": true,
+      "at": "2026-11-01T21:53:19.183Z",
+      "verdict": "PASS",
+      "roles": [
+        "traveler",
+        "supplier"
+      ],
+      "count": 2
+    },
+    {
+      "name": "surface_supplier_income",
+      "ok": true,
+      "at": "2026-11-01T21:53:22.615Z",
+      "verdict": "PASS",
+      "earning": {
+        "amount_minor": 2125,
+        "commission_bps": 1500,
+        "commission_minor": 375,
+        "currency": "EUR",
+        "eligible_at": "2035-07-13 15:00:00+00",
+        "gross_minor": 2500,
+        "id": "10e285ff-5854-40a3-872f-9e335ff400b6",
+        "service_completed_at": "2035-07-11 15:00:00+00",
+        "status": "pending"
+      }
+    },
+    {
+      "name": "surface_cross_surface",
+      "ok": true,
+      "at": "2026-11-01T21:53:31.023Z",
+      "sameId": true,
+      "cancelOk": true,
+      "earningAfter": "pending"
+    },
+    {
+      "name": "mission_06_4_complete",
+      "ok": true,
+      "at": "2026-11-01T21:53:31.023Z"
+    },
+    {
+      "name": "cleanup_listing",
+      "ok": true,
+      "at": "2026-11-01T21:53:31.249Z"
+    },
+    {
+      "name": "cleanup_identities",
+      "ok": true,
+      "at": "2026-11-01T21:53:31.367Z"
+    }
+  ],
+  "errors": [],
+  "ids": {
+    "guestId": "2d4e40d5-ad4e-444d-81d0-377b46218816",
+    "supplierId": "0dc8d6de-d941-49eb-9129-ae135d47ea81",
+    "guestEmail": "cert-e2e-guest-3423fa37@example.com",
+    "listingId": "f8f682d6-5728-457a-b7a0-90537ef2e39c",
+    "listingTitle": "CERT e2e rental 3423fa37",
+    "bookingId": "96c037c2-8f93-4dc7-9ec9-743c860eeb43",
+    "sessionId": "cs_test_a1Y7mXlDJJz0Grxf1HeX6gYrck9PSkXRaxEZTaCmmUawLK4PR40K5gwyb1",
+    "surfaceChecks": {
+      "trips": {
+        "upcomingBeforeReturn": true,
+        "pastBeforeReturn": false,
+        "pastAfterReturn": true,
+        "upcomingAfterReturn": false,
+        "statusBefore": "Confirmed",
+        "statusAfter": "Completed"
+      },
+      "calendar": {
+        "kinds": [
+          "rental_collection",
+          "rental_return"
+        ],
+        "collectionYmd": "2035-07-10",
+        "returnYmd": "2035-07-11",
+        "collectionBookingId": "96c037c2-8f93-4dc7-9ec9-743c860eeb43",
+        "returnBookingId": "96c037c2-8f93-4dc7-9ec9-743c860eeb43",
+        "optionLabel": "E2E Day Kit"
+      },
+      "snap": {
+        "variantName": "E2E Day Kit",
+        "quantity": 1,
+        "pickupAt": "2035-07-10T09:00:00+03:00",
+        "returnAt": "2035-07-11T18:00:00+03:00"
+      }
+    },
+    "cancelPropagation": {
+      "booking": {
+        "payment_status": "refunded",
+        "status": "cancelled"
+      },
+      "holds": [
+        {
+          "status": "released"
+        }
+      ],
+      "earning": {
+        "status": "pending"
+      }
+    }
+  },
+  "defects": [
+    {
+      "surface": "cross_surface_consistency",
+      "severity": "P2",
+      "summary": "Cancel releases hold but earnings stay pending without refund-pipeline reverse"
+    }
+  ],
+  "verdict": "PARTIAL",
+  "finishedAt": "2026-11-01T21:53:31.367Z"
+}
