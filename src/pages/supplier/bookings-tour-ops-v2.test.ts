@@ -96,7 +96,13 @@ describe('Bookings V4 — tour ops card & detail page', () => {
     expect(css).toContain('.partner-bookings-workspace');
     expect(css).toContain('.tour-ops-card');
     expect(css).toContain('.tour-ops-detail');
-    expect(css).toContain('max-width: min(76rem, 100%)');
+    // Detail pages may keep a reading width; the list workspace must stay full-bleed.
+    const workspaceBlock = css.slice(
+      css.indexOf('.partner-bookings-workspace {'),
+      css.indexOf('.partner-bookings-workspace__toolbar')
+    );
+    expect(workspaceBlock).toContain('max-width: none');
+    expect(workspaceBlock).not.toContain('max-width: min(76rem');
     expect(css).toContain('.tour-ops-detail__grid');
     expect(css).toContain('prefers-reduced-motion');
     expect(css).toContain('One horizontal desktop row');
@@ -105,6 +111,7 @@ describe('Bookings V4 — tour ops card & detail page', () => {
     expect(css).toContain('.tour-ops-card__expand');
     expect(css).toContain('.partner-bookings-workspace__seg');
     expect(css).toContain('.partner-bookings-workspace__quick-group');
+    expect(css).not.toContain('partner-bookings-workspace__quick-label');
     expect(css).toContain('.partner-bookings-daterange__trigger');
     expect(css).toContain('--pb-control-h');
     expect(css).toContain('.tour-ops-card__finance-note');

@@ -1358,7 +1358,6 @@ export default function SupplierBookings({
       <div className="partner-bookings-workspace__toolbar">
         <div className="partner-bookings-workspace__quick">
           <div className="partner-bookings-workspace__quick-group">
-            <span className="partner-bookings-workspace__quick-label">Day</span>
             <div className="partner-bookings-workspace__seg" role="group" aria-label="Travel day">
               {(
                 [
@@ -1387,7 +1386,6 @@ export default function SupplierBookings({
           </div>
           {isUnifiedDesk ? (
             <div className="partner-bookings-workspace__quick-group">
-              <span className="partner-bookings-workspace__quick-label">Category</span>
               <div className="partner-bookings-workspace__seg" role="group" aria-label="Category">
                 {(
                   [
