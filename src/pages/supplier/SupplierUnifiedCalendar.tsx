@@ -46,6 +46,7 @@ import {
   type PartnerUnifiedMonthDaySummary,
 } from '../../lib/partner-unified-calendar';
 import { TraverionSingleDateField } from '../../components/calendar/TraverionSingleDateField';
+import PartnerUnifiedAgendaTourControls from '../../components/supplier/PartnerUnifiedAgendaTourControls';
 import {
   annotateStayMonthSummaries,
   buildPartnerUnifiedRentalBlockEvents,
@@ -1013,6 +1014,13 @@ export default function SupplierUnifiedCalendar() {
                     const optionLine = agendaOptionLine(event);
                     const blocked =
                       status === 'Blocked' || event.departureStatus === 'closed';
+                    const isTourDeparture = event.kind === 'tour_departure';
+                    const dayCap = event.listingId
+                      ? dayCapsByListing.get(event.listingId)?.get(event.ymd)
+                      : undefined;
+                    const dayClosed =
+                      blocked ||
+                      (typeof dayCap === 'number' && Number.isFinite(dayCap) && dayCap < 1);
                     const rentalQty =
                       event.category === 'rental' &&
                       event.quantityLabel &&
@@ -1026,71 +1034,112 @@ export default function SupplierUnifiedCalendar() {
                       <article
                         key={event.key}
                         className={`partner-unified-cal__card partner-unified-cal__card--${event.category}${
-                          expanded ? ' is-expanded' : ''
-                        }${blocked ? ' is-blocked' : ''}${
+                          isTourDeparture ? ' partner-unified-cal__card--tour-ops' : ''
+                        }${expanded ? ' is-expanded' : ''}${dayClosed || blocked ? ' is-blocked' : ''}${
                           event.departureStatus === 'cutoff' ? ' is-cutoff' : ''
                         }${event.departureStatus === 'sold_out' ? ' is-sold_out' : ''}`}
                       >
-                        <button
-                          type="button"
-                          className="partner-unified-cal__card-main"
-                          onClick={() => {
-                            setSelectedYmd(event.ymd);
-                            toggleExpand(event.key, event);
-                          }}
-                          aria-expanded={expanded}
-                          title={[event.listingTitle, optionLine].filter(Boolean).join(' · ')}
-                        >
-                          <span className="partner-unified-cal__card-time">
-                            {event.timeHm ?? '—'}
-                          </span>
-                          <span className="partner-unified-cal__card-body">
-                            <span className="partner-unified-cal__card-title">
-                              {event.listingTitle}
+                        {isTourDeparture && listing ? (
+                          <div
+                            className="partner-unified-cal__card-main partner-unified-cal__card-main--tour-ops"
+                            title={[event.listingTitle, optionLine].filter(Boolean).join(' · ')}
+                          >
+                            <span className="partner-unified-cal__card-time">
+                              {event.timeHm ?? '—'}
                             </span>
-                            {optionLine ? (
-                              <span className="partner-unified-cal__card-option">
-                                {optionLine}
+                            <span className="partner-unified-cal__card-body">
+                              <span className="partner-unified-cal__card-title">
+                                {event.listingTitle}
                               </span>
-                            ) : null}
-                            {cutoff ? (
-                              <span className="partner-unified-cal__card-cutoff">{cutoff}</span>
-                            ) : null}
-                            {showGuest ? (
-                              <span className="partner-unified-cal__card-guest">
-                                {[event.guestName, rentalQty, event.reference]
-                                  .filter(Boolean)
-                                  .join(' · ')}
-                              </span>
-                            ) : null}
-                          </span>
-                          <span className="partner-unified-cal__card-aside">
-                            {status ? (
-                              <span
-                                className={`partner-unified-cal__badge${badgeToneClass(event, blocked)}`}
-                              >
-                                {status}
-                              </span>
-                            ) : null}
-                            {inventory && event.category === 'tour' ? (
-                              <span className="partner-unified-cal__card-inventory">{inventory}</span>
-                            ) : null}
-                          </span>
-                        </button>
-                        {expanded && listing ? (
-                          <div className="partner-unified-cal__card-expand">
-                            <PartnerUnifiedInlineAvailabilityEdit
-                              iso={event.ymd}
+                              {optionLine ? (
+                                <span className="partner-unified-cal__card-option">
+                                  {optionLine}
+                                </span>
+                              ) : null}
+                              {status && status !== 'Blocked' ? (
+                                <span
+                                  className={`partner-unified-cal__badge${badgeToneClass(event, false)}`}
+                                >
+                                  {status}
+                                </span>
+                              ) : null}
+                            </span>
+                            <PartnerUnifiedAgendaTourControls
+                              event={event}
                               listing={listing}
                               bookings={bookings}
-                              event={event}
                               canEdit={canEdit}
-                              userId={user?.id}
+                              dayClosed={dayClosed}
                               onListingsChange={setListings}
                               onSaved={refreshAfterEdit}
                             />
                           </div>
-                        ) : null}
+                        ) : (
+                          <>
+                            <button
+                              type="button"
+                              className="partner-unified-cal__card-main"
+                              onClick={() => {
+                                setSelectedYmd(event.ymd);
+                                toggleExpand(event.key, event);
+                              }}
+                              aria-expanded={expanded}
+                              title={[event.listingTitle, optionLine].filter(Boolean).join(' · ')}
+                            >
+                              <span className="partner-unified-cal__card-time">
+                                {event.timeHm ?? '—'}
+                              </span>
+                              <span className="partner-unified-cal__card-body">
+                                <span className="partner-unified-cal__card-title">
+                                  {event.listingTitle}
+                                </span>
+                                {optionLine ? (
+                                  <span className="partner-unified-cal__card-option">
+                                    {optionLine}
+                                  </span>
+                                ) : null}
+                                {cutoff ? (
+                                  <span className="partner-unified-cal__card-cutoff">{cutoff}</span>
+                                ) : null}
+                                {showGuest ? (
+                                  <span className="partner-unified-cal__card-guest">
+                                    {[event.guestName, rentalQty, event.reference]
+                                      .filter(Boolean)
+                                      .join(' · ')}
+                                  </span>
+                                ) : null}
+                              </span>
+                              <span className="partner-unified-cal__card-aside">
+                                {status ? (
+                                  <span
+                                    className={`partner-unified-cal__badge${badgeToneClass(event, blocked)}`}
+                                  >
+                                    {status}
+                                  </span>
+                                ) : null}
+                                {inventory && event.category === 'tour' ? (
+                                  <span className="partner-unified-cal__card-inventory">
+                                    {inventory}
+                                  </span>
+                                ) : null}
+                              </span>
+                            </button>
+                            {expanded && listing ? (
+                              <div className="partner-unified-cal__card-expand">
+                                <PartnerUnifiedInlineAvailabilityEdit
+                                  iso={event.ymd}
+                                  listing={listing}
+                                  bookings={bookings}
+                                  event={event}
+                                  canEdit={canEdit}
+                                  userId={user?.id}
+                                  onListingsChange={setListings}
+                                  onSaved={refreshAfterEdit}
+                                />
+                              </div>
+                            ) : null}
+                          </>
+                        )}
                       </article>
                     );
                   })}
