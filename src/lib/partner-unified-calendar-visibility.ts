@@ -52,16 +52,6 @@ export function partnerUnifiedListingIsOperational(listing: TourPackage): boolea
   return listing.status !== 'draft';
 }
 
-function clampPresenceAnchorYmd(params: {
-  fromYmd: string;
-  toYmd: string;
-  todayIso: string;
-}): string {
-  if (params.todayIso >= params.fromYmd && params.todayIso <= params.toYmd) return params.todayIso;
-  if (params.todayIso < params.fromYmd) return params.fromYmd;
-  return params.toYmd;
-}
-
 function filterListingsByFamily(
   listings: TourPackage[],
   family: 'stay' | 'rental',
@@ -260,8 +250,8 @@ export function buildPartnerUnifiedStayBlockedEvents(params: {
 }
 
 /**
- * One compact presence row per published stay in range (zero bookings OK).
- * Does not invent check-ins or mark every night available.
+ * One availability row per published stay × night in range (zero bookings OK).
+ * Status is Available / Occupied / Blocked from caps + reservations — no fake check-ins.
  */
 export function buildPartnerUnifiedStayPresenceEvents(params: {
   listings: TourPackage[];
@@ -274,48 +264,41 @@ export function buildPartnerUnifiedStayPresenceEvents(params: {
 }): PartnerUnifiedCalendarEvent[] {
   const nowMs = params.nowMs ?? Date.now();
   const stays = filterListingsByFamily(params.listings, 'stay', params.listingIdFilter);
+  const dates = enumerateIsoDates(params.fromYmd, params.toYmd, ALL_WEEKDAYS);
   const out: PartnerUnifiedCalendarEvent[] = [];
   for (const listing of stays) {
     const activeTodayIso =
       experienceTodayIsoForListing(listing.listingExtras?.departureTimezone, nowMs) ||
       params.fromYmd;
-    const anchorYmd = clampPresenceAnchorYmd({
-      fromYmd: params.fromYmd,
-      toYmd: params.toYmd,
-      todayIso: activeTodayIso,
-    });
-    const dates = enumerateIsoDates(params.fromYmd, params.toYmd, ALL_WEEKDAYS);
-    let blockedNights = 0;
-    let occupiedNights = 0;
     for (const iso of dates) {
       const occupying = stayCalendarOccupyingOnNight(params.bookings, listing.id, iso, nowMs);
       const capacity = stayCalendarCapacityOnNight(params.caps, listing.id, iso);
       const kind = stayCalendarNightKind({ occupying, capacity, nowMs });
-      if (kind === 'blocked') blockedNights += 1;
-      if (kind === 'booked' || kind === 'pending') occupiedNights += 1;
+      const status =
+        kind === 'blocked'
+          ? 'Blocked'
+          : kind === 'booked' || kind === 'pending'
+            ? 'Occupied'
+            : 'Available';
+      out.push({
+        key: `stay_listing:${listing.id}:${iso}`,
+        ymd: iso,
+        kind: 'stay_listing',
+        category: 'stay',
+        listingId: listing.id,
+        listingTitle: listing.title?.trim() || 'Stay',
+        optionLabel: 'Property availability',
+        guestName: null,
+        reference: null,
+        bookingId: null,
+        timeHm: null,
+        quantityLabel: status,
+        metaLine: status,
+        activeTodayIso,
+        source: 'availability',
+        departureStatus: kind === 'blocked' ? 'closed' : null,
+      });
     }
-    const metaParts: string[] = [];
-    if (occupiedNights > 0) metaParts.push(`${occupiedNights} occupied`);
-    if (blockedNights > 0) metaParts.push(`${blockedNights} blocked`);
-    if (metaParts.length === 0) metaParts.push('Open for bookings');
-    out.push({
-      key: `stay_listing:${listing.id}:${params.fromYmd}:${params.toYmd}`,
-      ymd: anchorYmd,
-      kind: 'stay_listing',
-      category: 'stay',
-      listingId: listing.id,
-      listingTitle: listing.title?.trim() || 'Stay',
-      optionLabel: 'Property availability',
-      guestName: null,
-      reference: null,
-      bookingId: null,
-      timeHm: null,
-      quantityLabel: metaParts.join(' · '),
-      metaLine: metaParts.join(' · '),
-      activeTodayIso,
-      source: 'availability',
-      departureStatus: null,
-    });
   }
   return out;
 }
@@ -380,76 +363,87 @@ export function buildPartnerUnifiedRentalOngoingEvents(params: {
 }
 
 /**
- * One compact presence row per published rental in range (zero bookings OK).
- * Does not invent collection/return events; stock comes from listing variants.
+ * One availability row per published rental × option × day in range (zero bookings OK).
+ * Stock uses listing variants + range blocks/holds — no fake collection/return events.
  */
 export function buildPartnerUnifiedRentalPresenceEvents(params: {
   listings: TourPackage[];
   blocks: RentalAvailabilityBlockRow[];
+  holds?: RentalInventoryHoldRow[];
   fromYmd: string;
   toYmd: string;
   listingIdFilter?: string | null;
   nowMs?: number;
 }): PartnerUnifiedCalendarEvent[] {
   const nowMs = params.nowMs ?? Date.now();
+  const holds = params.holds ?? [];
   const rentals = filterListingsByFamily(params.listings, 'rental', params.listingIdFilter);
+  const dates = enumerateIsoDates(params.fromYmd, params.toYmd, ALL_WEEKDAYS);
   const out: PartnerUnifiedCalendarEvent[] = [];
   for (const listing of rentals) {
     const activeTodayIso =
       experienceTodayIsoForListing(listing.listingExtras?.departureTimezone, nowMs) ||
       params.fromYmd;
-    const anchorYmd = clampPresenceAnchorYmd({
-      fromYmd: params.fromYmd,
-      toYmd: params.toYmd,
-      todayIso: activeTodayIso,
-    });
-    const variants = rentalVariantsFromListingExtras(listing.listingExtras);
-    const stockUnits = variants.reduce((sum, v) => sum + Math.max(0, Math.floor(v.quantity || 0)), 0);
-    const dates = enumerateIsoDates(params.fromYmd, params.toYmd, ALL_WEEKDAYS);
-    let blockedDays = 0;
+    const listingBlocks = params.blocks.filter((b) => b.listing_id === listing.id);
+    const listingHolds = holds.filter((h) => h.listing_id === listing.id);
+    const configured = rentalVariantsFromListingExtras(listing.listingExtras);
     for (const iso of dates) {
-      const bounds = partnerUnifiedDayBoundsUtc(iso);
-      const covering = params.blocks.some((b) => {
-        if (b.listing_id !== listing.id) return false;
-        const s = Date.parse(b.starts_at);
-        const e = Date.parse(b.ends_at);
-        return Number.isFinite(s) && Number.isFinite(e) && s < bounds.endMs && bounds.startMs < e;
+      const dayVariants = partnerUnifiedRentalDayVariants({
+        listing,
+        iso,
+        blocks: listingBlocks,
+        holds: listingHolds,
+        nowMs,
       });
-      if (covering) blockedDays += 1;
+      if (dayVariants.length === 0) {
+        out.push({
+          key: `rental_listing:${listing.id}:none:${iso}`,
+          ymd: iso,
+          kind: 'rental_listing',
+          category: 'rental',
+          listingId: listing.id,
+          listingTitle: listing.title?.trim() || 'Rental',
+          optionLabel: configured.length ? 'Inventory' : 'Configure stock',
+          guestName: null,
+          reference: null,
+          bookingId: null,
+          timeHm: null,
+          quantityLabel: 'Configure stock',
+          metaLine: 'Configure stock',
+          activeTodayIso,
+          source: 'availability',
+          departureStatus: null,
+        });
+        continue;
+      }
+      for (const v of dayVariants) {
+        out.push({
+          key: `rental_listing:${listing.id}:${v.variantId}:${iso}`,
+          ymd: iso,
+          kind: 'rental_listing',
+          category: 'rental',
+          listingId: listing.id,
+          listingTitle: listing.title?.trim() || 'Rental',
+          optionLabel: v.name,
+          guestName: null,
+          reference: null,
+          bookingId: null,
+          timeHm: null,
+          quantityLabel: v.blocked ? 'Blocked' : `${v.available} / ${v.stock}`,
+          metaLine: v.blocked
+            ? 'Blocked'
+            : `${v.available} available · ${v.stock} stock${
+                v.reserved > 0 ? ` · ${v.reserved} reserved` : ''
+              }`,
+          activeTodayIso,
+          source: 'availability',
+          departureStatus: v.blocked ? 'closed' : null,
+          bookedCount: v.reserved,
+          capacityCount: v.stock,
+          remainingCount: v.available,
+        });
+      }
     }
-    const optionCount = variants.length;
-    const primaryOption = variants[0]?.name?.trim() || null;
-    const metaParts: string[] = [];
-    if (optionCount > 0) {
-      metaParts.push(
-        `${stockUnits} unit${stockUnits === 1 ? '' : 's'} · ${optionCount} option${
-          optionCount === 1 ? '' : 's'
-        }`
-      );
-    } else {
-      metaParts.push('Configure stock');
-    }
-    if (blockedDays > 0) metaParts.push(`${blockedDays} blocked day${blockedDays === 1 ? '' : 's'}`);
-    out.push({
-      key: `rental_listing:${listing.id}:${params.fromYmd}:${params.toYmd}`,
-      ymd: anchorYmd,
-      kind: 'rental_listing',
-      category: 'rental',
-      listingId: listing.id,
-      listingTitle: listing.title?.trim() || 'Rental',
-      optionLabel: primaryOption || (optionCount > 1 ? `${optionCount} options` : 'Inventory'),
-      guestName: null,
-      reference: null,
-      bookingId: null,
-      timeHm: null,
-      quantityLabel: metaParts.join(' · '),
-      metaLine: metaParts.join(' · '),
-      activeTodayIso,
-      source: 'availability',
-      departureStatus: null,
-      capacityCount: stockUnits > 0 ? stockUnits : null,
-      remainingCount: stockUnits > 0 ? stockUnits : null,
-    });
   }
   return out;
 }

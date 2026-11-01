@@ -193,20 +193,35 @@ describe('partner-unified-calendar-visibility', () => {
     expect(events[0]?.kind).toBe('stay_blocked');
   });
 
-  it('shows published stays and rentals with zero bookings as compact presence rows', () => {
+  it('shows published stays and rentals on every date in range with zero bookings', () => {
     const nowMs = Date.parse('2026-10-10T12:00:00+03:00');
     const stays = buildPartnerUnifiedStayPresenceEvents({
       listings: [stayListing(), stayListing({ id: 'draft-stay', status: 'draft', title: 'Draft Cabin' })],
       bookings: [],
-      caps: [],
+      caps: [{ listing_id: 'listing-stay', available_date: '2026-10-12', capacity: 0 }],
       fromYmd: '2026-10-10',
       toYmd: '2026-10-20',
       nowMs,
     });
-    expect(stays).toHaveLength(1);
-    expect(stays[0]?.kind).toBe('stay_listing');
-    expect(stays[0]?.bookingId).toBeNull();
-    expect(stays[0]?.quantityLabel).toMatch(/Open for bookings/i);
+    // 11 nights × 1 published stay (draft excluded)
+    expect(stays).toHaveLength(11);
+    expect(stays.every((e) => e.kind === 'stay_listing')).toBe(true);
+    expect(stays.every((e) => e.bookingId === null)).toBe(true);
+    expect(stays.map((e) => e.ymd).sort()).toEqual([
+      '2026-10-10',
+      '2026-10-11',
+      '2026-10-12',
+      '2026-10-13',
+      '2026-10-14',
+      '2026-10-15',
+      '2026-10-16',
+      '2026-10-17',
+      '2026-10-18',
+      '2026-10-19',
+      '2026-10-20',
+    ]);
+    expect(stays.find((e) => e.ymd === '2026-10-12')?.quantityLabel).toBe('Blocked');
+    expect(stays.find((e) => e.ymd === '2026-10-11')?.quantityLabel).toBe('Available');
     expect(stays.every((e) => e.kind !== 'stay_check_in')).toBe(true);
 
     const rentals = buildPartnerUnifiedRentalPresenceEvents({
@@ -214,15 +229,33 @@ describe('partner-unified-calendar-visibility', () => {
         rentalListing(),
         rentalListing({ id: 'draft-rental', status: 'draft', title: 'Draft Camera' }),
       ],
-      blocks: [],
+      blocks: [
+        {
+          id: 'blk',
+          listing_id: 'listing-rental',
+          variant_id: 'v1',
+          starts_at: '2026-10-15T00:00:00.000Z',
+          ends_at: '2026-10-16T00:00:00.000Z',
+          note: null,
+          created_at: '',
+        },
+      ],
+      holds: [],
       fromYmd: '2026-10-10',
       toYmd: '2026-10-20',
       nowMs,
     });
-    expect(rentals).toHaveLength(1);
-    expect(rentals[0]?.kind).toBe('rental_listing');
-    expect(rentals[0]?.bookingId).toBeNull();
-    expect(rentals[0]?.quantityLabel).toMatch(/5 units/i);
+    // 11 days × 2 variants × 1 published rental
+    expect(rentals).toHaveLength(22);
+    expect(rentals.every((e) => e.kind === 'rental_listing')).toBe(true);
+    expect(rentals.every((e) => e.bookingId === null)).toBe(true);
+    expect(new Set(rentals.map((e) => e.ymd)).size).toBe(11);
+    expect(
+      rentals.some((e) => e.ymd === '2026-10-15' && e.optionLabel === 'Body' && e.quantityLabel === 'Blocked')
+    ).toBe(true);
+    expect(
+      rentals.some((e) => e.ymd === '2026-10-11' && e.optionLabel === 'Body' && e.quantityLabel === '2 / 2')
+    ).toBe(true);
     expect(rentals.every((e) => e.kind !== 'rental_collection')).toBe(true);
 
     const merged = mergePartnerUnifiedVisibilityEvents({
@@ -234,8 +267,8 @@ describe('partner-unified-calendar-visibility', () => {
       rentalOngoing: [],
       rentalBlocks: [],
     });
-    expect(merged.some((e) => e.category === 'stay')).toBe(true);
-    expect(merged.some((e) => e.category === 'rental')).toBe(true);
+    expect(merged.filter((e) => e.category === 'stay')).toHaveLength(11);
+    expect(merged.filter((e) => e.category === 'rental')).toHaveLength(22);
   });
 
   it('adds rental ongoing days between collection and return', () => {

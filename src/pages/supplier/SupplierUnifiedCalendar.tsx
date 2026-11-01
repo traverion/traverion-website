@@ -12,8 +12,10 @@ import { fetchBookingsForSupplier, type BookingRow } from '../../data/supabase-b
 import { fetchAvailabilityByListingId } from '../../data/supabase-availability';
 import {
   fetchRentalAvailabilityBlocks,
+  fetchRentalInventoryHolds,
   rentalVariantsFromListingExtras,
   type RentalAvailabilityBlockRow,
+  type RentalInventoryHoldRow,
 } from '../../data/supabase-rental-availability';
 import type { TourPackage } from '../../types/tour';
 import { experienceTodayIsoForListing } from '../../lib/booking-quote';
@@ -56,10 +58,8 @@ import PartnerUnifiedAgendaRentalControls, {
 } from '../../components/supplier/PartnerUnifiedAgendaRentalControls';
 import {
   annotateStayMonthSummaries,
-  buildPartnerUnifiedRentalBlockEvents,
   buildPartnerUnifiedRentalOngoingEvents,
   buildPartnerUnifiedRentalPresenceEvents,
-  buildPartnerUnifiedStayBlockedEvents,
   buildPartnerUnifiedStayPresenceEvents,
   buildPartnerUnifiedTourDepartureEvents,
   mergePartnerUnifiedVisibilityEvents,
@@ -278,6 +278,7 @@ export default function SupplierUnifiedCalendar() {
     Array<{ listing_id: string; available_date: string; capacity: number }>
   >([]);
   const [rentalBlocks, setRentalBlocks] = useState<RentalAvailabilityBlockRow[]>([]);
+  const [rentalHolds, setRentalHolds] = useState<RentalInventoryHoldRow[]>([]);
   const [visibilityNote, setVisibilityNote] = useState<string | null>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
 
@@ -449,6 +450,7 @@ export default function SupplierUnifiedCalendar() {
       setDayCapsByListing(new Map());
       setStayCaps([]);
       setRentalBlocks([]);
+      setRentalHolds([]);
       setVisibilityNote(null);
       return;
     }
@@ -542,24 +544,37 @@ export default function SupplierUnifiedCalendar() {
               const results = await Promise.all(
                 rentalIds.map(async (id) => {
                   try {
-                    return await fetchRentalAvailabilityBlocks(id, start.startIso, endIso);
+                    const [blocks, holds] = await Promise.all([
+                      fetchRentalAvailabilityBlocks(id, start.startIso, endIso),
+                      fetchRentalInventoryHolds(id, start.startIso, endIso),
+                    ]);
+                    return { blocks, holds, ok: true as const };
                   } catch {
-                    return [];
+                    return { blocks: [], holds: [], ok: false as const };
                   }
                 })
               );
-              if (!cancelled) setRentalBlocks(results.flat());
+              if (!cancelled) {
+                setRentalBlocks(results.flatMap((r) => r.blocks));
+                setRentalHolds(results.flatMap((r) => r.holds));
+                if (results.some((r) => !r.ok)) {
+                  notes.push('Some rental availability overlays could not be loaded.');
+                }
+              }
             } catch {
               if (!cancelled) {
                 setRentalBlocks([]);
+                setRentalHolds([]);
                 notes.push('Rental blocks unavailable.');
               }
             }
           } else if (!cancelled) {
             setRentalBlocks([]);
+            setRentalHolds([]);
           }
         } else if (!cancelled) {
           setRentalBlocks([]);
+          setRentalHolds([]);
         }
 
         if (!cancelled) setVisibilityNote(notes[0] ?? null);
@@ -623,6 +638,8 @@ export default function SupplierUnifiedCalendar() {
       ? rentalListingsInScope.filter((l) => l.id === listingFilter)
       : rentalListingsInScope;
 
+    // Per-day stay/rental presence covers Available/Blocked/Occupied — do not also emit
+    // stay_blocked / rental_block markers (would duplicate cards on the same nights).
     const stayPresence = needStays
       ? buildPartnerUnifiedStayPresenceEvents({
           listings: stayListings,
@@ -633,22 +650,12 @@ export default function SupplierUnifiedCalendar() {
           listingIdFilter: listingFilter,
         })
       : [];
-    const stayBlocked = needStays
-      ? stayListings.flatMap((listing) =>
-          buildPartnerUnifiedStayBlockedEvents({
-            listing,
-            bookings,
-            caps: stayCaps,
-            fromYmd: range.fromYmd,
-            toYmd: range.toYmd,
-          })
-        )
-      : [];
 
     const rentalPresence = needRentals
       ? buildPartnerUnifiedRentalPresenceEvents({
           listings: rentalListings,
           blocks: rentalBlocks,
+          holds: rentalHolds,
           fromYmd: range.fromYmd,
           toYmd: range.toYmd,
           listingIdFilter: listingFilter,
@@ -664,25 +671,15 @@ export default function SupplierUnifiedCalendar() {
           })
         )
       : [];
-    const rentalBlockEvents = needRentals
-      ? rentalListings.flatMap((listing) =>
-          buildPartnerUnifiedRentalBlockEvents({
-            listing,
-            blocks: rentalBlocks.filter((b) => b.listing_id === listing.id),
-            fromYmd: range.fromYmd,
-            toYmd: range.toYmd,
-          })
-        )
-      : [];
 
     return mergePartnerUnifiedVisibilityEvents({
       bookingEvents,
       tourDepartures,
       stayPresence,
-      stayBlocked,
+      stayBlocked: [],
       rentalPresence,
       rentalOngoing,
-      rentalBlocks: rentalBlockEvents,
+      rentalBlocks: [],
     });
   }, [
     bookingEvents,
@@ -697,6 +694,7 @@ export default function SupplierUnifiedCalendar() {
     listingId,
     stayCaps,
     rentalBlocks,
+    rentalHolds,
   ]);
 
   const filteredEvents = useMemo(
@@ -1299,6 +1297,7 @@ export default function SupplierUnifiedCalendar() {
                               event={event}
                               listing={listing}
                               blocks={rentalBlocks}
+                              holds={rentalHolds}
                               canEdit={canEdit}
                               userId={user?.id}
                               onPatch={applyRentalAgendaPatch}

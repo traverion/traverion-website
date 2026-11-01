@@ -29,6 +29,8 @@ type Props = {
   event: PartnerUnifiedCalendarEvent;
   listing: TourPackage;
   blocks: RentalAvailabilityBlockRow[];
+  /** Range-scoped holds from the calendar parent — avoids per-card network fetches. */
+  holds?: RentalInventoryHoldRow[];
   canEdit: boolean;
   userId?: string | null;
   onPatch: (patch: PartnerUnifiedAgendaRentalPatch) => void;
@@ -53,12 +55,13 @@ function PartnerUnifiedAgendaRentalControls({
   event,
   listing,
   blocks,
+  holds: holdsProp,
   canEdit,
   userId,
   onPatch,
 }: Props) {
-  const [holds, setHolds] = useState<RentalInventoryHoldRow[]>([]);
-  const [loadingHolds, setLoadingHolds] = useState(true);
+  const [holdsLocal, setHoldsLocal] = useState<RentalInventoryHoldRow[] | null>(null);
+  const [loadingHolds, setLoadingHolds] = useState(holdsProp == null);
   const [saving, setSaving] = useState<'block' | 'stock' | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [editingStock, setEditingStock] = useState(false);
@@ -75,18 +78,27 @@ function PartnerUnifiedAgendaRentalControls({
     [blocks, listing.id]
   );
 
+  const holds = useMemo(() => {
+    const source = holdsProp ?? holdsLocal ?? [];
+    return source.filter((h) => h.listing_id === listing.id);
+  }, [holdsProp, holdsLocal, listing.id]);
+
   const loadHolds = useCallback(async () => {
+    if (holdsProp != null) {
+      setLoadingHolds(false);
+      return;
+    }
     setLoadingHolds(true);
     try {
       const bounds = partnerUnifiedDayBoundsUtc(event.ymd);
       const rows = await fetchRentalInventoryHolds(listing.id, bounds.startIso, bounds.endIso);
-      setHolds(rows);
+      setHoldsLocal(rows);
     } catch {
-      setHolds([]);
+      setHoldsLocal([]);
     } finally {
       setLoadingHolds(false);
     }
-  }, [event.ymd, listing.id]);
+  }, [event.ymd, listing.id, holdsProp]);
 
   useEffect(() => {
     void loadHolds();
