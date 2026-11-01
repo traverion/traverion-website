@@ -85,9 +85,10 @@ describe('partner bookings desk', () => {
     expect(filtered.map((r) => r.id)).toEqual(['a']);
   });
 
-  it('hides Confirmed on list badges', () => {
+  it('shows only Cancelled on collapsed list badges', () => {
     expect(partnerBookingListBadgeLabel('confirmed')).toBeNull();
-    expect(partnerBookingListBadgeLabel('pending')).toBe('Pending');
+    expect(partnerBookingListBadgeLabel('pending')).toBeNull();
+    expect(partnerBookingListBadgeLabel('completed')).toBeNull();
     expect(partnerBookingListBadgeLabel('cancelled')).toBe('Cancelled');
   });
 

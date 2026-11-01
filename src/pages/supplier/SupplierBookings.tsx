@@ -135,12 +135,6 @@ import { optionLogisticsLines, readOptionLogistics } from '../../lib/option-logi
 
 const BOOKINGS_PAGE_SIZE = 20;
 
-const CATEGORY_LABEL: Record<PartnerBookingDeskFamily, string> = {
-  tour: 'Tour',
-  stay: 'Stay',
-  rental: 'Rental',
-};
-
 function resolveBookingFamily(
   booking: BookingRow,
   listingMeta: Record<string, ListingBookingMeta>
@@ -275,9 +269,11 @@ function listStatusBadge(
 }
 
 function rentalListStatusBadge(booking: BookingRow): { label: string | null; className: string } {
-  const label = rentalBookingSimpleStatusLabel(booking);
-  if (label === 'Confirmed') return { label: null, className: '' };
-  return { label, className: bookingStatusClass(booking.status ?? '', booking.payment_status) };
+  const pay = (booking.payment_status ?? '').trim().toLowerCase();
+  if (pay === 'refunded' || rentalBookingSimpleStatusLabel(booking) === 'Cancelled') {
+    return { label: 'Cancelled', className: bookingStatusClass('cancelled', booking.payment_status) };
+  }
+  return { label: null, className: '' };
 }
 
 function readTravelWindow(raw: string | null): PartnerBookingsTravelWindow {
@@ -1617,7 +1613,6 @@ export default function SupplierBookings({
               const startHm = dep.displayHm || null;
               const meta = listingMeta[booking.listing_id];
               const rowFamily = inventoryFamily ?? resolveBookingFamily(booking, listingMeta);
-              const categoryLabel = isUnifiedDesk ? CATEGORY_LABEL[rowFamily] : null;
               const liveOptionLabel =
                 booking.booking_option_id && meta?.bookingOptions?.length
                   ? meta.bookingOptions.find((o) => o.id === booking.booking_option_id)?.name?.trim() || ''
@@ -1787,7 +1782,6 @@ export default function SupplierBookings({
                     model={{
                       id: booking.id,
                       listingTitle,
-                      categoryLabel,
                       imageUrl: meta?.imageUrl ?? null,
                       guestName: booking.guest_name?.trim() || 'Guest',
                       dateLine: stayDayChip ? `${stayDayChip} · ${dateLine}` : dateLine,
@@ -1865,7 +1859,6 @@ export default function SupplierBookings({
                         meta?.title,
                         'Rental'
                       ),
-                      categoryLabel,
                       variantLabel: rentalSnap?.variantName?.trim() || optionLabel || null,
                       imageUrl: meta?.imageUrl ?? null,
                       customerName: booking.guest_name?.trim() || 'Customer',
@@ -1937,7 +1930,6 @@ export default function SupplierBookings({
                   model={{
                     id: booking.id,
                     listingTitle,
-                    categoryLabel,
                     optionLabel,
                     imageUrl: meta?.imageUrl ?? null,
                     guestName: booking.guest_name?.trim() || 'Guest',

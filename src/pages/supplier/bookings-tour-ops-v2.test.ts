@@ -128,9 +128,10 @@ describe('Bookings V4 — tour ops card & detail page', () => {
     expect(formatPartnerTravelRangeLabel('', '')).toBe('');
   });
 
-  it('hides Confirmed badges on the list while keeping exceptional statuses', () => {
+  it('shows only Cancelled badges on collapsed list cards', () => {
     expect(partnerBookingListBadgeLabel('confirmed')).toBeNull();
-    expect(partnerBookingListBadgeLabel('pending')).toBe('Pending');
+    expect(partnerBookingListBadgeLabel('pending')).toBeNull();
+    expect(partnerBookingListBadgeLabel('completed')).toBeNull();
     expect(partnerBookingListBadgeLabel('cancelled')).toBe('Cancelled');
   });
 
@@ -167,11 +168,15 @@ describe('Bookings V4 — tour ops card & detail page', () => {
     expect(collapsed).toContain('tour-ops-card__level--facts');
     expect(collapsed).toContain('tour-ops-card__facts');
     expect(collapsed).toContain('tour-ops-card__fact-icon');
+    expect(collapsed).toContain('tour-ops-card__fact-icon--ticket');
     expect(collapsed).toContain('tour-ops-card__expand');
-    expect(collapsed).toContain('Ada Lovelace');
+    expect(collapsed).not.toContain('Ada Lovelace');
     expect(collapsed).toContain('2 adults');
     expect(collapsed).not.toContain('Confirmed');
+    expect(collapsed).not.toContain('tour-ops-card__category');
     expect(html).toContain('aria-expanded="false"');
+    // Guest name stays in expanded details only.
+    expect(html).toContain('Ada Lovelace');
   });
 
   it('shows minimal expanded summary with financial breakdown', () => {
@@ -218,8 +223,8 @@ describe('Bookings V4 — tour ops card & detail page', () => {
           ...baseModel,
           listingTitle:
             'Rovaniemi: Northern Lights Guarantee — 100% Refund + Photos with an Extremely Long Marketing Suffix',
-          statusLabel: 'Pending',
-          statusClass: 'bg-amber-50 text-amber-900 ring-amber-200/80',
+          statusLabel: 'Cancelled',
+          statusClass: 'bg-rose-50 text-rose-900 ring-rose-200/80',
         },
         expanded: false,
         selected: false,
@@ -234,11 +239,13 @@ describe('Bookings V4 — tour ops card & detail page', () => {
     expect(html).toContain('Northern Lights Guarantee');
     expect(html).toContain('Morning departure');
     expect(html).toContain('tour-ops-card__option');
-    expect(html).toContain('Pending');
+    expect(html).toContain('Cancelled');
+    expect(html).not.toContain('Pending');
     const css = readFileSync(resolve(__dirname, '../../index.css'), 'utf8');
     expect(css).toContain('tour-ops-card__option');
     expect(css).toContain('tour-ops-card__facts');
     expect(css).toContain('tour-ops-card__fact-icon');
+    expect(css).toContain('tour-ops-card__fact-icon--ticket');
     expect(css).toContain('tour-ops-card__level--identity');
   });
 

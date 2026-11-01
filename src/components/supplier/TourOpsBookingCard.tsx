@@ -2,7 +2,7 @@
  * Expandable tour booking row — compact scan row + Guest | Booking details | Payment.
  */
 import { type MouseEvent, type ReactNode } from 'react';
-import { Calendar, ChevronDown, Copy, Mail, Ticket, User, Users } from 'lucide-react';
+import { Calendar, ChevronDown, Copy, Mail, Ticket, Users } from 'lucide-react';
 
 export type TourOpsCardModel = {
   id: string;
@@ -108,51 +108,49 @@ export default function TourOpsBookingCard({
         <div className="tour-ops-card__check" onClick={stop}>
           {checkbox}
         </div>
-        <button
-          type="button"
-          className="tour-ops-card__hit lux-flat"
-          aria-expanded={expanded}
-          aria-label={`${expanded ? 'Collapse' : 'Expand'} booking for ${model.listingTitle}`}
-          onClick={onToggleExpand}
-        >
-          {model.imageUrl ? (
-            <img src={model.imageUrl} alt="" className="tour-ops-card__thumb" />
-          ) : (
-            <div className="tour-ops-card__thumb tour-ops-card__thumb--empty" aria-hidden />
-          )}
-          <div className="tour-ops-card__body">
-            <div className="tour-ops-card__level tour-ops-card__level--identity">
-              <div className="tour-ops-card__identity">
-                <p className="tour-ops-card__title" title={model.listingTitle}>
-                  {model.listingTitle}
-                </p>
-                {model.optionLabel ? (
-                  <p className="tour-ops-card__option" title={model.optionLabel}>
-                    {model.optionLabel}
+        <div className="tour-ops-card__scan">
+          <button
+            type="button"
+            className="tour-ops-card__hit lux-flat"
+            aria-expanded={expanded}
+            aria-label={`${expanded ? 'Collapse' : 'Expand'} booking for ${model.listingTitle}`}
+            onClick={onToggleExpand}
+          >
+            {model.imageUrl ? (
+              <img src={model.imageUrl} alt="" className="tour-ops-card__thumb" />
+            ) : (
+              <div className="tour-ops-card__thumb tour-ops-card__thumb--empty" aria-hidden />
+            )}
+            <div className="tour-ops-card__body">
+              <div className="tour-ops-card__level tour-ops-card__level--identity">
+                <div className="tour-ops-card__identity">
+                  <p className="tour-ops-card__title" title={model.listingTitle}>
+                    {model.listingTitle}
                   </p>
-                ) : null}
-              </div>
-              <div className="tour-ops-card__rail">
-                {model.categoryLabel ? (
-                  <span className="tour-ops-card__category">{model.categoryLabel}</span>
-                ) : null}
+                  {model.optionLabel ? (
+                    <p className="tour-ops-card__option" title={model.optionLabel}>
+                      {model.optionLabel}
+                    </p>
+                  ) : null}
+                </div>
                 {model.statusLabel ? (
-                  <span className={`tour-ops-card__status ${model.statusClass}`}>{model.statusLabel}</span>
+                  <div className="tour-ops-card__rail">
+                    <span className={`tour-ops-card__status ${model.statusClass}`}>{model.statusLabel}</span>
+                  </div>
                 ) : null}
               </div>
             </div>
+          </button>
+          <div className="tour-ops-card__facts-row">
+            <span className="tour-ops-card__facts-indent" aria-hidden />
             <div className="tour-ops-card__level tour-ops-card__level--facts">
-              <div className="tour-ops-card__facts">
-                <span className="tour-ops-card__fact" title={whenTitle}>
+              <div className="tour-ops-card__facts" onClick={onToggleExpand}>
+                <span className="tour-ops-card__fact tour-ops-card__fact--date" title={whenTitle}>
                   <Calendar className="tour-ops-card__fact-icon" strokeWidth={2} aria-hidden />
                   <span className="tour-ops-card__fact-text">{model.dateLine}</span>
                 </span>
-                <span className="tour-ops-card__fact" title={model.guestName}>
-                  <User className="tour-ops-card__fact-icon" strokeWidth={2} aria-hidden />
-                  <span className="tour-ops-card__fact-text">{model.guestName}</span>
-                </span>
                 {model.participantLabel ? (
-                  <span className="tour-ops-card__fact" title={model.participantLabel}>
+                  <span className="tour-ops-card__fact tour-ops-card__fact--qty" title={model.participantLabel}>
                     <Users className="tour-ops-card__fact-icon" strokeWidth={2} aria-hidden />
                     <span className="tour-ops-card__fact-text">{model.participantLabel}</span>
                   </span>
@@ -171,19 +169,23 @@ export default function TourOpsBookingCard({
                     <span className="tour-ops-card__ref-copied">Copied</span>
                   ) : (
                     <>
-                      <Ticket className="tour-ops-card__fact-icon" strokeWidth={2} aria-hidden />
+                      <Ticket
+                        className="tour-ops-card__fact-icon tour-ops-card__fact-icon--ticket"
+                        strokeWidth={2}
+                        aria-hidden
+                      />
                       <span className="tour-ops-card__ref-code">{model.referenceLabel}</span>
                       <Copy className="tour-ops-card__ref-copy" strokeWidth={2} aria-hidden />
                     </>
                   )}
                 </button>
               </div>
+              {actionableNote || model.warning === 'Pickup details missing' ? (
+                <p className="tour-ops-card__warn">{actionableNote || model.warning}</p>
+              ) : null}
             </div>
-            {actionableNote || model.warning === 'Pickup details missing' ? (
-              <p className="tour-ops-card__warn">{actionableNote || model.warning}</p>
-            ) : null}
           </div>
-        </button>
+        </div>
       </div>
 
       <div className="tour-ops-card__panel" hidden={!expanded} onClick={stop}>

@@ -98,11 +98,10 @@ export function partnerBookingLifecycleLabel(status: string | null | undefined):
   return (status ?? '').trim() || 'Pending';
 }
 
-/** List-row badge — hide Confirmed/Active noise; keep exceptional states. */
+/** Collapsed list badge — Cancelled only; lifecycle labels remain elsewhere. */
 export function partnerBookingListBadgeLabel(status: string | null | undefined): string | null {
   const label = partnerBookingLifecycleLabel(status);
-  if (!label || label === 'Confirmed') return null;
-  return label;
+  return label === 'Cancelled' ? 'Cancelled' : null;
 }
 
 export function partnerBookingsDeskFiltersActive(query: PartnerBookingsDeskQuery): boolean {

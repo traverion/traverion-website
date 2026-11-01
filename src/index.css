@@ -10926,15 +10926,24 @@ details:not([open]) > :not(summary) {
   padding: 0.55rem 0.15rem 0.55rem 0;
 }
 
-.tour-ops-card__hit {
+.tour-ops-card__scan {
   display: flex;
   flex: 1 1 auto;
+  flex-direction: column;
+  gap: 0.4rem;
+  min-width: 0;
+  padding: 0.78rem 1rem 0.78rem 0.35rem;
+}
+
+.tour-ops-card__hit {
+  display: flex;
+  flex: 0 0 auto;
   min-width: 0;
   align-items: flex-start;
-  gap: 0.8rem;
-  padding: 0.72rem 0.95rem 0.72rem 0.35rem;
+  gap: 0.85rem;
+  padding: 0;
   text-align: left;
-  border-radius: 0 0.7rem 0.7rem 0;
+  border-radius: 0.35rem;
   transition: background-color 170ms ease;
 }
 
@@ -10944,8 +10953,20 @@ details:not([open]) > :not(summary) {
 
 .tour-ops-card__hit:focus-visible {
   outline: 2px solid #003580;
-  outline-offset: -2px;
+  outline-offset: 2px;
   background: rgba(0, 53, 128, 0.035);
+}
+
+.tour-ops-card__facts-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.85rem;
+  min-width: 0;
+}
+
+.tour-ops-card__facts-indent {
+  width: 3rem;
+  flex: 0 0 auto;
 }
 
 .tour-ops-card__thumb {
@@ -10967,7 +10988,7 @@ details:not([open]) > :not(summary) {
   flex: 1 1 auto;
   display: flex;
   flex-direction: column;
-  gap: 0.38rem;
+  gap: 0;
 }
 
 .tour-ops-card__level {
@@ -10978,7 +10999,7 @@ details:not([open]) > :not(summary) {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 0.7rem;
+  gap: 0.75rem;
 }
 
 .tour-ops-card__level--facts {
@@ -11005,7 +11026,7 @@ details:not([open]) > :not(summary) {
   font-weight: 650;
   line-height: 1.28;
   letter-spacing: -0.02em;
-  color: #0f1419;
+  color: #0c1118;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -11033,42 +11054,53 @@ details:not([open]) > :not(summary) {
 }
 
 .tour-ops-card__option {
-  margin: 0.1rem 0 0;
+  margin: 0.14rem 0 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 0.765rem;
+  font-size: 0.8125rem;
   font-weight: 500;
   line-height: 1.3;
-  color: #667085;
+  color: #3f4a57;
 }
 
 .tour-ops-card__facts {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.35rem 1rem;
+  gap: 0.4rem 1.25rem;
   min-width: 0;
 }
 
 .tour-ops-card__fact {
   display: inline-flex;
   align-items: center;
-  gap: 0.32rem;
+  gap: 0.38rem;
   overflow: hidden;
   max-width: 100%;
   min-width: 0;
-  font-size: 0.765rem;
+  font-size: 0.8125rem;
   font-weight: 500;
   line-height: 1.3;
-  color: #4b5563;
+  color: #17191d;
+}
+
+.tour-ops-card__fact--date,
+.tour-ops-card__fact--qty {
+  font-weight: 600;
+  color: #0c1118;
 }
 
 .tour-ops-card__fact-icon {
-  width: 0.82rem;
-  height: 0.82rem;
+  width: 0.95rem;
+  height: 0.95rem;
   flex: 0 0 auto;
-  color: #98a2b3;
+  color: #1a1f27;
+  stroke-width: 2;
+}
+
+.tour-ops-card__fact-icon--ticket {
+  color: var(--partner-accent, #073b83);
 }
 
 .tour-ops-card__fact-text {
@@ -11079,10 +11111,11 @@ details:not([open]) > :not(summary) {
 }
 
 .tour-ops-card__ref-copy {
-  width: 0.75rem;
-  height: 0.75rem;
+  width: 0.8rem;
+  height: 0.8rem;
   flex: 0 0 auto;
   opacity: 0.55;
+  color: #667085;
 }
 
 .tour-ops-card__rail {
@@ -11223,16 +11256,16 @@ details:not([open]) > :not(summary) {
 .tour-ops-card__ref {
   display: inline-flex;
   align-items: center;
-  gap: 0.3rem;
+  gap: 0.35rem;
   border-radius: 0.35rem;
   padding: 0.08rem 0.28rem;
   margin: -0.08rem 0 -0.08rem -0.28rem;
   max-width: 100%;
   min-width: 0;
-  font-size: 0.765rem;
-  font-weight: 500;
+  font-size: 0.8125rem;
+  font-weight: 600;
   line-height: 1.3;
-  color: #4b5563;
+  color: #0c1118;
   transition: background-color 160ms ease, color 160ms ease;
 }
 
@@ -11241,10 +11274,10 @@ details:not([open]) > :not(summary) {
   color: #003580;
 }
 
-.tour-ops-card__ref:hover .tour-ops-card__fact-icon,
+.tour-ops-card__ref:hover .tour-ops-card__fact-icon--ticket,
 .tour-ops-card__ref:hover .tour-ops-card__ref-copy {
   color: #003580;
-  opacity: 0.85;
+  opacity: 0.9;
 }
 
 .tour-ops-card__ref:focus-visible {
@@ -11931,9 +11964,14 @@ details:not([open]) > :not(summary) {
 }
 
 @media (max-width: 639px) {
-  .tour-ops-card__hit {
-    gap: 0.7rem;
+  .tour-ops-card__scan {
+    gap: 0.35rem;
     padding: 0.7rem 0.75rem 0.7rem 0.2rem;
+  }
+
+  .tour-ops-card__hit,
+  .tour-ops-card__facts-row {
+    gap: 0.7rem;
   }
 
   .tour-ops-card__thumb {
@@ -11941,18 +11979,21 @@ details:not([open]) > :not(summary) {
     width: 2.75rem;
   }
 
+  .tour-ops-card__facts-indent {
+    width: 2.75rem;
+  }
+
   .tour-ops-card__level--identity {
-    flex-wrap: wrap;
-    gap: 0.35rem 0.55rem;
+    gap: 0.45rem;
   }
 
   .tour-ops-card__facts {
-    gap: 0.3rem 0.75rem;
+    gap: 0.35rem 0.9rem;
   }
 
   .tour-ops-card__fact,
   .tour-ops-card__ref {
-    font-size: 0.75rem;
+    font-size: 0.8125rem;
   }
 
   .tour-ops-card__meta {
