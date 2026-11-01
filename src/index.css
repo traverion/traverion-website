@@ -19766,6 +19766,26 @@ details:not([open]) > :not(summary) {
   margin-top: 0.15rem;
 }
 
+/* Option + Cutoff badge on one wrapping row */
+.partner-unified-cal__card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.28rem 0.45rem;
+  min-width: 0;
+}
+
+.partner-unified-cal__card-meta .partner-unified-cal__card-option {
+  flex: 1 1 auto;
+  min-width: min(100%, 8rem);
+}
+
+.partner-unified-cal__card-meta .partner-unified-cal__badge {
+  flex: 0 0 auto;
+  align-self: center;
+  margin-top: 0;
+}
+
 .puc-tour-ops {
   display: flex;
   flex-wrap: wrap;

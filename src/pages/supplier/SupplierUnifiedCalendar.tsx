@@ -1301,12 +1301,23 @@ export default function SupplierUnifiedCalendar() {
                               <span className="partner-unified-cal__card-title">
                                 {event.listingTitle}
                               </span>
-                              {optionLine ? (
-                                <span className="partner-unified-cal__card-option">
-                                  {optionLine}
+                              {optionLine || status === 'Cutoff' ? (
+                                <span className="partner-unified-cal__card-meta">
+                                  {optionLine ? (
+                                    <span className="partner-unified-cal__card-option">
+                                      {optionLine}
+                                    </span>
+                                  ) : null}
+                                  {status === 'Cutoff' ? (
+                                    <span
+                                      className={`partner-unified-cal__badge${badgeToneClass(event, false)}`}
+                                    >
+                                      {status}
+                                    </span>
+                                  ) : null}
                                 </span>
                               ) : null}
-                              {status && status !== 'Blocked' ? (
+                              {status && status !== 'Blocked' && status !== 'Cutoff' ? (
                                 <span
                                   className={`partner-unified-cal__badge${badgeToneClass(event, false)}`}
                                 >

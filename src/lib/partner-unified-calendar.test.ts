@@ -167,6 +167,17 @@ describe('partner-unified-calendar', () => {
     );
   });
 
+  it('Agenda Cutoff badge sits inline beside the option name', () => {
+    const page = readFileSync(resolve(__dirname, '../pages/supplier/SupplierUnifiedCalendar.tsx'), 'utf8');
+    const css = readFileSync(resolve(__dirname, '../index.css'), 'utf8');
+    expect(page).toContain('partner-unified-cal__card-meta');
+    expect(page).toContain("status === 'Cutoff'");
+    expect(css).toContain('.partner-unified-cal__card-meta');
+    expect(css).toMatch(
+      /\.partner-unified-cal__card-meta\s*\{[^}]*flex-wrap:\s*wrap/s
+    );
+  });
+
   it('defaults view to agenda and category to all', () => {
     expect(parsePartnerUnifiedCalendarView(null)).toBe('agenda');
     expect(parsePartnerUnifiedCalendarView('week')).toBe('week');
