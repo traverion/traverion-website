@@ -9,7 +9,11 @@ import {
   formatPartnerUnifiedWeekLabel,
   parsePartnerUnifiedCalendarView,
   partnerUnifiedDisplayRangeForView,
+  partnerUnifiedFocusInRange,
   partnerUnifiedMonthRangeContaining,
+  partnerUnifiedSharedFocusYmd,
+  partnerUnifiedShiftFocusByMonths,
+  partnerUnifiedShiftFocusByWeeks,
   partnerUnifiedShiftMonth,
   partnerUnifiedShiftWeek,
   partnerUnifiedWeekRangeContaining,
@@ -226,7 +230,69 @@ describe('partner-unified-calendar', () => {
     const page = readFileSync(resolve(__dirname, '../pages/supplier/SupplierUnifiedCalendar.tsx'), 'utf8');
     expect(page).toContain('partnerUnifiedDisplayRangeForView');
     expect(page).toContain('formatPartnerUnifiedMonthLabel');
-    expect(page).toContain('partnerUnifiedShiftMonth');
+    expect(page).toContain('partnerUnifiedShiftFocusByMonths');
+    expect(page).toContain('partnerUnifiedSharedFocusYmd');
+    expect(page).toContain('agendaRangeRef');
+  });
+
+  it('preserves shared focus across Agenda → Week → Month → Agenda (Nov 1, 2026)', () => {
+    const focus = '2026-11-01';
+    const today = '2026-11-01';
+    expect(partnerUnifiedSharedFocusYmd({ selectedYmd: focus, todayIso: today })).toBe(focus);
+
+    const agenda = partnerUnifiedDisplayRangeForView({ view: 'agenda', focusYmd: focus });
+    expect(agenda).toEqual({ fromYmd: '2026-11-01', toYmd: '2026-11-30' });
+
+    // Nov 1 2026 is Sunday → week is Mon Oct 26 – Sun Nov 1
+    const week = partnerUnifiedDisplayRangeForView({
+      view: 'week',
+      focusYmd: focus,
+      fromYmd: agenda.fromYmd,
+      toYmd: agenda.toYmd,
+    });
+    expect(week).toEqual({ fromYmd: '2026-10-26', toYmd: '2026-11-01' });
+
+    const month = partnerUnifiedDisplayRangeForView({
+      view: 'month',
+      focusYmd: focus,
+      fromYmd: week.fromYmd,
+      toYmd: week.toYmd,
+    });
+    expect(month).toEqual({ fromYmd: '2026-11-01', toYmd: '2026-11-30' });
+
+    // Returning to Agenda restores the remembered window that still contains focus.
+    expect(partnerUnifiedFocusInRange(focus, agenda.fromYmd, agenda.toYmd)).toBe(true);
+    expect(
+      partnerUnifiedDisplayRangeForView({
+        view: 'agenda',
+        focusYmd: focus,
+        fromYmd: agenda.fromYmd,
+        toYmd: agenda.toYmd,
+      })
+    ).toEqual(agenda);
+
+    // Prev/Next keep day-of-month / weekday across boundaries.
+    expect(partnerUnifiedShiftFocusByWeeks(focus, 1)).toBe('2026-11-08');
+    expect(partnerUnifiedShiftFocusByMonths(focus, 1)).toBe('2026-12-01');
+    expect(partnerUnifiedShiftFocusByMonths('2026-01-31', 1)).toBe('2026-02-28');
+    expect(partnerUnifiedShiftFocusByMonths('2026-03-31', -1)).toBe('2026-02-28');
+
+    // Year boundary: Dec focus → Jan month/week.
+    const decFocus = '2026-12-28';
+    expect(partnerUnifiedDisplayRangeForView({ view: 'month', focusYmd: decFocus })).toEqual({
+      fromYmd: '2026-12-01',
+      toYmd: '2026-12-31',
+    });
+    const janFocus = partnerUnifiedShiftFocusByMonths(decFocus, 1);
+    expect(janFocus).toBe('2027-01-28');
+    expect(partnerUnifiedDisplayRangeForView({ view: 'month', focusYmd: janFocus })).toEqual({
+      fromYmd: '2027-01-01',
+      toYmd: '2027-01-31',
+    });
+    expect(partnerUnifiedDisplayRangeForView({ view: 'week', focusYmd: janFocus })).toEqual({
+      fromYmd: '2027-01-25',
+      toYmd: '2027-01-31',
+    });
   });
 
   it('builds mixed tour, stay, and rental events in a range', () => {

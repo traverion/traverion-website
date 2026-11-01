@@ -34,12 +34,15 @@ import {
   parsePartnerUnifiedCategoryFilter,
   partnerUnifiedDisplayRangeForView,
   partnerUnifiedEventKindLabel,
+  partnerUnifiedFocusInRange,
   partnerUnifiedNormalizeRange,
   partnerUnifiedOptionChoices,
+  partnerUnifiedRangeDayCount,
   partnerUnifiedRollingRange,
+  partnerUnifiedSharedFocusYmd,
+  partnerUnifiedShiftFocusByMonths,
+  partnerUnifiedShiftFocusByWeeks,
   partnerUnifiedShiftRange,
-  partnerUnifiedShiftMonth,
-  partnerUnifiedShiftWeek,
   partnerUnifiedWeeksCoveringRange,
   type PartnerUnifiedCalendarEvent,
   type PartnerUnifiedCalendarView,
@@ -206,20 +209,21 @@ export default function SupplierUnifiedCalendar() {
     const fromRaw = parseIsoParam(q.get('from')) ?? parseIsoParam(q.get('date'));
     const toRaw = parseIsoParam(q.get('to'));
     const selectedYmd = parseIsoParam(q.get('day')) ?? todayIso;
-    const focus = selectedYmd || fromRaw || todayIso;
+    const focus = partnerUnifiedSharedFocusYmd({
+      selectedYmd,
+      fromYmd: fromRaw,
+      todayIso,
+    });
+    // Week/Month ignore URL from/to so stale week bounds never clip Month (or Agenda after refresh).
     const range = partnerUnifiedDisplayRangeForView({
       view,
       focusYmd: focus,
-      fromYmd:
-        fromRaw ??
-        (view === 'agenda' ? rolling.fromYmd : null),
+      fromYmd: view === 'agenda' ? fromRaw ?? rolling.fromYmd : null,
       toYmd:
-        toRaw ??
-        (view === 'agenda'
-          ? fromRaw
-            ? addCalendarDaysYmd(fromRaw, 29) ?? rolling.toYmd
-            : rolling.toYmd
-          : null),
+        view === 'agenda'
+          ? toRaw ??
+            (fromRaw ? addCalendarDaysYmd(fromRaw, 29) ?? rolling.toYmd : rolling.toYmd)
+          : null,
     });
     return {
       view,
@@ -229,7 +233,7 @@ export default function SupplierUnifiedCalendar() {
       includePast: q.get('history') === '1',
       fromYmd: range.fromYmd,
       toYmd: range.toYmd,
-      selectedYmd,
+      selectedYmd: focus,
     };
   }, [todayIso]);
 
@@ -260,10 +264,25 @@ export default function SupplierUnifiedCalendar() {
   const [rentalHolds, setRentalHolds] = useState<RentalInventoryHoldRow[]>([]);
   const [visibilityNote, setVisibilityNote] = useState<string | null>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
+  /** Last Agenda From/To so Week/Month switches can restore it when focus still falls inside. */
+  const agendaRangeRef = useRef<{ fromYmd: string; toYmd: string } | null>(
+    initial.view === 'agenda' ? { fromYmd: initial.fromYmd, toYmd: initial.toYmd } : null
+  );
 
   const range = useMemo(
     () => partnerUnifiedNormalizeRange(fromYmd, toYmd, todayIso),
     [fromYmd, toYmd, todayIso]
+  );
+
+  const focusYmd = useMemo(
+    () =>
+      partnerUnifiedSharedFocusYmd({
+        selectedYmd,
+        fromYmd: range.fromYmd,
+        toYmd: range.toYmd,
+        todayIso,
+      }),
+    [selectedYmd, range.fromYmd, range.toYmd, todayIso]
   );
 
   const load = useCallback(async () => {
@@ -309,18 +328,26 @@ export default function SupplierUnifiedCalendar() {
     if (includePast) q.set('history', '1');
     else q.delete('history');
     q.delete('date');
-    if (range.fromYmd !== rolling.fromYmd || range.toYmd !== rolling.toYmd) {
-      q.set('from', range.fromYmd);
-      q.set('to', range.toYmd);
+    // Week/Month ranges are derived from `day` — never persist from/to (avoids stale week windows).
+    if (view === 'agenda') {
+      if (range.fromYmd !== rolling.fromYmd || range.toYmd !== rolling.toYmd) {
+        q.set('from', range.fromYmd);
+        q.set('to', range.toYmd);
+      } else {
+        q.delete('from');
+        q.delete('to');
+      }
     } else {
       q.delete('from');
       q.delete('to');
     }
-    if (selectedYmd && selectedYmd !== todayIso) q.set('day', selectedYmd);
+    if (focusYmd && focusYmd !== todayIso) q.set('day', focusYmd);
     else q.delete('day');
     const qs = q.toString();
-    window.history.replaceState({}, '', qs ? `${url.pathname}?${qs}` : url.pathname);
-  }, [view, category, listingId, optionKey, includePast, range.fromYmd, range.toYmd, selectedYmd, todayIso]);
+    const next = qs ? `${url.pathname}?${qs}` : url.pathname;
+    const cur = `${url.pathname}${url.search}`;
+    if (next !== cur) window.history.replaceState({}, '', next);
+  }, [view, category, listingId, optionKey, includePast, range.fromYmd, range.toYmd, focusYmd, todayIso]);
 
   useEffect(() => {
     setExpandedKey(null);
@@ -351,18 +378,10 @@ export default function SupplierUnifiedCalendar() {
     return () => document.removeEventListener('mousedown', onDoc);
   }, [expandedKey, monthDaySheetIso, view]);
 
-  /** Week/Month derive display bounds from the shared focus date — never inherit the other view's range. */
   useEffect(() => {
-    if (view !== 'week' && view !== 'month') return;
-    const next = partnerUnifiedDisplayRangeForView({
-      view,
-      focusYmd: selectedYmd || range.fromYmd || todayIso,
-    });
-    if (next.fromYmd !== range.fromYmd || next.toYmd !== range.toYmd) {
-      setFromYmd(next.fromYmd);
-      setToYmd(next.toYmd);
-    }
-  }, [view, selectedYmd, range.fromYmd, range.toYmd, todayIso]);
+    if (view !== 'agenda') return;
+    agendaRangeRef.current = { fromYmd: range.fromYmd, toYmd: range.toYmd };
+  }, [view, range.fromYmd, range.toYmd]);
 
   const titlesByListingId = useMemo(() => {
     const map = new Map<string, string>();
@@ -792,12 +811,31 @@ export default function SupplierUnifiedCalendar() {
     if (optionKey && !optionChoices.some((o) => o.value === optionKey)) setOptionKey('');
   }, [optionKey, optionChoices]);
 
+  /** Keep one shared focus date; Week/Month ranges always re-derive from it. */
+  const focusOnDate = (iso: string) => {
+    setSelectedYmd(iso);
+    if (view === 'week' || view === 'month') {
+      const derived = partnerUnifiedDisplayRangeForView({ view, focusYmd: iso });
+      setFromYmd(derived.fromYmd);
+      setToYmd(derived.toYmd);
+    }
+  };
+
   const selectView = (next: PartnerUnifiedCalendarView) => {
-    const focus = selectedYmd || range.fromYmd || todayIso;
+    if (next === view) return;
+    const focus = focusYmd;
+    setSelectedYmd(focus);
     setView(next);
     if (next === 'agenda') {
-      // Preserve Agenda custom range when already in Agenda; otherwise start a rolling window.
-      if (view === 'agenda') return;
+      const remembered = agendaRangeRef.current;
+      if (
+        remembered &&
+        partnerUnifiedFocusInRange(focus, remembered.fromYmd, remembered.toYmd)
+      ) {
+        setFromYmd(remembered.fromYmd);
+        setToYmd(remembered.toYmd);
+        return;
+      }
       const rolling = partnerUnifiedRollingRange(focus);
       setFromYmd(rolling.fromYmd);
       setToYmd(rolling.toYmd);
@@ -809,35 +847,44 @@ export default function SupplierUnifiedCalendar() {
   };
 
   const shiftRange = (direction: 1 | -1) => {
+    const focus = focusYmd;
     if (view === 'week') {
-      const next = partnerUnifiedShiftWeek(range.fromYmd, direction);
+      const nextFocus = partnerUnifiedShiftFocusByWeeks(focus, direction);
+      setSelectedYmd(nextFocus);
+      const next = partnerUnifiedDisplayRangeForView({ view: 'week', focusYmd: nextFocus });
       setFromYmd(next.fromYmd);
       setToYmd(next.toYmd);
-      setSelectedYmd(next.fromYmd);
       return;
     }
     if (view === 'month') {
-      const next = partnerUnifiedShiftMonth(range.fromYmd, direction);
+      const nextFocus = partnerUnifiedShiftFocusByMonths(focus, direction);
+      setSelectedYmd(nextFocus);
+      const next = partnerUnifiedDisplayRangeForView({ view: 'month', focusYmd: nextFocus });
       setFromYmd(next.fromYmd);
       setToYmd(next.toYmd);
-      setSelectedYmd(next.fromYmd);
       return;
     }
     const next = partnerUnifiedShiftRange(range.fromYmd, range.toYmd, direction);
+    const span = Math.max(1, partnerUnifiedRangeDayCount(range.fromYmd, range.toYmd));
+    const nextFocus = partnerUnifiedFocusInRange(focus, range.fromYmd, range.toYmd)
+      ? addCalendarDaysYmd(focus, direction * span) ?? next.fromYmd
+      : next.fromYmd;
+    setSelectedYmd(nextFocus);
     setFromYmd(next.fromYmd);
     setToYmd(next.toYmd);
-    setSelectedYmd(next.fromYmd);
   };
 
   const goToday = () => {
-    setSelectedYmd(todayIso);
+    const iso =
+      experienceTodayIsoForListing(selectedListing ?? undefined) || todayIso;
+    setSelectedYmd(iso);
     if (view === 'week' || view === 'month') {
-      const derived = partnerUnifiedDisplayRangeForView({ view, focusYmd: todayIso });
+      const derived = partnerUnifiedDisplayRangeForView({ view, focusYmd: iso });
       setFromYmd(derived.fromYmd);
       setToYmd(derived.toYmd);
       return;
     }
-    const rolling = partnerUnifiedRollingRange(todayIso);
+    const rolling = partnerUnifiedRollingRange(iso);
     setFromYmd(rolling.fromYmd);
     setToYmd(rolling.toYmd);
   };
@@ -866,6 +913,9 @@ export default function SupplierUnifiedCalendar() {
     const next = partnerUnifiedNormalizeRange(fromYmd, iso, todayIso);
     setFromYmd(next.fromYmd);
     setToYmd(next.toYmd);
+    if (!partnerUnifiedFocusInRange(focusYmd, next.fromYmd, next.toYmd)) {
+      setSelectedYmd(next.fromYmd);
+    }
   };
 
   const periodLabel =
@@ -929,11 +979,8 @@ export default function SupplierUnifiedCalendar() {
 
   const toggleExpand = (key: string, event?: PartnerUnifiedCalendarEvent) => {
     if (event) {
-      setSelectedYmd(event.ymd);
-      if (eventOpensBooking(event) && event.bookingId && expandedKey !== key) {
-        // First click on a pure booking can open details; second expands edit.
-        // Prefer: click expands; separate "Open booking" in inline panel.
-      }
+      if (view === 'week' || view === 'month') focusOnDate(event.ymd);
+      else setSelectedYmd(event.ymd);
     }
     setExpandedKey((prev) => (prev === key ? null : key));
   };
@@ -1369,13 +1416,14 @@ export default function SupplierUnifiedCalendar() {
           bookings={bookings}
           canEdit={canEdit}
           userId={user?.id}
-          onSelectDay={setSelectedYmd}
+          onSelectDay={focusOnDate}
           onToggleEvent={(event) => toggleExpand(event.key, event)}
           onCloseExpand={() => setExpandedKey(null)}
           onShowMoreDay={(iso) => {
             setSelectedYmd(iso);
             setFromYmd(iso);
             setToYmd(iso);
+            agendaRangeRef.current = { fromYmd: iso, toYmd: iso };
             setView('agenda');
           }}
           onListingsChange={setListings}
@@ -1430,7 +1478,7 @@ export default function SupplierUnifiedCalendar() {
                     type="button"
                     className="partner-unified-cal__cell-num"
                     onClick={() => {
-                      setSelectedYmd(cell.iso);
+                      focusOnDate(cell.iso);
                       setMonthDaySheetIso(null);
                       if (dayEvents[0]) toggleExpand(dayEvents[0].key, dayEvents[0]);
                       else setExpandedKey(null);
@@ -1453,7 +1501,6 @@ export default function SupplierUnifiedCalendar() {
                             title={monthChipTitle(event)}
                             onClick={(e) => {
                               e.stopPropagation();
-                              setSelectedYmd(event.ymd);
                               setMonthDaySheetIso(null);
                               toggleExpand(event.key, event);
                             }}
@@ -1519,7 +1566,7 @@ export default function SupplierUnifiedCalendar() {
                         className="partner-unified-cal__more"
                         onClick={(e) => {
                           e.stopPropagation();
-                          setSelectedYmd(cell.iso);
+                          focusOnDate(cell.iso);
                           setExpandedKey(null);
                           setMonthDaySheetIso(daySheetOpen ? null : cell.iso);
                         }}
@@ -1561,7 +1608,6 @@ export default function SupplierUnifiedCalendar() {
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setMonthDaySheetIso(null);
-                                setSelectedYmd(event.ymd);
                                 toggleExpand(event.key, event);
                               }}
                             >

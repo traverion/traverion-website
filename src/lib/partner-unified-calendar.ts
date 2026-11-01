@@ -636,6 +636,40 @@ export function partnerUnifiedShiftMonth(
   return partnerUnifiedMonthRangeContaining(next.toISOString().slice(0, 10));
 }
 
+/** Move focus by ±N weeks (same weekday). */
+export function partnerUnifiedShiftFocusByWeeks(focusYmd: string, deltaWeeks: number): string {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(focusYmd)) return focusYmd;
+  return addCalendarDaysYmd(focusYmd, Math.floor(deltaWeeks) * 7) ?? focusYmd;
+}
+
+/** Move focus by ±N months, clamping day-of-month (e.g. Jan 31 → Feb 28). */
+export function partnerUnifiedShiftFocusByMonths(focusYmd: string, deltaMonths: number): string {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(focusYmd)) return focusYmd;
+  const d = new Date(`${focusYmd}T12:00:00Z`);
+  const day = d.getUTCDate();
+  const target = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + Math.floor(deltaMonths), 1));
+  const lastDay = new Date(Date.UTC(target.getUTCFullYear(), target.getUTCMonth() + 1, 0)).getUTCDate();
+  target.setUTCDate(Math.min(day, lastDay));
+  return target.toISOString().slice(0, 10);
+}
+
+/**
+ * Shared focus date used when switching Agenda ↔ Week ↔ Month.
+ * Prefers an explicit day when present; otherwise clamps to the visible range start.
+ */
+export function partnerUnifiedSharedFocusYmd(args: {
+  selectedYmd?: string | null;
+  fromYmd?: string | null;
+  toYmd?: string | null;
+  todayIso: string;
+}): string {
+  const selected = (args.selectedYmd ?? '').trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(selected)) return selected;
+  const from = (args.fromYmd ?? '').trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(from)) return from;
+  return /^\d{4}-\d{2}-\d{2}$/.test(args.todayIso) ? args.todayIso : from || args.todayIso;
+}
+
 export function formatPartnerUnifiedMonthLabel(fromYmd: string): string {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(fromYmd)) return fromYmd;
   return new Date(`${fromYmd}T12:00:00Z`).toLocaleDateString('en-GB', {
@@ -647,7 +681,8 @@ export function formatPartnerUnifiedMonthLabel(fromYmd: string): string {
 
 /**
  * Derive display From/To for a view from a shared focus date.
- * Agenda keeps an explicit custom range when provided; Week/Month always re-derive.
+ * Week/Month always re-derive from focus (ignore stale from/to).
+ * Agenda keeps an explicit custom range when provided; otherwise next 30 days from focus.
  */
 export function partnerUnifiedDisplayRangeForView(args: {
   view: PartnerUnifiedCalendarView;
@@ -665,6 +700,17 @@ export function partnerUnifiedDisplayRangeForView(args: {
     return partnerUnifiedNormalizeRange(from, to, focus);
   }
   return partnerUnifiedRollingRange(focus);
+}
+
+/** True when focus falls inside an inclusive agenda From/To window. */
+export function partnerUnifiedFocusInRange(
+  focusYmd: string,
+  fromYmd: string,
+  toYmd: string
+): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(focusYmd)) return false;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(fromYmd) || !/^\d{4}-\d{2}-\d{2}$/.test(toYmd)) return false;
+  return focusYmd >= fromYmd && focusYmd <= toYmd;
 }
 
 export type PartnerUnifiedRangeCell = {
