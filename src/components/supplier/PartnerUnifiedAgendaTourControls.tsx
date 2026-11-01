@@ -1,8 +1,8 @@
 /**
  * Agenda-only inline tour departure controls: block, capacity, cutoff clock.
- * Reuses Mission 05.3 day-edit APIs — no drawer / expand for these three actions.
+ * Optimistic local patches — never triggers a full calendar reload.
  */
-import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { Check, Loader2, Pencil, X } from 'lucide-react';
 import type { TourPackage } from '../../types/tour';
 import type { BookingRow } from '../../data/supabase-bookings';
@@ -21,6 +21,10 @@ import {
 import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
 import type { PartnerUnifiedCalendarEvent } from '../../lib/partner-unified-calendar';
 
+export type PartnerUnifiedAgendaTourPatch =
+  | { type: 'dayClosed'; listingId: string; iso: string; closed: boolean }
+  | { type: 'listing'; listing: TourPackage };
+
 type Props = {
   event: PartnerUnifiedCalendarEvent;
   listing: TourPackage;
@@ -28,11 +32,27 @@ type Props = {
   canEdit: boolean;
   /** True when availability capacity for this listing/day is 0 (day blocked). */
   dayClosed: boolean;
-  onListingsChange: Dispatch<SetStateAction<TourPackage[]>>;
-  onSaved?: () => void;
+  /** Targeted parent cache update — must not refetch the full calendar. */
+  onPatch: (patch: PartnerUnifiedAgendaTourPatch) => void;
 };
 
 const CUTOFF_OPTIONS = cutoffHourSelectOptions(MAX_BOOKING_CUTOFF_HOURS);
+
+/** Serialize capacity/cutoff writes per listing so slotOverrides cannot clobber each other. */
+const listingSaveChains = new Map<string, Promise<unknown>>();
+
+function enqueueListingSave<T>(listingId: string, task: () => Promise<T>): Promise<T> {
+  const prior = listingSaveChains.get(listingId) ?? Promise.resolve();
+  const next = prior.catch(() => undefined).then(task);
+  listingSaveChains.set(
+    listingId,
+    next.then(
+      () => undefined,
+      () => undefined
+    )
+  );
+  return next;
+}
 
 function subtractHoursFromHm(startTimeHm: string, hours: number): string | null {
   const m = /^(\d{1,2}):(\d{2})$/.exec((startTimeHm || '').trim());
@@ -52,20 +72,26 @@ function cutoffClockLabel(startTimeHm: string | null | undefined, cutoffHours: n
   return closedAt ?? `${hours}h before`;
 }
 
-export default function PartnerUnifiedAgendaTourControls({
+function PartnerUnifiedAgendaTourControls({
   event,
   listing,
   bookings,
   canEdit,
   dayClosed,
-  onListingsChange,
-  onSaved,
+  onPatch,
 }: Props) {
   const [saving, setSaving] = useState<'block' | 'capacity' | 'cutoff' | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState<'capacity' | 'cutoff' | null>(null);
   const [spotsDraft, setSpotsDraft] = useState('');
   const [cutoffDraft, setCutoffDraft] = useState('0');
+  /** Local overrides until parent props catch up — keeps the card instant. */
+  const [localClosed, setLocalClosed] = useState<boolean | null>(null);
+  const [localCapacity, setLocalCapacity] = useState<number | null>(null);
+  const [localCutoffHours, setLocalCutoffHours] = useState<number | null>(null);
+  const inFlightRef = useRef(false);
+  const listingRef = useRef(listing);
+  listingRef.current = listing;
 
   const listingBookings = useMemo(
     () => bookings.filter((b) => b.listing_id === listing.id),
@@ -92,70 +118,166 @@ export default function PartnerUnifiedAgendaTourControls({
   }, [listing, event.ymd, event.timeHm, event.optionLabel, listingBookings]);
 
   const booked = focusedDep?.occupying ?? event.bookedCount ?? 0;
-  const capacity = focusedDep?.capacity ?? event.capacityCount ?? 0;
-  const cutoffHours = focusedDep?.cutoffHours ?? event.cutoffHours ?? 0;
+  const capacity = localCapacity ?? focusedDep?.capacity ?? event.capacityCount ?? 0;
+  const cutoffHours = localCutoffHours ?? focusedDep?.cutoffHours ?? event.cutoffHours ?? 0;
+  const closed = localClosed ?? dayClosed;
   const clock = cutoffClockLabel(event.timeHm ?? focusedDep?.startTimeHm, cutoffHours);
+
+  // Clear local overrides once parent state matches.
+  useEffect(() => {
+    if (localClosed != null && localClosed === dayClosed) setLocalClosed(null);
+  }, [dayClosed, localClosed]);
+
+  useEffect(() => {
+    const next = focusedDep?.capacity ?? event.capacityCount ?? null;
+    if (localCapacity != null && next != null && localCapacity === next) setLocalCapacity(null);
+  }, [focusedDep?.capacity, event.capacityCount, localCapacity]);
+
+  useEffect(() => {
+    const next = focusedDep?.cutoffHours ?? event.cutoffHours ?? null;
+    if (localCutoffHours != null && next != null && localCutoffHours === next) {
+      setLocalCutoffHours(null);
+    }
+  }, [focusedDep?.cutoffHours, event.cutoffHours, localCutoffHours]);
 
   useEffect(() => {
     if (editing === 'capacity') setSpotsDraft(String(capacity));
     if (editing === 'cutoff') setCutoffDraft(String(cutoffHours));
   }, [editing, capacity, cutoffHours]);
 
-  const run = async (
-    kind: 'block' | 'capacity' | 'cutoff',
-    fn: () => Promise<{ ok: boolean; error?: string; listing?: TourPackage }>
-  ) => {
-    if (!canEdit) return;
-    setSaving(kind);
+  const busy = saving != null || inFlightRef.current;
+  const fieldsLocked = closed || busy || !canEdit;
+
+  const toggleBlock = async () => {
+    if (!canEdit || inFlightRef.current) return;
+    const nextClosed = !closed;
+    const previous = closed;
+    inFlightRef.current = true;
+    setSaving('block');
     setError(null);
+    setLocalClosed(nextClosed);
+    onPatch({ type: 'dayClosed', listingId: listing.id, iso: event.ymd, closed: nextClosed });
     try {
-      const res = await fn();
+      const res = await partnerUnifiedSetTourDayClosed({
+        listingId: listing.id,
+        iso: event.ymd,
+        closed: nextClosed,
+      });
       if (!res.ok) {
+        setLocalClosed(previous);
+        onPatch({ type: 'dayClosed', listingId: listing.id, iso: event.ymd, closed: previous });
         setError(res.error ?? 'Could not save.');
-        return;
       }
-      if (res.listing) {
-        const updated = res.listing;
-        onListingsChange((prev) => prev.map((l) => (l.id === updated.id ? updated : l)));
-      }
-      setEditing(null);
-      onSaved?.();
     } catch (e) {
+      setLocalClosed(previous);
+      onPatch({ type: 'dayClosed', listingId: listing.id, iso: event.ymd, closed: previous });
       setError(userFacingError(e, USER_ERROR.listingSave));
     } finally {
+      inFlightRef.current = false;
       setSaving(null);
     }
   };
 
-  const busy = saving != null;
-  const fieldsLocked = dayClosed || busy || !canEdit;
+  const saveCapacity = async () => {
+    if (!canEdit || !focusedDep || inFlightRef.current) return;
+    const nextSpots = Math.floor(Number(spotsDraft) || 0);
+    if (nextSpots < booked) {
+      setError(
+        `Cannot set capacity below ${booked} confirmed guest${booked === 1 ? '' : 's'}.`
+      );
+      return;
+    }
+    const previous = capacity;
+    const dep = focusedDep;
+    inFlightRef.current = true;
+    setSaving('capacity');
+    setError(null);
+    setLocalCapacity(nextSpots);
+    try {
+      await enqueueListingSave(listing.id, async () => {
+        const res = await partnerUnifiedSaveTourDepartureWithListing({
+          listing: listingRef.current,
+          iso: event.ymd,
+          startTimeHm: dep.startTimeHm,
+          capacity: nextSpots,
+          cutoffHours: localCutoffHours ?? dep.cutoffHours,
+          occupying: dep.occupying,
+          scheduleCapacity: dep.scheduleCapacity,
+          baselineCutoffHours: dep.baselineCutoffHours,
+        });
+        if (!res.ok) {
+          setLocalCapacity(previous);
+          setError(res.error ?? 'Could not save.');
+          return;
+        }
+        if (res.listing) onPatch({ type: 'listing', listing: res.listing });
+        setEditing(null);
+      });
+    } catch (e) {
+      setLocalCapacity(previous);
+      setError(userFacingError(e, USER_ERROR.listingSave));
+    } finally {
+      inFlightRef.current = false;
+      setSaving(null);
+    }
+  };
+
+  const saveCutoff = async () => {
+    if (!canEdit || !focusedDep || inFlightRef.current) return;
+    const nextCutoff = normalizeBookingCutoffHours(Number(cutoffDraft) || 0);
+    const previous = cutoffHours;
+    const dep = focusedDep;
+    inFlightRef.current = true;
+    setSaving('cutoff');
+    setError(null);
+    setLocalCutoffHours(nextCutoff);
+    try {
+      await enqueueListingSave(listing.id, async () => {
+        const res = await partnerUnifiedSaveTourDepartureWithListing({
+          listing: listingRef.current,
+          iso: event.ymd,
+          startTimeHm: dep.startTimeHm,
+          capacity: localCapacity ?? dep.capacity,
+          cutoffHours: nextCutoff,
+          occupying: dep.occupying,
+          scheduleCapacity: dep.scheduleCapacity,
+          baselineCutoffHours: dep.baselineCutoffHours,
+        });
+        if (!res.ok) {
+          setLocalCutoffHours(previous);
+          setError(res.error ?? 'Could not save.');
+          return;
+        }
+        if (res.listing) onPatch({ type: 'listing', listing: res.listing });
+        setEditing(null);
+      });
+    } catch (e) {
+      setLocalCutoffHours(previous);
+      setError(userFacingError(e, USER_ERROR.listingSave));
+    } finally {
+      inFlightRef.current = false;
+      setSaving(null);
+    }
+  };
 
   return (
     <div className="puc-tour-ops" onClick={(e) => e.stopPropagation()}>
       <div className="puc-tour-ops__seg puc-tour-ops__seg--block">
-        <label className={`puc-tour-ops__switch${dayClosed ? ' is-on' : ''}`}>
+        <label className={`puc-tour-ops__switch${closed ? ' is-on' : ''}`}>
           <span className="puc-tour-ops__seg-label">Block</span>
           <input
             type="checkbox"
             role="switch"
-            aria-label={dayClosed ? 'Unblock departure day' : 'Block departure day'}
-            checked={dayClosed}
+            aria-label={closed ? 'Unblock departure day' : 'Block departure day'}
+            checked={closed}
             disabled={!canEdit || busy}
-            onChange={() =>
-              void run('block', () =>
-                partnerUnifiedSetTourDayClosed({
-                  listingId: listing.id,
-                  iso: event.ymd,
-                  closed: !dayClosed,
-                })
-              )
-            }
+            onChange={() => void toggleBlock()}
           />
           <span className="puc-tour-ops__switch-ui" aria-hidden>
             {saving === 'block' ? <Loader2 className="puc-tour-ops__spin" aria-hidden /> : null}
           </span>
         </label>
-        {dayClosed ? <span className="puc-tour-ops__blocked">Blocked</span> : null}
+        {closed ? <span className="puc-tour-ops__blocked">Blocked</span> : null}
       </div>
 
       <div className="puc-tour-ops__seg puc-tour-ops__seg--capacity">
@@ -175,18 +297,7 @@ export default function PartnerUnifiedAgendaTourControls({
                 if (e.key === 'Escape') setEditing(null);
                 if (e.key === 'Enter') {
                   e.preventDefault();
-                  void run('capacity', () =>
-                    partnerUnifiedSaveTourDepartureWithListing({
-                      listing,
-                      iso: event.ymd,
-                      startTimeHm: focusedDep.startTimeHm,
-                      capacity: Number(spotsDraft),
-                      cutoffHours: focusedDep.cutoffHours,
-                      occupying: focusedDep.occupying,
-                      scheduleCapacity: focusedDep.scheduleCapacity,
-                      baselineCutoffHours: focusedDep.baselineCutoffHours,
-                    })
-                  );
+                  void saveCapacity();
                 }
               }}
             />
@@ -195,20 +306,7 @@ export default function PartnerUnifiedAgendaTourControls({
               className="puc-tour-ops__icon-btn"
               disabled={fieldsLocked}
               aria-label="Save capacity"
-              onClick={() =>
-                void run('capacity', () =>
-                  partnerUnifiedSaveTourDepartureWithListing({
-                    listing,
-                    iso: event.ymd,
-                    startTimeHm: focusedDep.startTimeHm,
-                    capacity: Number(spotsDraft),
-                    cutoffHours: focusedDep.cutoffHours,
-                    occupying: focusedDep.occupying,
-                    scheduleCapacity: focusedDep.scheduleCapacity,
-                    baselineCutoffHours: focusedDep.baselineCutoffHours,
-                  })
-                )
-              }
+              onClick={() => void saveCapacity()}
             >
               {saving === 'capacity' ? (
                 <Loader2 className="puc-tour-ops__spin" aria-hidden />
@@ -264,20 +362,7 @@ export default function PartnerUnifiedAgendaTourControls({
               className="puc-tour-ops__icon-btn"
               disabled={fieldsLocked}
               aria-label="Save cutoff"
-              onClick={() =>
-                void run('cutoff', () =>
-                  partnerUnifiedSaveTourDepartureWithListing({
-                    listing,
-                    iso: event.ymd,
-                    startTimeHm: focusedDep.startTimeHm,
-                    capacity: focusedDep.capacity,
-                    cutoffHours: Number(cutoffDraft),
-                    occupying: focusedDep.occupying,
-                    scheduleCapacity: focusedDep.scheduleCapacity,
-                    baselineCutoffHours: focusedDep.baselineCutoffHours,
-                  })
-                )
-              }
+              onClick={() => void saveCutoff()}
             >
               {saving === 'cutoff' ? (
                 <Loader2 className="puc-tour-ops__spin" aria-hidden />
@@ -336,3 +421,5 @@ export default function PartnerUnifiedAgendaTourControls({
     </div>
   );
 }
+
+export default memo(PartnerUnifiedAgendaTourControls);

@@ -46,7 +46,9 @@ import {
   type PartnerUnifiedMonthDaySummary,
 } from '../../lib/partner-unified-calendar';
 import { TraverionSingleDateField } from '../../components/calendar/TraverionSingleDateField';
-import PartnerUnifiedAgendaTourControls from '../../components/supplier/PartnerUnifiedAgendaTourControls';
+import PartnerUnifiedAgendaTourControls, {
+  type PartnerUnifiedAgendaTourPatch,
+} from '../../components/supplier/PartnerUnifiedAgendaTourControls';
 import {
   annotateStayMonthSummaries,
   buildPartnerUnifiedRentalBlockEvents,
@@ -390,6 +392,16 @@ export default function SupplierUnifiedCalendar() {
     [scopedListings]
   );
 
+  /** Stable id key — slot-override edits must not refetch day caps for every listing. */
+  const tourListingIdsKey = useMemo(
+    () =>
+      tourListingsInScope
+        .map((l) => l.id)
+        .sort()
+        .join(','),
+    [tourListingsInScope]
+  );
+
   useEffect(() => {
     if (!isSupabase || listings.length === 0) {
       setDayCapsByListing(new Map());
@@ -400,39 +412,42 @@ export default function SupplierUnifiedCalendar() {
     }
 
     let cancelled = false;
+    const tourIds = tourListingIdsKey ? tourListingIdsKey.split(',').filter(Boolean) : [];
     void (async () => {
       const notes: string[] = [];
       try {
         const needTourCaps = category === 'all' || category === 'tour';
-        const nextCaps = new Map<string, Map<string, number>>();
-        if (needTourCaps && tourListingsInScope.length > 0) {
-          const results = await Promise.all(
-            tourListingsInScope.map(async (l) => {
-              try {
-                const rows = await fetchAvailabilityByListingId(l.id, {
-                  fromDate: range.fromYmd,
-                  toDate: range.toYmd,
-                });
-                return { id: l.id, rows, ok: true as const };
-              } catch {
-                return { id: l.id, rows: [], ok: false as const };
-              }
-            })
-          );
-          let failed = 0;
-          for (const r of results) {
-            if (!r.ok) failed += 1;
-            const m = new Map<string, number>();
-            for (const row of r.rows) m.set(row.available_date, Number(row.capacity));
-            nextCaps.set(r.id, m);
-          }
-          if (failed > 0) {
-            notes.push(
-              `Closed-day overrides unavailable for ${failed} tour listing${failed === 1 ? '' : 's'}.`
+        if (needTourCaps) {
+          const nextCaps = new Map<string, Map<string, number>>();
+          if (tourIds.length > 0) {
+            const results = await Promise.all(
+              tourIds.map(async (id) => {
+                try {
+                  const rows = await fetchAvailabilityByListingId(id, {
+                    fromDate: range.fromYmd,
+                    toDate: range.toYmd,
+                  });
+                  return { id, rows, ok: true as const };
+                } catch {
+                  return { id, rows: [], ok: false as const };
+                }
+              })
             );
+            let failed = 0;
+            for (const r of results) {
+              if (!r.ok) failed += 1;
+              const m = new Map<string, number>();
+              for (const row of r.rows) m.set(row.available_date, Number(row.capacity));
+              nextCaps.set(r.id, m);
+            }
+            if (failed > 0) {
+              notes.push(
+                `Closed-day overrides unavailable for ${failed} tour listing${failed === 1 ? '' : 's'}.`
+              );
+            }
           }
+          if (!cancelled) setDayCapsByListing(nextCaps);
         }
-        if (!cancelled) setDayCapsByListing(nextCaps);
 
         if (selectedListing && selectedFamily === 'stay') {
           try {
@@ -490,8 +505,8 @@ export default function SupplierUnifiedCalendar() {
     };
   }, [
     isSupabase,
-    listings,
-    tourListingsInScope,
+    listings.length,
+    tourListingIdsKey,
     category,
     range.fromYmd,
     range.toYmd,
@@ -783,6 +798,22 @@ export default function SupplierUnifiedCalendar() {
     void load().then(() => setCalendarEpoch((n) => n + 1));
   }, [load]);
 
+  /** Agenda tour ops: patch local caches only — never full-list reload. */
+  const applyTourAgendaPatch = useCallback((patch: PartnerUnifiedAgendaTourPatch) => {
+    if (patch.type === 'dayClosed') {
+      setDayCapsByListing((prev) => {
+        const next = new Map(prev);
+        const listingMap = new Map(next.get(patch.listingId) ?? []);
+        if (patch.closed) listingMap.set(patch.iso, 0);
+        else listingMap.delete(patch.iso);
+        next.set(patch.listingId, listingMap);
+        return next;
+      });
+      return;
+    }
+    setListings((prev) => prev.map((l) => (l.id === patch.listing.id ? patch.listing : l)));
+  }, []);
+
   const toggleExpand = (key: string, event?: PartnerUnifiedCalendarEvent) => {
     if (event) {
       setSelectedYmd(event.ymd);
@@ -1070,8 +1101,7 @@ export default function SupplierUnifiedCalendar() {
                               bookings={bookings}
                               canEdit={canEdit}
                               dayClosed={dayClosed}
-                              onListingsChange={setListings}
-                              onSaved={refreshAfterEdit}
+                              onPatch={applyTourAgendaPatch}
                             />
                           </div>
                         ) : (

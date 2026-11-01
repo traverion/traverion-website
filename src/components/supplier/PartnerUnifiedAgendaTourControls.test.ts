@@ -15,19 +15,24 @@ describe('PartnerUnifiedAgendaTourControls', () => {
     expect(controls).toContain('partnerUnifiedSaveTourDepartureWithListing');
     expect(controls).toContain('/ {capacity} booked');
     expect(controls).toContain('cutoffClockLabel');
-    expect(controls).toContain("Math.max(1, booked)");
+    expect(controls).toContain('inFlightRef');
+    expect(controls).toContain('setLocalClosed');
+    expect(controls).toContain('onPatch');
+    expect(controls).not.toContain('onSaved');
+    expect(controls).not.toContain('refreshAfterEdit');
 
     expect(page).toContain('PartnerUnifiedAgendaTourControls');
+    expect(page).toContain('applyTourAgendaPatch');
+    expect(page).toContain('tourListingIdsKey');
     expect(page).toContain("event.kind === 'tour_departure'");
     expect(page).toContain('partner-unified-cal__card-main--tour-ops');
-    // Stays/rentals keep expand + inline availability panel.
+    expect(page).toContain('onPatch={applyTourAgendaPatch}');
+    // Stays/rentals keep expand + full refresh path.
     expect(page).toContain('PartnerUnifiedInlineAvailabilityEdit');
+    expect(page).toContain('onSaved={refreshAfterEdit}');
 
     // Week/Month must not mount agenda tour ops.
     expect(week).not.toContain('PartnerUnifiedAgendaTourControls');
-    expect(page).toContain("view === 'agenda'");
-    expect(page).toContain('PartnerUnifiedWeekView');
-    // Tour ops JSX only appears in the agenda branch (before week view mount).
     const tourOpsJsx = page.indexOf('<PartnerUnifiedAgendaTourControls');
     const weekViewJsx = page.indexOf('<PartnerUnifiedWeekView');
     expect(tourOpsJsx).toBeGreaterThan(-1);
