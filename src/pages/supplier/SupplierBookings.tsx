@@ -120,6 +120,7 @@ import { parseListingExtras, materializedBookingOptions } from '../../types/list
 import {
   applyPartnerBookingsDesk,
   partnerBookingLifecycleLabel,
+  partnerBookingListBadgeLabel,
   PARTNER_BOOKINGS_SORTS,
   PARTNER_BOOKINGS_TRAVEL,
   type PartnerBookingsOps,
@@ -250,8 +251,34 @@ function bookingPaginationRange(totalPages: number, current: number): (number | 
   return out;
 }
 
+function listStatusBadge(
+  status: string | null | undefined,
+  paymentStatus?: string | null
+): { label: string | null; className: string } {
+  const pay = (paymentStatus ?? '').trim().toLowerCase();
+  if (pay === 'refunded') {
+    return { label: 'Cancelled', className: bookingStatusClass('cancelled', pay) };
+  }
+  const label = partnerBookingListBadgeLabel(status);
+  return { label, className: bookingStatusClass(status ?? '', paymentStatus) };
+}
+
+function rentalListStatusBadge(booking: BookingRow): { label: string | null; className: string } {
+  const label = rentalBookingSimpleStatusLabel(booking);
+  if (label === 'Confirmed') return { label: null, className: '' };
+  return { label, className: bookingStatusClass(booking.status ?? '', booking.payment_status) };
+}
+
 function readTravelWindow(raw: string | null): PartnerBookingsTravelWindow {
-  if (raw === 'today' || raw === 'tomorrow' || raw === 'upcoming' || raw === 'past' || raw === 'range' || raw === 'all') {
+  if (
+    raw === 'yesterday' ||
+    raw === 'today' ||
+    raw === 'tomorrow' ||
+    raw === 'upcoming' ||
+    raw === 'past' ||
+    raw === 'range' ||
+    raw === 'all'
+  ) {
     return raw;
   }
   return 'all';
@@ -624,7 +651,15 @@ export default function SupplierBookings({
         if (ops === 'all') setOpsFilter('all');
       }
       const v = params.get('view');
-      if (v === 'today' || v === 'tomorrow' || v === 'upcoming' || v === 'past' || v === 'range' || v === 'all') {
+      if (
+        v === 'yesterday' ||
+        v === 'today' ||
+        v === 'tomorrow' ||
+        v === 'upcoming' ||
+        v === 'past' ||
+        v === 'range' ||
+        v === 'all'
+      ) {
         if (!(ops === 'refund_due' || ops === 'unpaid' || ops === 'cancel')) setView(v);
       }
       setSortBy(readSort(params.get('sort')));
@@ -863,6 +898,17 @@ export default function SupplierBookings({
         }),
       title: (b) =>
         displayListingTitleFromPurchase(b.purchase_snapshot, listingMeta[b.listing_id]?.title, ''),
+      optionLabel: (b) => {
+        const meta = listingMeta[b.listing_id];
+        const liveOption =
+          b.booking_option_id && meta?.bookingOptions?.length
+            ? meta.bookingOptions.find((o) => o.id === b.booking_option_id)?.name?.trim() || ''
+            : '';
+        const purchased = displayOptionLabelFromPurchase(b.purchase_snapshot, liveOption);
+        if (purchased) return purchased;
+        const rentalSnap = parseRentalPurchaseSnapshot(b.purchase_snapshot);
+        return rentalSnap?.variantName?.trim() || '';
+      },
       startHm: (b) => (b.start_time ? pgTimeToHm(b.start_time) ?? '' : ''),
     });
   }, [bookings, filterDateFrom, filterDateTo, filterListingId, filterQuery, listingMeta, view, opsFilter, openCancels, inventoryFamily, categoryFilter, highlightBookingId, purchaseFrom, purchaseTo, statusFilter, paymentFilter, sortBy]);
@@ -881,7 +927,18 @@ export default function SupplierBookings({
 
   useEffect(() => {
     setBookingsListPage(1);
-  }, [view, filterListingId, filterDateFrom, filterDateTo, filterQuery, opsFilter]);
+  }, [
+    view,
+    filterListingId,
+    filterDateFrom,
+    filterDateTo,
+    filterQuery,
+    opsFilter,
+    categoryFilter,
+    statusFilter,
+    paymentFilter,
+    sortBy,
+  ]);
 
   useEffect(() => {
     if (!highlightBookingId) return;
@@ -1272,25 +1329,6 @@ export default function SupplierBookings({
                   { value: 'cancelled', label: 'Cancelled' },
                 ]}
               />
-              {isUnifiedDesk ? (
-                <PartnerSelect
-                  id="bookings-filter-category-mobile"
-                  aria-label="Category"
-                  searchable={false}
-                  value={categoryFilter}
-                  onChange={(category) =>
-                    writeBookingsSearchToUrl({
-                      category: (category as '' | PartnerBookingDeskFamily) || '',
-                    })
-                  }
-                  options={[
-                    { value: '', label: 'All categories' },
-                    { value: 'tour', label: 'Tours' },
-                    { value: 'stay', label: 'Stays' },
-                    { value: 'rental', label: 'Rentals' },
-                  ]}
-                />
-              ) : null}
               <PartnerSelect
                 id="bookings-filter-listing-mobile"
                 aria-label="Experience"
@@ -1465,6 +1503,80 @@ export default function SupplierBookings({
       ) : (
       <div className="partner-bookings-workspace">
       <div className="partner-bookings-workspace__toolbar">
+        <div className="partner-bookings-workspace__quick">
+          <div className="partner-bookings-workspace__seg" role="group" aria-label="Travel day">
+            {(
+              [
+                ['yesterday', 'Yesterday'],
+                ['today', 'Today'],
+                ['tomorrow', 'Tomorrow'],
+              ] as const
+            ).map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                className={view === value ? 'is-active' : undefined}
+                aria-pressed={view === value}
+                onClick={() =>
+                  writeBookingsSearchToUrl({
+                    view: view === value ? 'all' : value,
+                    from: '',
+                    to: '',
+                  })
+                }
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <label className="partner-bookings-workspace__daypick-wrap">
+            <span className="sr-only">Pick a travel date</span>
+            <input
+              type="date"
+              className={`partner-bookings-workspace__daypick${
+                view === 'range' && filterDateFrom && (!filterDateTo || filterDateTo === filterDateFrom)
+                  ? ' is-active'
+                  : ''
+              }`}
+              value={
+                view === 'range' && filterDateFrom && (!filterDateTo || filterDateTo === filterDateFrom)
+                  ? filterDateFrom
+                  : ''
+              }
+              onChange={(e) => {
+                const day = e.target.value;
+                if (!day) {
+                  writeBookingsSearchToUrl({ view: 'all', from: '', to: '' });
+                  return;
+                }
+                writeBookingsSearchToUrl({ view: 'range', from: day, to: day });
+              }}
+              aria-label="Custom travel date"
+            />
+          </label>
+          {isUnifiedDesk ? (
+            <div className="partner-bookings-workspace__seg" role="group" aria-label="Category">
+              {(
+                [
+                  ['', 'All'],
+                  ['tour', 'Tours'],
+                  ['stay', 'Stays'],
+                  ['rental', 'Rentals'],
+                ] as const
+              ).map(([value, label]) => (
+                <button
+                  key={label}
+                  type="button"
+                  className={categoryFilter === value ? 'is-active' : undefined}
+                  aria-pressed={categoryFilter === value}
+                  onClick={() => writeBookingsSearchToUrl({ category: value })}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          ) : null}
+        </div>
         <div className="partner-bookings-workspace__controls">
           <label className="partner-bookings-workspace__search">
             <span className="sr-only">{isStayDesk ? 'Search reservations' : 'Search bookings'}</span>
@@ -1474,11 +1586,13 @@ export default function SupplierBookings({
               onChange={(e) => setSearchDraft(e.target.value)}
               placeholder={
                 isStayDesk
-                  ? 'Search guest, property or reference…'
-                  : 'Search guest / booking reference…'
+                  ? 'Search guest, property, option or reference…'
+                  : isRentalDesk
+                    ? 'Search customer, listing, option or reference…'
+                    : 'Search guest, listing, option or reference…'
               }
               className="tv-input w-full"
-              aria-label="Search by guest, email or booking reference"
+              aria-label="Search by guest, listing, option or booking reference"
             />
           </label>
           <div className="flex items-center gap-2 lg:hidden">
@@ -1516,25 +1630,6 @@ export default function SupplierBookings({
                 { value: 'cancelled', label: 'Cancelled' },
               ]}
             />
-            {isUnifiedDesk ? (
-              <PartnerSelect
-                id="bookings-filter-category"
-                aria-label="Category"
-                searchable={false}
-                value={categoryFilter}
-                onChange={(category) =>
-                  writeBookingsSearchToUrl({
-                    category: (category as '' | PartnerBookingDeskFamily) || '',
-                  })
-                }
-                options={[
-                  { value: '', label: 'All categories' },
-                  { value: 'tour', label: 'Tours' },
-                  { value: 'stay', label: 'Stays' },
-                  { value: 'rental', label: 'Rentals' },
-                ]}
-              />
-            ) : null}
             <PartnerSelect
               id="bookings-filter-listing"
               aria-labelledby="bookings-filter-listing-label"
@@ -1551,14 +1646,6 @@ export default function SupplierBookings({
             <span id="bookings-filter-listing-label" className="sr-only">
               {isStayDesk ? 'Property' : 'Listing'}
             </span>
-            <PartnerSelect
-              id="bookings-filter-travel"
-              aria-label="Travel date"
-              searchable={false}
-              value={view}
-              onChange={(next) => writeBookingsSearchToUrl({ view: next as BookingView })}
-              options={PARTNER_BOOKINGS_TRAVEL.map((item) => ({ value: item.value, label: item.label }))}
-            />
             <PartnerSelect
               id="bookings-filter-sort"
               aria-label="Sort bookings"
@@ -1577,7 +1664,7 @@ export default function SupplierBookings({
             </button>
           </div>
         </div>
-        {view === 'range' || filterDateFrom || filterDateTo ? (
+        {view === 'range' && filterDateFrom && filterDateTo && filterDateFrom !== filterDateTo ? (
           <div className="partner-bookings-workspace__range hidden items-center gap-1.5 lg:flex">
             <input
               type="date"
@@ -1598,6 +1685,21 @@ export default function SupplierBookings({
         ) : null}
         {moreFiltersOpen ? (
           <div className="partner-bookings-workspace__more-panel">
+            <PartnerSelect
+              id="bookings-filter-travel"
+              aria-label="Travel window"
+              searchable={false}
+              value={view}
+              onChange={(next) => {
+                const nextView = next as BookingView;
+                if (nextView === 'yesterday' || nextView === 'today' || nextView === 'tomorrow') {
+                  writeBookingsSearchToUrl({ view: nextView, from: '', to: '' });
+                  return;
+                }
+                writeBookingsSearchToUrl({ view: nextView });
+              }}
+              options={PARTNER_BOOKINGS_TRAVEL.map((item) => ({ value: item.value, label: item.label }))}
+            />
             <PartnerSelect
               id="bookings-filter-payment"
               aria-label="Payment status"
@@ -1841,7 +1943,13 @@ export default function SupplierBookings({
                   ? experienceToday
                   : view === 'tomorrow'
                     ? addCalendarDaysYmd(experienceToday, 1)
-                    : null;
+                    : view === 'yesterday'
+                      ? addCalendarDaysYmd(experienceToday, -1)
+                      : view === 'range' &&
+                          filterDateFrom &&
+                          (!filterDateTo || filterDateTo === filterDateFrom)
+                        ? filterDateFrom
+                        : null;
               const stayDayChip =
                 stayRangeForChip && scheduleDayIso
                   ? stayRangeForChip.checkIn === scheduleDayIso
@@ -1973,8 +2081,8 @@ export default function SupplierBookings({
                       dateLine: stayDayChip ? `${stayDayChip} · ${dateLine}` : dateLine,
                       participantLabel,
                       nightLabel: stayNightLabel,
-                      statusLabel: partnerBookingLifecycleLabel(booking.status),
-                      statusClass: bookingStatusClass(booking.status, booking.payment_status),
+                      statusLabel: listStatusBadge(booking.status, booking.payment_status).label,
+                      statusClass: listStatusBadge(booking.status, booking.payment_status).className,
                       referenceLabel,
                       purchaseDateLabel,
                       guestEmail: booking.guest_email?.trim() || null,
@@ -2056,8 +2164,8 @@ export default function SupplierBookings({
                       collectionLabel,
                       returnLabel,
                       quantityLabel,
-                      statusLabel: rentalBookingSimpleStatusLabel(booking),
-                      statusClass: bookingStatusClass(booking.status, booking.payment_status),
+                      statusLabel: rentalListStatusBadge(booking).label,
+                      statusClass: rentalListStatusBadge(booking).className,
                       referenceLabel,
                       purchaseDateLabel,
                       collectionPlace: rentalSnap?.pickupAddress?.trim() || null,
@@ -2126,8 +2234,8 @@ export default function SupplierBookings({
                     dateLine,
                     departureNote: dep.purchasedNote || null,
                     participantLabel,
-                    statusLabel: partnerBookingLifecycleLabel(booking.status),
-                    statusClass: bookingStatusClass(booking.status, booking.payment_status),
+                    statusLabel: listStatusBadge(booking.status, booking.payment_status).label,
+                    statusClass: listStatusBadge(booking.status, booking.payment_status).className,
                     referenceLabel,
                     purchaseDateLabel,
                     arrivalRailLabel: arrival.railLabel,

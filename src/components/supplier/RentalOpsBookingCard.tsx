@@ -1,8 +1,8 @@
 /**
- * Expandable rental booking row — collection/return schedule facts, not handover workflow.
+ * Expandable rental booking row — compact scan row + collection/return details.
  */
 import { type MouseEvent, type ReactNode } from 'react';
-import { CalendarDays, ChevronDown, Copy, Mail } from 'lucide-react';
+import { ChevronDown, Copy, Mail } from 'lucide-react';
 
 export type RentalOpsCardModel = {
   id: string;
@@ -14,12 +14,11 @@ export type RentalOpsCardModel = {
   customerEmail: string | null;
   customerPhone: string | null;
   customerNotes: string | null;
-  /** Compact rental period line (collection → return). */
   periodLine: string;
   collectionLabel: string;
   returnLabel: string;
   quantityLabel: string;
-  statusLabel: string;
+  statusLabel: string | null;
   statusClass: string;
   referenceLabel: string;
   purchaseDateLabel: string | null;
@@ -32,7 +31,6 @@ export type RentalOpsCardModel = {
   earningsLabel: string | null;
   financeLoading: boolean;
   paymentLabel: string;
-  /** Optional rental terms / damage liability summary. */
   termsSummary: string | null;
 };
 
@@ -61,7 +59,6 @@ export default function RentalOpsBookingCard({
   copied,
 }: Props) {
   const stop = (e: MouseEvent) => e.stopPropagation();
-  const identityLine = [model.customerName, model.quantityLabel].filter(Boolean).join(' · ');
 
   return (
     <article
@@ -72,6 +69,18 @@ export default function RentalOpsBookingCard({
       className={`tour-ops-card${expanded ? ' is-expanded' : ''}`}
     >
       <div className="tour-ops-card__main">
+        <button
+          type="button"
+          className="tour-ops-card__expand lux-flat"
+          aria-expanded={expanded}
+          aria-label={`${expanded ? 'Collapse' : 'Expand'} rental booking for ${model.listingTitle}`}
+          onClick={onToggleExpand}
+        >
+          <ChevronDown
+            className={`tour-ops-card__chevron${expanded ? ' is-open' : ''}`}
+            aria-hidden
+          />
+        </button>
         <div className="tour-ops-card__check" onClick={stop}>
           {checkbox}
         </div>
@@ -91,37 +100,33 @@ export default function RentalOpsBookingCard({
             <div className="tour-ops-card__top">
               <div className="tour-ops-card__identity">
                 <p className="tour-ops-card__title" title={model.listingTitle}>
-                  <span className="min-w-0 truncate">{model.listingTitle}</span>
+                  {model.listingTitle}
                 </p>
                 {model.variantLabel ? (
                   <p className="tour-ops-card__option" title={model.variantLabel}>
                     {model.variantLabel}
                   </p>
                 ) : null}
-                {identityLine ? (
-                  <p className="tour-ops-card__option" title={identityLine}>
-                    {identityLine}
-                  </p>
-                ) : null}
               </div>
               <div className="tour-ops-card__rail">
-                <div className="tour-ops-card__rail-stack">
-                  {model.categoryLabel ? (
-                    <span className="tour-ops-card__category">{model.categoryLabel}</span>
-                  ) : null}
+                {model.categoryLabel ? (
+                  <span className="tour-ops-card__category">{model.categoryLabel}</span>
+                ) : null}
+                {model.statusLabel ? (
                   <span className={`tour-ops-card__status ${model.statusClass}`}>{model.statusLabel}</span>
-                </div>
-                <ChevronDown
-                  className={`tour-ops-card__chevron${expanded ? ' is-open' : ''}`}
-                  aria-hidden
-                />
+                ) : null}
               </div>
             </div>
-            <div className="tour-ops-card__meta">
-              <span className="tour-ops-card__meta-item" title={model.periodLine}>
-                <CalendarDays className="tour-ops-card__title-icon" aria-hidden />
-                <span className="min-w-0 truncate">{model.periodLine}</span>
+            <div className="tour-ops-card__facts">
+              <span className="tour-ops-card__fact" title={model.periodLine}>
+                {model.periodLine}
               </span>
+              <span className="tour-ops-card__fact" title={model.customerName}>
+                {model.customerName}
+              </span>
+              {model.quantityLabel ? (
+                <span className="tour-ops-card__fact">{model.quantityLabel}</span>
+              ) : null}
               <button
                 type="button"
                 className="tour-ops-card__ref lux-flat"
@@ -141,11 +146,6 @@ export default function RentalOpsBookingCard({
                   </>
                 )}
               </button>
-              {model.purchaseDateLabel ? (
-                <span className="tour-ops-card__purchased" title="Purchase date">
-                  Purchased {model.purchaseDateLabel}
-                </span>
-              ) : null}
             </div>
             {model.warning ? <p className="tour-ops-card__warn">{model.warning}</p> : null}
           </div>
@@ -173,6 +173,9 @@ export default function RentalOpsBookingCard({
               </p>
             ) : null}
             <p className="tour-ops-card__summary-meta">{model.quantityLabel}</p>
+            {model.purchaseDateLabel ? (
+              <p className="tour-ops-card__summary-meta">Purchased {model.purchaseDateLabel}</p>
+            ) : null}
             {model.customerNotes ? (
               <p className="tour-ops-card__summary-note">{model.customerNotes}</p>
             ) : null}

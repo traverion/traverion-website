@@ -13,7 +13,14 @@ import {
 import { nightsOccupiedByStay, stayRangeFromBooking } from './stayOccupancy';
 import { bookingIsRental } from './pickup-completeness';
 
-export type PartnerBookingsTravelWindow = 'all' | 'today' | 'tomorrow' | 'upcoming' | 'past' | 'range';
+export type PartnerBookingsTravelWindow =
+  | 'all'
+  | 'yesterday'
+  | 'today'
+  | 'tomorrow'
+  | 'upcoming'
+  | 'past'
+  | 'range';
 export type PartnerBookingsSort =
   | 'newest'
   | 'oldest'
@@ -72,6 +79,7 @@ export const PARTNER_BOOKINGS_SORTS: Array<{ value: PartnerBookingsSort; label: 
 
 export const PARTNER_BOOKINGS_TRAVEL: Array<{ value: PartnerBookingsTravelWindow; label: string }> = [
   { value: 'all', label: 'Travel date' },
+  { value: 'yesterday', label: 'Yesterday' },
   { value: 'today', label: 'Today' },
   { value: 'tomorrow', label: 'Tomorrow' },
   { value: 'upcoming', label: 'Upcoming' },
@@ -86,6 +94,13 @@ export function partnerBookingLifecycleLabel(status: string | null | undefined):
   if (s === 'cancelled') return 'Cancelled';
   if (s === 'completed') return 'Completed';
   return (status ?? '').trim() || 'Pending';
+}
+
+/** List-row badge — hide Confirmed/Active noise; keep exceptional states. */
+export function partnerBookingListBadgeLabel(status: string | null | undefined): string | null {
+  const label = partnerBookingLifecycleLabel(status);
+  if (!label || label === 'Confirmed') return null;
+  return label;
 }
 
 export function partnerBookingsDeskFiltersActive(query: PartnerBookingsDeskQuery): boolean {
@@ -153,11 +168,17 @@ function matchesTravel(
   if (query.travel === 'all' && !query.travelFrom && !query.travelTo) return true;
   const stayRange = isStay ? stayRangeFromBooking(row) : null;
   const experienceToday = scheduleTodayIsoForBooking(row, nowMs);
+  const experienceYesterday = addCalendarDaysYmd(experienceToday, -1) ?? experienceToday;
   const experienceTomorrow = addCalendarDaysYmd(experienceToday, 1) ?? experienceToday;
-  if (query.travel === 'today' || query.travel === 'tomorrow') {
+  if (query.travel === 'yesterday' || query.travel === 'today' || query.travel === 'tomorrow') {
     if (query.ops === 'refund_due' || query.ops === 'unpaid' || query.ops === 'cancel') return true;
     if (!partnerBookingIsOperatingTrip(row)) return false;
-    const dayIso = query.travel === 'today' ? experienceToday : experienceTomorrow;
+    const dayIso =
+      query.travel === 'yesterday'
+        ? experienceYesterday
+        : query.travel === 'today'
+          ? experienceToday
+          : experienceTomorrow;
     if (bookingIsRental(row)) return partnerRentalScheduleYmds(row).includes(dayIso);
     if (stayRange) return partnerStayTouchesScheduleDay(stayRange.checkIn, stayRange.checkOut, dayIso);
     return row.booking_date === dayIso;
@@ -222,6 +243,8 @@ export function applyPartnerBookingsDesk<T extends PartnerBookingsDeskRow>(
     pickupAttention: (row: T) => boolean;
     openCancel: (row: T) => boolean;
     title: (row: T) => string;
+    /** Purchased option / variant label shown on the booking row. */
+    optionLabel?: (row: T) => string;
     startHm: (row: T) => string;
   }
 ): T[] {
@@ -252,12 +275,14 @@ export function applyPartnerBookingsDesk<T extends PartnerBookingsDeskRow>(
     // Phase 1481: search must match purchased titles shown on rows, not live listing renames.
     // Phase 1484: search must match booking # shown on rows (admin 1053 parity).
     const title = extras.title(b).toLowerCase();
+    const option = (extras.optionLabel?.(b) ?? '').toLowerCase();
     const idLower = b.id.toLowerCase();
     const guestName = (b.guest_name ?? '').toLowerCase();
     const guestEmail = (b.guest_email ?? '').toLowerCase();
     const reference = (b.public_reference ?? '').toLowerCase();
     return (
       title.includes(q) ||
+      option.includes(q) ||
       partnerBookingNumberMatchesFilterQuery(q, b.booking_number) ||
       idLower.includes(q) ||
       reference.includes(q) ||

@@ -1,8 +1,8 @@
 /**
- * Expandable tour booking row — scan row + minimal inline ops details.
+ * Expandable tour booking row — compact scan row + inline ops details.
  */
 import { type MouseEvent, type ReactNode } from 'react';
-import { CalendarDays, ChevronDown, Copy, Mail, MapPin, User } from 'lucide-react';
+import { ChevronDown, Copy, Mail, MapPin, User } from 'lucide-react';
 
 export type TourOpsCardModel = {
   id: string;
@@ -17,15 +17,14 @@ export type TourOpsCardModel = {
   dateLine: string;
   departureNote: string | null;
   participantLabel: string;
-  statusLabel: string;
+  /** Exceptional statuses only — Confirmed/Active stay null. */
+  statusLabel: string | null;
   statusClass: string;
   referenceLabel: string;
   purchaseDateLabel: string | null;
-  /** Right-rail arrival indicator */
   arrivalRailLabel: string | null;
   arrivalRailWarn?: boolean;
   pickupSummary: string | null;
-  /** Prefer place over joined summary when present */
   arrivalPlace?: string | null;
   arrivalInstructions?: string | null;
   arrivalSectionLabel: string;
@@ -76,14 +75,7 @@ export default function TourOpsBookingCard({
     arrivalInstructions ||
     (model.arrivalRailWarn ? 'Pickup location needed' : '—');
   const showInstructionUnderPlace = Boolean(arrivalPlace && arrivalInstructions);
-  const pickupRailKind = (() => {
-    const label = (model.arrivalRailLabel || '').toLowerCase();
-    if (label.includes('meeting')) return 'meeting';
-    if (label.includes('fixed')) return 'fixed';
-    if (label.includes('needed') || model.arrivalRailWarn) return 'warn';
-    if (label.includes('pickup')) return 'pickup';
-    return 'default';
-  })();
+  const whenTitle = model.departureNote ? `${model.dateLine}. ${model.departureNote}` : model.dateLine;
 
   return (
     <article
@@ -94,6 +86,19 @@ export default function TourOpsBookingCard({
       className={`tour-ops-card${expanded ? ' is-expanded' : ''}`}
     >
       <div className="tour-ops-card__main">
+        <button
+          type="button"
+          className="tour-ops-card__expand lux-flat"
+          aria-expanded={expanded}
+          aria-label={`${expanded ? 'Collapse' : 'Expand'} booking for ${model.listingTitle}`}
+          onClick={onToggleExpand}
+        >
+          <ChevronDown
+            className={`tour-ops-card__chevron${expanded ? ' is-open' : ''}`}
+            strokeWidth={2}
+            aria-hidden
+          />
+        </button>
         <div className="tour-ops-card__check" onClick={stop}>
           {checkbox}
         </div>
@@ -112,63 +117,34 @@ export default function TourOpsBookingCard({
           <div className="tour-ops-card__body">
             <div className="tour-ops-card__top">
               <div className="tour-ops-card__identity">
-                <p
-                  className="tour-ops-card__title tour-ops-card__title--when"
-                  title={
-                    model.departureNote ? `${model.dateLine}. ${model.departureNote}` : model.dateLine
-                  }
-                >
-                  <CalendarDays className="tour-ops-card__title-icon" strokeWidth={2} aria-hidden />
-                  <span className="min-w-0 truncate">
-                    {model.dateLine}
-                    {model.departureNote ? (
-                      <span className="tour-ops-card__when-note"> · {model.departureNote}</span>
-                    ) : null}
-                  </span>
+                <p className="tour-ops-card__title" title={model.listingTitle}>
+                  {model.listingTitle}
                 </p>
-                <p className="tour-ops-card__option" title={[model.guestName, model.participantLabel].filter(Boolean).join(' · ')}>
-                  <User className="inline h-3 w-3 shrink-0 opacity-60" strokeWidth={2} aria-hidden />{' '}
-                  {model.guestName}
-                  {model.participantLabel ? ` · ${model.participantLabel}` : ''}
-                </p>
+                {model.optionLabel ? (
+                  <p className="tour-ops-card__option" title={model.optionLabel}>
+                    {model.optionLabel}
+                  </p>
+                ) : null}
               </div>
               <div className="tour-ops-card__rail">
-                <div className="tour-ops-card__rail-stack">
-                  {model.categoryLabel ? (
-                    <span className="tour-ops-card__category">{model.categoryLabel}</span>
-                  ) : null}
+                {model.categoryLabel ? (
+                  <span className="tour-ops-card__category">{model.categoryLabel}</span>
+                ) : null}
+                {model.statusLabel ? (
                   <span className={`tour-ops-card__status ${model.statusClass}`}>{model.statusLabel}</span>
-                  {model.arrivalRailLabel ? (
-                    <span
-                      className={`tour-ops-card__pickup tour-ops-card__pickup--${pickupRailKind}${
-                        model.arrivalRailWarn ? ' tour-ops-card__pickup--warn' : ''
-                      }`}
-                      title={model.pickupSummary || model.arrivalRailLabel}
-                    >
-                      <MapPin className="h-3 w-3 shrink-0" strokeWidth={2} aria-hidden />
-                      {model.arrivalRailLabel}
-                    </span>
-                  ) : null}
-                </div>
-                <ChevronDown
-                  className={`tour-ops-card__chevron${expanded ? ' is-open' : ''}`}
-                  strokeWidth={2}
-                  aria-hidden
-                />
+                ) : null}
               </div>
             </div>
-            <div className="tour-ops-card__meta">
-              <span
-                className="tour-ops-card__meta-item tour-ops-card__meta-item--product"
-                title={[model.listingTitle, model.optionLabel].filter(Boolean).join(' · ')}
-              >
-                <span className="truncate">
-                  {model.listingTitle}
-                  {model.optionLabel ? (
-                    <span className="tour-ops-card__when-note"> · {model.optionLabel}</span>
-                  ) : null}
-                </span>
+            <div className="tour-ops-card__facts">
+              <span className="tour-ops-card__fact" title={whenTitle}>
+                {model.dateLine}
               </span>
+              <span className="tour-ops-card__fact" title={model.guestName}>
+                {model.guestName}
+              </span>
+              {model.participantLabel ? (
+                <span className="tour-ops-card__fact">{model.participantLabel}</span>
+              ) : null}
               <button
                 type="button"
                 className="tour-ops-card__ref lux-flat"
@@ -188,11 +164,6 @@ export default function TourOpsBookingCard({
                   </>
                 )}
               </button>
-              {model.purchaseDateLabel ? (
-                <span className="tour-ops-card__purchased" title="Purchase date">
-                  Purchased {model.purchaseDateLabel}
-                </span>
-              ) : null}
             </div>
             {actionableNote ? <p className="tour-ops-card__warn">{actionableNote}</p> : null}
           </div>
@@ -216,6 +187,9 @@ export default function TourOpsBookingCard({
               </a>
             ) : null}
             <p className="tour-ops-card__summary-meta">{model.participantLabel}</p>
+            {model.purchaseDateLabel ? (
+              <p className="tour-ops-card__summary-meta">Purchased {model.purchaseDateLabel}</p>
+            ) : null}
             <button
               type="button"
               className="tour-ops-card__summary-link lux-flat"
@@ -240,6 +214,9 @@ export default function TourOpsBookingCard({
             </p>
             {showInstructionUnderPlace ? (
               <p className="tour-ops-card__summary-note">{arrivalInstructions}</p>
+            ) : null}
+            {model.departureNote ? (
+              <p className="tour-ops-card__summary-note">{model.departureNote}</p>
             ) : null}
             {showGuestNotes && model.guestNotes ? (
               <p className="tour-ops-card__summary-note">{model.guestNotes}</p>

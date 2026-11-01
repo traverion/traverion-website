@@ -6,7 +6,11 @@ import { createElement } from 'react';
 import TourOpsBookingCard, {
   type TourOpsCardModel,
 } from '../../components/supplier/TourOpsBookingCard';
-import { PARTNER_BOOKINGS_SORTS, PARTNER_BOOKINGS_TRAVEL } from '../../lib/partner-bookings-desk';
+import {
+  PARTNER_BOOKINGS_SORTS,
+  PARTNER_BOOKINGS_TRAVEL,
+  partnerBookingListBadgeLabel,
+} from '../../lib/partner-bookings-desk';
 
 const baseModel: TourOpsCardModel = {
   id: 'b1',
@@ -19,8 +23,8 @@ const baseModel: TourOpsCardModel = {
   dateLine: '12 Jun · 09:00',
   departureNote: null,
   participantLabel: '2 adults',
-  statusLabel: 'Confirmed',
-  statusClass: 'text-finland ring-finland/20 bg-finland/5',
+  statusLabel: null,
+  statusClass: '',
   referenceLabel: 'TV-ABCDEF',
   purchaseDateLabel: '1 Jun 2026',
   arrivalRailLabel: 'Pickup',
@@ -47,10 +51,13 @@ describe('Bookings V4 — tour ops card & detail page', () => {
     expect(src).toContain("from '../../components/supplier/TourOpsBookingDetail'");
     expect(src).toContain('partner-bookings-workspace');
     expect(src).toContain('partner-bookings-workspace__controls');
+    expect(src).toContain('partner-bookings-workspace__quick');
+    expect(src).toContain('partner-bookings-workspace__seg');
     expect(src).toContain('expandedTourId');
     expect(src).toContain('tourDetailMode');
     expect(src).toContain('resolvePartnerArrivalDisplay');
     expect(src).toContain('partnerBookingDeskPath');
+    expect(src).toContain('listStatusBadge');
     expect(src).not.toContain('Mark as reviewed');
     expect(src).not.toContain('Acknowledge');
     expect(src).toContain('openBookingInbox(booking.id)');
@@ -65,8 +72,9 @@ describe('Bookings V4 — tour ops card & detail page', () => {
     expect(card).toContain('Message guest');
     expect(card).not.toContain('Mark as reviewed');
     expect(card).not.toContain('Acknowledge');
-    expect(card).toContain('tour-ops-card__pickup');
-    expect(card).toContain('tour-ops-card__rail-stack');
+    expect(card).toContain('tour-ops-card__expand');
+    expect(card).toContain('tour-ops-card__facts');
+    expect(card).toContain('tour-ops-card__option');
     const detail = readFileSync(
       resolve(__dirname, '../../components/supplier/TourOpsBookingDetail.tsx'),
       'utf8'
@@ -93,15 +101,25 @@ describe('Bookings V4 — tour ops card & detail page', () => {
     expect(css).toContain('One horizontal desktop row');
     expect(css).toContain('flex-wrap: nowrap');
     expect(css).toContain('.tour-ops-card__summary-grid');
-    expect(css).toContain('.tour-ops-card__pickup');
-    expect(css).toContain('.tour-ops-card__finance-note');
+    expect(css).toContain('.tour-ops-card__facts');
+    expect(css).toContain('.tour-ops-card__expand');
+    expect(css).toContain('.partner-bookings-workspace__seg');
+    expect(css).toContain('.partner-bookings-workspace__daypick');
     expect(css).toContain('--pb-control-h');
-    expect(css).toContain('.tour-ops-card__meta-item--when');
+    expect(css).toContain('.tour-ops-card__finance-note');
   });
 
   it('uses short readable travel and sort filter labels', () => {
-    expect(PARTNER_BOOKINGS_TRAVEL.find((t) => t.value === 'all')?.label).toBe('Travel date');
+    expect(PARTNER_BOOKINGS_TRAVEL.find((t) => t.value === 'yesterday')?.label).toBe('Yesterday');
+    expect(PARTNER_BOOKINGS_TRAVEL.find((t) => t.value === 'today')?.label).toBe('Today');
+    expect(PARTNER_BOOKINGS_TRAVEL.find((t) => t.value === 'tomorrow')?.label).toBe('Tomorrow');
     expect(PARTNER_BOOKINGS_SORTS.find((s) => s.value === 'newest')?.label).toBe('Newest');
+  });
+
+  it('hides Confirmed badges on the list while keeping exceptional statuses', () => {
+    expect(partnerBookingListBadgeLabel('confirmed')).toBeNull();
+    expect(partnerBookingListBadgeLabel('pending')).toBe('Pending');
+    expect(partnerBookingListBadgeLabel('cancelled')).toBe('Cancelled');
   });
 
   it('keeps stay desk on StayOpsReservationCard', () => {
@@ -111,7 +129,7 @@ describe('Bookings V4 — tour ops card & detail page', () => {
     expect(src).toContain('expandedStayId');
   });
 
-  it('leads collapsed scan with departure, guest, and arrival under status', () => {
+  it('leads collapsed scan with title, option, and essential facts', () => {
     const html = renderToStaticMarkup(
       createElement(TourOpsBookingCard, {
         model: baseModel,
@@ -131,11 +149,13 @@ describe('Bookings V4 — tour ops card & detail page', () => {
     expect(collapsed).toContain('Morning departure');
     expect(collapsed).toContain('TV-ABCDEF');
     expect(collapsed).toContain('12 Jun · 09:00');
-    expect(collapsed).toContain('tour-ops-card__title--when');
+    expect(collapsed).toContain('tour-ops-card__title');
+    expect(collapsed).toContain('tour-ops-card__option');
+    expect(collapsed).toContain('tour-ops-card__facts');
+    expect(collapsed).toContain('tour-ops-card__expand');
     expect(collapsed).toContain('Ada Lovelace');
     expect(collapsed).toContain('2 adults');
-    expect(collapsed).toContain('tour-ops-card__pickup');
-    expect(collapsed).toContain('Pickup');
+    expect(collapsed).not.toContain('Confirmed');
     expect(html).toContain('aria-expanded="false"');
   });
 
@@ -172,13 +192,15 @@ describe('Bookings V4 — tour ops card & detail page', () => {
     expect(html).toContain('aria-expanded="true"');
   });
 
-  it('leads with departure time and keeps long experience titles secondary', () => {
+  it('keeps listing title primary with option underneath', () => {
     const html = renderToStaticMarkup(
       createElement(TourOpsBookingCard, {
         model: {
           ...baseModel,
           listingTitle:
             'Rovaniemi: Northern Lights Guarantee — 100% Refund + Photos with an Extremely Long Marketing Suffix',
+          statusLabel: 'Pending',
+          statusClass: 'bg-amber-50 text-amber-900 ring-amber-200/80',
         },
         expanded: false,
         selected: false,
@@ -189,13 +211,14 @@ describe('Bookings V4 — tour ops card & detail page', () => {
         onCopyReference: () => undefined,
       })
     );
-    expect(html).toContain('tour-ops-card__title--when');
-    expect(html).toContain('12 Jun · 09:00');
+    expect(html).toContain('tour-ops-card__title');
     expect(html).toContain('Northern Lights Guarantee');
     expect(html).toContain('Morning departure');
-    expect(html).toContain('tour-ops-card__meta-item--product');
+    expect(html).toContain('tour-ops-card__option');
+    expect(html).toContain('Pending');
     const css = readFileSync(resolve(__dirname, '../../index.css'), 'utf8');
-    expect(css).toContain('tour-ops-card__title--when');
+    expect(css).toContain('tour-ops-card__option');
+    expect(css).toContain('tour-ops-card__facts');
   });
 
   it('isolates checkbox and copy clicks from row expand via stopPropagation', () => {

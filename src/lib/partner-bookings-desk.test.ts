@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { applyPartnerBookingsDesk, comparePartnerBookingsDesk, type PartnerBookingsDeskRow } from './partner-bookings-desk';
+import { addCalendarDaysYmd } from './booking-lifecycle-calendar';
+import {
+  applyPartnerBookingsDesk,
+  comparePartnerBookingsDesk,
+  partnerBookingListBadgeLabel,
+  type PartnerBookingsDeskRow,
+} from './partner-bookings-desk';
+import { scheduleTodayIsoForBooking } from './trip-views';
 
 function row(over: Partial<PartnerBookingsDeskRow> & Pick<PartnerBookingsDeskRow, 'id' | 'created_at'>): PartnerBookingsDeskRow {
   return {
@@ -51,12 +58,47 @@ describe('partner bookings desk', () => {
     expect(ordered.map((r) => r.id)).toEqual(['a', 'c', 'b']);
   });
 
-  it('searches name, email, reference, and booking id across the full set', () => {
+  it('searches name, email, reference, option, and booking id across the full set', () => {
     expect(applyPartnerBookingsDesk(rows, { ...baseQuery, search: 'grace' }, extras).map((r) => r.id)).toEqual(['a']);
     expect(applyPartnerBookingsDesk(rows, { ...baseQuery, search: 'ADA@' }, extras).map((r) => r.id)).toEqual(['c', 'b']);
     expect(applyPartnerBookingsDesk(rows, { ...baseQuery, search: 'tv-ab23' }, extras)).toHaveLength(3);
     expect(applyPartnerBookingsDesk(rows, { ...baseQuery, search: '#42' }, extras)).toHaveLength(3);
     expect(applyPartnerBookingsDesk(rows, { ...baseQuery, search: 'nope' }, extras)).toHaveLength(0);
+    const withOption = applyPartnerBookingsDesk(rows, { ...baseQuery, search: 'aurora' }, {
+      ...extras,
+      optionLabel: (b) => (b.id === 'a' ? 'Aurora evening' : ''),
+    });
+    expect(withOption.map((r) => r.id)).toEqual(['a']);
+  });
+
+  it('hides Confirmed on list badges', () => {
+    expect(partnerBookingListBadgeLabel('confirmed')).toBeNull();
+    expect(partnerBookingListBadgeLabel('pending')).toBe('Pending');
+    expect(partnerBookingListBadgeLabel('cancelled')).toBe('Cancelled');
+  });
+
+  it('filters yesterday/today/tomorrow travel windows for operating trips', () => {
+    const nowMs = Date.parse('2026-10-17T12:00:00.000Z');
+    const dayExtras = { ...extras, nowMs };
+    const probe = row({ id: 'probe', created_at: '2026-10-01T10:00:00.000Z', booking_date: '2026-01-01' });
+    const today = scheduleTodayIsoForBooking(probe, nowMs);
+    const yesterday = addCalendarDaysYmd(today, -1)!;
+    const tomorrow = addCalendarDaysYmd(today, 1)!;
+    const dayRows = [
+      row({ id: 'y', created_at: '2026-10-01T10:00:00.000Z', booking_date: yesterday, status: 'confirmed' }),
+      row({ id: 't', created_at: '2026-10-01T10:00:00.000Z', booking_date: today, status: 'confirmed' }),
+      row({ id: 'm', created_at: '2026-10-01T10:00:00.000Z', booking_date: tomorrow, status: 'confirmed' }),
+      row({ id: 'x', created_at: '2026-10-01T10:00:00.000Z', booking_date: today, status: 'cancelled' }),
+    ];
+    expect(applyPartnerBookingsDesk(dayRows, { ...baseQuery, travel: 'yesterday' }, dayExtras).map((r) => r.id)).toEqual([
+      'y',
+    ]);
+    expect(applyPartnerBookingsDesk(dayRows, { ...baseQuery, travel: 'today' }, dayExtras).map((r) => r.id)).toEqual([
+      't',
+    ]);
+    expect(applyPartnerBookingsDesk(dayRows, { ...baseQuery, travel: 'tomorrow' }, dayExtras).map((r) => r.id)).toEqual([
+      'm',
+    ]);
   });
 
   it('filters status and payment, then sorts the whole result', () => {

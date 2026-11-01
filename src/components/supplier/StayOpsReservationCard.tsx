@@ -1,9 +1,8 @@
 /**
- * Expandable Stay reservation row — same visual shell as TourOpsBookingCard,
- * with Stay-specific fields (property, nights, check-in/out).
+ * Expandable Stay reservation row — compact scan row + stay-specific details.
  */
 import { type MouseEvent, type ReactNode } from 'react';
-import { CalendarDays, ChevronDown, Copy, Mail } from 'lucide-react';
+import { ChevronDown, Copy, Mail } from 'lucide-react';
 
 export type StayOpsCardModel = {
   id: string;
@@ -14,7 +13,7 @@ export type StayOpsCardModel = {
   dateLine: string;
   participantLabel: string;
   nightLabel: string;
-  statusLabel: string;
+  statusLabel: string | null;
   statusClass: string;
   referenceLabel: string;
   purchaseDateLabel: string | null;
@@ -58,7 +57,7 @@ export default function StayOpsReservationCard({
   copied,
 }: Props) {
   const stop = (e: MouseEvent) => e.stopPropagation();
-  const guestLine = [model.guestName, model.nightLabel].filter(Boolean).join(' · ');
+  const guestFact = [model.guestName, model.participantLabel].filter(Boolean).join(' · ');
 
   return (
     <article
@@ -69,6 +68,18 @@ export default function StayOpsReservationCard({
       className={`tour-ops-card${expanded ? ' is-expanded' : ''}`}
     >
       <div className="tour-ops-card__main">
+        <button
+          type="button"
+          className="tour-ops-card__expand lux-flat"
+          aria-expanded={expanded}
+          aria-label={`${expanded ? 'Collapse' : 'Expand'} reservation for ${model.listingTitle}`}
+          onClick={onToggleExpand}
+        >
+          <ChevronDown
+            className={`tour-ops-card__chevron${expanded ? ' is-open' : ''}`}
+            aria-hidden
+          />
+        </button>
         <div className="tour-ops-card__check" onClick={stop}>
           {checkbox}
         </div>
@@ -87,37 +98,33 @@ export default function StayOpsReservationCard({
           <div className="tour-ops-card__body">
             <div className="tour-ops-card__top">
               <div className="tour-ops-card__identity">
-                <p className="tour-ops-card__title tour-ops-card__title--when" title={model.dateLine}>
-                  <CalendarDays className="tour-ops-card__title-icon" aria-hidden />
-                  <span className="min-w-0 truncate">{model.dateLine}</span>
+                <p className="tour-ops-card__title" title={model.listingTitle}>
+                  {model.listingTitle}
                 </p>
-                {guestLine ? (
-                  <p className="tour-ops-card__option" title={guestLine}>
-                    {guestLine}
-                    {model.participantLabel ? ` · ${model.participantLabel}` : ''}
+                {model.nightLabel ? (
+                  <p className="tour-ops-card__option" title={model.nightLabel}>
+                    {model.nightLabel}
                   </p>
                 ) : null}
               </div>
               <div className="tour-ops-card__rail">
-                <div className="tour-ops-card__rail-stack">
-                  {model.categoryLabel ? (
-                    <span className="tour-ops-card__category">{model.categoryLabel}</span>
-                  ) : null}
+                {model.categoryLabel ? (
+                  <span className="tour-ops-card__category">{model.categoryLabel}</span>
+                ) : null}
+                {model.statusLabel ? (
                   <span className={`tour-ops-card__status ${model.statusClass}`}>{model.statusLabel}</span>
-                </div>
-                <ChevronDown
-                  className={`tour-ops-card__chevron${expanded ? ' is-open' : ''}`}
-                  aria-hidden
-                />
+                ) : null}
               </div>
             </div>
-            <div className="tour-ops-card__meta">
-              <span
-                className="tour-ops-card__meta-item tour-ops-card__meta-item--product"
-                title={model.listingTitle}
-              >
-                <span className="truncate">{model.listingTitle}</span>
+            <div className="tour-ops-card__facts">
+              <span className="tour-ops-card__fact" title={model.dateLine}>
+                {model.dateLine}
               </span>
+              {guestFact ? (
+                <span className="tour-ops-card__fact" title={guestFact}>
+                  {guestFact}
+                </span>
+              ) : null}
               <button
                 type="button"
                 className="tour-ops-card__ref lux-flat"
@@ -137,11 +144,6 @@ export default function StayOpsReservationCard({
                   </>
                 )}
               </button>
-              {model.purchaseDateLabel ? (
-                <span className="tour-ops-card__purchased" title="Purchase date">
-                  Purchased {model.purchaseDateLabel}
-                </span>
-              ) : null}
             </div>
             {model.warning ? <p className="tour-ops-card__warn">{model.warning}</p> : null}
           </div>
@@ -169,6 +171,9 @@ export default function StayOpsReservationCard({
               </p>
             ) : null}
             <p className="tour-ops-card__summary-meta">{model.participantLabel}</p>
+            {model.purchaseDateLabel ? (
+              <p className="tour-ops-card__summary-meta">Purchased {model.purchaseDateLabel}</p>
+            ) : null}
             {model.guestNotes ? (
               <p className="tour-ops-card__summary-note">{model.guestNotes}</p>
             ) : null}
