@@ -108,7 +108,10 @@ describe('Bookings V4 — tour ops card & detail page', () => {
     expect(css).toContain('One horizontal desktop row');
     expect(css).toContain('.tour-ops-card__summary-grid');
     expect(css).toContain('.tour-ops-card__facts');
+    expect(css).toContain('.tour-ops-card__fact-icon');
+    expect(css).toContain('.tour-ops-card__level--identity');
     expect(css).toContain('.tour-ops-card__expand');
+    expect(css).not.toContain("inset 2px 0 0 #c27803");
     expect(css).toContain('.partner-bookings-workspace__seg');
     expect(css).toContain('.partner-bookings-workspace__quick-group');
     expect(css).not.toContain('partner-bookings-workspace__quick-label');
@@ -160,7 +163,10 @@ describe('Bookings V4 — tour ops card & detail page', () => {
     expect(collapsed).toContain('12 Jun · 09:00');
     expect(collapsed).toContain('tour-ops-card__title');
     expect(collapsed).toContain('tour-ops-card__option');
+    expect(collapsed).toContain('tour-ops-card__level--identity');
+    expect(collapsed).toContain('tour-ops-card__level--facts');
     expect(collapsed).toContain('tour-ops-card__facts');
+    expect(collapsed).toContain('tour-ops-card__fact-icon');
     expect(collapsed).toContain('tour-ops-card__expand');
     expect(collapsed).toContain('Ada Lovelace');
     expect(collapsed).toContain('2 adults');
@@ -232,6 +238,8 @@ describe('Bookings V4 — tour ops card & detail page', () => {
     const css = readFileSync(resolve(__dirname, '../../index.css'), 'utf8');
     expect(css).toContain('tour-ops-card__option');
     expect(css).toContain('tour-ops-card__facts');
+    expect(css).toContain('tour-ops-card__fact-icon');
+    expect(css).toContain('tour-ops-card__level--identity');
   });
 
   it('isolates checkbox and copy clicks from row expand via stopPropagation', () => {

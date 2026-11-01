@@ -2,7 +2,7 @@
  * Expandable rental booking row — Guest | Booking details | Payment.
  */
 import { type MouseEvent, type ReactNode } from 'react';
-import { ChevronDown, Copy, Mail } from 'lucide-react';
+import { Calendar, ChevronDown, Copy, Mail, Ticket, User, Users } from 'lucide-react';
 
 export type RentalOpsCardModel = {
   id: string;
@@ -105,7 +105,7 @@ export default function RentalOpsBookingCard({
             <div className="tour-ops-card__thumb tour-ops-card__thumb--empty" aria-hidden />
           )}
           <div className="tour-ops-card__body">
-            <div className="tour-ops-card__top">
+            <div className="tour-ops-card__level tour-ops-card__level--identity">
               <div className="tour-ops-card__identity">
                 <p className="tour-ops-card__title" title={model.listingTitle}>
                   {model.listingTitle}
@@ -125,35 +125,43 @@ export default function RentalOpsBookingCard({
                 ) : null}
               </div>
             </div>
-            <div className="tour-ops-card__facts">
-              <span className="tour-ops-card__fact" title={model.periodLine}>
-                {model.periodLine}
-              </span>
-              <span className="tour-ops-card__fact" title={model.customerName}>
-                {model.customerName}
-              </span>
-              {model.quantityLabel ? (
-                <span className="tour-ops-card__fact">{model.quantityLabel}</span>
-              ) : null}
-              <button
-                type="button"
-                className="tour-ops-card__ref lux-flat"
-                onClick={(e) => {
-                  stop(e);
-                  onCopyReference();
-                }}
-                title={copied ? 'Copied' : 'Copy booking reference'}
-                aria-label={`Copy booking reference ${model.referenceLabel}`}
-              >
-                {copied ? (
-                  <span className="tour-ops-card__ref-copied">Copied</span>
-                ) : (
-                  <>
-                    <span className="tour-ops-card__ref-code">{model.referenceLabel}</span>
-                    <Copy className="h-3 w-3 shrink-0 opacity-55" strokeWidth={2} aria-hidden />
-                  </>
-                )}
-              </button>
+            <div className="tour-ops-card__level tour-ops-card__level--facts">
+              <div className="tour-ops-card__facts">
+                <span className="tour-ops-card__fact" title={model.periodLine}>
+                  <Calendar className="tour-ops-card__fact-icon" strokeWidth={2} aria-hidden />
+                  <span className="tour-ops-card__fact-text">{model.periodLine}</span>
+                </span>
+                <span className="tour-ops-card__fact" title={model.customerName}>
+                  <User className="tour-ops-card__fact-icon" strokeWidth={2} aria-hidden />
+                  <span className="tour-ops-card__fact-text">{model.customerName}</span>
+                </span>
+                {model.quantityLabel ? (
+                  <span className="tour-ops-card__fact" title={model.quantityLabel}>
+                    <Users className="tour-ops-card__fact-icon" strokeWidth={2} aria-hidden />
+                    <span className="tour-ops-card__fact-text">{model.quantityLabel}</span>
+                  </span>
+                ) : null}
+                <button
+                  type="button"
+                  className="tour-ops-card__ref lux-flat"
+                  onClick={(e) => {
+                    stop(e);
+                    onCopyReference();
+                  }}
+                  title={copied ? 'Copied' : 'Copy booking reference'}
+                  aria-label={`Copy booking reference ${model.referenceLabel}`}
+                >
+                  {copied ? (
+                    <span className="tour-ops-card__ref-copied">Copied</span>
+                  ) : (
+                    <>
+                      <Ticket className="tour-ops-card__fact-icon" strokeWidth={2} aria-hidden />
+                      <span className="tour-ops-card__ref-code">{model.referenceLabel}</span>
+                      <Copy className="tour-ops-card__ref-copy" strokeWidth={2} aria-hidden />
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
             {model.warning ? <p className="tour-ops-card__warn">{model.warning}</p> : null}
           </div>
