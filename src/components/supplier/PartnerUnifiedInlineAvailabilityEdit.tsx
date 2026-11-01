@@ -510,6 +510,8 @@ function eventOpensInlineBooking(event: PartnerUnifiedCalendarEvent): boolean {
       (event.source === 'booking' || event.source == null) &&
       event.kind !== 'tour_departure' &&
       event.kind !== 'stay_blocked' &&
-      event.kind !== 'rental_block'
+      event.kind !== 'stay_listing' &&
+      event.kind !== 'rental_block' &&
+      event.kind !== 'rental_listing'
   );
 }

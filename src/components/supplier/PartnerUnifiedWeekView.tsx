@@ -57,13 +57,17 @@ function eventOpensBooking(event: PartnerUnifiedCalendarEvent): boolean {
       (event.source === 'booking' || event.source == null) &&
       event.kind !== 'tour_departure' &&
       event.kind !== 'stay_blocked' &&
+      event.kind !== 'stay_listing' &&
       event.kind !== 'rental_block' &&
+      event.kind !== 'rental_listing' &&
       event.kind !== 'rental_ongoing'
   );
 }
 
 function weekTilePrimary(event: PartnerUnifiedCalendarEvent): string {
   if (event.timeHm) return event.timeHm;
+  if (event.kind === 'stay_listing') return 'Stay';
+  if (event.kind === 'rental_listing') return 'Rent';
   if (event.kind === 'stay_check_in') return 'In';
   if (event.kind === 'stay_check_out') return 'Out';
   if (event.kind === 'stay_occupied') return 'Stay';

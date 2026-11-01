@@ -127,6 +127,16 @@ describe('partner-unified-calendar', () => {
     expect(week).toContain('Open booking');
   });
 
+  it('wires stay/rental presence overlays for zero-booking listings', () => {
+    const page = readFileSync(resolve(__dirname, '../pages/supplier/SupplierUnifiedCalendar.tsx'), 'utf8');
+    expect(page).toContain('buildPartnerUnifiedStayPresenceEvents');
+    expect(page).toContain('buildPartnerUnifiedRentalPresenceEvents');
+    expect(page).toContain('stayListingsInScope');
+    expect(page).toContain('rentalListingsInScope');
+    expect(page).toContain('stayListingIdsKey');
+    expect(page).toContain('rentalListingIdsKey');
+  });
+
   it('defaults view to agenda and category to all', () => {
     expect(parsePartnerUnifiedCalendarView(null)).toBe('agenda');
     expect(parsePartnerUnifiedCalendarView('week')).toBe('week');

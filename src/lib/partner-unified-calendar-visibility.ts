@@ -31,9 +31,10 @@ import {
   partnerUnifiedDayBoundsUtc,
   partnerUnifiedRentalDayVariants,
 } from './partner-unified-day-edits';
-import type {
-  RentalAvailabilityBlockRow,
-  RentalInventoryHoldRow,
+import {
+  rentalVariantsFromListingExtras,
+  type RentalAvailabilityBlockRow,
+  type RentalInventoryHoldRow,
 } from '../data/supabase-rental-availability';
 import type { TourPackage } from '../types/tour';
 import type {
@@ -45,6 +46,35 @@ import type {
 import { enumerateIsoDates } from '../pages/supplier/calendarAvailabilityUi';
 
 const ALL_WEEKDAYS = [true, true, true, true, true, true, true];
+
+/** Operational calendar presence — exclude drafts (same bar as traveler catalog). */
+export function partnerUnifiedListingIsOperational(listing: TourPackage): boolean {
+  return listing.status !== 'draft';
+}
+
+function clampPresenceAnchorYmd(params: {
+  fromYmd: string;
+  toYmd: string;
+  todayIso: string;
+}): string {
+  if (params.todayIso >= params.fromYmd && params.todayIso <= params.toYmd) return params.todayIso;
+  if (params.todayIso < params.fromYmd) return params.fromYmd;
+  return params.toYmd;
+}
+
+function filterListingsByFamily(
+  listings: TourPackage[],
+  family: 'stay' | 'rental',
+  listingIdFilter?: string | null
+): TourPackage[] {
+  const filter = (listingIdFilter ?? '').trim();
+  return listings.filter((l) => {
+    if (inventoryFamilyFromListing(l) !== family) return false;
+    if (!partnerUnifiedListingIsOperational(l)) return false;
+    if (filter && l.id !== filter) return false;
+    return true;
+  });
+}
 
 export type PartnerUnifiedDepartureStatus = DepartureAvailStatus;
 
@@ -180,7 +210,7 @@ function workspaceDepartureToEvent(
   };
 }
 
-/** Blocked stay nights for a selected stay listing (no per-available-night explosion). */
+/** Blocked stay nights for a stay listing (no per-available-night explosion). */
 export function buildPartnerUnifiedStayBlockedEvents(params: {
   listing: TourPackage;
   bookings: StayCalendarBooking[];
@@ -190,6 +220,7 @@ export function buildPartnerUnifiedStayBlockedEvents(params: {
   nowMs?: number;
 }): PartnerUnifiedCalendarEvent[] {
   if (inventoryFamilyFromListing(params.listing) !== 'stay') return [];
+  if (!partnerUnifiedListingIsOperational(params.listing)) return [];
   const nowMs = params.nowMs ?? Date.now();
   const activeTodayIso =
     experienceTodayIsoForListing(params.listing.listingExtras?.departureTimezone, nowMs) ||
@@ -228,7 +259,68 @@ export function buildPartnerUnifiedStayBlockedEvents(params: {
   return out;
 }
 
-/** Mid-rental days between collection and return for a selected rental listing. */
+/**
+ * One compact presence row per published stay in range (zero bookings OK).
+ * Does not invent check-ins or mark every night available.
+ */
+export function buildPartnerUnifiedStayPresenceEvents(params: {
+  listings: TourPackage[];
+  bookings: StayCalendarBooking[];
+  caps: StayCalendarCap[];
+  fromYmd: string;
+  toYmd: string;
+  listingIdFilter?: string | null;
+  nowMs?: number;
+}): PartnerUnifiedCalendarEvent[] {
+  const nowMs = params.nowMs ?? Date.now();
+  const stays = filterListingsByFamily(params.listings, 'stay', params.listingIdFilter);
+  const out: PartnerUnifiedCalendarEvent[] = [];
+  for (const listing of stays) {
+    const activeTodayIso =
+      experienceTodayIsoForListing(listing.listingExtras?.departureTimezone, nowMs) ||
+      params.fromYmd;
+    const anchorYmd = clampPresenceAnchorYmd({
+      fromYmd: params.fromYmd,
+      toYmd: params.toYmd,
+      todayIso: activeTodayIso,
+    });
+    const dates = enumerateIsoDates(params.fromYmd, params.toYmd, ALL_WEEKDAYS);
+    let blockedNights = 0;
+    let occupiedNights = 0;
+    for (const iso of dates) {
+      const occupying = stayCalendarOccupyingOnNight(params.bookings, listing.id, iso, nowMs);
+      const capacity = stayCalendarCapacityOnNight(params.caps, listing.id, iso);
+      const kind = stayCalendarNightKind({ occupying, capacity, nowMs });
+      if (kind === 'blocked') blockedNights += 1;
+      if (kind === 'booked' || kind === 'pending') occupiedNights += 1;
+    }
+    const metaParts: string[] = [];
+    if (occupiedNights > 0) metaParts.push(`${occupiedNights} occupied`);
+    if (blockedNights > 0) metaParts.push(`${blockedNights} blocked`);
+    if (metaParts.length === 0) metaParts.push('Open for bookings');
+    out.push({
+      key: `stay_listing:${listing.id}:${params.fromYmd}:${params.toYmd}`,
+      ymd: anchorYmd,
+      kind: 'stay_listing',
+      category: 'stay',
+      listingId: listing.id,
+      listingTitle: listing.title?.trim() || 'Stay',
+      optionLabel: 'Property availability',
+      guestName: null,
+      reference: null,
+      bookingId: null,
+      timeHm: null,
+      quantityLabel: metaParts.join(' · '),
+      metaLine: metaParts.join(' · '),
+      activeTodayIso,
+      source: 'availability',
+      departureStatus: null,
+    });
+  }
+  return out;
+}
+
+/** Mid-rental days between collection and return for a rental listing. */
 export function buildPartnerUnifiedRentalOngoingEvents(params: {
   listing: TourPackage;
   bookings: PartnerUnifiedCalendarBooking[];
@@ -237,6 +329,7 @@ export function buildPartnerUnifiedRentalOngoingEvents(params: {
   nowMs?: number;
 }): PartnerUnifiedCalendarEvent[] {
   if (inventoryFamilyFromListing(params.listing) !== 'rental') return [];
+  if (!partnerUnifiedListingIsOperational(params.listing)) return [];
   const nowMs = params.nowMs ?? Date.now();
   const out: PartnerUnifiedCalendarEvent[] = [];
   const seen = new Set<string>();
@@ -286,6 +379,80 @@ export function buildPartnerUnifiedRentalOngoingEvents(params: {
   return out;
 }
 
+/**
+ * One compact presence row per published rental in range (zero bookings OK).
+ * Does not invent collection/return events; stock comes from listing variants.
+ */
+export function buildPartnerUnifiedRentalPresenceEvents(params: {
+  listings: TourPackage[];
+  blocks: RentalAvailabilityBlockRow[];
+  fromYmd: string;
+  toYmd: string;
+  listingIdFilter?: string | null;
+  nowMs?: number;
+}): PartnerUnifiedCalendarEvent[] {
+  const nowMs = params.nowMs ?? Date.now();
+  const rentals = filterListingsByFamily(params.listings, 'rental', params.listingIdFilter);
+  const out: PartnerUnifiedCalendarEvent[] = [];
+  for (const listing of rentals) {
+    const activeTodayIso =
+      experienceTodayIsoForListing(listing.listingExtras?.departureTimezone, nowMs) ||
+      params.fromYmd;
+    const anchorYmd = clampPresenceAnchorYmd({
+      fromYmd: params.fromYmd,
+      toYmd: params.toYmd,
+      todayIso: activeTodayIso,
+    });
+    const variants = rentalVariantsFromListingExtras(listing.listingExtras);
+    const stockUnits = variants.reduce((sum, v) => sum + Math.max(0, Math.floor(v.quantity || 0)), 0);
+    const dates = enumerateIsoDates(params.fromYmd, params.toYmd, ALL_WEEKDAYS);
+    let blockedDays = 0;
+    for (const iso of dates) {
+      const bounds = partnerUnifiedDayBoundsUtc(iso);
+      const covering = params.blocks.some((b) => {
+        if (b.listing_id !== listing.id) return false;
+        const s = Date.parse(b.starts_at);
+        const e = Date.parse(b.ends_at);
+        return Number.isFinite(s) && Number.isFinite(e) && s < bounds.endMs && bounds.startMs < e;
+      });
+      if (covering) blockedDays += 1;
+    }
+    const optionCount = variants.length;
+    const metaParts: string[] = [];
+    if (optionCount > 0) {
+      metaParts.push(
+        `${stockUnits} unit${stockUnits === 1 ? '' : 's'} · ${optionCount} option${
+          optionCount === 1 ? '' : 's'
+        }`
+      );
+    } else {
+      metaParts.push('Configure stock');
+    }
+    if (blockedDays > 0) metaParts.push(`${blockedDays} blocked day${blockedDays === 1 ? '' : 's'}`);
+    out.push({
+      key: `rental_listing:${listing.id}:${params.fromYmd}:${params.toYmd}`,
+      ymd: anchorYmd,
+      kind: 'rental_listing',
+      category: 'rental',
+      listingId: listing.id,
+      listingTitle: listing.title?.trim() || 'Rental',
+      optionLabel: 'Inventory availability',
+      guestName: null,
+      reference: null,
+      bookingId: null,
+      timeHm: null,
+      quantityLabel: metaParts.join(' · '),
+      metaLine: metaParts.join(' · '),
+      activeTodayIso,
+      source: 'availability',
+      departureStatus: null,
+      capacityCount: stockUnits > 0 ? stockUnits : null,
+      remainingCount: stockUnits > 0 ? stockUnits : null,
+    });
+  }
+  return out;
+}
+
 /** One blocked-day marker per calendar day covered by a rental availability block. */
 export function buildPartnerUnifiedRentalBlockEvents(params: {
   listing: TourPackage;
@@ -295,6 +462,7 @@ export function buildPartnerUnifiedRentalBlockEvents(params: {
   nowMs?: number;
 }): PartnerUnifiedCalendarEvent[] {
   if (inventoryFamilyFromListing(params.listing) !== 'rental') return [];
+  if (!partnerUnifiedListingIsOperational(params.listing)) return [];
   const nowMs = params.nowMs ?? Date.now();
   const activeTodayIso =
     experienceTodayIsoForListing(params.listing.listingExtras?.departureTimezone, nowMs) ||
@@ -367,8 +535,10 @@ export function mergePartnerUnifiedVisibilityEvents(params: {
   bookingEvents: PartnerUnifiedCalendarEvent[];
   tourDepartures: PartnerUnifiedCalendarEvent[];
   stayBlocked: PartnerUnifiedCalendarEvent[];
+  stayPresence?: PartnerUnifiedCalendarEvent[];
   rentalOngoing: PartnerUnifiedCalendarEvent[];
   rentalBlocks: PartnerUnifiedCalendarEvent[];
+  rentalPresence?: PartnerUnifiedCalendarEvent[];
 }): PartnerUnifiedCalendarEvent[] {
   const departureKeys = new Set(
     params.tourDepartures.map((d) => `${d.listingId}|${d.ymd}|${sortKeyTime(d.timeHm)}`)
@@ -389,7 +559,9 @@ export function mergePartnerUnifiedVisibilityEvents(params: {
   const merged = [
     ...bookingKept,
     ...params.tourDepartures,
+    ...(params.stayPresence ?? []),
     ...params.stayBlocked,
+    ...(params.rentalPresence ?? []),
     ...params.rentalOngoing,
     ...params.rentalBlocks,
   ];
@@ -411,10 +583,14 @@ export function partnerUnifiedVisibilityKindLabel(
       return 'Departure';
     case 'stay_blocked':
       return 'Blocked';
+    case 'stay_listing':
+      return 'Stay';
     case 'rental_ongoing':
       return 'On rent';
     case 'rental_block':
       return 'Blocked';
+    case 'rental_listing':
+      return 'Rental';
     case 'rental_collection':
       return 'Collection';
     case 'rental_return':

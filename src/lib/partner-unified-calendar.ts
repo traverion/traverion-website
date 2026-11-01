@@ -52,8 +52,10 @@ export type PartnerUnifiedCalendarEventKind =
   | PartnerHomeScheduleEventKind
   | 'tour_departure'
   | 'stay_blocked'
+  | 'stay_listing'
   | 'rental_ongoing'
-  | 'rental_block';
+  | 'rental_block'
+  | 'rental_listing';
 
 export type PartnerUnifiedCalendarEventSource = 'booking' | 'schedule' | 'availability';
 
@@ -263,7 +265,8 @@ function sortUnifiedEvents(a: PartnerUnifiedCalendarEvent, b: PartnerUnifiedCale
     if (k === 'rental_return' || k === 'stay_check_out') return 1;
     if (k === 'stay_occupied' || k === 'rental_ongoing') return 2;
     if (k === 'stay_blocked' || k === 'rental_block') return 3;
-    return 4;
+    if (k === 'stay_listing' || k === 'rental_listing') return 4;
+    return 5;
   };
   const byKind = kindRank(a.kind) - kindRank(b.kind);
   if (byKind) return byKind;
@@ -504,16 +507,11 @@ export function summarizePartnerUnifiedMonthDays(
 }
 
 export function partnerUnifiedEventKindLabel(kind: PartnerUnifiedCalendarEventKind): string {
-  if (
-    kind === 'tour_departure' ||
-    kind === 'stay_blocked' ||
-    kind === 'rental_ongoing' ||
-    kind === 'rental_block'
-  ) {
-    if (kind === 'tour_departure') return 'Departure';
-    if (kind === 'stay_blocked' || kind === 'rental_block') return 'Blocked';
-    return 'On rent';
-  }
+  if (kind === 'tour_departure') return 'Departure';
+  if (kind === 'stay_blocked' || kind === 'rental_block') return 'Blocked';
+  if (kind === 'rental_ongoing') return 'On rent';
+  if (kind === 'stay_listing') return 'Stay';
+  if (kind === 'rental_listing') return 'Rental';
   return partnerHomeScheduleEventKindLabel(kind);
 }
 

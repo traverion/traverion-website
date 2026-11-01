@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest';
 import {
   buildPartnerUnifiedTourDepartureEvents,
   buildPartnerUnifiedStayBlockedEvents,
+  buildPartnerUnifiedStayPresenceEvents,
   buildPartnerUnifiedRentalOngoingEvents,
   buildPartnerUnifiedRentalBlockEvents,
+  buildPartnerUnifiedRentalPresenceEvents,
   mergePartnerUnifiedVisibilityEvents,
 } from './partner-unified-calendar-visibility';
 import { buildPartnerUnifiedCalendarEvents } from './partner-unified-calendar';
@@ -40,26 +42,33 @@ function tourListing(): TourPackage {
   } as unknown as TourPackage;
 }
 
-function stayListing(): TourPackage {
+function stayListing(overrides: Partial<TourPackage> = {}): TourPackage {
   return {
     id: 'listing-stay',
     title: 'Cabin',
+    status: 'published',
     listingExtras: { inventoryFamily: 'stay', departureTimezone: 'Europe/Helsinki' },
+    ...overrides,
   } as unknown as TourPackage;
 }
 
-function rentalListing(): TourPackage {
+function rentalListing(overrides: Partial<TourPackage> = {}): TourPackage {
   return {
     id: 'listing-rental',
     title: 'Camera',
+    status: 'published',
     listingExtras: {
       inventoryFamily: 'rental',
       departureTimezone: 'Europe/Helsinki',
       rental: {
-        variants: [{ id: 'v1', name: 'Body', quantity: 2 }],
+        variants: [
+          { id: 'v1', name: 'Body', quantity: 2 },
+          { id: 'v2', name: 'Lens', quantity: 3 },
+        ],
         bufferMinutes: 60,
       },
     },
+    ...overrides,
   } as unknown as TourPackage;
 }
 
@@ -182,6 +191,51 @@ describe('partner-unified-calendar-visibility', () => {
     });
     expect(events.map((e) => e.ymd)).toEqual(['2026-10-12']);
     expect(events[0]?.kind).toBe('stay_blocked');
+  });
+
+  it('shows published stays and rentals with zero bookings as compact presence rows', () => {
+    const nowMs = Date.parse('2026-10-10T12:00:00+03:00');
+    const stays = buildPartnerUnifiedStayPresenceEvents({
+      listings: [stayListing(), stayListing({ id: 'draft-stay', status: 'draft', title: 'Draft Cabin' })],
+      bookings: [],
+      caps: [],
+      fromYmd: '2026-10-10',
+      toYmd: '2026-10-20',
+      nowMs,
+    });
+    expect(stays).toHaveLength(1);
+    expect(stays[0]?.kind).toBe('stay_listing');
+    expect(stays[0]?.bookingId).toBeNull();
+    expect(stays[0]?.quantityLabel).toMatch(/Open for bookings/i);
+    expect(stays.every((e) => e.kind !== 'stay_check_in')).toBe(true);
+
+    const rentals = buildPartnerUnifiedRentalPresenceEvents({
+      listings: [
+        rentalListing(),
+        rentalListing({ id: 'draft-rental', status: 'draft', title: 'Draft Camera' }),
+      ],
+      blocks: [],
+      fromYmd: '2026-10-10',
+      toYmd: '2026-10-20',
+      nowMs,
+    });
+    expect(rentals).toHaveLength(1);
+    expect(rentals[0]?.kind).toBe('rental_listing');
+    expect(rentals[0]?.bookingId).toBeNull();
+    expect(rentals[0]?.quantityLabel).toMatch(/5 units/i);
+    expect(rentals.every((e) => e.kind !== 'rental_collection')).toBe(true);
+
+    const merged = mergePartnerUnifiedVisibilityEvents({
+      bookingEvents: [],
+      tourDepartures: [],
+      stayPresence: stays,
+      stayBlocked: [],
+      rentalPresence: rentals,
+      rentalOngoing: [],
+      rentalBlocks: [],
+    });
+    expect(merged.some((e) => e.category === 'stay')).toBe(true);
+    expect(merged.some((e) => e.category === 'rental')).toBe(true);
   });
 
   it('adds rental ongoing days between collection and return', () => {

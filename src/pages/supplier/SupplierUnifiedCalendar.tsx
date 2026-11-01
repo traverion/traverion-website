@@ -12,7 +12,6 @@ import { fetchBookingsForSupplier, type BookingRow } from '../../data/supabase-b
 import { fetchAvailabilityByListingId } from '../../data/supabase-availability';
 import {
   fetchRentalAvailabilityBlocks,
-  fetchRentalInventoryHolds,
   rentalVariantsFromListingExtras,
   type RentalAvailabilityBlockRow,
 } from '../../data/supabase-rental-availability';
@@ -53,7 +52,9 @@ import {
   annotateStayMonthSummaries,
   buildPartnerUnifiedRentalBlockEvents,
   buildPartnerUnifiedRentalOngoingEvents,
+  buildPartnerUnifiedRentalPresenceEvents,
   buildPartnerUnifiedStayBlockedEvents,
+  buildPartnerUnifiedStayPresenceEvents,
   buildPartnerUnifiedTourDepartureEvents,
   mergePartnerUnifiedVisibilityEvents,
 } from '../../lib/partner-unified-calendar-visibility';
@@ -130,8 +131,11 @@ function badgeToneClass(event: PartnerUnifiedCalendarEvent, blocked: boolean): s
   return '';
 }
 
-/** Tour inventory for the card aside — presentation only. */
+/** Inventory / presence summary for the card aside — presentation only. */
 function inventoryLine(event: PartnerUnifiedCalendarEvent): string | null {
+  if (event.kind === 'stay_listing' || event.kind === 'rental_listing') {
+    return (event.quantityLabel ?? event.metaLine ?? '').trim() || null;
+  }
   if (event.bookedCount != null && event.remainingCount != null) {
     return `${event.bookedCount} booked · ${event.remainingCount} available`;
   }
@@ -199,7 +203,9 @@ function eventOpensBooking(event: PartnerUnifiedCalendarEvent): boolean {
       (event.source === 'booking' || event.source == null) &&
       event.kind !== 'tour_departure' &&
       event.kind !== 'stay_blocked' &&
+      event.kind !== 'stay_listing' &&
       event.kind !== 'rental_block' &&
+      event.kind !== 'rental_listing' &&
       event.kind !== 'rental_ongoing'
   );
 }
@@ -391,8 +397,22 @@ export default function SupplierUnifiedCalendar() {
     () => scopedListings.filter((l) => inventoryFamilyFromListing(l) === 'tour'),
     [scopedListings]
   );
+  const stayListingsInScope = useMemo(
+    () =>
+      scopedListings.filter(
+        (l) => inventoryFamilyFromListing(l) === 'stay' && l.status !== 'draft'
+      ),
+    [scopedListings]
+  );
+  const rentalListingsInScope = useMemo(
+    () =>
+      scopedListings.filter(
+        (l) => inventoryFamilyFromListing(l) === 'rental' && l.status !== 'draft'
+      ),
+    [scopedListings]
+  );
 
-  /** Stable id key — slot-override edits must not refetch day caps for every listing. */
+  /** Stable id keys — slot-override edits must not refetch caps/blocks for every listing. */
   const tourListingIdsKey = useMemo(
     () =>
       tourListingsInScope
@@ -400,6 +420,22 @@ export default function SupplierUnifiedCalendar() {
         .sort()
         .join(','),
     [tourListingsInScope]
+  );
+  const stayListingIdsKey = useMemo(
+    () =>
+      stayListingsInScope
+        .map((l) => l.id)
+        .sort()
+        .join(','),
+    [stayListingsInScope]
+  );
+  const rentalListingIdsKey = useMemo(
+    () =>
+      rentalListingsInScope
+        .map((l) => l.id)
+        .sort()
+        .join(','),
+    [rentalListingsInScope]
   );
 
   useEffect(() => {
@@ -413,6 +449,8 @@ export default function SupplierUnifiedCalendar() {
 
     let cancelled = false;
     const tourIds = tourListingIdsKey ? tourListingIdsKey.split(',').filter(Boolean) : [];
+    const stayIds = stayListingIdsKey ? stayListingIdsKey.split(',').filter(Boolean) : [];
+    const rentalIds = rentalListingIdsKey ? rentalListingIdsKey.split(',').filter(Boolean) : [];
     void (async () => {
       const notes: string[] = [];
       try {
@@ -449,46 +487,70 @@ export default function SupplierUnifiedCalendar() {
           if (!cancelled) setDayCapsByListing(nextCaps);
         }
 
-        if (selectedListing && selectedFamily === 'stay') {
-          try {
-            const rows = await fetchAvailabilityByListingId(selectedListing.id, {
-              fromDate: range.fromYmd,
-              toDate: range.toYmd,
-            });
-            if (!cancelled) {
-              setStayCaps(
-                rows.map((r) => ({
-                  listing_id: r.listing_id,
-                  available_date: r.available_date,
-                  capacity: Number(r.capacity),
-                }))
+        const needStayCaps = category === 'all' || category === 'stay';
+        if (needStayCaps) {
+          if (stayIds.length > 0) {
+            try {
+              const results = await Promise.all(
+                stayIds.map(async (id) => {
+                  try {
+                    const rows = await fetchAvailabilityByListingId(id, {
+                      fromDate: range.fromYmd,
+                      toDate: range.toYmd,
+                    });
+                    return rows.map((r) => ({
+                      listing_id: r.listing_id,
+                      available_date: r.available_date,
+                      capacity: Number(r.capacity),
+                    }));
+                  } catch {
+                    return [] as Array<{
+                      listing_id: string;
+                      available_date: string;
+                      capacity: number;
+                    }>;
+                  }
+                })
               );
+              if (!cancelled) setStayCaps(results.flat());
+            } catch {
+              if (!cancelled) {
+                setStayCaps([]);
+                notes.push('Stay blocks unavailable.');
+              }
             }
-          } catch {
-            if (!cancelled) {
-              setStayCaps([]);
-              notes.push('Stay blocks unavailable.');
-            }
+          } else if (!cancelled) {
+            setStayCaps([]);
           }
         } else if (!cancelled) {
           setStayCaps([]);
         }
 
-        if (selectedListing && selectedFamily === 'rental') {
-          try {
-            const start = partnerUnifiedDayBoundsUtc(range.fromYmd);
-            const endExclusive = addCalendarDaysYmd(range.toYmd, 1) ?? range.toYmd;
-            const endIso = `${endExclusive}T00:00:00.000Z`;
-            const [blocks] = await Promise.all([
-              fetchRentalAvailabilityBlocks(selectedListing.id, start.startIso, endIso),
-              fetchRentalInventoryHolds(selectedListing.id, start.startIso, endIso),
-            ]);
-            if (!cancelled) setRentalBlocks(blocks);
-          } catch {
-            if (!cancelled) {
-              setRentalBlocks([]);
-              notes.push('Rental blocks unavailable.');
+        const needRentalBlocks = category === 'all' || category === 'rental';
+        if (needRentalBlocks) {
+          if (rentalIds.length > 0) {
+            try {
+              const start = partnerUnifiedDayBoundsUtc(range.fromYmd);
+              const endExclusive = addCalendarDaysYmd(range.toYmd, 1) ?? range.toYmd;
+              const endIso = `${endExclusive}T00:00:00.000Z`;
+              const results = await Promise.all(
+                rentalIds.map(async (id) => {
+                  try {
+                    return await fetchRentalAvailabilityBlocks(id, start.startIso, endIso);
+                  } catch {
+                    return [];
+                  }
+                })
+              );
+              if (!cancelled) setRentalBlocks(results.flat());
+            } catch {
+              if (!cancelled) {
+                setRentalBlocks([]);
+                notes.push('Rental blocks unavailable.');
+              }
             }
+          } else if (!cancelled) {
+            setRentalBlocks([]);
           }
         } else if (!cancelled) {
           setRentalBlocks([]);
@@ -507,11 +569,11 @@ export default function SupplierUnifiedCalendar() {
     isSupabase,
     listings.length,
     tourListingIdsKey,
+    stayListingIdsKey,
+    rentalListingIdsKey,
     category,
     range.fromYmd,
     range.toYmd,
-    selectedListing,
-    selectedFamily,
     calendarEpoch,
   ]);
 
@@ -533,6 +595,10 @@ export default function SupplierUnifiedCalendar() {
 
   const allEvents = useMemo(() => {
     const needTours = category === 'all' || category === 'tour';
+    const needStays = category === 'all' || category === 'stay';
+    const needRentals = category === 'all' || category === 'rental';
+    const listingFilter = listingId || null;
+
     const tourDepartures = needTours
       ? buildPartnerUnifiedTourDepartureEvents({
           listings: tourListingsInScope,
@@ -540,45 +606,75 @@ export default function SupplierUnifiedCalendar() {
           dayCaps: dayCapsByListing,
           fromYmd: range.fromYmd,
           toYmd: range.toYmd,
-          listingIdFilter: listingId || null,
+          listingIdFilter: listingFilter,
         })
       : [];
 
-    const stayBlocked =
-      selectedListing && selectedFamily === 'stay'
-        ? buildPartnerUnifiedStayBlockedEvents({
-            listing: selectedListing,
+    const stayListings = listingFilter
+      ? stayListingsInScope.filter((l) => l.id === listingFilter)
+      : stayListingsInScope;
+    const rentalListings = listingFilter
+      ? rentalListingsInScope.filter((l) => l.id === listingFilter)
+      : rentalListingsInScope;
+
+    const stayPresence = needStays
+      ? buildPartnerUnifiedStayPresenceEvents({
+          listings: stayListings,
+          bookings,
+          caps: stayCaps,
+          fromYmd: range.fromYmd,
+          toYmd: range.toYmd,
+          listingIdFilter: listingFilter,
+        })
+      : [];
+    const stayBlocked = needStays
+      ? stayListings.flatMap((listing) =>
+          buildPartnerUnifiedStayBlockedEvents({
+            listing,
             bookings,
             caps: stayCaps,
             fromYmd: range.fromYmd,
             toYmd: range.toYmd,
           })
-        : [];
+        )
+      : [];
 
-    const rentalOngoing =
-      selectedListing && selectedFamily === 'rental'
-        ? buildPartnerUnifiedRentalOngoingEvents({
-            listing: selectedListing,
+    const rentalPresence = needRentals
+      ? buildPartnerUnifiedRentalPresenceEvents({
+          listings: rentalListings,
+          blocks: rentalBlocks,
+          fromYmd: range.fromYmd,
+          toYmd: range.toYmd,
+          listingIdFilter: listingFilter,
+        })
+      : [];
+    const rentalOngoing = needRentals
+      ? rentalListings.flatMap((listing) =>
+          buildPartnerUnifiedRentalOngoingEvents({
+            listing,
             bookings,
             fromYmd: range.fromYmd,
             toYmd: range.toYmd,
           })
-        : [];
-
-    const rentalBlockEvents =
-      selectedListing && selectedFamily === 'rental'
-        ? buildPartnerUnifiedRentalBlockEvents({
-            listing: selectedListing,
-            blocks: rentalBlocks,
+        )
+      : [];
+    const rentalBlockEvents = needRentals
+      ? rentalListings.flatMap((listing) =>
+          buildPartnerUnifiedRentalBlockEvents({
+            listing,
+            blocks: rentalBlocks.filter((b) => b.listing_id === listing.id),
             fromYmd: range.fromYmd,
             toYmd: range.toYmd,
           })
-        : [];
+        )
+      : [];
 
     return mergePartnerUnifiedVisibilityEvents({
       bookingEvents,
       tourDepartures,
+      stayPresence,
       stayBlocked,
+      rentalPresence,
       rentalOngoing,
       rentalBlocks: rentalBlockEvents,
     });
@@ -586,13 +682,13 @@ export default function SupplierUnifiedCalendar() {
     bookingEvents,
     category,
     tourListingsInScope,
+    stayListingsInScope,
+    rentalListingsInScope,
     bookings,
     dayCapsByListing,
     range.fromYmd,
     range.toYmd,
     listingId,
-    selectedListing,
-    selectedFamily,
     stayCaps,
     rentalBlocks,
   ]);
@@ -1147,7 +1243,10 @@ export default function SupplierUnifiedCalendar() {
                                     {status}
                                   </span>
                                 ) : null}
-                                {inventory && event.category === 'tour' ? (
+                                {inventory &&
+                                (event.category === 'tour' ||
+                                  event.kind === 'stay_listing' ||
+                                  event.kind === 'rental_listing') ? (
                                   <span className="partner-unified-cal__card-inventory">
                                     {inventory}
                                   </span>
