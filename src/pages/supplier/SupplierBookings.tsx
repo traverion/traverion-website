@@ -1357,51 +1357,57 @@ export default function SupplierBookings({
       <div className="partner-bookings-workspace">
       <div className="partner-bookings-workspace__toolbar">
         <div className="partner-bookings-workspace__quick">
-          <div className="partner-bookings-workspace__seg" role="group" aria-label="Travel day">
-            {(
-              [
-                ['yesterday', 'Yesterday'],
-                ['today', 'Today'],
-                ['tomorrow', 'Tomorrow'],
-              ] as const
-            ).map(([value, label]) => (
-              <button
-                key={value}
-                type="button"
-                className={view === value ? 'is-active' : undefined}
-                aria-pressed={view === value}
-                onClick={() =>
-                  writeBookingsSearchToUrl({
-                    view: view === value ? 'all' : value,
-                    from: '',
-                    to: '',
-                  })
-                }
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-          {isUnifiedDesk ? (
-            <div className="partner-bookings-workspace__seg" role="group" aria-label="Category">
+          <div className="partner-bookings-workspace__quick-group">
+            <span className="partner-bookings-workspace__quick-label">Day</span>
+            <div className="partner-bookings-workspace__seg" role="group" aria-label="Travel day">
               {(
                 [
-                  ['', 'All'],
-                  ['tour', 'Tours'],
-                  ['stay', 'Stays'],
-                  ['rental', 'Rentals'],
+                  ['yesterday', 'Yesterday'],
+                  ['today', 'Today'],
+                  ['tomorrow', 'Tomorrow'],
                 ] as const
               ).map(([value, label]) => (
                 <button
-                  key={label}
+                  key={value}
                   type="button"
-                  className={categoryFilter === value ? 'is-active' : undefined}
-                  aria-pressed={categoryFilter === value}
-                  onClick={() => writeBookingsSearchToUrl({ category: value })}
+                  className={view === value ? 'is-active' : undefined}
+                  aria-pressed={view === value}
+                  onClick={() =>
+                    writeBookingsSearchToUrl({
+                      view: view === value ? 'all' : value,
+                      from: '',
+                      to: '',
+                    })
+                  }
                 >
                   {label}
                 </button>
               ))}
+            </div>
+          </div>
+          {isUnifiedDesk ? (
+            <div className="partner-bookings-workspace__quick-group">
+              <span className="partner-bookings-workspace__quick-label">Category</span>
+              <div className="partner-bookings-workspace__seg" role="group" aria-label="Category">
+                {(
+                  [
+                    ['', 'All'],
+                    ['tour', 'Tours'],
+                    ['stay', 'Stays'],
+                    ['rental', 'Rentals'],
+                  ] as const
+                ).map(([value, label]) => (
+                  <button
+                    key={label}
+                    type="button"
+                    className={categoryFilter === value ? 'is-active' : undefined}
+                    aria-pressed={categoryFilter === value}
+                    onClick={() => writeBookingsSearchToUrl({ category: value })}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
             </div>
           ) : null}
         </div>
@@ -1416,9 +1422,9 @@ export default function SupplierBookings({
               type="search"
               value={searchDraft}
               onChange={(e) => setSearchDraft(e.target.value)}
-              placeholder="Search guest, phone, listing, option or reference…"
+              placeholder="Search guest, phone, email, listing, option or reference…"
               className="tv-input partner-bookings-workspace__search-input"
-              aria-label="Search by guest, phone, listing, option or booking reference"
+              aria-label="Search by guest, phone, email, listing, option or booking reference"
             />
             {searchDraft ? (
               <button

@@ -104,9 +104,12 @@ describe('Bookings V4 — tour ops card & detail page', () => {
     expect(css).toContain('.tour-ops-card__facts');
     expect(css).toContain('.tour-ops-card__expand');
     expect(css).toContain('.partner-bookings-workspace__seg');
+    expect(css).toContain('.partner-bookings-workspace__quick-group');
     expect(css).toContain('.partner-bookings-daterange__trigger');
     expect(css).toContain('--pb-control-h');
     expect(css).toContain('.tour-ops-card__finance-note');
+    expect(css).toContain('.tour-ops-card__summary-contact');
+    expect(css).toContain('.tour-ops-card__action-btn');
   });
 
   it('formats compact travel range labels', () => {
@@ -172,7 +175,9 @@ describe('Bookings V4 — tour ops card & detail page', () => {
       })
     );
     expect(html).toContain('Ada Lovelace');
+    expect(html).toContain('ada@example.com');
     expect(html).toContain('+358 40 123 4567');
+    expect(html).toContain('Booking details');
     expect(html).toContain('Hotel lobby');
     expect(html).toContain('08:30 pickup window');
     expect(html).toContain('Paid');
@@ -188,6 +193,8 @@ describe('Bookings V4 — tour ops card & detail page', () => {
     expect(html).not.toContain('Acknowledge');
     expect(html).toContain('View details');
     expect(html).toContain('Message guest');
+    // One Message guest action in the footer — no duplicate guest-section link.
+    expect(html.match(/Message guest/g)?.length).toBe(1);
     expect(html).toContain('aria-expanded="true"');
   });
 

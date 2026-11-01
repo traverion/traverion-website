@@ -10545,21 +10545,24 @@ details:not([open]) > :not(summary) {
   --pb-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
   --pb-control-h: 2.5rem;
   --pb-ease: 170ms ease;
+  --pb-font: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
   background: #fff;
   border: 1px solid var(--pb-border);
   border-radius: var(--pb-radius);
   box-shadow: var(--pb-shadow);
   overflow: hidden;
-  margin-bottom: 0.875rem;
+  margin: 0 auto 1rem;
+  max-width: min(76rem, 100%);
+  font-family: var(--pb-font);
 }
 
 .partner-bookings-workspace__toolbar {
   display: flex;
   flex-direction: column;
-  gap: 0.7rem;
-  padding: 0.85rem 1rem 0.8rem;
+  gap: 0.85rem;
+  padding: 1rem 1.05rem 0.95rem;
   border-bottom: 1px solid var(--pb-border);
-  background: linear-gradient(180deg, #fbfbfc 0%, #f7f8fa 100%);
+  background: linear-gradient(180deg, #fcfcfd 0%, #f8f9fb 100%);
 }
 
 .partner-bookings-workspace__controls {
@@ -10626,30 +10629,45 @@ details:not([open]) > :not(summary) {
 .partner-bookings-workspace__quick {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
-  gap: 0.5rem 0.75rem;
+  align-items: flex-end;
+  gap: 0.75rem 1.35rem;
+}
+
+.partner-bookings-workspace__quick-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.partner-bookings-workspace__quick-label {
+  font-size: 0.625rem;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #98a2b3;
 }
 
 .partner-bookings-workspace__seg {
   display: inline-flex;
   flex-wrap: wrap;
-  gap: 0.3rem;
+  gap: 0.35rem;
   padding: 0;
   border: 0;
   background: transparent;
 }
 
 .partner-bookings-workspace__seg button {
-  min-height: 1.9rem;
-  padding: 0 0.72rem;
-  border: 1px solid rgba(15, 23, 42, 0.12);
-  border-radius: 0.55rem;
+  min-height: 1.95rem;
+  padding: 0 0.78rem;
+  border: 1px solid rgba(15, 23, 42, 0.11);
+  border-radius: 0.5rem;
   background: #fff;
   color: #4b5563;
   font-family: inherit;
-  font-size: 0.72rem;
-  font-weight: 650;
-  letter-spacing: 0.01em;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.005em;
   cursor: pointer;
   transition:
     background-color var(--pb-ease),
@@ -10663,11 +10681,16 @@ details:not([open]) > :not(summary) {
   color: #0c1118;
 }
 
+.partner-bookings-workspace__seg button:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--partner-accent, #073b83) 55%, transparent);
+  outline-offset: 1px;
+}
+
 .partner-bookings-workspace__seg button.is-active {
-  background: color-mix(in srgb, var(--partner-accent, #073b83) 8%, #fff);
-  border-color: color-mix(in srgb, var(--partner-accent, #073b83) 42%, #dbe3ef);
+  background: color-mix(in srgb, var(--partner-accent, #073b83) 7%, #fff);
+  border-color: color-mix(in srgb, var(--partner-accent, #073b83) 38%, #dbe3ef);
   color: var(--partner-accent, #073b83);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--partner-accent, #073b83) 12%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--partner-accent, #073b83) 10%, transparent);
 }
 
 .partner-bookings-daterange {
@@ -10795,7 +10818,7 @@ details:not([open]) > :not(summary) {
 }
 
 .partner-bookings-workspace__body {
-  background: #f5f6f8;
+  background: #f6f7f9;
 }
 
 .partner-bookings-workspace__bulk {
@@ -10814,8 +10837,8 @@ details:not([open]) > :not(summary) {
 .partner-bookings-workspace__list {
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
-  padding: 0.55rem 0.65rem 0.75rem;
+  gap: 0.5rem;
+  padding: 0.7rem 0.75rem 0.9rem;
 }
 
 .partner-bookings-workspace__list > * + * {
@@ -10836,7 +10859,8 @@ details:not([open]) > :not(summary) {
   background: #fff;
   border: 1px solid rgba(15, 23, 42, 0.08);
   border-radius: 0.7rem;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.028);
+  font-family: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
   transition:
     box-shadow 170ms ease,
     border-color 170ms ease,
@@ -10846,28 +10870,31 @@ details:not([open]) > :not(summary) {
 .tour-ops-card:hover {
   border-color: rgba(15, 23, 42, 0.12);
   box-shadow:
-    0 2px 4px rgba(15, 23, 42, 0.035),
-    0 10px 22px rgba(15, 23, 42, 0.045);
+    0 2px 4px rgba(15, 23, 42, 0.03),
+    0 8px 18px rgba(15, 23, 42, 0.035);
 }
 
 .tour-ops-card[data-highlight='true'] {
-  background: rgba(0, 53, 128, 0.03);
-  border-color: rgba(0, 53, 128, 0.18);
-  box-shadow:
-    0 0 0 1px rgba(0, 53, 128, 0.08),
-    0 8px 20px rgba(0, 53, 128, 0.06);
+  background: rgba(0, 53, 128, 0.025);
+  border-color: rgba(0, 53, 128, 0.16);
+  box-shadow: 0 0 0 1px rgba(0, 53, 128, 0.06);
 }
 
 .tour-ops-card[data-attention='true'] {
+  /* Operational attention only: cancel request, missing pickup, payment issue */
   box-shadow:
-    inset 3px 0 0 #b45309,
-    0 1px 2px rgba(15, 23, 42, 0.028),
-    0 6px 16px rgba(15, 23, 42, 0.03);
+    inset 2px 0 0 #c27803,
+    0 1px 2px rgba(15, 23, 42, 0.028);
 }
 
 .tour-ops-card.is-expanded {
-  background: #fcfcfd;
-  border-color: rgba(15, 23, 42, 0.11);
+  background: #fff;
+  border-color: rgba(15, 23, 42, 0.1);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
+}
+
+.tour-ops-card.is-expanded[data-highlight='true'] {
+  background: rgba(0, 53, 128, 0.02);
 }
 
 .tour-ops-card__main {
@@ -10881,22 +10908,29 @@ details:not([open]) > :not(summary) {
   flex: 0 0 auto;
   align-items: center;
   justify-content: center;
-  width: 2rem;
+  width: 2.15rem;
   padding: 0;
   border: 0;
   background: transparent;
-  color: #8892a0;
+  color: #7b8494;
   cursor: pointer;
+  transition: color 170ms ease, background-color 170ms ease;
 }
 
 .tour-ops-card__expand:hover {
   color: var(--partner-accent, #073b83);
+  background: rgba(7, 59, 131, 0.04);
+}
+
+.tour-ops-card__expand:focus-visible {
+  outline: 2px solid #003580;
+  outline-offset: -2px;
 }
 
 .tour-ops-card__check {
   display: flex;
   align-items: center;
-  padding: 0.45rem 0.15rem 0.45rem 0;
+  padding: 0.5rem 0.2rem 0.5rem 0;
 }
 
 .tour-ops-card__hit {
@@ -10904,8 +10938,8 @@ details:not([open]) > :not(summary) {
   flex: 1 1 auto;
   min-width: 0;
   align-items: center;
-  gap: 0.7rem;
-  padding: 0.62rem 0.8rem 0.62rem 0.35rem;
+  gap: 0.75rem;
+  padding: 0.7rem 0.85rem 0.7rem 0.3rem;
   text-align: left;
   border-radius: 0 0.7rem 0.7rem 0;
   transition: background-color 170ms ease;
@@ -10922,10 +10956,10 @@ details:not([open]) > :not(summary) {
 }
 
 .tour-ops-card__thumb {
-  height: 2.65rem;
-  width: 2.65rem;
+  height: 2.75rem;
+  width: 2.75rem;
   flex: 0 0 auto;
-  border-radius: 0.45rem;
+  border-radius: 0.5rem;
   object-fit: cover;
   box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.08);
 }
@@ -10960,7 +10994,7 @@ details:not([open]) > :not(summary) {
   margin: 0;
   font-size: 0.9rem;
   font-weight: 650;
-  line-height: 1.28;
+  line-height: 1.3;
   letter-spacing: -0.018em;
   color: #0f1419;
   text-overflow: ellipsis;
@@ -11215,9 +11249,9 @@ details:not([open]) > :not(summary) {
 
 .tour-ops-card__panel {
   border-top: 1px solid rgba(15, 23, 42, 0.07);
-  background: #f7f8fa;
-  padding: 0.85rem 1rem 0.95rem;
-  border-radius: 0 0 0.75rem 0.75rem;
+  background: #fafbfc;
+  padding: 0.8rem 1rem 0.9rem;
+  border-radius: 0 0 0.7rem 0.7rem;
   animation: tour-ops-panel-in 170ms ease;
 }
 
@@ -11234,7 +11268,7 @@ details:not([open]) > :not(summary) {
 
 .tour-ops-card__summary-grid {
   display: grid;
-  gap: 0.95rem 1.35rem;
+  gap: 0.85rem 1.25rem;
 }
 
 @media (min-width: 720px) {
@@ -11244,7 +11278,7 @@ details:not([open]) > :not(summary) {
 
   .tour-ops-card__summary-block + .tour-ops-card__summary-block {
     border-left: 1px solid rgba(15, 23, 42, 0.06);
-    padding-left: 1.15rem;
+    padding-left: 1.1rem;
   }
 }
 
@@ -11253,47 +11287,49 @@ details:not([open]) > :not(summary) {
 }
 
 .tour-ops-card__summary-heading {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  margin: 0 0 0.4rem;
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.01em;
-  text-transform: none;
-  color: #667085;
+  display: block;
+  margin: 0 0 0.45rem;
+  font-family: inherit;
+  font-size: 0.6875rem;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #8b93a1;
 }
 
 .tour-ops-card__summary-icon {
-  width: 0.85rem;
-  height: 0.85rem;
-  flex: 0 0 auto;
-  color: #98a2b3;
+  display: none;
 }
 
 .tour-ops-card__summary-name {
   margin: 0;
-  font-size: 14.5px;
+  font-size: 0.9375rem;
   font-weight: 650;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.015em;
   line-height: 1.3;
   color: #14171c;
 }
 
+.tour-ops-card__summary-contact,
 .tour-ops-card__summary-phone {
-  display: inline-block;
+  display: block;
   margin-top: 0.2rem;
-  font-size: 13px;
+  font-size: 0.8125rem;
   font-weight: 550;
-  color: #003580;
+  line-height: 1.4;
+  color: #073b83;
+  text-decoration: none;
   transition: color 160ms ease;
+  overflow-wrap: anywhere;
 }
 
+.tour-ops-card__summary-contact:hover,
 .tour-ops-card__summary-phone:hover {
   text-decoration: underline;
-  color: #002a66;
+  color: #052e68;
 }
 
+.tour-ops-card__summary-contact:focus-visible,
 .tour-ops-card__summary-phone:focus-visible {
   outline: 2px solid #003580;
   outline-offset: 2px;
@@ -11302,13 +11338,31 @@ details:not([open]) > :not(summary) {
 
 .tour-ops-card__summary-meta,
 .tour-ops-card__summary-value {
-  margin: 0.22rem 0 0;
-  font-size: 13px;
+  margin: 0.28rem 0 0;
+  font-size: 0.8125rem;
   font-weight: 550;
   line-height: 1.45;
   color: #17191d;
   overflow-wrap: anywhere;
   word-break: break-word;
+}
+
+.tour-ops-card__summary-label {
+  display: inline-block;
+  min-width: 4.75rem;
+  margin-right: 0.35rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: #98a2b3;
+}
+
+.tour-ops-card__summary-meta--secondary,
+.tour-ops-card__summary-meta.tour-ops-card__summary-meta--secondary {
+  color: #8b93a1;
+  font-weight: 500;
+  font-size: 0.75rem;
 }
 
 .tour-ops-card__summary-value--place {
@@ -11320,7 +11374,7 @@ details:not([open]) > :not(summary) {
   display: block;
   margin-top: 0.35rem;
   white-space: pre-wrap;
-  font-size: 12.5px;
+  font-size: 0.75rem;
   font-weight: 500;
   line-height: 1.45;
   color: #667085;
@@ -11328,38 +11382,19 @@ details:not([open]) > :not(summary) {
 }
 
 .tour-ops-card__summary-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.3rem;
-  margin-top: 0.45rem;
-  padding: 0.15rem 0;
-  font-size: 12.5px;
-  font-weight: 600;
-  color: #003580;
-  transition: color 160ms ease, opacity 160ms ease;
-}
-
-.tour-ops-card__summary-link:hover {
-  color: #002a66;
-  text-decoration: underline;
-}
-
-.tour-ops-card__summary-link:focus-visible {
-  outline: 2px solid #003580;
-  outline-offset: 2px;
-  border-radius: 0.25rem;
+  display: none;
 }
 
 .tour-ops-card__payment-status {
-  margin: 0 0 0.35rem;
+  margin: 0 0 0.4rem;
   display: inline-flex;
   align-items: center;
-  border-radius: 999px;
-  padding: 0.12rem 0.5rem;
-  font-size: 11.5px;
+  border-radius: 0.35rem;
+  padding: 0.1rem 0.45rem;
+  font-size: 0.6875rem;
   font-weight: 600;
-  color: #003580;
-  background: rgba(0, 53, 128, 0.07);
+  color: #344054;
+  background: rgba(15, 23, 42, 0.05);
 }
 
 .tour-ops-card__summary-attention {
@@ -11405,10 +11440,10 @@ details:not([open]) > :not(summary) {
 }
 
 .tour-ops-card__finance-earn {
-  font-size: 13.5px !important;
+  font-size: 0.875rem !important;
   font-weight: 700 !important;
-  color: #003580 !important;
-  letter-spacing: -0.01em;
+  color: #0f1419 !important;
+  letter-spacing: -0.015em;
 }
 
 .tour-ops-card__finance-note {
@@ -11885,9 +11920,18 @@ details:not([open]) > :not(summary) {
   flex-wrap: wrap;
   align-items: center;
   gap: 0.45rem;
-  margin-top: 0.8rem;
+  margin-top: 0.75rem;
   padding-top: 0.7rem;
   border-top: 1px solid rgba(15, 23, 42, 0.06);
+}
+
+.tour-ops-card__action-btn {
+  height: 2rem !important;
+  min-height: 2rem !important;
+  padding-inline: 0.8rem !important;
+  font-size: 0.75rem !important;
+  font-weight: 600 !important;
+  border-radius: 0.45rem !important;
 }
 
 .tour-ops-card__actions .tv-btn-primary,

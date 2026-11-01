@@ -1,5 +1,5 @@
 /**
- * Expandable rental booking row — compact scan row + collection/return details.
+ * Expandable rental booking row — Guest | Booking details | Payment.
  */
 import { type MouseEvent, type ReactNode } from 'react';
 import { ChevronDown, Copy, Mail } from 'lucide-react';
@@ -31,6 +31,7 @@ export type RentalOpsCardModel = {
   earningsLabel: string | null;
   financeLoading: boolean;
   paymentLabel: string;
+  /** Kept for detail pages; not shown in the compact overview. */
   termsSummary: string | null;
 };
 
@@ -47,6 +48,11 @@ type Props = {
   copied?: boolean;
 };
 
+function moneyOrPlaceholder(value: string | null | undefined): string {
+  const trimmed = (value ?? '').trim();
+  return trimmed || '—';
+}
+
 export default function RentalOpsBookingCard({
   model,
   expanded,
@@ -59,12 +65,13 @@ export default function RentalOpsBookingCard({
   copied,
 }: Props) {
   const stop = (e: MouseEvent) => e.stopPropagation();
+  const needsAttention = Boolean(model.warning);
 
   return (
     <article
       id={`supplier-booking-row-${model.id}`}
       data-highlight={selected ? 'true' : 'false'}
-      data-attention={model.warning ? 'true' : 'false'}
+      data-attention={needsAttention ? 'true' : 'false'}
       data-expanded={expanded ? 'true' : 'false'}
       className={`tour-ops-card${expanded ? ' is-expanded' : ''}`}
     >
@@ -78,6 +85,7 @@ export default function RentalOpsBookingCard({
         >
           <ChevronDown
             className={`tour-ops-card__chevron${expanded ? ' is-open' : ''}`}
+            strokeWidth={2.25}
             aria-hidden
           />
         </button>
@@ -142,7 +150,7 @@ export default function RentalOpsBookingCard({
                 ) : (
                   <>
                     <span className="tour-ops-card__ref-code">{model.referenceLabel}</span>
-                    <Copy className="h-3 w-3 shrink-0 opacity-55" aria-hidden />
+                    <Copy className="h-3 w-3 shrink-0 opacity-55" strokeWidth={2} aria-hidden />
                   </>
                 )}
               </button>
@@ -155,26 +163,28 @@ export default function RentalOpsBookingCard({
       <div className="tour-ops-card__panel" hidden={!expanded} onClick={stop}>
         <div className="tour-ops-card__summary-grid">
           <section className="tour-ops-card__summary-block">
-            <h3 className="tour-ops-card__summary-heading">Customer</h3>
+            <h3 className="tour-ops-card__summary-heading">Guest</h3>
             <p className="tour-ops-card__summary-name">{model.customerName}</p>
+            {model.customerEmail ? (
+              <a href={`mailto:${model.customerEmail}`} className="tour-ops-card__summary-contact">
+                {model.customerEmail}
+              </a>
+            ) : null}
             {model.customerPhone ? (
               <a
                 href={`tel:${model.customerPhone.replace(/[^\d+]/g, '')}`}
-                className="tour-ops-card__summary-phone"
+                className="tour-ops-card__summary-contact"
               >
                 {model.customerPhone}
               </a>
             ) : null}
-            {model.customerEmail ? (
-              <p className="tour-ops-card__summary-meta">
-                <a href={`mailto:${model.customerEmail}`} className="text-finland hover:underline">
-                  {model.customerEmail}
-                </a>
-              </p>
+            {model.quantityLabel ? (
+              <p className="tour-ops-card__summary-meta">{model.quantityLabel}</p>
             ) : null}
-            <p className="tour-ops-card__summary-meta">{model.quantityLabel}</p>
             {model.purchaseDateLabel ? (
-              <p className="tour-ops-card__summary-meta">Purchased {model.purchaseDateLabel}</p>
+              <p className="tour-ops-card__summary-meta tour-ops-card__summary-meta--secondary">
+                Purchased {model.purchaseDateLabel}
+              </p>
             ) : null}
             {model.customerNotes ? (
               <p className="tour-ops-card__summary-note">{model.customerNotes}</p>
@@ -182,48 +192,63 @@ export default function RentalOpsBookingCard({
           </section>
 
           <section className="tour-ops-card__summary-block">
-            <h3 className="tour-ops-card__summary-heading">Rental period</h3>
-            <p className="tour-ops-card__summary-value">Collection · {model.collectionLabel || '—'}</p>
-            <p className="tour-ops-card__summary-meta">Return · {model.returnLabel || '—'}</p>
+            <h3 className="tour-ops-card__summary-heading">Booking details</h3>
+            <p className="tour-ops-card__summary-value">
+              <span className="tour-ops-card__summary-label">Collection</span>
+              {model.collectionLabel || '—'}
+            </p>
+            <p className="tour-ops-card__summary-meta">
+              <span className="tour-ops-card__summary-label">Return</span>
+              {model.returnLabel || '—'}
+            </p>
+            {model.variantLabel ? (
+              <p className="tour-ops-card__summary-meta">{model.variantLabel}</p>
+            ) : null}
             {model.collectionPlace ? (
-              <p className="tour-ops-card__summary-note">{model.collectionPlace}</p>
+              <p className="tour-ops-card__summary-note tour-ops-card__summary-value--place">
+                {model.collectionPlace}
+              </p>
             ) : null}
             {model.returnPlace && model.returnPlace !== model.collectionPlace ? (
               <p className="tour-ops-card__summary-note">Return: {model.returnPlace}</p>
-            ) : null}
-            {model.termsSummary ? (
-              <p className="tour-ops-card__summary-note mt-1.5">{model.termsSummary}</p>
             ) : null}
           </section>
 
           <section className="tour-ops-card__summary-block tour-ops-card__summary-block--finance">
             <h3 className="tour-ops-card__summary-heading">Payment</h3>
+            {model.paymentLabel ? (
+              <p className="tour-ops-card__payment-status">{model.paymentLabel}</p>
+            ) : null}
             {model.financeLoading ? (
               <p className="tour-ops-card__summary-meta">Loading…</p>
             ) : (
-              <dl className="tour-ops-card__finance">
-                <div>
-                  <dt>Customer paid</dt>
-                  <dd className="tabular-nums">{model.guestPaidLabel || 'Unavailable'}</dd>
-                </div>
-                <div>
-                  <dt>
-                    Traverion commission
-                    {model.commissionRateLabel ? ` (${model.commissionRateLabel})` : ''}
-                  </dt>
-                  <dd className="tabular-nums">
-                    {model.commissionLabel ? `−${model.commissionLabel}` : 'Unavailable'}
-                  </dd>
-                </div>
-                <div>
-                  <dt>Supplier earnings</dt>
-                  <dd className="tabular-nums tour-ops-card__finance-earn">
-                    {model.earningsLabel || 'Unavailable'}
-                  </dd>
-                </div>
-              </dl>
+              <>
+                <dl className="tour-ops-card__finance">
+                  <div>
+                    <dt>Customer paid</dt>
+                    <dd className="tabular-nums">{moneyOrPlaceholder(model.guestPaidLabel)}</dd>
+                  </div>
+                  <div>
+                    <dt>
+                      Traverion commission
+                      {model.commissionRateLabel ? ` (${model.commissionRateLabel})` : ''}
+                    </dt>
+                    <dd className="tabular-nums">
+                      {model.commissionLabel ? `−${model.commissionLabel}` : '—'}
+                    </dd>
+                  </div>
+                  <div className="tour-ops-card__finance-earn-row">
+                    <dt>Supplier earnings</dt>
+                    <dd className="tabular-nums tour-ops-card__finance-earn">
+                      {moneyOrPlaceholder(model.earningsLabel)}
+                    </dd>
+                  </div>
+                </dl>
+                {model.earningsLabel ? (
+                  <p className="tour-ops-card__finance-note">Supplier earnings are not a payout.</p>
+                ) : null}
+              </>
             )}
-            <p className="tour-ops-card__summary-meta mt-1.5">{model.paymentLabel}</p>
           </section>
         </div>
 
@@ -232,15 +257,15 @@ export default function RentalOpsBookingCard({
         <div className="tour-ops-card__actions">
           <button
             type="button"
-            className="tv-btn-primary h-8 !px-3 text-[12.5px]"
+            className="tv-btn-primary tour-ops-card__action-btn"
             onClick={onMessageCustomer}
           >
-            <Mail className="h-3.5 w-3.5" aria-hidden />
+            <Mail className="h-3.5 w-3.5" strokeWidth={2} aria-hidden />
             Message customer
           </button>
           <button
             type="button"
-            className="tv-btn-secondary h-8 !px-3 text-[12.5px]"
+            className="tv-btn-secondary tour-ops-card__action-btn"
             onClick={onOpenDetails}
           >
             View details
