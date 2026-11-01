@@ -19698,6 +19698,14 @@ details:not([open]) > :not(summary) {
   font-weight: 650;
 }
 
+.partner-unified-cal__card-time--muted {
+  font-size: 0.6875rem !important;
+  font-weight: 650 !important;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--puc-faint);
+}
+
 .partner-unified-cal__card--tour-ops .partner-unified-cal__card-title {
   font-size: 0.9375rem;
   font-weight: 700;
@@ -19834,6 +19842,14 @@ details:not([open]) > :not(summary) {
   color: var(--puc-ink);
   line-height: 1.25;
   white-space: nowrap;
+}
+
+.puc-tour-ops__value--blocked {
+  color: #9f1239;
+}
+
+.puc-tour-ops__value--occupied {
+  color: #9a3412;
 }
 
 .puc-tour-ops__value--clock {

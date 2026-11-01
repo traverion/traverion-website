@@ -353,10 +353,10 @@ export async function partnerUnifiedBlockRentalDay(params: {
   iso: string;
   variantId: string | null;
   createdBy?: string | null;
-}): Promise<DayEditResult> {
+}): Promise<DayEditResult & { block?: RentalAvailabilityBlockRow }> {
   const bounds = partnerUnifiedDayBoundsUtc(params.iso);
   try {
-    await createRentalAvailabilityBlock({
+    const block = await createRentalAvailabilityBlock({
       listingId: params.listingId,
       variantId: params.variantId,
       startsAtIso: bounds.startIso,
@@ -364,7 +364,7 @@ export async function partnerUnifiedBlockRentalDay(params: {
       note: '',
       createdBy: params.createdBy ?? null,
     });
-    return { ok: true, message: 'Date blocked.' };
+    return { ok: true, message: 'Date blocked.', block };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : 'Could not block date.' };
   }

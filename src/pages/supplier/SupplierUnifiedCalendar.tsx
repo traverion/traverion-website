@@ -48,6 +48,12 @@ import { TraverionSingleDateField } from '../../components/calendar/TraverionSin
 import PartnerUnifiedAgendaTourControls, {
   type PartnerUnifiedAgendaTourPatch,
 } from '../../components/supplier/PartnerUnifiedAgendaTourControls';
+import PartnerUnifiedAgendaStayControls, {
+  type PartnerUnifiedAgendaStayPatch,
+} from '../../components/supplier/PartnerUnifiedAgendaStayControls';
+import PartnerUnifiedAgendaRentalControls, {
+  type PartnerUnifiedAgendaRentalPatch,
+} from '../../components/supplier/PartnerUnifiedAgendaRentalControls';
 import {
   annotateStayMonthSummaries,
   buildPartnerUnifiedRentalBlockEvents,
@@ -894,7 +900,7 @@ export default function SupplierUnifiedCalendar() {
     void load().then(() => setCalendarEpoch((n) => n + 1));
   }, [load]);
 
-  /** Agenda tour ops: patch local caches only — never full-list reload. */
+  /** Agenda ops: patch local caches only — never full-list reload. */
   const applyTourAgendaPatch = useCallback((patch: PartnerUnifiedAgendaTourPatch) => {
     if (patch.type === 'dayClosed') {
       setDayCapsByListing((prev) => {
@@ -908,6 +914,38 @@ export default function SupplierUnifiedCalendar() {
       return;
     }
     setListings((prev) => prev.map((l) => (l.id === patch.listing.id ? patch.listing : l)));
+  }, []);
+
+  const applyStayAgendaPatch = useCallback((patch: PartnerUnifiedAgendaStayPatch) => {
+    setStayCaps((prev) => {
+      const without = prev.filter(
+        (r) => !(r.listing_id === patch.listingId && r.available_date === patch.iso)
+      );
+      if (patch.capacity == null) return without;
+      return [
+        ...without,
+        {
+          listing_id: patch.listingId,
+          available_date: patch.iso,
+          capacity: patch.capacity,
+        },
+      ];
+    });
+  }, []);
+
+  const applyRentalAgendaPatch = useCallback((patch: PartnerUnifiedAgendaRentalPatch) => {
+    if (patch.type === 'listing') {
+      setListings((prev) => prev.map((l) => (l.id === patch.listing.id ? patch.listing : l)));
+      return;
+    }
+    if (patch.type === 'rentalBlockAdd') {
+      setRentalBlocks((prev) => {
+        if (prev.some((b) => b.id === patch.block.id)) return prev;
+        return [...prev, patch.block];
+      });
+      return;
+    }
+    setRentalBlocks((prev) => prev.filter((b) => !patch.blockIds.includes(b.id)));
   }, []);
 
   const toggleExpand = (key: string, event?: PartnerUnifiedCalendarEvent) => {
@@ -1142,6 +1180,11 @@ export default function SupplierUnifiedCalendar() {
                     const blocked =
                       status === 'Blocked' || event.departureStatus === 'closed';
                     const isTourDeparture = event.kind === 'tour_departure';
+                    const isStayAvail =
+                      event.kind === 'stay_listing' || event.kind === 'stay_blocked';
+                    const isRentalAvail =
+                      event.kind === 'rental_listing' || event.kind === 'rental_block';
+                    const isInlineAvailOps = isTourDeparture || isStayAvail || isRentalAvail;
                     const dayCap = event.listingId
                       ? dayCapsByListing.get(event.listingId)?.get(event.ymd)
                       : undefined;
@@ -1161,7 +1204,7 @@ export default function SupplierUnifiedCalendar() {
                       <article
                         key={event.key}
                         className={`partner-unified-cal__card partner-unified-cal__card--${event.category}${
-                          isTourDeparture ? ' partner-unified-cal__card--tour-ops' : ''
+                          isInlineAvailOps ? ' partner-unified-cal__card--tour-ops' : ''
                         }${expanded ? ' is-expanded' : ''}${dayClosed || blocked ? ' is-blocked' : ''}${
                           event.departureStatus === 'cutoff' ? ' is-cutoff' : ''
                         }${event.departureStatus === 'sold_out' ? ' is-sold_out' : ''}`}
@@ -1198,6 +1241,67 @@ export default function SupplierUnifiedCalendar() {
                               canEdit={canEdit}
                               dayClosed={dayClosed}
                               onPatch={applyTourAgendaPatch}
+                            />
+                          </div>
+                        ) : isStayAvail && listing ? (
+                          <div
+                            className="partner-unified-cal__card-main partner-unified-cal__card-main--tour-ops"
+                            title={[event.listingTitle, formatDayHeading(event.ymd)]
+                              .filter(Boolean)
+                              .join(' · ')}
+                          >
+                            <span className="partner-unified-cal__card-time partner-unified-cal__card-time--muted">
+                              Stay
+                            </span>
+                            <span className="partner-unified-cal__card-body">
+                              <span className="partner-unified-cal__card-title">
+                                {event.listingTitle}
+                              </span>
+                              <span className="partner-unified-cal__card-option">
+                                {formatDayShort(event.ymd)}
+                              </span>
+                            </span>
+                            <PartnerUnifiedAgendaStayControls
+                              event={event}
+                              listing={listing}
+                              bookings={bookings}
+                              stayCaps={stayCaps}
+                              canEdit={canEdit}
+                              onPatch={applyStayAgendaPatch}
+                            />
+                          </div>
+                        ) : isRentalAvail && listing ? (
+                          <div
+                            className="partner-unified-cal__card-main partner-unified-cal__card-main--tour-ops"
+                            title={[event.listingTitle, optionLine].filter(Boolean).join(' · ')}
+                          >
+                            <span className="partner-unified-cal__card-time partner-unified-cal__card-time--muted">
+                              Rent
+                            </span>
+                            <span className="partner-unified-cal__card-body">
+                              <span className="partner-unified-cal__card-title">
+                                {event.listingTitle}
+                              </span>
+                              <span className="partner-unified-cal__card-option">
+                                {[
+                                  optionLine &&
+                                  optionLine !== 'Inventory availability' &&
+                                  optionLine !== 'All options'
+                                    ? optionLine
+                                    : null,
+                                  formatDayShort(event.ymd),
+                                ]
+                                  .filter(Boolean)
+                                  .join(' · ') || formatDayShort(event.ymd)}
+                              </span>
+                            </span>
+                            <PartnerUnifiedAgendaRentalControls
+                              event={event}
+                              listing={listing}
+                              blocks={rentalBlocks}
+                              canEdit={canEdit}
+                              userId={user?.id}
+                              onPatch={applyRentalAgendaPatch}
                             />
                           </div>
                         ) : (
@@ -1243,10 +1347,7 @@ export default function SupplierUnifiedCalendar() {
                                     {status}
                                   </span>
                                 ) : null}
-                                {inventory &&
-                                (event.category === 'tour' ||
-                                  event.kind === 'stay_listing' ||
-                                  event.kind === 'rental_listing') ? (
+                                {inventory && event.category === 'tour' ? (
                                   <span className="partner-unified-cal__card-inventory">
                                     {inventory}
                                   </span>

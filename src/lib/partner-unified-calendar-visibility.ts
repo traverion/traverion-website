@@ -418,6 +418,7 @@ export function buildPartnerUnifiedRentalPresenceEvents(params: {
       if (covering) blockedDays += 1;
     }
     const optionCount = variants.length;
+    const primaryOption = variants[0]?.name?.trim() || null;
     const metaParts: string[] = [];
     if (optionCount > 0) {
       metaParts.push(
@@ -436,7 +437,7 @@ export function buildPartnerUnifiedRentalPresenceEvents(params: {
       category: 'rental',
       listingId: listing.id,
       listingTitle: listing.title?.trim() || 'Rental',
-      optionLabel: 'Inventory availability',
+      optionLabel: primaryOption || (optionCount > 1 ? `${optionCount} options` : 'Inventory'),
       guestName: null,
       reference: null,
       bookingId: null,
