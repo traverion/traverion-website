@@ -149,6 +149,24 @@ describe('partner-unified-calendar', () => {
     expect(page).toContain('rentalListingIdsKey');
   });
 
+  it('Agenda cards show listing cover thumbs and two-line title typography', () => {
+    const page = readFileSync(resolve(__dirname, '../pages/supplier/SupplierUnifiedCalendar.tsx'), 'utf8');
+    const css = readFileSync(resolve(__dirname, '../index.css'), 'utf8');
+    expect(page).toContain('AgendaListingThumb');
+    expect(page).toContain('listingHeroImageSrc');
+    expect(page).toContain('partner-unified-cal__card-thumb');
+    expect(css).toContain('partner-unified-cal__card-thumb');
+    expect(css).toMatch(/-webkit-line-clamp:\s*2/);
+    expect(css).toContain('object-fit: cover');
+    // Title space comes from fluid sizing + fr, not single-line ellipsis.
+    expect(css).toMatch(
+      /\.partner-unified-cal__card-title\s*\{[^}]*-webkit-line-clamp:\s*2/s
+    );
+    expect(css).not.toMatch(
+      /\.partner-unified-cal__card-title\s*\{[^}]*white-space:\s*nowrap/s
+    );
+  });
+
   it('defaults view to agenda and category to all', () => {
     expect(parsePartnerUnifiedCalendarView(null)).toBe('agenda');
     expect(parsePartnerUnifiedCalendarView('week')).toBe('week');

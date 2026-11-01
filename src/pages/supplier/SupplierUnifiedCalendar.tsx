@@ -11,7 +11,7 @@ import {
   type Dispatch,
   type SetStateAction,
 } from 'react';
-import { CalendarDays, ChevronLeft, ChevronRight, Pencil } from 'lucide-react';
+import { CalendarDays, ChevronLeft, ChevronRight, ImageOff, Pencil } from 'lucide-react';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import { useSupplierRole } from '../../hooks/useSupplierRole';
 import { canManageBookings } from '../../lib/supplierTeamRoles';
@@ -30,6 +30,7 @@ import { experienceTodayIsoForListing } from '../../lib/booking-quote';
 import { localYmd } from '../../lib/local-ymd';
 import { addCalendarDaysYmd } from '../../lib/booking-lifecycle-calendar';
 import { inventoryFamilyFromListing } from '../../lib/inventory';
+import { listingHeroImageSrc } from '../../lib/listingPhotoGrid';
 import { materializedBookingOptions } from '../../types/listingExtras';
 import {
   buildPartnerUnifiedCalendarEvents,
@@ -119,12 +120,6 @@ function formatDayShort(iso: string): string {
   });
 }
 
-function truncateLabel(text: string, max: number): string {
-  const t = text.trim();
-  if (t.length <= max) return t;
-  return `${t.slice(0, Math.max(1, max - 1))}…`;
-}
-
 /** Operational badges only — skip routine Open/Limited noise. */
 function statusText(event: PartnerUnifiedCalendarEvent): string | null {
   if (event.departureStatus === 'closed' || event.kind === 'stay_blocked' || event.kind === 'rental_block') {
@@ -182,6 +177,35 @@ function agendaOptionLine(event: PartnerUnifiedCalendarEvent): string | null {
   if (option) return option;
   if (event.category === 'rental') return null;
   return partnerUnifiedEventKindLabel(event.kind);
+}
+
+function agendaCardTooltip(title: string, option: string | null | undefined): string {
+  return [title.trim(), (option ?? '').trim()].filter(Boolean).join(' · ');
+}
+
+/** Compact cover thumb from listing.image already loaded with the calendar listings. */
+function AgendaListingThumb({
+  listing,
+  category,
+}: {
+  listing: TourPackage | null | undefined;
+  category: PartnerUnifiedCalendarEvent['category'];
+}) {
+  const src = listingHeroImageSrc(listing?.image) ?? null;
+  return (
+    <span
+      className={`partner-unified-cal__card-thumb is-${category}${src ? '' : ' is-empty'}`}
+      aria-hidden="true"
+    >
+      {src ? (
+        <img src={src} alt="" loading="lazy" decoding="async" />
+      ) : (
+        <span className="partner-unified-cal__card-thumb-fallback">
+          <ImageOff className="partner-unified-cal__card-thumb-icon" strokeWidth={1.75} />
+        </span>
+      )}
+    </span>
+  );
 }
 
 function parseIsoParam(raw: string | null | undefined): string | null {
@@ -1267,11 +1291,12 @@ export default function SupplierUnifiedCalendar() {
                         {isTourDeparture && listing ? (
                           <div
                             className="partner-unified-cal__card-main partner-unified-cal__card-main--tour-ops"
-                            title={[event.listingTitle, optionLine].filter(Boolean).join(' · ')}
+                            title={agendaCardTooltip(event.listingTitle, optionLine)}
                           >
                             <span className="partner-unified-cal__card-time">
                               {event.timeHm ?? '—'}
                             </span>
+                            <AgendaListingThumb listing={listing} category="tour" />
                             <span className="partner-unified-cal__card-body">
                               <span className="partner-unified-cal__card-title">
                                 {event.listingTitle}
@@ -1301,13 +1326,15 @@ export default function SupplierUnifiedCalendar() {
                         ) : isStayAvail && listing ? (
                           <div
                             className="partner-unified-cal__card-main partner-unified-cal__card-main--tour-ops"
-                            title={[event.listingTitle, formatDayHeading(event.ymd)]
-                              .filter(Boolean)
-                              .join(' · ')}
+                            title={agendaCardTooltip(
+                              event.listingTitle,
+                              formatDayHeading(event.ymd)
+                            )}
                           >
                             <span className="partner-unified-cal__card-time partner-unified-cal__card-time--muted">
                               Stay
                             </span>
+                            <AgendaListingThumb listing={listing} category="stay" />
                             <span className="partner-unified-cal__card-body">
                               <span className="partner-unified-cal__card-title">
                                 {event.listingTitle}
@@ -1328,11 +1355,12 @@ export default function SupplierUnifiedCalendar() {
                         ) : isRentalAvail && listing ? (
                           <div
                             className="partner-unified-cal__card-main partner-unified-cal__card-main--tour-ops"
-                            title={[event.listingTitle, optionLine].filter(Boolean).join(' · ')}
+                            title={agendaCardTooltip(event.listingTitle, optionLine)}
                           >
                             <span className="partner-unified-cal__card-time partner-unified-cal__card-time--muted">
                               Rent
                             </span>
+                            <AgendaListingThumb listing={listing} category="rental" />
                             <span className="partner-unified-cal__card-body">
                               <span className="partner-unified-cal__card-title">
                                 {event.listingTitle}
@@ -1370,11 +1398,12 @@ export default function SupplierUnifiedCalendar() {
                                 toggleExpand(event.key, event);
                               }}
                               aria-expanded={expanded}
-                              title={[event.listingTitle, optionLine].filter(Boolean).join(' · ')}
+                              title={agendaCardTooltip(event.listingTitle, optionLine)}
                             >
                               <span className="partner-unified-cal__card-time">
                                 {event.timeHm ?? '—'}
                               </span>
+                              <AgendaListingThumb listing={listing} category={event.category} />
                               <span className="partner-unified-cal__card-body">
                                 <span className="partner-unified-cal__card-title">
                                   {event.listingTitle}
