@@ -1,0 +1,85 @@
+{
+  "ok": true,
+  "phase": "rental_earnings_completion_return_at",
+  "mission": "06.3",
+  "startedAt": "2026-11-01T21:44:08.535Z",
+  "runId": "21e8a048",
+  "environment": {
+    "project": "gedktutbpfwnstcbffsc",
+    "productionRefRejected": "xcopqllkulxfkpunetbc"
+  },
+  "steps": [
+    {
+      "name": "baseline_null_rental_completions",
+      "ok": true,
+      "at": "2026-11-01T21:44:12.073Z",
+      "count": 0
+    },
+    {
+      "name": "migration_296_applied_staging",
+      "ok": true,
+      "at": "2026-11-01T21:44:12.465Z",
+      "noticeTouched": 0
+    },
+    {
+      "name": "post_migration_null_with_return_at",
+      "ok": true,
+      "at": "2026-11-01T21:44:14.427Z",
+      "count": 0
+    },
+    {
+      "name": "completion_clocks",
+      "ok": true,
+      "at": "2026-11-01T21:44:17.346Z",
+      "rentalFuture": "2099-06-15T12:00:00Z",
+      "rentalPast": "2020-06-15T12:00:00Z",
+      "tourAt": "2099-07-01T20:00:00Z",
+      "stayAt": "2099-08-03T08:00:00Z"
+    },
+    {
+      "name": "eligibility_transitions",
+      "ok": true,
+      "at": "2026-11-01T21:44:19.750Z",
+      "future": {
+        "status": "pending",
+        "completed": "2099-06-15 12:00:00+00",
+        "eligibleAt": "2099-06-17 12:00:00+00"
+      },
+      "past": {
+        "status": "eligible",
+        "completed": "2020-06-15 12:00:00+00",
+        "eligibleAt": "2020-06-17 12:00:00+00"
+      },
+      "refunded": {
+        "status": "pending",
+        "payment": "refunded"
+      }
+    },
+    {
+      "name": "amounts_unchanged",
+      "ok": true,
+      "at": "2026-11-01T21:44:21.630Z",
+      "amount_minor": 2125,
+      "commission_minor": 375,
+      "gross_minor": 2500
+    },
+    {
+      "name": "mission_06_3_staging_pass",
+      "ok": true,
+      "at": "2026-11-01T21:44:21.630Z"
+    },
+    {
+      "name": "cleanup_fixtures",
+      "ok": true,
+      "at": "2026-11-01T21:44:21.966Z"
+    }
+  ],
+  "errors": [],
+  "backfill": {
+    "beforeNullCompletion": 0,
+    "migrationNoticeTouched": 0,
+    "afterNullWithReturnAt": 0
+  },
+  "verdict": "PASS",
+  "finishedAt": "2026-11-01T21:44:21.967Z"
+}
