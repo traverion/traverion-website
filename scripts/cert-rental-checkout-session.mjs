@@ -98,7 +98,7 @@ function dbQuery(sql) {
   }
   const r = spawnSync(
     'npx',
-    ['supabase', 'db', 'query', '--db-url', DATABASE_URL, '--output', 'json', sql],
+    ['supabase', 'db', 'query', '--db-url', DATABASE_URL, '--yes', '--output', 'json', sql],
     { encoding: 'utf8', cwd: resolve('.'), maxBuffer: 20 * 1024 * 1024 }
   );
   if (r.status !== 0) throw new Error(`db query failed: ${(r.stderr || r.stdout || '').slice(-1500)}`);
@@ -719,13 +719,18 @@ async function run() {
     const sessionId = dup.json.sessionId;
     report.ids.bookingId = bookingId;
     report.ids.checkoutSessionId = sessionId;
+    // Instant Book no-hold (294): unpaid checkout must not reserve inventory.
     const holdsAfterDup = holdStatus(bookingId);
     const heldCount = holdsAfterDup.filter((h) => h.status === 'held' || h.status === 'confirmed').length;
-    if (heldCount !== 1) throw new Error(`expected 1 active hold, saw ${JSON.stringify(holdsAfterDup)}`);
+    if (heldCount !== 0) {
+      throw new Error(`unpaid checkout reserved inventory: ${JSON.stringify(holdsAfterDup)}`);
+    }
     step('checkout_session_created_idempotent', {
       bookingId: bookingId.slice(0, 8),
       sessionId,
       quotedTotal: dup.json.quotedTotal,
+      unpaidHolds: 0,
+      mode: 'instant_book_no_hold',
     });
 
     if (first.json.sessionId !== sessionId) {

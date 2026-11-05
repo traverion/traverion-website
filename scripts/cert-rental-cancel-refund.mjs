@@ -78,7 +78,7 @@ function dbQuery(sql) {
   if (DATABASE_URL.includes(PRODUCTION_PROJECT_REF)) throw new Error('ABORT: production DB');
   const r = spawnSync(
     'npx',
-    ['supabase', 'db', 'query', '--db-url', DATABASE_URL, '--output', 'json', sql],
+    ['supabase', 'db', 'query', '--db-url', DATABASE_URL, '--yes', '--output', 'json', sql],
     { encoding: 'utf8', cwd: resolve('.'), maxBuffer: 20 * 1024 * 1024 }
   );
   if (r.status !== 0) throw new Error(`db query failed: ${(r.stderr || r.stdout || '').slice(-1500)}`);

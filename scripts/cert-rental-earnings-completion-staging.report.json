@@ -2,8 +2,8 @@
   "ok": true,
   "phase": "rental_earnings_completion_return_at",
   "mission": "06.3",
-  "startedAt": "2026-11-01T21:44:08.535Z",
-  "runId": "21e8a048",
+  "startedAt": "2026-11-05T22:12:10.195Z",
+  "runId": "6f2c89a0",
   "environment": {
     "project": "gedktutbpfwnstcbffsc",
     "productionRefRejected": "xcopqllkulxfkpunetbc"
@@ -12,25 +12,25 @@
     {
       "name": "baseline_null_rental_completions",
       "ok": true,
-      "at": "2026-11-01T21:44:12.073Z",
+      "at": "2026-11-05T22:12:12.861Z",
       "count": 0
     },
     {
       "name": "migration_296_applied_staging",
       "ok": true,
-      "at": "2026-11-01T21:44:12.465Z",
+      "at": "2026-11-05T22:12:13.280Z",
       "noticeTouched": 0
     },
     {
       "name": "post_migration_null_with_return_at",
       "ok": true,
-      "at": "2026-11-01T21:44:14.427Z",
+      "at": "2026-11-05T22:12:15.273Z",
       "count": 0
     },
     {
       "name": "completion_clocks",
       "ok": true,
-      "at": "2026-11-01T21:44:17.346Z",
+      "at": "2026-11-05T22:12:17.804Z",
       "rentalFuture": "2099-06-15T12:00:00Z",
       "rentalPast": "2020-06-15T12:00:00Z",
       "tourAt": "2099-07-01T20:00:00Z",
@@ -39,7 +39,7 @@
     {
       "name": "eligibility_transitions",
       "ok": true,
-      "at": "2026-11-01T21:44:19.750Z",
+      "at": "2026-11-05T22:12:20.191Z",
       "future": {
         "status": "pending",
         "completed": "2099-06-15 12:00:00+00",
@@ -58,7 +58,7 @@
     {
       "name": "amounts_unchanged",
       "ok": true,
-      "at": "2026-11-01T21:44:21.630Z",
+      "at": "2026-11-05T22:12:22.229Z",
       "amount_minor": 2125,
       "commission_minor": 375,
       "gross_minor": 2500
@@ -66,12 +66,12 @@
     {
       "name": "mission_06_3_staging_pass",
       "ok": true,
-      "at": "2026-11-01T21:44:21.630Z"
+      "at": "2026-11-05T22:12:22.229Z"
     },
     {
       "name": "cleanup_fixtures",
       "ok": true,
-      "at": "2026-11-01T21:44:21.966Z"
+      "at": "2026-11-05T22:12:22.515Z"
     }
   ],
   "errors": [],
@@ -81,5 +81,5 @@
     "afterNullWithReturnAt": 0
   },
   "verdict": "PASS",
-  "finishedAt": "2026-11-01T21:44:21.967Z"
+  "finishedAt": "2026-11-05T22:12:22.515Z"
 }

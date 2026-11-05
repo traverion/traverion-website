@@ -2,8 +2,8 @@
   "ok": true,
   "phase": "rental_dual_pay_last_unit_post_294",
   "mission": "06.2",
-  "startedAt": "2026-11-01T21:36:34.740Z",
-  "runId": "bc1ab2b3",
+  "startedAt": "2026-11-05T22:09:38.275Z",
+  "runId": "41529233",
   "environment": {
     "project": "gedktutbpfwnstcbffsc",
     "productionRefRejected": "xcopqllkulxfkpunetbc",
@@ -17,19 +17,19 @@
     {
       "name": "staging_claim_is_instant_book_no_hold",
       "ok": true,
-      "at": "2026-11-01T21:36:40.631Z"
+      "at": "2026-11-05T22:09:41.156Z"
     },
     {
       "name": "staging_rental_checkout_enabled",
       "ok": true,
-      "at": "2026-11-01T21:36:40.957Z",
+      "at": "2026-11-05T22:09:41.502Z",
       "success": true,
       "rentalCheckoutEnabled": true
     },
     {
       "name": "stripe_webhook_endpoints",
       "ok": true,
-      "at": "2026-11-01T21:36:41.305Z",
+      "at": "2026-11-05T22:09:41.829Z",
       "productionEnabled": 1,
       "stagingDashboardEndpoints": 0,
       "productionIds": [
@@ -39,19 +39,19 @@
     {
       "name": "cert_identities_example_com",
       "ok": true,
-      "at": "2026-11-01T21:36:46.234Z"
+      "at": "2026-11-05T22:09:46.360Z"
     },
     {
       "name": "fixture_listing_draft_stock_1",
       "ok": true,
-      "at": "2026-11-01T21:36:48.145Z",
-      "listingId": "dd69416c",
+      "at": "2026-11-05T22:09:48.294Z",
+      "listingId": "e1eea8e8",
       "variant": "cert-last-unit"
     },
     {
       "name": "evaluate_availability",
       "ok": true,
-      "at": "2026-11-01T21:36:50.022Z",
+      "at": "2026-11-05T22:09:50.195Z",
       "available": 1,
       "buffer_minutes": 0,
       "occupied_end": "2035-06-11T09:00:00+00:00",
@@ -62,46 +62,46 @@
     {
       "name": "two_checkout_sessions_created",
       "ok": true,
-      "at": "2026-11-01T21:36:53.726Z",
+      "at": "2026-11-05T22:09:53.594Z",
       "sessions": 2,
-      "bookingA": "c33453af",
-      "bookingB": "215a4f45"
+      "bookingA": "0e9f8b32",
+      "bookingB": "4e2af0b6"
     },
     {
       "name": "unpaid_checkouts_do_not_reserve_inventory",
       "ok": true,
-      "at": "2026-11-01T21:36:57.521Z",
+      "at": "2026-11-05T22:09:57.475Z",
       "holds": 0,
       "reserved": 0
     },
     {
       "name": "stripe_sessions_test_mode_stamped",
       "ok": true,
-      "at": "2026-11-01T21:36:58.162Z",
+      "at": "2026-11-05T22:09:58.123Z",
       "amount_total": 2500,
       "projectRef": "gedktutbpfwnstcbffsc"
     },
     {
       "name": "both_payments_completed_stripe_test",
       "ok": true,
-      "at": "2026-11-01T21:36:59.781Z",
-      "elapsedMs": 1618,
+      "at": "2026-11-05T22:09:59.587Z",
+      "elapsedMs": 1463,
       "payA": "paid",
       "payB": "paid"
     },
     {
       "name": "dual_reconcile_promote_race",
       "ok": true,
-      "at": "2026-11-01T21:37:03.637Z",
+      "at": "2026-11-05T22:10:03.925Z",
       "a": {
         "http": 200,
-        "promoted": true,
+        "promoted": false,
         "reason": null,
         "error": null
       },
       "b": {
         "http": 200,
-        "promoted": false,
+        "promoted": true,
         "reason": null,
         "error": null
       }
@@ -109,29 +109,29 @@
     {
       "name": "exactly_one_booking_confirmed",
       "ok": true,
-      "at": "2026-11-01T21:37:07.439Z",
-      "winner": "c33453af",
+      "at": "2026-11-05T22:10:07.986Z",
+      "winner": "4e2af0b6",
       "winnerStatus": "confirmed",
       "winnerPayment": "paid",
-      "loser": "215a4f45",
+      "loser": "0e9f8b32",
       "loserStatus": "cancelled",
       "loserPayment": "pending"
     },
     {
       "name": "loser_refunded_exactly_once",
       "ok": true,
-      "at": "2026-11-01T21:37:08.328Z",
-      "refundId": "re_3UX6QwC3BaJIHpM61WMDEIoN",
+      "at": "2026-11-05T22:10:09.008Z",
+      "refundId": "re_3UYYr4C3BaJIHpM61Z7aXHZV",
       "status": "succeeded",
       "amount": 2500,
-      "paymentIntentId": "pi_3UX6QwC3BaJIHpM61XCklCIF",
+      "paymentIntentId": "pi_3UYYr4C3BaJIHpM61bYUb3MD",
       "bookingPaymentStatus": "pending",
       "note": "booking payment_status may lag on staging without Dashboard webhook; Stripe refund is source of truth"
     },
     {
       "name": "inventory_conflict_evidence",
       "ok": true,
-      "at": "2026-11-01T21:37:10.277Z",
+      "at": "2026-11-05T22:10:11.013Z",
       "rows": 1,
       "sample": {
         "detail": "{\"reason\": \"inventory_conflict_on_paid_promotion\", \"inventoryError\": \"insufficient_stock\", \"stripeEventType\": \"checkout.session.completed\"}",
@@ -142,7 +142,7 @@
     {
       "name": "inventory_allocated_to_winner_only",
       "ok": true,
-      "at": "2026-11-01T21:37:15.959Z",
+      "at": "2026-11-05T22:10:16.742Z",
       "winnerHolds": 1,
       "loserActiveHolds": 0,
       "reserved": 1
@@ -150,24 +150,24 @@
     {
       "name": "promote_replay_idempotent",
       "ok": true,
-      "at": "2026-11-01T21:37:26.336Z",
+      "at": "2026-11-05T22:10:32.241Z",
       "againA": {
         "http": 200,
-        "alreadySettled": true
+        "promoted": false
       },
       "againB": {
         "http": 200,
-        "promoted": false
+        "alreadySettled": true
       },
       "loserRefundCount": 1
     },
     {
       "name": "foreign_env_webhook_no_promote_or_extra_refund",
       "ok": true,
-      "at": "2026-11-01T21:37:45.856Z",
+      "at": "2026-11-05T22:10:49.500Z",
       "resentEvents": [
-        "evt_1UX6QyC3BaJIHpM6ybXDZTkw",
-        "evt_1UX6QxC3BaJIHpM6xN99UJHt"
+        "evt_1UYYr5C3BaJIHpM6Ylgw80lg",
+        "evt_1UYYr5C3BaJIHpM6hUz5f3vi"
       ],
       "winnerStillPaid": true,
       "winnerRefundCount": 0,
@@ -176,73 +176,73 @@
     {
       "name": "mission_06_2_pass",
       "ok": true,
-      "at": "2026-11-01T21:37:45.857Z",
+      "at": "2026-11-05T22:10:49.501Z",
       "checkoutSessions": 2,
-      "winnerBookingId": "c33453af-4c21-49de-9c32-fb1343821b8b",
-      "loserBookingId": "215a4f45-2503-43aa-b980-4d2e659f5068",
-      "loserRefundId": "re_3UX6QwC3BaJIHpM61WMDEIoN",
+      "winnerBookingId": "4e2af0b6-8eaf-4289-a3d0-d2a30fcf80f9",
+      "loserBookingId": "0e9f8b32-0766-4f79-9d28-cbf3aed0d731",
+      "loserRefundId": "re_3UYYr4C3BaJIHpM61Z7aXHZV",
       "reservedAfter": 1
     },
     {
       "name": "cleanup_listing",
       "ok": true,
-      "at": "2026-11-01T21:37:47.753Z"
+      "at": "2026-11-05T22:10:51.408Z"
     },
     {
       "name": "cleanup_identities",
       "ok": true,
-      "at": "2026-11-01T21:37:47.902Z"
+      "at": "2026-11-05T22:10:51.531Z"
     }
   ],
   "errors": [],
   "ids": {
-    "guestAEmail": "cert-dual-a-bc1ab2b3@example.com",
-    "guestBEmail": "cert-dual-b-bc1ab2b3@example.com",
-    "guestAId": "d60e8de6-dea7-48b7-a782-a050f0747ca5",
-    "guestBId": "c32e0032-c8fd-4367-b3a1-fc0ed5f69f9d",
-    "supplierId": "4b68f29b-95f6-4766-a106-d11738b97b9c",
-    "listingId": "dd69416c-1e7f-4216-8fee-90432cfab052",
+    "guestAEmail": "cert-dual-a-41529233@example.com",
+    "guestBEmail": "cert-dual-b-41529233@example.com",
+    "guestAId": "63c3f439-83a8-4ecc-b60f-9d03152e7853",
+    "guestBId": "dc8ca749-8332-48f6-b5fa-f400a92c2968",
+    "supplierId": "4f3b2c03-78d2-496f-9ce5-0ec781cc6ac1",
+    "listingId": "e1eea8e8-d222-494d-8b12-106dec0b88de",
     "checkoutA": {
       "http": 200,
       "success": true,
-      "bookingId": "c33453af-4c21-49de-9c32-fb1343821b8b",
-      "sessionId": "cs_test_a1s6xhNCygqgJ0IpeRk2QmFx7MuN6pYlnZBNiwhY5MpvatDoFK6wUDs8v6",
+      "bookingId": "0e9f8b32-0766-4f79-9d28-cbf3aed0d731",
+      "sessionId": "cs_test_a1Z1i4Y7SQZVSYz2rvnQFHGcRKYT5J0YNcbGgvibuyst73neo9yWqc2Jkm",
       "error": null
     },
     "checkoutB": {
       "http": 200,
       "success": true,
-      "bookingId": "215a4f45-2503-43aa-b980-4d2e659f5068",
-      "sessionId": "cs_test_a1QziiPHiPXw8Uwq3ayFiXMtbIXsmpJcoEzVdR7GauN8uFpNNjEXeGz9cv",
+      "bookingId": "4e2af0b6-8eaf-4289-a3d0-d2a30fcf80f9",
+      "sessionId": "cs_test_a1ebUCcHX0YDycMG7GCU7LyhwfCW74QSbkWh6lFkLniQgQDq3xHXPfTql1",
       "error": null
     },
     "bookingA": {
-      "amount_paid": "25.00",
-      "checkout_session_id": "cs_test_a1s6xhNCygqgJ0IpeRk2QmFx7MuN6pYlnZBNiwhY5MpvatDoFK6wUDs8v6",
-      "guest_email": "cert-dual-a-bc1ab2b3@example.com",
-      "id": "c33453af-4c21-49de-9c32-fb1343821b8b",
-      "payment_intent_id": "pi_3UX6QwC3BaJIHpM61RnASEwI",
-      "payment_status": "paid",
-      "public_reference": "TV-LTSRPTWF",
-      "status": "confirmed",
-      "total_amount": "25"
-    },
-    "bookingB": {
       "amount_paid": null,
-      "checkout_session_id": "cs_test_a1QziiPHiPXw8Uwq3ayFiXMtbIXsmpJcoEzVdR7GauN8uFpNNjEXeGz9cv",
-      "guest_email": "cert-dual-b-bc1ab2b3@example.com",
-      "id": "215a4f45-2503-43aa-b980-4d2e659f5068",
+      "checkout_session_id": "cs_test_a1Z1i4Y7SQZVSYz2rvnQFHGcRKYT5J0YNcbGgvibuyst73neo9yWqc2Jkm",
+      "guest_email": "cert-dual-a-41529233@example.com",
+      "id": "0e9f8b32-0766-4f79-9d28-cbf3aed0d731",
       "payment_intent_id": null,
       "payment_status": "pending",
-      "public_reference": "TV-N7EYNFAD",
+      "public_reference": "TV-V3EQSK8H",
       "status": "cancelled",
       "total_amount": "25"
     },
-    "winnerBookingId": "c33453af-4c21-49de-9c32-fb1343821b8b",
-    "loserBookingId": "215a4f45-2503-43aa-b980-4d2e659f5068",
-    "winnerPaymentIntentId": "pi_3UX6QwC3BaJIHpM61RnASEwI",
-    "loserPaymentIntentId": "pi_3UX6QwC3BaJIHpM61XCklCIF"
+    "bookingB": {
+      "amount_paid": "25.00",
+      "checkout_session_id": "cs_test_a1ebUCcHX0YDycMG7GCU7LyhwfCW74QSbkWh6lFkLniQgQDq3xHXPfTql1",
+      "guest_email": "cert-dual-b-41529233@example.com",
+      "id": "4e2af0b6-8eaf-4289-a3d0-d2a30fcf80f9",
+      "payment_intent_id": "pi_3UYYr4C3BaJIHpM61Bwo6FHJ",
+      "payment_status": "paid",
+      "public_reference": "TV-7ZWA6P43",
+      "status": "confirmed",
+      "total_amount": "25"
+    },
+    "winnerBookingId": "4e2af0b6-8eaf-4289-a3d0-d2a30fcf80f9",
+    "loserBookingId": "0e9f8b32-0766-4f79-9d28-cbf3aed0d731",
+    "winnerPaymentIntentId": "pi_3UYYr4C3BaJIHpM61Bwo6FHJ",
+    "loserPaymentIntentId": "pi_3UYYr4C3BaJIHpM61bYUb3MD"
   },
   "verdict": "PASS",
-  "finishedAt": "2026-11-01T21:37:47.902Z"
+  "finishedAt": "2026-11-05T22:10:51.532Z"
 }

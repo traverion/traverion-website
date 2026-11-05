@@ -61,7 +61,7 @@ function dbQuery(sql) {
   }
   const r = spawnSync(
     'npx',
-    ['supabase', 'db', 'query', '--db-url', target.databaseUrl, '--output', 'json', sql],
+    ['supabase', 'db', 'query', '--db-url', target.databaseUrl, '--yes', '--output', 'json', sql],
     { encoding: 'utf8', cwd: resolve('.'), maxBuffer: 20 * 1024 * 1024 }
   );
   if (r.status !== 0) throw new Error(`db query failed: ${(r.stderr || r.stdout || '').slice(-2000)}`);
