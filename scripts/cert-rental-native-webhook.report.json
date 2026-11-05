@@ -1,0 +1,188 @@
+{
+  "ok": true,
+  "mission": "P0.8.1",
+  "phase": "rental_native_stripe_webhook",
+  "startedAt": "2026-11-05T22:18:56.957Z",
+  "runId": "58fd2788",
+  "environment": {
+    "project": "gedktutbpfwnstcbffsc",
+    "productionRefRejected": "xcopqllkulxfkpunetbc",
+    "stripeMode": "test",
+    "promotePath": "native Stripe webhook → staging stripe-webhook (no reconcile)"
+  },
+  "steps": [
+    {
+      "name": "production_rental_checkout_flag_absent",
+      "ok": true,
+      "at": "2026-11-05T22:18:57.341Z",
+      "http": 200
+    },
+    {
+      "name": "staging_rental_checkout_enabled",
+      "ok": true,
+      "at": "2026-11-05T22:18:57.611Z",
+      "success": true,
+      "rentalCheckoutEnabled": true
+    },
+    {
+      "name": "webhook_endpoints_isolated",
+      "ok": true,
+      "at": "2026-11-05T22:18:57.956Z",
+      "staging": "we_1UYYxIC3BaJIHpM6HxfojFGz",
+      "production": "we_1TWkBwC3BaJIHpM6eVbY1DOc",
+      "stagingEvents": [
+        "checkout.session.completed",
+        "checkout.session.expired",
+        "payment_intent.payment_failed",
+        "payment_intent.succeeded",
+        "charge.refunded"
+      ],
+      "productionUntouched": true
+    },
+    {
+      "name": "cert_identities_ready",
+      "ok": true,
+      "at": "2026-11-05T22:19:02.820Z"
+    },
+    {
+      "name": "fixture_listing_draft",
+      "ok": true,
+      "at": "2026-11-05T22:19:04.771Z",
+      "listingId": "583b3e3e"
+    },
+    {
+      "name": "checkout_created_no_hold",
+      "ok": true,
+      "at": "2026-11-05T22:19:08.090Z",
+      "bookingId": "0680c6c9",
+      "sessionId": "cs_test_a1wxRBvhtSs85PkLVpkrLLYR37A8T2C7sD7CmrpyFDsGrC1fZhdursei4k",
+      "quotedTotal": 25
+    },
+    {
+      "name": "stripe_test_payment_completed",
+      "ok": true,
+      "at": "2026-11-05T22:19:09.878Z",
+      "sessionId": "cs_test_a1wxRBvhtSs85PkLVpkrLLYR37A8T2C7sD7CmrpyFDsGrC1fZhdursei4k",
+      "amount": 2500
+    },
+    {
+      "name": "native_webhook_promoted_without_reconcile",
+      "ok": true,
+      "at": "2026-11-05T22:19:18.107Z",
+      "eventId": "evt_1UYYzyC3BaJIHpM6xDaYmGQx",
+      "webhookStatus": "processed",
+      "reference": "TV-VDFXRHF9",
+      "paymentIntentId": "pi_3UYYzxC3BaJIHpM60rTngEI4"
+    },
+    {
+      "name": "inventory_allocated_once",
+      "ok": true,
+      "at": "2026-11-05T22:19:20.381Z",
+      "holds": [
+        {
+          "id": "f539965f-1385-4c2a-8d30-587a620316fc",
+          "quantity": 1,
+          "status": "confirmed"
+        }
+      ]
+    },
+    {
+      "name": "earnings_recorded_once",
+      "ok": true,
+      "at": "2026-11-05T22:19:22.313Z",
+      "amount_minor": 2125,
+      "commission_bps": 1500,
+      "commission_minor": 375,
+      "eligible_at": "2035-09-13 15:00:00+00",
+      "gross_minor": 2500,
+      "id": "e8961977-3043-4135-87ff-11d1c50ff37e",
+      "service_completed_at": "2035-09-11 15:00:00+00",
+      "status": "pending"
+    },
+    {
+      "name": "event_replay_requested",
+      "ok": true,
+      "at": "2026-11-05T22:19:23.013Z",
+      "via": "stripe_cli_events_resend_endpoint",
+      "eventId": "evt_1UYYzyC3BaJIHpM6xDaYmGQx",
+      "endpoint": "we_1UYYxIC3BaJIHpM6HxfojFGz"
+    },
+    {
+      "name": "replay_idempotent",
+      "ok": true,
+      "at": "2026-11-05T22:19:31.859Z",
+      "confirmed_holds": 1,
+      "earning_rows": 1,
+      "payment_status": "paid",
+      "webhook_status": "processed"
+    },
+    {
+      "name": "no_refund_on_staging_pi",
+      "ok": true,
+      "at": "2026-11-05T22:19:32.155Z",
+      "paymentIntentId": "pi_3UYYzxC3BaJIHpM60rTngEI4",
+      "refundCount": 0
+    },
+    {
+      "name": "production_isolation_pi_intact",
+      "ok": true,
+      "at": "2026-11-05T22:19:32.491Z",
+      "paymentIntentId": "pi_3UYYzxC3BaJIHpM60rTngEI4",
+      "status": "succeeded",
+      "stampedProject": "gedktutbpfwnstcbffsc",
+      "note": "Production endpoint may receive the event but must ignore foreign project_ref; PI not refunded"
+    },
+    {
+      "name": "production_webhook_untouched_after_cert",
+      "ok": true,
+      "at": "2026-11-05T22:19:32.711Z",
+      "productionId": "we_1TWkBwC3BaJIHpM6eVbY1DOc",
+      "stagingId": "we_1UYYxIC3BaJIHpM6HxfojFGz"
+    },
+    {
+      "name": "mission_p08_1_pass",
+      "ok": true,
+      "at": "2026-11-05T22:19:32.711Z",
+      "bookingId": "0680c6c9-ca0c-4038-a36b-94ecc096bc04",
+      "reference": "TV-VDFXRHF9",
+      "eventId": "evt_1UYYzyC3BaJIHpM6xDaYmGQx",
+      "webhookStatus": "processed",
+      "earningId": "e8961977-3043-4135-87ff-11d1c50ff37e"
+    },
+    {
+      "name": "cleanup_listing",
+      "ok": true,
+      "at": "2026-11-05T22:19:34.594Z"
+    },
+    {
+      "name": "cleanup_identities",
+      "ok": true,
+      "at": "2026-11-05T22:19:34.767Z"
+    }
+  ],
+  "errors": [],
+  "ids": {
+    "stagingWebhookEndpointId": "we_1UYYxIC3BaJIHpM6HxfojFGz",
+    "productionWebhookEndpointId": "we_1TWkBwC3BaJIHpM6eVbY1DOc",
+    "guestEmail": "cert-native-wh-guest-58fd2788@example.com",
+    "guestId": "4edf7165-4aef-449f-b27e-cbe256967367",
+    "supplierId": "a0e151eb-daa9-4f00-b839-386fb3db276a",
+    "listingId": "583b3e3e-a396-463c-a93c-ebaba244d324",
+    "bookingId": "0680c6c9-ca0c-4038-a36b-94ecc096bc04",
+    "sessionId": "cs_test_a1wxRBvhtSs85PkLVpkrLLYR37A8T2C7sD7CmrpyFDsGrC1fZhdursei4k",
+    "eventId": "evt_1UYYzyC3BaJIHpM6xDaYmGQx",
+    "publicReference": "TV-VDFXRHF9",
+    "paymentIntentId": "pi_3UYYzxC3BaJIHpM60rTngEI4",
+    "earningId": "e8961977-3043-4135-87ff-11d1c50ff37e"
+  },
+  "evidence": {
+    "stagingWebhookRow": {
+      "error_message": null,
+      "event_type": "checkout.session.completed",
+      "id": "evt_1UYYzyC3BaJIHpM6xDaYmGQx",
+      "status": "processed"
+    }
+  },
+  "verdict": "PASS",
+  "finishedAt": "2026-11-05T22:19:34.767Z"
+}
