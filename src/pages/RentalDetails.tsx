@@ -42,6 +42,7 @@ import {
   type ReviewReplyRow,
 } from '../data/supabase-reviews';
 import { isRentalDevPreviewId, loadRentalDevPreviews } from '../lib/rental-dev-preview';
+import { fetchRentalCheckoutCapability } from '../data/rental-checkout-capability';
 import { inventoryFamilyFromListing } from '../lib/inventory';
 import { rentalCancellationCustomerText } from '../lib/rental-cancellation';
 import {
@@ -122,8 +123,20 @@ export default function RentalDetails({ listingId, onNavigate }: Props) {
   const [listing, setListing] = useState<TourPackage | null>(null);
   const [draftPreview, setDraftPreview] = useState(false);
   const [devPreview, setDevPreview] = useState(false);
+  /** Matches server rentalDraftCheckoutAllowed: drafts bookable only when flag is on. */
+  const [rentalCheckoutEnabled, setRentalCheckoutEnabled] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    void fetchRentalCheckoutCapability().then((open) => {
+      if (!cancelled) setRentalCheckoutEnabled(open);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     if (authLoading) return;
@@ -217,6 +230,7 @@ export default function RentalDetails({ listingId, onNavigate }: Props) {
       rental={rental}
       draftPreview={draftPreview}
       devPreview={devPreview}
+      rentalCheckoutEnabled={rentalCheckoutEnabled}
       onNavigate={onNavigate}
     />
   );
@@ -227,12 +241,14 @@ function RentalBody({
   rental,
   draftPreview,
   devPreview,
+  rentalCheckoutEnabled,
   onNavigate,
 }: {
   listing: TourPackage;
   rental: RentalModel;
   draftPreview: boolean;
   devPreview: boolean;
+  rentalCheckoutEnabled: boolean;
   onNavigate: (page: string) => void;
 }) {
   const { user, requestAuth } = useAuth();
@@ -295,9 +311,12 @@ function RentalBody({
     [listing.id]
   );
 
+  // Dev samples never book. Drafts book only when RENTAL_CHECKOUT_ENABLED (staging/pilot).
+  const travelerCheckoutBlocked = devPreview || (draftPreview && !rentalCheckoutEnabled);
+
   const openRentalBookingConfirm = useCallback(
     (state: RentalCheckoutState) => {
-      if (draftPreview || devPreview) return;
+      if (travelerCheckoutBlocked) return;
       // Shared AuthModal — same Tour/Stay Continue gate. Keep selection; resume into review.
       if (isSupabaseConfigured() && !userRef.current) {
         requestAuth({
@@ -316,7 +335,7 @@ function RentalBody({
       }
       pushRentalBookingConfirm(state);
     },
-    [draftPreview, devPreview, requestAuth, pushRentalBookingConfirm]
+    [travelerCheckoutBlocked, requestAuth, pushRentalBookingConfirm]
   );
 
   const closeRentalBookingConfirm = useCallback(
@@ -429,7 +448,7 @@ function RentalBody({
     return facts.slice(0, 6);
   }, [rental, item, place]);
 
-  if (checkoutFromUrl && !draftPreview && !devPreview) {
+  if (checkoutFromUrl && !travelerCheckoutBlocked) {
     return (
       <RentalBookingConfirm
         listing={listing}
@@ -481,7 +500,9 @@ function RentalBody({
         ) : null}
         {draftPreview ? (
           <p className="mb-3 rounded-xl bg-[#F4F6F8] px-3.5 py-2.5 text-sm text-ink" role="note">
-            Draft preview. Travelers cannot see this listing, and it cannot be booked until Traverion publishes rentals.
+            {rentalCheckoutEnabled
+              ? 'Draft pilot listing. Not shown in the public catalog; checkout is open for testing only.'
+              : 'Draft preview. Travelers cannot see this listing, and it cannot be booked until Traverion publishes rentals.'}
           </p>
         ) : null}
 
