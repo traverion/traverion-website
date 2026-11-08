@@ -73,6 +73,7 @@ import {
   parseRentalCheckoutSearch,
   type RentalCheckoutState,
 } from '../lib/rentalCheckoutUrl';
+import { nextRentalCheckoutSearchAfterAuth } from '../lib/rentalCheckoutAuthResume';
 import { scrubListingBookingSelectionFromLocation } from '../lib/listing-booking-fresh';
 import { trackListingTraffic } from '../lib/listing-traffic';
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
@@ -287,11 +288,10 @@ function RentalBody({
   // Auth modal may pushState from an onSuccess that raced a remount; re-sync when the
   // traveler session lands so book=1 review is not stuck behind a stale locationSearch.
   useEffect(() => {
-    if (!user) return;
     const search = typeof window !== 'undefined' ? window.location.search : '';
-    if (!parseRentalCheckoutSearch(search)) return;
-    setLocationSearch((prev) => (prev === search ? prev : search));
-  }, [user]);
+    const next = nextRentalCheckoutSearchAfterAuth(locationSearch, search, Boolean(user));
+    if (next != null) setLocationSearch(next);
+  }, [user, locationSearch]);
 
   const rentalListingHydratedRef = useRef<string | null>(null);
   const defaultVariantId = variants[0]?.id ?? '';

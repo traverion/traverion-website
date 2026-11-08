@@ -12,6 +12,19 @@ const DEFAULT_LOCAL_CHECKOUT_ORIGINS = [
   'http://127.0.0.1:4173',
 ] as const;
 
+/** Local Vite/preview may bind any port — never hardcode a single localhost port. */
+export function isLoopbackHttpCheckoutOrigin(origin: string): boolean {
+  let parsed: URL;
+  try {
+    parsed = new URL(origin);
+  } catch {
+    return false;
+  }
+  if (parsed.protocol !== 'http:') return false;
+  const host = parsed.hostname.toLowerCase();
+  return host === 'localhost' || host === '127.0.0.1' || host === '[::1]' || host === '::1';
+}
+
 export function resolveCheckoutSiteUrl(opts: {
   publicSiteUrl: string;
   returnOrigin?: string | null;
@@ -47,5 +60,6 @@ export function resolveCheckoutSiteUrl(opts: {
   if (parsed.pathname !== '/' && parsed.pathname !== '') return fallback;
 
   const origin = `${parsed.protocol}//${parsed.host}`;
-  return allowed.has(origin) ? origin : fallback;
+  if (allowed.has(origin) || isLoopbackHttpCheckoutOrigin(origin)) return origin;
+  return fallback;
 }

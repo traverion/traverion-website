@@ -66,6 +66,18 @@ describe('resolveCheckoutSiteUrl', () => {
     ).toBe('http://localhost:5173');
   });
 
+  it('allows any loopback http port (no hardcoded 5173/5199)', () => {
+    expect(
+      resolveCheckoutSiteUrl({
+        publicSiteUrl: 'http://127.0.0.1:5199',
+        returnOrigin: 'http://127.0.0.1:5184',
+      })
+    ).toBe('http://127.0.0.1:5184');
+    expect(
+      resolveCheckoutSiteUrl({ publicSiteUrl: prod, returnOrigin: 'http://localhost:5184' })
+    ).toBe('http://localhost:5184');
+  });
+
   it('rejects unlisted origins (open redirect)', () => {
     expect(
       resolveCheckoutSiteUrl({ publicSiteUrl: prod, returnOrigin: 'https://evil.example' })
