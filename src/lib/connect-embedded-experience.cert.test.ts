@@ -89,7 +89,7 @@ describe('Supplier embedded Connect experience', () => {
     expect(edge).toContain('external_account_collection');
     expect(edge).toContain('accountLinks.create');
     expect(edge).toContain('hosted_fallback');
-    expect(edge).toContain('isStripeTestSecretKey');
+    expect(edge).toContain('resolveStripeMoneySecretFromEnv');
     expect(edge).toContain('client_secret');
     expect(edge).not.toMatch(/sk_live_/);
   });
@@ -102,7 +102,7 @@ describe('Supplier embedded Connect experience', () => {
     expect(embedded).toContain("en-GB");
     expect(embedded).toContain('ConnectAccountOnboarding');
     expect(embedded).toContain('ConnectAccountManagement');
-    expect(embedded).toContain('isStripeTestPublishableKey');
+    expect(embedded).toContain('resolveStripePublishableKey');
     expect(embedded).toContain('fetchConnectAccountSessionSecret');
   });
 

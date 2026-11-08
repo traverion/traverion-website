@@ -3,31 +3,38 @@
  *
  * These tests certify CODE SAFETY invariants for Stripe TEST mode.
  * They do NOT replace Stripe Dashboard / browser E2E (see docs audit 13).
- * LIVE Stripe must remain blocked.
+ * LIVE Stripe remains disabled unless STRIPE_LIVE_PAYMENTS_ENABLED is explicit.
  */
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { bookingOccupiesInventory } from './booking-hold';
-import { isStripeTestSecretKey, stripeLiveSecretBlockedMessage } from './stripe-test-only';
+import {
+  isStripeTestSecretKey,
+  resolveStripeSecretKey,
+  stripeLiveSecretBlockedMessage,
+} from './stripe-test-only';
 import { isStripeTestPublishableKey } from './money';
 
 const root = resolve(__dirname, '../..');
 const read = (rel: string) => readFileSync(resolve(root, rel), 'utf8');
 
 describe('Launch Certification Sprint 01 — LIVE remains disabled (T10)', () => {
-  it('rejects LIVE secret keys and documents the block message', () => {
+  it('rejects LIVE secret keys without enablement flag', () => {
     expect(isStripeTestSecretKey('sk_test_abc')).toBe(true);
     expect(isStripeTestSecretKey('sk_live_abc')).toBe(false);
+    expect(
+      resolveStripeSecretKey({ secret: 'sk_live_abc', livePaymentsEnabledRaw: undefined }).ok
+    ).toBe(false);
     expect(stripeLiveSecretBlockedMessage()).toMatch(/LIVE/);
   });
 
-  it('client publishable gate only accepts pk_test_', () => {
+  it('client publishable gate only accepts pk_test_ while LIVE flag is off', () => {
     expect(isStripeTestPublishableKey('pk_test_abc')).toBe(true);
     expect(isStripeTestPublishableKey('pk_live_abc')).toBe(false);
   });
 
-  it('checkout + webhook + reconcile edge entries refuse LIVE secrets', () => {
+  it('checkout + webhook + reconcile edge entries use shared LIVE-aware secret gate', () => {
     for (const path of [
       'supabase/functions/create-booking-checkout-session/index.ts',
       'supabase/functions/stripe-webhook/index.ts',
@@ -35,8 +42,7 @@ describe('Launch Certification Sprint 01 — LIVE remains disabled (T10)', () =>
       'supabase/functions/stay-booking-request-action/index.ts',
     ]) {
       const src = read(path);
-      expect(src).toContain('isStripeTestSecretKey');
-      expect(src).toContain('stripeLiveSecretBlockedMessage');
+      expect(src).toContain('resolveStripeMoneySecretFromEnv');
     }
   });
 });

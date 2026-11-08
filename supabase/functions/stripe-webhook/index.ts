@@ -11,7 +11,12 @@ import {
 } from '../_shared/checkout-resume.ts';
 import { paymentIntentSucceededShouldPromote } from '../_shared/checkout-pi-succeeded.ts';
 import { promotePaidFromCheckoutSession, notifyTravelerCheckoutCaptureReversed } from '../_shared/promote-paid-from-checkout.ts';
-import { isStripeTestSecretKey, stripeLiveSecretBlockedMessage } from '../_shared/stripe-test-only.ts';
+import { resolveStripeMoneySecretFromEnv } from '../_shared/resolve-stripe-money-secret.ts';
+import {
+  stripeEventAccountDecision,
+  stripeEventLivemodeDecision,
+  webhookSigningSecrets,
+} from '../_shared/stripe-payment-mode.ts';
 import { mirrorConnectAccount } from '../_shared/connect-account-mirror.ts';
 import {
   metadataProjectRef,
@@ -48,14 +53,19 @@ serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-    const stripeSecret = Deno.env.get('STRIPE_SECRET_KEY');
-    const stripeWebhookSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET');
     if (!supabaseUrl || !serviceRoleKey) return json({ success: false, error: 'Supabase env missing' }, 500);
-    if (!stripeSecret) return json({ success: false, error: 'STRIPE_SECRET_KEY not configured' }, 500);
-    if (!isStripeTestSecretKey(stripeSecret)) {
-      return json({ success: false, error: stripeLiveSecretBlockedMessage() }, 503);
-    }
-    if (!stripeWebhookSecret) return json({ success: false, error: 'STRIPE_WEBHOOK_SECRET not configured' }, 500);
+
+    const stripeMoney = resolveStripeMoneySecretFromEnv(Deno.env);
+    if (!stripeMoney.ok) return json({ success: false, error: stripeMoney.error }, stripeMoney.status);
+    const stripeSecret = stripeMoney.secret;
+
+    const signing = webhookSigningSecrets({
+      livePaymentsEnabled: stripeMoney.livePaymentsEnabled,
+      webhookSecret: Deno.env.get('STRIPE_WEBHOOK_SECRET'),
+      webhookSecretLive: Deno.env.get('STRIPE_WEBHOOK_SECRET_LIVE'),
+      webhookSecretTest: Deno.env.get('STRIPE_WEBHOOK_SECRET_TEST'),
+    });
+    if (!signing.ok) return json({ success: false, error: signing.error }, 500);
 
     const signature = req.headers.get('stripe-signature');
     if (!signature) return json({ success: false, error: 'Missing stripe-signature header' }, 400);
@@ -63,11 +73,71 @@ serve(async (req) => {
     const rawBody = await req.text();
     const stripe = new Stripe(stripeSecret);
 
-    let event: Stripe.Event;
-    try {
-      event = await stripe.webhooks.constructEventAsync(rawBody, signature, stripeWebhookSecret);
-    } catch (err) {
-      return json({ success: false, error: `Invalid signature: ${err instanceof Error ? err.message : 'unknown'}` }, 400);
+    let event: Stripe.Event | null = null;
+    let verifiedWithMode: 'test' | 'live' | null = null;
+    let lastSigError: unknown = null;
+    for (const candidate of signing.candidates) {
+      try {
+        event = await stripe.webhooks.constructEventAsync(rawBody, signature, candidate.secret);
+        verifiedWithMode = candidate.mode;
+        break;
+      } catch (err) {
+        lastSigError = err;
+      }
+    }
+    if (!event || !verifiedWithMode) {
+      return json(
+        {
+          success: false,
+          error: `Invalid signature: ${lastSigError instanceof Error ? lastSigError.message : 'unknown'}`,
+        },
+        400
+      );
+    }
+
+    // Signature may verify against a secondary secret during cutover, but we only
+    // process events whose livemode matches the active platform payment mode.
+    const livemodeGate = stripeEventLivemodeDecision({
+      eventLivemode: event.livemode === true,
+      platformMode: stripeMoney.mode,
+    });
+    if (livemodeGate.action === 'ignore') {
+      return json({
+        success: true,
+        ignored: true,
+        reason: livemodeGate.reason,
+        eventId: event.id,
+        eventLivemode: event.livemode === true,
+        platformMode: stripeMoney.mode,
+        verifiedWithMode,
+      });
+    }
+
+    // Optional platform account pin. Connect events set event.account to the
+    // connected account id — those must not be compared to the platform acct id.
+    const expectedAccountId = (Deno.env.get('STRIPE_ACCOUNT_ID') ?? '').trim();
+    const connectAccountOnEvent =
+      typeof (event as { account?: string | null }).account === 'string'
+        ? String((event as { account?: string }).account).trim()
+        : '';
+    if (expectedAccountId && !connectAccountOnEvent) {
+      const objAccount = String(
+        (event.data?.object as { account?: string | null } | null | undefined)?.account ?? ''
+      ).trim();
+      if (objAccount) {
+        const accountGate = stripeEventAccountDecision({
+          expectedAccountId,
+          eventAccountId: objAccount,
+        });
+        if (accountGate.action === 'ignore') {
+          return json({
+            success: true,
+            ignored: true,
+            reason: accountGate.reason,
+            eventId: event.id,
+          });
+        }
+      }
     }
 
     const admin = createClient(supabaseUrl, serviceRoleKey);

@@ -5,7 +5,7 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.4';
 import Stripe from 'https://esm.sh/stripe@16.12.0?target=deno';
-import { isStripeTestSecretKey, stripeLiveSecretBlockedMessage } from '../_shared/stripe-test-only.ts';
+import { resolveStripeMoneySecretFromEnv } from '../_shared/resolve-stripe-money-secret.ts';
 import { authUserVerifiedEmail } from '../_shared/auth-verified-email.ts';
 import { travelerOwnsCheckoutBooking } from '../_shared/booking-traveler-ownership.ts';
 import { serviceRoleEdgeInvokeHeaders, notifyPaidBookingSideEffects } from '../_shared/promote-paid-from-checkout.ts';
@@ -76,15 +76,12 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY');
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-    const stripeSecret = Deno.env.get('STRIPE_SECRET_KEY');
-
     if (!supabaseUrl || !supabaseAnonKey || !serviceRoleKey) {
       return json({ success: false, error: 'Supabase env missing' }, 500);
     }
-    if (!stripeSecret) return json({ success: false, error: 'STRIPE_SECRET_KEY not configured' }, 500);
-    if (!isStripeTestSecretKey(stripeSecret)) {
-      return json({ success: false, error: stripeLiveSecretBlockedMessage() }, 503);
-    }
+    const stripeMoney = resolveStripeMoneySecretFromEnv(Deno.env);
+    if (!stripeMoney.ok) return json({ success: false, error: stripeMoney.error }, stripeMoney.status);
+    const stripeSecret = stripeMoney.secret;
 
     const authHeader = req.headers.get('Authorization') ?? '';
     if (!authHeader) return json({ success: false, error: 'Missing Authorization header' }, 401);

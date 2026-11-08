@@ -6,7 +6,7 @@ import {
 } from '@stripe/react-connect-js';
 import { loadConnectAndInitialize, type StripeConnectInstance } from '@stripe/connect-js';
 import { fetchConnectAccountSessionSecret, type ConnectEmbeddedComponent } from '../../data/supabase-connect-onboarding';
-import { isStripeTestPublishableKey, stripeLivePublishableBlockedMessage } from '../../lib/stripe-test-only';
+import { resolveStripePublishableKey } from '../../lib/stripe-payment-mode';
 import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
 
 /** Force English for Traverion supplier UI regardless of browser language. */
@@ -61,8 +61,12 @@ export default function ConnectEmbeddedPanel({ component, onExit, onHostedFallba
           (typeof import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY === 'string'
             ? import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY
             : '');
-        if (!pk || !isStripeTestPublishableKey(pk)) {
-          throw new Error(stripeLivePublishableBlockedMessage());
+        const pkGate = resolveStripePublishableKey({
+          publishableKey: pk,
+          livePaymentsEnabledRaw: import.meta.env.VITE_STRIPE_LIVE_PAYMENTS_ENABLED,
+        });
+        if (!pkGate.ok) {
+          throw new Error(pkGate.error);
         }
         const instance = loadConnectAndInitialize({
           publishableKey: pk,

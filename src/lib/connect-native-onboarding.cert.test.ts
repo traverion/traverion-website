@@ -46,7 +46,7 @@ describe('Native Traverion Custom Connect onboarding', () => {
     expect(edge).toContain('archiveLinkedAccount');
     expect(edge).toContain('Never touch LIVE');
     expect(edge).toContain('connect_legacy_account_id');
-    expect(edge).toContain('isStripeTestSecretKey');
+    expect(edge).toContain('resolveStripeMoneySecretFromEnv');
     expect(edge).not.toMatch(/sk_live_/);
   });
 

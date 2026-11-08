@@ -52,7 +52,7 @@ describe('Mission 2: Connect onboarding + TEST transfer engine', () => {
     expect(onboarding).toContain('submit_business');
     expect(onboarding).toContain('accountSessions.create');
     expect(onboarding).toContain('accountLinks.create');
-    expect(onboarding).toContain('isStripeTestSecretKey');
+    expect(onboarding).toContain('resolveStripeMoneySecretFromEnv');
     expect(onboarding).toContain('accounts.retrieve');
     expect(settings).toContain('Complete verification');
     expect(settings).toContain('/verification');
@@ -64,7 +64,8 @@ describe('Mission 2: Connect onboarding + TEST transfer engine', () => {
   it('2–4. transfer engine requires TEST kill switches and durable idempotency', () => {
     expect(transfers).toContain('STRIPE_CONNECT_TRANSFERS_ENABLED');
     expect(transfers).toContain("transfersFlag !== 'test'");
-    expect(transfers).toContain('isStripeTestSecretKey');
+    expect(transfers).toContain('resolveStripeMoneySecretFromEnv');
+    expect(transfers).toContain('Connect transfers remain TEST-only');
     expect(transfers).toContain('stripe_connect_transfers_enabled');
     expect(transfers).toContain('live_money_enabled: false');
     expect(transfers).toContain("environment: 'test'");

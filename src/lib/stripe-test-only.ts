@@ -1,16 +1,15 @@
-/** Client mirror of edge Stripe TEST-only guard (documentation + unit cert). */
-export function isStripeTestSecretKey(secret: string | null | undefined): boolean {
-  return (secret ?? '').trim().startsWith('sk_test_');
-}
-
-export function stripeLiveSecretBlockedMessage(): string {
-  return 'Stripe LIVE secret keys are blocked on Traverion. Use a TEST secret (sk_test_…).';
-}
-
-export function isStripeTestPublishableKey(key: string | null | undefined): boolean {
-  return (key ?? '').trim().startsWith('pk_test_');
-}
-
-export function stripeLivePublishableBlockedMessage(): string {
-  return 'Stripe LIVE publishable keys are blocked on Traverion. Use a TEST publishable key (pk_test_…).';
-}
+/**
+ * Compatibility surface for Stripe TEST/LIVE guards.
+ * Prefer resolveStripeSecretKey / resolveStripePublishableKey from stripe-payment-mode.
+ */
+export {
+  isStripeTestSecretKey,
+  isStripeLiveSecretKey,
+  isStripeTestPublishableKey,
+  isStripeLivePublishableKey,
+  isStripeLivePaymentsEnabledFlag,
+  stripeLiveSecretBlockedMessage,
+  stripeLivePublishableBlockedMessage,
+  resolveStripeSecretKey,
+  resolveStripePublishableKey,
+} from './stripe-payment-mode';

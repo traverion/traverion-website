@@ -30,7 +30,7 @@ import {
   mergePurchaseSnapshotMaxCheckOut,
 } from '../_shared/purchase-snapshot.ts';
 import { resolveStayCancellationForSnapshot } from '../_shared/stay-cancellation-preset.ts';
-import { isStripeTestSecretKey, stripeLiveSecretBlockedMessage } from '../_shared/stripe-test-only.ts';
+import { resolveStripeMoneySecretFromEnv } from '../_shared/resolve-stripe-money-secret.ts';
 import {
   checkoutEnvironmentMetadata,
   resolveExpectedTraverionProjectRef,
@@ -159,7 +159,6 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY');
     const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-    const stripeSecret = Deno.env.get('STRIPE_SECRET_KEY');
     const publicSiteUrlEnv = (Deno.env.get('PUBLIC_SITE_URL') ?? 'http://localhost:5173').replace(/\/$/, '');
     const extraReturnOrigins = (Deno.env.get('CHECKOUT_RETURN_ORIGINS') ?? '')
       .split(',')
@@ -169,10 +168,9 @@ serve(async (req) => {
     if (!supabaseUrl || !supabaseAnonKey || !supabaseServiceRoleKey) {
       return json({ success: false, error: 'Supabase env missing' }, 500);
     }
-    if (!stripeSecret) return json({ success: false, error: 'STRIPE_SECRET_KEY not configured' }, 500);
-    if (!isStripeTestSecretKey(stripeSecret)) {
-      return json({ success: false, error: stripeLiveSecretBlockedMessage() }, 503);
-    }
+    const stripeMoney = resolveStripeMoneySecretFromEnv(Deno.env);
+    if (!stripeMoney.ok) return json({ success: false, error: stripeMoney.error }, stripeMoney.status);
+    const stripeSecret = stripeMoney.secret;
     const envStamp = checkoutEnvironmentMetadata(
       resolveExpectedTraverionProjectRef({
         traverionSupabaseProjectRef: Deno.env.get('TRAVERION_SUPABASE_PROJECT_REF'),

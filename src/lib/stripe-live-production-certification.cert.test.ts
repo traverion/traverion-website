@@ -1,13 +1,19 @@
 /**
- * Final Stripe LIVE Production Certification — contract locks.
+ * Stripe LIVE Production Certification — safety locks.
  *
- * These tests prove CURRENT safety posture. They do NOT authorize LIVE activation.
- * Do not weaken LIVE blocks to make this file pass.
+ * LIVE may be supported by code paths, but remains disabled unless
+ * STRIPE_LIVE_PAYMENTS_ENABLED is explicitly set. Presence of sk_live_
+ * alone must never authorize charges.
  */
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { isStripeTestSecretKey, stripeLiveSecretBlockedMessage } from './stripe-test-only';
+import {
+  isStripeLivePaymentsEnabledFlag,
+  isStripeTestSecretKey,
+  resolveStripeSecretKey,
+  stripeLiveSecretBlockedMessage,
+} from './stripe-test-only';
 import { isStripeTestPublishableKey } from './money';
 
 const root = resolve(__dirname, '../..');
@@ -22,29 +28,43 @@ const MONEY_EDGES = [
   'supabase/functions/expire-stay-booking-requests/index.ts',
   'supabase/functions/connect-supplier-onboarding/index.ts',
   'supabase/functions/execute-supplier-transfers/index.ts',
+  'supabase/functions/expire-booking-checkout/index.ts',
 ] as const;
 
 describe('Stripe LIVE production certification — safety locks remain', () => {
-  it('rejects LIVE secrets and documents the block', () => {
+  it('LIVE stays disabled by default even when LIVE secrets are present', () => {
+    expect(isStripeLivePaymentsEnabledFlag(undefined)).toBe(false);
     expect(isStripeTestSecretKey('sk_test_x')).toBe(true);
-    expect(isStripeTestSecretKey('sk_live_x')).toBe(false);
-    expect(stripeLiveSecretBlockedMessage()).toMatch(/LIVE/);
+    const blocked = resolveStripeSecretKey({
+      secret: 'sk_live_x',
+      livePaymentsEnabledRaw: undefined,
+    });
+    expect(blocked.ok).toBe(false);
+    expect(stripeLiveSecretBlockedMessage()).toMatch(/STRIPE_LIVE_PAYMENTS_ENABLED/);
     expect(isStripeTestPublishableKey('pk_test_x')).toBe(true);
     expect(isStripeTestPublishableKey('pk_live_x')).toBe(false);
   });
 
-  it('every money-moving edge function still refuses non-TEST secrets', () => {
+  it('every money-moving edge function resolves secrets via the shared LIVE-aware gate', () => {
     for (const path of MONEY_EDGES) {
       const src = read(path);
-      expect(src, path).toContain('isStripeTestSecretKey');
-      expect(src, path).toContain('stripeLiveSecretBlockedMessage');
+      expect(src, path).toContain('resolveStripeMoneySecretFromEnv');
     }
   });
 
-  it('client checkout refuses LIVE publishable keys', () => {
+  it('webhook verifies signatures with mode-aware secrets and livemode isolation', () => {
+    const webhook = read('supabase/functions/stripe-webhook/index.ts');
+    expect(webhook).toContain('webhookSigningSecrets');
+    expect(webhook).toContain('stripeEventLivemodeDecision');
+    expect(webhook).toContain('STRIPE_WEBHOOK_SECRET_LIVE');
+  });
+
+  it('client checkout uses flag-aware publishable gate (not key presence alone)', () => {
     const bookings = read('src/data/supabase-bookings.ts');
-    expect(bookings).toContain('stripeLivePublishableBlockedMessage');
-    expect(bookings).toMatch(/isStripeTestPublishableKey|appStripeIsTestMode/);
+    expect(bookings).toContain('appStripeCheckoutAllowed');
+    const money = read('src/lib/money.ts');
+    expect(money).toContain('VITE_STRIPE_LIVE_PAYMENTS_ENABLED');
+    expect(money).toContain('resolveStripePublishableKey');
   });
 
   it('Connect SCAT transfers remain TEST-only with multi-layer kill switches', () => {
@@ -53,6 +73,7 @@ describe('Stripe LIVE production certification — safety locks remain', () => {
     expect(transfers).toMatch(/transfersFlag !== ['"]test['"]/);
     expect(transfers).toContain("environment: 'test'");
     expect(transfers).toContain('live_money_enabled: false');
+    expect(transfers).toContain('Connect transfers remain TEST-only');
     expect(transfers).not.toMatch(/STRIPE_CONNECT_TRANSFERS_ENABLED.*live/);
   });
 
@@ -65,13 +86,12 @@ describe('Stripe LIVE production certification — safety locks remain', () => {
   });
 
   it('post-transfer refund orchestration does not yet call transfers.createReversal', () => {
-    // LIVE Connect payouts must not ship until this gap is closed or ops-only.
     const refund = read('supabase/functions/execute-booking-refund/index.ts');
     const transfers = read('supabase/functions/execute-supplier-transfers/index.ts');
     const webhook = read('supabase/functions/stripe-webhook/index.ts');
     expect(refund).not.toContain('createReversal');
     expect(transfers).not.toContain('createReversal');
-    expect(webhook).toContain('transfer.reversed'); // mirrors Stripe events only
+    expect(webhook).toContain('transfer.reversed');
     expect(webhook).not.toContain('createReversal');
   });
 

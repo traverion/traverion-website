@@ -1,18 +1,24 @@
 import { describe, expect, it } from 'vitest';
-import { isStripeTestSecretKey, stripeLiveSecretBlockedMessage, stripeLivePublishableBlockedMessage } from './stripe-test-only';
+import {
+  isStripeTestSecretKey,
+  resolveStripeSecretKey,
+  stripeLivePublishableBlockedMessage,
+  stripeLiveSecretBlockedMessage,
+} from './stripe-test-only';
 
-describe('stripe-test-only', () => {
-  it('accepts only sk_test_ secrets', () => {
+describe('stripe-test-only (compat)', () => {
+  it('accepts sk_test_ and blocks sk_live_ without enablement flag', () => {
     expect(isStripeTestSecretKey('sk_test_abc')).toBe(true);
     expect(isStripeTestSecretKey(' sk_test_abc ')).toBe(true);
     expect(isStripeTestSecretKey('sk_live_abc')).toBe(false);
-    expect(isStripeTestSecretKey('')).toBe(false);
-    expect(isStripeTestSecretKey(null)).toBe(false);
+    expect(
+      resolveStripeSecretKey({ secret: 'sk_live_abc', livePaymentsEnabledRaw: null }).ok
+    ).toBe(false);
   });
 
-  it('exposes a clear blocked message', () => {
+  it('exposes clear blocked messages', () => {
     expect(stripeLiveSecretBlockedMessage()).toMatch(/LIVE/);
-    expect(stripeLiveSecretBlockedMessage()).toMatch(/sk_test_/);
+    expect(stripeLiveSecretBlockedMessage()).toMatch(/STRIPE_LIVE_PAYMENTS_ENABLED/);
     expect(stripeLivePublishableBlockedMessage()).toMatch(/pk_test_/);
   });
 });

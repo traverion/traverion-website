@@ -2,17 +2,18 @@
  * Mission 2 Phases 3–5: Stripe Connect SCAT transfers + optional bank payout create (TEST only).
  *
  * Kill switches (all required for any money movement):
- * 1. STRIPE_SECRET_KEY must be sk_test_
- * 2. STRIPE_CONNECT_TRANSFERS_ENABLED must equal exactly "test"
- * 3. commercial_runtime_config.stripe_connect_transfers_enabled = 1
- * 4. supplier_transfer_batches constrained to environment=test, live_money_enabled=false
+ * 1. resolveStripeMoneySecretFromEnv (LIVE still requires STRIPE_LIVE_PAYMENTS_ENABLED)
+ * 2. Platform payment mode must remain TEST — Connect transfers never run on LIVE in this function
+ * 3. STRIPE_CONNECT_TRANSFERS_ENABLED must equal exactly "test"
+ * 4. commercial_runtime_config.stripe_connect_transfers_enabled = 1
+ * 5. supplier_transfer_batches constrained to environment=test, live_money_enabled=false
  *
- * Live money is never activated by this function.
+ * Live Connect payouts are never activated by this function.
  */
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.4';
 import Stripe from 'https://esm.sh/stripe@16.12.0?target=deno';
-import { isStripeTestSecretKey, stripeLiveSecretBlockedMessage } from '../_shared/stripe-test-only.ts';
+import { resolveStripeMoneySecretFromEnv } from '../_shared/resolve-stripe-money-secret.ts';
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -53,16 +54,25 @@ serve(async (req) => {
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL');
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-  const stripeSecret = Deno.env.get('STRIPE_SECRET_KEY');
   const transfersFlag = (Deno.env.get('STRIPE_CONNECT_TRANSFERS_ENABLED') ?? '').trim().toLowerCase();
 
   if (!supabaseUrl || !serviceRoleKey) {
     return json({ success: false, error: 'Supabase env missing' }, 500);
   }
-  if (!stripeSecret) return json({ success: false, error: 'STRIPE_SECRET_KEY not configured' }, 500);
-  if (!isStripeTestSecretKey(stripeSecret)) {
-    return json({ success: false, error: stripeLiveSecretBlockedMessage(), live_blocked: true }, 503);
+  const stripeMoney = resolveStripeMoneySecretFromEnv(Deno.env);
+  if (!stripeMoney.ok) {
+    return json({ success: false, error: stripeMoney.error, live_blocked: true }, stripeMoney.status);
   }
+  // Connect SCAT remains TEST-only even if platform LIVE payments are later enabled.
+  if (stripeMoney.mode !== 'test') {
+    return json({
+      success: false,
+      error: 'Stripe Connect transfers remain TEST-only. LIVE supplier payouts are not enabled.',
+      live_blocked: true,
+      live_money: false,
+    }, 503);
+  }
+  const stripeSecret = stripeMoney.secret;
   if (transfersFlag !== 'test') {
     return json({
       success: false,

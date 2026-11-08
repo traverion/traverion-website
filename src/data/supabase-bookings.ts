@@ -1,7 +1,6 @@
 import { supabase } from '../lib/supabase';
 import { isRentalDevPreviewId } from '../lib/rental-dev-preview';
-import { appStripeIsTestMode } from '../lib/money';
-import { stripeLivePublishableBlockedMessage } from '../lib/stripe-test-only';
+import { appStripeCheckoutAllowed } from '../lib/money';
 import { localYmd } from '../lib/local-ymd';
 import { publicSiteBaseUrl } from '../lib/publicSiteUrl';
 import { supplierPortalPublicBaseUrl } from '../lib/partnerHost';
@@ -334,8 +333,9 @@ export async function createBookingCheckoutSession(params: {
   if (isRentalDevPreviewId(params.listingId)) {
     return { success: false, error: 'Development preview rentals cannot be booked.' };
   }
-  if (!appStripeIsTestMode()) {
-    return { success: false, error: stripeLivePublishableBlockedMessage() };
+  {
+    const stripeGate = appStripeCheckoutAllowed();
+    if (!stripeGate.ok) return { success: false, error: stripeGate.error };
   }
   const returnOrigin =
     typeof window !== 'undefined' && typeof window.location?.origin === 'string'
@@ -442,8 +442,9 @@ export async function resumePendingBookingCheckout(params: {
   customerName?: string | null;
 }): Promise<{ success: boolean; checkoutUrl?: string; bookingId?: string; error?: string }> {
   if (!supabase) return { success: false, error: 'Supabase not configured' };
-  if (!appStripeIsTestMode()) {
-    return { success: false, error: stripeLivePublishableBlockedMessage() };
+  {
+    const stripeGate = appStripeCheckoutAllowed();
+    if (!stripeGate.ok) return { success: false, error: stripeGate.error };
   }
   const returnOrigin =
     typeof window !== 'undefined' && typeof window.location?.origin === 'string'
@@ -1498,8 +1499,9 @@ export async function stayBookingRequestAction(params: {
   action: 'accept' | 'decline' | 'withdraw';
 }): Promise<{ success: boolean; error?: string }> {
   if (!supabase) return { success: false, error: 'Supabase not configured' };
-  if (!appStripeIsTestMode()) {
-    return { success: false, error: stripeLivePublishableBlockedMessage() };
+  {
+    const stripeGate = appStripeCheckoutAllowed();
+    if (!stripeGate.ok) return { success: false, error: stripeGate.error };
   }
   const { data, error } = await supabase.functions.invoke('stay-booking-request-action', {
     body: { bookingId: params.bookingId, action: params.action },

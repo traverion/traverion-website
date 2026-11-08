@@ -13,7 +13,8 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.4';
 import Stripe from 'https://esm.sh/stripe@16.12.0?target=deno';
-import { isStripeTestSecretKey, stripeLiveSecretBlockedMessage } from '../_shared/stripe-test-only.ts';
+import { resolveStripeMoneySecretFromEnv } from '../_shared/resolve-stripe-money-secret.ts';
+import { isStripeTestPublishableKey, isStripeLivePublishableKey } from '../_shared/stripe-payment-mode.ts';
 import { mirrorConnectAccount, connectCanReceiveTransfers } from '../_shared/connect-account-mirror.ts';
 
 function json(body: unknown, status = 200): Response {
@@ -123,7 +124,6 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY');
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-    const stripeSecret = Deno.env.get('STRIPE_SECRET_KEY');
     const publishableKey = (Deno.env.get('STRIPE_PUBLISHABLE_KEY') ?? '').trim();
     const publicSiteUrl = (
       Deno.env.get('PARTNER_SITE_URL') ??
@@ -138,12 +138,22 @@ serve(async (req) => {
     if (!supabaseUrl || !supabaseAnonKey || !serviceRoleKey) {
       return json({ success: false, error: 'Supabase env missing' }, 500);
     }
-    if (!stripeSecret) return json({ success: false, error: 'STRIPE_SECRET_KEY not configured' }, 500);
-    if (!isStripeTestSecretKey(stripeSecret)) {
-      return json({ success: false, error: stripeLiveSecretBlockedMessage() }, 503);
-    }
-    if (publishableKey && !publishableKey.startsWith('pk_test_')) {
-      return json({ success: false, error: 'Publishable key must be test mode for payout verification' }, 503);
+    const stripeMoney = resolveStripeMoneySecretFromEnv(Deno.env);
+    if (!stripeMoney.ok) return json({ success: false, error: stripeMoney.error }, stripeMoney.status);
+    const stripeSecret = stripeMoney.secret;
+    if (publishableKey) {
+      const pkOk =
+        (stripeMoney.mode === 'test' && isStripeTestPublishableKey(publishableKey)) ||
+        (stripeMoney.mode === 'live' && isStripeLivePublishableKey(publishableKey));
+      if (!pkOk) {
+        return json(
+          {
+            success: false,
+            error: `Publishable key must match payment mode (${stripeMoney.mode})`,
+          },
+          503
+        );
+      }
     }
 
     const authHeader = req.headers.get('Authorization') ?? '';

@@ -4,6 +4,20 @@
  * Do not infer € from locale or swap symbols without the stored code.
  */
 
+import {
+  isStripeLivePaymentsEnabledFlag,
+  isStripeLivePublishableKey,
+  isStripeTestPublishableKey,
+  resolveStripePublishableKey,
+} from './stripe-payment-mode';
+
+export {
+  isStripeTestPublishableKey,
+  isStripeLivePublishableKey,
+  isStripeLivePaymentsEnabledFlag,
+  resolveStripePublishableKey,
+};
+
 export const DEFAULT_CURRENCY = 'EUR';
 
 /** Stripe-supported codes Traverion will charge. Do not expose arbitrary ISO codes in Partner UI. */
@@ -42,10 +56,30 @@ export function isStripeTestCheckoutSession(sessionId: string | null | undefined
   return (sessionId ?? '').trim().startsWith('cs_test_');
 }
 
-export function isStripeTestPublishableKey(key: string | null | undefined): boolean {
-  return (key ?? '').trim().startsWith('pk_test_');
+export function isStripeLiveCheckoutSession(sessionId: string | null | undefined): boolean {
+  return (sessionId ?? '').trim().startsWith('cs_live_');
 }
 
+/** True when the configured publishable key is TEST (default production posture). */
 export function appStripeIsTestMode(): boolean {
   return isStripeTestPublishableKey(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
+}
+
+/**
+ * Traveler checkout may proceed only when publishable key mode matches the
+ * explicit VITE_STRIPE_LIVE_PAYMENTS_ENABLED flag (LIVE off by default).
+ */
+export function appStripeCheckoutAllowed():
+  | { ok: true }
+  | { ok: false; error: string } {
+  const resolved = resolveStripePublishableKey({
+    publishableKey: import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY,
+    livePaymentsEnabledRaw: import.meta.env.VITE_STRIPE_LIVE_PAYMENTS_ENABLED,
+  });
+  if (resolved.ok) return { ok: true };
+  return { ok: false, error: resolved.error };
+}
+
+export function appStripeLivePaymentsEnabled(): boolean {
+  return isStripeLivePaymentsEnabledFlag(import.meta.env.VITE_STRIPE_LIVE_PAYMENTS_ENABLED);
 }
