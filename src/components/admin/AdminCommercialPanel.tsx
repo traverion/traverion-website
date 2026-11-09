@@ -533,7 +533,206 @@ export default function AdminCommercialPanel() {
         )}
       </div>
 
+      <TourPaymentLedgerReconcile />
+
       <BookingFinancialInvestigation />
+    </div>
+  );
+}
+
+type TourReconcileRow = {
+  booking_id?: string;
+  public_reference?: string | null;
+  payment_status?: string | null;
+  currency?: string | null;
+  amount_paid_major?: number | null;
+  amount_paid_minor?: number | null;
+  checkout_session_id?: string | null;
+  payment_intent_id?: string | null;
+  gross_minor?: number | null;
+  commission_minor?: number | null;
+  supplier_minor?: number | null;
+  earning_status?: string | null;
+  earning_amount_minor?: number | null;
+  latest_stripe_refund_id?: string | null;
+  flags?: string[];
+  reconciliation_status?: string;
+};
+
+type TourReconcilePayload = {
+  ok?: boolean;
+  error?: string;
+  row_count?: number;
+  discrepancy_count?: number;
+  generated_at?: string;
+  rows?: TourReconcileRow[];
+};
+
+function TourPaymentLedgerReconcile() {
+  const [onlyDisc, setOnlyDisc] = useState(true);
+  const [bookingFilter, setBookingFilter] = useState('');
+  const [data, setData] = useState<TourReconcilePayload | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+
+  const run = async () => {
+    setLoading(true);
+    setMsg(null);
+    try {
+      const payload = await invokeAdminEdgeFunction<TourReconcilePayload>({
+        action: 'tour_payment_ledger_reconcile',
+        reconcileLimit: 100,
+        reconcileOnlyDiscrepancies: onlyDisc,
+        reconcileBookingId: bookingFilter.trim() || undefined,
+      });
+      setData(payload);
+      if (!payload.ok) setMsg(payload.error ?? 'Reconcile failed');
+    } catch (e) {
+      setData(null);
+      setMsg(e instanceof Error ? e.message : 'Reconcile failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="rounded-2xl border border-border bg-surface p-5 space-y-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="font-display text-lg text-ink tracking-tight">Tour payment ledger reconcile</h2>
+          <p className="text-sm text-ink-muted mt-1">
+            Read-only Tour check across Stripe payment refs, gross/commission/supplier split, and
+            earnings. Flags discrepancies — does not change financial records.
+          </p>
+        </div>
+        <button
+          type="button"
+          className="tv-btn-primary text-sm inline-flex items-center gap-2 disabled:opacity-50"
+          disabled={loading || !isSupabaseConfigured}
+          onClick={() => void run()}
+        >
+          {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+          Run report
+        </button>
+      </div>
+
+      <div className="flex flex-wrap items-end gap-3">
+        <label className="text-sm text-ink space-y-1">
+          <span className="text-ink-muted">Booking ID (optional)</span>
+          <input
+            className="tv-input block min-w-[16rem]"
+            value={bookingFilter}
+            onChange={(e) => setBookingFilter(e.target.value)}
+            placeholder="uuid"
+          />
+        </label>
+        <label className="inline-flex items-center gap-2 text-sm text-ink">
+          <input
+            type="checkbox"
+            checked={onlyDisc}
+            onChange={(e) => setOnlyDisc(e.target.checked)}
+          />
+          Discrepancies only
+        </label>
+      </div>
+
+      {msg ? (
+        <NoticeCallout title="Tour reconcile" tone="warn">
+          {msg}
+        </NoticeCallout>
+      ) : null}
+
+      {data?.ok ? (
+        <div className="space-y-3">
+          <p className="text-sm text-ink-muted">
+            Rows {data.row_count ?? 0} · discrepancies {data.discrepancy_count ?? 0}
+            {data.generated_at ? ` · ${data.generated_at}` : ''}
+          </p>
+          {(data.rows ?? []).length === 0 ? (
+            <EmptyState title="No rows" body="No Tour discrepancies matched this filter." />
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-left text-xs">
+                <thead className="text-ink-muted border-b border-border">
+                  <tr>
+                    <th className="py-2 pr-3 font-medium">Ref</th>
+                    <th className="py-2 pr-3 font-medium">Pay</th>
+                    <th className="py-2 pr-3 font-medium">Stripe</th>
+                    <th className="py-2 pr-3 font-medium">Gross / Comm / Net</th>
+                    <th className="py-2 pr-3 font-medium">Earning</th>
+                    <th className="py-2 pr-3 font-medium">Refund</th>
+                    <th className="py-2 pr-3 font-medium">Status</th>
+                    <th className="py-2 font-medium">Flags</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(data.rows ?? []).map((row) => {
+                    const disc = row.reconciliation_status === 'discrepancy';
+                    return (
+                      <tr
+                        key={row.booking_id}
+                        className={`border-b border-border/70 ${disc ? 'bg-amber-50/60' : ''}`}
+                      >
+                        <td className="py-2 pr-3 align-top">
+                          <div className="font-medium text-ink">{row.public_reference ?? '—'}</div>
+                          <div className="text-[10px] text-ink-muted break-all">{row.booking_id}</div>
+                        </td>
+                        <td className="py-2 pr-3 align-top">
+                          <div>{row.payment_status ?? '—'}</div>
+                          <div className="text-ink-muted">
+                            {formatMoney(
+                              typeof row.amount_paid_minor === 'number'
+                                ? fromMinorUnits(row.amount_paid_minor)
+                                : Number(row.amount_paid_major ?? 0),
+                              row.currency ?? 'EUR'
+                            )}
+                          </div>
+                        </td>
+                        <td className="py-2 pr-3 align-top text-[10px] break-all max-w-[10rem]">
+                          <div>{row.payment_intent_id ?? '—'}</div>
+                          <div className="text-ink-muted">{row.checkout_session_id ?? ''}</div>
+                        </td>
+                        <td className="py-2 pr-3 align-top whitespace-nowrap">
+                          {typeof row.gross_minor === 'number'
+                            ? `${row.gross_minor} / ${row.commission_minor ?? '—'} / ${row.supplier_minor ?? '—'}`
+                            : '—'}
+                        </td>
+                        <td className="py-2 pr-3 align-top">
+                          <div>{row.earning_status ?? '—'}</div>
+                          <div className="text-ink-muted">{row.earning_amount_minor ?? '—'}</div>
+                        </td>
+                        <td className="py-2 pr-3 align-top text-[10px] break-all max-w-[8rem]">
+                          {row.latest_stripe_refund_id ?? '—'}
+                        </td>
+                        <td className="py-2 pr-3 align-top font-medium">
+                          {disc ? (
+                            <span className="text-amber-800">discrepancy</span>
+                          ) : (
+                            <span className="text-emerald-700">ok</span>
+                          )}
+                        </td>
+                        <td className="py-2 align-top">
+                          {(row.flags ?? []).length ? (
+                            <ul className="space-y-0.5">
+                              {(row.flags ?? []).map((f) => (
+                                <li key={f} className="text-amber-900">
+                                  {f}
+                                </li>
+                              ))}
+                            </ul>
+                          ) : (
+                            '—'
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      ) : null}
     </div>
   );
 }

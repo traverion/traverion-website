@@ -143,6 +143,7 @@ type Body = {
     | 'refresh_earning_eligibility'
     | 'reconcile_supplier_commercial'
     | 'booking_financial_investigation'
+    | 'tour_payment_ledger_reconcile'
     | 'financial_hold_set'
     | 'financial_hold_release'
     | 'prepare_refund_instruction'
@@ -204,6 +205,10 @@ type Body = {
   refundReason?: string;
   refundIdempotencyKey?: string;
   investigateBookingId?: string;
+  /** B2B.9.2 read-only Tour ledger reconcile (limit ≤ 500). */
+  reconcileLimit?: number;
+  reconcileOnlyDiscrepancies?: boolean;
+  reconcileBookingId?: string;
   marketplaceResetConfirm?: string;
   supportCaseId?: string;
   supportResolutionCode?: string;
@@ -1361,6 +1366,25 @@ serve(async (req) => {
       typeof body.investigateBookingId === 'string' ? body.investigateBookingId.trim() : '';
     if (!bookingId) return json({ error: 'investigateBookingId required' }, 400);
     const { data, error } = await admin.rpc('admin_booking_financial_investigation', {
+      p_booking_id: bookingId,
+    });
+    if (error) return json({ error: error.message }, 500);
+    return json(data ?? { ok: false });
+  }
+
+  // B2B.9.2: read-only Tour payment/ledger reconciliation (no money mutations).
+  if (body.action === 'tour_payment_ledger_reconcile') {
+    const limitRaw = typeof body.reconcileLimit === 'number' ? body.reconcileLimit : 100;
+    const onlyDisc = body.reconcileOnlyDiscrepancies !== false;
+    const bookingId =
+      typeof body.reconcileBookingId === 'string' && body.reconcileBookingId.trim()
+        ? body.reconcileBookingId.trim()
+        : typeof body.investigateBookingId === 'string' && body.investigateBookingId.trim()
+          ? body.investigateBookingId.trim()
+          : null;
+    const { data, error } = await admin.rpc('admin_tour_payment_ledger_reconcile', {
+      p_limit: limitRaw,
+      p_only_discrepancies: onlyDisc,
       p_booking_id: bookingId,
     });
     if (error) return json({ error: error.message }, 500);
