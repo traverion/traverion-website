@@ -535,6 +535,8 @@ export default function AdminCommercialPanel() {
 
       <TourPaymentLedgerReconcile />
 
+      <TourPayoutReadiness />
+
       <BookingFinancialInvestigation />
     </div>
   );
@@ -731,6 +733,290 @@ function TourPaymentLedgerReconcile() {
               </table>
             </div>
           )}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+type TourPayoutReadinessSupplier = {
+  supplier_id?: string;
+  currency?: string;
+  total_earned_minor?: number;
+  pending_not_eligible_minor?: number;
+  eligible_for_payout_minor?: number;
+  held_disputed_minor?: number;
+  already_paid_minor?: number;
+  item_count?: number;
+  ready_count?: number;
+  blocking_reasons?: string[];
+};
+
+type TourPayoutReadinessItem = {
+  earning_item_id?: string | null;
+  booking_id?: string;
+  public_reference?: string | null;
+  supplier_id?: string | null;
+  currency?: string | null;
+  amount_minor?: number | null;
+  earning_status?: string | null;
+  booking_status?: string | null;
+  payment_status?: string | null;
+  bucket?: string;
+  ready?: boolean;
+  blocking_reasons?: string[];
+  reconcile_flags?: string[];
+  service_completed_at?: string | null;
+  eligible_at?: string | null;
+};
+
+type TourPayoutReadinessPayload = {
+  ok?: boolean;
+  error?: string;
+  generated_at?: string;
+  supplier_count?: number;
+  item_count?: number;
+  ready_count?: number;
+  held_count?: number;
+  missing_policies?: string[];
+  suppliers?: TourPayoutReadinessSupplier[];
+  items?: TourPayoutReadinessItem[];
+};
+
+function TourPayoutReadiness() {
+  const [supplierFilter, setSupplierFilter] = useState('');
+  const [bookingFilter, setBookingFilter] = useState('');
+  const [selectedSupplier, setSelectedSupplier] = useState<string | null>(null);
+  const [data, setData] = useState<TourPayoutReadinessPayload | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+
+  const run = async () => {
+    setLoading(true);
+    setMsg(null);
+    try {
+      const payload = await invokeAdminEdgeFunction<TourPayoutReadinessPayload>({
+        action: 'tour_payout_readiness',
+        payoutReadinessLimit: 200,
+        payoutReadinessSupplierId: supplierFilter.trim() || undefined,
+        payoutReadinessBookingId: bookingFilter.trim() || undefined,
+      });
+      setData(payload);
+      setSelectedSupplier(null);
+      if (!payload.ok) setMsg(payload.error ?? 'Payout readiness failed');
+    } catch (e) {
+      setData(null);
+      setMsg(e instanceof Error ? e.message : 'Payout readiness failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const drillItems = (data?.items ?? []).filter((item) =>
+    selectedSupplier ? item.supplier_id === selectedSupplier : true
+  );
+
+  return (
+    <div className="rounded-2xl border border-border bg-surface p-5 space-y-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="font-display text-lg text-ink tracking-tight">Tour payout readiness</h2>
+          <p className="text-sm text-ink-muted mt-1">
+            Read-only Tour payout readiness across eligibility, ledger reconcile, and holds. Does not
+            execute payouts or change financial records.
+          </p>
+        </div>
+        <button
+          type="button"
+          className="tv-btn-primary text-sm inline-flex items-center gap-2 disabled:opacity-50"
+          disabled={loading || !isSupabaseConfigured}
+          onClick={() => void run()}
+        >
+          {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+          Run report
+        </button>
+      </div>
+
+      <div className="flex flex-wrap items-end gap-3">
+        <label className="text-sm text-ink space-y-1">
+          <span className="text-ink-muted">Supplier ID (optional)</span>
+          <input
+            className="tv-input block min-w-[16rem]"
+            value={supplierFilter}
+            onChange={(e) => setSupplierFilter(e.target.value)}
+            placeholder="uuid"
+          />
+        </label>
+        <label className="text-sm text-ink space-y-1">
+          <span className="text-ink-muted">Booking ID (optional)</span>
+          <input
+            className="tv-input block min-w-[16rem]"
+            value={bookingFilter}
+            onChange={(e) => setBookingFilter(e.target.value)}
+            placeholder="uuid"
+          />
+        </label>
+      </div>
+
+      {msg ? (
+        <NoticeCallout title="Tour payout readiness" tone="warn">
+          {msg}
+        </NoticeCallout>
+      ) : null}
+
+      {data?.ok ? (
+        <div className="space-y-4">
+          <p className="text-sm text-ink-muted">
+            Suppliers {data.supplier_count ?? 0} · items {data.item_count ?? 0} · ready{' '}
+            {data.ready_count ?? 0} · held {data.held_count ?? 0}
+            {data.generated_at ? ` · ${data.generated_at}` : ''}
+          </p>
+
+          {(data.missing_policies ?? []).length > 0 ? (
+            <NoticeCallout title="Missing payout policies" tone="warn">
+              <ul className="mt-1 space-y-0.5 text-xs">
+                {(data.missing_policies ?? []).map((p) => (
+                  <li key={p}>{p}</li>
+                ))}
+              </ul>
+            </NoticeCallout>
+          ) : null}
+
+          {(data.suppliers ?? []).length === 0 ? (
+            <EmptyState title="No rows" body="No Tour payout readiness rows matched this filter." />
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-left text-xs">
+                <thead className="text-ink-muted border-b border-border">
+                  <tr>
+                    <th className="py-2 pr-3 font-medium">Supplier</th>
+                    <th className="py-2 pr-3 font-medium">Currency</th>
+                    <th className="py-2 pr-3 font-medium">Eligible</th>
+                    <th className="py-2 pr-3 font-medium">Pending</th>
+                    <th className="py-2 pr-3 font-medium">Held</th>
+                    <th className="py-2 pr-3 font-medium">Paid</th>
+                    <th className="py-2 font-medium">Blocking</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(data.suppliers ?? []).map((row) => {
+                    const active = selectedSupplier === row.supplier_id;
+                    return (
+                      <tr
+                        key={`${row.supplier_id}-${row.currency}`}
+                        className={`border-b border-border/70 cursor-pointer ${
+                          active ? 'bg-sky-50/70' : ''
+                        }`}
+                        onClick={() =>
+                          setSelectedSupplier((prev) =>
+                            prev === row.supplier_id ? null : row.supplier_id ?? null
+                          )
+                        }
+                      >
+                        <td className="py-2 pr-3 align-top break-all max-w-[12rem]">
+                          {row.supplier_id ?? '—'}
+                        </td>
+                        <td className="py-2 pr-3 align-top">{row.currency ?? '—'}</td>
+                        <td className="py-2 pr-3 align-top whitespace-nowrap">
+                          {majorFromMinor(row.eligible_for_payout_minor ?? 0, row.currency ?? 'EUR')}
+                        </td>
+                        <td className="py-2 pr-3 align-top whitespace-nowrap">
+                          {majorFromMinor(
+                            row.pending_not_eligible_minor ?? 0,
+                            row.currency ?? 'EUR'
+                          )}
+                        </td>
+                        <td className="py-2 pr-3 align-top whitespace-nowrap">
+                          {majorFromMinor(row.held_disputed_minor ?? 0, row.currency ?? 'EUR')}
+                        </td>
+                        <td className="py-2 pr-3 align-top whitespace-nowrap">
+                          {majorFromMinor(row.already_paid_minor ?? 0, row.currency ?? 'EUR')}
+                        </td>
+                        <td className="py-2 align-top">
+                          {(row.blocking_reasons ?? []).length ? (
+                            <ul className="space-y-0.5">
+                              {(row.blocking_reasons ?? []).slice(0, 6).map((r) => (
+                                <li key={r} className="text-amber-900">
+                                  {r}
+                                </li>
+                              ))}
+                            </ul>
+                          ) : (
+                            '—'
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {selectedSupplier ? (
+            <div className="space-y-2">
+              <h3 className="text-sm font-medium text-ink">
+                Drill-down · {selectedSupplier.slice(0, 8)}…
+              </h3>
+              {drillItems.length === 0 ? (
+                <EmptyState title="No bookings" body="No Tour earnings for this supplier in the report." />
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full text-left text-xs">
+                    <thead className="text-ink-muted border-b border-border">
+                      <tr>
+                        <th className="py-2 pr-3 font-medium">Ref</th>
+                        <th className="py-2 pr-3 font-medium">Amount</th>
+                        <th className="py-2 pr-3 font-medium">Statuses</th>
+                        <th className="py-2 pr-3 font-medium">Bucket</th>
+                        <th className="py-2 font-medium">Blocks</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {drillItems.map((item) => (
+                        <tr
+                          key={`${item.booking_id}-${item.earning_item_id ?? 'orphan'}`}
+                          className={`border-b border-border/70 ${
+                            item.bucket === 'held' ? 'bg-amber-50/60' : ''
+                          }`}
+                        >
+                          <td className="py-2 pr-3 align-top">
+                            <div className="font-medium text-ink">
+                              {item.public_reference ?? '—'}
+                            </div>
+                            <div className="text-[10px] text-ink-muted break-all">
+                              {item.booking_id}
+                            </div>
+                          </td>
+                          <td className="py-2 pr-3 align-top whitespace-nowrap">
+                            {majorFromMinor(item.amount_minor ?? 0, item.currency ?? 'EUR')}
+                          </td>
+                          <td className="py-2 pr-3 align-top">
+                            <div>{item.payment_status ?? '—'}</div>
+                            <div className="text-ink-muted">{item.earning_status ?? '—'}</div>
+                          </td>
+                          <td className="py-2 pr-3 align-top font-medium">{item.bucket ?? '—'}</td>
+                          <td className="py-2 align-top">
+                            {(item.blocking_reasons ?? []).length ? (
+                              <ul className="space-y-0.5">
+                                {(item.blocking_reasons ?? []).map((r) => (
+                                  <li key={r} className="text-amber-900">
+                                    {r}
+                                  </li>
+                                ))}
+                              </ul>
+                            ) : (
+                              '—'
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          ) : null}
         </div>
       ) : null}
     </div>

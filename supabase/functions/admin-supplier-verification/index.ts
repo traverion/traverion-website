@@ -144,6 +144,7 @@ type Body = {
     | 'reconcile_supplier_commercial'
     | 'booking_financial_investigation'
     | 'tour_payment_ledger_reconcile'
+    | 'tour_payout_readiness'
     | 'financial_hold_set'
     | 'financial_hold_release'
     | 'prepare_refund_instruction'
@@ -209,6 +210,10 @@ type Body = {
   reconcileLimit?: number;
   reconcileOnlyDiscrepancies?: boolean;
   reconcileBookingId?: string;
+  /** B2B.9.3 read-only Tour payout readiness filters. */
+  payoutReadinessLimit?: number;
+  payoutReadinessSupplierId?: string;
+  payoutReadinessBookingId?: string;
   marketplaceResetConfirm?: string;
   supportCaseId?: string;
   supportResolutionCode?: string;
@@ -1386,6 +1391,32 @@ serve(async (req) => {
       p_limit: limitRaw,
       p_only_discrepancies: onlyDisc,
       p_booking_id: bookingId,
+    });
+    if (error) return json({ error: error.message }, 500);
+    return json(data ?? { ok: false });
+  }
+
+  // B2B.9.3: read-only Tour payout readiness (no transfers / payouts / mutations).
+  if (body.action === 'tour_payout_readiness') {
+    const limitRaw =
+      typeof body.payoutReadinessLimit === 'number' ? body.payoutReadinessLimit : 200;
+    const supplierId =
+      typeof body.payoutReadinessSupplierId === 'string' && body.payoutReadinessSupplierId.trim()
+        ? body.payoutReadinessSupplierId.trim()
+        : typeof body.supplierId === 'string' && body.supplierId.trim()
+          ? body.supplierId.trim()
+          : null;
+    const bookingId =
+      typeof body.payoutReadinessBookingId === 'string' && body.payoutReadinessBookingId.trim()
+        ? body.payoutReadinessBookingId.trim()
+        : typeof body.investigateBookingId === 'string' && body.investigateBookingId.trim()
+          ? body.investigateBookingId.trim()
+          : null;
+    const { data, error } = await admin.rpc('admin_tour_payout_readiness', {
+      p_limit: limitRaw,
+      p_supplier_id: supplierId,
+      p_booking_id: bookingId,
+      p_now: new Date().toISOString(),
     });
     if (error) return json({ error: error.message }, 500);
     return json(data ?? { ok: false });
