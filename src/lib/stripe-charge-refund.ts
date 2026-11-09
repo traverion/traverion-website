@@ -78,3 +78,34 @@ export function paidPromotionShouldRefuseFullyRefundedCharge(
   if (!charge) return false;
   return isStripeChargeFullyRefunded(charge);
 }
+
+/**
+ * B2B.9.1: when charge.refunded retries after payment_status already flipped to
+ * refunded, still run idempotent ledger reverse + instruction success markers.
+ * Skipping them left earnings stuck after a partial webhook failure.
+ */
+export function alreadyRefundedWebhookShouldReconcileLedger(params: {
+  bookingPaymentStatus?: string | null;
+  fullyRefunded: boolean;
+}): boolean {
+  if (!params.fullyRefunded) return false;
+  return (
+    String(params.bookingPaymentStatus ?? '')
+      .trim()
+      .toLowerCase() === 'refunded'
+  );
+}
+
+/**
+ * B2B.9.1: Tour Instant Book — if Stripe Checkout Session create fails after
+ * claim_pending_checkout_booking, mark the orphan pending row failed.
+ * Stays/Rentals keep their own release/expire paths.
+ */
+export function tourCheckoutStripeCreateFailureShouldFailPending(params: {
+  inventoryFamily?: string | null;
+}): boolean {
+  const family = String(params.inventoryFamily ?? '')
+    .trim()
+    .toLowerCase();
+  return family !== 'stay' && family !== 'rental';
+}

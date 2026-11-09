@@ -58,6 +58,7 @@ import {
   isReservedRentalPreviewId,
 } from '../_shared/rental-server-window.ts';
 import { fromMinorUnits } from '../_shared/commercial-money.ts';
+import { tourCheckoutStripeCreateFailureShouldFailPending } from '../_shared/stripe-charge-refund.ts';
 
 type RequestBody = {
   bookingId?: string;
@@ -1781,6 +1782,20 @@ serve(async (req) => {
     } catch {
       if (appliedDiscountId) {
         await admin.from('bookings').update({ applied_discount_id: null }).eq('id', targetBookingId);
+      }
+      // B2B.9.1: Tour Instant Book — fail orphan pending after Stripe create failure
+      // (pending does not occupy seats, but must not linger as a live checkout hold).
+      if (
+        tourCheckoutStripeCreateFailureShouldFailPending({
+          inventoryFamily: typeof extrasFamily === 'string' ? extrasFamily : null,
+        })
+      ) {
+        await admin
+          .from('bookings')
+          .update({ payment_status: 'failed' })
+          .eq('id', targetBookingId)
+          .eq('payment_status', 'pending')
+          .neq('status', 'cancelled');
       }
       return json({ success: false, error: 'Could not start payment. Try again.' }, 500);
     }

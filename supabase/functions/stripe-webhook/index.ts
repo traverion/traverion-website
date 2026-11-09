@@ -3,7 +3,13 @@ import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.4';
 import Stripe from 'https://esm.sh/stripe@16.12.0?target=deno';
 import { stripeWebhookReplayDecision } from '../_shared/stripe-webhook-replay.ts';
-import { isStripeChargeFullyRefunded, refundBeforePaidShouldMarkFailed, remainingPaidMajorFromCharge, chargeRefundMetaBookingMatchesPaymentIntent } from '../_shared/stripe-charge-refund.ts';
+import {
+  alreadyRefundedWebhookShouldReconcileLedger,
+  isStripeChargeFullyRefunded,
+  refundBeforePaidShouldMarkFailed,
+  remainingPaidMajorFromCharge,
+  chargeRefundMetaBookingMatchesPaymentIntent,
+} from '../_shared/stripe-charge-refund.ts';
 import {
   checkoutSessionPaymentIntentId,
   eventCheckoutSessionIdForPaymentIntentFailure,
@@ -550,14 +556,39 @@ serve(async (req) => {
           await markProcessed('ignored', 'Refunded charge had no matching booking');
           return json({ success: true, ignored: true, reason: 'no booking' });
         }
-        if ((booking.payment_status ?? '').toLowerCase() === 'refunded') {
-          await markProcessed('processed');
-          return json({ success: true, duplicate: true, alreadyRefunded: true, bookingId: booking.id });
-        }
 
         const refundAmount = amountToMajor(charge.amount_refunded ?? charge.amount ?? null);
         const currency = (charge.currency ?? 'eur').toUpperCase();
         const fullyRefunded = isStripeChargeFullyRefunded(charge);
+        const latestRefundId =
+          Array.isArray(charge.refunds?.data) && charge.refunds.data[0]?.id
+            ? String(charge.refunds.data[0].id)
+            : null;
+
+        // B2B.9.1: already-refunded retries must still reverse earnings / close instructions.
+        if (
+          alreadyRefundedWebhookShouldReconcileLedger({
+            bookingPaymentStatus: booking.payment_status,
+            fullyRefunded,
+          })
+        ) {
+          const { error: reverseErr } = await admin.rpc('reverse_paid_booking_earnings', {
+            p_booking_id: booking.id,
+          });
+          if (reverseErr) throw new Error(reverseErr.message);
+          await admin.rpc('mark_booking_refund_instructions_succeeded', {
+            p_booking_id: booking.id,
+            p_stripe_refund_id: latestRefundId,
+          });
+          await markProcessed('processed');
+          return json({
+            success: true,
+            duplicate: true,
+            alreadyRefunded: true,
+            ledgerReconciled: true,
+            bookingId: booking.id,
+          });
+        }
 
         if (
           refundBeforePaidShouldMarkFailed({
@@ -819,23 +850,34 @@ serve(async (req) => {
           .eq('payment_status', 'paid')
           .select('id');
         if (refundErr) throw new Error(refundErr.message);
-        if ((refundedRows ?? []).length > 0) {
-          // Occupancy releases via payment_status=refunded (paid+holds rules). Do not mutate .booked.
-          const { error: reverseErr } = await admin.rpc('reverse_paid_booking_earnings', {
-            p_booking_id: booking.id,
-          });
-          if (reverseErr) throw new Error(reverseErr.message);
+        const flippedToRefunded = (refundedRows ?? []).length > 0;
+        if (!flippedToRefunded) {
+          // Concurrent charge.refunded may have won the paid→refunded race.
+          const { data: again } = await admin
+            .from('bookings')
+            .select('payment_status')
+            .eq('id', booking.id)
+            .maybeSingle();
+          if ((again?.payment_status ?? '').toLowerCase() !== 'refunded') {
+            throw new Error('Full refund update matched no paid booking row');
+          }
+        }
 
-          // Step 2.3: mark durable cancel-refund instructions succeeded (idempotent).
-          const latestRefundId =
-            Array.isArray(charge.refunds?.data) && charge.refunds.data[0]?.id
-              ? String(charge.refunds.data[0].id)
-              : null;
-          await admin.rpc('mark_booking_refund_instructions_succeeded', {
-            p_booking_id: booking.id,
-            p_stripe_refund_id: latestRefundId,
-          });
+        // Occupancy releases via payment_status=refunded (paid+holds rules). Do not mutate .booked.
+        // Always reverse earnings even when a concurrent event already flipped status
+        // (idempotent RPC) so retries after partial failure cannot strand the ledger.
+        const { error: reverseErr } = await admin.rpc('reverse_paid_booking_earnings', {
+          p_booking_id: booking.id,
+        });
+        if (reverseErr) throw new Error(reverseErr.message);
 
+        // Step 2.3: mark durable cancel-refund instructions succeeded (idempotent).
+        await admin.rpc('mark_booking_refund_instructions_succeeded', {
+          p_booking_id: booking.id,
+          p_stripe_refund_id: latestRefundId,
+        });
+
+        if (flippedToRefunded) {
           // Notify traveler only after payment_status is actually refunded (not on partial).
           // Phase 1789: always notify — edge resolves auth email when guest_email blank (1788).
           const guestEmail = (booking.guest_email ?? '').trim().toLowerCase();

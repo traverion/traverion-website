@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
+  alreadyRefundedWebhookShouldReconcileLedger,
   isStripeChargeFullyRefunded,
   paidPromotionShouldRefuseFullyRefundedCharge,
   refundBeforePaidShouldMarkFailed,
+  tourCheckoutStripeCreateFailureShouldFailPending,
 } from './stripe-charge-refund';
 
 describe('isStripeChargeFullyRefunded', () => {
@@ -62,5 +64,43 @@ describe('paidPromotionShouldRefuseFullyRefundedCharge', () => {
       })
     ).toBe(true);
     expect(paidPromotionShouldRefuseFullyRefundedCharge(null)).toBe(false);
+  });
+});
+
+describe('alreadyRefundedWebhookShouldReconcileLedger', () => {
+  it('reconciles only fully refunded bookings already marked refunded', () => {
+    expect(
+      alreadyRefundedWebhookShouldReconcileLedger({
+        bookingPaymentStatus: 'refunded',
+        fullyRefunded: true,
+      })
+    ).toBe(true);
+    expect(
+      alreadyRefundedWebhookShouldReconcileLedger({
+        bookingPaymentStatus: 'Refunded',
+        fullyRefunded: true,
+      })
+    ).toBe(true);
+    expect(
+      alreadyRefundedWebhookShouldReconcileLedger({
+        bookingPaymentStatus: 'paid',
+        fullyRefunded: true,
+      })
+    ).toBe(false);
+    expect(
+      alreadyRefundedWebhookShouldReconcileLedger({
+        bookingPaymentStatus: 'refunded',
+        fullyRefunded: false,
+      })
+    ).toBe(false);
+  });
+});
+
+describe('tourCheckoutStripeCreateFailureShouldFailPending', () => {
+  it('applies to tours only', () => {
+    expect(tourCheckoutStripeCreateFailureShouldFailPending({})).toBe(true);
+    expect(tourCheckoutStripeCreateFailureShouldFailPending({ inventoryFamily: 'tour' })).toBe(true);
+    expect(tourCheckoutStripeCreateFailureShouldFailPending({ inventoryFamily: 'stay' })).toBe(false);
+    expect(tourCheckoutStripeCreateFailureShouldFailPending({ inventoryFamily: 'rental' })).toBe(false);
   });
 });
