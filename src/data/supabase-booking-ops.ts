@@ -579,3 +579,56 @@ export async function notifyNewBookingMessage(params: {
   });
   return softNotifyFromEdgePayload(data, error);
 }
+
+
+export type TourServiceFulfillmentStatus =
+  | 'scheduled'
+  | 'in_progress'
+  | 'completed'
+  | 'no_show'
+  | 'disputed';
+
+/** B2B.9.4: supplier-attested Tour fulfillment (server-gated; does not pay out). */
+export async function attestTourServiceFulfillment(opts: {
+  bookingId: string;
+  status: TourServiceFulfillmentStatus;
+  note?: string | null;
+}): Promise<{
+  ok: boolean;
+  error?: string;
+  service_fulfillment_status?: string;
+  payout_include_allowed?: boolean;
+  blocked_reasons?: string[];
+  missing_policies?: string[];
+}> {
+  if (!supabase) return { ok: false, error: 'Supabase not configured' };
+  const { data, error } = await supabase.rpc('supplier_attest_booking_service_fulfillment', {
+    p_booking_id: opts.bookingId,
+    p_status: opts.status,
+    p_note: opts.note ?? null,
+  });
+  if (error) {
+    return { ok: false, error: userFacingError(error.message) || error.message };
+  }
+  const payload = (data ?? {}) as Record<string, unknown>;
+  if (payload.ok !== true) {
+    return {
+      ok: false,
+      error: typeof payload.error === 'string' ? payload.error : 'Could not update fulfillment',
+    };
+  }
+  return {
+    ok: true,
+    service_fulfillment_status:
+      typeof payload.service_fulfillment_status === 'string'
+        ? payload.service_fulfillment_status
+        : opts.status,
+    payout_include_allowed: payload.payout_include_allowed === true,
+    blocked_reasons: Array.isArray(payload.blocked_reasons)
+      ? (payload.blocked_reasons as string[])
+      : [],
+    missing_policies: Array.isArray(payload.missing_policies)
+      ? (payload.missing_policies as string[])
+      : [],
+  };
+}

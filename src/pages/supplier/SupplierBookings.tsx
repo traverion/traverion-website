@@ -28,6 +28,7 @@ import {
 } from '../../lib/cancellation-policy';
 import { openHostCancelRequestVisible } from '../../lib/host-cancel-request-visibility';
 import {
+  attestTourServiceFulfillment,
   fetchCancellationRequestsForBookings,
   notifyTravelerCancellationRequest,
   requestSupplierCancellation,
@@ -2200,6 +2201,11 @@ export default function SupplierBookings({
                     paymentStatus: partnerPaymentLabel(booking),
                     commissionAdjusted,
                   },
+                  fulfillmentStatus: booking.service_fulfillment_status ?? 'scheduled',
+                  fulfillmentHint:
+                    String(booking.service_fulfillment_status ?? '').toLowerCase() === 'completed'
+                      ? 'Service attested. Earnings still require reconcile + clearance hold before payout prep.'
+                      : 'Payouts stay held until you mark this tour completed (and ledger reconcile is ok).',
                 }}
                 busy={busy}
                 canEdit={canEditBookings}
@@ -2237,6 +2243,39 @@ export default function SupplierBookings({
                   navigateSupplierUrl(`${PARTNER_APP_BASE}/money?tab=documents`)
                 }
                 onOpenPickupPlanner={() => openSupplierPickup(booking.id)}
+                onFulfillmentChange={
+                  isPaidPaymentStatus(booking.payment_status) &&
+                  booking.status !== 'cancelled' &&
+                  canEditBookings
+                    ? (status) => {
+                        void (async () => {
+                          setUpdatingId(booking.id);
+                          try {
+                            const res = await attestTourServiceFulfillment({
+                              bookingId: booking.id,
+                              status,
+                            });
+                            if (!res.ok) {
+                              setError(res.error ?? 'Could not update fulfillment');
+                              return;
+                            }
+                            setBookings((prev) =>
+                              prev.map((b) =>
+                                b.id === booking.id
+                                  ? {
+                                      ...b,
+                                      service_fulfillment_status: res.service_fulfillment_status ?? status,
+                                    }
+                                  : b
+                              )
+                            );
+                          } finally {
+                            setUpdatingId(null);
+                          }
+                        })();
+                      }
+                    : undefined
+                }
                 extraNotices={
                   ['Refund due', 'Refund processing', 'Refund delayed'].includes(
                     partnerPaymentLabel(booking)

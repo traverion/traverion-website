@@ -39,6 +39,8 @@ export type TourOpsDetailModel = {
   unpaidHoldMessage: string | null;
   cancelWaitingMessage: string | null;
   finance: TourOpsDetailFinance;
+  fulfillmentStatus?: string | null;
+  fulfillmentHint?: string | null;
 };
 
 type Props = {
@@ -57,6 +59,7 @@ type Props = {
   onRequestCancel?: () => void;
   onOpenFinancialStatement?: () => void;
   onOpenPickupPlanner?: () => void;
+  onFulfillmentChange?: (status: 'completed' | 'no_show' | 'disputed' | 'in_progress') => void;
   extraNotices?: ReactNode;
   privateNotesSlot?: ReactNode;
 };
@@ -77,6 +80,7 @@ export default function TourOpsBookingDetail({
   onRequestCancel,
   onOpenFinancialStatement,
   onOpenPickupPlanner,
+  onFulfillmentChange,
   extraNotices,
   privateNotesSlot,
 }: Props) {
@@ -84,6 +88,7 @@ export default function TourOpsBookingDetail({
   const showOpsNotices = Boolean(
     model.unpaidHoldMessage || model.cancelWaitingMessage || extraNotices
   );
+  const fulfillment = String(model.fulfillmentStatus ?? 'scheduled').toLowerCase();
 
   return (
     <div className="tour-ops-detail">
@@ -198,6 +203,48 @@ export default function TourOpsBookingDetail({
                 <p className="mt-1 text-[13px] text-amber-900">{model.cancelWaitingMessage}</p>
               ) : null}
               {extraNotices}
+            </section>
+          ) : null}
+
+          {onFulfillmentChange ? (
+            <section className="tour-ops-detail__section">
+              <h2 className="tour-ops-detail__heading">Service fulfillment</h2>
+              <p className="text-[13px] text-ink-muted">
+                Status: <span className="font-medium text-ink">{fulfillment.replace('_', ' ')}</span>
+              </p>
+              {model.fulfillmentHint ? (
+                <p className="mt-1 text-[12.5px] text-amber-900">{model.fulfillmentHint}</p>
+              ) : null}
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  className="tv-btn-secondary text-xs disabled:opacity-50"
+                  disabled={busy || !canEdit || fulfillment === 'completed'}
+                  onClick={() => onFulfillmentChange('completed')}
+                >
+                  Mark completed
+                </button>
+                <button
+                  type="button"
+                  className="tv-btn-secondary text-xs disabled:opacity-50"
+                  disabled={busy || !canEdit || fulfillment === 'no_show'}
+                  onClick={() => onFulfillmentChange('no_show')}
+                >
+                  No-show
+                </button>
+                <button
+                  type="button"
+                  className="tv-btn-secondary text-xs disabled:opacity-50"
+                  disabled={busy || !canEdit || fulfillment === 'disputed'}
+                  onClick={() => onFulfillmentChange('disputed')}
+                >
+                  Disputed
+                </button>
+              </div>
+              <p className="mt-2 text-[11.5px] text-ink-muted">
+                Payouts stay held until completed and reconciled. No-show/dispute settlement policy is
+                not defined yet — those stay held.
+              </p>
             </section>
           ) : null}
 

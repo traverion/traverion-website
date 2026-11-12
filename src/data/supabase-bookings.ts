@@ -120,6 +120,10 @@ export type BookingRow = {
   public_reference?: string | null;
   /** Present when selected with payment columns (supplier list, dashboard). */
   payment_status?: string;
+  /** B2B.9.4 Tour fulfillment: scheduled | in_progress | completed | no_show | disputed */
+  service_fulfillment_status?: string | null;
+  service_fulfilled_at?: string | null;
+  service_fulfillment_note?: string | null;
   checkout_session_id?: string | null;
   payment_intent_id?: string | null;
   total_amount?: number | null;
@@ -160,7 +164,7 @@ export type BookingWithPaymentRow = BookingRow;
 const BOOKING_LIST_COLUMNS =
   'id, listing_id, guest_email, guest_name, guests, booking_date, check_out, nights, nightly_amount, cleaning_fee, status, special_requests, cancellation_reason, refund_choice, cancelled_at, cancellation_origin, cancellation_resolution, rescheduled_from_booking_id, rescheduled_to_booking_id, acknowledged_at, created_at, start_time, pickup_time, booking_number, public_reference, guest_breakdown, booking_option_id, hold_expires_at, purchase_snapshot, approval_status, approval_expires_at, approval_decided_at';
 
-const BOOKING_PAYMENT_COLUMNS = `${BOOKING_LIST_COLUMNS}, payment_status, checkout_session_id, payment_intent_id, total_amount, amount_paid, currency, auto_refund_status, auto_refund_error, auto_refund_stripe_id`;
+const BOOKING_PAYMENT_COLUMNS = `${BOOKING_LIST_COLUMNS}, payment_status, checkout_session_id, payment_intent_id, total_amount, amount_paid, currency, auto_refund_status, auto_refund_error, auto_refund_stripe_id, service_fulfillment_status, service_fulfilled_at, service_fulfillment_note`;
 
 /** Pre–approval columns (migration 252). */
 const BOOKING_LIST_COLUMNS_NO_APPROVAL =

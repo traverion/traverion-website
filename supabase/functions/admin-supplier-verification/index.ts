@@ -145,6 +145,7 @@ type Body = {
     | 'booking_financial_investigation'
     | 'tour_payment_ledger_reconcile'
     | 'tour_payout_readiness'
+    | 'set_booking_service_fulfillment'
     | 'financial_hold_set'
     | 'financial_hold_release'
     | 'prepare_refund_instruction'
@@ -214,6 +215,9 @@ type Body = {
   payoutReadinessLimit?: number;
   payoutReadinessSupplierId?: string;
   payoutReadinessBookingId?: string;
+  /** B2B.9.4 admin fulfillment override. */
+  fulfillmentStatus?: string;
+  fulfillmentNote?: string;
   marketplaceResetConfirm?: string;
   supportCaseId?: string;
   supportResolutionCode?: string;
@@ -1394,6 +1398,32 @@ serve(async (req) => {
     });
     if (error) return json({ error: error.message }, 500);
     return json(data ?? { ok: false });
+  }
+
+  // B2B.9.4: admin Tour/service fulfillment override (does not execute payouts).
+  if (body.action === 'set_booking_service_fulfillment') {
+    const bookingId =
+      typeof body.investigateBookingId === 'string' && body.investigateBookingId.trim()
+        ? body.investigateBookingId.trim()
+        : typeof body.payoutReadinessBookingId === 'string' && body.payoutReadinessBookingId.trim()
+          ? body.payoutReadinessBookingId.trim()
+          : '';
+    const status =
+      typeof body.fulfillmentStatus === 'string' ? body.fulfillmentStatus.trim().toLowerCase() : '';
+    const note =
+      typeof body.fulfillmentNote === 'string' ? body.fulfillmentNote.trim() : null;
+    if (!bookingId) return json({ error: 'investigateBookingId required' }, 400);
+    if (!status) return json({ error: 'fulfillmentStatus required' }, 400);
+    const { data, error } = await admin.rpc('admin_set_booking_service_fulfillment', {
+      p_booking_id: bookingId,
+      p_status: status,
+      p_note: note,
+      p_actor_id: adminUserId,
+    });
+    if (error) return json({ error: error.message }, 500);
+    const result = data as { ok?: boolean; error?: string } | null;
+    if (!result?.ok) return json({ error: result?.error ?? 'Could not set fulfillment' }, 400);
+    return json(result);
   }
 
   // B2B.9.3: read-only Tour payout readiness (no transfers / payouts / mutations).

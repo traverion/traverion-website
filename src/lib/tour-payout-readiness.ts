@@ -23,6 +23,9 @@ export type TourPayoutBlockReason =
   | 'booking_status_unknown'
   | 'service_not_completed'
   | 'hold_period_active'
+  | 'tour_fulfillment_not_attested'
+  | 'no_show'
+  | 'fulfillment_disputed'
   | 'blocked_by_policy'
   | 'disputed'
   | 'already_paid'
@@ -50,6 +53,8 @@ export type TourPayoutReadinessInput = TourPaymentLedgerReconcileInput & {
   earningAmountMinor?: number | null;
   serviceCompletedAt?: string | null;
   eligibleAt?: string | null;
+  /** scheduled | in_progress | completed | no_show | disputed */
+  serviceFulfillmentStatus?: string | null;
   blocksPayout?: boolean | null;
   nowIso?: string | null;
   /** When false/unknown, fail closed. */
@@ -66,9 +71,8 @@ export type TourPayoutReadinessResult = {
 
 /** Documented gaps — readiness refuses to invent policy; surfaces these instead. */
 export const TOUR_PAYOUT_MISSING_POLICIES = [
-  'tour_service_completion_is_inferred_from_official_start_plus_duration_default_3h_not_operator_attested',
-  'prepare_due_supplier_payouts_does_not_yet_require_b2b92_ledger_reconcile_ok',
-  'no_explicit_no_show_or_completion_attestation_gate_for_tour_payouts',
+  'no_show_and_dispute_commercial_settlement_policy_undefined_payouts_remain_held',
+  'payout_execution_disabled_until_separately_authorized',
 ] as const;
 
 function norm(raw: string | null | undefined): string {
@@ -141,6 +145,7 @@ export function classifyTourPayoutReadiness(
   const pay = norm(input.paymentStatus);
   const booking = norm(input.bookingStatus);
   const dispute = norm(input.disputeStatus);
+  const fulfillment = norm(input.serviceFulfillmentStatus);
   const earningStatus = norm(input.earningStatus);
   const amount = asInt(input.earningAmountMinor);
 
@@ -160,6 +165,19 @@ export function classifyTourPayoutReadiness(
     reasons.push('booking_status_unknown');
   } else if (booking === 'cancelled') {
     reasons.push('booking_cancelled');
+  } else if (booking === 'no_show') {
+    reasons.push('no_show');
+  }
+
+  if (tourInventoryFamilyIsTour(input.inventoryFamily)) {
+    if (fulfillment === 'no_show') {
+      reasons.push('no_show');
+    } else if (fulfillment === 'disputed') {
+      reasons.push('fulfillment_disputed');
+    } else if (fulfillment !== 'completed') {
+      // Tours require explicit attestation — never duration-only.
+      reasons.push('tour_fulfillment_not_attested');
+    }
   }
 
   if (DISPUTE_BLOCK.has(dispute)) {
@@ -226,6 +244,9 @@ export function classifyTourPayoutReadiness(
         'booking_status_unknown',
         'blocked_by_policy',
         'disputed',
+        'no_show',
+        'fulfillment_disputed',
+        'tour_fulfillment_not_attested',
         'duplicate_earning',
         'zero_or_negative_amount',
         'unknown_earning_status',

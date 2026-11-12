@@ -38,6 +38,7 @@ const basePaid = {
   checkoutSessionBookingCount: 1,
   serviceCompletedAt: '2020-01-01T12:00:00.000Z',
   eligibleAt: '2020-01-01T12:00:00.000Z',
+  serviceFulfillmentStatus: 'completed',
   blocksPayout: false,
   nowIso: '2026-11-10T00:00:00.000Z',
 };
@@ -140,6 +141,28 @@ describe('classifyTourPayoutReadiness', () => {
     });
     expect(r.blockingReasons).toContain('not_tour');
   });
+
+  it('holds Tours without fulfillment attestation', () => {
+    const r = classifyTourPayoutReadiness({
+      ...basePaid,
+      serviceFulfillmentStatus: 'scheduled',
+    });
+    expect(r.ready).toBe(false);
+    expect(r.blockingReasons).toContain('tour_fulfillment_not_attested');
+  });
+
+  it('holds no-show and disputed fulfillment', () => {
+    const noShow = classifyTourPayoutReadiness({
+      ...basePaid,
+      serviceFulfillmentStatus: 'no_show',
+    });
+    expect(noShow.blockingReasons).toContain('no_show');
+    const disputed = classifyTourPayoutReadiness({
+      ...basePaid,
+      serviceFulfillmentStatus: 'disputed',
+    });
+    expect(disputed.blockingReasons).toContain('fulfillment_disputed');
+  });
 });
 
 describe('aggregateTourPayoutBalances', () => {
@@ -172,9 +195,14 @@ describe('B2B.9.3 wiring (cert)', () => {
   it('documents missing policies rather than inventing them', () => {
     expect(TOUR_PAYOUT_MISSING_POLICIES.length).toBeGreaterThan(0);
     expect(mig).toContain('missing_policies');
-    for (const p of TOUR_PAYOUT_MISSING_POLICIES) {
-      expect(mig).toContain(p);
-    }
+    const mig300 = readFileSync(
+      join(root, 'supabase/migrations/300_b2b94_payout_gates_and_tour_fulfillment.sql'),
+      'utf8'
+    );
+    expect(mig300).toContain('no_show_and_dispute_commercial_settlement_policy_undefined_payouts_remain_held');
+    expect(mig300).toContain('payout_execution_enabled');
+    expect(mig300).toContain('booking_payout_include_allowed');
+    expect(mig300).toContain('supplier_attest_booking_service_fulfillment');
   });
 
   it('migration is read-only service_role Tour readiness RPC', () => {
