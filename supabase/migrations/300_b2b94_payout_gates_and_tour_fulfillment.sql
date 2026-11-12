@@ -216,6 +216,7 @@ end;
 $$;
 
 revoke all on function public.booking_ledger_reconcile_flags(uuid) from public;
+revoke all on function public.booking_ledger_reconcile_flags(uuid) from anon, authenticated;
 grant execute on function public.booking_ledger_reconcile_flags(uuid) to service_role;
 
 create or replace function public.booking_payout_include_blocked_reasons(p_booking_id uuid)
@@ -303,6 +304,7 @@ end;
 $$;
 
 revoke all on function public.booking_payout_include_blocked_reasons(uuid) from public;
+revoke all on function public.booking_payout_include_blocked_reasons(uuid) from anon, authenticated;
 grant execute on function public.booking_payout_include_blocked_reasons(uuid) to service_role;
 
 create or replace function public.booking_payout_include_allowed(p_booking_id uuid)
@@ -316,6 +318,7 @@ as $$
 $$;
 
 revoke all on function public.booking_payout_include_allowed(uuid) from public;
+revoke all on function public.booking_payout_include_allowed(uuid) from anon, authenticated;
 grant execute on function public.booking_payout_include_allowed(uuid) to service_role;
 
 -- Harden classic block helper: no_show / disputed fulfillment always block.
