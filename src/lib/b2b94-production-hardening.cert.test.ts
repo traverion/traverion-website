@@ -16,6 +16,10 @@ const mig300 = readFileSync(
   join(root, 'supabase/migrations/300_b2b94_payout_gates_and_tour_fulfillment.sql'),
   'utf8'
 );
+const mig302 = readFileSync(
+  join(root, 'supabase/migrations/302_revoke_booking_blocks_payout_execute.sql'),
+  'utf8'
+);
 const edgeAdmin = readFileSync(
   join(root, 'supabase/functions/admin-supplier-verification/index.ts'),
   'utf8'
@@ -202,6 +206,12 @@ describe('B2B.9.4 certification scenarios (pure)', () => {
     if (edgeTransfers) {
       expect(edgeTransfers).toMatch(/STRIPE_CONNECT_TRANSFERS_ENABLED|TEST|kill/i);
     }
+  });
+
+  it('17. booking_blocks_payout_eligibility EXECUTE is service_role-only (mig 302)', () => {
+    expect(mig302).toContain('booking_blocks_payout_eligibility');
+    expect(mig302).toMatch(/revoke all[\s\S]*from anon, authenticated/);
+    expect(mig302).toMatch(/grant execute[\s\S]*to service_role/);
   });
 });
 
