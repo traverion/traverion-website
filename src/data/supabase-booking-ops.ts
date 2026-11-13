@@ -2,7 +2,7 @@ import { supabase } from '../lib/supabase';
 import { userFacingError } from '../lib/userFacingError';
 import { snapshotSupplierCancellationPolicy } from '../lib/cancellation-policy';
 import {
-  parseCancellationBatchResults,
+  classifyCancellationBatchResponse,
   type CancellationBatchRow,
 } from '../lib/supplier-cancellation-workflow';
 import { publicSiteBaseUrl } from '../lib/publicSiteUrl';
@@ -230,8 +230,8 @@ export async function requestSupplierCancellation(params: {
 
 /**
  * Cancels the exact booking ids in the snapshot.
- * The database does not add bookings. A true `ok` means the batch ran,
- * not that every booking was cancelled — read `results`.
+ * The database does not add bookings. `ok` is true only when at least one
+ * booking was cancelled. Complete failure is `ok: false` with per-booking errors.
  */
 export async function requestSupplierCancellationBatch(params: {
   bookingIds: string[];
@@ -265,18 +265,20 @@ export async function requestSupplierCancellationBatch(params: {
     };
   }
   const rpc = data && typeof data === 'object' ? (data as Record<string, unknown>) : {};
-  const results = parseCancellationBatchResults(rpc.results);
-  if (rpc.ok !== true) {
+  const classified = classifyCancellationBatchResponse({
+    ok: rpc.ok,
+    error: rpc.error,
+    results: rpc.results,
+  });
+  if (!classified.ok) {
     return {
       ok: false,
-      error: userFacingError(
-        typeof rpc.error === 'string' ? rpc.error : null,
-        PARTNER_CANCEL_REQUEST_SUBMIT_ERROR
-      ),
-      results,
+      error: userFacingError(classified.error, PARTNER_CANCEL_REQUEST_SUBMIT_ERROR),
+      partial: false,
+      results: classified.results,
     };
   }
-  return { ok: true, partial: rpc.partial === true, results };
+  return { ok: true, partial: classified.partial, results: classified.results };
 }
 
 /** Phase 3: traveler claims pending_customer_choice → full refund + Stripe execute. */

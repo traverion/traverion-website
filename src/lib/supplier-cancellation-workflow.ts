@@ -306,9 +306,97 @@ export function parseCancellationBatchResults(results: unknown): CancellationBat
   });
 }
 
+export const SUPPLIER_CANCELLATION_UNAUTHORIZED = 'You can only cancel bookings for your own listings.';
+export const SUPPLIER_CANCELLATION_NONE = 'No booking in this selection was cancelled.';
+
 export function cancellationRunPhase(rows: readonly { ok: boolean }[]): 'success' | 'partial' | 'failure' {
   const ok = rows.filter((row) => row.ok).length;
   if (ok === 0) return 'failure';
   if (ok === rows.length) return 'success';
   return 'partial';
+}
+
+export function cancellationResultCounts(rows: readonly { ok: boolean }[]): {
+  cancelled: number;
+  notCancelled: number;
+  total: number;
+} {
+  const cancelled = rows.filter((row) => row.ok).length;
+  return { cancelled, notCancelled: rows.length - cancelled, total: rows.length };
+}
+
+/** A row with an error is not a cancellation, even if a payload also says ok. */
+export function cancellationRowSucceeded(row: { ok?: boolean; error?: string | null }): boolean {
+  return row.ok === true && !row.error?.trim();
+}
+
+export function cancellationFailureSummary(
+  rows: readonly { ok: boolean; error?: string }[],
+  fallback?: string | null
+): string {
+  const errors = [...new Set(
+    rows
+      .filter((row) => !row.ok)
+      .map((row) => row.error?.trim())
+      .filter((error): error is string => Boolean(error))
+  )];
+  if (errors.length === 1) return errors[0];
+  return fallback?.trim() || SUPPLIER_CANCELLATION_NONE;
+}
+
+export function cancellationStatusMessage(
+  rows: readonly { ok: boolean; error?: string }[],
+  failureDetail?: string | null
+): string {
+  const counts = cancellationResultCounts(rows);
+  if (counts.total === 0) return failureDetail?.trim() || SUPPLIER_CANCELLATION_NONE;
+  if (counts.cancelled === 0) {
+    const reason = cancellationFailureSummary(rows, failureDetail);
+    if (reason && reason !== SUPPLIER_CANCELLATION_NONE) {
+      return `Cancelled 0 of ${counts.total}. ${reason}`;
+    }
+    return `Cancelled 0 of ${counts.total}.`;
+  }
+  if (counts.notCancelled === 0) return `Cancelled ${counts.cancelled} of ${counts.total}.`;
+  return `Cancelled ${counts.cancelled} of ${counts.total}. ${counts.notCancelled} could not be cancelled.`;
+}
+
+/**
+ * Batch success follows the booking results.
+ * A top-level ok flag is ignored when every booking failed or was refused.
+ */
+export function classifyCancellationBatchResponse(input: {
+  ok?: unknown;
+  error?: unknown;
+  results?: unknown;
+}): {
+  ok: boolean;
+  outcome: 'success' | 'partial' | 'failure';
+  partial: boolean;
+  succeeded: number;
+  failed: number;
+  error?: string;
+  results: CancellationBatchRow[];
+} {
+  const results = parseCancellationBatchResults(input.results).map((row) => (
+    cancellationRowSucceeded(row) ? row : { ...row, ok: false }
+  ));
+  const succeeded = results.filter((row) => row.ok).length;
+  const failed = results.length - succeeded;
+  if (results.length === 0 || succeeded === 0) {
+    const transportError = typeof input.error === 'string' ? input.error : undefined;
+    return {
+      ok: false,
+      outcome: 'failure',
+      partial: false,
+      succeeded: 0,
+      failed,
+      error: cancellationFailureSummary(results, transportError || SUPPLIER_CANCELLATION_NONE),
+      results,
+    };
+  }
+  if (failed > 0) {
+    return { ok: true, outcome: 'partial', partial: true, succeeded, failed, results };
+  }
+  return { ok: true, outcome: 'success', partial: false, succeeded, failed: 0, results };
 }

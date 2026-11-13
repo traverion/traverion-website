@@ -11,8 +11,11 @@ import {
   CANCELLATION_BATCH_LIMIT,
   EMPTY_CANCELLATION_FILTERS,
   buildCancellationCandidate,
+  cancellationFailureSummary,
   cancellationMoneyPreview,
+  cancellationResultCounts,
   cancellationRunPhase,
+  cancellationStatusMessage,
   cancellationTotals,
   candidatesByIds,
   classifyCancellationSelection,
@@ -198,15 +201,18 @@ export default function SupplierCancellationWorkflow({
       refundNote: 'Not submitted.',
     }));
     setResultRows(listed);
-    if (!ran.ok && listed.every((row) => !row.ok)) {
-      setFormError(ran.error || 'Could not submit this cancellation.');
-      setPhase('failure');
-      return;
-    }
-    setPhase(cancellationRunPhase(listed));
+    const outcome = cancellationRunPhase(listed);
+    setFormError(outcome === 'failure' ? cancellationFailureSummary(listed, ran.error) : null);
+    setPhase(outcome);
   };
 
   const resultById = new Map(resultRows.map((row) => [row.bookingId, row]));
+  const resultCounts = cancellationResultCounts(resultRows);
+  const settledRows = resultRows.length
+    ? reviewRows.filter((row) => resultById.get(row.id)?.ok)
+    : reviewRows;
+  const previewTotals = cancellationTotals(settledRows, reasonCode);
+  const statusMessage = resultRows.length ? cancellationStatusMessage(resultRows, formError) : null;
 
   return (
     <div className="fixed inset-0 z-[80] flex flex-col bg-[#f3f4f6] text-ink" role="dialog" aria-modal="true" aria-labelledby={titleId}>
@@ -442,37 +448,38 @@ export default function SupplierCancellationWorkflow({
                   Cancelling {reviewRows.length} booking{reviewRows.length === 1 ? '' : 's'}. Each booking is confirmed on its own.
                 </p>
               ) : null}
-              {phase === 'success' ? (
-                <p className="rounded-xl border border-black/10 bg-white px-4 py-3 text-sm font-medium" role="status">
-                  {reviewRows.length === 1 ? 'This booking is cancelled.' : `All ${reviewRows.length} selected bookings are cancelled.`}
-                </p>
-              ) : null}
-              {phase === 'partial' ? (
-                <p className="rounded-xl border border-black/10 border-l-4 border-l-amber-500 bg-white px-4 py-3 text-sm" role="status">
-                  Some bookings were cancelled. The others were not. Review each row before you leave.
-                </p>
-              ) : null}
-              {phase === 'failure' ? (
-                <p className="rounded-xl border border-black/10 bg-white px-4 py-3 text-sm" role="status">
-                  No booking in this selection was cancelled.
+              {statusMessage && phase !== 'processing' ? (
+                <p
+                  className={`rounded-xl border border-black/10 bg-white px-4 py-3 text-sm ${phase === 'success' ? 'font-medium' : ''} ${phase === 'partial' ? 'border-l-4 border-l-amber-500' : ''}`}
+                  role={phase === 'failure' ? 'alert' : 'status'}
+                >
+                  {statusMessage}
                 </p>
               ) : null}
 
-              <div className="grid gap-2 rounded-xl border border-black/10 bg-white p-3 text-[13px] sm:grid-cols-4">
-                <p><span className="block text-ink-faint">Customers</span><span className="font-semibold tabular-nums">{cancellationTotals(reviewRows, reasonCode).customers}</span></p>
-                <p><span className="block text-ink-faint">Bookings</span><span className="font-semibold tabular-nums">{reviewRows.length}</span></p>
-                <p><span className="block text-ink-faint">Customer refunds due</span><span className="font-semibold tabular-nums">{formatMoney(cancellationTotals(reviewRows, reasonCode).refunds, cancellationTotals(reviewRows, reasonCode).currency)}</span></p>
-                <p><span className="block text-ink-faint">Supplier fees</span><span className="font-semibold tabular-nums">{formatMoney(cancellationTotals(reviewRows, reasonCode).fees, cancellationTotals(reviewRows, reasonCode).currency)}</span></p>
+              <div className={`grid gap-2 rounded-xl border border-black/10 bg-white p-3 text-[13px] ${resultRows.length ? 'sm:grid-cols-3 lg:grid-cols-6' : 'sm:grid-cols-4'}`}>
+                <p><span className="block text-ink-faint">{resultRows.length ? 'Customers cancelled' : 'Customers'}</span><span className="font-semibold tabular-nums">{previewTotals.customers}</span></p>
+                <p><span className="block text-ink-faint">Bookings</span><span className="font-semibold tabular-nums">{resultRows.length ? resultCounts.total : reviewRows.length}</span></p>
+                {resultRows.length ? (
+                  <>
+                    <p><span className="block text-ink-faint">Cancelled</span><span className="font-semibold tabular-nums">{resultCounts.cancelled}</span></p>
+                    <p><span className="block text-ink-faint">Not cancelled</span><span className="font-semibold tabular-nums">{resultCounts.notCancelled}</span></p>
+                  </>
+                ) : null}
+                <p><span className="block text-ink-faint">{resultRows.length ? 'Refunds for cancelled bookings' : 'Customer refunds due'}</span><span className="font-semibold tabular-nums">{formatMoney(previewTotals.refunds, previewTotals.currency)}</span></p>
+                <p><span className="block text-ink-faint">Supplier fees</span><span className="font-semibold tabular-nums">{formatMoney(previewTotals.fees, previewTotals.currency)}</span></p>
               </div>
               <p className="text-[13px] text-ink-muted">
-                Inventory for a successful cancellation releases that booking’s guests ({cancellationTotals(reviewRows, reasonCode).guests}).
+                Inventory for a successful cancellation releases that booking’s guests ({previewTotals.guests}).
                 Other bookings on the same departure stay unless they are in this selection.
               </p>
 
               <ul className="overflow-hidden rounded-xl border border-black/10 bg-white">
                 {reviewRows.map((row) => {
-                  const money = cancellationMoneyPreview(row, reasonCode);
                   const result = resultById.get(row.id);
+                  const money = result && !result.ok
+                    ? { refundAmount: 0, feeAmount: 0, currency: row.currency }
+                    : cancellationMoneyPreview(row, reasonCode);
                   return (
                     <li key={row.id} className="border-b border-black/[0.06] px-3 py-2.5 last:border-b-0">
                       <p className="text-sm font-medium text-ink">{row.reference} · {row.guestName}</p>
@@ -535,7 +542,7 @@ export default function SupplierCancellationWorkflow({
               </button>
             ) : null}
           </div>
-          {formError ? <p className="text-sm text-ink" role="alert">{formError}</p> : null}
+          {formError && phase !== 'failure' ? <p className="text-sm text-ink" role="alert">{formError}</p> : null}
           <div className="flex items-center gap-2">
             {step === 0 ? (
               <>

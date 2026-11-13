@@ -2,13 +2,18 @@ import { describe, expect, it } from 'vitest';
 import { supplierCancellationFeeEur } from './cancellation-policy';
 import {
   buildCancellationCandidate,
+  cancellationResultCounts,
   cancellationRunPhase,
+  cancellationStatusMessage,
+  classifyCancellationBatchResponse,
   classifyCancellationSelection,
   entireDepartureSelection,
   explicitCancellationSelection,
   filterCancellationCandidates,
   frozenCancellationSelection,
   parseCancellationBatchResults,
+  SUPPLIER_CANCELLATION_NONE,
+  SUPPLIER_CANCELLATION_UNAUTHORIZED,
   supplierCancellationExplanationMin,
   supplierCancellationExplanationReady,
   cancellationMoneyPreview,
@@ -93,5 +98,83 @@ describe('supplier cancellation workflow', () => {
     ])).toEqual([
       expect.objectContaining({ bookingId: 'a', ok: true, autoRefundQueued: true }),
     ]);
+  });
+
+  it('does not report success for an unauthorized or all-failed batch', () => {
+    const unauthorized = classifyCancellationBatchResponse({
+      ok: true,
+      results: [{
+        booking_id: 'a',
+        ok: true,
+        error: SUPPLIER_CANCELLATION_UNAUTHORIZED,
+      }],
+    });
+    expect(unauthorized.ok).toBe(false);
+    expect(unauthorized.outcome).toBe('failure');
+    expect(unauthorized.succeeded).toBe(0);
+    expect(unauthorized.results[0]?.ok).toBe(false);
+    expect(unauthorized.error).toBe(SUPPLIER_CANCELLATION_UNAUTHORIZED);
+    expect(cancellationStatusMessage(unauthorized.results, unauthorized.error)).toBe(
+      `Cancelled 0 of 1. ${SUPPLIER_CANCELLATION_UNAUTHORIZED}`
+    );
+
+    const allFailed = classifyCancellationBatchResponse({
+      ok: true,
+      partial: false,
+      results: [
+        { booking_id: 'a', ok: false, error: 'This booking is already cancelled.' },
+        { booking_id: 'b', ok: false, error: 'This booking could not be cancelled.' },
+      ],
+    });
+    expect(allFailed.ok).toBe(false);
+    expect(allFailed.outcome).toBe('failure');
+    expect(allFailed.partial).toBe(false);
+    expect(cancellationResultCounts(allFailed.results)).toEqual({ cancelled: 0, notCancelled: 2, total: 2 });
+    expect(allFailed.error).toBe(SUPPLIER_CANCELLATION_NONE);
+    expect(cancellationStatusMessage(allFailed.results)).toBe('Cancelled 0 of 2.');
+  });
+
+  it('reports partial success and replays only the bookings that already succeeded', () => {
+    const partial = classifyCancellationBatchResponse({
+      ok: true,
+      results: [
+        { booking_id: 'a', ok: true, replayed: false, auto_refund_queued: false },
+        { booking_id: 'b', ok: false, replayed: false, error: 'This booking could not be cancelled.' },
+      ],
+    });
+    expect(partial).toEqual(expect.objectContaining({
+      ok: true,
+      outcome: 'partial',
+      partial: true,
+      succeeded: 1,
+      failed: 1,
+    }));
+    expect(cancellationStatusMessage(partial.results)).toBe('Cancelled 1 of 2. 1 could not be cancelled.');
+
+    const replay = classifyCancellationBatchResponse({
+      ok: true,
+      results: [
+        { booking_id: 'a', ok: true, replayed: true },
+        { booking_id: 'b', ok: false, replayed: false, error: 'This booking could not be cancelled.' },
+      ],
+    });
+    expect(replay.outcome).toBe('partial');
+    expect(replay.succeeded).toBe(1);
+    expect(replay.results.find((row) => row.bookingId === 'a')).toEqual(
+      expect.objectContaining({ ok: true, replayed: true })
+    );
+    expect(replay.results.find((row) => row.bookingId === 'b')?.ok).toBe(false);
+
+    const replayedSuccess = classifyCancellationBatchResponse({
+      ok: true,
+      results: [
+        { booking_id: 'a', ok: true, replayed: true },
+        { booking_id: 'b', ok: true, replayed: true },
+      ],
+    });
+    expect(replayedSuccess.outcome).toBe('success');
+    expect(replayedSuccess.succeeded).toBe(2);
+    expect(replayedSuccess.failed).toBe(0);
+    expect(cancellationStatusMessage(replayedSuccess.results)).toBe('Cancelled 2 of 2.');
   });
 });
