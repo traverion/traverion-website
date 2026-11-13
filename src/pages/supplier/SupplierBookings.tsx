@@ -1228,15 +1228,6 @@ export default function SupplierBookings({
         badge={null}
         sansTitle
         title={isStayDesk ? 'Reservations' : isRentalDesk ? 'Rental bookings' : 'Bookings'}
-        description={
-          isStayDesk
-            ? 'Guests, nights, and property decisions.'
-            : isRentalDesk
-              ? 'Customers, collection and return times, and booking details.'
-              : isUnifiedDesk
-                ? 'Tours, stays, and rentals in one place.'
-                : 'Guests, departures, and booking details.'
-        }
         actions={
           bookings.length > 0 ? (
           <div className="flex flex-wrap items-center justify-end gap-2">

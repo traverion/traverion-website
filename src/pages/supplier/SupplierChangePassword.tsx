@@ -102,10 +102,7 @@ export default function SupplierChangePassword({ onBack, userEmail, isSupabase, 
         Account
       </button>
 
-      <SupplierPageHero
-        title="Change password"
-        description="Enter your current password, then your new password twice. Your session stays active after a successful change."
-      >
+      <SupplierPageHero title="Change password">
         {userEmail.trim() ? (
           <p className="mt-3 text-sm text-ink-muted truncate" title={userEmail}>
             Signed in as {userEmail.trim()}
@@ -133,7 +130,7 @@ export default function SupplierChangePassword({ onBack, userEmail, isSupabase, 
         ) : null}
 
         <div>
-          <label className="block text-[11px] font-medium uppercase tracking-wide text-ink-faint mb-1.5" htmlFor="supplier-current-password">
+          <label className="mb-1.5 block text-sm font-medium text-ink" htmlFor="supplier-current-password">
             Current password
           </label>
           <div className="relative">
@@ -165,7 +162,7 @@ export default function SupplierChangePassword({ onBack, userEmail, isSupabase, 
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label className="block text-[11px] font-medium uppercase tracking-wide text-ink-faint mb-1.5" htmlFor="supplier-new-password">
+            <label className="mb-1.5 block text-sm font-medium text-ink" htmlFor="supplier-new-password">
               New password
             </label>
             <div className="relative">
@@ -196,7 +193,7 @@ export default function SupplierChangePassword({ onBack, userEmail, isSupabase, 
             </div>
           </div>
           <div>
-            <label className="block text-[11px] font-medium uppercase tracking-wide text-ink-faint mb-1.5" htmlFor="supplier-confirm-password">
+            <label className="mb-1.5 block text-sm font-medium text-ink" htmlFor="supplier-confirm-password">
               Confirm new password
             </label>
             <div className="relative">

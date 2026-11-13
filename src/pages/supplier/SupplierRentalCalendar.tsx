@@ -345,7 +345,7 @@ export default function SupplierRentalCalendar() {
 
           <section className="overflow-hidden rounded-2xl bg-white ring-1 ring-[#E6EAF0]" aria-label="Inventory">
             <div className="border-b border-[#E6EAF0] px-4 py-3">
-              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-ink-muted">
+              <p className="text-sm font-bold text-ink">
                 Options & stock
               </p>
             </div>
@@ -510,7 +510,7 @@ export default function SupplierRentalCalendar() {
 
           <section className="overflow-hidden rounded-2xl bg-white ring-1 ring-[#E6EAF0]" aria-label="Current blocks">
             <div className="border-b border-[#E6EAF0] px-4 py-3">
-              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-ink-muted">
+              <p className="text-sm font-bold text-ink">
                 Current blocks
               </p>
             </div>
@@ -576,7 +576,7 @@ export default function SupplierRentalCalendar() {
               aria-label="Active holds"
             >
               <div className="border-b border-[#E6EAF0] px-4 py-3">
-                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-ink-muted">
+                <p className="text-sm font-bold text-ink">
                   Active holds ({holds.length})
                 </p>
               </div>

@@ -1056,7 +1056,6 @@ export default function SupplierUnifiedCalendar() {
     <div className={`${SUPPLIER_PAGE_CLASS} partner-unified-cal`}>
       <SupplierPageHero
         title="Calendar"
-        description="Upcoming operations across tours, stays, and rentals."
         actions={
           canEdit && listings.length > 0 ? (
             <button

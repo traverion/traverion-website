@@ -526,7 +526,6 @@ export default function SupplierPerformance() {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <h1 className="tv-analytics-title">Analytics</h1>
-          <p className="tv-analytics-subtitle">Understand your performance and grow your business.</p>
         </div>
         <div className="flex flex-wrap items-end gap-2">
           <label className="tv-analytics-field">

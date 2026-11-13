@@ -726,7 +726,7 @@ export default function SupplierReviews() {
                         {hasReply && !composing ? (
                           <div className="tv-reviews-reply">
                             <div className="flex items-start justify-between gap-2">
-                              <p className="text-[10.5px] font-semibold uppercase tracking-[0.08em] text-[#073b83]">
+                              <p className="text-xs font-semibold text-[#073b83]">
                                 Your response
                               </p>
                               {canReply ? (

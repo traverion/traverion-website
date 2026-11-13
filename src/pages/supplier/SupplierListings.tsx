@@ -1401,12 +1401,11 @@ export default function SupplierListings() {
             aria-labelledby="create-listing-title"
             className="tv-sheet-panel relative max-w-xl motion-safe:animate-slide-up sm:max-w-2xl"
           >
-            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland">Create listing</p>
-            <h2 id="create-listing-title" className="mt-1.5 text-xl sm:text-2xl font-bold text-ink tracking-tight">
+            <h2 id="create-listing-title" className="text-xl font-bold tracking-tight text-ink sm:text-2xl">
               What do you want to sell?
             </h2>
-            <p className="mt-1.5 text-xs text-ink-muted leading-snug">
-              Tours and stays use different calendars and booking rules — pick what travelers will book.
+            <p className="mt-1.5 text-sm leading-snug text-ink-muted">
+              Tours, stays, and rentals use different booking rules.
             </p>
             <div className="mt-4 grid gap-2 sm:grid-cols-2" role="list">
               {PARTNER_CREATE_INVENTORY.map((opt) => {
@@ -1444,7 +1443,7 @@ export default function SupplierListings() {
                     <span className="flex h-8 w-8 items-center justify-center rounded-md bg-finland/10 text-finland ring-1 ring-finland/15">
                       <Icon className="h-4 w-4" aria-hidden />
                     </span>
-                    <span className="mt-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-finland">
+                    <span className="mt-2 text-xs font-semibold text-finland">
                       {opt.family === 'stay' ? 'Nights' : opt.family === 'rental' ? 'Equipment' : 'Departures'}
                     </span>
                     <p className="mt-1 text-sm font-semibold text-ink">{opt.title}</p>

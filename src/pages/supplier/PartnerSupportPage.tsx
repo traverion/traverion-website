@@ -130,7 +130,7 @@ export default function PartnerSupportPage() {
 
   return (
     <div className={SUPPLIER_PAGE_CLASS}>
-      <SupplierPageHero title="Support" sansTitle description="Send a request to Traverion." />
+      <SupplierPageHero title="Support" sansTitle />
 
       <form
         id={formId}

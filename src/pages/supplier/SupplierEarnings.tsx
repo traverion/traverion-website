@@ -936,7 +936,6 @@ export default function SupplierEarnings() {
               </span>
             ) : null}
           </div>
-          <p className="tv-income-subtitle">Earnings, payouts, and payment settings.</p>
         </div>
         <div className="tv-income-export">
           <button
@@ -1328,7 +1327,7 @@ export default function SupplierEarnings() {
             <>
               <div className="hidden overflow-x-auto rounded-[10px] border border-[#e5e7eb] bg-white md:block">
                 <table className="w-full min-w-[40rem] text-left text-[13px]">
-                  <thead className="border-b border-[#e5e7eb] text-[11px] font-semibold uppercase tracking-wide text-[#71717a]">
+                  <thead className="border-b border-[#e5e7eb] text-xs font-semibold text-[#3a4452]">
                     <tr>
                       <th className="px-3 py-2.5">Booking</th>
                       <th className="px-3 py-2.5">Experience</th>
@@ -1726,7 +1725,7 @@ export default function SupplierEarnings() {
             </dl>
             {selectedPayoutItems.length > 0 ? (
               <section className="mt-4">
-                <h3 className="text-[11px] font-semibold uppercase tracking-wide text-[#71717a]">Covered transactions</h3>
+                <h3 className="text-sm font-bold text-ink">Covered transactions</h3>
                 <ul className="mt-2 divide-y divide-[#e5e7eb] rounded-[10px] border border-[#e5e7eb]">
                   {selectedPayoutItems.map((item) => {
                     const row = incomeRows.find((earning) => earning.bookingId === item.booking_id);

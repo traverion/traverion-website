@@ -21364,3 +21364,163 @@ details:not([open]) > :not(summary) {
 
   /* Mobile sheet positioning is handled by PartnerUnifiedEventEditPopover. */
 }
+
+/* Partner dashboard premium pass — one sans system, stronger titles, darker secondary text. */
+.partner-app-shell {
+  --partner-ink-muted: #3a4452;
+  --partner-ink-faint: #5c6776;
+  --partner-section-size: 1.125rem;
+  --partner-card-title: 0.96875rem;
+  --ph-section: 1.1875rem;
+  --ph-gap-lg: 1.1rem;
+}
+
+.partner-app-shell .font-display {
+  font-family: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif !important;
+}
+
+.partner-app-shell .partner-page-title,
+.partner-app-shell .partner-section-title,
+.partner-app-shell .partner-home__greeting,
+.partner-app-shell .partner-home__section-title,
+.partner-app-shell .tv-analytics-title,
+.partner-app-shell .tv-income-title {
+  font-weight: 700;
+  color: var(--partner-ink);
+}
+
+.partner-app-shell .partner-label,
+.partner-app-shell .tv-status-chip,
+.partner-app-shell .partner-home__metric-label,
+.partner-app-shell .partner-home__perf-label,
+.partner-app-shell .partner-home__sched-kind,
+.partner-app-shell .partner-home__recent-family,
+.partner-app-shell .tour-ops-card__summary-heading,
+.partner-app-shell .tour-ops-detail__heading,
+.partner-app-shell .puc-tour-ops__seg-label,
+.partner-app-shell .tv-income-metric__label,
+.partner-app-shell .tv-metric-tile__label,
+.partner-app-shell .tv-reviews-metric__label,
+.partner-app-shell .tv-reviews-overview__label,
+.partner-app-shell .tour-ops-card__summary-label,
+.partner-app-shell .tv-analytics-field > span {
+  text-transform: none;
+  letter-spacing: -0.011em;
+}
+
+.partner-app-shell .partner-label,
+.partner-app-shell .tv-status-chip,
+.partner-app-shell .partner-home__metric-label,
+.partner-app-shell .partner-home__perf-label,
+.partner-app-shell .tv-income-metric__label,
+.partner-app-shell .tv-reviews-metric__label,
+.partner-app-shell .tv-reviews-overview__label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--partner-ink-muted);
+}
+
+.partner-app-shell .partner-home__sub,
+.partner-app-shell .partner-home__sched-meta,
+.partner-app-shell .partner-home__metric-hint,
+.partner-app-shell .tour-ops-card__option,
+.partner-app-shell .tour-ops-detail__option,
+.partner-app-shell .tv-inbox-thread__preview,
+.partner-app-shell .partner-unified-cal__card-option {
+  color: #3a4452;
+}
+
+.partner-app-shell .partner-home__sched-title,
+.partner-app-shell .partner-home__recent-guest,
+.partner-app-shell .partner-home__recent-product-title,
+.partner-app-shell .tour-ops-card__title,
+.partner-app-shell .tour-ops-card__summary-name,
+.partner-app-shell .tv-ops-listing-row__title,
+.partner-app-shell .partner-unified-cal__card-title,
+.partner-app-shell .tv-inbox-thread__name {
+  font-weight: 700;
+  color: var(--partner-ink);
+  letter-spacing: -0.018em;
+}
+
+.partner-app-shell .partner-home__sched-title,
+.partner-app-shell .tour-ops-card__title,
+.partner-app-shell .tv-ops-listing-row__title,
+.partner-app-shell .tv-inbox-thread__name {
+  font-size: 0.96875rem;
+}
+
+.partner-app-shell .tour-ops-detail__title {
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+
+.partner-app-shell .tour-ops-card__summary-heading,
+.partner-app-shell .tour-ops-detail__heading {
+  margin-bottom: 0.4rem;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--partner-ink);
+}
+
+.partner-app-shell .tour-ops-card__summary-label {
+  min-width: 0;
+  margin-right: 0.4rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--partner-ink-muted);
+}
+
+.partner-app-shell .tour-ops-card__fact-icon {
+  display: none;
+}
+
+.partner-app-shell .tour-ops-card__fact {
+  gap: 0;
+  font-weight: 600;
+  color: var(--partner-ink);
+}
+
+.partner-app-shell .partner-unified-cal__card-time {
+  padding-top: 0.15rem;
+  font-size: 0.875rem;
+  font-weight: 750;
+  color: var(--partner-ink);
+}
+
+.partner-app-shell .partner-unified-cal__card-option {
+  font-size: 0.8125rem;
+  font-weight: 550;
+}
+
+.partner-app-shell .puc-tour-ops__seg-label {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--partner-ink-muted);
+}
+
+.partner-app-shell .tv-inbox-thread__time {
+  color: #5c6776;
+}
+
+.partner-app-shell .tv-inbox-thread__preview {
+  font-weight: 500;
+}
+
+.partner-app-shell .tv-income-metric__value,
+.partner-app-shell .tv-metric-tile__value,
+.partner-app-shell .partner-home__metric-value {
+  font-family: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  font-weight: 700;
+}
+
+.partner-app-shell .partner-home__metric {
+  min-height: 4.75rem;
+  box-shadow: none;
+}
+
+.partner-app-shell .tv-income .tv-money-row__amount,
+.partner-app-shell .partner-home__recent-money {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}

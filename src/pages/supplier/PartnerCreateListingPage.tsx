@@ -49,7 +49,7 @@ export default function PartnerCreateListingPage() {
     <div className={SUPPLIER_PAGE_CLASS}>
       <SupplierPageHero
         title="Create a listing"
-        description="Pick what travelers will book. Tours, stays, and rentals use different rules — Traverion does not fold them into one form."
+        description="Tours, stays, and rentals use different booking rules."
       />
 
       {!roleReady ? (

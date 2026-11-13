@@ -989,9 +989,7 @@ export default function SupplierInbox() {
                 <MessageSquare className="h-5 w-5" />
               </span>
               <h2 className="tv-inbox-empty-pane__title">Select a conversation</h2>
-              <p className="tv-inbox-empty-pane__body">
-                Pick a thread on the left to reply — booking context stays with each conversation.
-              </p>
+              <p className="tv-inbox-empty-pane__body">Choose a thread to reply.</p>
             </div>
           )}
           {!loading && openId && !openBooking && !deepLinkMissing && threads.length > 0 ? (
