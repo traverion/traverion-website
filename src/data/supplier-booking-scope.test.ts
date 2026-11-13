@@ -16,9 +16,9 @@ describe('partner booking reads stay bounded', () => {
     expect(bookings).toContain('created_at.gte.');
     expect(bookings).toContain('query.limit(limit)');
     expect(bookings).toContain('bookingId');
-    expect(earnings).toContain("ops: 'collected'");
-    expect(earnings).toContain("ops: 'refund_due'");
-    expect(earnings).not.toContain('fetchBookingsForSupplier(uid)');
+    expect(earnings).toContain('fetchPartnerIncomeSummary');
+    expect(earnings).toContain('fetchPartnerIncomeHistory');
+    expect(earnings).not.toContain('fetchAllSupplierBookingDeskRows');
   });
 
   it('keeps home, calendar, bookings, inbox, and analytics off the unbounded list', () => {
@@ -31,9 +31,9 @@ describe('partner booking reads stay bounded', () => {
     expect(desk).toContain('Export filtered bookings');
     expect(desk).toContain('Export all bookings');
     expect(inbox).toContain('limit: cap');
-    expect(analytics).toContain('limit: 500');
     expect(analytics).toContain('fetchPartnerAnalyticsDaily');
-    expect(analytics).not.toMatch(/fetchBookingsForSupplier\(uid\)\s*[;)]/);
+    expect(analytics).toContain('fetchPartnerAnalyticsDistributions');
+    expect(analytics).not.toContain('limit: 500');
   });
 
   it('asks for one message per thread and still falls back to a newest-first read', () => {

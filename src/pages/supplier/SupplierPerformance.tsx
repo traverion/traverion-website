@@ -2,11 +2,11 @@ import { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef } fr
 import { Info, TrendingUp } from 'lucide-react';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import { fetchMyListings } from '../../data/supabase-listings';
-import { fetchBookingsForSupplier, type BookingRow } from '../../data/supabase-bookings';
-import { addCalendarDaysYmd } from '../../lib/booking-lifecycle-calendar';
+import type { BookingRow } from '../../data/supabase-bookings';
 import {
   fetchPartnerAnalyticsDaily,
-  fetchSupplierCommercialSnapshots,
+  fetchPartnerAnalyticsDistributions,
+  type PartnerAnalyticsDistributionRow,
   type BookingCommercialSnapshotRow,
 } from '../../data/supabase-earnings';
 import { fetchReviewsForSupplierListings } from '../../data/supabase-reviews';
@@ -29,11 +29,8 @@ import AnalyticsListingTable from '../../components/supplier/analytics/Analytics
 import {
   ANALYTICS_RANGE_OPTIONS,
   ANALYTICS_SECTIONS,
-  aggregateLeadTimes,
   aggregateListingRows,
   aggregateMoneyByCurrency,
-  aggregatePartySizes,
-  averageLeadTimeDays,
   buildEarningsSeries,
   busiestBookingDay,
   cancellationStats,
@@ -47,7 +44,11 @@ import {
   percentChange,
   previousAnalyticsRange,
   resolveAnalyticsDateRange,
+  LEAD_TIME_LABELS,
+  PARTY_SIZE_LABELS,
   summarizeAnalyticsDaily,
+  type LeadTimeBucket,
+  type PartySizeBucket,
   type PartnerAnalyticsDailyRow,
   type AnalyticsDateBasis,
   type AnalyticsListingMeta,
@@ -55,7 +56,7 @@ import {
   type AnalyticsRangeKey,
   type AnalyticsSection,
 } from '../../lib/partner-analytics';
-import { isCollectedBooking, isPaidPaymentStatus } from '../../lib/payment-states';
+import { isPaidPaymentStatus } from '../../lib/payment-states';
 
 const PERFORMANCE_LOAD_ERROR =
   'We could not load analytics. Check your connection and try again.';
@@ -129,8 +130,8 @@ export default function SupplierPerformance() {
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [bookingsTruncated, setBookingsTruncated] = useState(false);
   const [dailyRows, setDailyRows] = useState<PartnerAnalyticsDailyRow[]>([]);
+  const [distributions, setDistributions] = useState<PartnerAnalyticsDistributionRow[]>([]);
   const initial = typeof window !== 'undefined' ? readUrlState() : null;
   const [section, setSection] = useState<AnalyticsSection>(initial?.section ?? 'summary');
   const [rangeKey, setRangeKey] = useState<AnalyticsRangeKey>(initial?.range ?? '30d');
@@ -212,42 +213,37 @@ export default function SupplierPerformance() {
     const prior = previousAnalyticsRange(range.from, range.to);
     const from = prior.from ?? range.from;
     const to = range.to;
-    const sinceDay = from ? addCalendarDaysYmd(from, -1) ?? from : null;
-    const allTime = !range.from && !range.to;
-    const bookingQuery =
-      allTime || !from || !to || !sinceDay
-        ? Promise.resolve([] as BookingRow[])
-        : fetchBookingsForSupplier(uid, {
-            fromDate: from,
-            toDate: to,
-            createdSince: `${sinceDay}T00:00:00.000Z`,
-            limit: 500,
-          });
+    const analyticsRange = {
+      from: from ?? null,
+      to: to ?? null,
+      basis,
+    };
     const settled = await Promise.allSettled([
       fetchMyListings(uid),
-      bookingQuery,
-      allTime ? Promise.resolve([] as BookingCommercialSnapshotRow[]) : fetchSupplierCommercialSnapshots(uid),
+      fetchPartnerAnalyticsDaily(analyticsRange),
+      fetchPartnerAnalyticsDistributions({
+        from: range.from,
+        to: range.to,
+        basis,
+      }),
       fetchReviewsForSupplierListings(uid),
-      allTime ? fetchPartnerAnalyticsDaily() : Promise.resolve([] as PartnerAnalyticsDailyRow[]),
     ]);
     if (gen !== loadGenRef.current) return;
     if (settled[0].status === 'fulfilled') setListings(settled[0].value);
-    if (settled[1].status === 'fulfilled') {
-      setBookings(settled[1].value);
-      setBookingsTruncated(Boolean(from && to) && settled[1].value.length >= 500);
-    }
-    if (settled[2].status === 'fulfilled') setSnapshots(settled[2].value);
+    if (settled[1].status === 'fulfilled') setDailyRows(settled[1].value);
+    if (settled[2].status === 'fulfilled') setDistributions(settled[2].value);
     if (settled[3].status === 'fulfilled') setReviews(settled[3].value);
-    if (settled[4].status === 'fulfilled') setDailyRows(settled[4].value);
-    if (settled[0].status === 'fulfilled' || settled[1].status === 'fulfilled' || settled[4].status === 'fulfilled') {
+    setBookings([]);
+    setSnapshots([]);
+    if (settled[0].status === 'fulfilled' || settled[1].status === 'fulfilled') {
       hasDataRef.current = true;
     }
-    if (settled[0].status === 'rejected' || settled[1].status === 'rejected' || settled[4].status === 'rejected') {
+    if (settled[0].status === 'rejected' || settled[1].status === 'rejected' || settled[2].status === 'rejected') {
       setError(PERFORMANCE_LOAD_ERROR);
     }
     setLoading(false);
     setRefreshing(false);
-  }, [isSupabase, user?.id, rangeKey, customFrom, customTo]);
+  }, [isSupabase, user?.id, rangeKey, customFrom, customTo, basis]);
 
   useLayoutEffect(() => {
     if (!user?.id) {
@@ -259,6 +255,7 @@ export default function SupplierPerformance() {
       setSnapshots([]);
       setReviews([]);
       setDailyRows([]);
+      setDistributions([]);
       setTraffic([]);
       setLoading(false);
       return;
@@ -272,6 +269,7 @@ export default function SupplierPerformance() {
       setSnapshots([]);
       setReviews([]);
       setDailyRows([]);
+      setDistributions([]);
       setTraffic([]);
     }
   }, [user?.id]);
@@ -323,7 +321,7 @@ export default function SupplierPerformance() {
   }, [listings]);
 
   const dailySummary = useMemo(() => {
-    if (rangeKey !== 'all' || !customRangeReady) return null;
+    if (!customRangeReady) return null;
     return summarizeAnalyticsDaily({
       rows: dailyRows,
       listingsById,
@@ -331,8 +329,24 @@ export default function SupplierPerformance() {
       productType,
       listingId: listingId || null,
       rangeKey,
+      from: dateRange.from,
+      to: dateRange.to,
     });
-  }, [rangeKey, customRangeReady, dailyRows, listingsById, basis, productType, listingId]);
+  }, [customRangeReady, dailyRows, listingsById, basis, productType, listingId, rangeKey, dateRange.from, dateRange.to]);
+
+  const priorSummary = useMemo(() => {
+    if (!showPeriodDelta || !priorRange.from || !priorRange.to) return null;
+    return summarizeAnalyticsDaily({
+      rows: dailyRows,
+      listingsById,
+      basis,
+      productType,
+      listingId: listingId || null,
+      rangeKey,
+      from: priorRange.from,
+      to: priorRange.to,
+    });
+  }, [showPeriodDelta, priorRange.from, priorRange.to, dailyRows, listingsById, basis, productType, listingId, rangeKey]);
 
   const snapshotsByBookingId = useMemo(() => {
     const map: Record<string, (typeof snapshots)[number]> = {};
@@ -353,20 +367,6 @@ export default function SupplierPerformance() {
       collectedOnly: true,
     });
   }, [bookings, listingsById, dateRange, basis, productType, listingId, customRangeReady]);
-
-  const priorPaid = useMemo(() => {
-    if (!showPeriodDelta || !priorRange.from || !priorRange.to) return [];
-    return filterAnalyticsBookings({
-      bookings,
-      listingsById,
-      from: priorRange.from,
-      to: priorRange.to,
-      basis,
-      productType,
-      listingId: listingId || null,
-      collectedOnly: true,
-    });
-  }, [bookings, listingsById, priorRange, basis, productType, listingId, showPeriodDelta]);
 
   const windowAllBookings = useMemo(() => {
     if (!customRangeReady) return [];
@@ -412,8 +412,8 @@ export default function SupplierPerformance() {
     [dailySummary, filteredPaid, snapshotsByBookingId]
   );
   const moneyPrior = useMemo(
-    () => aggregateMoneyByCurrency(priorPaid, snapshotsByBookingId),
-    [priorPaid, snapshotsByBookingId]
+    () => priorSummary?.money ?? [],
+    [priorSummary]
   );
   const primary = moneyNow[0] ?? null;
   const primaryPrior = moneyPrior.find((m) => m.currency === primary?.currency) ?? moneyPrior[0] ?? null;
@@ -452,9 +452,42 @@ export default function SupplierPerformance() {
     [dailySummary, filteredPaid, windowAllBookings]
   );
 
-  const leadTimes = useMemo(() => aggregateLeadTimes(filteredPaid), [filteredPaid]);
-  const partySizes = useMemo(() => aggregatePartySizes(filteredPaid), [filteredPaid]);
-  const avgLead = useMemo(() => averageLeadTimeDays(filteredPaid), [filteredPaid]);
+  const scopedDistributions = useMemo(() => {
+    return distributions.filter((row) => {
+      if (listingId && row.listing_id !== listingId) return false;
+      if (productType === 'all') return true;
+      return listingsById[row.listing_id ?? '']?.family === productType;
+    });
+  }, [distributions, listingId, productType, listingsById]);
+  const leadTimes = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const row of scopedDistributions) {
+      if (row.kind !== 'lead') continue;
+      counts.set(row.bucket, (counts.get(row.bucket) ?? 0) + Number(row.booking_count || 0));
+    }
+    return (Object.keys(LEAD_TIME_LABELS) as LeadTimeBucket[])
+      .filter((bucket) => bucket !== 'unknown' || (counts.get(bucket) ?? 0) > 0)
+      .map((bucket) => ({ bucket, label: LEAD_TIME_LABELS[bucket], count: counts.get(bucket) ?? 0 }));
+  }, [scopedDistributions]);
+  const partySizes = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const row of scopedDistributions) {
+      if (row.kind !== 'party') continue;
+      counts.set(row.bucket, (counts.get(row.bucket) ?? 0) + Number(row.booking_count || 0));
+    }
+    return (Object.keys(PARTY_SIZE_LABELS) as PartySizeBucket[])
+      .map((bucket) => ({ bucket, label: PARTY_SIZE_LABELS[bucket], count: counts.get(bucket) ?? 0 }));
+  }, [scopedDistributions]);
+  const avgLead = useMemo(() => {
+    let days = 0;
+    let count = 0;
+    for (const row of scopedDistributions) {
+      if (row.kind !== 'lead_sum') continue;
+      days += Number(row.metric) || 0;
+      count += Number(row.booking_count) || 0;
+    }
+    return count > 0 ? days / count : null;
+  }, [scopedDistributions]);
   const busyDay = useMemo(
     () => dailySummary?.busiest ?? busiestBookingDay(filteredPaid, basis),
     [dailySummary, filteredPaid, basis]
@@ -540,7 +573,7 @@ export default function SupplierPerformance() {
     [filteredPaid, detailListingId]
   );
   const detailSeries = useMemo(() => {
-    if (rangeKey === 'all' && detailListingId) {
+    if (detailListingId) {
       return summarizeAnalyticsDaily({
         rows: dailyRows,
         listingsById,
@@ -548,6 +581,8 @@ export default function SupplierPerformance() {
         productType: 'all',
         listingId: detailListingId,
         rangeKey,
+        from: dateRange.from,
+        to: dateRange.to,
       }).series;
     }
     const currency = detailRows[0]?.currency ?? primary?.currency;
@@ -574,7 +609,7 @@ export default function SupplierPerformance() {
     pushUrl({ detailListingId: '' }, true);
   };
 
-  const hasAnyPaid = dailySummary ? dailySummary.collectedCount > 0 : bookings.some(isCollectedBooking);
+  const hasAnyPaid = dailyRows.some((row) => row.bucket === 'collected' && Number(row.booking_count) > 0);
 
   return (
     <div className={`${SUPPLIER_PAGE_CLASS} tv-analytics font-sans`}>
@@ -638,11 +673,6 @@ export default function SupplierPerformance() {
         </div>
       </div>
 
-      {bookingsTruncated ? (
-        <p className="text-sm text-ink-muted">
-          This range has more bookings than the chart query includes. Narrow the dates for a complete result.
-        </p>
-      ) : null}
 
       <div className="tv-analytics-tabs" role="tablist" aria-label="Analytics sections">
         {ANALYTICS_SECTIONS.map((tab) => (
@@ -841,14 +871,18 @@ export default function SupplierPerformance() {
           </div>
           <div className="tv-analytics-panel">
             <h3 className="tv-analytics-panel__title">Lead time</h3>
-            {rangeKey === 'all' ? (
-              <p className="mt-1 text-[12px] text-[#71717a]">Pick a date range to see lead time for this listing.</p>
-            ) : null}
+            <p className="mt-1 text-[12px] text-[#71717a]">Calendar days from the booking to this experience, in its timezone.</p>
             <div className="mt-3">
               <AnalyticsBarChart
-                bars={aggregateLeadTimes(detailPaid)
-                  .filter((b) => b.count > 0)
-                  .map((b) => ({ key: b.bucket, label: b.label, value: b.count }))}
+                bars={(Object.keys(LEAD_TIME_LABELS) as LeadTimeBucket[])
+                  .map((bucket) => ({
+                    key: bucket,
+                    label: LEAD_TIME_LABELS[bucket],
+                    value: distributions
+                      .filter((row) => row.kind === 'lead' && row.bucket === bucket && row.listing_id === detailListingId)
+                      .reduce((sum, row) => sum + Number(row.booking_count || 0), 0),
+                  }))
+                  .filter((bar) => bar.value > 0)}
                 ariaLabel="Listing lead time"
               />
             </div>
@@ -1110,9 +1144,7 @@ export default function SupplierPerformance() {
               <div className="tv-analytics-panel">
                 <h2 className="tv-analytics-panel__title">Booking lead time</h2>
                 <p className="mt-1 text-[12px] text-[#71717a]">
-                  {rangeKey === 'all'
-                    ? 'Lead time and group size need a date range. All time uses the daily earnings totals.'
-                    : 'Time from booking creation to departure (tours) or check-in (stays).'}
+                  Calendar days from the booking to the experience date, in the experience timezone.
                 </p>
                 <div className="mt-3">
                   <AnalyticsBarChart

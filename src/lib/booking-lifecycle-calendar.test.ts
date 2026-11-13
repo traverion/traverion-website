@@ -15,6 +15,18 @@ import {
 } from './booking-lifecycle-calendar';
 
 describe('booking-lifecycle-calendar', () => {
+  it('keeps Helsinki calendar days stable across daylight-saving changes', () => {
+    expect(ymdInTimeZone(Date.parse('2026-03-28T21:30:00.000Z'), 'Europe/Helsinki')).toBe('2026-03-28');
+    expect(ymdInTimeZone(Date.parse('2026-03-28T22:30:00.000Z'), 'Europe/Helsinki')).toBe('2026-03-29');
+    expect(ymdInTimeZone(Date.parse('2026-03-29T01:30:00.000Z'), 'Europe/Helsinki')).toBe('2026-03-29');
+    expect(ymdInTimeZone(Date.parse('2026-10-24T20:30:00.000Z'), 'Europe/Helsinki')).toBe('2026-10-24');
+    expect(ymdInTimeZone(Date.parse('2026-10-24T21:30:00.000Z'), 'Europe/Helsinki')).toBe('2026-10-25');
+    expect(ymdInTimeZone(Date.parse('2026-10-25T00:30:00.000Z'), 'Europe/Helsinki')).toBe('2026-10-25');
+    expect(addCalendarDaysYmd('2026-03-28', 1)).toBe('2026-03-29');
+    expect(addCalendarDaysYmd('2026-10-24', 1)).toBe('2026-10-25');
+    expect(addCalendarDaysYmd('2026-10-25', 1)).toBe('2026-10-26');
+  });
+
   it('adds calendar days across month boundaries without local TZ drift', () => {
     expect(addCalendarDaysYmd('2026-01-31', 1)).toBe('2026-02-01');
     expect(addCalendarDaysYmd('2026-03-01', -1)).toBe('2026-02-28');

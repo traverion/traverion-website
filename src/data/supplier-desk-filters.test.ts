@@ -38,6 +38,33 @@ describe('supplier desk filters', () => {
     expect(option).toContain('booking_option_id.eq.opt_1');
     expect(option).toContain('optionId.eq.opt_1');
 
+    const frozen = supplierDeskOrGroups({
+      notNewerThan: { createdAt: '2026-11-14T00:00:00.000Z', id: '22222222-2222-4222-8222-222222222222' },
+    }).join('\n');
+    expect(frozen).toContain('created_at.lt."2026-11-14T00:00:00.000Z"');
+    expect(frozen).toContain('id.lte.22222222-2222-4222-8222-222222222222');
+
+    const zones = supplierDeskOrGroups({
+      travel: 'today',
+      travelDays: [
+        {
+          day: '2026-11-14',
+          listingIds: ['11111111-1111-4111-8111-111111111111'],
+          snapshotTimeZone: 'Europe/Helsinki',
+        },
+        {
+          day: '2026-11-13',
+          listingIds: ['33333333-3333-4333-8333-333333333333'],
+          snapshotTimeZone: 'America/New_York',
+        },
+      ],
+    }).join('\n');
+    expect(zones).toContain('booking_date.eq.2026-11-14');
+    expect(zones).toContain('booking_date.eq.2026-11-13');
+    expect(zones).toContain('Europe/Helsinki');
+    expect(zones).toContain('America/New_York');
+    expect(zones).toContain('payment_status.not.ilike.pending');
+
     const cursor = supplierDeskOrGroups({
       cursor: { createdAt: '2026-11-14T00:00:00.000Z', id: '22222222-2222-4222-8222-222222222222' },
     }).join('\n');

@@ -738,6 +738,8 @@ export function summarizeAnalyticsDaily(input: {
   productType: AnalyticsProductType;
   listingId: string | null;
   rangeKey?: AnalyticsRangeKey | null;
+  from?: string | null;
+  to?: string | null;
 }): {
   money: AnalyticsMoneySplit[];
   listingRows: AnalyticsListingRow[];
@@ -748,9 +750,14 @@ export function summarizeAnalyticsDaily(input: {
 } {
   const scoped = input.rows.filter((row) => {
     if (input.listingId && row.listing_id !== input.listingId) return false;
-    if (input.productType === 'all') return true;
-    const family = input.listingsById[row.listing_id]?.family;
-    return family === input.productType;
+    if (input.productType !== 'all') {
+      const family = input.listingsById[row.listing_id]?.family;
+      if (family !== input.productType) return false;
+    }
+    const day = dailyAttributionDay(row, input.basis);
+    if (input.from && (!day || day < input.from)) return false;
+    if (input.to && (!day || day > input.to)) return false;
+    return true;
   });
   const moneyMap = new Map<string, AnalyticsMoneySplit>();
   type Acc = Omit<AnalyticsListingRow, 'shareOfNet' | 'cancellationRate'>;

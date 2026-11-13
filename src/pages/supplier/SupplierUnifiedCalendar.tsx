@@ -378,8 +378,8 @@ export default function SupplierUnifiedCalendar() {
       const [mine, rows] = await Promise.all([
         fetchMyListings(user.id),
         fetchBookingsForSupplier(user.id, {
-          fromDate: range.fromYmd,
-          toDate: range.toYmd,
+          fromDate: addCalendarDaysYmd(range.fromYmd, -1) ?? range.fromYmd,
+          toDate: addCalendarDaysYmd(range.toYmd, 1) ?? range.toYmd,
           limit: 500,
         }),
       ]);
@@ -480,6 +480,13 @@ export default function SupplierUnifiedCalendar() {
     () => (listingId ? listings.find((l) => l.id === listingId) ?? null : null),
     [listings, listingId]
   );
+  const operatingTodayIso = useMemo(() => {
+    if (selectedListing) return experienceTodayIsoForListing(selectedListing.listingExtras?.departureTimezone);
+    const days = [
+      ...new Set(listings.map((listing) => experienceTodayIsoForListing(listing.listingExtras?.departureTimezone))),
+    ];
+    return days.length === 1 ? days[0] : todayIso;
+  }, [selectedListing, listings, todayIso]);
   const selectedFamily = selectedListing ? inventoryFamilyFromListing(selectedListing) : null;
 
   const scopedListings = useMemo(
@@ -905,8 +912,7 @@ export default function SupplierUnifiedCalendar() {
   };
 
   const goToday = () => {
-    const iso =
-      experienceTodayIsoForListing(selectedListing ?? undefined) || todayIso;
+    const iso = operatingTodayIso || todayIso;
     setSelectedYmd(iso);
     if (view === 'agenda') {
       const rolling = partnerUnifiedRollingRange(iso);
@@ -1205,14 +1211,14 @@ export default function SupplierUnifiedCalendar() {
             {agendaGroups.map((group) => (
               <section
                 key={group.iso}
-                className={`partner-unified-cal__day${group.iso === todayIso ? ' is-today' : ''}${
+                className={`partner-unified-cal__day${group.iso === operatingTodayIso ? ' is-today' : ''}${
                   group.iso === selectedYmd ? ' is-selected' : ''
                 }`}
               >
                 <header className="partner-unified-cal__day-head">
                   <h2>
                     {formatDayHeading(group.iso)}
-                    {group.iso === todayIso ? (
+                    {group.iso === operatingTodayIso ? (
                       <span className="partner-unified-cal__today-pill">Today</span>
                     ) : null}
                   </h2>
@@ -1482,7 +1488,7 @@ export default function SupplierUnifiedCalendar() {
               const dayEvents = sortMonthCellEvents(eventsByDay.get(cell.iso) ?? []);
               const summary = monthSummaries.get(cell.iso);
               const nightKind = summary?.stayNightKind;
-              const isToday = cell.iso === todayIso;
+              const isToday = cell.iso === operatingTodayIso;
               const isSelected = cell.iso === selectedYmd;
               const daySheetOpen = monthDaySheetIso === cell.iso;
               const shown = dayEvents.slice(0, MONTH_CELL_MAX);
@@ -1496,7 +1502,7 @@ export default function SupplierUnifiedCalendar() {
                     cell.inRange ? '' : 'is-outside-range',
                     isToday ? 'is-today' : '',
                     isSelected ? 'is-selected' : '',
-                    cell.iso < todayIso ? 'is-past' : '',
+                    cell.iso < operatingTodayIso ? 'is-past' : '',
                     nightKind === 'blocked' ? 'is-blocked' : '',
                     nightKind === 'booked' ? 'is-booked' : '',
                     nightKind === 'available' && selectedFamily === 'stay' ? 'is-free' : '',

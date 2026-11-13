@@ -16,6 +16,8 @@ import { isPaidPaymentStatus, partnerPaymentLabel, partnerCollectedAmountCaption
 import { PARTNER_BOOKINGS_CSV_HEADER, partnerBookingCsvValues } from '../../lib/partner-bookings-csv';
 import { csvSafeCell } from '../../lib/csv-export';
 import { localYmd } from '../../lib/local-ymd';
+import { addCalendarDaysYmd } from '../../lib/booking-lifecycle-calendar';
+import { experienceTodayIsoForListing } from '../../lib/booking-quote';
 import { guestFacingBookingNotes } from '../../lib/booking-notes';
 import { formatBookingParticipantsLabel } from '../../lib/participant-mix';
 import { supplierCancellationReasonLabel } from '../../lib/cancellation-policy';
@@ -88,7 +90,6 @@ import {
   stayPaidAdjacentNightCount,
 } from '../../lib/booking-confirmation-copy';
 import { partnerBookingIsLiveTrip, partnerBookingIsOperatingTrip, partnerBookingIsUnpaidCheckout, scheduleTodayIsoForBooking } from '../../lib/trip-views';
-import { addCalendarDaysYmd } from '../../lib/booking-lifecycle-calendar';
 import { formatPartnerCheckoutHoldLabel, partnerUnpaidCheckoutHoldsInventory } from '../../lib/booking-hold';
 import { formatStayNightHuman } from '../../lib/stay-calendar';
 import { formatBookingDateDisplay } from '../../lib/booking-flow';
@@ -472,6 +473,7 @@ export default function SupplierBookings({
   const loadGenRef = useRef(0);
   const bookingsHubUserIdRef = useRef<string | null>(null);
   const bookingsLenRef = useRef(0);
+  const listAnchorRef = useRef<{ createdAt: string; id: string } | null>(null);
 
   const deskQuery = useCallback(
     (listings: TourPackage[], cancelIds: string[]): SupplierBookingDeskQuery => {
@@ -489,6 +491,18 @@ export default function SupplierBookings({
         if (q && listing.title.toLowerCase().includes(q)) searchListingIds.push(listing.id);
       }
       const family = inventoryFamily ?? (categoryFilter || undefined);
+      const dayOffset = view === 'yesterday' ? -1 : view === 'tomorrow' ? 1 : 0;
+      const byDay = new Map<string, { day: string; listingIds: string[]; snapshotTimeZone?: string }>();
+      for (const listing of listings) {
+        const tz = listing.listingExtras?.departureTimezone;
+        const localToday = experienceTodayIsoForListing(tz);
+        const day = dayOffset === 0 ? localToday : addCalendarDaysYmd(localToday, dayOffset) ?? localToday;
+        const zone = typeof tz === 'string' && tz.trim() ? tz.trim() : 'Europe/Helsinki';
+        const key = `${day}::${zone}`;
+        const group = byDay.get(key) ?? { day, listingIds: [], snapshotTimeZone: zone };
+        group.listingIds.push(listing.id);
+        byDay.set(key, group);
+      }
       return {
         family,
         rentalListingIds,
@@ -503,6 +517,7 @@ export default function SupplierBookings({
         toDate: filterDateTo || undefined,
         travel: view,
         today: localYmd(new Date()),
+        travelDays: [...byDay.values()],
         listingId: filterListingId || undefined,
       };
     },
@@ -523,10 +538,20 @@ export default function SupplierBookings({
       const myListings = await fetchMyListings(uid);
       const cancelIds = opsFilter === 'cancel' ? await fetchOpenCancellationBookingIds() : [];
       const query = deskQuery(myListings, cancelIds);
+      let anchor = bookingsListPage > 1 ? listAnchorRef.current : null;
+      if (bookingsListPage > 1 && !anchor) {
+        const newest = await fetchSupplierBookingDeskPage(uid, { ...query, offset: 0, limit: 1 });
+        const top = newest.rows[0];
+        if (top?.created_at && top.id) {
+          anchor = { createdAt: top.created_at, id: top.id };
+          listAnchorRef.current = anchor;
+        }
+      }
       const page = await fetchSupplierBookingDeskPage(uid, {
         ...query,
         offset: (bookingsListPage - 1) * BOOKINGS_PAGE_SIZE,
         limit: BOOKINGS_PAGE_SIZE,
+        notNewerThan: anchor ?? undefined,
       });
       if (gen !== loadGenRef.current) return;
       const meta: Record<string, ListingBookingMeta> = {};
@@ -563,6 +588,9 @@ export default function SupplierBookings({
         }
       }
       bookingsLenRef.current = rows.length;
+      if (bookingsListPage === 1 && rows[0]?.created_at && rows[0].id) {
+        listAnchorRef.current = { createdAt: rows[0].created_at, id: rows[0].id };
+      }
       setDeskTotal(page.total);
       setBookings(rows);
       setListingMeta(meta);
@@ -884,6 +912,7 @@ export default function SupplierBookings({
   }, [totalPages]);
 
   useEffect(() => {
+    listAnchorRef.current = null;
     setBookingsListPage(1);
   }, [view, filterListingId, filterOptionId, filterDateFrom, filterDateTo, filterQuery, opsFilter, categoryFilter]);
 

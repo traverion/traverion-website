@@ -805,6 +805,8 @@ export type SupplierBookingDeskQuery = {
   toDate?: string;
   travel?: 'all' | 'yesterday' | 'today' | 'tomorrow' | 'upcoming' | 'past' | 'range';
   today?: string;
+  /** Per-listing local day. Null snapshot timezones use the listing; a snapshot timezone uses its own day. */
+  travelDays?: Array<{ day: string; listingIds: string[]; snapshotTimeZone?: string }>;
   listingId?: string;
   offset?: number;
   limit?: number;
@@ -812,6 +814,8 @@ export type SupplierBookingDeskQuery = {
   cursor?: { createdAt: string; id: string };
   /** Count rows strictly newer than this booking, using the same filters. */
   newerThan?: { createdAt: string; id: string };
+  /** Keep pages stable: hide bookings newer than the row that opened this filtered list. */
+  notNewerThan?: { createdAt: string; id: string };
 };
 
 const DESK_PAGE_CAP = 200;
@@ -835,18 +839,13 @@ export function supplierDeskOrGroups(query: SupplierBookingDeskQuery): string[] 
   const ops = query.ops ?? 'all';
   const ignoreTravel = ops === 'unpaid' || ops === 'refund_due' || ops === 'cancel' || ops === 'collected';
 
-  if (!ignoreTravel && travel === 'today' && today) {
-    groups.push(`booking_date.eq.${today},and(booking_date.lte.${today},check_out.gt.${today})`);
-  } else if (!ignoreTravel && travel === 'yesterday' && today) {
-    const day = addDaysIso(today, -1);
-    groups.push(`booking_date.eq.${day},and(booking_date.lte.${day},check_out.gt.${day})`);
-  } else if (!ignoreTravel && travel === 'tomorrow' && today) {
-    const day = addDaysIso(today, 1);
-    groups.push(`booking_date.eq.${day},and(booking_date.lte.${day},check_out.gt.${day})`);
-  } else if (!ignoreTravel && travel === 'upcoming' && today) {
-    groups.push(`booking_date.gt.${today}`);
-  } else if (!ignoreTravel && travel === 'past' && today) {
-    groups.push(`and(booking_date.lt.${today},or(check_out.is.null,check_out.lte.${today}))`);
+  const travelParts = !ignoreTravel ? travelDayParts(travel, today, query.travelDays) : [];
+  if (travelParts.length > 0) {
+    groups.push(travelParts.join(','));
+    if (travel === 'today' || travel === 'yesterday' || travel === 'tomorrow' || travel === 'upcoming') {
+      groups.push('or(status.is.null,status.not.ilike.cancelled)');
+      groups.push('or(payment_status.is.null,payment_status.not.ilike.pending)');
+    }
   } else if (!ignoreTravel && (from || to)) {
     groups.push(serviceWindowOr(from, to).join(','));
   }
@@ -939,7 +938,53 @@ export function supplierDeskOrGroups(query: SupplierBookingDeskQuery): string[] 
     const ts = isoTimestamp(newer.createdAt);
     groups.push(`created_at.gt."${ts}",and(created_at.eq."${ts}",id.gt.${newer.id})`);
   }
+  const bound = query.notNewerThan;
+  if (bound && isoTimestamp(bound.createdAt) && /^[0-9a-f-]{36}$/i.test(bound.id)) {
+    const ts = isoTimestamp(bound.createdAt);
+    groups.push(`created_at.lt."${ts}",and(created_at.eq."${ts}",id.lte.${bound.id})`);
+  }
   return groups.filter((group) => group.length > 0);
+}
+
+function travelDatePredicate(travel: string, day: string): string {
+  if (travel === 'today' || travel === 'yesterday' || travel === 'tomorrow') {
+    return `booking_date.eq.${day},and(booking_date.lte.${day},check_out.gt.${day})`;
+  }
+  if (travel === 'upcoming') return `booking_date.gt.${day}`;
+  if (travel === 'past') return `and(booking_date.lt.${day},or(check_out.is.null,check_out.lte.${day}))`;
+  return '';
+}
+
+function travelDayParts(
+  travel: string,
+  today: string | null,
+  travelDays: SupplierBookingDeskQuery['travelDays']
+): string[] {
+  const dated = travel === 'today' || travel === 'yesterday' || travel === 'tomorrow' || travel === 'upcoming' || travel === 'past';
+  if (!dated) return [];
+  const parts: string[] = [];
+  for (const group of travelDays ?? []) {
+    const day = isoDateOnly(group.day);
+    const predicate = day ? travelDatePredicate(travel, day) : '';
+    if (!predicate) continue;
+    const ids = uuidList(group.listingIds);
+    if (ids.length) {
+      parts.push(`and(purchase_snapshot->>departureTimezone.is.null,listing_id.in.(${ids.join(',')}),or(${predicate}))`);
+    }
+    const tz = group.snapshotTimeZone?.trim() ?? '';
+    if (/^[A-Za-z0-9_+\-/]{1,64}$/.test(tz)) {
+      parts.push(`and(purchase_snapshot->>departureTimezone.eq."${tz}",or(${predicate}))`);
+    }
+  }
+  if (parts.length > 0) return parts;
+  const fallbackDay =
+    travel === 'yesterday' && today
+      ? addDaysIso(today, -1)
+      : travel === 'tomorrow' && today
+        ? addDaysIso(today, 1)
+        : today;
+  const fallback = fallbackDay ? travelDatePredicate(travel, fallbackDay) : '';
+  return fallback ? [fallback] : [];
 }
 
 function addDaysIso(ymd: string, days: number): string {

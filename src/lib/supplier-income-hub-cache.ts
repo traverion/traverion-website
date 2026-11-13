@@ -17,6 +17,7 @@ export type IncomeHubCachePayload = {
   payoutPeriods: unknown[];
   financialHolds: unknown[];
   listingTitles: Record<string, string>;
+  incomeSummary?: unknown[];
 };
 
 const TTL_MS = 90_000;

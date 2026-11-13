@@ -6,17 +6,18 @@ import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import { useSupplierRole } from '../../hooks/useSupplierRole';
 import { canManageBookings, canManageFinance } from '../../lib/supplierTeamRoles';
 import {
-  earningItemsMajorByStatus,
   fetchSupplierActiveCommercialTerms,
   fetchSupplierActiveFinancialHolds,
-  fetchSupplierCommercialSnapshots,
-  fetchSupplierEarningItems,
+  fetchPartnerIncomeHistory,
+  fetchPartnerIncomeSummary,
   fetchSupplierEarnings,
   fetchSupplierPayoutPeriodItems,
   fetchSupplierPayoutPeriods,
   fetchSupplierPeriodEarnings,
   fetchSupplierPeriodSales,
   type BookingCommercialSnapshotRow,
+  type PartnerIncomeHistoryRow,
+  type PartnerIncomeSummaryRow,
   type BookingFinancialHoldRow,
   type SupplierCommercialTermsRow,
   type SupplierEarning,
@@ -25,7 +26,7 @@ import {
   type SupplierPeriodEarningsReport,
   type SupplierPeriodSalesReport,
 } from '../../data/supabase-earnings';
-import { fetchAllSupplierBookingDeskRows, type BookingRow } from '../../data/supabase-bookings';
+import type { BookingRow } from '../../data/supabase-bookings';
 import { fetchSupplierProfile } from '../../data/supabase-supplier-profile';
 import { insertSupplierExportRun } from '../../data/supabase-supplier-campaigns-exports';
 import { SUPPLIER_PAGE_CLASS, SupplierListSkeleton } from '../../components/supplier/supplierUi';
@@ -174,6 +175,10 @@ export default function SupplierEarnings() {
   const [earnings, setEarnings] = useState<SupplierEarning[]>([]);
   const [paidBookings, setPaidBookings] = useState<BookingRow[]>([]);
   const [refundDueBookings, setRefundDueBookings] = useState<BookingRow[]>([]);
+  const [historyBookings, setHistoryBookings] = useState<BookingRow[]>([]);
+  const [incomeSummary, setIncomeSummary] = useState<PartnerIncomeSummaryRow[]>([]);
+  const [historyTotal, setHistoryTotal] = useState(0);
+  const historyAnchorRef = useRef<{ createdAt: string; id: string } | null>(null);
   const [ledger, setLedger] = useState<SupplierLedgerEntry[]>([]);
   const [commercialTerms, setCommercialTerms] = useState<SupplierCommercialTermsRow | null>(null);
   const [earningItems, setEarningItems] = useState<SupplierEarningItemRow[]>([]);
@@ -273,34 +278,24 @@ export default function SupplierEarnings() {
     setLedgerError(null);
     Promise.all([
       fetchSupplierEarnings(uid),
-      Promise.all([
-        fetchAllSupplierBookingDeskRows(uid, { ops: 'collected' }),
-        fetchAllSupplierBookingDeskRows(uid, { ops: 'refund_due' }),
-      ]).then(([collectedRows, refundRows]) => ({ collectedRows, refundRows })),
+      fetchPartnerIncomeSummary(),
       fetchMyListings(uid),
       fetchSupplierActiveCommercialTerms(uid),
-      fetchSupplierEarningItems(uid),
-      fetchSupplierCommercialSnapshots(uid),
       fetchSupplierPayoutPeriods(uid),
       fetchSupplierActiveFinancialHolds(uid),
       fetchSupplierLedger(uid)
         .then((rows) => ({ ok: true as const, rows }))
         .catch((err: unknown) => ({ ok: false as const, err })),
     ])
-      .then(async ([data, moneyRows, listings, terms, items, snaps, periods, holds, ledgerResult]) => {
+      .then(async ([data, summary, listings, terms, periods, holds, ledgerResult]) => {
         if (gen !== loadGenRef.current) return;
-        const collected = moneyRows.collectedRows.filter(isCollectedBooking);
-        const refundDue = moneyRows.refundRows.filter(isRefundDueBooking);
         const titles = Object.fromEntries(listings.map((l) => [l.id, l.title]));
         setEarnings(data);
+        setIncomeSummary(summary);
         setCommercialTerms(terms);
-        setEarningItems(items);
-        setSnapshots(snaps);
         setPayoutPeriods(periods);
         setFinancialHolds(holds);
         setListingTitles(titles);
-        setPaidBookings(collected);
-        setRefundDueBookings(refundDue);
         let ledgerRows: SupplierLedgerEntry[] = [];
         if (gen !== loadGenRef.current) return;
         if (ledgerResult.ok) {
@@ -315,15 +310,16 @@ export default function SupplierEarnings() {
         writeIncomeHubCache({
           userId: uid,
           earnings: data,
-          paidBookings: collected,
-          refundDueBookings: refundDue,
+          paidBookings: [],
+          refundDueBookings: [],
           ledger: ledgerRows,
           commercialTerms: terms,
-          earningItems: items,
-          snapshots: snaps,
+          earningItems: [],
+          snapshots: [],
           payoutPeriods: periods,
           financialHolds: holds,
           listingTitles: titles,
+          incomeSummary: summary,
         });
       })
       .catch((e) => {
@@ -341,6 +337,12 @@ export default function SupplierEarnings() {
       setEarnings([]);
       setPaidBookings([]);
       setRefundDueBookings([]);
+      setHistoryBookings([]);
+      setIncomeSummary([]);
+      setHistoryTotal(0);
+      setEarningItems([]);
+      setSnapshots([]);
+      historyAnchorRef.current = null;
       setLedger([]);
       setPayoutPeriods([]);
       setFinancialHolds([]);
@@ -372,8 +374,9 @@ export default function SupplierEarnings() {
       const cached = readIncomeHubCache(user.id);
       if (cached) {
         setEarnings(cached.earnings as SupplierEarning[]);
-        setPaidBookings(cached.paidBookings as BookingRow[]);
-        setRefundDueBookings(cached.refundDueBookings as BookingRow[]);
+        setPaidBookings([]);
+        setRefundDueBookings([]);
+        setIncomeSummary((cached.incomeSummary ?? []) as PartnerIncomeSummaryRow[]);
         setLedger(cached.ledger as SupplierLedgerEntry[]);
         setCommercialTerms(cached.commercialTerms as SupplierCommercialTermsRow | null);
         setEarningItems(cached.earningItems as SupplierEarningItemRow[]);
@@ -396,6 +399,107 @@ export default function SupplierEarnings() {
   }, [isSupabase, user?.id, load]);
 
   useEffect(() => {
+    historyAnchorRef.current = null;
+    setEarningPage(0);
+  }, [earningQuery, earningFrom, earningTo, earningListing, earningStatus, earningSort]);
+
+  useEffect(() => {
+    if (!isSupabase || !user?.id) return;
+    let cancelled = false;
+    const pageSize = 20;
+    const anchor = earningPage > 0 ? historyAnchorRef.current : null;
+    void fetchPartnerIncomeHistory({
+      limit: pageSize,
+      offset: earningPage * pageSize,
+      notAfter: anchor?.createdAt ?? null,
+      notAfterId: anchor?.id ?? null,
+      listingId: earningListing || null,
+      status: earningStatus,
+      from: earningFrom || null,
+      to: earningTo || null,
+      search: earningQuery,
+      sort: earningSort,
+    })
+      .then(({ rows, total }) => {
+        if (cancelled) return;
+        setHistoryTotal(total);
+        if (earningPage === 0 && rows[0]?.created_at && rows[0].id) {
+          historyAnchorRef.current = { createdAt: rows[0].created_at, id: rows[0].id };
+        }
+        const bookings = rows.map((row) => ({
+          id: row.id,
+          listing_id: row.listing_id,
+          currency: row.currency,
+          amount_paid: row.amount_paid,
+          booking_date: row.booking_date,
+          created_at: row.created_at,
+          guest_name: row.guest_name,
+          public_reference: row.public_reference,
+          booking_number: row.booking_number,
+          purchase_snapshot: row.purchase_snapshot,
+          status: row.status,
+          payment_status: row.payment_status,
+          check_out: row.check_out,
+          nights: row.nights,
+          refund_choice: row.refund_choice,
+        })) as BookingRow[];
+        setHistoryBookings(bookings);
+        setPaidBookings(bookings.filter(isCollectedBooking));
+        setRefundDueBookings(bookings.filter(isRefundDueBooking));
+        setSnapshots(
+          rows
+            .filter((row) => row.id && (row.snap_currency != null || row.remaining_supplier_minor != null))
+            .map((row) => ({
+              booking_id: row.id as string,
+              currency: row.snap_currency || row.currency || 'EUR',
+              gross_minor: Number(row.remaining_gross_minor) || 0,
+              commission_minor: Number(row.remaining_commission_minor) || 0,
+              supplier_minor: Number(row.remaining_supplier_minor) || 0,
+              remaining_gross_minor: Number(row.remaining_gross_minor) || 0,
+              remaining_commission_minor: Number(row.remaining_commission_minor) || 0,
+              remaining_supplier_minor: Number(row.remaining_supplier_minor) || 0,
+              plan_code: 'standard',
+              commission_bps: Number(row.commission_bps) || 0,
+              payout_cadence: 'monthly',
+            }))
+        );
+        setEarningItems(
+          rows
+            .filter((row) => row.id && row.item_status)
+            .map((row) => ({
+              id: row.id as string,
+              booking_id: row.id as string,
+              supplier_id: '',
+              currency: row.item_currency || row.currency || 'EUR',
+              amount_minor: Number(row.item_amount_minor) || 0,
+              status: row.item_status as SupplierEarningItemRow['status'],
+              experience_at: row.item_experience_at,
+              eligible_at: null,
+              payout_period_id: null,
+              sold_at: row.item_sold_at,
+              service_completed_at: row.item_service_completed_at,
+              gross_minor: row.item_gross_minor,
+              commission_minor: row.item_commission_minor,
+              commission_bps: row.item_commission_bps,
+            }))
+        );
+        setListingTitles((current) => {
+          const next = { ...current };
+          for (const row of rows) {
+            if (row.listing_id && row.listing_title) next[row.listing_id] = row.listing_title;
+          }
+          return next;
+        });
+      })
+      .catch((err) => {
+        if (!cancelled) setError(userFacingError(err, USER_ERROR.money));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isSupabase, user?.id, earningPage, earningListing, earningStatus, earningFrom, earningTo, earningQuery, earningSort]);
+
+  useEffect(() => {
     const uid = user?.id;
     if (!isSupabase || !uid) {
       profileLoadGenRef.current += 1;
@@ -412,10 +516,12 @@ export default function SupplierEarnings() {
 
   /** Kept only as a last-resort currency label for a row missing its own currency. */
   const primaryCurrency = useMemo(() => {
-    const bookingCur = paidBookings.find((b) => (b.currency ?? '').trim())?.currency;
+    const bookingCur =
+      incomeSummary.find((row) => (row.currency ?? '').trim())?.currency ||
+      paidBookings.find((b) => (b.currency ?? '').trim())?.currency;
     const row = earnings.find((e) => e.status !== 'cancelled');
     return (bookingCur || row?.currency || earnings[0]?.currency || 'EUR').toUpperCase();
-  }, [earnings, paidBookings]);
+  }, [earnings, incomeSummary, paidBookings]);
 
   const filteredEarnings = useMemo(() => {
     const nonCancelled = earnings.filter((e) => e.status !== 'cancelled');
@@ -516,35 +622,33 @@ export default function SupplierEarnings() {
       return s;
     };
 
-    const hasCommercial = snapshots.length > 0 || earningItems.length > 0;
+    const hasCommercial = incomeSummary.some(
+      (row) => Number(row.snapshot_count) > 0 || Number(row.item_count) > 0
+    );
 
     if (hasCommercial) {
-      for (const snap of snapshots) {
-        const s = bucket(snap.currency);
-        s.gross += fromMinorUnits(Number(snap.remaining_gross_minor) || 0);
-        s.commission += fromMinorUnits(Number(snap.remaining_commission_minor) || 0);
-        s.yourEarnings += fromMinorUnits(Number(snap.remaining_supplier_minor) || 0);
-      }
-      for (const s of byCurrency.values()) {
-        const parts = earningItemsMajorByStatus(earningItems, s.currency);
-        s.pending = parts.pending;
-        s.eligible = parts.eligible;
-        s.included = parts.included;
-        s.paid = parts.paid;
-        s.available = parts.eligible;
+      for (const row of incomeSummary) {
+        const s = bucket(row.currency);
+        s.gross += fromMinorUnits(Number(row.snapshot_gross_minor) || 0);
+        s.commission += fromMinorUnits(Number(row.snapshot_commission_minor) || 0);
+        s.yourEarnings += fromMinorUnits(Number(row.snapshot_supplier_minor) || 0);
+        s.pending = fromMinorUnits(Number(row.item_pending_minor) || 0);
+        s.eligible = fromMinorUnits(Number(row.item_eligible_minor) || 0);
+        s.included = fromMinorUnits(Number(row.item_included_minor) || 0);
+        s.paid = fromMinorUnits(Number(row.item_paid_minor) || 0);
+        s.available = s.eligible;
       }
     } else {
-      // Pre-engine fallback (legacy 0% TEST history)
       const nonCancelled = earnings.filter((e) => e.status !== 'cancelled');
       for (const e of nonCancelled) {
         const s = bucket(e.currency);
         if (e.status === 'paid') s.paid += Number(e.amount);
         else if (e.status === 'pending') s.pending += Number(e.amount);
       }
-      for (const b of paidBookings) {
-        const s = bucket(b.currency);
-        s.gross += Number(b.amount_paid ?? 0);
-        s.yourEarnings += Number(b.amount_paid ?? 0);
+      for (const row of incomeSummary) {
+        const s = bucket(row.currency);
+        s.gross += Number(row.legacy_collected_major) || 0;
+        s.yourEarnings += Number(row.legacy_collected_major) || 0;
       }
       for (const row of ledger) {
         if (isCollectedEarningKind(row.kind) || isPlatformCommissionKind(row.kind)) continue;
@@ -556,20 +660,17 @@ export default function SupplierEarnings() {
       }
     }
 
-    for (const b of refundDueBookings) {
-      const s = bucket(b.currency);
-      s.refundDue += Number(b.amount_paid ?? 0);
-      s.refundDueCount += 1;
+    for (const row of incomeSummary) {
+      const s = bucket(row.currency);
+      s.refundDue += Number(row.refund_due_major) || 0;
+      s.refundDueCount += Number(row.refund_due_count) || 0;
     }
     return [...byCurrency.values()].sort((a, b) => b.gross - a.gross);
   }, [
     earnings,
-    paidBookings,
+    incomeSummary,
     ledger,
-    refundDueBookings,
     primaryCurrency,
-    snapshots,
-    earningItems,
   ]);
 
   const planSummary = useMemo(() => {
@@ -585,7 +686,7 @@ export default function SupplierEarnings() {
   const recoveryBalance = useMemo(() => ledgerRecoveryTotal(ledger), [ledger]);
 
   const incomeRows = useMemo(() => {
-    const bookings = [...paidBookings, ...refundDueBookings];
+    const bookings = historyBookings.length > 0 ? historyBookings : [...paidBookings, ...refundDueBookings];
     const seen = new Set<string>();
     const unique = bookings.filter((booking) => {
       if (seen.has(booking.id)) return false;
@@ -608,7 +709,7 @@ export default function SupplierEarnings() {
         travelerPublicBookingReference(booking.public_reference) ||
         (typeof booking.booking_number === 'number' ? `#${booking.booking_number}` : booking.id.slice(0, 8)),
     });
-  }, [paidBookings, refundDueBookings, snapshots, earningItems, listingTitles, financialHolds]);
+  }, [historyBookings, paidBookings, refundDueBookings, snapshots, earningItems, listingTitles, financialHolds]);
 
   const reportPeriods: IncomeReportPeriod[] = useMemo(
     () => buildIncomeReportPeriods(commercialTerms?.payout_cadence ?? 'monthly'),
@@ -636,6 +737,7 @@ export default function SupplierEarnings() {
     setPeriodReportLoading(true);
     setPeriodReportError(null);
     const currency = (
+      incomeSummary.find((row) => row.currency?.trim())?.currency ||
       snapshots.find((row) => row.currency?.trim())?.currency ||
       paidBookings.find((row) => row.currency?.trim())?.currency ||
       'EUR'
@@ -673,31 +775,13 @@ export default function SupplierEarnings() {
     isSupabase,
     user?.id,
     selectedReportPeriod,
+    incomeSummary,
     snapshots,
     paidBookings,
     periodReportNonce,
   ]);
 
-  const filteredIncomeRows = useMemo(() => {
-    const query = earningQuery.trim().toLowerCase();
-    const rows = incomeRows.filter((row) => {
-      if (earningStatus !== 'all' && row.status !== earningStatus) return false;
-      if (earningListing) {
-        const booking = paidBookings.find((item) => item.id === row.bookingId) ?? refundDueBookings.find((item) => item.id === row.bookingId);
-        if (booking?.listing_id !== earningListing) return false;
-      }
-      if (earningFrom && (row.activityDate ?? '') < earningFrom) return false;
-      if (earningTo && (row.activityDate ?? '') > earningTo) return false;
-      if (!query) return true;
-      return `${row.reference} ${row.experience}`.toLowerCase().includes(query);
-    });
-    rows.sort((a, b) => {
-      if (earningSort === 'earnings') return b.netMinor - a.netMinor;
-      if (earningSort === 'purchase') return (b.purchaseDate ?? '').localeCompare(a.purchaseDate ?? '');
-      return (b.activityDate ?? '').localeCompare(a.activityDate ?? '');
-    });
-    return rows;
-  }, [incomeRows, earningQuery, earningStatus, earningListing, earningFrom, earningTo, earningSort, paidBookings, refundDueBookings]);
+  const filteredIncomeRows = incomeRows;
 
   const earningsForInvoices = useMemo(
     () => earnings.filter((e) => e.status !== 'cancelled'),
@@ -724,9 +808,54 @@ export default function SupplierEarnings() {
     if (!canExportFinance || !user?.id) return;
     const exportWindow = windowOverride ?? listWindow;
     if (windowOverride && windowOverride !== listWindow) setListWindowAndUrl(windowOverride);
+    const history: PartnerIncomeHistoryRow[] = [];
+    let offset = 0;
+    let total = 0;
+    do {
+      const page = await fetchPartnerIncomeHistory({
+        limit: 200,
+        offset,
+        listingId: earningListing || null,
+        status: earningStatus,
+        from: earningFrom || null,
+        to: earningTo || null,
+        search: earningQuery,
+        sort: 'purchase',
+      });
+      total = page.total;
+      history.push(...page.rows);
+      if (history.length >= 20000) {
+        setError('Too many earnings to export at once. Narrow the filters and try again.');
+        return;
+      }
+      offset += page.rows.length;
+      if (page.rows.length < 200) break;
+    } while (offset < total);
+    const historyBookingsForExport = history.map((row) => ({
+      id: row.id,
+      listing_id: row.listing_id,
+      currency: row.currency,
+      amount_paid: row.amount_paid,
+      booking_date: row.booking_date,
+      created_at: row.created_at,
+      guest_name: row.guest_name,
+      public_reference: row.public_reference,
+      booking_number: row.booking_number,
+      purchase_snapshot: row.purchase_snapshot,
+      status: row.status,
+      payment_status: row.payment_status,
+      refund_choice: row.refund_choice,
+      listing_title: row.listing_title,
+    })) as Array<BookingRow & { listing_title?: string | null }>;
     const payouts = rowsInExportWindow(filteredEarnings, exportWindow);
-    const refundDue = rowsInExportWindow(refundDueBookings, exportWindow);
-    const collectedBookings = rowsInExportWindow(paidBookings, exportWindow);
+    const refundDue = rowsInExportWindow(
+      historyBookingsForExport.filter(isRefundDueBooking),
+      exportWindow
+    );
+    const collectedBookings = rowsInExportWindow(
+      historyBookingsForExport.filter(isCollectedBooking),
+      exportWindow
+    );
     const ledgerRows = rowsInExportWindow(ledger, exportWindow);
     const collectedForExport =
       payouts.length === 0
@@ -794,7 +923,7 @@ export default function SupplierEarnings() {
     }
   };
 
-  const canExportMoney = partnerMoneyCsvHasExportableRows({
+  const canExportMoney = historyTotal > 0 || partnerMoneyCsvHasExportableRows({
     payouts: filteredEarningsInWindow,
     refundDue: refundDueBookingsInWindow,
     collected: filteredEarningsInWindow.length === 0 ? paidBookingsInWindow : [],
@@ -805,11 +934,11 @@ export default function SupplierEarnings() {
     moneyByCurrency.some((s) => s.gross > 0 || s.pending !== 0 || s.paid > 0) ||
     earningsForInvoices.length > 0 ||
     ledger.length > 0 ||
-    refundDueBookings.length > 0;
+    incomeSummary.some((row) => Number(row.refund_due_count) > 0 || Number(row.legacy_collected_count) > 0 || Number(row.snapshot_count) > 0);
 
   const pageSize = 20;
-  const pageCount = Math.max(1, Math.ceil(filteredIncomeRows.length / pageSize));
-  const pageRows = filteredIncomeRows.slice(earningPage * pageSize, earningPage * pageSize + pageSize);
+  const pageCount = Math.max(1, Math.ceil(historyTotal / pageSize));
+  const pageRows = filteredIncomeRows;
   const summaryCurrency = moneyByCurrency[0]?.currency ?? primaryCurrency;
   const nextPeriod = [...payoutPeriods]
     .filter((period) => period.status === 'ready' || period.status === 'processing' || period.status === 'drafting')

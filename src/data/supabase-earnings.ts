@@ -324,12 +324,133 @@ export async function fetchSupplierPayoutPeriodItems(periodId: string): Promise<
   return (data ?? []) as SupplierPayoutPeriodItemRow[];
 }
 
-/** Grouped All time analytics. Does not fall back to downloading every booking. */
-export async function fetchPartnerAnalyticsDaily(): Promise<import('../lib/partner-analytics').PartnerAnalyticsDailyRow[]> {
+/** Grouped analytics for All time or a selected range. Does not download booking rows. */
+export async function fetchPartnerAnalyticsDaily(range?: {
+  from?: string | null;
+  to?: string | null;
+  basis?: 'booking' | 'service';
+}): Promise<import('../lib/partner-analytics').PartnerAnalyticsDailyRow[]> {
   if (!supabase) return [];
-  const { data, error } = await supabase.rpc('partner_analytics_daily');
+  const { data, error } = await supabase.rpc('partner_analytics_daily', {
+    p_from: range?.from ?? null,
+    p_to: range?.to ?? null,
+    p_basis: range?.basis ?? 'service',
+  });
   if (error) throw new Error(error.message);
   return (data ?? []) as import('../lib/partner-analytics').PartnerAnalyticsDailyRow[];
+}
+
+export type PartnerAnalyticsDistributionRow = {
+  kind: string;
+  bucket: string;
+  listing_id: string | null;
+  booking_count: number;
+  metric: number | null;
+};
+
+export async function fetchPartnerAnalyticsDistributions(range?: {
+  from?: string | null;
+  to?: string | null;
+  basis?: 'booking' | 'service';
+}): Promise<PartnerAnalyticsDistributionRow[]> {
+  if (!supabase) return [];
+  const { data, error } = await supabase.rpc('partner_analytics_distributions', {
+    p_from: range?.from ?? null,
+    p_to: range?.to ?? null,
+    p_basis: range?.basis ?? 'service',
+  });
+  if (error) throw new Error(error.message);
+  return (data ?? []) as PartnerAnalyticsDistributionRow[];
+}
+
+export type PartnerIncomeSummaryRow = {
+  currency: string;
+  snapshot_count: number;
+  snapshot_gross_minor: number;
+  snapshot_commission_minor: number;
+  snapshot_supplier_minor: number;
+  item_count: number;
+  item_pending_minor: number;
+  item_eligible_minor: number;
+  item_included_minor: number;
+  item_paid_minor: number;
+  legacy_collected_count: number;
+  legacy_collected_major: number;
+  refund_due_count: number;
+  refund_due_major: number;
+};
+
+/** Exact per-currency income totals. Does not return booking rows. */
+export async function fetchPartnerIncomeSummary(): Promise<PartnerIncomeSummaryRow[]> {
+  if (!supabase) return [];
+  const { data, error } = await supabase.rpc('partner_income_summary');
+  if (error) throw new Error(error.message);
+  return (data ?? []) as PartnerIncomeSummaryRow[];
+}
+
+export type PartnerIncomeHistoryRow = {
+  id: string | null;
+  listing_id: string | null;
+  currency: string | null;
+  amount_paid: number | null;
+  booking_date: string | null;
+  created_at: string | null;
+  guest_name: string | null;
+  public_reference: string | null;
+  booking_number: number | null;
+  purchase_snapshot: unknown;
+  status: string | null;
+  payment_status: string | null;
+  check_out: string | null;
+  nights: number | null;
+  refund_choice: string | null;
+  listing_title: string | null;
+  snap_currency: string | null;
+  remaining_gross_minor: number | null;
+  remaining_commission_minor: number | null;
+  remaining_supplier_minor: number | null;
+  commission_bps: number | null;
+  item_currency: string | null;
+  item_amount_minor: number | null;
+  item_status: string | null;
+  item_experience_at: string | null;
+  item_sold_at: string | null;
+  item_service_completed_at: string | null;
+  item_gross_minor: number | null;
+  item_commission_minor: number | null;
+  item_commission_bps: number | null;
+  total_count: number;
+};
+
+export async function fetchPartnerIncomeHistory(query: {
+  limit?: number;
+  offset?: number;
+  notAfter?: string | null;
+  notAfterId?: string | null;
+  listingId?: string | null;
+  status?: string | null;
+  from?: string | null;
+  to?: string | null;
+  search?: string | null;
+  sort?: 'activity' | 'purchase' | 'earnings';
+}): Promise<{ rows: PartnerIncomeHistoryRow[]; total: number }> {
+  if (!supabase) return { rows: [], total: 0 };
+  const { data, error } = await supabase.rpc('partner_income_history', {
+    p_limit: query.limit ?? 20,
+    p_offset: query.offset ?? 0,
+    p_not_after: query.notAfter ?? null,
+    p_not_after_id: query.notAfterId ?? null,
+    p_listing_id: query.listingId || null,
+    p_status: query.status && query.status !== 'all' ? query.status : null,
+    p_from: query.from || null,
+    p_to: query.to || null,
+    p_search: query.search?.trim() || null,
+    p_sort: query.sort ?? 'activity',
+  });
+  if (error) throw new Error(error.message);
+  const raw = (data ?? []) as PartnerIncomeHistoryRow[];
+  const total = Number(raw[0]?.total_count ?? 0);
+  return { rows: raw.filter((row) => row.id), total };
 }
 
 export function earningItemsMajorByStatus(
