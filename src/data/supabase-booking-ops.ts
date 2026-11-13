@@ -1,6 +1,10 @@
 import { supabase } from '../lib/supabase';
 import { userFacingError } from '../lib/userFacingError';
 import { snapshotSupplierCancellationPolicy } from '../lib/cancellation-policy';
+import {
+  parseCancellationBatchResults,
+  type CancellationBatchRow,
+} from '../lib/supplier-cancellation-workflow';
 import { publicSiteBaseUrl } from '../lib/publicSiteUrl';
 import { supplierPortalPublicBaseUrl } from '../lib/partnerHost';
 import { notifySupplierEvent } from './supabase-supplier-messaging';
@@ -222,6 +226,57 @@ export async function requestSupplierCancellation(params: {
     isStay: rpc.is_stay === true,
     refundExecution,
   };
+}
+
+/**
+ * Cancels the exact booking ids in the snapshot.
+ * The database does not add bookings. A true `ok` means the batch ran,
+ * not that every booking was cancelled — read `results`.
+ */
+export async function requestSupplierCancellationBatch(params: {
+  bookingIds: string[];
+  reasonCode: string;
+  reasonText: string;
+  evidenceNote?: string;
+  idempotencyKey: string;
+}): Promise<{
+  ok: boolean;
+  error?: string;
+  partial?: boolean;
+  results: CancellationBatchRow[];
+}> {
+  if (!supabase) {
+    return { ok: false, error: PARTNER_CANCEL_REQUEST_SUBMIT_ERROR, results: [] };
+  }
+  const snap = snapshotSupplierCancellationPolicy(params.reasonCode);
+  const { data, error } = await supabase.rpc('request_supplier_cancellation_batch', {
+    p_booking_ids: params.bookingIds,
+    p_reason_code: params.reasonCode,
+    p_reason_text: params.reasonText,
+    p_evidence_note: params.evidenceNote ?? null,
+    p_idempotency_key: params.idempotencyKey,
+    p_policy_snapshot: snap,
+  });
+  if (error) {
+    return {
+      ok: false,
+      error: userFacingError(error.message, PARTNER_CANCEL_REQUEST_SUBMIT_ERROR),
+      results: [],
+    };
+  }
+  const rpc = data && typeof data === 'object' ? (data as Record<string, unknown>) : {};
+  const results = parseCancellationBatchResults(rpc.results);
+  if (rpc.ok !== true) {
+    return {
+      ok: false,
+      error: userFacingError(
+        typeof rpc.error === 'string' ? rpc.error : null,
+        PARTNER_CANCEL_REQUEST_SUBMIT_ERROR
+      ),
+      results,
+    };
+  }
+  return { ok: true, partial: rpc.partial === true, results };
 }
 
 /** Phase 3: traveler claims pending_customer_choice → full refund + Stripe execute. */

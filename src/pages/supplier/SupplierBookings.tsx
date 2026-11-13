@@ -4,7 +4,6 @@ import {
   ChevronRight,
   Download,
   RefreshCw,
-  Trash2,
   CalendarDays,
   Search,
   X,
@@ -19,46 +18,33 @@ import { csvSafeCell } from '../../lib/csv-export';
 import { localYmd } from '../../lib/local-ymd';
 import { guestFacingBookingNotes } from '../../lib/booking-notes';
 import { formatBookingParticipantsLabel } from '../../lib/participant-mix';
-import {
-  SUPPLIER_CANCELLATION_REASON_CODES,
-  isForceMajeureReason,
-  snapshotSupplierCancellationPolicy,
-  supplierCancellationFeeEur,
-  supplierCancellationReasonLabel,
-} from '../../lib/cancellation-policy';
+import { supplierCancellationReasonLabel } from '../../lib/cancellation-policy';
+import { buildCancellationCandidate, type CancellationBatchRow, type CancellationCandidate, type CancellationFamily } from '../../lib/supplier-cancellation-workflow';
+import SupplierCancellationWorkflow, { type CancellationWorkflowResultRow } from '../../components/supplier/SupplierCancellationWorkflow';
 import { openHostCancelRequestVisible } from '../../lib/host-cancel-request-visibility';
 import {
   attestTourServiceFulfillment,
   fetchCancellationRequestsForBookings,
   notifyTravelerCancellationRequest,
-  requestSupplierCancellation,
+  requestSupplierCancellationBatch,
   type CancellationRequestRow,
 } from '../../data/supabase-booking-ops';
 import PartnerSelect from '../../components/supplier/PartnerSelect';
 import { TraverionDateRangeField } from '../../components/calendar/TraverionDateRangeField';
 import SupplierSupportCaseRespond from '../../components/supplier/SupplierSupportCaseRespond';
 import NoticeCallout from '../../components/NoticeCallout';
-import {
-  PARTNER_CANCELLATION_REQUEST_DELIVERY_NOTE,
-  PARTNER_CANCEL_REQUEST_REFUND_POLICY,
-  PARTNER_CANCEL_REQUEST_SUBMIT_ERROR,
-  PARTNER_CANCEL_REQUEST_CONSEQUENCES_TITLE,
-  PARTNER_CANCEL_REQUEST_FEE_TIMING_NOTE,
-  PARTNER_CANCEL_IMMEDIATE_TITLE,
-  PARTNER_CANCEL_IMMEDIATE_SUBTITLE,
-} from '../../lib/booking-confirmation-copy';
+import { PARTNER_CANCEL_REQUEST_SUBMIT_ERROR } from '../../lib/booking-confirmation-copy';
 import { SkeletonListItem } from '../../components/ui/Skeleton';
 import ErrorState from '../../components/ErrorState';
 import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
 import {
   SUPPLIER_PAGE_CLASS,
   SupplierEmptyState,
-  SupplierModalHeader,
-  SupplierModalShell,
   SupplierPageHero,
 } from '../../components/supplier/supplierUi';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import {
+  executeBookingRefund,
   fetchBookingsForSupplier,
   type BookingRow,
   updateBookingStatus,
@@ -98,7 +84,7 @@ import { nightsOccupiedByStay, stayRangeFromBooking } from '../../lib/stayOccupa
 import {
   stayPaidAdjacentNightCount,
 } from '../../lib/booking-confirmation-copy';
-import { partnerBookingIsLiveTrip, partnerBookingIsOperatingTrip, partnerBookingIsUnpaidCheckout, partnerBookingShowsCancelAction, scheduleTodayIsoForBooking } from '../../lib/trip-views';
+import { partnerBookingIsLiveTrip, partnerBookingIsOperatingTrip, partnerBookingIsUnpaidCheckout, scheduleTodayIsoForBooking } from '../../lib/trip-views';
 import { addCalendarDaysYmd } from '../../lib/booking-lifecycle-calendar';
 import { formatPartnerCheckoutHoldLabel, partnerUnpaidCheckoutHoldsInventory } from '../../lib/booking-hold';
 import { formatStayNightHuman } from '../../lib/stay-calendar';
@@ -229,11 +215,6 @@ function bookingStatusClass(status: string, paymentStatus?: string | null): stri
   if (status === 'confirmed') return 'bg-emerald-50 text-emerald-800 ring-emerald-200/80';
   return 'bg-amber-50 text-amber-900 ring-amber-200/80';
 }
-
-const CANCELLATION_REASONS = SUPPLIER_CANCELLATION_REASON_CODES.map((id) => ({
-  id,
-  label: supplierCancellationReasonLabel(id),
-}));
 
 /** refund_choice values only — never label these “Full refund” as if Stripe already paid out. */
 type RefundChoice = 'full_refund' | 'no_refund' | 'reschedule';
@@ -478,11 +459,10 @@ export default function SupplierBookings({
     return readPartnerBookingIdFromLocation(window.location.pathname, window.location.search);
   });
 
-  const [cancelModal, setCancelModal] = useState<BookingRow | null>(null);
-  const [cancelReason, setCancelReason] = useState<string>(CANCELLATION_REASONS[0].id);
-  const [cancelReasonText, setCancelReasonText] = useState('');
-  const [cancelEvidence, setCancelEvidence] = useState('');
-  const [cancelError, setCancelError] = useState<string | null>(null);
+  const [cancelFlow, setCancelFlow] = useState<{
+    pool: CancellationCandidate[];
+    initialIds: string[];
+  } | null>(null);
   const [openCancels, setOpenCancels] = useState<Record<string, CancellationRequestRow>>({});
 
   const loadGenRef = useRef(0);
@@ -543,7 +523,7 @@ export default function SupplierBookings({
       setOpenCancels({});
       setError(null);
       setCancelRequestsError(null);
-      setCancelModal(null);
+      setCancelFlow(null);
       setUpdatingId(null);
     };
     if (!user?.id) {
@@ -955,77 +935,158 @@ export default function SupplierBookings({
           )
         );
       } else {
-        setCancelError(userFacingError(res.error, 'Could not update this booking.'));
+        setError(userFacingError(res.error, 'Could not update this booking.'));
       }
       setUpdatingId(null);
-      if (res.ok && status === 'cancelled') {
-        setCancelModal(null);
-      }
     },
     [canEditBookings]
   );
 
-  const handleRequestSupplierCancel = useCallback(async () => {
-    if (!cancelModal || !canEditBookings || !partnerBookingIsOperatingTrip(cancelModal)) return;
-    setCancelError(null);
-    const explanation = cancelReasonText.trim();
-    const minLen = isForceMajeureReason(cancelReason) ? 24 : 12;
-    if (explanation.length < minLen) {
-      setCancelError(
-        isForceMajeureReason(cancelReason)
-          ? 'Force majeure needs a clear explanation of why the trip cannot run.'
-          : 'Explain what happened (at least a short sentence).'
-      );
-      return;
-    }
-    setUpdatingId(cancelModal.id);
-    const previousStatus = cancelModal.status;
-    const res = await requestSupplierCancellation({
-      bookingId: cancelModal.id,
-      reasonCode: cancelReason,
-      reasonText: explanation,
-      evidenceNote: cancelEvidence.trim() || undefined,
-    });
-    setUpdatingId(null);
-    if (!res.ok) {
-      setCancelError(userFacingError(res.error, PARTNER_CANCEL_REQUEST_SUBMIT_ERROR));
-      return;
-    }
-    // Immediate cancel releases inventory for this booking only (shared departures stay independent).
-    if (previousStatus === 'confirmed' && cancelModal.booking_date) {
-      await decrementAvailabilityBooked(
-        cancelModal.listing_id,
-        cancelModal.booking_date,
-        cancelModal.guests ?? 1
-      );
-    }
-    const notify = await notifyTravelerCancellationRequest({
-      customerEmail: (cancelModal.guest_email ?? '').trim() || 'resolve@guest.local',
-      customerName: cancelModal.guest_name,
+  const cancellationCandidateFor = useCallback((booking: BookingRow): CancellationCandidate => {
+    const meta = listingMeta[booking.listing_id];
+    const family = resolveBookingFamily(booking, listingMeta);
+    const startHm = partnerOpsDepartureDisplay(
+      booking.purchase_snapshot,
+      booking.start_time ? pgTimeToHm(booking.start_time) ?? null : null
+    ).displayHm || '';
+    const liveOption =
+      booking.booking_option_id && meta?.bookingOptions?.length
+        ? meta.bookingOptions.find((option) => option.id === booking.booking_option_id)?.name?.trim() || ''
+        : '';
+    return buildCancellationCandidate({
+      id: booking.id,
+      reference: bookingReferenceLabel(booking),
+      guestName: booking.guest_name,
+      guestEmail: booking.guest_email,
+      guests: booking.guests,
+      status: booking.status,
+      paymentStatus: booking.payment_status,
+      amountPaid: booking.amount_paid,
+      currency: booking.currency,
+      listingId: booking.listing_id,
       listingTitle: displayListingTitleFromPurchase(
-        cancelModal.purchase_snapshot,
-        listingMeta[cancelModal.listing_id]?.title,
-        'Booking'
+        booking.purchase_snapshot,
+        meta?.title,
+        family === 'stay' ? 'Stay' : family === 'rental' ? 'Rental' : 'Tour'
       ),
-      bookingId: cancelModal.id,
-      bookingNumber: typeof cancelModal.booking_number === 'number' ? cancelModal.booking_number : undefined,
-      bookingDate: cancelModal.booking_date,
-      reasonLabel: supplierCancellationReasonLabel(cancelReason),
-      requestId: res.id,
-      needsCustomerChoice: res.needsCustomerChoice === true,
+      optionId: booking.booking_option_id,
+      optionLabel: displayOptionLabelFromPurchase(booking.purchase_snapshot, liveOption),
+      family: (family === 'stay' || family === 'rental' ? family : 'tour') as CancellationFamily,
+      date: booking.booking_date,
+      startHm,
+      bookingNumber: booking.booking_number,
     });
-    setCancelModal(null);
-    setCancelReasonText('');
-    setCancelEvidence('');
-    if (!notify.sent && !notify.skipped) {
-      setError(
-        `Booking cancelled, but traveler email failed${
-          notify.error ? `: ${notify.error}` : ''
-        }. They may not have been notified — Trips already shows the cancellation.`
-      );
+  }, [listingMeta]);
+
+  const openCancellationWorkflow = useCallback((rows: BookingRow[], initialIds: string[]) => {
+    if (!canEditBookings) return;
+    setCancelFlow({
+      pool: rows.map(cancellationCandidateFor),
+      initialIds,
+    });
+  }, [canEditBookings, cancellationCandidateFor]);
+
+  const confirmPaidCancellation = useCallback(async (input: {
+    bookings: CancellationCandidate[];
+    reasonCode: string;
+    reasonText: string;
+    evidenceNote: string;
+    idempotencyKey: string;
+  }): Promise<{ ok: boolean; error?: string; rows: CancellationWorkflowResultRow[] }> => {
+    const batch = await requestSupplierCancellationBatch({
+      bookingIds: input.bookings.map((row) => row.id),
+      reasonCode: input.reasonCode,
+      reasonText: input.reasonText,
+      evidenceNote: input.evidenceNote || undefined,
+      idempotencyKey: input.idempotencyKey,
+    });
+    const byId = new Map(input.bookings.map((row) => [row.id, row]));
+    const sourceRows: CancellationBatchRow[] = batch.results.length
+      ? batch.results
+      : input.bookings.map((row) => ({
+          bookingId: row.id,
+          ok: false,
+          replayed: false,
+          error: batch.error,
+          autoRefundQueued: false,
+          needsCustomerChoice: false,
+        }));
+    const rows: CancellationWorkflowResultRow[] = [];
+    for (const result of sourceRows) {
+      const booking = byId.get(result.bookingId);
+      let notification: CancellationWorkflowResultRow['notification'] = 'not_sent';
+      let refundNote = result.ok
+        ? result.needsCustomerChoice
+          ? 'Full refund is due if the traveler chooses a refund. It is not submitted yet.'
+          : result.autoRefundQueued
+            ? 'Refund submitted to Stripe when this cancellation succeeded.'
+            : 'A full refund is due. Stripe has not confirmed it yet.'
+        : 'Not submitted.';
+      if (result.ok && !result.replayed && booking?.status.toLowerCase() === 'confirmed' && booking.date) {
+        await decrementAvailabilityBooked(booking.listingId, booking.date, booking.guests || 1);
+      }
+      if (result.ok && result.autoRefundQueued) {
+        const refund = await executeBookingRefund(result.bookingId);
+        if (!refund.success) {
+          refundNote = refund.error
+            ? `Cancellation stands. Refund was not submitted: ${refund.error}`
+            : 'Cancellation stands. Refund was not submitted.';
+        } else if (refund.alreadyRefunded) {
+          refundNote = 'Stripe already has this refund.';
+        } else if (refund.pending) {
+          refundNote = 'Refund is pending with Stripe.';
+        } else {
+          refundNote = 'Refund was submitted to Stripe. My bookings shows Refunded when Stripe confirms it.';
+        }
+      }
+      if (result.ok && !result.replayed && booking) {
+        const notify = await notifyTravelerCancellationRequest({
+          customerEmail: booking.guestEmail || 'resolve@guest.local',
+          customerName: booking.guestName,
+          listingTitle: booking.listingTitle,
+          bookingId: booking.id,
+          bookingNumber: booking.bookingNumber ?? undefined,
+          bookingDate: booking.date || undefined,
+          reasonLabel: supplierCancellationReasonLabel(input.reasonCode),
+          requestId: result.requestId,
+          needsCustomerChoice: result.needsCustomerChoice,
+          startTimeLabel: booking.startHm || null,
+        });
+        notification = notify.sent ? 'accepted' : 'unconfirmed';
+      } else if (result.ok && result.replayed) {
+        notification = 'unconfirmed';
+      }
+      rows.push({
+        bookingId: result.bookingId,
+        ok: result.ok,
+        error: result.error,
+        notification,
+        refundNote,
+      });
+    }
+    if (rows.some((row) => row.ok)) await load();
+    return {
+      ok: batch.ok,
+      error: batch.ok ? undefined : batch.error || PARTNER_CANCEL_REQUEST_SUBMIT_ERROR,
+      rows,
+    };
+  }, [load]);
+
+  const releaseUnpaidCancellation = useCallback(async (candidate: CancellationCandidate) => {
+    const booking = bookings.find((row) => row.id === candidate.id);
+    if (!booking) return { ok: false, error: 'This booking is not available.' };
+    const previous = booking.status;
+    const res = await updateBookingStatus(booking.id, 'cancelled', {
+      cancellation_reason: 'unpaid_release',
+      refund_choice: 'no_refund',
+    });
+    if (!res.ok) return { ok: false, error: userFacingError(res.error, 'Could not release this hold.') };
+    if (previous === 'confirmed' && booking.booking_date) {
+      await decrementAvailabilityBooked(booking.listing_id, booking.booking_date, booking.guests ?? 1);
     }
     await load();
-  }, [cancelModal, canEditBookings, cancelReason, cancelReasonText, cancelEvidence, listingMeta, load]);
+    return { ok: true };
+  }, [bookings, load]);
 
   const listingOptions = useMemo(
     () =>
@@ -1196,6 +1257,18 @@ export default function SupplierBookings({
               <RefreshCw className="h-4 w-4" aria-hidden />
               Refresh
             </button>
+            {canEditBookings ? (
+              <button
+                type="button"
+                className="rounded-lg bg-[#073B83] px-3 py-2 text-sm font-medium text-white"
+                onClick={() => openCancellationWorkflow(
+                  filteredBookings,
+                  filteredBookings.filter((booking) => selectedIds.has(booking.id)).map((booking) => booking.id)
+                )}
+              >
+                Cancel bookings
+              </button>
+            ) : null}
             {selectedIds.size > 0 ? (
               <button
                 type="button"
@@ -2230,12 +2303,7 @@ export default function SupplierBookings({
                 }}
                 onMessageGuest={() => openBookingInbox(booking.id)}
                 onConfirm={() => void handleStatusChange(booking, 'confirmed')}
-                onRequestCancel={() => {
-                  setCancelError(null);
-                  setCancelReasonText('');
-                  setCancelEvidence('');
-                  setCancelModal(booking);
-                }}
+                onRequestCancel={() => openCancellationWorkflow([booking], [booking.id])}
                 onOpenFinancialStatement={() =>
                   navigateSupplierUrl(`${PARTNER_APP_BASE}/money?tab=documents`)
                 }
@@ -2502,12 +2570,7 @@ export default function SupplierBookings({
                 }}
                 onMessageCustomer={() => openBookingInbox(booking.id)}
                 onConfirm={() => void handleStatusChange(booking, 'confirmed')}
-                onRequestCancel={() => {
-                  setCancelError(null);
-                  setCancelReasonText('');
-                  setCancelEvidence('');
-                  setCancelModal(booking);
-                }}
+                onRequestCancel={() => openCancellationWorkflow([booking], [booking.id])}
                 onOpenFinancialStatement={() =>
                   navigateSupplierUrl(`${PARTNER_APP_BASE}/money?tab=documents`)
                 }
@@ -2768,12 +2831,7 @@ export default function SupplierBookings({
                 }}
                 onMessageGuest={() => openBookingInbox(booking.id)}
                 onConfirm={() => void handleStatusChange(booking, 'confirmed')}
-                onRequestCancel={() => {
-                  setCancelError(null);
-                  setCancelReasonText('');
-                  setCancelEvidence('');
-                  setCancelModal(booking);
-                }}
+                onRequestCancel={() => openCancellationWorkflow([booking], [booking.id])}
                 onOpenFinancialStatement={() =>
                   navigateSupplierUrl(`${PARTNER_APP_BASE}/money?tab=documents`)
                 }
@@ -2806,142 +2864,19 @@ export default function SupplierBookings({
           })()
         : null}
 
-      {cancelModal && partnerBookingShowsCancelAction(cancelModal) && (
-        <SupplierModalShell onClose={() => setCancelModal(null)} maxWidth="md">
-          <SupplierModalHeader
-            icon={Trash2}
-            title={
-              isPaidPaymentStatus(cancelModal.payment_status)
-                ? PARTNER_CANCEL_IMMEDIATE_TITLE
-                : 'Cancel unpaid booking'
-            }
-            subtitle={
-              isPaidPaymentStatus(cancelModal.payment_status)
-                ? PARTNER_CANCEL_IMMEDIATE_SUBTITLE
-                : 'This booking is not paid. Cancelling releases the hold immediately.'
-            }
-            onClose={() => setCancelModal(null)}
-          />
-          <div className="space-y-3.5 p-4 sm:p-5">
-            {isPaidPaymentStatus(cancelModal.payment_status) ? (
-              <>
-                <div className="rounded-lg border border-black/[0.06] border-l-[3px] border-l-rose-500 bg-paper px-3.5 py-3">
-                  <p className="text-sm font-semibold text-ink">{PARTNER_CANCEL_REQUEST_CONSEQUENCES_TITLE}</p>
-                  <p className="mt-1 text-xs text-ink-muted leading-snug">{PARTNER_CANCEL_REQUEST_REFUND_POLICY}</p>
-                  <p className="mt-1.5 text-xs text-ink">
-                    Fee:{' '}
-                    <span className="font-semibold tabular-nums">
-                      {supplierCancellationFeeEur(cancelReason) === 0
-                        ? '€0 (force majeure / restriction)'
-                        : `€${supplierCancellationFeeEur(cancelReason).toFixed(0)} (supplier-responsibility)`}
-                    </span>
-                    {' · '}
-                    {supplierCancellationReasonLabel(cancelReason)}. {PARTNER_CANCEL_REQUEST_FEE_TIMING_NOTE}
-                  </p>
-                  {isForceMajeureReason(cancelReason) ? (
-                    <p className="mt-1 text-xs text-amber-900">
-                      Force majeure is audited. Explain clearly — this is not an automatic fee waiver.
-                    </p>
-                  ) : null}
-                </div>
-                <div className="space-y-1.5">
-                  <span className="text-xs font-medium uppercase tracking-wide text-ink-faint" id="cancel-reason-code-label">
-                    Reason
-                  </span>
-                  <PartnerSelect
-                    id="cancel-reason-code"
-                    aria-labelledby="cancel-reason-code-label"
-                    value={cancelReason}
-                    onChange={setCancelReason}
-                    options={CANCELLATION_REASONS.map((reason) => ({
-                      value: reason.id,
-                      label: reason.label,
-                    }))}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-ink" htmlFor="cancel-reason-text">
-                    Explanation
-                  </label>
-                  <textarea
-                    id="cancel-reason-text"
-                    value={cancelReasonText}
-                    onChange={(e) => setCancelReasonText(e.target.value)}
-                    rows={4}
-                    className="tv-input min-h-[6rem]"
-                    placeholder="What happened, and why the traveler cannot take this booking."
-                  />
-                </div>
-                {isForceMajeureReason(cancelReason) ? (
-                  <div className="space-y-1.5">
-                    <label className="text-sm font-medium text-ink" htmlFor="cancel-evidence">
-                      Evidence note (optional)
-                    </label>
-                    <textarea
-                      id="cancel-evidence"
-                      value={cancelEvidence}
-                      onChange={(e) => setCancelEvidence(e.target.value)}
-                      rows={2}
-                      className="tv-input"
-                      placeholder="Weather warning, official restriction, or other note for the record."
-                    />
-                  </div>
-                ) : null}
-                {cancelError ? <p className="text-sm text-red-700">{cancelError}</p> : null}
-                <p className="text-xs text-ink-faint">
-                  Policy {snapshotSupplierCancellationPolicy(cancelReason).policy_id}.{' '}
-                  {PARTNER_CANCELLATION_REQUEST_DELIVERY_NOTE}
-                </p>
-                <div className="flex items-center justify-end gap-2">
-                  <button type="button" onClick={() => setCancelModal(null)} className="tv-btn-ghost">
-                    Keep booking
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => void handleRequestSupplierCancel()}
-                    disabled={
-                      updatingId === cancelModal.id ||
-                      !canEditBookings ||
-                      cancelReasonText.trim().length < (isForceMajeureReason(cancelReason) ? 24 : 12)
-                    }
-                    className="rounded-lg bg-red-600 px-3 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
-                  >
-                    {updatingId === cancelModal.id ? 'Cancelling…' : 'Cancel booking'}
-                  </button>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="rounded-xl border border-red-100 bg-red-50 p-3 text-sm text-red-900">
-                  Cancel unpaid booking{' '}
-                  <span className="font-semibold">
-                    {typeof cancelModal.booking_number === 'number' ? `#${cancelModal.booking_number}` : 'this hold'}
-                  </span>
-                  . No traveler refund is due because payment is not complete.
-                </div>
-                <div className="flex items-center justify-end gap-2">
-                  <button type="button" onClick={() => setCancelModal(null)} className="tv-btn-ghost">
-                    Keep booking
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      void handleStatusChange(cancelModal, 'cancelled', {
-                        cancellation_reason: 'unpaid_release',
-                        refund_choice: 'no_refund',
-                      })
-                    }
-                    disabled={updatingId === cancelModal.id || !canEditBookings}
-                    className="rounded-lg bg-red-600 px-3 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
-                  >
-                    Release hold
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
-        </SupplierModalShell>
-      )}
+      {cancelFlow ? (
+        <SupplierCancellationWorkflow
+          pool={cancelFlow.pool}
+          initialSelectedIds={cancelFlow.initialIds}
+          canSubmit={canEditBookings}
+          onClose={() => {
+            setCancelFlow(null);
+            void load();
+          }}
+          onConfirmPaid={confirmPaidCancellation}
+          onReleaseUnpaid={releaseUnpaidCancellation}
+        />
+      ) : null}
 
     </div>
   );
