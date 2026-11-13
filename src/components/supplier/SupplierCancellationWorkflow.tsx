@@ -39,6 +39,28 @@ export type CancellationWorkflowResultRow = {
 
 const STEPS = ['Select', 'Reason', 'Review'] as const;
 
+const STEP_INTRO = [
+  {
+    title: 'Select bookings',
+    description: 'Search or filter by date. Continuing freezes this selection.',
+  },
+  {
+    title: 'Reason',
+    description: 'Say why these bookings cannot run. A full refund is due.',
+  },
+  {
+    title: 'Review',
+    description: 'Check refunds, fees, and inventory, then confirm.',
+  },
+] as const;
+
+const SHELL = 'mx-auto w-full max-w-5xl px-4 sm:px-6';
+const PRIMARY_BTN =
+  'inline-flex h-10 w-full items-center justify-center rounded-lg bg-[#073B83] px-4 text-sm font-medium text-white transition-colors hover:bg-[#052c64] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#073B83] disabled:cursor-not-allowed disabled:bg-[#073B83] disabled:opacity-40 sm:w-auto';
+const SECONDARY_BTN =
+  'inline-flex h-10 w-full items-center justify-center rounded-lg border border-black/10 bg-white px-4 text-sm font-medium text-ink transition-colors hover:bg-[#f4f5f7] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#073B83] disabled:cursor-not-allowed disabled:opacity-40 sm:w-auto';
+const PANE = 'h-full w-1/3 overflow-x-hidden overflow-y-auto overscroll-contain [scrollbar-width:thin]';
+
 const FAMILIES: { value: '' | CancellationFamily; label: string }[] = [
   { value: '', label: 'Tours, stays, and rentals' },
   { value: 'tour', label: 'Tours' },
@@ -144,7 +166,9 @@ export default function SupplierCancellationWorkflow({
 
   useEffect(() => {
     panes.current.forEach((node, index) => {
-      if (node) node.inert = step !== index;
+      if (!node) return;
+      node.inert = step !== index;
+      if (index === step) node.scrollTop = 0;
     });
   }, [step]);
 
@@ -230,23 +254,22 @@ export default function SupplierCancellationWorkflow({
     ? reviewRows.filter((row) => resultById.get(row.id)?.ok)
     : reviewRows;
   const previewTotals = cancellationTotals(settledRows, reasonCode);
+  const reasonTotals = cancellationTotals(reviewRows.length ? reviewRows : selectedRows, reasonCode);
   const statusMessage = resultRows.length ? cancellationStatusMessage(resultRows, formError) : null;
   const policy = snapshotSupplierCancellationPolicy(reasonCode);
 
   return (
     <div className="fixed inset-0 z-[80] flex flex-col bg-[#f4f5f7] text-ink" role="dialog" aria-modal="true" aria-labelledby={titleId}>
-      <header className="sticky top-0 z-10 border-b border-black/[0.06] bg-white px-4 py-3 sm:px-6">
-        <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-3">
-          <div className="min-w-0">
-            <h1 id={titleId} className="truncate text-[17px] font-semibold tracking-tight text-ink">Cancel bookings</h1>
-          </div>
-          <ol className="flex shrink-0 items-center rounded-full bg-[#f4f5f7] p-1" aria-label="Cancellation progress">
+      <header className="z-10 shrink-0 border-b border-black/[0.06] bg-white">
+        <div className={`${SHELL} flex h-14 items-center justify-between gap-4`}>
+          <h1 id={titleId} className="truncate text-[15px] font-semibold tracking-tight text-ink">Cancel bookings</h1>
+          <ol className="flex shrink-0 items-center rounded-full bg-[#f4f5f7] p-0.5" aria-label="Cancellation progress">
             {STEPS.map((label, index) => (
               <li key={label}>
                 <button
                   type="button"
-                  className={`rounded-full px-2.5 py-1 text-[12px] font-medium sm:px-3 sm:text-[13px] ${
-                    index === step ? 'bg-[#073B83] text-white' : index < step ? 'text-[#073B83]' : 'text-ink-faint'
+                  className={`rounded-full px-2.5 py-1 text-[12px] font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#073B83] sm:px-3 sm:text-[13px] ${
+                    index === step ? 'bg-[#073B83] text-white' : index < step ? 'text-[#073B83] hover:bg-white' : 'text-ink-faint'
                   }`}
                   aria-current={index === step ? 'step' : undefined}
                   disabled={phase === 'processing' || index > step}
@@ -254,8 +277,8 @@ export default function SupplierCancellationWorkflow({
                     if (index < step && phase === 'form') setStep(index);
                   }}
                 >
-                  <span className="lg:hidden">{index + 1}</span>
-                  <span className="hidden lg:inline">{index + 1}. {label}</span>
+                  <span className="md:hidden">{index + 1}</span>
+                  <span className="hidden md:inline">{index + 1}. {label}</span>
                 </button>
               </li>
             ))}
@@ -268,9 +291,13 @@ export default function SupplierCancellationWorkflow({
           className="flex h-full w-[300%] transition-transform duration-300 ease-out motion-reduce:transition-none"
           style={{ transform: `translateX(-${step * (100 / 3)}%)` }}
         >
-          <section ref={(node) => { panes.current[0] = node; }} className="h-full w-1/3 overflow-x-hidden overflow-y-auto px-4 py-5 [scrollbar-width:thin] sm:px-6" aria-label="Select bookings" aria-hidden={step !== 0}>
-            <div className="mx-auto flex w-full max-w-3xl flex-col gap-3">
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <section ref={(node) => { panes.current[0] = node; }} className={PANE} aria-label="Select bookings" aria-hidden={step !== 0}>
+            <div className={`${SHELL} flex flex-col gap-5 py-6`}>
+              <div>
+                <h2 className="text-xl font-semibold tracking-tight text-ink">{STEP_INTRO[0].title}</h2>
+                <p className="mt-1 max-w-2xl text-sm leading-snug text-ink-muted">{STEP_INTRO[0].description}</p>
+              </div>
+              <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
                 <label className="min-w-0 flex-1">
                   <span className="sr-only">Search</span>
                   <input
@@ -281,7 +308,7 @@ export default function SupplierCancellationWorkflow({
                   />
                 </label>
                 <div className="flex items-center gap-2">
-                  <div className="flex h-10 min-w-0 flex-1 items-center gap-1.5 rounded-lg border border-black/10 bg-white px-2 sm:flex-none">
+                  <div className="flex h-10 min-w-0 flex-1 items-center gap-1.5 rounded-lg border border-black/10 bg-white px-2 transition-colors focus-within:border-[#073B83] focus-within:ring-2 focus-within:ring-[#073B83]/15 sm:flex-none">
                     <input
                       type="date"
                       aria-label="From"
@@ -300,10 +327,10 @@ export default function SupplierCancellationWorkflow({
                   </div>
                   <button
                     type="button"
-                    className={`inline-flex h-10 shrink-0 items-center rounded-lg border px-3 text-[13px] font-medium ${
+                    className={`inline-flex h-10 shrink-0 items-center rounded-lg border px-3 text-[13px] font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#073B83] ${
                       filtersOpen || advancedFilterCount > 0
-                        ? 'border-[#073B83]/30 bg-white text-[#073B83]'
-                        : 'border-black/10 bg-white text-ink-muted'
+                        ? 'border-[#073B83]/25 bg-[#eef3f9] text-[#073B83]'
+                        : 'border-black/10 bg-white text-ink-muted hover:bg-[#f4f5f7]'
                     }`}
                     aria-expanded={filtersOpen}
                     aria-controls={filtersPanelId}
@@ -368,60 +395,78 @@ export default function SupplierCancellationWorkflow({
                 </div>
               ) : null}
 
-              <div className="overflow-hidden rounded-xl border border-black/[0.06] bg-white">
-                <div className="flex items-baseline justify-between gap-3 border-b border-black/[0.06] px-4 py-2.5">
-                  <p className="text-[13px] text-ink-muted">
-                    <span className="font-medium tabular-nums text-ink">{selectedRows.length}</span> selected
-                    <span className="text-ink-faint"> · </span>
-                    <span className="tabular-nums">{selectionTotals.customers}</span> {selectionTotals.customers === 1 ? 'customer' : 'customers'}
-                  </p>
-                  <p className="text-[13px] font-medium tabular-nums text-ink">
-                    {formatMoney(selectionTotals.paid, selectionTotals.currency)}
-                  </p>
+              <div className="grid grid-cols-3 divide-x divide-black/[0.06] overflow-hidden rounded-xl border border-black/[0.06] bg-white shadow-[0_1px_2px_rgba(7,59,131,0.04)]">
+                <SummaryStat label="Selected" value={String(selectedRows.length)} compact />
+                <SummaryStat label={selectionTotals.customers === 1 ? 'Customer' : 'Customers'} value={String(selectionTotals.customers)} compact />
+                <SummaryStat label="Paid" value={formatMoney(selectionTotals.paid, selectionTotals.currency)} compact />
+              </div>
+
+              <div className="overflow-hidden rounded-xl border border-black/[0.06] bg-white shadow-[0_1px_2px_rgba(7,59,131,0.04)]">
+                <div className="hidden border-b border-black/[0.06] px-4 py-2 text-[11px] font-medium uppercase tracking-[0.08em] text-ink-faint md:grid md:grid-cols-[1.25rem_minmax(0,1.15fr)_7.25rem_minmax(0,1.35fr)_7.5rem_5.75rem] md:gap-3">
+                  <span />
+                  <span>Customer</span>
+                  <span>Date</span>
+                  <span>Listing</span>
+                  <span>Reference</span>
+                  <span className="text-right">Amount</span>
                 </div>
                 {visible.length === 0 ? (
-                  <p className="px-4 py-8 text-center text-sm text-ink-muted">No bookings match these filters.</p>
+                  <p className="px-4 py-10 text-center text-sm text-ink-muted">No bookings match these filters.</p>
                 ) : (
                   <ul>
                     {visible.map((row) => {
                       const selectable = row.eligiblePaid || row.eligibleUnpaid;
+                      const selected = checked.has(row.id);
                       return (
                         <li key={row.id} className="border-b border-black/[0.05] last:border-b-0">
-                          <label className={`flex items-center gap-3 px-3 py-3 sm:px-4 ${selectable ? 'cursor-pointer' : 'opacity-60'}`}>
-                            <input
-                              type="checkbox"
-                              className="h-4 w-4 shrink-0 rounded border-black/30 text-[#073B83] focus:ring-[#073B83]"
-                              checked={checked.has(row.id)}
-                              disabled={!selectable || phase !== 'form'}
-                              aria-label={`Select ${row.reference}`}
-                              onChange={() => {
-                                setChecked((prev) => {
-                                  const next = new Set(prev);
-                                  if (next.has(row.id)) next.delete(row.id);
-                                  else next.add(row.id);
-                                  return next;
-                                });
-                              }}
-                            />
-                            <div className="w-[4.5rem] shrink-0">
-                              <p className="text-[13px] font-medium text-ink">{formatCancellationDate(row.date)}</p>
-                              <p className="text-[12px] text-ink-muted">{row.startHm || '—'}</p>
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <p className="truncate text-sm font-medium text-ink">{row.guestName}</p>
-                              <p className="truncate text-[13px] text-ink-muted">
-                                {row.listingTitle}{row.optionLabel ? ` · ${row.optionLabel}` : ''}
-                              </p>
-                              <p className="truncate text-[12px] text-ink-faint">
-                                {row.reference} · {row.guests} {row.guests === 1 ? 'guest' : 'guests'}
-                              </p>
-                            </div>
-                            <div className="shrink-0 text-right">
-                              <p className="text-sm font-medium tabular-nums text-ink">
-                                {row.eligiblePaid ? formatMoney(row.amountPaid, row.currency) : 'Unpaid'}
-                              </p>
-                              {!selectable ? <p className="text-[12px] text-ink-faint">{row.blockReason || row.status}</p> : null}
-                            </div>
+                          <label className={`block px-4 py-3 transition-colors ${selected ? 'bg-[#eef3f9]' : 'hover:bg-[#f7f8fa]'} ${selectable ? 'cursor-pointer' : 'cursor-default opacity-60'}`}>
+                            <span className="grid grid-cols-[1.25rem_minmax(0,1fr)_auto] items-start gap-x-3 gap-y-0.5 md:grid-cols-[1.25rem_minmax(0,1.15fr)_7.25rem_minmax(0,1.35fr)_7.5rem_5.75rem] md:items-center md:gap-3">
+                              <input
+                                type="checkbox"
+                                className="mt-0.5 h-4 w-4 rounded border-black/30 text-[#073B83] focus:ring-[#073B83] md:mt-0"
+                                checked={selected}
+                                disabled={!selectable || phase !== 'form'}
+                                aria-label={`Select ${row.reference}`}
+                                onChange={() => {
+                                  setChecked((prev) => {
+                                    const next = new Set(prev);
+                                    if (next.has(row.id)) next.delete(row.id);
+                                    else next.add(row.id);
+                                    return next;
+                                  });
+                                }}
+                              />
+                              <span className="min-w-0">
+                                <span className="block text-sm font-medium text-ink">{row.guestName}</span>
+                                <span className="mt-0.5 block text-[13px] text-ink-muted md:hidden">
+                                  {formatCancellationDate(row.date)}{row.startHm ? ` · ${row.startHm}` : ''}
+                                </span>
+                                <span className="block text-[13px] text-ink-muted md:hidden">
+                                  {row.listingTitle}{row.optionLabel ? ` · ${row.optionLabel}` : ''}
+                                </span>
+                                <span className="block text-[12px] text-ink-faint md:hidden">
+                                  {row.reference} · {row.guests} {row.guests === 1 ? 'guest' : 'guests'}
+                                </span>
+                                <span className="mt-0.5 hidden text-[12px] text-ink-faint md:block">
+                                  {row.guests} {row.guests === 1 ? 'guest' : 'guests'}
+                                </span>
+                              </span>
+                              <span className="hidden md:block">
+                                <span className="block text-sm text-ink">{formatCancellationDate(row.date)}</span>
+                                <span className="block text-[12px] text-ink-muted">{row.startHm || '—'}</span>
+                              </span>
+                              <span className="hidden min-w-0 md:block">
+                                <span className="block text-sm text-ink">{row.listingTitle}</span>
+                                {row.optionLabel ? <span className="block text-[12px] text-ink-muted">{row.optionLabel}</span> : null}
+                              </span>
+                              <span className="hidden text-sm text-ink md:block">{row.reference}</span>
+                              <span className="text-right">
+                                <span className="block text-sm font-medium tabular-nums text-ink">
+                                  {row.eligiblePaid ? formatMoney(row.amountPaid, row.currency) : 'Unpaid'}
+                                </span>
+                                {!selectable ? <span className="block text-[12px] text-ink-faint">{row.blockReason || row.status}</span> : null}
+                              </span>
+                            </span>
                           </label>
                         </li>
                       );
@@ -429,89 +474,107 @@ export default function SupplierCancellationWorkflow({
                   </ul>
                 )}
               </div>
-              <p className="px-1 text-[12px] text-ink-faint">New bookings are not added after you continue.</p>
             </div>
           </section>
 
-          <section ref={(node) => { panes.current[1] = node; }} className="h-full w-1/3 overflow-x-hidden overflow-y-auto px-4 py-8 [scrollbar-width:thin] sm:px-6" aria-label="Reason and policy" aria-hidden={step !== 1}>
-            <div className="mx-auto flex w-full max-w-lg flex-col gap-5">
+          <section ref={(node) => { panes.current[1] = node; }} className={PANE} aria-label="Reason and policy" aria-hidden={step !== 1}>
+            <div className={`${SHELL} py-6`}>
+              <div className="mb-5">
+                <h2 className="text-xl font-semibold tracking-tight text-ink">{STEP_INTRO[1].title}</h2>
+                <p className="mt-1 max-w-2xl text-sm leading-snug text-ink-muted">{STEP_INTRO[1].description}</p>
+              </div>
               {paidFlow ? (
-                <>
-                  <div className="rounded-xl border border-black/[0.06] bg-white px-4 py-3">
-                    <div className="flex items-baseline justify-between gap-4">
-                      <p className="text-sm text-ink">Full refund due</p>
-                      <p className="text-sm font-semibold tabular-nums text-ink">
-                        Fee {formatMoney(feePreview.feeAmount, feePreview.currency)}
+                <div className="grid items-stretch gap-5 lg:grid-cols-2">
+                  <section className="flex h-full flex-col rounded-xl border border-black/[0.06] bg-white p-5 shadow-[0_1px_2px_rgba(7,59,131,0.04)]">
+                    <h3 className="text-sm font-semibold text-ink">Policy</h3>
+                    <div className="mt-4 grid grid-cols-2 divide-x divide-black/[0.06]">
+                      <p className="pr-4">
+                        <span className="block text-[12px] text-ink-faint">Customer refunds</span>
+                        <span className="mt-1 block text-xl font-semibold tabular-nums tracking-tight text-ink">{formatMoney(reasonTotals.refunds, reasonTotals.currency)}</span>
+                      </p>
+                      <p className="pl-4">
+                        <span className="block text-[12px] text-ink-faint">Supplier fees</span>
+                        <span className="mt-1 block text-xl font-semibold tabular-nums tracking-tight text-ink">{formatMoney(reasonTotals.fees, reasonTotals.currency)}</span>
+                        <span className="mt-1 block text-[12px] text-ink-muted">{formatMoney(feePreview.feeAmount, feePreview.currency)} per paid booking</span>
                       </p>
                     </div>
-                    <p className="mt-1 text-[13px] leading-snug text-ink-muted">{PARTNER_CANCEL_REQUEST_FEE_TIMING_NOTE}</p>
+                    <p className="mt-4 text-[13px] leading-snug text-ink-muted">{PARTNER_CANCEL_REQUEST_FEE_TIMING_NOTE}</p>
                     <button
                       type="button"
-                      className="mt-2 text-[13px] font-medium text-[#073B83]"
+                      className="mt-3 text-[13px] font-medium text-[#073B83] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#073B83]"
                       aria-expanded={policyOpen}
                       onClick={() => setPolicyOpen((open) => !open)}
                     >
                       {policyOpen ? 'Hide policy details' : 'Policy details'}
                     </button>
                     {policyOpen ? (
-                      <div className="mt-2 space-y-2 border-t border-black/[0.06] pt-2 text-[13px] leading-snug text-ink-muted">
+                      <div className="mt-3 space-y-2 border-t border-black/[0.06] pt-3 text-[13px] leading-snug text-ink-muted">
                         <p>{PARTNER_CANCEL_REQUEST_REFUND_POLICY}</p>
                         <p>{PARTNER_CANCELLATION_REQUEST_DELIVERY_NOTE}</p>
                         <p>Policy {policy.policy_id}.</p>
                       </div>
                     ) : null}
-                  </div>
-                  <div>
-                    <span className="text-[13px] font-medium text-ink" id="supplier-cancel-reason-label">Reason</span>
-                    <div className="mt-1.5">
-                      <PartnerSelect
-                        aria-labelledby="supplier-cancel-reason-label"
-                        value={reasonCode}
-                        onChange={setReasonCode}
-                        options={SUPPLIER_CANCELLATION_REASON_CODES.map((code) => ({
-                          value: code,
-                          label: supplierCancellationReasonLabel(code),
-                        }))}
+                  </section>
+                  <section className="h-full rounded-xl border border-black/[0.06] bg-white p-5 shadow-[0_1px_2px_rgba(7,59,131,0.04)]">
+                    <h3 className="text-sm font-semibold text-ink">Reason details</h3>
+                    <div className="mt-4">
+                      <span className="text-[13px] font-medium text-ink" id="supplier-cancel-reason-label">Reason</span>
+                      <div className="mt-1.5">
+                        <PartnerSelect
+                          aria-labelledby="supplier-cancel-reason-label"
+                          value={reasonCode}
+                          onChange={setReasonCode}
+                          options={SUPPLIER_CANCELLATION_REASON_CODES.map((code) => ({
+                            value: code,
+                            label: supplierCancellationReasonLabel(code),
+                          }))}
+                        />
+                      </div>
+                    </div>
+                    <div className="mt-4">
+                      <div className="flex items-baseline justify-between gap-3">
+                        <label className="text-[13px] font-medium text-ink" htmlFor="supplier-cancel-explanation">Explanation</label>
+                        <p className={`text-[12px] tabular-nums ${explanationCount >= minChars ? 'text-ink-muted' : 'text-ink-faint'}`} aria-live="polite">
+                          {explanationCount} / {minChars} characters
+                        </p>
+                      </div>
+                      <textarea
+                        id="supplier-cancel-explanation"
+                        value={explanation}
+                        onChange={(event) => setExplanation(event.target.value)}
+                        rows={4}
+                        className="tv-input mt-1.5 min-h-[7.5rem]"
+                        placeholder="What happened, and why these travelers cannot take the booking."
                       />
                     </div>
-                  </div>
-                  <div>
-                    <label className="text-[13px] font-medium text-ink" htmlFor="supplier-cancel-explanation">Explanation</label>
-                    <textarea
-                      id="supplier-cancel-explanation"
-                      value={explanation}
-                      onChange={(event) => setExplanation(event.target.value)}
-                      rows={5}
-                      className="tv-input mt-1.5 min-h-[8rem]"
-                      placeholder="What happened, and why these travelers cannot take the booking."
-                    />
-                    <p className="mt-1.5 text-[13px] tabular-nums text-ink-muted" aria-live="polite">
-                      {explanationCount} / {minChars} characters
-                    </p>
-                  </div>
-                  <div>
-                    <label className="text-[13px] font-medium text-ink" htmlFor="supplier-cancel-evidence">Evidence notes, optional</label>
-                    <textarea
-                      id="supplier-cancel-evidence"
-                      value={evidence}
-                      onChange={(event) => setEvidence(event.target.value)}
-                      rows={3}
-                      className="tv-input mt-1.5"
-                      placeholder="Weather notice, staff note, or other record."
-                    />
-                  </div>
-                </>
+                    <div className="mt-4">
+                      <label className="text-[13px] text-ink-muted" htmlFor="supplier-cancel-evidence">Evidence notes, optional</label>
+                      <textarea
+                        id="supplier-cancel-evidence"
+                        value={evidence}
+                        onChange={(event) => setEvidence(event.target.value)}
+                        rows={2}
+                        className="tv-input mt-1.5"
+                        placeholder="Weather notice, staff note, or other record."
+                      />
+                    </div>
+                  </section>
+                </div>
               ) : (
-                <div className="rounded-xl border border-black/[0.06] bg-white px-4 py-4 text-sm leading-relaxed text-ink">
+                <section className="rounded-xl border border-black/[0.06] bg-white p-5 text-sm leading-relaxed text-ink shadow-[0_1px_2px_rgba(7,59,131,0.04)]">
                   This unpaid hold has no completed payment. Releasing it does not create a refund or a supplier fee.
                   The traveler sees the cancellation on My bookings. {PARTNER_CANCELLATION_REQUEST_DELIVERY_NOTE}
-                </div>
+                </section>
               )}
             </div>
           </section>
 
-          <section ref={(node) => { panes.current[2] = node; }} className="h-full w-1/3 overflow-x-hidden overflow-y-auto px-4 py-8 [scrollbar-width:thin] sm:px-6" aria-label="Review and confirm" aria-hidden={step !== 2}>
-            <div className="mx-auto flex w-full max-w-xl flex-col gap-4">
+          <section ref={(node) => { panes.current[2] = node; }} className={PANE} aria-label="Review and confirm" aria-hidden={step !== 2}>
+            <div className={`${SHELL} flex flex-col gap-5 py-6`}>
+              <div>
+                <h2 className="text-xl font-semibold tracking-tight text-ink">{STEP_INTRO[2].title}</h2>
+                <p className="mt-1 max-w-2xl text-sm leading-snug text-ink-muted">{STEP_INTRO[2].description}</p>
+              </div>
               {phase === 'processing' ? (
                 <p className="text-sm text-ink-muted" role="status">
                   Cancelling {reviewRows.length} booking{reviewRows.length === 1 ? '' : 's'}. Each booking is confirmed on its own.
@@ -526,8 +589,8 @@ export default function SupplierCancellationWorkflow({
                 </p>
               ) : null}
 
-              <div className="overflow-hidden rounded-xl border border-black/[0.06] bg-white">
-                <div className={`grid divide-y divide-black/[0.06] sm:divide-x sm:divide-y-0 ${resultRows.length ? 'grid-cols-2 sm:grid-cols-3' : 'grid-cols-2 sm:grid-cols-4'}`}>
+              <div className="overflow-hidden rounded-xl border border-black/[0.06] bg-white shadow-[0_1px_2px_rgba(7,59,131,0.04)]">
+                <div className={`grid divide-y divide-black/[0.06] sm:divide-y-0 sm:divide-x ${resultRows.length ? 'grid-cols-2 sm:grid-cols-3' : 'grid-cols-2 lg:grid-cols-4'}`}>
                   <SummaryStat label={resultRows.length ? 'Customers cancelled' : 'Customers'} value={String(previewTotals.customers)} />
                   <SummaryStat label="Bookings" value={String(resultRows.length ? resultCounts.total : reviewRows.length)} />
                   {resultRows.length ? (
@@ -536,83 +599,95 @@ export default function SupplierCancellationWorkflow({
                       <SummaryStat label="Not cancelled" value={String(resultCounts.notCancelled)} />
                     </>
                   ) : null}
-                  <SummaryStat label={resultRows.length ? 'Refunds for cancelled bookings' : 'Refunds'} value={formatMoney(previewTotals.refunds, previewTotals.currency)} />
+                  <SummaryStat label={resultRows.length ? 'Refunds for cancelled bookings' : 'Customer refunds'} value={formatMoney(previewTotals.refunds, previewTotals.currency)} />
                   <SummaryStat label="Supplier fees" value={formatMoney(previewTotals.fees, previewTotals.currency)} />
                 </div>
-                <p className="border-t border-black/[0.06] px-4 py-3 text-[13px] leading-snug text-ink-muted">
-                  Inventory for a successful cancellation releases that booking’s guests ({previewTotals.guests}).
-                  Other bookings on the same departure stay unless they are in this selection.
-                </p>
-                <div className="border-t border-black/[0.06]">
-                  <button
-                    type="button"
-                    className="flex w-full items-center justify-between px-4 py-3 text-left text-sm font-medium text-ink"
-                    aria-expanded={detailsOpen}
-                    onClick={() => setDetailsOpen((open) => !open)}
-                  >
-                    Booking details
-                    <span className="text-[12px] font-normal text-ink-faint">{detailsOpen ? 'Hide' : 'Show'}</span>
-                  </button>
-                  {detailsOpen ? (
-                    <ul className="border-t border-black/[0.06]">
-                      {reviewRows.map((row) => {
-                        const result = resultById.get(row.id);
-                        const money = result && !result.ok
-                          ? { refundAmount: 0, feeAmount: 0, currency: row.currency }
-                          : cancellationMoneyPreview(row, reasonCode);
-                        return (
-                          <li key={row.id} className="border-b border-black/[0.05] px-4 py-3 last:border-b-0">
-                            <div className="flex items-baseline justify-between gap-3">
-                              <p className="min-w-0 truncate text-sm font-medium text-ink">{row.guestName}</p>
-                              <p className="shrink-0 text-[13px] tabular-nums text-ink-muted">
-                                {formatMoney(money.refundAmount, money.currency)}
-                              </p>
-                            </div>
-                            <p className="mt-0.5 truncate text-[13px] text-ink-muted">
-                              {row.listingTitle}
-                              {row.optionLabel ? ` · ${row.optionLabel}` : ''}
-                              {row.date ? ` · ${formatCancellationDate(row.date)}` : ''}
-                              {row.startHm ? ` · ${row.startHm}` : ''}
-                            </p>
-                            <p className="mt-1 break-words text-[12px] leading-snug text-ink-faint">
-                              {row.reference}
-                              <span> · Fee {formatMoney(money.feeAmount, money.currency)}</span>
-                              {result ? (
-                                <>
-                                  <span> · {result.ok ? 'Cancelled' : result.error || 'Not cancelled'}</span>
-                                  <span> · {notificationLabel(result.notification)}</span>
-                                  <span> · {result.refundNote}</span>
-                                </>
-                              ) : (
-                                <span> · Notification has not been sent</span>
-                              )}
-                            </p>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  ) : null}
+                <div className="grid gap-1 border-t border-black/[0.06] px-5 py-4 sm:grid-cols-[8rem_minmax(0,1fr)] sm:items-baseline sm:gap-4">
+                  <p className="text-[12px] font-medium uppercase tracking-[0.08em] text-ink-faint">Inventory</p>
+                  <p className="text-sm leading-snug text-ink">
+                    {previewTotals.guests} {previewTotals.guests === 1 ? 'guest' : 'guests'} released when a cancellation succeeds.
+                    Other bookings on the same departure stay unless they are in this selection.
+                  </p>
                 </div>
               </div>
 
+              <section className="overflow-hidden rounded-xl border border-black/[0.06] bg-white shadow-[0_1px_2px_rgba(7,59,131,0.04)]">
+                <button
+                  type="button"
+                  className="flex w-full items-center justify-between px-5 py-3.5 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#073B83]"
+                  aria-expanded={detailsOpen}
+                  onClick={() => setDetailsOpen((open) => !open)}
+                >
+                  <span>
+                    <span className="block text-sm font-semibold text-ink">Affected bookings</span>
+                    <span className="mt-0.5 block text-[13px] text-ink-muted">{reviewRows.length} in this selection</span>
+                  </span>
+                  <span className="text-[13px] text-[#073B83]">{detailsOpen ? 'Hide' : 'Show'}</span>
+                </button>
+                {detailsOpen ? (
+                  <ul className="border-t border-black/[0.06]">
+                    {reviewRows.map((row) => {
+                      const result = resultById.get(row.id);
+                      const money = result && !result.ok
+                        ? { refundAmount: 0, feeAmount: 0, currency: row.currency }
+                        : cancellationMoneyPreview(row, reasonCode);
+                      return (
+                        <li key={row.id} className="grid gap-3 border-b border-black/[0.05] px-5 py-4 last:border-b-0 sm:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_auto] sm:items-start">
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium text-ink">{row.guestName}</p>
+                            <p className="mt-0.5 text-[13px] text-ink-muted">
+                              {formatCancellationDate(row.date)}{row.startHm ? ` · ${row.startHm}` : ''}
+                            </p>
+                            <p className="text-[13px] text-ink-muted">
+                              {row.listingTitle}{row.optionLabel ? ` · ${row.optionLabel}` : ''}
+                            </p>
+                            <p className="mt-0.5 text-[12px] text-ink-faint">
+                              {row.reference} · {row.guests} {row.guests === 1 ? 'guest' : 'guests'}
+                            </p>
+                          </div>
+                          <div className="text-[13px] leading-snug text-ink-muted">
+                            <p>Refund <span className="font-medium tabular-nums text-ink">{formatMoney(money.refundAmount, money.currency)}</span></p>
+                            <p>Fee <span className="font-medium tabular-nums text-ink">{formatMoney(money.feeAmount, money.currency)}</span></p>
+                          </div>
+                          <p className="break-words text-[13px] leading-snug text-ink sm:max-w-[16rem] sm:text-right">
+                            {result ? (
+                              <>
+                                {result.ok ? 'Cancelled' : result.error || 'Not cancelled'}
+                                <span className="mt-0.5 block text-[12px] text-ink-faint">{notificationLabel(result.notification)}</span>
+                                <span className="mt-0.5 block text-[12px] text-ink-faint">{result.refundNote}</span>
+                              </>
+                            ) : (
+                              <span className="text-ink-faint">Notification has not been sent</span>
+                            )}
+                          </p>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                ) : null}
+              </section>
+
               {phase === 'form' || phase === 'failure' ? (
-                <label className="flex items-start gap-3 px-1 text-sm leading-snug text-ink">
-                  <input
-                    type="checkbox"
-                    className="mt-0.5 h-4 w-4 rounded border-black/30 text-[#073B83] focus:ring-[#073B83]"
-                    checked={acknowledged}
-                    onChange={(event) => setAcknowledged(event.target.checked)}
-                  />
-                  <span>I confirm this selection. Only these bookings will be submitted, and a later booking will not be added.</span>
-                </label>
+                <section className="rounded-xl border border-black/[0.06] bg-white px-5 py-4 shadow-[0_1px_2px_rgba(7,59,131,0.04)]">
+                  <h3 className="text-sm font-semibold text-ink">Confirmation</h3>
+                  <label className="mt-3 flex items-start gap-3 text-sm leading-snug text-ink">
+                    <input
+                      type="checkbox"
+                      className="mt-0.5 h-4 w-4 rounded border-black/30 text-[#073B83] focus:ring-[#073B83]"
+                      checked={acknowledged}
+                      onChange={(event) => setAcknowledged(event.target.checked)}
+                    />
+                    <span>I confirm this selection. Only these bookings will be submitted, and a later booking will not be added.</span>
+                  </label>
+                </section>
               ) : null}
             </div>
           </section>
         </div>
       </div>
 
-      <footer className="sticky bottom-0 border-t border-black/[0.06] bg-white px-4 py-3 sm:px-6">
-        <div className="mx-auto flex w-full max-w-5xl flex-wrap items-center justify-between gap-2">
+      <footer className="z-10 shrink-0 border-t border-black/[0.06] bg-white">
+        <div className={`${SHELL} flex flex-wrap items-center justify-between gap-2 py-3`}>
           <div className="flex items-center gap-2">
             <button type="button" className="tv-btn-ghost" onClick={onClose} disabled={phase === 'processing'}>
               Close
@@ -624,12 +699,12 @@ export default function SupplierCancellationWorkflow({
             ) : null}
           </div>
           {formError && phase !== 'failure' ? <p className="min-w-0 flex-1 text-sm text-ink" role="alert">{formError}</p> : null}
-          <div className="flex min-w-0 flex-wrap justify-end gap-2">
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:justify-end">
             {step === 0 ? (
               <>
                 <button
                   type="button"
-                  className="inline-flex h-10 items-center justify-center rounded-lg border border-black/10 bg-white px-3 text-sm font-medium text-ink disabled:opacity-40"
+                  className={SECONDARY_BTN}
                   disabled={!departure || !canSubmit}
                   onClick={() => departure && freezeAndContinue(departure.ids)}
                 >
@@ -637,7 +712,7 @@ export default function SupplierCancellationWorkflow({
                 </button>
                 <button
                   type="button"
-                  className="inline-flex h-10 items-center justify-center rounded-lg bg-[#073B83] px-3 text-sm font-medium text-white disabled:opacity-40"
+                  className={PRIMARY_BTN}
                   disabled={!canSubmit || selectedRows.length === 0}
                   onClick={() => freezeAndContinue(selectedRows.map((row) => row.id))}
                 >
@@ -648,7 +723,7 @@ export default function SupplierCancellationWorkflow({
             {step === 1 ? (
               <button
                 type="button"
-                className="inline-flex h-10 items-center justify-center rounded-lg bg-[#073B83] px-4 text-sm font-medium text-white disabled:opacity-40"
+                className={PRIMARY_BTN}
                 disabled={paidFlow && !reasonReady}
                 onClick={() => {
                   setFormError(null);
@@ -661,7 +736,7 @@ export default function SupplierCancellationWorkflow({
             {step === 2 && (phase === 'form' || phase === 'failure') ? (
               <button
                 type="button"
-                className="inline-flex h-10 items-center justify-center rounded-lg bg-[#073B83] px-4 text-sm font-medium text-white disabled:opacity-40"
+                className={PRIMARY_BTN}
                 disabled={!canSubmit || !acknowledged || (paidFlow && !reasonReady)}
                 onClick={() => void submit()}
               >
@@ -669,7 +744,7 @@ export default function SupplierCancellationWorkflow({
               </button>
             ) : null}
             {phase === 'success' || phase === 'partial' ? (
-              <button type="button" className="inline-flex h-10 items-center justify-center rounded-lg bg-[#073B83] px-4 text-sm font-medium text-white" onClick={onClose}>
+              <button type="button" className={PRIMARY_BTN} onClick={onClose}>
                 Done
               </button>
             ) : null}
@@ -680,11 +755,11 @@ export default function SupplierCancellationWorkflow({
   );
 }
 
-function SummaryStat({ label, value }: { label: string; value: string }) {
+function SummaryStat({ label, value, compact = false }: { label: string; value: string; compact?: boolean }) {
   return (
-    <p className="px-4 py-3">
+    <p className={compact ? 'px-4 py-3' : 'px-5 py-4'}>
       <span className="block text-[12px] text-ink-faint">{label}</span>
-      <span className="mt-0.5 block text-sm font-semibold tabular-nums text-ink">{value}</span>
+      <span className={`mt-1 block font-semibold tabular-nums tracking-tight text-ink ${compact ? 'text-base' : 'text-xl'}`}>{value}</span>
     </p>
   );
 }
