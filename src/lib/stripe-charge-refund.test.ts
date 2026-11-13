@@ -3,6 +3,7 @@ import {
   alreadyRefundedWebhookShouldReconcileLedger,
   isStripeChargeFullyRefunded,
   paidPromotionShouldRefuseFullyRefundedCharge,
+  refundBeforePaidRecordedStatus,
   refundBeforePaidShouldMarkFailed,
   tourCheckoutStripeCreateFailureShouldFailPending,
 } from './stripe-charge-refund';
@@ -35,7 +36,13 @@ describe('isStripeChargeFullyRefunded', () => {
 });
 
 describe('refundBeforePaidShouldMarkFailed', () => {
-  it('marks pending/failed holds failed after a full refund', () => {
+  it('records a full refund before promotion as Refunded', () => {
+    expect(
+      refundBeforePaidRecordedStatus({ bookingPaymentStatus: 'pending', fullyRefunded: true })
+    ).toBe('refunded');
+    expect(
+      refundBeforePaidRecordedStatus({ bookingPaymentStatus: 'failed', fullyRefunded: true })
+    ).toBe('refunded');
     expect(
       refundBeforePaidShouldMarkFailed({ bookingPaymentStatus: 'pending', fullyRefunded: true })
     ).toBe(true);

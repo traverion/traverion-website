@@ -29,7 +29,7 @@ describe('rental checkout listing gate', () => {
     ).toBe(false);
   });
 
-  it('promotes a paid draft rental and still requires published tours and stays', () => {
+  it('confirms a paid tour or stay after unpublish and still refuses a closed season', () => {
     expect(
       paidPromotionListingStillBookable({
         inventoryFamily: 'rental',
@@ -43,14 +43,14 @@ describe('rental checkout listing gate', () => {
         listingStatus: 'draft',
         seasonBookable: true,
       })
-    ).toBe(false);
+    ).toBe(true);
     expect(
       paidPromotionListingStillBookable({
         inventoryFamily: 'stay',
         listingStatus: 'draft',
         seasonBookable: true,
       })
-    ).toBe(false);
+    ).toBe(true);
     expect(
       paidPromotionListingStillBookable({
         inventoryFamily: 'tour',

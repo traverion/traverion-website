@@ -1229,8 +1229,9 @@ export async function promotePaidFromCheckoutSession(params: {
   // Phase 1535: may be upgraded to quote-resolved option HM inside listing gate.
   let assertStartTimeHm = startTimeHm;
   if (listingId && bookingDate && Number.isFinite(guests) && guests >= 1) {
-    // Phase 1284: stale Stripe completion must not promote after unpublish / season end
-    // (create-booking-checkout-session 1278 parity).
+    // Season end still refuses. Unpublish after the Checkout Session exists does not:
+    // the session was created while the listing was published, and inventory is
+    // asserted inside promote_paid_checkout_booking.
     const { data: listingGate } = await admin
       .from('listings')
       .select('status, listing_extras')

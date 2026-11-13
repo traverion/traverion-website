@@ -34,18 +34,27 @@ export function remainingPaidMajorFromCharge(charge: {
 }
 
 /**
- * Full refund arrived before paid promotion — mark the unpaid hold failed so a
- * late checkout.session.completed / payment_intent.succeeded cannot confirm it.
+ * Full refund arrived before paid promotion. Record Refunded, not Payment failed,
+ * so a captured-and-returned charge is not shown as a decline. Refunded is
+ * terminal for promote_paid_checkout_booking, so a late success event cannot confirm it.
  */
 export function refundBeforePaidShouldMarkFailed(params: {
   bookingPaymentStatus?: string | null;
   fullyRefunded: boolean;
 }): boolean {
-  if (!params.fullyRefunded) return false;
+  return refundBeforePaidRecordedStatus(params) === 'refunded';
+}
+
+export function refundBeforePaidRecordedStatus(params: {
+  bookingPaymentStatus?: string | null;
+  fullyRefunded: boolean;
+}): 'refunded' | null {
+  if (!params.fullyRefunded) return null;
   const pay = String(params.bookingPaymentStatus ?? '')
     .trim()
     .toLowerCase();
-  return pay === 'pending' || pay === 'failed';
+  if (pay === 'pending' || pay === 'failed') return 'refunded';
+  return null;
 }
 
 /**

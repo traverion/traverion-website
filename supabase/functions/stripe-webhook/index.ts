@@ -6,7 +6,7 @@ import { stripeWebhookReplayDecision } from '../_shared/stripe-webhook-replay.ts
 import {
   alreadyRefundedWebhookShouldReconcileLedger,
   isStripeChargeFullyRefunded,
-  refundBeforePaidShouldMarkFailed,
+  refundBeforePaidRecordedStatus,
   remainingPaidMajorFromCharge,
   chargeRefundMetaBookingMatchesPaymentIntent,
 } from '../_shared/stripe-charge-refund.ts';
@@ -590,19 +590,27 @@ serve(async (req) => {
           });
         }
 
-        if (
-          refundBeforePaidShouldMarkFailed({
-            bookingPaymentStatus: booking.payment_status,
-            fullyRefunded,
-          })
-        ) {
+        const refundBeforePaidStatus = refundBeforePaidRecordedStatus({
+          bookingPaymentStatus: booking.payment_status,
+          fullyRefunded,
+        });
+        if (refundBeforePaidStatus) {
+          const refundBeforePaidUpdate: {
+            payment_status: 'refunded';
+            payment_provider: string;
+            payment_intent_id: string;
+            amount_paid?: number;
+          } = {
+            payment_status: refundBeforePaidStatus,
+            payment_provider: 'stripe',
+            payment_intent_id: paymentIntentId,
+          };
+          if (typeof refundAmount === 'number' && Number.isFinite(refundAmount) && refundAmount > 0) {
+            refundBeforePaidUpdate.amount_paid = refundAmount;
+          }
           const { error: failErr } = await admin
             .from('bookings')
-            .update({
-              payment_status: 'failed',
-              payment_provider: 'stripe',
-              payment_intent_id: paymentIntentId,
-            })
+            .update(refundBeforePaidUpdate)
             .eq('id', booking.id)
             .in('payment_status', ['pending', 'failed']);
           if (failErr) throw new Error(failErr.message);
@@ -638,7 +646,7 @@ serve(async (req) => {
             success: true,
             eventId: event.id,
             bookingId: booking.id,
-            status: 'failed',
+            status: refundBeforePaidStatus,
             fullyRefunded: true,
             refundBeforePaid: true,
           });

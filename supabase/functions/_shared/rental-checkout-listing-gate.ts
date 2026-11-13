@@ -26,5 +26,9 @@ export function paidPromotionListingStillBookable(input: {
   if (input.inventoryFamily === 'rental') {
     return status === 'draft' || status === 'published';
   }
-  return status === 'published';
+  // Checkout is created only while the listing is published. Taking it off the
+  // catalog afterward must not refund a payment that already succeeded.
+  // Archived listings still refuse. Inventory and the payer stay enforced by
+  // promote_paid_checkout_booking.
+  return status === 'published' || status === 'draft';
 }
