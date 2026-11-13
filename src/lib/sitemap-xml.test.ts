@@ -26,7 +26,7 @@ describe('sitemap-xml', () => {
     ).toBe('/rentals/r1');
   });
 
-  it('excludes drafts, packages, experiences', () => {
+  it('excludes drafts, packages, experiences, and multi-unit stays', () => {
     expect(sitemapPathForListing({ id: 'd1', status: 'draft' })).toBeNull();
     expect(
       sitemapPathForListing({
@@ -40,6 +40,13 @@ describe('sitemap-xml', () => {
         id: 'e1',
         status: 'published',
         listing_extras: { inventoryFamily: 'experience' },
+      })
+    ).toBeNull();
+    expect(
+      sitemapPathForListing({
+        id: 'm1',
+        status: 'published',
+        listing_extras: { inventoryFamily: 'stay', stay: { accommodationMode: 'multi' } },
       })
     ).toBeNull();
   });
@@ -80,9 +87,12 @@ describe('sitemap-xml', () => {
       ]),
       '2026-09-27'
     );
-    expect(xml).toContain('https://traverion.com/tours/aaa');
-    expect(xml).toContain('https://traverion.com/stays/ccc');
+    expect(xml).toContain('https://www.traverion.com/tours/aaa');
+    expect(xml).toContain('https://www.traverion.com/stays/ccc');
+    expect(xml).not.toContain('https://traverion.com/');
     expect(xml).not.toContain('bbb');
+    const rentalCatalog = xml.split('https://www.traverion.com/rentals<').length - 1;
+    expect(rentalCatalog).toBe(1);
     expect(xml).toContain('Generated 2026-09-27');
   });
 });

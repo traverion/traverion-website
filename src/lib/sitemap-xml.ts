@@ -17,22 +17,25 @@ export type SitemapUrlEntry = {
   priority: string;
 };
 
+/** Canonical public origin. Apex redirects to www. */
+const SITEMAP_ORIGIN = 'https://www.traverion.com';
+
 const STATIC_ENTRIES: SitemapUrlEntry[] = [
-  { loc: 'https://traverion.com/', changefreq: 'weekly', priority: '1' },
-  { loc: 'https://traverion.com/packages', changefreq: 'daily', priority: '0.9' },
-  { loc: 'https://traverion.com/stays', changefreq: 'daily', priority: '0.9' },
-  { loc: 'https://traverion.com/rentals', changefreq: 'daily', priority: '0.9' },
-  { loc: 'https://traverion.com/about', changefreq: 'monthly', priority: '0.6' },
-  { loc: 'https://traverion.com/blog', changefreq: 'weekly', priority: '0.6' },
-  { loc: 'https://traverion.com/contact', changefreq: 'monthly', priority: '0.6' },
-  { loc: 'https://traverion.com/privacy', changefreq: 'yearly', priority: '0.3' },
-  { loc: 'https://traverion.com/terms', changefreq: 'yearly', priority: '0.3' },
-  { loc: 'https://traverion.com/cookies', changefreq: 'yearly', priority: '0.3' },
-  { loc: 'https://traverion.com/legal-notice', changefreq: 'yearly', priority: '0.3' },
-  { loc: 'https://traverion.com/affiliate', changefreq: 'monthly', priority: '0.4' },
-  { loc: 'https://traverion.com/content-creator', changefreq: 'monthly', priority: '0.4' },
+  { loc: `${SITEMAP_ORIGIN}/`, changefreq: 'weekly', priority: '1' },
+  { loc: `${SITEMAP_ORIGIN}/packages`, changefreq: 'daily', priority: '0.9' },
+  { loc: `${SITEMAP_ORIGIN}/stays`, changefreq: 'daily', priority: '0.9' },
+  { loc: `${SITEMAP_ORIGIN}/rentals`, changefreq: 'daily', priority: '0.9' },
+  { loc: `${SITEMAP_ORIGIN}/about`, changefreq: 'monthly', priority: '0.6' },
+  { loc: `${SITEMAP_ORIGIN}/blog`, changefreq: 'weekly', priority: '0.6' },
+  { loc: `${SITEMAP_ORIGIN}/contact`, changefreq: 'monthly', priority: '0.6' },
+  { loc: `${SITEMAP_ORIGIN}/privacy`, changefreq: 'yearly', priority: '0.3' },
+  { loc: `${SITEMAP_ORIGIN}/terms`, changefreq: 'yearly', priority: '0.3' },
+  { loc: `${SITEMAP_ORIGIN}/cookies`, changefreq: 'yearly', priority: '0.3' },
+  { loc: `${SITEMAP_ORIGIN}/legal-notice`, changefreq: 'yearly', priority: '0.3' },
+  { loc: `${SITEMAP_ORIGIN}/affiliate`, changefreq: 'monthly', priority: '0.4' },
+  { loc: `${SITEMAP_ORIGIN}/content-creator`, changefreq: 'monthly', priority: '0.4' },
   { loc: 'https://partner.traverion.com/', changefreq: 'monthly', priority: '0.5' },
-  { loc: 'https://traverion.com/sitemap', changefreq: 'monthly', priority: '0.4' },
+  { loc: `${SITEMAP_ORIGIN}/sitemap`, changefreq: 'monthly', priority: '0.4' },
 ];
 
 function familyFromExtras(extras: unknown): string | null {
@@ -41,12 +44,25 @@ function familyFromExtras(extras: unknown): string | null {
   return typeof raw === 'string' ? raw : null;
 }
 
+/** Multi-unit stays are not a public product. Keep them out of the sitemap. */
+function stayAccommodationMode(extras: unknown): string | null {
+  if (!extras || typeof extras !== 'object' || Array.isArray(extras)) return null;
+  const record = extras as { accommodationMode?: unknown; stay?: { accommodationMode?: unknown } };
+  const nested = record.stay?.accommodationMode;
+  const top = record.accommodationMode;
+  const mode = typeof nested === 'string' ? nested : top;
+  return typeof mode === 'string' ? mode : null;
+}
+
 /** Tour or stay path for a published traveler-catalog listing; null if not indexable. */
 export function sitemapPathForListing(row: SitemapListingRow, todayIso?: string): string | null {
   if ((row.status ?? '').trim().toLowerCase() !== 'published') return null;
   if (row.is_holiday_package) return null;
   const family = familyFromExtras(row.listing_extras) ?? 'tour';
-  if (family === 'stay') return `/stays/${row.id}`;
+  if (family === 'stay') {
+    if (stayAccommodationMode(row.listing_extras) === 'multi') return null;
+    return `/stays/${row.id}`;
+  }
   if (family === 'rental') return `/rentals/${row.id}`;
   if (family === 'tour') {
     // Phase 1261: do not index tours whose every season has already ended.
@@ -71,7 +87,7 @@ export function buildSitemapEntries(listings: SitemapListingRow[]): SitemapUrlEn
     if (!path || seen.has(path)) continue;
     seen.add(path);
     inventory.push({
-      loc: `https://traverion.com${path}`,
+      loc: `${SITEMAP_ORIGIN}${path}`,
       changefreq: 'weekly',
       priority: '0.8',
     });
@@ -79,7 +95,7 @@ export function buildSitemapEntries(listings: SitemapListingRow[]): SitemapUrlEn
   inventory.sort((a, b) => a.loc.localeCompare(b.loc));
   // Static shell first (home/catalogs), then inventory, then rest of static — match prior human layout:
   const head = STATIC_ENTRIES.slice(0, 4);
-  const tail = STATIC_ENTRIES.slice(3);
+  const tail = STATIC_ENTRIES.slice(4);
   return [...head, ...inventory, ...tail];
 }
 

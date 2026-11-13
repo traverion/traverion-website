@@ -2,15 +2,22 @@ User-agent: *
 Allow: /
 Disallow: /auth
 Disallow: /log-in
+Disallow: /login
+Disallow: /sign-up
 Disallow: /account
 Disallow: /bookings
+Disallow: /trips
 Disallow: /cart
 Disallow: /wishlist
 Disallow: /saved
+Disallow: /set-password
+Disallow: /reset-password
+Disallow: /booking-confirmed
+Disallow: /email-confirmed
 Disallow: /supplier
 Disallow: /supplier/
 Disallow: /supplier-log-in
 Disallow: /partner
 Disallow: /partner/
 
-Sitemap: https://traverion.com/sitemap.xml
+Sitemap: https://www.traverion.com/sitemap.xml

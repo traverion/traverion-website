@@ -179,6 +179,25 @@
       ]
     },
     {
+      "source": "/(login|signup|reset-password|partner|partner/(.*))",
+      "has": [{ "type": "host", "value": "partner.traverion.com" }],
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow, noarchive, nosnippet, noimageindex"
+        }
+      ]
+    },
+    {
+      "source": "/(auth|log-in|login|sign-up|account|bookings|trips|cart|wishlist|saved|set-password|reset-password|booking-confirmed|email-confirmed)",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow, noarchive, nosnippet, noimageindex"
+        }
+      ]
+    },
+    {
       "source": "/assets/(.*)",
       "headers": [
         {

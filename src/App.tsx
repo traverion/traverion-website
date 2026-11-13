@@ -554,7 +554,7 @@ function App() {
         status: selectedTour.status,
       });
     const tourDeepLinkOk =
-      (currentPage === 'tour-details' || currentPage === 'booking') &&
+      currentPage === 'tour-details' &&
       !!selectedTour &&
       listingDetailVisibleToTraveler({
         familyMatches: listingIsOnTravelerCatalog(selectedTour),
@@ -633,11 +633,22 @@ function App() {
     if (meta) setPageMetaWithOg(meta.title, meta.description);
     else setPageMetaWithOg('Traverion', 'Tours and stays worldwide.');
 
-    setRobotsNoIndex(
+    const privateTravelerPage =
+      currentPage === 'auth' ||
+      currentPage === 'reset-password' ||
+      currentPage === 'email-confirmed' ||
+      currentPage === 'account' ||
+      currentPage === 'wishlist' ||
+      currentPage === 'bookings' ||
+      currentPage === 'cart' ||
+      currentPage === 'booking' ||
       currentPage === 'booking-confirmed' ||
-        currentPage === 'reset-password' ||
-        currentPage === 'not-found'
-    );
+      currentPage === 'not-found';
+    setRobotsNoIndex(privateTravelerPage);
+    if (privateTravelerPage) {
+      removeCanonicalLink();
+      return;
+    }
 
     const pathMap: Record<string, string> = {
       home: '/', packages: '/packages', stays: '/stays', auth: '/auth', 'reset-password': '/set-password', 'email-confirmed': '/email-confirmed', account: '/account', wishlist: '/wishlist', bookings: '/bookings', cart: '/cart',
