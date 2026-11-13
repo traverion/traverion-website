@@ -5,6 +5,7 @@ import { fetchMyListings } from '../../data/supabase-listings';
 import { fetchBookingsForSupplier, type BookingRow } from '../../data/supabase-bookings';
 import { addCalendarDaysYmd } from '../../lib/booking-lifecycle-calendar';
 import {
+  fetchPartnerAnalyticsDaily,
   fetchSupplierCommercialSnapshots,
   type BookingCommercialSnapshotRow,
 } from '../../data/supabase-earnings';
@@ -46,6 +47,8 @@ import {
   percentChange,
   previousAnalyticsRange,
   resolveAnalyticsDateRange,
+  summarizeAnalyticsDaily,
+  type PartnerAnalyticsDailyRow,
   type AnalyticsDateBasis,
   type AnalyticsListingMeta,
   type AnalyticsProductType,
@@ -127,6 +130,7 @@ export default function SupplierPerformance() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [bookingsTruncated, setBookingsTruncated] = useState(false);
+  const [dailyRows, setDailyRows] = useState<PartnerAnalyticsDailyRow[]>([]);
   const initial = typeof window !== 'undefined' ? readUrlState() : null;
   const [section, setSection] = useState<AnalyticsSection>(initial?.section ?? 'summary');
   const [rangeKey, setRangeKey] = useState<AnalyticsRangeKey>(initial?.range ?? '30d');
@@ -209,20 +213,22 @@ export default function SupplierPerformance() {
     const from = prior.from ?? range.from;
     const to = range.to;
     const sinceDay = from ? addCalendarDaysYmd(from, -1) ?? from : null;
+    const allTime = !range.from && !range.to;
     const bookingQuery =
-      from && to && sinceDay
-        ? fetchBookingsForSupplier(uid, {
+      allTime || !from || !to || !sinceDay
+        ? Promise.resolve([] as BookingRow[])
+        : fetchBookingsForSupplier(uid, {
             fromDate: from,
             toDate: to,
             createdSince: `${sinceDay}T00:00:00.000Z`,
             limit: 500,
-          })
-        : fetchBookingsForSupplier(uid);
+          });
     const settled = await Promise.allSettled([
       fetchMyListings(uid),
       bookingQuery,
-      fetchSupplierCommercialSnapshots(uid),
+      allTime ? Promise.resolve([] as BookingCommercialSnapshotRow[]) : fetchSupplierCommercialSnapshots(uid),
       fetchReviewsForSupplierListings(uid),
+      allTime ? fetchPartnerAnalyticsDaily() : Promise.resolve([] as PartnerAnalyticsDailyRow[]),
     ]);
     if (gen !== loadGenRef.current) return;
     if (settled[0].status === 'fulfilled') setListings(settled[0].value);
@@ -232,10 +238,11 @@ export default function SupplierPerformance() {
     }
     if (settled[2].status === 'fulfilled') setSnapshots(settled[2].value);
     if (settled[3].status === 'fulfilled') setReviews(settled[3].value);
-    if (settled[0].status === 'fulfilled' || settled[1].status === 'fulfilled') {
+    if (settled[4].status === 'fulfilled') setDailyRows(settled[4].value);
+    if (settled[0].status === 'fulfilled' || settled[1].status === 'fulfilled' || settled[4].status === 'fulfilled') {
       hasDataRef.current = true;
     }
-    if (settled[0].status === 'rejected' || settled[1].status === 'rejected') {
+    if (settled[0].status === 'rejected' || settled[1].status === 'rejected' || settled[4].status === 'rejected') {
       setError(PERFORMANCE_LOAD_ERROR);
     }
     setLoading(false);
@@ -251,6 +258,7 @@ export default function SupplierPerformance() {
       setBookings([]);
       setSnapshots([]);
       setReviews([]);
+      setDailyRows([]);
       setTraffic([]);
       setLoading(false);
       return;
@@ -263,6 +271,7 @@ export default function SupplierPerformance() {
       setBookings([]);
       setSnapshots([]);
       setReviews([]);
+      setDailyRows([]);
       setTraffic([]);
     }
   }, [user?.id]);
@@ -312,6 +321,18 @@ export default function SupplierPerformance() {
     }
     return map;
   }, [listings]);
+
+  const dailySummary = useMemo(() => {
+    if (rangeKey !== 'all' || !customRangeReady) return null;
+    return summarizeAnalyticsDaily({
+      rows: dailyRows,
+      listingsById,
+      basis,
+      productType,
+      listingId: listingId || null,
+      rangeKey,
+    });
+  }, [rangeKey, customRangeReady, dailyRows, listingsById, basis, productType, listingId]);
 
   const snapshotsByBookingId = useMemo(() => {
     const map: Record<string, (typeof snapshots)[number]> = {};
@@ -387,8 +408,8 @@ export default function SupplierPerformance() {
   }, [listings, dateRange.from, dateRange.to]);
 
   const moneyNow = useMemo(
-    () => aggregateMoneyByCurrency(filteredPaid, snapshotsByBookingId),
-    [filteredPaid, snapshotsByBookingId]
+    () => dailySummary?.money ?? aggregateMoneyByCurrency(filteredPaid, snapshotsByBookingId),
+    [dailySummary, filteredPaid, snapshotsByBookingId]
   );
   const moneyPrior = useMemo(
     () => aggregateMoneyByCurrency(priorPaid, snapshotsByBookingId),
@@ -399,6 +420,7 @@ export default function SupplierPerformance() {
 
   const listingRows = useMemo(
     () =>
+      dailySummary?.listingRows ??
       aggregateListingRows({
         bookings: filteredPaid,
         snapshotsByBookingId,
@@ -407,10 +429,11 @@ export default function SupplierPerformance() {
           (b) => (b.status ?? '').toLowerCase() === 'cancelled' && isPaidPaymentStatus(b.payment_status)
         ),
       }),
-    [filteredPaid, snapshotsByBookingId, listingsById, windowAllBookings]
+    [dailySummary, filteredPaid, snapshotsByBookingId, listingsById, windowAllBookings]
   );
 
   const series = useMemo(() => {
+    if (dailySummary) return dailySummary.series;
     if (!primary) return [];
     return buildEarningsSeries({
       bookings: filteredPaid,
@@ -422,17 +445,20 @@ export default function SupplierPerformance() {
       rangeKey,
       fillZeros: rangeKey !== 'all',
     });
-  }, [filteredPaid, snapshotsByBookingId, basis, dateRange, primary, rangeKey]);
+  }, [dailySummary, filteredPaid, snapshotsByBookingId, basis, dateRange, primary, rangeKey]);
 
   const cancelStats = useMemo(
-    () => cancellationStats({ paidBookings: filteredPaid, allBookingsInWindow: windowAllBookings }),
-    [filteredPaid, windowAllBookings]
+    () => dailySummary?.cancelStats ?? cancellationStats({ paidBookings: filteredPaid, allBookingsInWindow: windowAllBookings }),
+    [dailySummary, filteredPaid, windowAllBookings]
   );
 
   const leadTimes = useMemo(() => aggregateLeadTimes(filteredPaid), [filteredPaid]);
   const partySizes = useMemo(() => aggregatePartySizes(filteredPaid), [filteredPaid]);
   const avgLead = useMemo(() => averageLeadTimeDays(filteredPaid), [filteredPaid]);
-  const busyDay = useMemo(() => busiestBookingDay(filteredPaid, basis), [filteredPaid, basis]);
+  const busyDay = useMemo(
+    () => dailySummary?.busiest ?? busiestBookingDay(filteredPaid, basis),
+    [dailySummary, filteredPaid, basis]
+  );
   const completed = useMemo(() => completedServiceCount(filteredPaid), [filteredPaid]);
 
   const trafficTotals = useMemo(() => {
@@ -514,6 +540,16 @@ export default function SupplierPerformance() {
     [filteredPaid, detailListingId]
   );
   const detailSeries = useMemo(() => {
+    if (rangeKey === 'all' && detailListingId) {
+      return summarizeAnalyticsDaily({
+        rows: dailyRows,
+        listingsById,
+        basis,
+        productType: 'all',
+        listingId: detailListingId,
+        rangeKey,
+      }).series;
+    }
     const currency = detailRows[0]?.currency ?? primary?.currency;
     if (!currency || !detailListingId) return [];
     return buildEarningsSeries({
@@ -526,7 +562,7 @@ export default function SupplierPerformance() {
       rangeKey,
       fillZeros: rangeKey !== 'all',
     });
-  }, [detailPaid, snapshotsByBookingId, basis, dateRange, detailRows, primary, detailListingId, rangeKey]);
+  }, [detailPaid, snapshotsByBookingId, basis, dateRange, detailRows, primary, detailListingId, rangeKey, dailyRows, listingsById]);
 
   const openListingDetail = (id: string) => {
     setDetailListingId(id);
@@ -538,7 +574,7 @@ export default function SupplierPerformance() {
     pushUrl({ detailListingId: '' }, true);
   };
 
-  const hasAnyPaid = bookings.some(isCollectedBooking);
+  const hasAnyPaid = dailySummary ? dailySummary.collectedCount > 0 : bookings.some(isCollectedBooking);
 
   return (
     <div className={`${SUPPLIER_PAGE_CLASS} tv-analytics font-sans`}>
@@ -745,7 +781,7 @@ export default function SupplierPerformance() {
         </div>
       ) : null}
 
-      {!loading && !error && hasAnyPaid && filteredPaid.length === 0 && !detailListingId ? (
+      {!loading && !error && hasAnyPaid && filteredPaid.length === 0 && !dailySummary?.collectedCount && !detailListingId ? (
         <div className="tv-analytics-empty">
           <p className="font-semibold text-[#18181b]">No results for these filters</p>
           <p className="mt-1 text-[13px] text-[#71717a]">Try a wider date range or clear the listing filter.</p>
@@ -805,6 +841,9 @@ export default function SupplierPerformance() {
           </div>
           <div className="tv-analytics-panel">
             <h3 className="tv-analytics-panel__title">Lead time</h3>
+            {rangeKey === 'all' ? (
+              <p className="mt-1 text-[12px] text-[#71717a]">Pick a date range to see lead time for this listing.</p>
+            ) : null}
             <div className="mt-3">
               <AnalyticsBarChart
                 bars={aggregateLeadTimes(detailPaid)
@@ -817,7 +856,7 @@ export default function SupplierPerformance() {
         </div>
       ) : null}
 
-      {!detailListingId && hasAnyPaid && (filteredPaid.length > 0 || section === 'score' || section === 'bookings') ? (
+      {!detailListingId && hasAnyPaid && (filteredPaid.length > 0 || (dailySummary?.collectedCount ?? 0) > 0 || section === 'score' || section === 'bookings') ? (
         <div className="mx-auto w-full max-w-[1180px] space-y-4">
           {section === 'summary' && primary ? (
             <>
@@ -1071,7 +1110,9 @@ export default function SupplierPerformance() {
               <div className="tv-analytics-panel">
                 <h2 className="tv-analytics-panel__title">Booking lead time</h2>
                 <p className="mt-1 text-[12px] text-[#71717a]">
-                  Time from booking creation to departure (tours) or check-in (stays).
+                  {rangeKey === 'all'
+                    ? 'Lead time and group size need a date range. All time uses the daily earnings totals.'
+                    : 'Time from booking creation to departure (tours) or check-in (stays).'}
                 </p>
                 <div className="mt-3">
                   <AnalyticsBarChart

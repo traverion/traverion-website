@@ -25,7 +25,7 @@ import {
   type SupplierPeriodEarningsReport,
   type SupplierPeriodSalesReport,
 } from '../../data/supabase-earnings';
-import { fetchBookingsForSupplier, type BookingRow } from '../../data/supabase-bookings';
+import { fetchAllSupplierBookingDeskRows, type BookingRow } from '../../data/supabase-bookings';
 import { fetchSupplierProfile } from '../../data/supabase-supplier-profile';
 import { insertSupplierExportRun } from '../../data/supabase-supplier-campaigns-exports';
 import { SUPPLIER_PAGE_CLASS, SupplierListSkeleton } from '../../components/supplier/supplierUi';
@@ -273,7 +273,10 @@ export default function SupplierEarnings() {
     setLedgerError(null);
     Promise.all([
       fetchSupplierEarnings(uid),
-      fetchBookingsForSupplier(uid),
+      Promise.all([
+        fetchAllSupplierBookingDeskRows(uid, { ops: 'collected' }),
+        fetchAllSupplierBookingDeskRows(uid, { ops: 'refund_due' }),
+      ]).then(([collectedRows, refundRows]) => ({ collectedRows, refundRows })),
       fetchMyListings(uid),
       fetchSupplierActiveCommercialTerms(uid),
       fetchSupplierEarningItems(uid),
@@ -284,10 +287,10 @@ export default function SupplierEarnings() {
         .then((rows) => ({ ok: true as const, rows }))
         .catch((err: unknown) => ({ ok: false as const, err })),
     ])
-      .then(async ([data, bookings, listings, terms, items, snaps, periods, holds, ledgerResult]) => {
+      .then(async ([data, moneyRows, listings, terms, items, snaps, periods, holds, ledgerResult]) => {
         if (gen !== loadGenRef.current) return;
-        const collected = bookings.filter(isCollectedBooking);
-        const refundDue = bookings.filter(isRefundDueBooking);
+        const collected = moneyRows.collectedRows.filter(isCollectedBooking);
+        const refundDue = moneyRows.refundRows.filter(isRefundDueBooking);
         const titles = Object.fromEntries(listings.map((l) => [l.id, l.title]));
         setEarnings(data);
         setCommercialTerms(terms);

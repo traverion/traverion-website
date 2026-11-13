@@ -11,23 +11,29 @@ const analytics = readFileSync(new URL('../pages/supplier/SupplierPerformance.ts
 const earnings = readFileSync(new URL('../pages/supplier/SupplierEarnings.tsx', import.meta.url), 'utf8');
 
 describe('partner booking reads stay bounded', () => {
-  it('scopes service dates, created-at, and a hard limit without dropping the full income fetch', () => {
+  it('scopes service dates, created-at, and a hard limit, and income reads only money rows', () => {
     expect(bookings).toContain('check_out.gte.');
     expect(bookings).toContain('created_at.gte.');
     expect(bookings).toContain('query.limit(limit)');
     expect(bookings).toContain('bookingId');
-    expect(earnings).toContain('fetchBookingsForSupplier(uid)');
-    expect(earnings).not.toMatch(/fetchBookingsForSupplier\([^)]+,/);
+    expect(earnings).toContain("ops: 'collected'");
+    expect(earnings).toContain("ops: 'refund_due'");
+    expect(earnings).not.toContain('fetchBookingsForSupplier(uid)');
   });
 
   it('keeps home, calendar, bookings, inbox, and analytics off the unbounded list', () => {
     expect(home).toContain('fromDate: windowFrom');
     expect(home).toContain('createdSince: salesSince');
+    expect(home).toContain('excludeServiceWindow: true');
     expect(calendar).toContain('fromDate: range.fromYmd');
     expect(calendar).toContain('toDate: range.toYmd');
-    expect(desk).toContain('limit: bookingFetchLimit');
+    expect(desk).toContain('fetchSupplierBookingDeskPage');
+    expect(desk).toContain('Export filtered bookings');
+    expect(desk).toContain('Export all bookings');
     expect(inbox).toContain('limit: cap');
     expect(analytics).toContain('limit: 500');
+    expect(analytics).toContain('fetchPartnerAnalyticsDaily');
+    expect(analytics).not.toMatch(/fetchBookingsForSupplier\(uid\)\s*[;)]/);
   });
 
   it('asks for one message per thread and still falls back to a newest-first read', () => {

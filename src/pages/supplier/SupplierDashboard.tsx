@@ -254,7 +254,13 @@ export default function SupplierDashboard() {
       fetchMyListings(uid),
       Promise.all([
         fetchBookingsForSupplier(uid, { fromDate: windowFrom, toDate: windowTo, limit: 300 }),
-        fetchBookingsForSupplier(uid, { createdSince: salesSince, limit: 400 }),
+        fetchBookingsForSupplier(uid, {
+          createdSince: salesSince,
+          fromDate: windowFrom,
+          toDate: windowTo,
+          excludeServiceWindow: true,
+          limit: 400,
+        }),
       ]).then(([windowRows, recentRows]) => {
         const byId = new Map<string, BookingRow>();
         for (const row of [...windowRows, ...recentRows]) byId.set(row.id, row);

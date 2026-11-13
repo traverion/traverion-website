@@ -191,6 +191,16 @@ export async function fetchLatestBookingMessage(
   });
 }
 
+export async function fetchOpenCancellationBookingIds(): Promise<string[]> {
+  if (!supabase) return [];
+  const { data, error } = await supabase
+    .from('cancellation_requests')
+    .select('booking_id')
+    .eq('status', 'requested');
+  if (error) throw new Error(error.message);
+  return [...new Set((data ?? []).map((row: { booking_id: string }) => row.booking_id).filter(Boolean))];
+}
+
 export async function fetchCancellationRequestsForBookings(
   bookingIds: string[]
 ): Promise<CancellationRequestRow[]> {

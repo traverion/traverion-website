@@ -87,7 +87,7 @@ const defaultItinerary = [
 const defaultIncludes = ['Guide', 'As described'];
 
 /** Map DB row to TourPackage for the app. */
-export function rowToTourPackage(row: ListingRow): TourPackage {
+export function rowToTourPackage(row: ListingRow, options?: { summary?: boolean }): TourPackage {
   return {
     id: row.id,
     title: row.title,
@@ -110,12 +110,19 @@ export function rowToTourPackage(row: ListingRow): TourPackage {
     validity: row.validity ?? 'Year round',
     image: listingHeroImageSrc(row.image) ?? '',
     subtitle: row.listing_subtitle?.trim() || undefined,
-    description: row.description,
+    description: row.description ?? '',
     highlights: Array.isArray(row.highlights) ? row.highlights : [],
-    itinerary: Array.isArray(row.itinerary) && row.itinerary.length > 0 ? row.itinerary : defaultItinerary,
+    itinerary:
+      options?.summary
+        ? Array.isArray(row.itinerary) ? row.itinerary : []
+        : Array.isArray(row.itinerary) && row.itinerary.length > 0
+          ? row.itinerary
+          : defaultItinerary,
     includes: Array.isArray(row.includes)
       ? persistableProgressiveSlots(row.includes.map(String), TOUR_INCLUDE_MAX)
-      : defaultIncludes,
+      : options?.summary
+        ? []
+        : defaultIncludes,
     excludes: Array.isArray(row.excludes)
       ? persistableProgressiveSlots(row.excludes.map(String), TOUR_EXCLUDE_MAX)
       : [],
@@ -465,7 +472,7 @@ export async function fetchAllListings(): Promise<TourPackage[]> {
     .eq('status', 'published')
     .order('created_at', { ascending: false });
   if (error) throw new Error(error.message);
-  return (data as ListingRow[]).map(rowToTourPackage);
+  return (data as ListingRow[]).map((row) => rowToTourPackage(row));
 }
 
 /** Short TTL + coalescing so Partner section hops do not re-hit listings N times. */
@@ -484,11 +491,13 @@ export async function fetchMyListings(supplierId: string): Promise<TourPackage[]
   return myListingsCache.get(ownerSupplierId, async () => {
     const { data, error } = await client
       .from('listings')
-      .select('*')
+      .select(
+        'id, supplier_id, title, destination, duration, style, start_location, end_location, price_starting_from, price_currency, category, tour_type, validity, image, city, region, country, tags, status, cancellation_policy, meeting_point, pickup_instructions, default_start_time, pickup_window_minutes_before_min, pickup_window_minutes_before_max, experience_start_style, dropoff_mode, dropoff_location, experience_language, experience_kind, listing_subtitle, listing_extras, created_at, updated_at, rating, reviews, is_popular, group_size, best_time, difficulty'
+      )
       .eq('supplier_id', ownerSupplierId)
       .order('created_at', { ascending: false });
     if (error) throw new Error(error.message);
-    const tours = (data as ListingRow[]).map(rowToTourPackage);
+    const tours = (data as ListingRow[]).map((row) => rowToTourPackage(row, { summary: true }));
     return mergeOwnedPrivateListingFields(tours);
   });
 }

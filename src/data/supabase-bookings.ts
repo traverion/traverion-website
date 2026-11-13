@@ -657,6 +657,8 @@ export type SupplierBookingScope = {
   toDate?: string;
   /** Bookings created at or after this ISO timestamp. ORed with the service window when both are set. */
   createdSince?: string;
+  /** With fromDate, toDate, and createdSince: keep created-at rows that are outside the service window. */
+  excludeServiceWindow?: boolean;
   listingId?: string;
   /** Exact booking id, still limited to this supplier's listings. */
   bookingId?: string;
@@ -699,6 +701,7 @@ function bookingScopeKey(ownerSupplierId: string, scope?: SupplierBookingScope):
     isoDateOnly(scope.fromDate) ?? '',
     isoDateOnly(scope.toDate) ?? '',
     isoTimestamp(scope.createdSince) ?? '',
+    scope.excludeServiceWindow ? 'out' : '',
     scope.listingId?.trim() ?? '',
     scope.bookingId?.trim() ?? '',
     safeBookingSearch(scope.search),
@@ -749,8 +752,12 @@ export async function fetchBookingsForSupplier(
     const search = safeBookingSearch(scope?.search).replace(/ /g, '%');
     const bookingId = scope?.bookingId?.trim() ?? '';
     const limit = scope?.limit != null ? Math.min(500, Math.max(1, Math.floor(scope.limit))) : null;
-    const windowParts = [...serviceWindowOr(from, to)];
-    if (since) windowParts.push(`created_at.gte."${since}"`);
+    const windowParts = scope?.excludeServiceWindow ? [] : [...serviceWindowOr(from, to)];
+    if (since && !scope?.excludeServiceWindow) windowParts.push(`created_at.gte."${since}"`);
+    const outsideWindow =
+      scope?.excludeServiceWindow && since && from && to
+        ? `booking_date.gt.${to},and(booking_date.lt.${from},or(check_out.is.null,check_out.lt.${from})),booking_date.is.null`
+        : '';
 
     let lastError: string | null = null;
     for (const columns of BOOKING_COLUMN_TIERS) {
@@ -760,6 +767,7 @@ export async function fetchBookingsForSupplier(
         .in('listing_id', ids)
         .order('created_at', { ascending: false });
       if (bookingId) query = query.eq('id', bookingId);
+      if (since && outsideWindow) query = query.gte('created_at', since).or(outsideWindow);
       if (windowParts.length > 0) query = query.or(windowParts.join(','));
       if (search) {
         const parts = [
@@ -778,6 +786,263 @@ export async function fetchBookingsForSupplier(
     }
     throw new Error(lastError ?? 'Could not load bookings');
   });
+}
+
+export type SupplierBookingDeskQuery = {
+  family?: '' | 'tour' | 'stay' | 'rental';
+  rentalListingIds?: string[];
+  stayListingIds?: string[];
+  optionId?: string;
+  ops?: 'all' | 'unpaid' | 'pickup' | 'cancel' | 'refund_due' | 'collected';
+  /** Open cancellation booking ids. Required when ops is cancel. */
+  cancelBookingIds?: string[];
+  /** Listing ids whose meeting + pickup copy is still too thin to operate. */
+  thinPickupListingIds?: string[];
+  search?: string;
+  /** Listing ids whose current title matches the search. */
+  searchListingIds?: string[];
+  fromDate?: string;
+  toDate?: string;
+  travel?: 'all' | 'yesterday' | 'today' | 'tomorrow' | 'upcoming' | 'past' | 'range';
+  today?: string;
+  listingId?: string;
+  offset?: number;
+  limit?: number;
+  /** Load the next page after this row. Stable when new bookings arrive at the top. */
+  cursor?: { createdAt: string; id: string };
+  /** Count rows strictly newer than this booking, using the same filters. */
+  newerThan?: { createdAt: string; id: string };
+};
+
+const DESK_PAGE_CAP = 200;
+const DESK_EXPORT_CAP = 20000;
+
+function uuidList(ids: string[] | undefined): string[] {
+  return [...new Set((ids ?? []).map((id) => id.trim()).filter((id) => /^[0-9a-f-]{36}$/i.test(id)))];
+}
+
+function paidStatusOr(): string {
+  return 'payment_status.ilike.paid,payment_status.ilike.complete,payment_status.ilike.succeeded';
+}
+
+/** PostgREST filters for one desk page. Excludes failed checkouts and keeps cancelled rows. */
+export function supplierDeskOrGroups(query: SupplierBookingDeskQuery): string[] {
+  const groups: string[] = ['payment_status.is.null,payment_status.not.ilike.failed'];
+  const from = isoDateOnly(query.fromDate);
+  const to = isoDateOnly(query.toDate);
+  const today = isoDateOnly(query.today);
+  const travel = query.travel ?? 'all';
+  const ops = query.ops ?? 'all';
+  const ignoreTravel = ops === 'unpaid' || ops === 'refund_due' || ops === 'cancel' || ops === 'collected';
+
+  if (!ignoreTravel && travel === 'today' && today) {
+    groups.push(`booking_date.eq.${today},and(booking_date.lte.${today},check_out.gt.${today})`);
+  } else if (!ignoreTravel && travel === 'yesterday' && today) {
+    const day = addDaysIso(today, -1);
+    groups.push(`booking_date.eq.${day},and(booking_date.lte.${day},check_out.gt.${day})`);
+  } else if (!ignoreTravel && travel === 'tomorrow' && today) {
+    const day = addDaysIso(today, 1);
+    groups.push(`booking_date.eq.${day},and(booking_date.lte.${day},check_out.gt.${day})`);
+  } else if (!ignoreTravel && travel === 'upcoming' && today) {
+    groups.push(`booking_date.gt.${today}`);
+  } else if (!ignoreTravel && travel === 'past' && today) {
+    groups.push(`and(booking_date.lt.${today},or(check_out.is.null,check_out.lte.${today}))`);
+  } else if (!ignoreTravel && (from || to)) {
+    groups.push(serviceWindowOr(from, to).join(','));
+  }
+
+  if (query.family === 'rental') {
+    const rentalIds = uuidList(query.rentalListingIds);
+    const parts = ['purchase_snapshot->>inventoryFamily.eq.rental'];
+    if (rentalIds.length) parts.push(`listing_id.in.(${rentalIds.join(',')})`);
+    groups.push(parts.join(','));
+  } else if (query.family === 'stay') {
+    const rentalIds = uuidList(query.rentalListingIds);
+    const stayIds = uuidList(query.stayListingIds);
+    const stayParts = ['check_out.not.is.null', 'nights.gte.1', 'purchase_snapshot->>checkOut.not.is.null'];
+    if (stayIds.length) stayParts.push(`listing_id.in.(${stayIds.join(',')})`);
+    const notRental = ['purchase_snapshot->>inventoryFamily.is.null', 'purchase_snapshot->>inventoryFamily.not.eq.rental'];
+    if (rentalIds.length) notRental.push(`listing_id.not.in.(${rentalIds.join(',')})`);
+    groups.push(`and(${notRental.join(',')},${stayParts.length ? `or(${stayParts.join(',')})` : 'id.not.is.null'})`);
+  } else if (query.family === 'tour') {
+    const rentalIds = uuidList(query.rentalListingIds);
+    const stayIds = uuidList(query.stayListingIds);
+    const excluded = [...rentalIds, ...stayIds];
+    const parts = [
+      'or(purchase_snapshot->>inventoryFamily.is.null,purchase_snapshot->>inventoryFamily.eq.tour)',
+      'check_out.is.null',
+      'or(nights.is.null,nights.lt.1)',
+      'purchase_snapshot->>checkOut.is.null',
+    ];
+    if (excluded.length) parts.push(`listing_id.not.in.(${excluded.join(',')})`);
+    groups.push(`and(${parts.join(',')})`);
+  }
+
+  const optionId = query.optionId?.trim() ?? '';
+  if (/^[0-9a-zA-Z_-]{1,80}$/.test(optionId)) {
+    groups.push(
+      `booking_option_id.eq.${optionId},purchase_snapshot->>optionId.eq.${optionId},purchase_snapshot->>variantId.eq.${optionId}`
+    );
+  }
+
+  if (ops === 'unpaid') {
+    groups.push('payment_status.ilike.pending');
+    groups.push('or(status.is.null,status.not.ilike.cancelled)');
+  } else if (ops === 'refund_due') {
+    groups.push('status.ilike.cancelled');
+    groups.push(paidStatusOr());
+    groups.push('or(refund_choice.is.null,refund_choice.not.ilike.no_refund)');
+    groups.push('or(dispute_status.is.null,dispute_status.not.in.(open,needs_response,under_review,lost))');
+  } else if (ops === 'collected') {
+    groups.push(paidStatusOr());
+    groups.push('amount_paid.gt.0');
+    groups.push('or(status.is.null,status.not.ilike.cancelled,and(status.ilike.cancelled,refund_choice.ilike.no_refund))');
+  } else if (ops === 'pickup') {
+    groups.push('or(status.is.null,status.not.ilike.cancelled)');
+    groups.push(paidStatusOr());
+    groups.push('pickup_time.is.null');
+    groups.push('check_out.is.null');
+    groups.push('or(nights.is.null,nights.lt.1)');
+    groups.push('or(purchase_snapshot->>inventoryFamily.is.null,purchase_snapshot->>inventoryFamily.eq.tour)');
+    const thin = uuidList(query.thinPickupListingIds);
+    const copy = [
+      'and(purchase_snapshot->>meetingPoint.is.null,purchase_snapshot->>pickupInstructions.is.null)',
+    ];
+    if (thin.length) copy.push(`listing_id.in.(${thin.join(',')})`);
+    groups.push(copy.join(','));
+    groups.push('or(special_requests.is.null,and(special_requests.not.ilike.*meeting_point:*,special_requests.not.ilike.*pickup_instructions:*))');
+  }
+
+  const search = safeBookingSearch(query.search).replace(/ /g, '%');
+  if (search) {
+    const parts = [
+      `guest_name.ilike."%${search}%"`,
+      `guest_email.ilike."%${search}%"`,
+      `public_reference.ilike."%${search}%"`,
+      `purchase_snapshot->>title.ilike."%${search}%"`,
+      `purchase_snapshot->>optionName.ilike."%${search}%"`,
+      `purchase_snapshot->>variantName.ilike."%${search}%"`,
+    ];
+    if (/^\d+$/.test(search)) parts.push(`booking_number.eq.${search}`);
+    const searchListings = uuidList(query.searchListingIds);
+    if (searchListings.length) parts.push(`listing_id.in.(${searchListings.join(',')})`);
+    groups.push(parts.join(','));
+  }
+
+  const cursor = query.cursor;
+  if (cursor && isoTimestamp(cursor.createdAt) && /^[0-9a-f-]{36}$/i.test(cursor.id)) {
+    const ts = isoTimestamp(cursor.createdAt);
+    groups.push(`created_at.lt."${ts}",and(created_at.eq."${ts}",id.lt.${cursor.id})`);
+  }
+  const newer = query.newerThan;
+  if (newer && isoTimestamp(newer.createdAt) && /^[0-9a-f-]{36}$/i.test(newer.id)) {
+    const ts = isoTimestamp(newer.createdAt);
+    groups.push(`created_at.gt."${ts}",and(created_at.eq."${ts}",id.gt.${newer.id})`);
+  }
+  return groups.filter((group) => group.length > 0);
+}
+
+function addDaysIso(ymd: string, days: number): string {
+  const [y, m, d] = ymd.split('-').map(Number);
+  const date = new Date(Date.UTC(y, (m ?? 1) - 1, d ?? 1));
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
+async function supplierListingIds(client: NonNullable<typeof supabase>, supplierId: string): Promise<string[]> {
+  const ownerSupplierId = await resolveSupplierId(supplierId);
+  const { data, error } = await client.from('listings').select('id').eq('supplier_id', ownerSupplierId);
+  if (error) throw new Error(error.message);
+  return (data ?? []).map((row: { id: string }) => row.id);
+}
+
+function applyDeskFilters(query: DeskFilterQuery, desk: SupplierBookingDeskQuery, listingIds: string[]): DeskFilterQuery {
+  let next = query.in('listing_id', listingIds);
+  if (desk.ops === 'cancel') {
+    const ids = uuidList(desk.cancelBookingIds);
+    next = ids.length ? next.in('id', ids) : next.in('id', ['00000000-0000-0000-0000-000000000000']);
+  }
+  for (const group of supplierDeskOrGroups(desk)) next = next.or(group);
+  return next;
+}
+
+type DeskFilterQuery = {
+  in: (column: string, values: string[]) => DeskFilterQuery;
+  or: (filters: string) => DeskFilterQuery;
+  order: (column: string, options: { ascending: boolean }) => DeskFilterQuery;
+  limit: (count: number) => DeskFilterQuery;
+  range: (from: number, to: number) => PromiseLike<{ data: BookingRow[] | null; error: { message: string } | null; count: number | null }>;
+  then: PromiseLike<{ data: BookingRow[] | null; error: { message: string } | null; count: number | null }>['then'];
+};
+
+/** One filtered page plus the total matching the same filters. Failed checkouts stay out; cancelled rows stay in. */
+export async function fetchSupplierBookingDeskPage(
+  supplierId: string,
+  desk: SupplierBookingDeskQuery
+): Promise<{ rows: BookingRow[]; total: number }> {
+  const client = supabase;
+  if (!client) return { rows: [], total: 0 };
+  let listingIds = await supplierListingIds(client, supplierId);
+  const listingId = desk.listingId?.trim() ?? '';
+  if (listingId) listingIds = listingIds.filter((id) => id === listingId);
+  if (listingIds.length === 0) return { rows: [], total: 0 };
+  if (desk.ops === 'cancel' && uuidList(desk.cancelBookingIds).length === 0) return { rows: [], total: 0 };
+
+  const limit = Math.min(DESK_PAGE_CAP, Math.max(1, Math.floor(desk.limit ?? 20)));
+  const offset = desk.cursor || desk.newerThan ? 0 : Math.max(0, Math.floor(desk.offset ?? 0));
+  let lastError: string | null = null;
+  for (const columns of BOOKING_COLUMN_TIERS) {
+    const counted = applyDeskFilters(
+      client.from('bookings').select(desk.newerThan ? 'id' : columns, { count: 'exact', head: desk.newerThan ? true : false }) as unknown as DeskFilterQuery,
+      desk,
+      listingIds
+    )
+      .order('created_at', { ascending: false })
+      .order('id', { ascending: false });
+    const limited = desk.newerThan || desk.cursor ? counted.limit(desk.newerThan ? 1 : limit) : counted;
+    const result = desk.newerThan || desk.cursor
+      ? await limited
+      : await limited.range(offset, offset + limit - 1);
+    if (!result.error) {
+      return {
+        rows: desk.newerThan ? [] : ((result.data ?? []) as BookingRow[]),
+        total: result.count ?? 0,
+      };
+    }
+    lastError = result.error.message;
+    if (!isLikelyMissingColumnError(result.error.message)) break;
+  }
+  throw new Error(lastError ?? 'Could not load bookings');
+}
+
+/** Every row matching the desk filters. Refuses a partial file when the set is too large. */
+export async function fetchAllSupplierBookingDeskRows(
+  supplierId: string,
+  desk: SupplierBookingDeskQuery
+): Promise<BookingRow[]> {
+  const rows: BookingRow[] = [];
+  let cursor: SupplierBookingDeskQuery['cursor'];
+  for (;;) {
+    const page = await fetchSupplierBookingDeskPage(supplierId, {
+      ...desk,
+      cursor,
+      offset: 0,
+      limit: DESK_PAGE_CAP,
+      newerThan: undefined,
+    });
+    rows.push(...page.rows);
+    if (page.total > 0 && rows.length >= page.total) return rows;
+    if (page.rows.length < DESK_PAGE_CAP) return rows;
+    if (rows.length >= DESK_EXPORT_CAP) {
+      throw new Error('Too many bookings to export at once. Narrow the filters and try again.');
+    }
+    const last = page.rows[page.rows.length - 1];
+    if (!last?.created_at || !last.id) return rows;
+    if (cursor?.id === last.id && cursor.createdAt === last.created_at) {
+      throw new Error('Too many bookings to export at once. Narrow the filters and try again.');
+    }
+    cursor = { createdAt: last.created_at, id: last.id };
+  }
 }
 
 /** Update booking status (supplier; RLS must allow update for own listing's bookings). */

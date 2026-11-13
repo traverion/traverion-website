@@ -324,6 +324,14 @@ export async function fetchSupplierPayoutPeriodItems(periodId: string): Promise<
   return (data ?? []) as SupplierPayoutPeriodItemRow[];
 }
 
+/** Grouped All time analytics. Does not fall back to downloading every booking. */
+export async function fetchPartnerAnalyticsDaily(): Promise<import('../lib/partner-analytics').PartnerAnalyticsDailyRow[]> {
+  if (!supabase) return [];
+  const { data, error } = await supabase.rpc('partner_analytics_daily');
+  if (error) throw new Error(error.message);
+  return (data ?? []) as import('../lib/partner-analytics').PartnerAnalyticsDailyRow[];
+}
+
 export function earningItemsMajorByStatus(
   items: SupplierEarningItemRow[],
   currency: string

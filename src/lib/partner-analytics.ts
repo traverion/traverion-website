@@ -706,3 +706,165 @@ export function completedServiceCount(
     return end <= today;
   }).length;
 }
+
+export type PartnerAnalyticsDailyRow = {
+  service_day: string | null;
+  created_day: string | null;
+  listing_id: string;
+  currency: string;
+  booking_currency: string;
+  bucket: string;
+  booking_count: number;
+  guest_count: number;
+  gross_minor: number;
+  commission_minor: number;
+  supplier_minor: number;
+  legacy_gross: number;
+  cancel_count: number;
+  supplier_cancel_count: number;
+};
+
+function dailyAttributionDay(row: PartnerAnalyticsDailyRow, basis: AnalyticsDateBasis): string | null {
+  const raw = (basis === 'service' ? row.service_day : row.created_day) ?? '';
+  const day = String(raw).slice(0, 10);
+  return /^\d{4}-\d{2}-\d{2}$/.test(day) ? day : null;
+}
+
+/** Roll All time grouped rows into the same money, listing, and series shapes as per-booking analytics. */
+export function summarizeAnalyticsDaily(input: {
+  rows: PartnerAnalyticsDailyRow[];
+  listingsById: Record<string, AnalyticsListingMeta>;
+  basis: AnalyticsDateBasis;
+  productType: AnalyticsProductType;
+  listingId: string | null;
+  rangeKey?: AnalyticsRangeKey | null;
+}): {
+  money: AnalyticsMoneySplit[];
+  listingRows: AnalyticsListingRow[];
+  series: AnalyticsSeriesPoint[];
+  cancelStats: { cancelled: number; supplierCancelled: number; customerCancelled: number; rate: number | null };
+  busiest: { day: string; count: number } | null;
+  collectedCount: number;
+} {
+  const scoped = input.rows.filter((row) => {
+    if (input.listingId && row.listing_id !== input.listingId) return false;
+    if (input.productType === 'all') return true;
+    const family = input.listingsById[row.listing_id]?.family;
+    return family === input.productType;
+  });
+  const moneyMap = new Map<string, AnalyticsMoneySplit>();
+  type Acc = Omit<AnalyticsListingRow, 'shareOfNet' | 'cancellationRate'>;
+  const listingMap = new Map<string, Acc>();
+  let collectedCount = 0;
+  let cancelled = 0;
+  let supplierCancelled = 0;
+  const dayCounts = new Map<string, number>();
+
+  for (const row of scoped) {
+    cancelled += Number(row.cancel_count) || 0;
+    supplierCancelled += Number(row.supplier_cancel_count) || 0;
+    if (row.bucket !== 'collected') continue;
+    const count = Number(row.booking_count) || 0;
+    collectedCount += count;
+    const currency = normalizeCurrency(row.currency);
+    const gross = fromMinorUnits(Number(row.gross_minor) || 0) + (Number(row.legacy_gross) || 0);
+    const commission = fromMinorUnits(Number(row.commission_minor) || 0);
+    const net = fromMinorUnits(Number(row.supplier_minor) || 0) + (Number(row.legacy_gross) || 0);
+    const guests = Number(row.guest_count) || 0;
+    const money = moneyMap.get(currency) ?? { currency, gross: 0, commission: 0, net: 0, bookings: 0, guests: 0 };
+    money.gross += gross;
+    money.commission += commission;
+    money.net += net;
+    money.bookings += count;
+    money.guests += guests;
+    moneyMap.set(currency, money);
+    const meta = input.listingsById[row.listing_id];
+    const key = `${row.listing_id}::${currency}`;
+    const listing = listingMap.get(key) ?? {
+      listingId: row.listing_id,
+      title: meta?.title || 'Removed listing',
+      productType: listingFamilyLabel(meta),
+      currency,
+      bookings: 0,
+      guests: 0,
+      gross: 0,
+      commission: 0,
+      net: 0,
+      cancellations: 0,
+    };
+    listing.bookings += count;
+    listing.guests += guests;
+    listing.gross += gross;
+    listing.commission += commission;
+    listing.net += net;
+    listingMap.set(key, listing);
+    const day = dailyAttributionDay(row, input.basis);
+    if (day) dayCounts.set(day, (dayCounts.get(day) ?? 0) + count);
+  }
+
+  for (const row of scoped) {
+    const count = Number(row.cancel_count) || 0;
+    if (count <= 0) continue;
+    const key = `${row.listing_id}::${normalizeCurrency(row.booking_currency)}`;
+    const listing = listingMap.get(key);
+    if (listing) listing.cancellations += count;
+  }
+
+  const money = [...moneyMap.values()].sort((a, b) => b.net - a.net);
+  const primary = money[0]?.currency ?? null;
+  const netByCurrency = new Map<string, number>();
+  for (const row of listingMap.values()) netByCurrency.set(row.currency, (netByCurrency.get(row.currency) ?? 0) + row.net);
+  const listingRows = [...listingMap.values()]
+    .map((row) => {
+      const total = netByCurrency.get(row.currency) ?? 0;
+      const denom = row.bookings + row.cancellations;
+      return {
+        ...row,
+        shareOfNet: total > 0 ? row.net / total : 0,
+        cancellationRate: denom > 0 ? row.cancellations / denom : null,
+      };
+    })
+    .sort((a, b) => b.net - a.net);
+
+  const buckets = new Map<string, AnalyticsSeriesPoint>();
+  const days = [...dayCounts.keys()].sort();
+  const span = days.length > 1 ? daysBetweenInclusive(days[0], days[days.length - 1]) : 1;
+  const grain = chooseChartGrain(span, input.rangeKey ?? 'all');
+  if (primary) {
+    for (const row of scoped) {
+      if (row.bucket !== 'collected' || normalizeCurrency(row.currency) !== primary) continue;
+      const day = dailyAttributionDay(row, input.basis);
+      if (!day) continue;
+      const { key, label } = chartBucketForDay(day, grain);
+      const point = buckets.get(key) ?? { key, label, gross: 0, commission: 0, net: 0, bookings: 0 };
+      point.gross += fromMinorUnits(Number(row.gross_minor) || 0) + (Number(row.legacy_gross) || 0);
+      point.commission += fromMinorUnits(Number(row.commission_minor) || 0);
+      point.net += fromMinorUnits(Number(row.supplier_minor) || 0) + (Number(row.legacy_gross) || 0);
+      point.bookings += Number(row.booking_count) || 0;
+      buckets.set(key, point);
+    }
+  }
+  let busiest: { day: string; count: number } | null = null;
+  for (const [day, count] of dayCounts) {
+    if (!busiest || count > busiest.count) busiest = { day, count };
+  }
+  const cancelledOnly = scoped
+    .filter((row) => row.bucket !== 'collected')
+    .reduce((sum, row) => sum + (Number(row.booking_count) || 0), 0);
+  const denom = collectedCount + cancelledOnly + scoped
+    .filter((row) => row.bucket === 'collected')
+    .reduce((sum, row) => sum + (Number(row.cancel_count) || 0), 0);
+  return {
+    money,
+    listingRows,
+    series: [...buckets.values()].sort((a, b) => a.key.localeCompare(b.key)),
+    cancelStats: {
+      cancelled,
+      supplierCancelled,
+      customerCancelled: Math.max(0, cancelled - supplierCancelled),
+      rate: denom > 0 ? cancelled / denom : null,
+    },
+    busiest,
+    collectedCount,
+  };
+}

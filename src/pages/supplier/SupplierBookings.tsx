@@ -25,6 +25,7 @@ import { openHostCancelRequestVisible } from '../../lib/host-cancel-request-visi
 import {
   attestTourServiceFulfillment,
   fetchCancellationRequestsForBookings,
+  fetchOpenCancellationBookingIds,
   notifyTravelerCancellationRequest,
   requestSupplierCancellationBatch,
   type CancellationRequestRow,
@@ -45,7 +46,10 @@ import {
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import {
   executeBookingRefund,
+  fetchAllSupplierBookingDeskRows,
   fetchBookingsForSupplier,
+  fetchSupplierBookingDeskPage,
+  type SupplierBookingDeskQuery,
   type BookingRow,
   updateBookingStatus,
 } from '../../data/supabase-bookings';
@@ -71,7 +75,6 @@ import {
 } from '../../lib/partner-booking-desk-path';
 import { partnerInboxReturnMatches } from '../../lib/partner-page-transition';
 import {
-  takePartnerBookingsDeskPrefetch,
   takePrefetchedPartnerBookingCommercial,
 } from '../../lib/partner-bookings-desk-prefetch';
 import {
@@ -106,7 +109,6 @@ import {
 import { rentalBookingSimpleStatusLabel } from '../../lib/rental-booking-status';
 import { parseListingExtras, materializedBookingOptions } from '../../types/listingExtras';
 import {
-  applyPartnerBookingsDesk,
   partnerBookingLifecycleLabel,
   partnerBookingListBadgeLabel,
   type PartnerBookingsOps,
@@ -454,8 +456,8 @@ export default function SupplierBookings({
   const isUnifiedDesk = !inventoryFamily;
 
   const [bookingsListPage, setBookingsListPage] = useState(1);
-  const [bookingFetchLimit, setBookingFetchLimit] = useState(80);
-  const [bookingsTruncated, setBookingsTruncated] = useState(false);
+  const [deskTotal, setDeskTotal] = useState(0);
+  const [exporting, setExporting] = useState(false);
   const [highlightBookingId, setHighlightBookingId] = useState<string | null>(() => {
     if (typeof window === 'undefined') return null;
     return readPartnerBookingIdFromLocation(window.location.pathname, window.location.search);
@@ -471,6 +473,42 @@ export default function SupplierBookings({
   const bookingsHubUserIdRef = useRef<string | null>(null);
   const bookingsLenRef = useRef(0);
 
+  const deskQuery = useCallback(
+    (listings: TourPackage[], cancelIds: string[]): SupplierBookingDeskQuery => {
+      const rentalListingIds: string[] = [];
+      const stayListingIds: string[] = [];
+      const thinPickupListingIds: string[] = [];
+      const searchListingIds: string[] = [];
+      const q = filterQuery.trim().toLowerCase();
+      for (const listing of listings) {
+        const family = inventoryFamilyFromListing(listing);
+        if (family === 'rental') rentalListingIds.push(listing.id);
+        if (family === 'stay') stayListingIds.push(listing.id);
+        const copy = `${listing.meetingPoint ?? ''} ${listing.pickupInstructions ?? ''}`.trim();
+        if (copy.length < 20) thinPickupListingIds.push(listing.id);
+        if (q && listing.title.toLowerCase().includes(q)) searchListingIds.push(listing.id);
+      }
+      const family = inventoryFamily ?? (categoryFilter || undefined);
+      return {
+        family,
+        rentalListingIds,
+        stayListingIds,
+        thinPickupListingIds,
+        searchListingIds,
+        optionId: filterOptionId || undefined,
+        ops: opsFilter,
+        cancelBookingIds: cancelIds,
+        search: filterQuery,
+        fromDate: filterDateFrom || undefined,
+        toDate: filterDateTo || undefined,
+        travel: view,
+        today: localYmd(new Date()),
+        listingId: filterListingId || undefined,
+      };
+    },
+    [categoryFilter, filterDateFrom, filterDateTo, filterListingId, filterOptionId, filterQuery, inventoryFamily, opsFilter, view]
+  );
+
   const load = useCallback(async () => {
     const uid = user?.id;
     if (!isSupabase || !uid) {
@@ -482,36 +520,51 @@ export default function SupplierBookings({
     setError(null);
     setCancelRequestsError(null);
     try {
-      const scoped =
-        Boolean(filterDateFrom || filterDateTo || filterListingId || filterQuery.trim()) ||
-        bookingFetchLimit !== 80;
-      const pref = scoped ? null : takePartnerBookingsDeskPrefetch(uid);
-      const { bookings: bookingsList, listings: myListings } = pref
-        ? await pref
-        : await Promise.all([
-            fetchBookingsForSupplier(uid, {
-              fromDate: filterDateFrom || undefined,
-              toDate: filterDateTo || undefined,
-              listingId: filterListingId || undefined,
-              search: filterQuery.trim() || undefined,
-              limit: bookingFetchLimit,
-            }),
-            fetchMyListings(uid),
-          ]).then(([bookings, listings]) => ({ bookings, listings }));
-      let rows = bookingsList;
-      if (highlightBookingId && !rows.some((b) => b.id === highlightBookingId)) {
-        const extra = await fetchBookingsForSupplier(uid, { bookingId: highlightBookingId, limit: 1 });
-        if (extra[0]) rows = [extra[0], ...rows];
-      }
+      const myListings = await fetchMyListings(uid);
+      const cancelIds = opsFilter === 'cancel' ? await fetchOpenCancellationBookingIds() : [];
+      const query = deskQuery(myListings, cancelIds);
+      const page = await fetchSupplierBookingDeskPage(uid, {
+        ...query,
+        offset: (bookingsListPage - 1) * BOOKINGS_PAGE_SIZE,
+        limit: BOOKINGS_PAGE_SIZE,
+      });
       if (gen !== loadGenRef.current) return;
       const meta: Record<string, ListingBookingMeta> = {};
       myListings.forEach((listing) => {
         meta[listing.id] = buildListingMeta(listing);
       });
-      const live = rows.filter(partnerBookingIsLiveTrip);
-      bookingsLenRef.current = live.length;
-      setBookingsTruncated(rows.length >= bookingFetchLimit);
-      setBookings(live);
+      let rows = page.rows.filter(partnerBookingIsLiveTrip);
+      if (
+        highlightBookingId &&
+        !rows.some((b) => b.id === highlightBookingId) &&
+        !filterDateFrom &&
+        !filterDateTo &&
+        !filterListingId &&
+        !filterQuery.trim() &&
+        !filterOptionId &&
+        opsFilter === 'all' &&
+        view === 'all' &&
+        !categoryFilter
+      ) {
+        const target = await fetchBookingsForSupplier(uid, { bookingId: highlightBookingId, limit: 1 });
+        const hit = target[0];
+        if (hit?.created_at) {
+          const newer = await fetchSupplierBookingDeskPage(uid, {
+            ...query,
+            newerThan: { createdAt: hit.created_at, id: hit.id },
+            limit: 1,
+          });
+          const targetPage = Math.floor(newer.total / BOOKINGS_PAGE_SIZE) + 1;
+          if (targetPage !== bookingsListPage) {
+            setBookingsListPage(targetPage);
+            return;
+          }
+          rows = [hit, ...rows.filter((b) => b.id !== hit.id)];
+        }
+      }
+      bookingsLenRef.current = rows.length;
+      setDeskTotal(page.total);
+      setBookings(rows);
       setListingMeta(meta);
       try {
         const reqs = await fetchCancellationRequestsForBookings(rows.map((b) => b.id));
@@ -540,8 +593,12 @@ export default function SupplierBookings({
     filterDateTo,
     filterListingId,
     filterQuery,
-    bookingFetchLimit,
     highlightBookingId,
+    bookingsListPage,
+    deskQuery,
+    opsFilter,
+    view,
+    categoryFilter,
   ]);
 
   // Phase 1384 + layout: clear prior partner bookings before paint on account switch (useEffect ran one frame too late).
@@ -816,91 +873,10 @@ export default function SupplierBookings({
     window.history.replaceState({}, '', `${url.pathname}${url.search}`);
   }, []);
 
-  const filteredBookings = useMemo(() => {
-    const nowMs = Date.now();
-    return applyPartnerBookingsDesk(bookings.filter(partnerBookingIsLiveTrip), {
-      search: filterQuery,
-      travel: view === 'range' || filterDateFrom || filterDateTo ? (view === 'all' && (filterDateFrom || filterDateTo) ? 'range' : view) : view,
-      travelFrom: filterDateFrom,
-      travelTo: filterDateTo,
-      purchaseFrom: '',
-      purchaseTo: '',
-      status: '',
-      payment: '',
-      listingId: filterListingId,
-      optionId: filterOptionId,
-      ops: opsFilter,
-      sort: 'newest',
-      inventoryFamily: inventoryFamily ?? (categoryFilter || undefined),
-      highlightBookingId,
-    }, {
-      nowMs,
-      isStay: (b) =>
-        listingMeta[b.listing_id]?.family !== 'rental' &&
-        !bookingIsRental(b) &&
-        (listingMeta[b.listing_id]?.family === 'stay' || bookingIsStayNight(b)),
-      isRental: (b) => listingMeta[b.listing_id]?.family === 'rental' || bookingIsRental(b),
-      pickupAttention: (b) => {
-        if (opsFilter === 'pickup') {
-          // Rentals never enter tour pickup queues.
-          if (bookingIsRental(b) || listingMeta[b.listing_id]?.family === 'rental') return false;
-          const meta = listingMeta[b.listing_id];
-          // Phase 1751: pickup queue must honor note overrides (1742 Meet display parity).
-          const copy = resolvePartnerPickupCopy({
-            purchaseSnapshot: b.purchase_snapshot,
-            bookingOptionId: b.booking_option_id,
-            specialRequests: b.special_requests,
-            listingMeetingPoint: meta?.meetingPoint,
-            listingPickupInstructions: meta?.pickupInstructions,
-            bookingOptions: isPurchaseSnapshot(b.purchase_snapshot) ? null : meta?.bookingOptions,
-          });
-          return partnerBookingHasPickupAttention(
-            b,
-            copy.meetingPoint,
-            copy.pickupInstructions,
-            isPurchaseSnapshot(b.purchase_snapshot) ? null : meta?.bookingOptions
-          );
-        }
-        return false;
-      },
-      openCancel: (b) =>
-        openHostCancelRequestVisible({
-          bookingStatus: b.status,
-          requestStatus: openCancels[b.id]?.status,
-        }),
-      title: (b) =>
-        displayListingTitleFromPurchase(b.purchase_snapshot, listingMeta[b.listing_id]?.title, ''),
-      optionLabel: (b) => {
-        const meta = listingMeta[b.listing_id];
-        const liveOption =
-          b.booking_option_id && meta?.bookingOptions?.length
-            ? meta.bookingOptions.find((o) => o.id === b.booking_option_id)?.name?.trim() || ''
-            : '';
-        const purchased = displayOptionLabelFromPurchase(b.purchase_snapshot, liveOption);
-        if (purchased) return purchased;
-        const rentalSnap = parseRentalPurchaseSnapshot(b.purchase_snapshot);
-        return rentalSnap?.variantName?.trim() || '';
-      },
-      optionId: (b) => {
-        const rentalSnap = parseRentalPurchaseSnapshot(b.purchase_snapshot);
-        if (rentalSnap?.variantId) return rentalSnap.variantId;
-        if (b.booking_option_id) return b.booking_option_id;
-        if (isPurchaseSnapshot(b.purchase_snapshot) && b.purchase_snapshot.optionId) {
-          return b.purchase_snapshot.optionId;
-        }
-        return '';
-      },
-      guestPhone: (b) => guestPhoneFromNotes(b.special_requests) || '',
-      startHm: (b) => (b.start_time ? pgTimeToHm(b.start_time) ?? '' : ''),
-    });
-  }, [bookings, filterDateFrom, filterDateTo, filterListingId, filterOptionId, filterQuery, listingMeta, view, opsFilter, openCancels, inventoryFamily, categoryFilter, highlightBookingId]);
-
-  const totalPages = Math.max(1, Math.ceil(filteredBookings.length / BOOKINGS_PAGE_SIZE));
+  const filteredBookings = bookings;
+  const totalPages = Math.max(1, Math.ceil(deskTotal / BOOKINGS_PAGE_SIZE));
   const safePage = Math.min(Math.max(bookingsListPage, 1), totalPages);
-  const paginatedBookings = useMemo(() => {
-    const start = (safePage - 1) * BOOKINGS_PAGE_SIZE;
-    return filteredBookings.slice(start, start + BOOKINGS_PAGE_SIZE);
-  }, [filteredBookings, safePage]);
+  const paginatedBookings = filteredBookings;
   const paginationItems = useMemo(() => bookingPaginationRange(totalPages, safePage), [safePage, totalPages]);
 
   useEffect(() => {
@@ -912,11 +888,8 @@ export default function SupplierBookings({
   }, [view, filterListingId, filterOptionId, filterDateFrom, filterDateTo, filterQuery, opsFilter, categoryFilter]);
 
   useEffect(() => {
-    if (!highlightBookingId) return;
-    const index = filteredBookings.findIndex((b) => b.id === highlightBookingId);
-    if (index >= 0) {
-      const targetPage = Math.floor(index / BOOKINGS_PAGE_SIZE) + 1;
-      setBookingsListPage(targetPage);
+    if (!highlightBookingId || loading) return;
+    if (filteredBookings.some((booking) => booking.id === highlightBookingId)) {
       requestAnimationFrame(() => {
         document.getElementById(`supplier-booking-row-${highlightBookingId}`)?.scrollIntoView({
           behavior: 'smooth',
@@ -925,6 +898,17 @@ export default function SupplierBookings({
       });
       return;
     }
+    const filtersActive = Boolean(
+      view !== 'all' ||
+      opsFilter !== 'all' ||
+      filterListingId ||
+      filterOptionId ||
+      filterDateFrom ||
+      filterDateTo ||
+      filterQuery ||
+      categoryFilter
+    );
+    if (!filtersActive) return;
     // Deep-link must surface the booking even when an ops chip (Unpaid / Pickup / …) is active.
     setOpsFilter('all');
     setView('all');
@@ -935,7 +919,19 @@ export default function SupplierBookings({
     const url = new URL(window.location.href);
     url.searchParams.delete('ops');
     window.history.replaceState({}, '', `${url.pathname}${url.search}`);
-  }, [filteredBookings, highlightBookingId]);
+  }, [
+    filteredBookings,
+    highlightBookingId,
+    loading,
+    view,
+    opsFilter,
+    filterListingId,
+    filterOptionId,
+    filterDateFrom,
+    filterDateTo,
+    filterQuery,
+    categoryFilter,
+  ]);
 
   const handleStatusChange = useCallback(
     async (
@@ -1282,10 +1278,23 @@ export default function SupplierBookings({
               <button
                 type="button"
                 className="rounded-lg bg-[#073B83] px-3 py-2 text-sm font-medium text-white"
-                onClick={() => openCancellationWorkflow(
-                  filteredBookings,
-                  filteredBookings.filter((booking) => selectedIds.has(booking.id)).map((booking) => booking.id)
-                )}
+                onClick={() => {
+                  if (!user?.id) return;
+                  const uid = user.id;
+                  void (async () => {
+                    try {
+                      const listings = await fetchMyListings(uid);
+                      const cancelIds = opsFilter === 'cancel' ? await fetchOpenCancellationBookingIds() : [];
+                      const rows = await fetchAllSupplierBookingDeskRows(uid, deskQuery(listings, cancelIds));
+                      openCancellationWorkflow(
+                        rows,
+                        rows.filter((booking) => selectedIds.has(booking.id)).map((booking) => booking.id)
+                      );
+                    } catch (cancelError) {
+                      setError(userFacingError(cancelError, USER_ERROR.bookings));
+                    }
+                  })();
+                }}
               >
                 Cancel bookings
               </button>
@@ -1327,33 +1336,47 @@ export default function SupplierBookings({
               type="button"
               // Phase 1763/1768: guest-PII export for editors + finance (+ audit insert).
               onClick={() => {
-                if (!canExportBookingsCsv || !user?.id) return;
+                if (!canExportBookingsCsv || !user?.id || exporting) return;
+                const uid = user.id;
                 void (async () => {
-                  const audited = await downloadBookingsCsv(filteredBookings, listingMeta, {
-                    supplierId: user.id,
-                    actorId: user.id,
-                    // Phase 1783: record the exact filter slice that produced guest-PII rows.
-                    dateFrom: filterDateFrom || undefined,
-                    dateTo: filterDateTo || undefined,
-                    filtersSnapshot: {
-                      surface: 'bookings',
-                      view,
-                      opsFilter,
-                      listingId: filterListingId || null,
-                      optionId: filterOptionId || null,
-                      query: filterQuery.trim() || null,
-                      category: categoryFilter || null,
-                      inventoryFamily: inventoryFamily ?? null,
-                      rowCount: filteredBookings.length,
-                    },
-                  });
-                  // Phase 1791: download still succeeded — surface audit miss.
-                  if (!audited) {
-                    setError('Export downloaded, but the audit log failed. Try again or contact support.');
+                  setExporting(true);
+                  try {
+                    const listings = await fetchMyListings(uid);
+                    const cancelIds = opsFilter === 'cancel' ? await fetchOpenCancellationBookingIds() : [];
+                    const rows = await fetchAllSupplierBookingDeskRows(uid, deskQuery(listings, cancelIds));
+                    const filteredExport = Boolean(
+                      filterDateFrom || filterDateTo || filterListingId || filterQuery.trim() || filterOptionId ||
+                      opsFilter !== 'all' || categoryFilter || view !== 'all' || inventoryFamily
+                    );
+                    const audited = await downloadBookingsCsv(rows, listingMeta, {
+                      supplierId: uid,
+                      actorId: uid,
+                      dateFrom: filterDateFrom || undefined,
+                      dateTo: filterDateTo || undefined,
+                      filtersSnapshot: {
+                        surface: 'bookings',
+                        scope: filteredExport ? 'filtered' : 'all',
+                        view,
+                        opsFilter,
+                        listingId: filterListingId || null,
+                        optionId: filterOptionId || null,
+                        query: filterQuery.trim() || null,
+                        category: categoryFilter || null,
+                        inventoryFamily: inventoryFamily ?? null,
+                        rowCount: rows.length,
+                      },
+                    });
+                    if (!audited) {
+                      setError('Export downloaded, but the audit log failed. Try again or contact support.');
+                    }
+                  } catch (exportError) {
+                    setError(userFacingError(exportError, USER_ERROR.bookings));
+                  } finally {
+                    setExporting(false);
                   }
                 })();
               }}
-              disabled={!canExportBookingsCsv || filteredBookings.length === 0}
+              disabled={!canExportBookingsCsv || exporting || deskTotal === 0}
               className="tv-btn-ghost disabled:opacity-50"
               title={
                 !canExportBookingsCsv
@@ -1362,7 +1385,9 @@ export default function SupplierBookings({
               }
             >
               <Download className="h-4 w-4" aria-hidden />
-              Export
+              {filterDateFrom || filterDateTo || filterListingId || filterQuery.trim() || filterOptionId || opsFilter !== 'all' || categoryFilter || view !== 'all'
+                ? 'Export filtered bookings'
+                : 'Export all bookings'}
             </button>
           </div>
           ) : undefined
@@ -2081,19 +2106,24 @@ export default function SupplierBookings({
             aria-label="Bookings pages"
           >
             <p className="text-[13px] text-ink-muted">
-              <span className="font-medium tabular-nums text-ink">
-                {(safePage - 1) * BOOKINGS_PAGE_SIZE + 1}–{(safePage - 1) * BOOKINGS_PAGE_SIZE + paginatedBookings.length}
-              </span>{' '}
-              of {filteredBookings.length}
-              {bookingsTruncated ? ' loaded' : ''}
+              {deskTotal === 0 ? (
+                '0 bookings'
+              ) : (
+                <>
+                  <span className="font-medium tabular-nums text-ink">
+                    {(safePage - 1) * BOOKINGS_PAGE_SIZE + 1}–{(safePage - 1) * BOOKINGS_PAGE_SIZE + paginatedBookings.length}
+                  </span>{' '}
+                  of {deskTotal}
+                </>
+              )}
             </p>
-            {bookingsTruncated && bookingFetchLimit < 500 ? (
+            {safePage < totalPages ? (
               <button
                 type="button"
                 className="tv-btn-ghost min-h-[40px]"
-                onClick={() => setBookingFetchLimit((n) => Math.min(500, n + 80))}
+                onClick={() => setBookingsListPage((p) => p + 1)}
               >
-                Load more bookings
+                Load more
               </button>
             ) : null}
             {totalPages > 1 ? (
