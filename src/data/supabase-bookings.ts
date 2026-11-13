@@ -6,6 +6,7 @@ import { publicSiteBaseUrl } from '../lib/publicSiteUrl';
 import { supplierPortalPublicBaseUrl } from '../lib/partnerHost';
 import { notifySupplierEvent } from './supabase-supplier-messaging';
 import { postBookingMessage } from './supabase-booking-ops';
+import { invalidatePublishedTourOccupancyCache } from './supabase-availability';
 import { resolveSupplierId } from './supabase-supplier-team';
 import { hmToPgTime, pgTimeToHm, fetchListingSupplierMetaForParty } from './supabase-listings';
 import { createInflightCache } from '../lib/inflight-dedupe';
@@ -649,39 +650,128 @@ export function invalidateSupplierBookingsCache(ownerSupplierId?: string): void 
   supplierBookingsCache.invalidate(ownerSupplierId);
 }
 
-/** Fetch all bookings for a supplier's listings (RLS allows select for own listings). Throws on Supabase error.
- * Phase 1140: resolve team JWT → owner supplier_id before listing filter. */
-export async function fetchBookingsForSupplier(supplierId: string): Promise<BookingRow[]> {
+/** Bounded partner booking read. Omit the scope to keep the full supplier list (Income). */
+export type SupplierBookingScope = {
+  /** Inclusive service-date window. Also includes stays that overlap it. */
+  fromDate?: string;
+  toDate?: string;
+  /** Bookings created at or after this ISO timestamp. ORed with the service window when both are set. */
+  createdSince?: string;
+  listingId?: string;
+  /** Exact booking id, still limited to this supplier's listings. */
+  bookingId?: string;
+  /** Guest name, email, reference, or numeric booking number. */
+  search?: string;
+  limit?: number;
+};
+
+const BOOKING_COLUMN_TIERS = [
+  BOOKING_PAYMENT_COLUMNS,
+  BOOKING_PAYMENT_COLUMNS_NO_APPROVAL,
+  BOOKING_PAYMENT_COLUMNS_NO_SNAPSHOT,
+  BOOKING_PAYMENT_COLUMNS_NO_HOLD,
+  BOOKING_PAYMENT_COLUMNS_NO_BREAKDOWN,
+  BOOKING_PAYMENT_COLUMNS_NO_HOLD_NO_BREAKDOWN,
+  BOOKING_PAYMENT_COLUMNS_LEGACY,
+  BOOKING_LIST_COLUMNS_LEGACY,
+  BOOKING_CORE_COLUMNS,
+];
+
+function isoDateOnly(value: string | undefined): string | null {
+  const v = value?.trim() ?? '';
+  return /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null;
+}
+
+function isoTimestamp(value: string | undefined): string | null {
+  const v = value?.trim() ?? '';
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,3})?Z$/.test(v)) return null;
+  return Number.isNaN(Date.parse(v)) ? null : v;
+}
+
+function safeBookingSearch(value: string | undefined): string {
+  return (value ?? '').trim().slice(0, 80).replace(/[^a-zA-Z0-9 @.+_-]/g, '');
+}
+
+function bookingScopeKey(ownerSupplierId: string, scope?: SupplierBookingScope): string {
+  if (!scope) return ownerSupplierId;
+  return [
+    ownerSupplierId,
+    isoDateOnly(scope.fromDate) ?? '',
+    isoDateOnly(scope.toDate) ?? '',
+    isoTimestamp(scope.createdSince) ?? '',
+    scope.listingId?.trim() ?? '',
+    scope.bookingId?.trim() ?? '',
+    safeBookingSearch(scope.search),
+    scope.limit != null ? String(Math.min(500, Math.max(1, Math.floor(scope.limit)))) : '',
+  ].join('|');
+}
+
+function serviceWindowOr(from: string | null, to: string | null): string[] {
+  if (from && to) {
+    return [
+      `and(booking_date.gte.${from},booking_date.lte.${to})`,
+      `and(booking_date.lte.${to},check_out.gte.${from})`,
+    ];
+  }
+  if (from) return [`booking_date.gte.${from}`, `check_out.gte.${from}`];
+  if (to) return [`booking_date.lte.${to}`];
+  return [];
+}
+
+/** Fetch bookings for a supplier's listings (RLS allows select for own listings). Throws on Supabase error.
+ * Phase 1140: resolve team JWT → owner supplier_id before listing filter.
+ * A scope keeps Home, Calendar, Bookings, Inbox, and Analytics off the full history.
+ * Income calls this without a scope so ledger labels still see every booking. */
+export async function fetchBookingsForSupplier(
+  supplierId: string,
+  scope?: SupplierBookingScope
+): Promise<BookingRow[]> {
   const client = supabase;
   if (!client) return [];
   const ownerSupplierId = await resolveSupplierId(supplierId);
-  return supplierBookingsCache.get(ownerSupplierId, async () => {
+  return supplierBookingsCache.get(bookingScopeKey(ownerSupplierId, scope), async () => {
     const { data: listingIds, error: listErr } = await client
       .from('listings')
       .select('id')
       .eq('supplier_id', ownerSupplierId);
     if (listErr) throw new Error(listErr.message);
-    const ids = (listingIds ?? []).map((r: { id: string }) => r.id);
+    let ids = (listingIds ?? []).map((r: { id: string }) => r.id);
+    const listingId = scope?.listingId?.trim() ?? '';
+    if (listingId) {
+      if (!ids.includes(listingId)) return [];
+      ids = [listingId];
+    }
     if (ids.length === 0) return [];
 
-    const columnTiers = [
-      BOOKING_PAYMENT_COLUMNS,
-      BOOKING_PAYMENT_COLUMNS_NO_APPROVAL,
-      BOOKING_PAYMENT_COLUMNS_NO_SNAPSHOT,
-      BOOKING_PAYMENT_COLUMNS_NO_HOLD,
-      BOOKING_PAYMENT_COLUMNS_NO_BREAKDOWN,
-      BOOKING_PAYMENT_COLUMNS_NO_HOLD_NO_BREAKDOWN,
-      BOOKING_PAYMENT_COLUMNS_LEGACY,
-      BOOKING_LIST_COLUMNS_LEGACY,
-      BOOKING_CORE_COLUMNS,
-    ];
+    const from = isoDateOnly(scope?.fromDate);
+    const to = isoDateOnly(scope?.toDate);
+    const since = isoTimestamp(scope?.createdSince);
+    const search = safeBookingSearch(scope?.search).replace(/ /g, '%');
+    const bookingId = scope?.bookingId?.trim() ?? '';
+    const limit = scope?.limit != null ? Math.min(500, Math.max(1, Math.floor(scope.limit))) : null;
+    const windowParts = [...serviceWindowOr(from, to)];
+    if (since) windowParts.push(`created_at.gte."${since}"`);
+
     let lastError: string | null = null;
-    for (const columns of columnTiers) {
-      const { data, error } = await client
+    for (const columns of BOOKING_COLUMN_TIERS) {
+      let query = client
         .from('bookings')
         .select(columns)
         .in('listing_id', ids)
         .order('created_at', { ascending: false });
+      if (bookingId) query = query.eq('id', bookingId);
+      if (windowParts.length > 0) query = query.or(windowParts.join(','));
+      if (search) {
+        const parts = [
+          `guest_name.ilike."%${search}%"`,
+          `guest_email.ilike."%${search}%"`,
+          `public_reference.ilike."%${search}%"`,
+        ];
+        if (/^\d+$/.test(search)) parts.push(`booking_number.eq.${search}`);
+        query = query.or(parts.join(','));
+      }
+      if (limit != null) query = query.limit(limit);
+      const { data, error } = await query;
       if (!error) return (data ?? []) as unknown as BookingRow[];
       lastError = error.message;
       if (!isLikelyMissingColumnError(error.message)) break;
@@ -780,6 +870,7 @@ export async function updateBookingStatus(
     }
   }
   invalidateSupplierBookingsCache();
+  invalidatePublishedTourOccupancyCache();
   return { ok: true };
 }
 
@@ -834,6 +925,7 @@ export async function updateBookingSchedule(
   if (!updated?.id) {
     return { ok: false, error: 'You do not have permission to update this booking.' };
   }
+  invalidateSupplierBookingsCache();
 
   if (!startChanged && !pickupChanged) return { ok: true };
 

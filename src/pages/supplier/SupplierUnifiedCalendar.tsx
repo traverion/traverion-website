@@ -377,7 +377,11 @@ export default function SupplierUnifiedCalendar() {
     try {
       const [mine, rows] = await Promise.all([
         fetchMyListings(user.id),
-        fetchBookingsForSupplier(user.id),
+        fetchBookingsForSupplier(user.id, {
+          fromDate: range.fromYmd,
+          toDate: range.toYmd,
+          limit: 500,
+        }),
       ]);
       calendarLoadedForRef.current = user.id;
       setListings(mine);
@@ -387,7 +391,7 @@ export default function SupplierUnifiedCalendar() {
     } finally {
       setLoading(false);
     }
-  }, [user?.id, isSupabase]);
+  }, [user?.id, isSupabase, range.fromYmd, range.toYmd]);
 
   useEffect(() => {
     void load();

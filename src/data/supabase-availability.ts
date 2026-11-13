@@ -425,6 +425,7 @@ export async function upsertAvailability(
     { onConflict: 'listing_id,available_date' }
   );
   if (error) return { success: false, error: error.message };
+  invalidatePublishedTourOccupancyCache(listingId);
   return { success: true };
 }
 
@@ -439,6 +440,7 @@ export async function deleteAvailability(
     .eq('listing_id', listingId)
     .eq('available_date', date);
   if (error) return { success: false, error: error.message };
+  invalidatePublishedTourOccupancyCache(listingId);
   return { success: true };
 }
 
@@ -455,5 +457,6 @@ export async function deleteAvailabilityRange(
     .eq('listing_id', listingId)
     .in('available_date', dates);
   if (error) return { success: false, error: error.message };
+  invalidatePublishedTourOccupancyCache(listingId);
   return { success: true };
 }

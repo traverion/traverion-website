@@ -32,9 +32,10 @@ export function prefetchPartnerBookingsDesk(uid: string): Promise<DeskPayload> {
   if (deskEntry && deskEntry.uid === uid && now - deskEntry.at < DESK_TTL_MS) {
     return deskEntry.promise;
   }
-  const promise = Promise.all([fetchBookingsForSupplier(uid), fetchMyListings(uid)]).then(
-    ([bookings, listings]) => ({ bookings, listings })
-  );
+  const promise = Promise.all([
+    fetchBookingsForSupplier(uid, { limit: 80 }),
+    fetchMyListings(uid),
+  ]).then(([bookings, listings]) => ({ bookings, listings }));
   deskEntry = { uid, at: now, promise };
   promise.catch(() => {
     if (deskEntry?.promise === promise) deskEntry = null;

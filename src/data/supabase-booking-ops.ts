@@ -137,13 +137,8 @@ export async function fetchLatestBookingMessages(
   const chunkSize = 40;
   for (let i = 0; i < missing.length; i += chunkSize) {
     const chunk = missing.slice(i, i + chunkSize);
-    const { data, error } = await client
-      .from('booking_messages')
-      .select(LATEST_MESSAGE_COLUMNS)
-      .in('booking_id', chunk)
-      .order('created_at', { ascending: false });
-    if (error) throw new Error(error.message);
-    const newest = latestMessageByBooking((data ?? []) as BookingMessageRow[]);
+    const rows = await fetchLatestMessageChunk(client, chunk);
+    const newest = latestMessageByBooking(rows);
     for (const id of chunk) {
       const row = newest.get(id) ?? null;
       if (row) out.set(id, row);
@@ -151,6 +146,28 @@ export async function fetchLatestBookingMessages(
     }
   }
   return out;
+}
+
+/**
+ * One row per thread. The SQL function uses DISTINCT ON so historical bodies stay on the server.
+ * Falls back to the ordered table read when the function is not deployed yet.
+ */
+async function fetchLatestMessageChunk(
+  client: NonNullable<typeof supabase>,
+  chunk: string[]
+): Promise<BookingMessageRow[]> {
+  const rpc = await client.rpc('latest_booking_messages', { p_booking_ids: chunk });
+  if (!rpc.error) return (rpc.data ?? []) as BookingMessageRow[];
+  if (!/latest_booking_messages|does not exist|PGRST202|42883|schema cache/i.test(rpc.error.message)) {
+    throw new Error(rpc.error.message);
+  }
+  const { data, error } = await client
+    .from('booking_messages')
+    .select(LATEST_MESSAGE_COLUMNS)
+    .in('booking_id', chunk)
+    .order('created_at', { ascending: false });
+  if (error) throw new Error(error.message);
+  return (data ?? []) as BookingMessageRow[];
 }
 
 /** Inbox list preview — one row per booking instead of the full thread history. */
@@ -234,6 +251,15 @@ export async function markBookingMessagesRead(
   return result;
 }
 
+async function invalidatePartnerBookingViews(): Promise<void> {
+  const [{ invalidateSupplierBookingsCache }, { invalidatePublishedTourOccupancyCache }] = await Promise.all([
+    import('./supabase-bookings'),
+    import('./supabase-availability'),
+  ]);
+  invalidateSupplierBookingsCache();
+  invalidatePublishedTourOccupancyCache();
+}
+
 export async function requestSupplierCancellation(params: {
   bookingId: string;
   reasonCode: string;
@@ -263,6 +289,7 @@ export async function requestSupplierCancellation(params: {
   });
   const parsed = parseRpc(data, error?.message, PARTNER_CANCEL_REQUEST_SUBMIT_ERROR);
   if (!parsed.ok) return parsed;
+  await invalidatePartnerBookingViews();
 
   const rpc = data && typeof data === 'object' ? (data as Record<string, unknown>) : {};
   const autoRefundQueued = rpc.auto_refund_queued === true;
@@ -334,6 +361,7 @@ export async function requestSupplierCancellationBatch(params: {
       results: classified.results,
     };
   }
+  await invalidatePartnerBookingViews();
   return { ok: true, partial: classified.partial, results: classified.results };
 }
 
@@ -359,6 +387,7 @@ export async function claimSupplierCancelRefundChoice(bookingId: string): Promis
   }
   const { executeBookingRefund } = await import('./supabase-bookings');
   const refundExecution = await executeBookingRefund(bookingId);
+  await invalidatePartnerBookingViews();
   return { ...parsed, refundExecution };
 }
 
@@ -391,6 +420,7 @@ export async function rescheduleSupplierCancelledBooking(params: {
       deadlinePassed: rpc.deadline_passed === true,
     };
   }
+  await invalidatePartnerBookingViews();
   const newBookingId = typeof rpc.new_booking_id === 'string' ? rpc.new_booking_id : undefined;
   // Soft notify — reschedule already committed; email failure must not undo it.
   if (newBookingId) {
@@ -482,6 +512,7 @@ export async function respondToCancellationRequest(
   });
   const parsed = parseRpc(data, error?.message, 'Could not update this cancellation request.');
   if (!parsed.ok || !accept) return parsed;
+  await invalidatePartnerBookingViews();
 
   const bookingId = (options?.bookingId ?? '').trim();
   if (!bookingId) return parsed;

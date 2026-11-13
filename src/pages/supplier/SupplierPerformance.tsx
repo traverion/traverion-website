@@ -3,6 +3,7 @@ import { Info, TrendingUp } from 'lucide-react';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import { fetchMyListings } from '../../data/supabase-listings';
 import { fetchBookingsForSupplier, type BookingRow } from '../../data/supabase-bookings';
+import { addCalendarDaysYmd } from '../../lib/booking-lifecycle-calendar';
 import {
   fetchSupplierCommercialSnapshots,
   type BookingCommercialSnapshotRow,
@@ -125,6 +126,7 @@ export default function SupplierPerformance() {
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [bookingsTruncated, setBookingsTruncated] = useState(false);
   const initial = typeof window !== 'undefined' ? readUrlState() : null;
   const [section, setSection] = useState<AnalyticsSection>(initial?.section ?? 'summary');
   const [rangeKey, setRangeKey] = useState<AnalyticsRangeKey>(initial?.range ?? '30d');
@@ -202,15 +204,32 @@ export default function SupplierPerformance() {
     if (hasDataRef.current) setRefreshing(true);
     else setLoading(true);
     setError(null);
+    const range = resolveAnalyticsDateRange(rangeKey, customFrom, customTo);
+    const prior = previousAnalyticsRange(range.from, range.to);
+    const from = prior.from ?? range.from;
+    const to = range.to;
+    const sinceDay = from ? addCalendarDaysYmd(from, -1) ?? from : null;
+    const bookingQuery =
+      from && to && sinceDay
+        ? fetchBookingsForSupplier(uid, {
+            fromDate: from,
+            toDate: to,
+            createdSince: `${sinceDay}T00:00:00.000Z`,
+            limit: 500,
+          })
+        : fetchBookingsForSupplier(uid);
     const settled = await Promise.allSettled([
       fetchMyListings(uid),
-      fetchBookingsForSupplier(uid),
+      bookingQuery,
       fetchSupplierCommercialSnapshots(uid),
       fetchReviewsForSupplierListings(uid),
     ]);
     if (gen !== loadGenRef.current) return;
     if (settled[0].status === 'fulfilled') setListings(settled[0].value);
-    if (settled[1].status === 'fulfilled') setBookings(settled[1].value);
+    if (settled[1].status === 'fulfilled') {
+      setBookings(settled[1].value);
+      setBookingsTruncated(Boolean(from && to) && settled[1].value.length >= 500);
+    }
     if (settled[2].status === 'fulfilled') setSnapshots(settled[2].value);
     if (settled[3].status === 'fulfilled') setReviews(settled[3].value);
     if (settled[0].status === 'fulfilled' || settled[1].status === 'fulfilled') {
@@ -221,7 +240,7 @@ export default function SupplierPerformance() {
     }
     setLoading(false);
     setRefreshing(false);
-  }, [isSupabase, user?.id]);
+  }, [isSupabase, user?.id, rangeKey, customFrom, customTo]);
 
   useLayoutEffect(() => {
     if (!user?.id) {
@@ -582,6 +601,12 @@ export default function SupplierPerformance() {
           ) : null}
         </div>
       </div>
+
+      {bookingsTruncated ? (
+        <p className="text-sm text-ink-muted">
+          This range has more bookings than the chart query includes. Narrow the dates for a complete result.
+        </p>
+      ) : null}
 
       <div className="tv-analytics-tabs" role="tablist" aria-label="Analytics sections">
         {ANALYTICS_SECTIONS.map((tab) => (

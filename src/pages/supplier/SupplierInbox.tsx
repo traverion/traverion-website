@@ -238,13 +238,23 @@ export default function SupplierInbox() {
     setCancelRequestsError(null);
     try {
       const deepLinkId = readBookingIdFromUrl();
+      const cap = messageFetchCapRef.current;
       const desk =
-        takePartnerBookingsDeskPrefetch(uid) ??
-        Promise.all([fetchBookingsForSupplier(uid), fetchMyListings(uid)]).then(([bookings, listings]) => ({
+        (cap === PARTNER_INBOX_MESSAGE_FETCH_CAP ? takePartnerBookingsDeskPrefetch(uid) : null) ??
+        Promise.all([
+          fetchBookingsForSupplier(uid, { limit: cap }),
+          fetchMyListings(uid),
+        ]).then(([bookings, listings]) => ({
           bookings,
           listings,
         }));
-      const { bookings: rows, listings } = await desk;
+      const loaded = await desk;
+      let rows = loaded.bookings;
+      if (deepLinkId && !rows.some((b) => b.id === deepLinkId)) {
+        const extra = await fetchBookingsForSupplier(uid, { bookingId: deepLinkId, limit: 1 });
+        if (extra[0]) rows = [extra[0], ...rows];
+      }
+      const { listings } = loaded;
       if (gen !== loadGenRef.current) return;
       const collected = rows.filter(
         (b) =>
@@ -269,7 +279,6 @@ export default function SupplierInbox() {
       }
       const lasts: Record<string, BookingMessageRow> = {};
       const failedMessagePrefetch = new Set<string>();
-      const cap = messageFetchCapRef.current;
       const withMessagesFetched = collected.slice(0, cap);
       // Always fetch the deep-linked booking so Today → Inbox ?booking= works beyond the cap.
       if (deepLinkId && !withMessagesFetched.some((b) => b.id === deepLinkId)) {

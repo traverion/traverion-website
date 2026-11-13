@@ -454,6 +454,8 @@ export default function SupplierBookings({
   const isUnifiedDesk = !inventoryFamily;
 
   const [bookingsListPage, setBookingsListPage] = useState(1);
+  const [bookingFetchLimit, setBookingFetchLimit] = useState(80);
+  const [bookingsTruncated, setBookingsTruncated] = useState(false);
   const [highlightBookingId, setHighlightBookingId] = useState<string | null>(() => {
     if (typeof window === 'undefined') return null;
     return readPartnerBookingIdFromLocation(window.location.pathname, window.location.search);
@@ -467,6 +469,7 @@ export default function SupplierBookings({
 
   const loadGenRef = useRef(0);
   const bookingsHubUserIdRef = useRef<string | null>(null);
+  const bookingsLenRef = useRef(0);
 
   const load = useCallback(async () => {
     const uid = user?.id;
@@ -475,25 +478,43 @@ export default function SupplierBookings({
       return;
     }
     const gen = ++loadGenRef.current;
-    setLoading(true);
+    if (bookingsLenRef.current === 0) setLoading(true);
     setError(null);
     setCancelRequestsError(null);
     try {
-      const pref = takePartnerBookingsDeskPrefetch(uid);
+      const scoped =
+        Boolean(filterDateFrom || filterDateTo || filterListingId || filterQuery.trim()) ||
+        bookingFetchLimit !== 80;
+      const pref = scoped ? null : takePartnerBookingsDeskPrefetch(uid);
       const { bookings: bookingsList, listings: myListings } = pref
         ? await pref
-        : await Promise.all([fetchBookingsForSupplier(uid), fetchMyListings(uid)]).then(
-            ([bookings, listings]) => ({ bookings, listings })
-          );
+        : await Promise.all([
+            fetchBookingsForSupplier(uid, {
+              fromDate: filterDateFrom || undefined,
+              toDate: filterDateTo || undefined,
+              listingId: filterListingId || undefined,
+              search: filterQuery.trim() || undefined,
+              limit: bookingFetchLimit,
+            }),
+            fetchMyListings(uid),
+          ]).then(([bookings, listings]) => ({ bookings, listings }));
+      let rows = bookingsList;
+      if (highlightBookingId && !rows.some((b) => b.id === highlightBookingId)) {
+        const extra = await fetchBookingsForSupplier(uid, { bookingId: highlightBookingId, limit: 1 });
+        if (extra[0]) rows = [extra[0], ...rows];
+      }
       if (gen !== loadGenRef.current) return;
       const meta: Record<string, ListingBookingMeta> = {};
       myListings.forEach((listing) => {
         meta[listing.id] = buildListingMeta(listing);
       });
-      setBookings(bookingsList.filter(partnerBookingIsLiveTrip));
+      const live = rows.filter(partnerBookingIsLiveTrip);
+      bookingsLenRef.current = live.length;
+      setBookingsTruncated(rows.length >= bookingFetchLimit);
+      setBookings(live);
       setListingMeta(meta);
       try {
-        const reqs = await fetchCancellationRequestsForBookings(bookingsList.map((b) => b.id));
+        const reqs = await fetchCancellationRequestsForBookings(rows.map((b) => b.id));
         if (gen !== loadGenRef.current) return;
         const open: Record<string, CancellationRequestRow> = {};
         for (const r of reqs) {
@@ -512,11 +533,21 @@ export default function SupplierBookings({
     } finally {
       if (gen === loadGenRef.current) setLoading(false);
     }
-  }, [isSupabase, user?.id]);
+  }, [
+    isSupabase,
+    user?.id,
+    filterDateFrom,
+    filterDateTo,
+    filterListingId,
+    filterQuery,
+    bookingFetchLimit,
+    highlightBookingId,
+  ]);
 
   // Phase 1384 + layout: clear prior partner bookings before paint on account switch (useEffect ran one frame too late).
   useLayoutEffect(() => {
     const clearBookingsPartnerWorkspace = () => {
+      bookingsLenRef.current = 0;
       setBookings([]);
       setListingMeta({});
       setOpenCancels({});
@@ -2054,7 +2085,17 @@ export default function SupplierBookings({
                 {(safePage - 1) * BOOKINGS_PAGE_SIZE + 1}–{(safePage - 1) * BOOKINGS_PAGE_SIZE + paginatedBookings.length}
               </span>{' '}
               of {filteredBookings.length}
+              {bookingsTruncated ? ' loaded' : ''}
             </p>
+            {bookingsTruncated && bookingFetchLimit < 500 ? (
+              <button
+                type="button"
+                className="tv-btn-ghost min-h-[40px]"
+                onClick={() => setBookingFetchLimit((n) => Math.min(500, n + 80))}
+              >
+                Load more bookings
+              </button>
+            ) : null}
             {totalPages > 1 ? (
               <div className="flex flex-wrap items-center justify-center gap-1.5 sm:justify-end">
                 <button

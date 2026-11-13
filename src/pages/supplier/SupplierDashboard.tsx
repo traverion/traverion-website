@@ -63,6 +63,7 @@ import { pgTimeToHm } from '../../data/supabase-listings';
 import { stayRangeFromBooking } from '../../lib/stayOccupancy';
 import { formatStayNightHuman } from '../../lib/stay-calendar';
 import { experienceTodayIsoForListing } from '../../lib/booking-quote';
+import { addCalendarDaysYmd } from '../../lib/booking-lifecycle-calendar';
 import { wallHourInTimeZone } from '../../lib/tour-departure-cutoff';
 import { formatBookingDateDisplay } from '../../lib/booking-flow';
 import { PARTNER_INBOX_MESSAGE_FETCH_CAP } from '../../lib/partner-inbox-cap';
@@ -245,9 +246,20 @@ export default function SupplierDashboard() {
     setDashboardError(null);
     setCancelRequestsError(null);
     try {
+    const today = experienceTodayIsoForListing(undefined);
+    const windowFrom = addCalendarDaysYmd(today, -1) ?? today;
+    const windowTo = addCalendarDaysYmd(today, 14) ?? today;
+    const salesSince = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
     const settled = await Promise.allSettled([
       fetchMyListings(uid),
-      fetchBookingsForSupplier(uid),
+      Promise.all([
+        fetchBookingsForSupplier(uid, { fromDate: windowFrom, toDate: windowTo, limit: 300 }),
+        fetchBookingsForSupplier(uid, { createdSince: salesSince, limit: 400 }),
+      ]).then(([windowRows, recentRows]) => {
+        const byId = new Map<string, BookingRow>();
+        for (const row of [...windowRows, ...recentRows]) byId.set(row.id, row);
+        return [...byId.values()];
+      }),
       fetchSupplierProfile(uid),
       countUnrepliedWrittenReviewsForSupplier(uid),
     ]);
