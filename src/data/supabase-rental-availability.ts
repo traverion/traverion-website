@@ -64,6 +64,52 @@ export function rentalDetailsFromListingExtras(extras: unknown): RentalDetails |
   return normalizeRentalDetails((extras as { rental?: unknown }).rental);
 }
 
+export async function fetchRentalAvailabilityBlocksForListings(
+  listingIds: string[],
+  rangeStartIso: string,
+  rangeEndIso: string
+): Promise<RentalAvailabilityBlockRow[]> {
+  if (!supabase) throw new Error('Supabase not configured');
+  const ids = [...new Set(listingIds.filter(Boolean))];
+  if (ids.length === 0) return [];
+  const { data, error } = await supabase
+    .from('rental_availability_blocks')
+    .select('id, listing_id, variant_id, starts_at, ends_at, note, created_at')
+    .in('listing_id', ids)
+    .lt('starts_at', rangeEndIso)
+    .gt('ends_at', rangeStartIso)
+    .order('starts_at', { ascending: true });
+  if (error) throw error;
+  return (data ?? []) as RentalAvailabilityBlockRow[];
+}
+
+export async function fetchRentalInventoryHoldsForListings(
+  listingIds: string[],
+  rangeStartIso: string,
+  rangeEndIso: string
+): Promise<RentalInventoryHoldRow[]> {
+  if (!supabase) throw new Error('Supabase not configured');
+  const ids = [...new Set(listingIds.filter(Boolean))];
+  if (ids.length === 0) return [];
+  const { data, error } = await supabase
+    .from('rental_inventory_holds')
+    .select(
+      'id, listing_id, variant_id, quantity, starts_at, ends_at, status, hold_expires_at, booking_id, created_at'
+    )
+    .in('listing_id', ids)
+    .in('status', ['held', 'confirmed'])
+    .lt('starts_at', rangeEndIso)
+    .gt('ends_at', rangeStartIso)
+    .order('starts_at', { ascending: true });
+  if (error) throw error;
+  const now = Date.now();
+  return ((data ?? []) as RentalInventoryHoldRow[]).filter((h) => {
+    if (h.status === 'confirmed') return true;
+    if (!h.hold_expires_at) return true;
+    return Date.parse(h.hold_expires_at) > now;
+  });
+}
+
 export async function fetchRentalAvailabilityBlocks(
   listingId: string,
   rangeStartIso: string,

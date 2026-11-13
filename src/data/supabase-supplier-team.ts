@@ -1,3 +1,4 @@
+import { createInflightCache } from '../lib/inflight-dedupe';
 import { supabase } from '../lib/supabase';
 import {
   loadSupplierTeam,
@@ -18,18 +19,28 @@ function dispatchRoleEvent() {
   window.dispatchEvent(new CustomEvent('traverion-supplier-team-roles'));
 }
 
+/** One team lookup per signed-in user. Parallel page loads were each paying this round trip. */
+const resolvedSupplierIdCache = createInflightCache<string>({ ttlMs: 60_000 });
+
+export function invalidateResolvedSupplierId(userId?: string): void {
+  resolvedSupplierIdCache.invalidate(userId);
+}
+
 export async function resolveSupplierId(currentUserId: string): Promise<string> {
-  if (!supabase) return currentUserId;
-  const { data, error } = await supabase
-    .from('supplier_team_members')
-    .select('supplier_id')
-    .eq('user_id', currentUserId)
-    .limit(1)
-    .maybeSingle();
-  // Phase 1473: team lookup failure must not fall back to the JWT user id — that
-  // scopes every owner-keyed query to empty (Bookings/Today/Listings look “quiet”).
-  if (error) throw new Error(error.message);
-  return data?.supplier_id ?? currentUserId;
+  const client = supabase;
+  if (!client) return currentUserId;
+  return resolvedSupplierIdCache.get(currentUserId, async () => {
+    const { data, error } = await client
+      .from('supplier_team_members')
+      .select('supplier_id')
+      .eq('user_id', currentUserId)
+      .limit(1)
+      .maybeSingle();
+    // Phase 1473: team lookup failure must not fall back to the JWT user id — that
+    // scopes every owner-keyed query to empty (Bookings/Today/Listings look “quiet”).
+    if (error) throw new Error(error.message);
+    return data?.supplier_id ?? currentUserId;
+  });
 }
 
 async function ensureOwnerMembership(currentUserId: string): Promise<void> {
@@ -96,6 +107,8 @@ export async function upsertSupplierTeamMember(
     { onConflict: 'supplier_id,user_id' }
   );
   if (error) return false;
+  invalidateResolvedSupplierId(member.id);
+  invalidateResolvedSupplierId(currentUserId);
   dispatchRoleEvent();
   return true;
 }
@@ -116,6 +129,8 @@ export async function removeSupplierTeamMember(currentUserId: string, memberId: 
     .eq('supplier_id', supplierId)
     .eq('user_id', memberId);
   if (error) return false;
+  invalidateResolvedSupplierId(memberId);
+  invalidateResolvedSupplierId(currentUserId);
   dispatchRoleEvent();
   return true;
 }

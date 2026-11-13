@@ -482,10 +482,9 @@ export default function SupplierBookings({
       const pref = takePartnerBookingsDeskPrefetch(uid);
       const { bookings: bookingsList, listings: myListings } = pref
         ? await pref
-        : {
-            bookings: await fetchBookingsForSupplier(uid),
-            listings: await fetchMyListings(uid),
-          };
+        : await Promise.all([fetchBookingsForSupplier(uid), fetchMyListings(uid)]).then(
+            ([bookings, listings]) => ({ bookings, listings })
+          );
       if (gen !== loadGenRef.current) return;
       const meta: Record<string, ListingBookingMeta> = {};
       myListings.forEach((listing) => {

@@ -95,6 +95,64 @@ export function invalidateLatestBookingMessageCache(bookingId?: string): void {
   latestMessageCache.invalidate(bookingId);
 }
 
+const LATEST_MESSAGE_COLUMNS =
+  'id, booking_id, sender_role, sender_user_id, body, created_at, read_by_traveler_at, read_by_supplier_at';
+
+/** Keep the newest row per booking. Input must be ordered newest-first. */
+export function latestMessageByBooking(rows: BookingMessageRow[]): Map<string, BookingMessageRow> {
+  const out = new Map<string, BookingMessageRow>();
+  for (const row of rows) {
+    if (!row.booking_id || out.has(row.booking_id)) continue;
+    out.set(row.booking_id, row);
+  }
+  return out;
+}
+
+/**
+ * Inbox and Home were issuing one HTTP request per booking (up to the inbox cap).
+ * One ordered read covers the same latest-row result, and seeds the single-id cache.
+ */
+export async function fetchLatestBookingMessages(
+  bookingIds: string[]
+): Promise<Map<string, BookingMessageRow>> {
+  const client = supabase;
+  const ids = [...new Set(bookingIds.map((id) => id.trim()).filter(Boolean))];
+  const out = new Map<string, BookingMessageRow>();
+  if (!client || ids.length === 0) return out;
+
+  const missing: string[] = [];
+  await Promise.all(
+    ids.map(async (id) => {
+      const cached = latestMessageCache.peek(id);
+      if (!cached) {
+        missing.push(id);
+        return;
+      }
+      const row = await cached;
+      if (row) out.set(id, row);
+    })
+  );
+  if (missing.length === 0) return out;
+
+  const chunkSize = 40;
+  for (let i = 0; i < missing.length; i += chunkSize) {
+    const chunk = missing.slice(i, i + chunkSize);
+    const { data, error } = await client
+      .from('booking_messages')
+      .select(LATEST_MESSAGE_COLUMNS)
+      .in('booking_id', chunk)
+      .order('created_at', { ascending: false });
+    if (error) throw new Error(error.message);
+    const newest = latestMessageByBooking((data ?? []) as BookingMessageRow[]);
+    for (const id of chunk) {
+      const row = newest.get(id) ?? null;
+      if (row) out.set(id, row);
+      latestMessageCache.seed(id, row);
+    }
+  }
+  return out;
+}
+
 /** Inbox list preview — one row per booking instead of the full thread history. */
 export async function fetchLatestBookingMessage(
   bookingId: string
@@ -106,9 +164,7 @@ export async function fetchLatestBookingMessage(
   return latestMessageCache.get(id, async () => {
     const { data, error } = await client
       .from('booking_messages')
-      .select(
-        'id, booking_id, sender_role, sender_user_id, body, created_at, read_by_traveler_at, read_by_supplier_at'
-      )
+      .select(LATEST_MESSAGE_COLUMNS)
       .eq('booking_id', id)
       .order('created_at', { ascending: false })
       .limit(1)

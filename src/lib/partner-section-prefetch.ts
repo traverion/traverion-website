@@ -17,6 +17,30 @@ function warm(id: string, loader: () => Promise<unknown>): void {
   });
 }
 
+const PRIMARY_PARTNER_SECTIONS = [
+  'dashboard',
+  'calendar',
+  'bookings',
+  'listings',
+  'inbox',
+  'earnings',
+  'performance',
+  'reviews',
+] as const;
+
+/** Warm the main partner screens after the shell is up, so the first click is not a chunk download. */
+export function prefetchPartnerPrimarySections(): void {
+  if (!shouldPrefetchRoutes()) return;
+  const run = () => {
+    for (const id of PRIMARY_PARTNER_SECTIONS) prefetchPartnerSection(id);
+  };
+  if (typeof requestIdleCallback === 'function') {
+    requestIdleCallback(() => run(), { timeout: 1500 });
+  } else {
+    setTimeout(run, 300);
+  }
+}
+
 /** Prefetch the lazy Partner page module for a sidebar/section id. */
 export function prefetchPartnerSection(section: string): void {
   const id = section as PartnerNavSectionId;

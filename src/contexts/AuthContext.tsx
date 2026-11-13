@@ -20,6 +20,7 @@ import { splitTravelerFullName } from '../lib/splitTravelerFullName';
 import { travelerSessionIsPartnerOnly } from '../lib/traveler-session-authority';
 import { userHasSupplierProfile } from '../lib/supplierPortalAccess';
 import { isPasswordRecoveryActive } from '../lib/passwordRecoveryFlow';
+import { clearPartnerScopedCaches } from '../data/partner-query-cache';
 
 type AuthContextValue = {
   user: User | null;
@@ -289,6 +290,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = useCallback(async () => {
     setUser(null);
+    clearPartnerScopedCaches();
     if (supabase) {
       try {
         await supabase.auth.signOut({ scope: 'local' });

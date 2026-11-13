@@ -94,6 +94,7 @@ import {
 } from '../../lib/partnerReturnPath';
 import { navigateSupplierUrl, openSupplierCalendar } from '../../lib/supplierPortalNavigation';
 import { consumePartnerPageTransition } from '../../lib/partner-page-transition';
+import { prefetchPartnerPrimarySections } from '../../lib/partner-section-prefetch';
 
 const SupplierDashboard = lazy(() => import('../../pages/supplier/SupplierDashboard'));
 const SupplierListings = lazy(() => import('../../pages/supplier/SupplierListings'));
@@ -507,6 +508,11 @@ export default function SupplierLayout() {
   useEffect(() => {
     if (user && partnerGateView === 'allowed') hadPartnerSessionRef.current = true;
   }, [user, partnerGateView]);
+
+  useEffect(() => {
+    if (partnerGateView !== 'allowed') return;
+    prefetchPartnerPrimarySections();
+  }, [partnerGateView]);
 
   useEffect(() => {
     if (loading || signingOut) return;

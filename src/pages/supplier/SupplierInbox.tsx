@@ -8,7 +8,7 @@ import StayRequestActions from '../../components/StayRequestActions';
 import { isStayRequestAwaitingHost } from '../../lib/stay-request-approval';
 import { fetchMyListings, pgTimeToHm } from '../../data/supabase-listings';
 import {
-  fetchLatestBookingMessage,
+  fetchLatestBookingMessages,
   fetchCancellationRequestsForBookings,
   bookingAllowsMessaging,
   messagingComposeBlock,
@@ -277,17 +277,13 @@ export default function SupplierInbox() {
         if (deep) withMessagesFetched.push(deep);
       }
       setOlderConversationsHidden(collected.length > cap);
-      await Promise.all(
-        withMessagesFetched.map(async (b) => {
-          try {
-            const last = await fetchLatestBookingMessage(b.id);
-            if (last) lasts[b.id] = last;
-          } catch {
-            // Phase 1355: keep prior last-message so closed threads do not vanish on blips.
-            failedMessagePrefetch.add(b.id);
-          }
-        })
-      );
+      try {
+        const latest = await fetchLatestBookingMessages(withMessagesFetched.map((b) => b.id));
+        for (const [id, row] of latest) lasts[id] = row;
+      } catch {
+        // Phase 1355: keep prior last-message so closed threads do not vanish on blips.
+        for (const b of withMessagesFetched) failedMessagePrefetch.add(b.id);
+      }
       if (gen !== loadGenRef.current) return;
       const priorLasts = lastByBookingRef.current;
       const mergedLasts: Record<string, BookingMessageRow> = { ...priorLasts };

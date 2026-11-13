@@ -61,6 +61,39 @@ export async function fetchAvailabilityByListingId(
   });
 }
 
+/**
+ * Partner calendar was requesting availability once per listing.
+ * One range query covers every visible listing, then seeds the per-listing cache.
+ */
+export async function fetchAvailabilityForListings(
+  listingIds: string[],
+  opts: { fromDate: string; toDate: string }
+): Promise<Map<string, AvailabilityRow[]>> {
+  const client = supabase;
+  const ids = [...new Set(listingIds.filter(Boolean))];
+  const grouped = new Map<string, AvailabilityRow[]>();
+  for (const id of ids) grouped.set(id, []);
+  if (!client || ids.length === 0) return grouped;
+  const from = opts.fromDate;
+  const to = opts.toDate;
+  const { data, error } = await client
+    .from('listing_availability')
+    .select('listing_id, available_date, capacity, booked')
+    .in('listing_id', ids)
+    .gte('available_date', from)
+    .lte('available_date', to)
+    .order('available_date', { ascending: true });
+  if (error) throw new Error(error.message);
+  for (const row of (data ?? []) as AvailabilityRow[]) {
+    const list = grouped.get(row.listing_id);
+    if (list) list.push(row);
+  }
+  for (const [id, rows] of grouped) {
+    listingAvailabilityCache.seed(`${id}|${from}|${to}`, rows);
+  }
+  return grouped;
+}
+
 /** Inventory-occupying guest counts per departure date (paid + live holds). Failed, expired, and refunded are omitted. */
 export async function fetchPublishedTourPaidGuests(
   listingId: string

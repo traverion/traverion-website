@@ -280,8 +280,11 @@ export default function SupplierEarnings() {
       fetchSupplierCommercialSnapshots(uid),
       fetchSupplierPayoutPeriods(uid),
       fetchSupplierActiveFinancialHolds(uid),
+      fetchSupplierLedger(uid)
+        .then((rows) => ({ ok: true as const, rows }))
+        .catch((err: unknown) => ({ ok: false as const, err })),
     ])
-      .then(async ([data, bookings, listings, terms, items, snaps, periods, holds]) => {
+      .then(async ([data, bookings, listings, terms, items, snaps, periods, holds, ledgerResult]) => {
         if (gen !== loadGenRef.current) return;
         const collected = bookings.filter(isCollectedBooking);
         const refundDue = bookings.filter(isRefundDueBooking);
@@ -296,15 +299,14 @@ export default function SupplierEarnings() {
         setPaidBookings(collected);
         setRefundDueBookings(refundDue);
         let ledgerRows: SupplierLedgerEntry[] = [];
-        try {
-          ledgerRows = await fetchSupplierLedger(uid);
-          if (gen !== loadGenRef.current) return;
+        if (gen !== loadGenRef.current) return;
+        if (ledgerResult.ok) {
+          ledgerRows = ledgerResult.rows;
           setLedger(ledgerRows);
           setLedgerError(null);
-        } catch (ledgerErr) {
-          if (gen !== loadGenRef.current) return;
+        } else {
           // Keep prior ledger — failure must not look like zero adjustments.
-          setLedgerError(userFacingError(ledgerErr, USER_ERROR.money));
+          setLedgerError(userFacingError(ledgerResult.err, USER_ERROR.money));
         }
         hasPaintedMoneyRef.current = true;
         writeIncomeHubCache({

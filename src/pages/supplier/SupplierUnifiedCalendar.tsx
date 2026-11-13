@@ -17,10 +17,10 @@ import { useSupplierRole } from '../../hooks/useSupplierRole';
 import { canManageBookings } from '../../lib/supplierTeamRoles';
 import { fetchMyListings } from '../../data/supabase-listings';
 import { fetchBookingsForSupplier, type BookingRow } from '../../data/supabase-bookings';
-import { fetchAvailabilityByListingId } from '../../data/supabase-availability';
+import { fetchAvailabilityForListings } from '../../data/supabase-availability';
 import {
-  fetchRentalAvailabilityBlocks,
-  fetchRentalInventoryHolds,
+  fetchRentalAvailabilityBlocksForListings,
+  fetchRentalInventoryHoldsForListings,
   rentalVariantsFromListingExtras,
   type RentalAvailabilityBlockRow,
   type RentalInventoryHoldRow,
@@ -338,6 +338,7 @@ export default function SupplierUnifiedCalendar() {
   const [rentalHolds, setRentalHolds] = useState<RentalInventoryHoldRow[]>([]);
   const [visibilityNote, setVisibilityNote] = useState<string | null>(null);
   /** Last Agenda From/To so Week/Month switches can restore it when focus still falls inside. */
+  const calendarLoadedForRef = useRef<string | null>(null);
   const agendaRangeRef = useRef<{ fromYmd: string; toYmd: string } | null>(
     initial.view === 'agenda' ? { fromYmd: initial.fromYmd, toYmd: initial.toYmd } : null
   );
@@ -371,13 +372,14 @@ export default function SupplierUnifiedCalendar() {
       setLoading(false);
       return;
     }
-    setLoading(true);
+    if (calendarLoadedForRef.current !== user.id) setLoading(true);
     setError(null);
     try {
       const [mine, rows] = await Promise.all([
         fetchMyListings(user.id),
         fetchBookingsForSupplier(user.id),
       ]);
+      calendarLoadedForRef.current = user.id;
       setListings(mine);
       setBookings(rows);
     } catch (e) {
@@ -544,72 +546,49 @@ export default function SupplierUnifiedCalendar() {
       const notes: string[] = [];
       try {
         const needTourCaps = category === 'all' || category === 'tour';
+        const needStayCaps = category === 'all' || category === 'stay';
+        const availabilityIds = [
+          ...(needTourCaps ? tourIds : []),
+          ...(needStayCaps ? stayIds : []),
+        ];
+        let availabilityByListing = new Map<
+          string,
+          Array<{ listing_id: string; available_date: string; capacity: number }>
+        >();
+        if (availabilityIds.length > 0) {
+          try {
+            availabilityByListing = await fetchAvailabilityForListings(availabilityIds, {
+              fromDate: range.fromYmd,
+              toDate: range.toYmd,
+            });
+          } catch {
+            notes.push('Availability overlays could not be loaded.');
+          }
+        }
+
         if (needTourCaps) {
           const nextCaps = new Map<string, Map<string, number>>();
-          if (tourIds.length > 0) {
-            const results = await Promise.all(
-              tourIds.map(async (id) => {
-                try {
-                  const rows = await fetchAvailabilityByListingId(id, {
-                    fromDate: range.fromYmd,
-                    toDate: range.toYmd,
-                  });
-                  return { id, rows, ok: true as const };
-                } catch {
-                  return { id, rows: [], ok: false as const };
-                }
-              })
-            );
-            let failed = 0;
-            for (const r of results) {
-              if (!r.ok) failed += 1;
-              const m = new Map<string, number>();
-              for (const row of r.rows) m.set(row.available_date, Number(row.capacity));
-              nextCaps.set(r.id, m);
+          for (const id of tourIds) {
+            const m = new Map<string, number>();
+            for (const row of availabilityByListing.get(id) ?? []) {
+              m.set(row.available_date, Number(row.capacity));
             }
-            if (failed > 0) {
-              notes.push(
-                `Closed-day overrides unavailable for ${failed} tour listing${failed === 1 ? '' : 's'}.`
-              );
-            }
+            nextCaps.set(id, m);
           }
           if (!cancelled) setDayCapsByListing(nextCaps);
         }
 
-        const needStayCaps = category === 'all' || category === 'stay';
         if (needStayCaps) {
-          if (stayIds.length > 0) {
-            try {
-              const results = await Promise.all(
-                stayIds.map(async (id) => {
-                  try {
-                    const rows = await fetchAvailabilityByListingId(id, {
-                      fromDate: range.fromYmd,
-                      toDate: range.toYmd,
-                    });
-                    return rows.map((r) => ({
-                      listing_id: r.listing_id,
-                      available_date: r.available_date,
-                      capacity: Number(r.capacity),
-                    }));
-                  } catch {
-                    return [] as Array<{
-                      listing_id: string;
-                      available_date: string;
-                      capacity: number;
-                    }>;
-                  }
-                })
-              );
-              if (!cancelled) setStayCaps(results.flat());
-            } catch {
-              if (!cancelled) {
-                setStayCaps([]);
-                notes.push('Stay blocks unavailable.');
-              }
-            }
-          } else if (!cancelled) {
-            setStayCaps([]);
+          if (!cancelled) {
+            setStayCaps(
+              stayIds.flatMap((id) =>
+                (availabilityByListing.get(id) ?? []).map((r) => ({
+                  listing_id: r.listing_id,
+                  available_date: r.available_date,
+                  capacity: Number(r.capacity),
+                }))
+              )
+            );
           }
         } else if (!cancelled) {
           setStayCaps([]);
@@ -622,25 +601,13 @@ export default function SupplierUnifiedCalendar() {
               const start = partnerUnifiedDayBoundsUtc(range.fromYmd);
               const endExclusive = addCalendarDaysYmd(range.toYmd, 1) ?? range.toYmd;
               const endIso = `${endExclusive}T00:00:00.000Z`;
-              const results = await Promise.all(
-                rentalIds.map(async (id) => {
-                  try {
-                    const [blocks, holds] = await Promise.all([
-                      fetchRentalAvailabilityBlocks(id, start.startIso, endIso),
-                      fetchRentalInventoryHolds(id, start.startIso, endIso),
-                    ]);
-                    return { blocks, holds, ok: true as const };
-                  } catch {
-                    return { blocks: [], holds: [], ok: false as const };
-                  }
-                })
-              );
+              const [blocks, holds] = await Promise.all([
+                fetchRentalAvailabilityBlocksForListings(rentalIds, start.startIso, endIso),
+                fetchRentalInventoryHoldsForListings(rentalIds, start.startIso, endIso),
+              ]);
               if (!cancelled) {
-                setRentalBlocks(results.flatMap((r) => r.blocks));
-                setRentalHolds(results.flatMap((r) => r.holds));
-                if (results.some((r) => !r.ok)) {
-                  notes.push('Some rental availability overlays could not be loaded.');
-                }
+                setRentalBlocks(blocks);
+                setRentalHolds(holds);
               }
             } catch {
               if (!cancelled) {

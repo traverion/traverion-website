@@ -22,7 +22,7 @@ import { fromMinorUnits } from '../../lib/commercial-money';
 import { fetchSupplierProfile } from '../../data/supabase-supplier-profile';
 import {
   fetchCancellationRequestsForBookings,
-  fetchLatestBookingMessage,
+  fetchLatestBookingMessages,
 } from '../../data/supabase-booking-ops';
 import { countUnrepliedWrittenReviewsForSupplier } from '../../data/supabase-reviews';
 import {
@@ -305,24 +305,26 @@ export default function SupplierDashboard() {
       setUnrepliedReviewCount(null);
     }
 
+    // Schedule and bookings are ready. Unread counts must not hold the first paint.
+    if (gen === dashboardLoadGenRef.current) setDashboardLoading(false);
+
     // Unread traveler messages on paid bookings (same depth Inbox uses).
     const paidForMsgs = bookingsForUnread
       .filter((b) => bookingPaymentWasCollected(b.payment_status))
       .slice(0, PARTNER_INBOX_MESSAGE_FETCH_CAP);
     let messagesLoadFailed = false;
-    const unreadFlags = await Promise.all(
-      paidForMsgs.map(async (b) => {
-        try {
-          const last = await fetchLatestBookingMessage(b.id);
-          return Boolean(last && last.sender_role === 'traveler' && !last.read_by_supplier_at);
-        } catch {
-          // Phase 1099: message load failure ≠ “no unread”.
-          messagesLoadFailed = true;
-          return false;
-        }
-      })
-    );
+    let latestByBooking: Awaited<ReturnType<typeof fetchLatestBookingMessages>> = new Map();
+    try {
+      latestByBooking = await fetchLatestBookingMessages(paidForMsgs.map((b) => b.id));
+    } catch {
+      // Phase 1099: message load failure ≠ “no unread”.
+      messagesLoadFailed = true;
+    }
     if (gen !== dashboardLoadGenRef.current) return;
+    const unreadFlags = paidForMsgs.map((b) => {
+      const last = latestByBooking.get(b.id);
+      return Boolean(last && last.sender_role === 'traveler' && !last.read_by_supplier_at);
+    });
     if (messagesLoadFailed) {
       noteFailure('messages');
       setUnreadMessageCount(null);

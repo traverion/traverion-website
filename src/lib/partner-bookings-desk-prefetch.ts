@@ -43,6 +43,11 @@ export function prefetchPartnerBookingsDesk(uid: string): Promise<DeskPayload> {
 }
 
 /** Reuse an in-flight / fresh prefetch, or null to fall back to a normal fetch. */
+export function clearPartnerBookingsDeskPrefetch(): void {
+  deskEntry = null;
+  commercialCache.clear();
+}
+
 export function takePartnerBookingsDeskPrefetch(uid: string): Promise<DeskPayload> | null {
   const now = Date.now();
   if (deskEntry && deskEntry.uid === uid && now - deskEntry.at < DESK_TTL_MS) {

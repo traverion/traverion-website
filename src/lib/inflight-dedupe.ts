@@ -38,5 +38,9 @@ export function createInflightCache<T>(opts?: { ttlMs?: number }) {
       }
       return hit.promise;
     },
+    /** Store a value already fetched by a batched query so single-key callers reuse it. */
+    seed(key: string, value: T) {
+      map.set(key, { at: Date.now(), promise: Promise.resolve(value) });
+    },
   };
 }
