@@ -179,7 +179,47 @@
       ]
     },
     {
-      "source": "/(login|signup|reset-password|partner|partner/(.*))",
+      "source": "/login",
+      "has": [{ "type": "host", "value": "partner.traverion.com" }],
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow, noarchive, nosnippet, noimageindex"
+        }
+      ]
+    },
+    {
+      "source": "/signup",
+      "has": [{ "type": "host", "value": "partner.traverion.com" }],
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow, noarchive, nosnippet, noimageindex"
+        }
+      ]
+    },
+    {
+      "source": "/reset-password",
+      "has": [{ "type": "host", "value": "partner.traverion.com" }],
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow, noarchive, nosnippet, noimageindex"
+        }
+      ]
+    },
+    {
+      "source": "/partner",
+      "has": [{ "type": "host", "value": "partner.traverion.com" }],
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow, noarchive, nosnippet, noimageindex"
+        }
+      ]
+    },
+    {
+      "source": "/partner/:path*",
       "has": [{ "type": "host", "value": "partner.traverion.com" }],
       "headers": [
         {
