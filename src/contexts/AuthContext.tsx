@@ -59,8 +59,20 @@ async function clearPartnerOnlyTravelerSession(): Promise<void> {
   clearSupabaseAuthStorage();
 }
 
+const partnerGateInflight = new Map<string, Promise<boolean>>();
+
 /** Reject restored partner-only sessions on traveler surfaces (localhost same-origin bleed). */
-async function travelerUserAllowed(user: User): Promise<boolean> {
+function travelerUserAllowed(user: User): Promise<boolean> {
+  const existing = partnerGateInflight.get(user.id);
+  if (existing) return existing;
+  const promise = evaluateTravelerUserAllowed(user).finally(() => {
+    if (partnerGateInflight.get(user.id) === promise) partnerGateInflight.delete(user.id);
+  });
+  partnerGateInflight.set(user.id, promise);
+  return promise;
+}
+
+async function evaluateTravelerUserAllowed(user: User): Promise<boolean> {
   if (isTraverionAdminUser(user)) return true;
   // Phase 1711: partner shell must not run this gate — team JWTs resolve owner profile via
   // fetchSupplierProfile and would be wiped as "partner-only" while SupplierAuth correctly admits them.
@@ -144,7 +156,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     supabase.auth
       .getSession()
       .then(async ({ data: { session } }) => {
-        await applySessionUser(session?.user ?? null);
+        const next = session?.user ?? null;
+        // Paint a confirmed session before the partner-only profile lookup.
+        // That lookup shares the same PostgREST pool as the catalog; waiting
+        // for it kept My bookings on a full-page skeleton with no retry.
+        const canPaint = !!next && (!!next.email_confirmed_at || isTraverionAdminUser(next));
+        if (canPaint) {
+          setUser(next);
+          setLoading(false);
+        }
+        await applySessionUser(next);
       })
       .catch(() => {
         setUser(null);

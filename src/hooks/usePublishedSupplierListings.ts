@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { getAllListingsAsync, peekPublishedListingsCache, SHOW_SEED_LISTINGS } from '../data/listings';
-import { isSupabaseConfigured } from '../lib/supabase';
+import { isSupabaseConfigured, SUPABASE_FETCH_TIMEOUT_MS } from '../lib/supabase';
 import { USER_ERROR, userFacingError } from '../lib/userFacingError';
 import type { TourPackage } from '../types/tour';
 
@@ -28,6 +28,7 @@ export function usePublishedSupplierListings(options?: Options): {
   const [error, setError] = useState<string | null>(null);
   const lastReloadAt = useRef(0);
   const catalogLoadGenRef = useRef(0);
+  const catalogTimerRef = useRef(0);
 
   const canLoadCatalog = isSupabaseConfigured() || SHOW_SEED_LISTINGS;
 
@@ -35,14 +36,28 @@ export function usePublishedSupplierListings(options?: Options): {
     if (!canLoadCatalog) return;
     lastReloadAt.current = Date.now();
     const gen = ++catalogLoadGenRef.current;
+    let settled = false;
+    if (catalogTimerRef.current) window.clearTimeout(catalogTimerRef.current);
+    catalogTimerRef.current = window.setTimeout(() => {
+      if (settled || gen !== catalogLoadGenRef.current) return;
+      settled = true;
+      setError(USER_ERROR.tours);
+      if (emptyOnFirstError) {
+        setListings((prev) => (prev === null ? [] : prev));
+      }
+    }, SUPABASE_FETCH_TIMEOUT_MS);
     getAllListingsAsync({ includeSeed: SHOW_SEED_LISTINGS, includeHolidayPackages: false })
       .then((data) => {
         if (gen !== catalogLoadGenRef.current) return;
+        settled = true;
+        window.clearTimeout(catalogTimerRef.current);
         setListings(data);
         setError(null);
       })
       .catch((e) => {
         if (gen !== catalogLoadGenRef.current) return;
+        settled = true;
+        window.clearTimeout(catalogTimerRef.current);
         setError(userFacingError(e, USER_ERROR.tours));
         if (emptyOnFirstError) {
           setListings((prev) => (prev === null ? [] : prev));
@@ -65,6 +80,7 @@ export function usePublishedSupplierListings(options?: Options): {
     return () => {
       document.removeEventListener('visibilitychange', onVis);
       window.removeEventListener('traverion:published-listings-changed', onPublishedChanged);
+      if (catalogTimerRef.current) window.clearTimeout(catalogTimerRef.current);
     };
   }, [reload, canLoadCatalog]);
 

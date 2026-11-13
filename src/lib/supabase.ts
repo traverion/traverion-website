@@ -3,8 +3,12 @@ import { createClient } from '@supabase/supabase-js';
 const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
 
-/** A stalled browser request must not leave checkout on “Checking…” forever. */
-const SUPABASE_FETCH_TIMEOUT_MS = 45_000;
+/**
+ * A stalled PostgREST call must not hold a pool slot, or the home catalog and
+ * My bookings, on a skeleton. Authenticated statements are capped at 8s; this
+ * client deadline is only a backstop when the HTTP response never arrives.
+ */
+export const SUPABASE_FETCH_TIMEOUT_MS = 12_000;
 
 /**
  * supabase-js asks for the auth lock with no timeout (`-1`). Another partner tab

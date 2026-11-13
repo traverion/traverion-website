@@ -489,6 +489,13 @@ export default function Home({ onTourSelect, onNavigate }: HomeProps) {
           </div>
           {catalogLoading ? (
             <SkeletonPlaceGrid count={6} />
+          ) : listingsError ? (
+            <ErrorState
+              className="py-6"
+              title="Destinations unavailable"
+              body={userFacingError(listingsError, USER_ERROR.tours)}
+              retry={{ onClick: () => reloadCatalog() }}
+            />
           ) : placeChips.length > 0 ? (
             <div className="tv-dest-grid">
               {placeChips.slice(0, 12).map((p) => {
