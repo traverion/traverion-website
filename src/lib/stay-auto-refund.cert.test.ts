@@ -42,7 +42,8 @@ describe('Step 2.3 stay auto-refund', () => {
     expect(edge.includes('cancel-refund:') || edge.includes('stay-cancel-refund:')).toBe(true);
     expect(edge).toContain('paymentStatusPendingWebhook');
     expect(edge).not.toContain("payment_status: 'refunded'");
-    expect(edge).toContain('isStripeTestSecretKey');
+    // LIVE/TEST money gate is centralized (not inlined sk_test checks).
+    expect(edge).toContain('resolveStripeMoneySecretFromEnv');
   });
 
   it('webhook marks instructions succeeded when charge is fully refunded', () => {

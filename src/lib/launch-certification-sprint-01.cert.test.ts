@@ -149,11 +149,12 @@ describe('Launch Certification Sprint 01 — cancel / refund honesty (T8 contrac
 
   it('traveler Trips surfaces refund processing and delayed states', () => {
     const trips = read('src/pages/MyBookings.tsx');
-    expect(trips).toContain('REFUND_DUE_MANUAL_COPY');
+    expect(trips).toContain('refundDueManualCopy');
     expect(trips).toContain('REFUND_PROCESSING_COPY');
     expect(trips).toContain('REFUND_DELAYED_COPY');
     const states = read('src/lib/payment-states.ts');
     expect(states).toMatch(/queues an automatic Stripe refund/i);
+    expect(states).toContain('REFUND_DUE_RENTAL_COPY');
     expect(states).toContain('Refund processing');
   });
 });

@@ -1,7 +1,7 @@
--- PREPARED / NOT YET APPROVED FOR PRODUCTION APPLY.
 -- Follow-up to 302: Connect transfer + recovery helpers still had anon EXECUTE
 -- after CREATE OR REPLACE without revoke (same class of regression as booking_blocks).
 -- Triggers are left untouched. supplier_period_earnings keeps authenticated (supplier UI).
+-- Owner-approved for production apply on xcopqllkulxfkpunetbc (2026-11-13).
 
 revoke all on function public.supplier_connect_transfer_preflight(uuid, uuid) from public;
 revoke all on function public.supplier_connect_transfer_preflight(uuid, uuid) from anon, authenticated;
