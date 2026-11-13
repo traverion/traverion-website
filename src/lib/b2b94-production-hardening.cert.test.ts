@@ -20,6 +20,10 @@ const mig302 = readFileSync(
   join(root, 'supabase/migrations/302_revoke_booking_blocks_payout_execute.sql'),
   'utf8'
 );
+const mig303 = readFileSync(
+  join(root, 'supabase/migrations/303_revoke_connect_transfer_anon_execute.sql'),
+  'utf8'
+);
 const edgeAdmin = readFileSync(
   join(root, 'supabase/functions/admin-supplier-verification/index.ts'),
   'utf8'
@@ -212,6 +216,14 @@ describe('B2B.9.4 certification scenarios (pure)', () => {
     expect(mig302).toContain('booking_blocks_payout_eligibility');
     expect(mig302).toMatch(/revoke all[\s\S]*from anon, authenticated/);
     expect(mig302).toMatch(/grant execute[\s\S]*to service_role/);
+  });
+
+  it('18. Connect transfer helpers revoke anon in prepared mig 303', () => {
+    expect(mig303).toContain('supplier_connect_transfer_preflight');
+    expect(mig303).toContain('reserve_supplier_transfer_attempt');
+    expect(mig303).toContain('list_due_connect_transfer_periods');
+    expect(mig303).toMatch(/supplier_period_earnings[\s\S]*from anon/);
+    expect(mig303).toMatch(/grant execute[\s\S]*supplier_period_earnings[\s\S]*authenticated, service_role/);
   });
 });
 
