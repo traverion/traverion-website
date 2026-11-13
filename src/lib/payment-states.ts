@@ -127,9 +127,19 @@ export function partnerCollectedAmountCaption(b: MoneyBookingRow): string {
   return 'Paid';
 }
 
-/** Traveler/partner copy when a refund is owed but auto-refund is off. */
+/** Traveler/partner copy when a refund is owed (tour/stay auto-refund path). */
 export const REFUND_DUE_MANUAL_COPY =
-  'A refund is due. For stays, Traverion queues an automatic Stripe refund after eligible cancellation. This status clears when Stripe confirms the refund.';
+  'A refund is due. For eligible tour and stay cancellations, Traverion queues an automatic Stripe refund. This status clears when Stripe confirms the refund.';
+
+/** Rental refunds are never auto-issued — keep partner/traveler copy honest. */
+export const REFUND_DUE_RENTAL_COPY =
+  'A refund may be owed under the rental cancellation terms. Traverion does not issue automatic rental refunds — any refund must be processed manually. This status clears when Stripe confirms the refund.';
+
+export function refundDueManualCopy(family?: string | null): string {
+  return (family ?? '').trim().toLowerCase() === 'rental'
+    ? REFUND_DUE_RENTAL_COPY
+    : REFUND_DUE_MANUAL_COPY;
+}
 
 export const REFUND_PROCESSING_COPY =
   'Your refund was submitted to Stripe. Bank timing depends on your card issuer — My bookings will show Refunded when Stripe confirms it.';

@@ -9,9 +9,10 @@ import {
   isPaidPaymentStatus,
   normalizePaymentStatus,
   travelerPaymentLabel,
-  REFUND_DUE_MANUAL_COPY,
+  refundDueManualCopy,
   type MoneyBookingRow,
 } from './payment-states';
+import { bookingIsRental, bookingIsStayNight } from './pickup-completeness';
 
 export const BOOKING_CONFIRMATION_EMAIL_DISCLAIMER =
   'My bookings is your confirmation. If an email arrives, keep it for your records — Traverion does not treat email delivery as booking proof.';
@@ -80,7 +81,8 @@ export const BOOKING_CONFIRMATION_NEEDS_PAY_BODY =
 export function bookingConfirmationCancelledBody(b: MoneyBookingRow): string {
   const pay = travelerPaymentLabel(b);
   if (pay === 'Refund due') {
-    return `This booking is cancelled. Status: Refund due. ${REFUND_DUE_MANUAL_COPY}`;
+    const family = bookingIsRental(b) ? 'rental' : bookingIsStayNight(b) ? 'stay' : 'tour';
+    return `This booking is cancelled. Status: Refund due. ${refundDueManualCopy(family)}`;
   }
   if (pay === 'Refunded') {
     return 'This booking is cancelled and marked Refunded in Stripe.';

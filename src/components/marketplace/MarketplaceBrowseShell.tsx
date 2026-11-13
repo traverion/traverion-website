@@ -77,7 +77,7 @@ export function MarketplaceBrowseShell({
 
         <section className="min-w-0" aria-labelledby={headingId}>
           <div className="mb-5 relative z-10 flex flex-wrap items-center justify-between gap-3">
-            <h1 id={headingId} className="font-sans text-lg font-bold tracking-tight text-ink sm:text-xl">
+            <h1 id={headingId} className="tv-page-title text-lg sm:text-xl">
               {resultTitle}
             </h1>
             {!desktopFilters ? <div className="hidden lg:block shrink-0">{sortControl}</div> : null}
@@ -140,13 +140,17 @@ export function MarketplaceFamilySwitch({
   onRentals: () => void;
 }) {
   const tabClass = (selected: boolean) =>
-    `lux-flat min-h-11 rounded-full px-4 py-1.5 text-sm font-medium ${
+    `lux-flat min-h-11 rounded-full px-4 py-1.5 text-sm font-medium transition-[background-color,color,box-shadow] duration-150 ${
       selected
         ? 'bg-white font-semibold text-finland shadow-sm ring-1 ring-finland/25'
         : 'text-ink-muted hover:bg-black/[0.04] hover:text-ink'
     }`;
   return (
-    <div className="flex flex-wrap gap-1 rounded-full bg-black/[0.04] p-1 w-fit max-w-full ring-1 ring-black/[0.06]" role="tablist" aria-label="Listing type">
+    <div
+      className="flex w-fit max-w-full flex-wrap gap-1 rounded-full bg-black/[0.04] p-1 ring-1 ring-black/[0.06]"
+      role="tablist"
+      aria-label="Listing type"
+    >
       <button type="button" role="tab" aria-selected={current === 'tours'} onClick={onTours} className={tabClass(current === 'tours')}>
         Tours
       </button>

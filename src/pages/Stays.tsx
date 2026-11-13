@@ -430,7 +430,7 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
         if (!cancelled) setReviewAggregates(reviews);
       })
       .catch(() => {
-        // Keep prior map — review load failure must not invent empty ratings.
+        if (!cancelled) setReviewAggregates(new Map());
       });
     return () => {
       cancelled = true;
@@ -873,7 +873,7 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
             trailing={
               <button
                 type="submit"
-                className="mx-1 flex h-11 items-center justify-center gap-2 self-center rounded-full bg-finland px-5 text-sm font-semibold text-white shadow-sm hover:bg-finland-dark"
+                className="tv-browse-search-btn"
               >
                 <Search className="h-4 w-4" aria-hidden />
                 Search
@@ -1147,7 +1147,7 @@ export default function Stays({ onStaySelect, onNavigate }: Props) {
               <div>
                 <p className="tv-eyebrow">Search</p>
                 {/* Phase 1639: match Tours mobile search sheet title scale. */}
-                <h2 id="stays-mobile-search-title" className="font-display text-2xl text-ink tracking-tight mt-1">
+                <h2 id="stays-mobile-search-title" className="tv-page-title mt-1">
                   Find a stay
                 </h2>
               </div>

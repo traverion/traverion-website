@@ -23,6 +23,8 @@ import { PublicListingBrowseCard } from '../components/PublicListingBrowseCard';
 import { MARKETPLACE_BROWSE_GRID_CLASS } from '../lib/marketplaceBrowse';
 import { useTravelerWishlist } from '../hooks/useTravelerWishlist';
 import { destinationCoverSrc, destinationParentCountrySlug } from '../lib/destinationCover';
+import { normalizeRentalDetails, rentalListingOffersUnit } from '../lib/rental-details';
+import { rentalCategoryTitle, rentalFromPrice } from '../lib/rental-presentation';
 
 const TAG_LABELS: Record<string, string> = {
   'free-cancellation': 'Free cancellation',
@@ -36,6 +38,24 @@ function slugToLabel(slug: string): string {
     .split('-')
     .map(w => w.charAt(0).toUpperCase() + w.slice(1))
     .join(' ');
+}
+
+function destinationRentalBrowseMeta(listing: TourPackage): {
+  badge: string;
+  meta: string;
+  priceLabel: string | null;
+} | null {
+  const rental =
+    normalizeRentalDetails(listing.listingExtras?.rental) ?? normalizeRentalDetails(listing.listingExtras);
+  if (!rental) return null;
+  const hour = rentalListingOffersUnit(rental, 'hour');
+  const day = rentalListingOffersUnit(rental, 'day');
+  const meta = hour && day ? 'Daily or hourly' : hour ? 'Hourly' : 'Daily';
+  return {
+    badge: rentalCategoryTitle(rental),
+    meta,
+    priceLabel: rentalFromPrice(rental)?.label ?? null,
+  };
 }
 
 interface DestinationPageProps {
@@ -134,7 +154,7 @@ export default function DestinationPage({ slug, onTourSelect, onBack, onNavigate
         if (!cancelled) setReviewAggregates(reviews);
       })
       .catch(() => {
-        // Keep prior map — review load failure must not invent empty ratings.
+        if (!cancelled) setReviewAggregates(new Map());
       });
     return () => {
       cancelled = true;
@@ -317,13 +337,10 @@ export default function DestinationPage({ slug, onTourSelect, onBack, onNavigate
               <section aria-labelledby="destination-tours-heading">
                 <div className="mb-5 flex flex-wrap items-end justify-between gap-2">
                   <div>
-                    <h2
-                      id="destination-tours-heading"
-                      className="font-sans text-2xl font-bold tracking-tight text-ink sm:text-3xl"
-                    >
+                    <h2 id="destination-tours-heading" className="tv-section-heading sm:text-[1.65rem]">
                       Experiences and tours
                     </h2>
-                    <p className="mt-1 text-sm text-ink-muted">
+                    <p className="tv-meta mt-1">
                       {tourListings.length}{' '}
                       {tourListings.length === 1 ? 'experience' : 'experiences'} in {label}
                     </p>
@@ -383,13 +400,10 @@ export default function DestinationPage({ slug, onTourSelect, onBack, onNavigate
               <section aria-labelledby="destination-stays-heading">
                 <div className="mb-5 flex flex-wrap items-end justify-between gap-2">
                   <div>
-                    <h2
-                      id="destination-stays-heading"
-                      className="font-sans text-2xl font-bold tracking-tight text-ink sm:text-3xl"
-                    >
+                    <h2 id="destination-stays-heading" className="tv-section-heading sm:text-[1.65rem]">
                       Stays
                     </h2>
-                    <p className="mt-1 text-sm text-ink-muted">
+                    <p className="tv-meta mt-1">
                       {stayListings.length} {stayListings.length === 1 ? 'place' : 'places'} to stay
                     </p>
                   </div>
@@ -448,13 +462,10 @@ export default function DestinationPage({ slug, onTourSelect, onBack, onNavigate
               <section aria-labelledby="destination-rentals-heading">
                 <div className="mb-5 flex flex-wrap items-end justify-between gap-2">
                   <div>
-                    <h2
-                      id="destination-rentals-heading"
-                      className="font-sans text-2xl font-bold tracking-tight text-ink sm:text-3xl"
-                    >
+                    <h2 id="destination-rentals-heading" className="tv-section-heading sm:text-[1.65rem]">
                       Rentals
                     </h2>
-                    <p className="mt-1 text-sm text-ink-muted">
+                    <p className="tv-meta mt-1">
                       {rentalListings.length}{' '}
                       {rentalListings.length === 1 ? 'rental' : 'rentals'} in {label}
                     </p>
@@ -470,28 +481,32 @@ export default function DestinationPage({ slug, onTourSelect, onBack, onNavigate
                   ) : null}
                 </div>
                 <div className={MARKETPLACE_BROWSE_GRID_CLASS}>
-                  {rentalListings.map((rental, index) => (
-                    <PublicListingBrowseCard
-                      key={rental.id}
-                      tour={rental}
-                      index={index}
-                      onSelect={() => onTourSelect(rental)}
-                      discountsByListing={discountsForDestinationCatalog}
-                      reviewAggregate={reviewAggregates.get(rental.id)}
-                      tagLabels={TAG_LABELS}
-                      size="compact"
-                      showTagPills={false}
-                      wishlist={
-                        wishlist.enabled && wishlist.heartsKnown
-                          ? {
-                              saved: wishlist.isSaved(rental.id),
-                              busy: wishlist.busyId === rental.id,
-                              onToggle: () => wishlist.toggle(rental.id),
-                            }
-                          : null
-                      }
-                    />
-                  ))}
+                  {rentalListings.map((listing, index) => {
+                    const rentalBrowse = destinationRentalBrowseMeta(listing);
+                    return (
+                      <PublicListingBrowseCard
+                        key={listing.id}
+                        tour={listing}
+                        index={index}
+                        onSelect={() => onTourSelect(listing)}
+                        discountsByListing={null}
+                        reviewAggregate={reviewAggregates.get(listing.id)}
+                        tagLabels={TAG_LABELS}
+                        size="compact"
+                        showTagPills={false}
+                        rentalBrowse={rentalBrowse}
+                        wishlist={
+                          wishlist.enabled && wishlist.heartsKnown
+                            ? {
+                                saved: wishlist.isSaved(listing.id),
+                                busy: wishlist.busyId === listing.id,
+                                onToggle: () => wishlist.toggle(listing.id),
+                              }
+                            : null
+                        }
+                      />
+                    );
+                  })}
                 </div>
               </section>
             ) : null}

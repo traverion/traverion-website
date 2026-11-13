@@ -48,14 +48,18 @@ export function ListingCardRating({ tour, aggregate, compact }: Props) {
     >
       {hasReal ? (
         <>
-          <Star className={`mr-0.5 fill-[#C9A227] text-[#C9A227] ${compact ? 'h-3.5 w-3.5' : 'h-4 w-4'}`} />
-          <strong className="font-bold text-[#111827]">{aggregate.rating}</strong>
+          <Star
+            className={`mr-0.5 fill-[var(--tv-star,#C9A227)] text-[var(--tv-star,#C9A227)] ${compact ? 'h-3.5 w-3.5' : 'h-4 w-4'}`}
+          />
+          <strong className="font-bold text-ink">{aggregate.rating}</strong>
           <span className="ml-1 font-medium text-ink-muted">({aggregate.count})</span>
         </>
       ) : showSeedRating ? (
         <>
-          <Star className={`mr-0.5 fill-[#C9A227] text-[#C9A227] ${compact ? 'h-3.5 w-3.5' : 'h-4 w-4'}`} />
-          <strong className="font-bold text-[#111827]">{tour.rating}</strong>
+          <Star
+            className={`mr-0.5 fill-[var(--tv-star,#C9A227)] text-[var(--tv-star,#C9A227)] ${compact ? 'h-3.5 w-3.5' : 'h-4 w-4'}`}
+          />
+          <strong className="font-bold text-ink">{tour.rating}</strong>
           <span className="ml-1 text-ink-muted">({tour.reviews})</span>
         </>
       ) : knownEmpty ? (

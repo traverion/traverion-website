@@ -41,7 +41,7 @@ import {
 import { formatMoney } from '../lib/money';
 import {
   travelerPaymentLabel,
-  REFUND_DUE_MANUAL_COPY,
+  refundDueManualCopy,
   REFUND_PROCESSING_COPY,
   REFUND_DELAYED_COPY,
   bookingPaymentWasCollected,
@@ -1881,7 +1881,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                   ) : null}
                   {tripDetailTab === 'overview' && b.status === 'cancelled' && payLabel === 'Refund due' ? (
                     <NoticeCallout title="Refund due" tone="warn">
-                      {REFUND_DUE_MANUAL_COPY}
+                      {refundDueManualCopy(bookingIsRental(b) ? 'rental' : bookingIsStayNight(b) ? 'stay' : 'tour')}
                       {bookingIsStayNight(b) ? (
                         <button
                           type="button"

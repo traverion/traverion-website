@@ -191,7 +191,7 @@ export const PublicListingBrowseCard = memo(function PublicListingBrowseCard({
           }
         }}
         onPointerEnter={() => prefetchListingDetailsPage(isRental ? 'rental' : isStay ? 'stay' : 'tour')}
-        className="tv-browse-card__surface group lux-flat block w-full overflow-hidden rounded-xl bg-white text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-finland focus-visible:ring-offset-2"
+        className="tv-browse-card__surface group lux-flat block w-full overflow-hidden bg-white text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-finland focus-visible:ring-offset-2"
         style={{ animationDelay: `${Math.min(index * 35, 240)}ms` }}
         aria-label={`View ${tour.title}. ${priceAria}`}
       >
@@ -214,55 +214,40 @@ export const PublicListingBrowseCard = memo(function PublicListingBrowseCard({
           ) : null}
           <div className="absolute top-2.5 left-2.5 flex flex-wrap gap-1.5 pr-12">
             {isRental ? (
-              <span className="rounded-md bg-white/95 px-2 py-0.5 text-[11px] font-semibold text-ink ring-1 ring-black/[0.04]">
-                {rentalBrowse.badge}
-              </span>
+              <span className="tv-browse-chip">{rentalBrowse.badge}</span>
             ) : !isStay ? (
-              <span className="rounded-md bg-white/95 px-2 py-0.5 text-[11px] font-semibold text-ink ring-1 ring-black/[0.04]">
-                Tour
-              </span>
+              <span className="tv-browse-chip">Tour</span>
             ) : propertyType ? (
-              <span className="rounded-md bg-white/95 px-2 py-0.5 text-[11px] font-semibold text-ink ring-1 ring-black/[0.04]">
-                {propertyType}
-              </span>
+              <span className="tv-browse-chip">{propertyType}</span>
             ) : null}
             {isRental && rentalBrowse.preview ? (
-              <span className="rounded-md bg-white/95 px-2 py-0.5 text-[11px] font-semibold text-[#073b83] ring-1 ring-black/[0.04]">
-                Preview
-              </span>
+              <span className="tv-browse-chip tv-browse-chip--accent">Preview</span>
             ) : null}
             {!isRental && listingShowsFreeCancellation(tour) ? (
-              <span className="rounded-md bg-white/95 px-2 py-0.5 text-[11px] font-semibold text-emerald-800 ring-1 ring-black/[0.04]">
-                Free cancellation
-              </span>
+              <span className="tv-browse-chip tv-browse-chip--success">Free cancellation</span>
             ) : null}
           </div>
             {!isRental && hasDiscount && label ? (
             <div className="absolute bottom-2.5 left-2.5">
-              <span className="rounded-md bg-[var(--tv-discount-bg,#F8EFEA)] px-2 py-0.5 text-[11px] font-semibold text-[var(--tv-discount-fg,#9A3412)]">
+              <span className="tv-browse-chip bg-[var(--tv-discount-bg,#F8EFEA)] text-[var(--tv-discount-fg,#9A3412)] shadow-none ring-0">
                 {label}
               </span>
             </div>
           ) : null}
         </div>
         <div className={size === 'compact' ? 'p-3' : 'px-3.5 py-3'}>
-          <p className="flex items-center gap-1 truncate text-[12px] text-ink-muted sm:text-[13px]">
+          <p className="tv-meta flex items-center gap-1 truncate">
             <MapPin className="h-3 w-3 shrink-0 text-finland/80" aria-hidden strokeWidth={2} />
             <span className="truncate">{locationLine}</span>
           </p>
-          <h3
-            title={tour.title}
-            className={`tv-card-title mt-1 line-clamp-2 break-words [overflow-wrap:anywhere] ${
-              size === 'compact' ? 'text-[15px] sm:text-[16px]' : 'text-base sm:text-[1.0625rem]'
-            }`}
-          >
+          <h3 title={tour.title} className="tv-card-title mt-1 line-clamp-2 break-words [overflow-wrap:anywhere]">
             {tour.title}
           </h3>
           <div className="mt-1.5">
             <ListingCardRating tour={tour} aggregate={reviewAggregate} compact />
           </div>
           {isStay && (guestLabel || bedroomLabel) ? (
-            <p className="mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-[12px] text-ink-muted sm:text-[13px]">
+            <p className="tv-meta mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-0.5">
               {guestLabel ? (
                 <span className="inline-flex items-center gap-1">
                   <Users className="h-3 w-3 shrink-0 opacity-70" aria-hidden strokeWidth={2} />
@@ -277,9 +262,9 @@ export const PublicListingBrowseCard = memo(function PublicListingBrowseCard({
               ) : null}
             </p>
           ) : isRental && rentalBrowse.meta ? (
-            <p className="mt-1 truncate text-[13px] text-ink-muted">{rentalBrowse.meta}</p>
+            <p className="tv-meta mt-1 truncate">{rentalBrowse.meta}</p>
           ) : metaLine ? (
-            <p className="mt-1 truncate text-[13px] text-ink-muted">{metaLine}</p>
+            <p className="tv-meta mt-1 truncate">{metaLine}</p>
           ) : null}
           {/* Phase 1803: price row — clearer From + amount hierarchy on browse cards. */}
           <p
@@ -339,10 +324,7 @@ export const PublicListingBrowseCard = memo(function PublicListingBrowseCard({
           {showTagPills && extraTags.length > 0 ? (
             <div className="mt-2 flex flex-wrap gap-1.5">
               {extraTags.slice(0, 3).map((tagId) => (
-                <span
-                  key={tagId}
-                  className="rounded-md bg-finland/10 px-2 py-0.5 text-[11px] font-medium text-finland ring-1 ring-finland/15"
-                >
+                <span key={tagId} className="tv-browse-chip tv-browse-chip--tag">
                   {tagLabels[tagId] ?? tagId}
                 </span>
               ))}

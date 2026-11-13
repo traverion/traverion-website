@@ -272,7 +272,7 @@ export default function DiscountOfferWizardModal({
     discountFrom && discountUntil ? validateSupplierDiscountDateRange(discountFrom, discountUntil) : null;
   const dateRangeValid = Boolean(discountFrom && discountUntil) && !periodError;
 
-  /** Tours and stays persist. Rentals are not a live booking family yet. */
+  /** Tours and stays persist. Rental offers stay disabled until rental checkout is enabled. */
   const canPersistProduct = productType === 'tour' || productType === 'stay';
   const step0CanAdvance =
     productType === 'tour'
@@ -319,7 +319,7 @@ export default function DiscountOfferWizardModal({
   const handleSubmit = async () => {
     setError(null);
     if (!canPersistProduct) {
-      setError('Rental Offers are not available yet — there is no rental booking engine.');
+      setError('Rental Offers are not available yet — rental checkout is not enabled.');
       return;
     }
     if (conflicts.length > 0) {

@@ -162,8 +162,8 @@ export function reservedInventoryCopy(
   }
   if (family === 'rental') {
     return {
-      title: 'Rentals are not bookable yet',
-      body: 'Operators can prepare rental listings in the partner portal. Traveler booking opens in a later Traverion Rentals launch.',
+      title: 'Rental checkout is not open yet',
+      body: 'Published rentals can be browsed on Traverion. Online traveler checkout stays disabled until Traverion enables rental checkout for launch.',
     };
   }
   return {

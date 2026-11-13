@@ -25,6 +25,9 @@ import { PublicListingBrowseCard } from '../components/PublicListingBrowseCard';
 import EmptyState from '../components/EmptyState';
 import ErrorState from '../components/ErrorState';
 import { SkeletonCardGrid } from '../components/ui/Skeleton';
+import { getReviewAggregatesForListingIds } from '../data/supabase-reviews';
+import { isSupabaseListingId } from '../lib/discount-display';
+import { isSupabaseConfigured } from '../lib/supabase';
 import {
   MarketplaceBrowseShell,
   MarketplaceFamilySwitch,
@@ -134,6 +137,9 @@ export default function RentalsCatalog({ onOpenListing, onNavigate }: Props) {
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const filterSheetRef = useRef<HTMLDivElement>(null);
+  const [reviewAggregates, setReviewAggregates] = useState<Map<string, { rating: number; count: number }>>(
+    () => new Map()
+  );
 
   const load = useCallback(() => {
     setReloadKey((n) => n + 1);
@@ -169,6 +175,35 @@ export default function RentalsCatalog({ onOpenListing, onNavigate }: Props) {
       cancelled = true;
     };
   }, [reloadKey]);
+
+  const rentalIdsKey = useMemo(
+    () =>
+      rows
+        .map((row) => row.listing.id)
+        .filter(isSupabaseListingId)
+        .sort()
+        .join(','),
+    [rows]
+  );
+
+  useEffect(() => {
+    if (!isSupabaseConfigured() || !rentalIdsKey) {
+      setReviewAggregates(new Map());
+      return;
+    }
+    let cancelled = false;
+    const ids = rentalIdsKey.split(',');
+    void getReviewAggregatesForListingIds(ids)
+      .then((reviews) => {
+        if (!cancelled) setReviewAggregates(reviews);
+      })
+      .catch(() => {
+        if (!cancelled) setReviewAggregates(new Map());
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [rentalIdsKey]);
 
   const applyPrimarySearch = useCallback(() => {
     setWhere(draftWhere.trim());
@@ -263,11 +298,13 @@ export default function RentalsCatalog({ onOpenListing, onNavigate }: Props) {
   }, [rows, where, category, duration, price, date, checkout, sort]);
 
   const extraFilterCount = (category ? 1 : 0) + (duration !== 'any' ? 1 : 0) + (price !== 'all' ? 1 : 0);
-  const resultTitle = loading
-    ? 'Rentals'
-    : filtered.length === 1
-      ? '1 rental'
-      : `${filtered.length} rentals`;
+  const resultTitle = loading ? (
+    <span className="inline-block h-7 w-36 animate-pulse rounded-md bg-black/[0.06]" aria-hidden />
+  ) : filtered.length === 1 ? (
+    '1 rental'
+  ) : (
+    `${filtered.length} rentals`
+  );
 
   const whenLabel = date
     ? checkout && checkout !== date
@@ -410,10 +447,7 @@ export default function RentalsCatalog({ onOpenListing, onNavigate }: Props) {
             }}
             idPrefix="rentals"
             trailing={
-              <button
-                type="submit"
-                className="mx-1 flex h-11 items-center justify-center gap-2 self-center rounded-full bg-finland px-5 text-sm font-semibold text-white shadow-sm hover:bg-finland-dark"
-              >
+              <button type="submit" className="tv-browse-search-btn">
                 <Search className="h-4 w-4" aria-hidden />
                 Search
               </button>
@@ -438,11 +472,27 @@ export default function RentalsCatalog({ onOpenListing, onNavigate }: Props) {
         filterPanel={filterPanel}
         desktopFilters={desktopFilters}
         filterFooter={
-          extraFilterCount > 0 ? (
-            <button type="button" onClick={clearFilters} className="tv-btn-ghost">
-              Clear filters
+          <>
+            {extraFilterCount > 0 ? (
+              <button
+                type="button"
+                onClick={() => {
+                  clearFilters();
+                  setMobileFiltersOpen(false);
+                }}
+                className="tv-btn-secondary flex-1"
+              >
+                Clear
+              </button>
+            ) : null}
+            <button
+              type="button"
+              onClick={() => setMobileFiltersOpen(false)}
+              className="tv-btn-primary flex-1"
+            >
+              Show {filtered.length}
             </button>
-          ) : null
+          </>
         }
         sortControl={sortControl}
         activeChips={
@@ -508,6 +558,18 @@ export default function RentalsCatalog({ onOpenListing, onNavigate }: Props) {
             icon={KeyRound}
             title="No rentals are published yet"
             body="Operators are preparing equipment listings. Online payment for rentals stays closed until bookings are ready."
+            action={
+              onNavigate ? (
+                <div className="flex flex-wrap justify-center gap-2">
+                  <button type="button" className="tv-btn-secondary" onClick={() => onNavigate('packages')}>
+                    Browse tours
+                  </button>
+                  <button type="button" className="tv-btn-secondary" onClick={() => onNavigate('stays')}>
+                    Browse stays
+                  </button>
+                </div>
+              ) : undefined
+            }
           />
         ) : filtered.length === 0 ? (
           <EmptyState
@@ -515,21 +577,33 @@ export default function RentalsCatalog({ onOpenListing, onNavigate }: Props) {
             title="No rentals match these filters"
             body="Try another destination, date, or category. Only published rentals are shown."
             action={
-              <button
-                type="button"
-                className="tv-btn-secondary"
-                onClick={() => {
-                  setWhere('');
-                  setDraftWhere('');
-                  setDate('');
-                  setDraftDate('');
-                  setCheckout('');
-                  setDraftCheckout('');
-                  clearFilters();
-                }}
-              >
-                Clear search
-              </button>
+              <div className="flex flex-wrap justify-center gap-2">
+                <button
+                  type="button"
+                  className="tv-btn-secondary"
+                  onClick={() => {
+                    setWhere('');
+                    setDraftWhere('');
+                    setDate('');
+                    setDraftDate('');
+                    setCheckout('');
+                    setDraftCheckout('');
+                    clearFilters();
+                  }}
+                >
+                  Clear search
+                </button>
+                {onNavigate ? (
+                  <>
+                    <button type="button" className="tv-btn-ghost" onClick={() => onNavigate('packages')}>
+                      Tours
+                    </button>
+                    <button type="button" className="tv-btn-ghost" onClick={() => onNavigate('stays')}>
+                      Stays
+                    </button>
+                  </>
+                ) : null}
+              </div>
             }
           />
         ) : (
@@ -543,6 +617,7 @@ export default function RentalsCatalog({ onOpenListing, onNavigate }: Props) {
                   index={index}
                   onSelect={() => onOpenListing(row.listing.id)}
                   discountsByListing={null}
+                  reviewAggregate={reviewAggregates.get(row.listing.id)}
                   tagLabels={{}}
                   rentalBrowse={{
                     badge: rentalCategoryTitle(row.rental),
@@ -576,7 +651,7 @@ export default function RentalsCatalog({ onOpenListing, onNavigate }: Props) {
             <div className="mb-5 flex items-start justify-between gap-3">
               <div>
                 <p className="tv-eyebrow">Search</p>
-                <h2 id="rentals-mobile-search-title" className="mt-1 font-display text-2xl tracking-tight text-ink">
+                <h2 id="rentals-mobile-search-title" className="tv-page-title mt-1">
                   Find a rental
                 </h2>
               </div>

@@ -21,6 +21,8 @@ import { MARKETPLACE_BROWSE_GRID_CLASS } from '../lib/marketplaceBrowse';
 import { fetchDiscountsByListingIds, type ListingDiscount } from '../data/supabase-discounts';
 import { isSupabaseListingId } from '../lib/discount-display';
 import { getReviewAggregatesForListingIds } from '../data/supabase-reviews';
+import { normalizeRentalDetails, rentalListingOffersUnit } from '../lib/rental-details';
+import { rentalCategoryTitle, rentalFromPrice } from '../lib/rental-presentation';
 
 interface WishlistPageProps {
   onNavigate: (page: string) => void;
@@ -89,7 +91,10 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
         if (
           isListingVisibleToTravelers(t.status) &&
           // Phase 1265: season-ended tours are unavailable (catalog 1260 parity).
-          (listingIsFamily(t, 'stay') || listingHasUpcomingBookableSeason(t))
+          // Rentals stay visible like stays (interval inventory, not tour seasons).
+          (listingIsFamily(t, 'stay') ||
+            listingIsFamily(t, 'rental') ||
+            listingHasUpcomingBookableSeason(t))
         ) {
           visible.push(t);
         } else {
@@ -208,8 +213,8 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
           <EmptyState
             icon={Heart}
             className="mx-auto py-4"
-            title="Saved tours and stays need the live app"
-            body="Saved listings are only available when Traverion is connected. You can still browse tours and stays."
+            title="Saved listings need the live app"
+            body="Saved listings are only available when Traverion is connected. You can still browse tours, stays, and rentals."
             action={
               <div className="flex flex-wrap gap-2">
                 <button type="button" onClick={() => onNavigate('packages')} className="tv-btn-primary">
@@ -217,6 +222,9 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
                 </button>
                 <button type="button" onClick={() => onNavigate('stays')} className="tv-btn-secondary">
                   Browse stays
+                </button>
+                <button type="button" onClick={() => onNavigate('rentals')} className="tv-btn-ghost">
+                  Browse rentals
                 </button>
               </div>
             }
@@ -241,15 +249,15 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
             </h1>
             {/* Phase 1637: logged-out Saved header subtitle (Trips / logged-in Saved parity). */}
             <p className="mt-1.5 max-w-xl text-sm leading-relaxed text-ink-muted">
-              Keep tours and stays you like — sign in to see them here.
+              Keep tours, stays, and rentals you like — sign in to see them here.
             </p>
           </header>
           <section aria-labelledby={WISHLIST_HEADING_ID}>
           <EmptyState
             icon={LogIn}
             className="mx-auto py-4"
-            title="Log in to see saved tours and stays"
-            body="Saved listings are tied to your traveler account. Sign in to keep tours and stays while you browse."
+            title="Log in to see saved listings"
+            body="Saved listings are tied to your traveler account. Sign in to keep tours, stays, and rentals while you browse."
             action={
               <div className="flex flex-wrap gap-2">
                 <button
@@ -267,6 +275,9 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
                 </button>
                 <button type="button" onClick={() => onNavigate('stays')} className="tv-btn-ghost">
                   Browse stays
+                </button>
+                <button type="button" onClick={() => onNavigate('rentals')} className="tv-btn-ghost">
+                  Browse rentals
                 </button>
               </div>
             }
@@ -288,7 +299,7 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
                 Saved
               </h1>
               <p className="mt-1.5 max-w-xl text-sm leading-relaxed text-ink-muted">
-                Tours and stays you want to revisit — open one to check dates and book.
+                Tours, stays, and rentals you want to revisit — open one to check dates and book.
               </p>
             </div>
             <button
@@ -338,23 +349,41 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
               </div>
             ) : null}
             <div className={MARKETPLACE_BROWSE_GRID_CLASS} aria-busy={loading || undefined}>
-              {listings.map((tour, index) => (
-                <PublicListingBrowseCard
-                  key={tour.id}
-                  tour={tour}
-                  index={index}
-                  onSelect={() => onTourSelect(tour)}
-                  discountsByListing={discountsForWishlistCatalog}
-                  reviewAggregate={reviewAggregates.get(tour.id)}
-                  tagLabels={TAG_LABELS}
-                  size="compact"
-                  showTagPills
-                  wishlist={{
-                    saved: true,
-                    onToggle: () => void handleRemove(tour.id),
-                  }}
-                />
-              ))}
+              {listings.map((tour, index) => {
+                const isRental = listingIsFamily(tour, 'rental');
+                const rental = isRental
+                  ? normalizeRentalDetails(tour.listingExtras?.rental) ??
+                    normalizeRentalDetails(tour.listingExtras)
+                  : null;
+                const hour = rental ? rentalListingOffersUnit(rental, 'hour') : false;
+                const day = rental ? rentalListingOffersUnit(rental, 'day') : false;
+                const rentalBrowse =
+                  rental != null
+                    ? {
+                        badge: rentalCategoryTitle(rental),
+                        meta: hour && day ? 'Daily or hourly' : hour ? 'Hourly' : 'Daily',
+                        priceLabel: rentalFromPrice(rental)?.label ?? null,
+                      }
+                    : null;
+                return (
+                  <PublicListingBrowseCard
+                    key={tour.id}
+                    tour={tour}
+                    index={index}
+                    onSelect={() => onTourSelect(tour)}
+                    discountsByListing={isRental ? null : discountsForWishlistCatalog}
+                    reviewAggregate={reviewAggregates.get(tour.id)}
+                    tagLabels={TAG_LABELS}
+                    size="compact"
+                    showTagPills={!isRental}
+                    rentalBrowse={rentalBrowse}
+                    wishlist={{
+                      saved: true,
+                      onToggle: () => void handleRemove(tour.id),
+                    }}
+                  />
+                );
+              })}
             </div>
           </>
         ) : error ? null : (
@@ -365,7 +394,7 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
             body={
               unavailableCount > 0
                 ? `${unavailableCount} saved listing${unavailableCount === 1 ? '' : 's'} are unpublished or gone, so they are not shown as bookable. Clear them here or browse for something new.`
-                : 'Tap the heart on a tour or stay to keep it here.'
+                : 'Tap the heart on a tour, stay, or rental to keep it here.'
             }
             action={
               <div className="flex flex-wrap gap-2">
@@ -384,6 +413,9 @@ export default function WishlistPage({ onNavigate, onTourSelect }: WishlistPageP
                 </button>
                 <button type="button" onClick={() => onNavigate('stays')} className="tv-btn-secondary">
                   Browse stays
+                </button>
+                <button type="button" onClick={() => onNavigate('rentals')} className="tv-btn-ghost">
+                  Browse rentals
                 </button>
               </div>
             }

@@ -13,7 +13,7 @@ import type { TourPackage } from '../../types/tour';
 import { listingHeroImageSrc, orderedPhotoUrls, photoSlotsFromTourPackage } from '../../lib/listingPhotoGrid';
 import { formatMoney, normalizeCurrency } from '../../lib/money';
 import { fetchBookingCommercialSnapshot, type BookingCommercialSnapshotRow } from '../../data/supabase-earnings';
-import { isPaidPaymentStatus, partnerPaymentLabel, partnerCollectedAmountCaption, bookingPaymentWasCollected, REFUND_DUE_MANUAL_COPY } from '../../lib/payment-states';
+import { isPaidPaymentStatus, partnerPaymentLabel, partnerCollectedAmountCaption, bookingPaymentWasCollected, refundDueManualCopy } from '../../lib/payment-states';
 import { PARTNER_BOOKINGS_CSV_HEADER, partnerBookingCsvValues } from '../../lib/partner-bookings-csv';
 import { csvSafeCell } from '../../lib/csv-export';
 import { localYmd } from '../../lib/local-ymd';
@@ -52,7 +52,6 @@ import ErrorState from '../../components/ErrorState';
 import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
 import {
   SUPPLIER_PAGE_CLASS,
-  SupplierDetailDrawer,
   SupplierEmptyState,
   SupplierModalHeader,
   SupplierModalShell,
@@ -72,7 +71,6 @@ import RentalOpsBookingCard from '../../components/supplier/RentalOpsBookingCard
 import RentalOpsBookingDetail from '../../components/supplier/RentalOpsBookingDetail';
 import TourOpsBookingCard from '../../components/supplier/TourOpsBookingCard';
 import TourOpsBookingDetail from '../../components/supplier/TourOpsBookingDetail';
-import PartnerConfirmModal from '../../components/supplier/PartnerConfirmModal';
 import { isStayRequestAwaitingHost } from '../../lib/stay-request-approval';
 import { insertSupplierExportRun } from '../../data/supabase-supplier-campaigns-exports';
 import { decrementAvailabilityBooked } from '../../data/supabase-availability';
@@ -1150,7 +1148,6 @@ export default function SupplierBookings({
     });
     setOpsFilterAndUrl('all');
     setSelectedIds(new Set());
-    setFiltersSheetOpen(false);
   };
 
   const isStayDesk = inventoryFamily === 'stay';
@@ -2282,7 +2279,9 @@ export default function SupplierBookings({
                   ) ? (
                     <div className="mt-2 rounded-md border border-black/[0.06] border-l-[3px] border-l-amber-500 bg-paper px-3 py-2">
                       <p className="text-[13px] font-semibold text-ink">{partnerPaymentLabel(booking)}</p>
-                      <p className="mt-0.5 text-[12px] leading-snug text-ink-muted">{REFUND_DUE_MANUAL_COPY}</p>
+                      <p className="mt-0.5 text-[12px] leading-snug text-ink-muted">
+                        {refundDueManualCopy(inventoryFamily)}
+                      </p>
                     </div>
                   ) : null
                 }
@@ -2787,7 +2786,9 @@ export default function SupplierBookings({
                   ['Refund due', 'Refund processing', 'Refund delayed'].includes(partnerPaymentLabel(booking)) ? (
                     <div className="mt-2 rounded-md border border-black/[0.06] border-l-[3px] border-l-amber-500 bg-paper px-3 py-2">
                       <p className="text-[13px] font-semibold text-ink">{partnerPaymentLabel(booking)}</p>
-                      <p className="mt-0.5 text-[12px] leading-snug text-ink-muted">{REFUND_DUE_MANUAL_COPY}</p>
+                      <p className="mt-0.5 text-[12px] leading-snug text-ink-muted">
+                        {refundDueManualCopy(inventoryFamily)}
+                      </p>
                     </div>
                   ) : null
                 }

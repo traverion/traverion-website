@@ -9,6 +9,8 @@ import {
   isRefundDueBooking,
   sumRefundDueAmount,
   REFUND_DUE_MANUAL_COPY,
+  REFUND_DUE_RENTAL_COPY,
+  refundDueManualCopy,
 } from './payment-states';
 
 describe('payment states', () => {
@@ -150,6 +152,9 @@ describe('payment states', () => {
       partnerCollectedAmountCaption({ status: 'confirmed', payment_status: 'paid', amount_paid: 189 })
     ).toBe('Paid');
     expect(REFUND_DUE_MANUAL_COPY.toLowerCase()).toContain('queues an automatic stripe refund');
+    expect(refundDueManualCopy('stay').toLowerCase()).toContain('queues an automatic stripe refund');
+    expect(refundDueManualCopy('rental').toLowerCase()).toContain('does not issue automatic rental refunds');
+    expect(refundDueManualCopy('rental')).toBe(REFUND_DUE_RENTAL_COPY);
   });
 
   it('sums outstanding Refund due separately from collected revenue', () => {

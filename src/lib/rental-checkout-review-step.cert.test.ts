@@ -20,9 +20,19 @@ describe('Rental checkout review step', () => {
     expect(widget).not.toContain('setReviewing');
     expect(widget).not.toContain('checkoutConsentAccepted');
     // Confirm overlay mounts only after all RentalBody hooks (Rules of Hooks).
+    expect(details).toContain('travelerCheckoutBlocked');
+    expect(details).toContain('devPreview || !rentalCheckoutEnabled');
     expect(details.indexOf('const quickFacts = useMemo')).toBeLessThan(
-      details.indexOf('if (checkoutFromUrl && !draftPreview && !devPreview)')
+      details.indexOf('if (checkoutFromUrl && !travelerCheckoutBlocked)')
     );
+  });
+
+  it('keeps rental book=1 disabled while RENTAL_CHECKOUT_ENABLED is off', () => {
+    expect(details).toContain('fetchRentalCheckoutCapability');
+    expect(details).toMatch(/Rental checkout is not open yet/);
+    expect(widget).toContain('!checkoutOpen');
+    expect(widget).toMatch(/Online payment is not open yet/);
+    expect(confirm).toContain("Online payment is not open yet for rentals");
   });
 
   it('dedicated review owns Stripe session + consent + revalidation', () => {

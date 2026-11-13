@@ -320,8 +320,8 @@ function RentalBody({
     [listing.id]
   );
 
-  // Dev samples never book. Drafts book only when RENTAL_CHECKOUT_ENABLED (staging/pilot).
-  const travelerCheckoutBlocked = devPreview || (draftPreview && !rentalCheckoutEnabled);
+  // Dev samples never book. Published + draft checkout both require RENTAL_CHECKOUT_ENABLED.
+  const travelerCheckoutBlocked = devPreview || !rentalCheckoutEnabled;
 
   const openRentalBookingConfirm = useCallback(
     (state: RentalCheckoutState) => {
@@ -512,6 +512,11 @@ function RentalBody({
             {rentalCheckoutEnabled
               ? 'Draft pilot listing. Not shown in the public catalog; checkout is open for testing only.'
               : 'Draft preview. Travelers cannot see this listing, and it cannot be booked until Traverion publishes rentals.'}
+          </p>
+        ) : null}
+        {!devPreview && !draftPreview && !rentalCheckoutEnabled ? (
+          <p className="mb-3 rounded-xl bg-[#F4F6F8] px-3.5 py-2.5 text-sm text-ink" role="note">
+            Rental checkout is not open yet. You can browse this listing, but online booking stays disabled until Traverion enables rentals.
           </p>
         ) : null}
 
