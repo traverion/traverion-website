@@ -1133,9 +1133,12 @@ describe('getListingPublishBlockers', () => {
           stay: {
             nightlyPriceUsd: 120,
             maxGuests: 4,
+            beds: 1,
             checkInTime: '16:00',
             checkOutTime: '11:00',
             checkInAddress: 'Kauppakatu 1, Rovaniemi',
+            arrivalMethod: 'lockbox',
+            restrictions: { pets: 'not_allowed', smoking: 'not_allowed', parties: 'not_allowed' },
           },
           galleryImageUrls: [
             'https://example.com/2.jpg',
