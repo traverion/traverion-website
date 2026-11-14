@@ -68,6 +68,29 @@
   </head>
   <body>
     <div id="root"></div>
+    <!-- One-shot recovery when a just-replaced hashed /assets/*.js module 404s mid-deploy. -->
+    <script>
+      (function () {
+        var key = 'tv_asset_boot_reload';
+        window.addEventListener(
+          'error',
+          function (event) {
+            var target = event && event.target;
+            if (!target || target.tagName !== 'SCRIPT') return;
+            var src = String(target.src || '');
+            if (src.indexOf('/assets/') === -1) return;
+            try {
+              if (sessionStorage.getItem(key)) return;
+              sessionStorage.setItem(key, '1');
+            } catch (_) {
+              return;
+            }
+            window.location.reload();
+          },
+          true
+        );
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
