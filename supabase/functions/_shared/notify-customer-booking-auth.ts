@@ -78,6 +78,7 @@ export function customerEmailKindRequiresServiceRole(emailKind: string): boolean
     kind === 'refund_completed' ||
     kind === 'partial_refund_recorded' ||
     kind === 'experience_reminder' ||
+    kind === 'pickup_location_reminder' ||
     kind === 'review_request' ||
     kind === 'checkout_payment_reversed'
   );

@@ -4,10 +4,12 @@ import {
   parseBookingPickupInstructionsOverride,
 } from './booking-notes';
 import {
+  displayFulfillmentFromPurchase,
   displayMeetingPointFromPurchase,
   displayPickupInstructionsFromPurchase,
   isPurchaseSnapshot,
 } from './purchase-snapshot';
+import { travelerPickupAddressFromRecord } from './pickup-area';
 
 /** Listing-level pickup copy is incomplete when meeting + pickup notes are too thin to operate. */
 export function listingPickupCopyIncomplete(meetingPoint: string | null | undefined, pickupInstructions: string | null | undefined): boolean {
@@ -154,37 +156,52 @@ export function resolvePartnerPickupCopy(params: {
   return resolveBookingPickupCopy(params);
 }
 
-/** Paid operating tour with missing pickup details — Bookings ops chip / row / detail must match Today. */
+/**
+ * Paid pickup-fulfillment tour missing the traveler’s accommodation address.
+ * Meeting-point options never count — thin listing copy alone is not a badge gap.
+ */
 export function partnerBookingHasPickupAttention(
   b: {
     status?: string | null;
     payment_status?: string | null;
     check_out?: string | null;
     special_requests?: string | null;
+    nights?: number | null;
     pickup_time?: string | null;
     booking_option_id?: string | null;
     purchase_snapshot?: unknown;
   },
-  meetingPoint: string | null | undefined,
-  pickupInstructions: string | null | undefined,
+  _meetingPoint?: string | null | undefined,
+  _pickupInstructions?: string | null | undefined,
   bookingOptions?: Array<{
     id: string;
+    fulfillment?: 'pickup' | 'meeting_point' | null;
     pickupPlace?: string;
     optionInfo?: string;
     travelerStartInstructions?: string;
   }> | null
 ): boolean {
   if (bookingIsRental(b)) return false;
+  if (bookingIsStayNight(b)) return false;
   const st = (b.status ?? '').trim().toLowerCase();
   if (st === 'cancelled') return false;
   if (!isPaidPaymentStatus(b.payment_status)) return false;
-  const resolved = resolvePartnerPickupCopy({
-    purchaseSnapshot: b.purchase_snapshot,
-    bookingOptionId: b.booking_option_id,
+
+  let fulfillment =
+    displayFulfillmentFromPurchase(b.purchase_snapshot) ??
+    (null as 'pickup' | 'meeting_point' | null);
+  if (!fulfillment) {
+    const oid = (b.booking_option_id ?? '').trim();
+    const opt = oid ? (bookingOptions ?? []).find((o) => o.id === oid) : null;
+    if (opt?.fulfillment === 'pickup' || opt?.fulfillment === 'meeting_point') {
+      fulfillment = opt.fulfillment;
+    }
+  }
+  if (fulfillment !== 'pickup') return false;
+
+  const travelerPlace = travelerPickupAddressFromRecord({
+    snapshot: b.purchase_snapshot,
     specialRequests: b.special_requests,
-    listingMeetingPoint: meetingPoint,
-    listingPickupInstructions: pickupInstructions,
-    bookingOptions: isPurchaseSnapshot(b.purchase_snapshot) ? null : bookingOptions,
   });
-  return bookingNeedsPickupCopy(b, resolved.meetingPoint, resolved.pickupInstructions);
+  return !travelerPlace;
 }

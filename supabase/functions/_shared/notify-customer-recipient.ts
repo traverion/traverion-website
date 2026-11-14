@@ -34,6 +34,7 @@ export type NotifyCustomerBookingKind =
   | 'cancellation_declined'
   | 'new_booking_message'
   | 'pickup_action_required'
+  | 'pickup_location_reminder'
   | 'traveler_welcome'
   | 'refund_completed'
   | 'partial_refund_recorded'

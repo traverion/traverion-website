@@ -70,6 +70,7 @@ type RequestBody = {
   customerPhone?: string;
   specialRequests?: string;
   travelerPickup?: unknown;
+  travelerPickupDeferred?: boolean;
   /** Ignored for pricing. Kept so old clients do not break; server recomputes. */
   totalAmount?: number;
   /**
@@ -1229,6 +1230,7 @@ serve(async (req) => {
     });
 
     const travelerPoint = parseTravelerPickupPoint(body.travelerPickup);
+    const deferPickup = body.travelerPickupDeferred === true;
     const pickupDecision =
       extrasFamily === 'stay'
         ? { ok: true as const, address: null as string | null }
@@ -1243,6 +1245,7 @@ serve(async (req) => {
               pickupPlaceId: optionFields.pickupPlaceId,
             }),
             point: travelerPoint,
+            deferLocation: deferPickup,
           });
     if (!pickupDecision.ok) {
       return json({ success: false, error: pickupDecision.error }, 400);
@@ -1317,6 +1320,9 @@ serve(async (req) => {
       travelerPickupPlaceId: pickupDecision.address ? travelerPoint?.placeId ?? null : null,
       travelerPickupLat: pickupDecision.address ? travelerPoint?.lat ?? null : null,
       travelerPickupLng: pickupDecision.address ? travelerPoint?.lng ?? null : null,
+      travelerPickupDeferred:
+        optionFields.fulfillment === 'pickup' &&
+        (pickupDecision.deferred === true || (deferPickup && !pickupDecision.address)),
       pickupTiming: optionFields.pickupTiming,
       pickupWindowMinutes: optionFields.pickupWindowMinutes,
       pickupTimeConfirmation: optionFields.pickupTimeConfirmation,

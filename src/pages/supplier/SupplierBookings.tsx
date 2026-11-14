@@ -113,7 +113,7 @@ import { rentalBookingSimpleStatusLabel } from '../../lib/rental-booking-status'
 import { parseListingExtras, materializedBookingOptions } from '../../types/listingExtras';
 import {
   partnerBookingLifecycleLabel,
-  partnerBookingListBadgeLabel,
+  partnerBookingOpsListBadge,
   type PartnerBookingsOps,
   type PartnerBookingsTravelWindow,
 } from '../../lib/partner-bookings-desk';
@@ -243,20 +243,33 @@ function bookingPaginationRange(totalPages: number, current: number): (number | 
 
 function listStatusBadge(
   status: string | null | undefined,
-  paymentStatus?: string | null
+  paymentStatus?: string | null,
+  pickupDetailsMissing = false
 ): { label: string | null; className: string } {
-  const pay = (paymentStatus ?? '').trim().toLowerCase();
-  if (pay === 'refunded') {
-    return { label: 'Cancelled', className: bookingStatusClass('cancelled', pay) };
+  const label = partnerBookingOpsListBadge({
+    status,
+    paymentStatus,
+    pickupDetailsMissing,
+  });
+  if (label === 'Cancelled') {
+    return { label, className: bookingStatusClass('cancelled', paymentStatus) };
   }
-  const label = partnerBookingListBadgeLabel(status);
-  return { label, className: bookingStatusClass(status ?? '', paymentStatus) };
+  if (label === 'Pickup details missing') {
+    return { label, className: 'tour-ops-card__status--pickup-missing' };
+  }
+  return { label: null, className: bookingStatusClass(status ?? '', paymentStatus) };
 }
 
-function rentalListStatusBadge(booking: BookingRow): { label: string | null; className: string } {
+function rentalListStatusBadge(
+  booking: BookingRow,
+  pickupDetailsMissing = false
+): { label: string | null; className: string } {
   const pay = (booking.payment_status ?? '').trim().toLowerCase();
   if (pay === 'refunded' || rentalBookingSimpleStatusLabel(booking) === 'Cancelled') {
     return { label: 'Cancelled', className: bookingStatusClass('cancelled', booking.payment_status) };
+  }
+  if (pickupDetailsMissing) {
+    return { label: 'Pickup details missing', className: 'tour-ops-card__status--pickup-missing' };
   }
   return { label: null, className: '' };
 }
@@ -425,7 +438,6 @@ export default function SupplierBookings({
   const [commercialSnapshot, setCommercialSnapshot] = useState<BookingCommercialSnapshotRow | null>(null);
   const [commercialState, setCommercialState] = useState<'loading' | 'ready' | 'missing' | 'error'>('missing');
   const [copiedBookingId, setCopiedBookingId] = useState<string | null>(null);
-  const [selectedIds, setSelectedIds] = useState<ReadonlySet<string>>(() => new Set());
   const [activityEvents, setActivityEvents] = useState<SupplierBookingEventRow[]>([]);
   const [filterListingId, setFilterListingId] = useState(() => {
     if (typeof window === 'undefined') return '';
@@ -1323,8 +1335,9 @@ export default function SupplierBookings({
       category: '',
     });
     setOpsFilterAndUrl('all');
-    setSelectedIds(new Set());
   };
+
+  const bookingFiltersActive = activeBookingFilterCount > 0;
 
   const isStayDesk = inventoryFamily === 'stay';
   const isRentalDesk = inventoryFamily === 'rental';
@@ -1363,64 +1376,6 @@ export default function SupplierBookings({
               <RefreshCw className="h-4 w-4" aria-hidden />
               Refresh
             </button>
-            {canEditBookings ? (
-              <button
-                type="button"
-                className="rounded-lg bg-[#073B83] px-3 py-2 text-sm font-medium text-white"
-                onClick={() => {
-                  if (!user?.id) return;
-                  const uid = user.id;
-                  void (async () => {
-                    try {
-                      const listings = await fetchMyListings(uid);
-                      const cancelIds = opsFilter === 'cancel' ? await fetchOpenCancellationBookingIds() : [];
-                      const rows = await fetchAllSupplierBookingDeskRows(uid, deskQuery(listings, cancelIds));
-                      openCancellationWorkflow(
-                        rows,
-                        rows.filter((booking) => selectedIds.has(booking.id)).map((booking) => booking.id)
-                      );
-                    } catch (cancelError) {
-                      setError(userFacingError(cancelError, USER_ERROR.bookings));
-                    }
-                  })();
-                }}
-              >
-                Cancel bookings
-              </button>
-            ) : null}
-            {selectedIds.size > 0 ? (
-              <button
-                type="button"
-                onClick={() => {
-                  if (!canExportBookingsCsv || !user?.id) return;
-                  const chosen = filteredBookings.filter((b) => selectedIds.has(b.id));
-                  if (chosen.length === 0) return;
-                  void (async () => {
-                    const audited = await downloadBookingsCsv(chosen, listingMeta, {
-                      supplierId: user.id,
-                      actorId: user.id,
-                      dateFrom: filterDateFrom || undefined,
-                      dateTo: filterDateTo || undefined,
-                      filtersSnapshot: {
-                        surface: 'bookings',
-                        scope: 'selected',
-                        view,
-                        opsFilter,
-                        rowCount: chosen.length,
-                      },
-                    });
-                    if (!audited) {
-                      setError('Export downloaded, but the audit log failed. Try again or contact support.');
-                    }
-                  })();
-                }}
-                disabled={!canExportBookingsCsv}
-                className="tv-btn-ghost disabled:opacity-50"
-              >
-                <Download className="h-4 w-4" aria-hidden />
-                Export selected
-              </button>
-            ) : null}
             <button
               type="button"
               // Phase 1763/1768: guest-PII export for editors + finance (+ audit insert).
@@ -1510,14 +1465,14 @@ export default function SupplierBookings({
         </div>
       ) : null}
 
-      {listHidden ? null : loading && bookings.length === 0 ? (
+      {listHidden ? null : loading && bookings.length === 0 && !bookingFiltersActive ? (
         <div className="space-y-3 animate-fade-in-up" aria-busy="true" aria-label="Loading bookings">
           <SkeletonListItem />
           <SkeletonListItem />
           <SkeletonListItem />
           <SkeletonListItem />
         </div>
-      ) : error ? null : bookings.length === 0 ? (
+      ) : error ? null : bookings.length === 0 && !bookingFiltersActive ? (
         <SupplierEmptyState
           icon={CalendarDays}
           title={
@@ -1720,9 +1675,6 @@ export default function SupplierBookings({
                 : isStayDesk
                   ? ' reservations'
                   : ' bookings'}
-              {selectedIds.size > 0 ? (
-                <span className="text-ink-muted"> · {selectedIds.size} selected</span>
-              ) : null}
               {activeBookingFilterCount > 0 ? (
                 <span className="text-ink-faint"> · {activeBookingFilterCount} filters</span>
               ) : null}
@@ -1739,79 +1691,27 @@ export default function SupplierBookings({
         {filteredBookings.length === 0 ? (
         <SupplierEmptyState
           icon={CalendarDays}
-          title="Nothing in this view"
+          title="No bookings match your selected filters."
           body={
             opsFilter === 'unpaid'
               ? 'No unpaid checkouts match these filters. Live holds stay here until you clear them.'
-              : 'You have bookings, but none match this search or these filters. That is a filter — not a missing page.'
+              : 'Try another day, category, or search — or reset filters to see all bookings again.'
           }
           action={
-              // Phase 1609: filtered empty — same reset as toolbar Reset filters.
               <button
                 type="button"
                 onClick={() => {
                   resetBookingFilters();
-                  setOpsFilterAndUrl('all');
                   setBookingsListPage(1);
                 }}
                 className="tv-btn-secondary"
               >
-                Clear filters
+                Reset filters
               </button>
           }
         />
       ) : (
-        <div className="space-y-3" aria-busy={loading || undefined}>
-          {selectedIds.size > 0 ? (
-            <div
-              className="partner-bookings-workspace__bulk"
-              role="status"
-            >
-              <span>
-                {selectedIds.size} selected
-              </span>
-              <button
-                type="button"
-                className="tv-btn-ghost h-7 !px-2 text-[12px]"
-                onClick={() => setSelectedIds(new Set())}
-              >
-                Clear
-              </button>
-              {canExportBookingsCsv ? (
-                <button
-                  type="button"
-                  className="tv-btn-secondary h-7 !px-2.5 text-[12px]"
-                  onClick={() => {
-                    if (!user?.id) return;
-                    const chosen = filteredBookings.filter((b) => selectedIds.has(b.id));
-                    if (chosen.length === 0) return;
-                    void (async () => {
-                      const audited = await downloadBookingsCsv(chosen, listingMeta, {
-                        supplierId: user.id,
-                        actorId: user.id,
-                        dateFrom: filterDateFrom || undefined,
-                        dateTo: filterDateTo || undefined,
-                        filtersSnapshot: {
-                          surface: 'bookings',
-                          scope: 'selected',
-                          view,
-                          opsFilter,
-                          rowCount: chosen.length,
-                        },
-                      });
-                      if (!audited) {
-                        setError(
-                          'Export downloaded, but the audit log failed. Try again or contact support.'
-                        );
-                      }
-                    })();
-                  }}
-                >
-                  Export selected
-                </button>
-              ) : null}
-            </div>
-          ) : null}
+        <div className="space-y-2.5" aria-busy={loading || undefined}>
           <div className="partner-bookings-workspace__list">
             {paginatedBookings.map((booking) => {
               const opsStartHm = booking.start_time ? pgTimeToHm(booking.start_time) ?? null : null;
@@ -1900,9 +1800,8 @@ export default function SupplierBookings({
                     : null;
               const cardWarning = openCancel
                 ? 'Cancellation requested'
-                : pickupGap
-                  ? 'Pickup details missing'
-                  : paymentIssue;
+                : paymentIssue;
+              const tourPickupBadge = rowFamily === 'tour' ? pickupGap : false;
               const referenceLabel = bookingReferenceLabel(booking);
               const participantLabel = formatBookingParticipantsLabel(booking);
               const stayNightLabel =
@@ -1924,23 +1823,6 @@ export default function SupplierBookings({
                       return n != null && n > 0 ? `${n} night${n === 1 ? '' : 's'}` : '';
                     })()
                   : '';
-              const checkbox = (
-                <input
-                  type="checkbox"
-                  checked={selectedIds.has(booking.id)}
-                  aria-label={`Select booking ${referenceLabel}`}
-                  onClick={(event) => event.stopPropagation()}
-                  onChange={() => {
-                    setSelectedIds((prev) => {
-                      const next = new Set(prev);
-                      if (next.has(booking.id)) next.delete(booking.id);
-                      else next.add(booking.id);
-                      return next;
-                    });
-                  }}
-                  className="h-4 w-4 rounded border-black/30 text-finland focus:ring-finland"
-                />
-              );
               const copyReference = () => {
                 void navigator.clipboard.writeText(referenceLabel).then(() => {
                   setCopiedBookingId(booking.id);
@@ -1993,8 +1875,8 @@ export default function SupplierBookings({
                       dateLine: stayDayChip ? `${stayDayChip} · ${dateLine}` : dateLine,
                       participantLabel,
                       nightLabel: stayNightLabel,
-                      statusLabel: listStatusBadge(booking.status, booking.payment_status).label,
-                      statusClass: listStatusBadge(booking.status, booking.payment_status).className,
+                      statusLabel: listStatusBadge(booking.status, booking.payment_status, false).label,
+                      statusClass: listStatusBadge(booking.status, booking.payment_status, false).className,
                       referenceLabel,
                       purchaseDateLabel,
                       guestEmail: booking.guest_email?.trim() || null,
@@ -2018,7 +1900,6 @@ export default function SupplierBookings({
                     expanded={stayExpanded}
                     selected={highlightBookingId === booking.id}
                     busy={updatingId === booking.id}
-                    checkbox={checkbox}
                     copied={copiedBookingId === booking.id}
                     onToggleExpand={() => {
                       setExpandedTourId(null);
@@ -2075,8 +1956,8 @@ export default function SupplierBookings({
                       collectionLabel,
                       returnLabel,
                       quantityLabel,
-                      statusLabel: rentalListStatusBadge(booking).label,
-                      statusClass: rentalListStatusBadge(booking).className,
+                      statusLabel: rentalListStatusBadge(booking, false).label,
+                      statusClass: rentalListStatusBadge(booking, false).className,
                       referenceLabel,
                       purchaseDateLabel,
                       collectionPlace: rentalSnap?.pickupAddress?.trim() || null,
@@ -2097,8 +1978,7 @@ export default function SupplierBookings({
                     expanded={rentalExpanded}
                     selected={highlightBookingId === booking.id}
                     busy={updatingId === booking.id}
-                    checkbox={checkbox}
-                    copied={copiedBookingId === booking.id}
+                                        copied={copiedBookingId === booking.id}
                     onToggleExpand={() => {
                       setExpandedStayId(null);
                       setExpandedTourId(null);
@@ -2144,8 +2024,8 @@ export default function SupplierBookings({
                     dateLine,
                     departureNote: dep.purchasedNote || null,
                     participantLabel,
-                    statusLabel: listStatusBadge(booking.status, booking.payment_status).label,
-                    statusClass: listStatusBadge(booking.status, booking.payment_status).className,
+                    statusLabel: listStatusBadge(booking.status, booking.payment_status, tourPickupBadge).label,
+                    statusClass: listStatusBadge(booking.status, booking.payment_status, tourPickupBadge).className,
                     referenceLabel,
                     purchaseDateLabel,
                     arrivalRailLabel: arrival.railLabel,
@@ -2171,8 +2051,7 @@ export default function SupplierBookings({
                   expanded={tourExpanded}
                   selected={highlightBookingId === booking.id}
                   busy={updatingId === booking.id}
-                  checkbox={checkbox}
-                  copied={copiedBookingId === booking.id}
+                                    copied={copiedBookingId === booking.id}
                   onToggleExpand={() => {
                     setExpandedStayId(null);
                     setExpandedRentalId(null);

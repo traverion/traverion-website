@@ -1,8 +1,19 @@
 /**
  * Expandable tour booking row — compact scan row + Guest | Booking details | Payment.
  */
-import { type MouseEvent, type ReactNode } from 'react';
-import { Calendar, ChevronDown, Copy, Mail, Ticket, Users } from 'lucide-react';
+import { type MouseEvent } from 'react';
+import {
+  Calendar,
+  ChevronDown,
+  Clock,
+  Copy,
+  CreditCard,
+  Mail,
+  MapPin,
+  Phone,
+  Ticket,
+  Users,
+} from 'lucide-react';
 
 export type TourOpsCardModel = {
   id: string;
@@ -44,7 +55,6 @@ type Props = {
   expanded: boolean;
   selected: boolean;
   busy?: boolean;
-  checkbox: ReactNode;
   onToggleExpand: () => void;
   onOpenDetails: () => void;
   onMessageGuest: () => void;
@@ -61,7 +71,6 @@ export default function TourOpsBookingCard({
   model,
   expanded,
   selected,
-  checkbox,
   onToggleExpand,
   onOpenDetails,
   onMessageGuest,
@@ -81,7 +90,7 @@ export default function TourOpsBookingCard({
     (model.arrivalRailWarn ? 'Pickup location needed' : '—');
   const showInstructionUnderPlace = Boolean(arrivalPlace && arrivalInstructions);
   const whenTitle = model.departureNote ? `${model.dateLine}. ${model.departureNote}` : model.dateLine;
-  const needsAttention = Boolean(model.warning);
+  const needsAttention = Boolean(model.warning) || model.statusLabel === 'Pickup details missing';
 
   return (
     <article
@@ -105,9 +114,6 @@ export default function TourOpsBookingCard({
             aria-hidden
           />
         </button>
-        <div className="tour-ops-card__check" onClick={stop}>
-          {checkbox}
-        </div>
         <div className="tour-ops-card__scan">
           <button
             type="button"
@@ -180,9 +186,7 @@ export default function TourOpsBookingCard({
                   )}
                 </button>
               </div>
-              {actionableNote || model.warning === 'Pickup details missing' ? (
-                <p className="tour-ops-card__warn">{actionableNote || model.warning}</p>
-              ) : null}
+              {actionableNote ? <p className="tour-ops-card__warn">{actionableNote}</p> : null}
             </div>
           </div>
         </div>
@@ -193,21 +197,20 @@ export default function TourOpsBookingCard({
           <section className="tour-ops-card__summary-block">
             <h3 className="tour-ops-card__summary-heading">Guest</h3>
             <p className="tour-ops-card__summary-name">{model.guestName}</p>
-            {model.guestEmail ? (
-              <a href={`mailto:${model.guestEmail}`} className="tour-ops-card__summary-contact">
-                {model.guestEmail}
-              </a>
-            ) : null}
             {model.guestPhone ? (
               <a
                 href={`tel:${model.guestPhone.replace(/[^\d+]/g, '')}`}
-                className="tour-ops-card__summary-contact"
+                className="tour-ops-card__summary-contact tour-ops-card__summary-icon-row"
               >
+                <Phone className="tour-ops-card__summary-icon" strokeWidth={2} aria-hidden />
                 {model.guestPhone}
               </a>
             ) : null}
             {model.participantLabel ? (
-              <p className="tour-ops-card__summary-meta">{model.participantLabel}</p>
+              <p className="tour-ops-card__summary-meta tour-ops-card__summary-icon-row">
+                <Users className="tour-ops-card__summary-icon" strokeWidth={2} aria-hidden />
+                {model.participantLabel}
+              </p>
             ) : null}
             {model.purchaseDateLabel ? (
               <p className="tour-ops-card__summary-meta tour-ops-card__summary-meta--secondary">
@@ -218,22 +221,29 @@ export default function TourOpsBookingCard({
 
           <section className="tour-ops-card__summary-block">
             <h3 className="tour-ops-card__summary-heading">Booking details</h3>
-            <p className="tour-ops-card__summary-value" title={whenTitle}>
+            <p className="tour-ops-card__summary-value tour-ops-card__summary-icon-row" title={whenTitle}>
+              <Calendar className="tour-ops-card__summary-icon" strokeWidth={2} aria-hidden />
               {model.dateLine}
             </p>
             {model.optionLabel ? (
               <p className="tour-ops-card__summary-meta">{model.optionLabel}</p>
             ) : null}
             {model.durationLabel ? (
-              <p className="tour-ops-card__summary-meta">{model.durationLabel}</p>
+              <p className="tour-ops-card__summary-meta tour-ops-card__summary-icon-row">
+                <Clock className="tour-ops-card__summary-icon" strokeWidth={2} aria-hidden />
+                {model.durationLabel}
+              </p>
             ) : null}
             <p
-              className={`tour-ops-card__summary-meta${
+              className={`tour-ops-card__summary-meta tour-ops-card__summary-icon-row${
                 arrivalPlace || model.pickupSummary ? ' tour-ops-card__summary-value--place' : ''
               }`}
             >
-              <span className="tour-ops-card__summary-label">{model.arrivalSectionLabel}</span>
-              {arrivalPrimary}
+              <MapPin className="tour-ops-card__summary-icon" strokeWidth={2} aria-hidden />
+              <span>
+                <span className="tour-ops-card__summary-label">{model.arrivalSectionLabel}</span>
+                {arrivalPrimary}
+              </span>
             </p>
             {showInstructionUnderPlace ? (
               <p className="tour-ops-card__summary-note">{arrivalInstructions}</p>
@@ -249,7 +259,10 @@ export default function TourOpsBookingCard({
           <section className="tour-ops-card__summary-block tour-ops-card__summary-block--finance">
             <h3 className="tour-ops-card__summary-heading">Payment</h3>
             {model.paymentLabel ? (
-              <p className="tour-ops-card__payment-status">{model.paymentLabel}</p>
+              <p className="tour-ops-card__payment-status tour-ops-card__summary-icon-row">
+                <CreditCard className="tour-ops-card__summary-icon" strokeWidth={2} aria-hidden />
+                {model.paymentLabel}
+              </p>
             ) : null}
             {model.financeLoading ? (
               <p className="tour-ops-card__summary-meta">Loading…</p>
@@ -284,10 +297,8 @@ export default function TourOpsBookingCard({
           </section>
         </div>
 
-        {actionableNote || model.warning === 'Pickup details missing' ? (
-          <p className="tour-ops-card__summary-attention">
-            {actionableNote || model.warning}
-          </p>
+        {actionableNote ? (
+          <p className="tour-ops-card__summary-attention">{actionableNote}</p>
         ) : null}
 
         <div className="tour-ops-card__actions">

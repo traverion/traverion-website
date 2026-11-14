@@ -104,6 +104,19 @@ export function partnerBookingListBadgeLabel(status: string | null | undefined):
   return label === 'Cancelled' ? 'Cancelled' : null;
 }
 
+/** Right-rail list badge: Cancelled, else pickup missing — never Confirmed/Pending. */
+export function partnerBookingOpsListBadge(params: {
+  status?: string | null;
+  paymentStatus?: string | null;
+  pickupDetailsMissing?: boolean;
+}): string | null {
+  const pay = (params.paymentStatus ?? '').trim().toLowerCase();
+  if (pay === 'refunded') return 'Cancelled';
+  if (partnerBookingListBadgeLabel(params.status) === 'Cancelled') return 'Cancelled';
+  if (params.pickupDetailsMissing) return 'Pickup details missing';
+  return null;
+}
+
 export function partnerBookingsDeskFiltersActive(query: PartnerBookingsDeskQuery): boolean {
   return Boolean(
     query.search.trim() ||

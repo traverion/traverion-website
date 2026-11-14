@@ -80,36 +80,53 @@ describe('pickup completeness', () => {
     expect(bookingNeedsPickupCopy(tourTimed, '', '')).toBe(false);
   });
 
-  it('aligns Bookings pickup attention with paid + listing copy truth', () => {
-    const paidThin = {
+  it('flags paid pickup fulfillment only when traveler address is missing', () => {
+    const paidMissing = {
       status: 'confirmed',
       payment_status: 'paid',
       check_out: null,
       special_requests: null,
       pickup_time: null,
+      purchase_snapshot: {
+        listingTitle: 'Tour',
+        capturedAt: '2026-01-01T00:00:00.000Z',
+        fulfillment: 'pickup',
+      },
     };
-    const paidCompleteListing = { ...paidThin };
-    const unpaidThin = { ...paidThin, payment_status: 'pending' };
-    expect(partnerBookingHasPickupAttention(paidThin, 'Meet', '')).toBe(true);
-    expect(
-      partnerBookingHasPickupAttention(
-        paidCompleteListing,
-        'Hotel lobby, 07:30, look for the Traverion sign',
-        'Van'
-      )
-    ).toBe(false);
-    expect(partnerBookingHasPickupAttention(unpaidThin, 'Meet', '')).toBe(false);
+    const paidWithAddress = {
+      ...paidMissing,
+      purchase_snapshot: {
+        ...paidMissing.purchase_snapshot,
+        travelerPickupAddress: 'Arctic City Hotel',
+      },
+    };
+    const meetingPointOnly = {
+      ...paidMissing,
+      purchase_snapshot: {
+        listingTitle: 'Tour',
+        capturedAt: '2026-01-01T00:00:00.000Z',
+        fulfillment: 'meeting_point',
+        meetingPoint: 'Meet',
+      },
+    };
+    const unpaid = { ...paidMissing, payment_status: 'pending' };
+    expect(partnerBookingHasPickupAttention(paidMissing, 'Meet', '')).toBe(true);
+    expect(partnerBookingHasPickupAttention(paidWithAddress, 'Meet', '')).toBe(false);
+    expect(partnerBookingHasPickupAttention(meetingPointOnly, 'Meet', '')).toBe(false);
+    expect(partnerBookingHasPickupAttention(unpaid, 'Meet', '')).toBe(false);
   });
 
   it('resolves pickup copy from the booked option when present', () => {
     const opts = [
       {
         id: 'a',
+        fulfillment: 'pickup' as const,
         pickupPlace: 'Hotel lobby, 07:30, look for the Traverion sign',
         optionInfo: 'Small group',
         travelerStartInstructions: 'Van A — wait at the lobby door',
       },
-      { id: 'b', pickupPlace: 'Meet', optionInfo: '' },
+      { id: 'b', fulfillment: 'pickup' as const, pickupPlace: 'Meet', optionInfo: '' },
+      { id: 'm', fulfillment: 'meeting_point' as const, pickupPlace: 'Square', optionInfo: '' },
     ];
     const fromB = resolveBookingPickupCopy({
       bookingOptionId: 'b',
@@ -137,7 +154,26 @@ describe('pickup completeness', () => {
           status: 'confirmed',
           payment_status: 'paid',
           pickup_time: null,
+          booking_option_id: 'm',
+        },
+        'Meet',
+        '',
+        opts
+      )
+    ).toBe(false);
+    expect(
+      partnerBookingHasPickupAttention(
+        {
+          status: 'confirmed',
+          payment_status: 'paid',
+          pickup_time: null,
           booking_option_id: 'a',
+          purchase_snapshot: {
+            listingTitle: 'Tour',
+            capturedAt: '2026-01-01T00:00:00.000Z',
+            fulfillment: 'pickup',
+            travelerPickupAddress: 'Arctic City Hotel',
+          },
         },
         'Meet',
         '',
@@ -191,6 +227,11 @@ describe('pickup completeness', () => {
           pickup_time: null,
           booking_option_id: 'a',
           special_requests: notes,
+          purchase_snapshot: {
+            listingTitle: 'Tour',
+            capturedAt: '2026-01-01T00:00:00.000Z',
+            fulfillment: 'meeting_point',
+          },
         },
         'Meet',
         '',
@@ -245,12 +286,14 @@ describe('pickup completeness', () => {
     expect(resolved.pickupInstructions).toBe('');
   });
 
-  it('partner attention uses snapshot copy when live listing is thin', () => {
+  it('partner attention ignores thin listing copy when traveler pickup is set', () => {
     const snap = {
       listingTitle: 'Tour',
       optionLabel: null,
+      fulfillment: 'pickup' as const,
       meetingPoint: 'Hotel lobby, 07:30, look for the Traverion sign',
       pickupInstructions: 'Van pickup confirmed at purchase',
+      travelerPickupAddress: 'Arctic City Hotel',
       startTimeHm: '07:30',
       capturedAt: '2026-01-01T00:00:00.000Z',
     };

@@ -118,8 +118,11 @@ export function travelerPickupAllowed(input: {
   fulfillment: 'pickup' | 'meeting_point' | null;
   area: PickupArea | null;
   point: TravelerPickupPoint | null;
-}): { ok: true; address: string | null } | { ok: false; error: string } {
+  /** Checkout: guest will add accommodation pickup later. */
+  deferLocation?: boolean;
+}): { ok: true; address: string | null; deferred?: boolean } | { ok: false; error: string } {
   if (input.fulfillment !== 'pickup') return { ok: true, address: null };
+  if (input.deferLocation) return { ok: true, address: null, deferred: true };
   if (!input.area) return { ok: false, error: PICKUP_AREA_MISSING_MESSAGE };
   const point = input.point;
   if (!point || !point.placeId.trim() || point.formattedAddress.trim().length < 3 || !finiteCoord(point.lat, point.lng)) {

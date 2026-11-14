@@ -1,8 +1,8 @@
 /**
  * Expandable rental booking row — Guest | Booking details | Payment.
  */
-import { type MouseEvent, type ReactNode } from 'react';
-import { Calendar, ChevronDown, Copy, Mail, Package, Ticket } from 'lucide-react';
+import { type MouseEvent } from 'react';
+import { Calendar, ChevronDown, Copy, Mail, Package, Phone, Ticket } from 'lucide-react';
 
 export type RentalOpsCardModel = {
   id: string;
@@ -40,7 +40,6 @@ type Props = {
   expanded: boolean;
   selected: boolean;
   busy?: boolean;
-  checkbox: ReactNode;
   onToggleExpand: () => void;
   onOpenDetails: () => void;
   onMessageCustomer: () => void;
@@ -57,7 +56,6 @@ export default function RentalOpsBookingCard({
   model,
   expanded,
   selected,
-  checkbox,
   onToggleExpand,
   onOpenDetails,
   onMessageCustomer,
@@ -65,13 +63,14 @@ export default function RentalOpsBookingCard({
   copied,
 }: Props) {
   const stop = (e: MouseEvent) => e.stopPropagation();
-  const needsAttention = Boolean(model.warning);
+  const needsAttention =
+    Boolean(model.warning) && model.warning !== 'Pickup details missing';
 
   return (
     <article
       id={`supplier-booking-row-${model.id}`}
       data-highlight={selected ? 'true' : 'false'}
-      data-attention={needsAttention ? 'true' : 'false'}
+      data-attention={needsAttention || model.statusLabel === 'Pickup details missing' ? 'true' : 'false'}
       data-expanded={expanded ? 'true' : 'false'}
       className={`tour-ops-card${expanded ? ' is-expanded' : ''}`}
     >
@@ -89,9 +88,6 @@ export default function RentalOpsBookingCard({
             aria-hidden
           />
         </button>
-        <div className="tour-ops-card__check" onClick={stop}>
-          {checkbox}
-        </div>
         <div className="tour-ops-card__scan">
           <button
             type="button"
@@ -164,7 +160,9 @@ export default function RentalOpsBookingCard({
                   )}
                 </button>
               </div>
-              {model.warning ? <p className="tour-ops-card__warn">{model.warning}</p> : null}
+              {model.warning && model.warning !== 'Pickup details missing' ? (
+                <p className="tour-ops-card__warn">{model.warning}</p>
+              ) : null}
             </div>
           </div>
         </div>
@@ -175,16 +173,12 @@ export default function RentalOpsBookingCard({
           <section className="tour-ops-card__summary-block">
             <h3 className="tour-ops-card__summary-heading">Guest</h3>
             <p className="tour-ops-card__summary-name">{model.customerName}</p>
-            {model.customerEmail ? (
-              <a href={`mailto:${model.customerEmail}`} className="tour-ops-card__summary-contact">
-                {model.customerEmail}
-              </a>
-            ) : null}
             {model.customerPhone ? (
               <a
                 href={`tel:${model.customerPhone.replace(/[^\d+]/g, '')}`}
-                className="tour-ops-card__summary-contact"
+                className="tour-ops-card__summary-contact tour-ops-card__summary-icon-row"
               >
+                <Phone className="tour-ops-card__summary-icon" strokeWidth={2} aria-hidden />
                 {model.customerPhone}
               </a>
             ) : null}
@@ -262,7 +256,9 @@ export default function RentalOpsBookingCard({
           </section>
         </div>
 
-        {model.warning ? <p className="tour-ops-card__summary-attention">{model.warning}</p> : null}
+        {model.warning && model.warning !== 'Pickup details missing' ? (
+          <p className="tour-ops-card__summary-attention">{model.warning}</p>
+        ) : null}
 
         <div className="tour-ops-card__actions">
           <button

@@ -128,16 +128,6 @@ export default function TourOpsBookingDetail({
             <h2 className="tour-ops-detail__heading">Guest</h2>
             <dl className="tour-ops-detail__facts">
               <BookingOpsFact label="Lead guest">{model.guestName}</BookingOpsFact>
-              {model.guestEmail ? (
-                <BookingOpsFact label="Email">
-                  <a
-                    href={`mailto:${model.guestEmail}`}
-                    className="text-finland hover:underline [overflow-wrap:anywhere]"
-                  >
-                    {model.guestEmail}
-                  </a>
-                </BookingOpsFact>
-              ) : null}
               {model.guestPhone ? (
                 <BookingOpsFact label="Phone">
                   <a href={phoneHref} className="text-finland hover:underline">

@@ -201,6 +201,53 @@ export function shouldSendExperienceReminder(b: LifecycleBookingRow, nowMs: numb
   return addCalendarDaysYmd(todayLocal, 1) === anchor;
 }
 
+export type PickupLocationReminderWindow = '7d' | '3d' | '24h';
+
+/** Paid pickup-fulfillment tour still missing traveler accommodation address. */
+export function bookingNeedsTravelerPickupLocationReminder(b: LifecycleBookingRow): boolean {
+  if (lifecycleBookingIsRental(b) || lifecycleBookingIsStay(b)) return false;
+  if (!isPaidConfirmed(b)) return false;
+  const snap =
+    b.purchase_snapshot && typeof b.purchase_snapshot === 'object'
+      ? (b.purchase_snapshot as Record<string, unknown>)
+      : null;
+  if (!snap || snap.fulfillment !== 'pickup') return false;
+  const address = typeof snap.travelerPickupAddress === 'string' ? snap.travelerPickupAddress.trim() : '';
+  if (address.length >= 3) return false;
+  const notes = (b.special_requests ?? '').toString();
+  if (/^place of stay:/im.test(notes) || /^supplier_pickup_address\s*:/im.test(notes)) {
+    const line = notes
+      .split(/\n+/)
+      .map((part) => part.trim())
+      .find((part) => /^place of stay:/i.test(part) || /^supplier_pickup_address\s*:/i.test(part));
+    const fromNotes = line
+      ? line.replace(/^(place of stay:|supplier_pickup_address\s*:)/i, '').trim()
+      : '';
+    if (fromNotes.length >= 3) return false;
+  }
+  return true;
+}
+
+/**
+ * Tour-local calendar windows before departure: 7 days, 3 days, and day-before (~24h).
+ * Skips cancelled / departed / completed traveler pickup.
+ */
+export function shouldSendPickupLocationReminder(
+  b: LifecycleBookingRow,
+  window: PickupLocationReminderWindow,
+  nowMs: number = Date.now()
+): boolean {
+  if (!bookingNeedsTravelerPickupLocationReminder(b)) return false;
+  const anchor = lifecycleReminderAnchorYmd(b);
+  if (!anchor) return false;
+  const tz = resolveLifecycleTimezone(b.purchase_snapshot);
+  const todayLocal = ymdInTimeZone(nowMs, tz);
+  if (!todayLocal) return false;
+  if (todayLocal > anchor) return false;
+  const daysBefore = window === '7d' ? 7 : window === '3d' ? 3 : 1;
+  return addCalendarDaysYmd(todayLocal, daysBefore) === anchor;
+}
+
 /**
  * Rental-only: true when experience-local today is the calendar day before return.
  * Uses a separate notify idempotency key from pickup reminders.

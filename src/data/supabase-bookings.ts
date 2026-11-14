@@ -293,6 +293,8 @@ export async function createBookingCheckoutSession(params: {
     lat: number;
     lng: number;
   } | null;
+  /** Guest will add accommodation pickup after checkout. */
+  travelerPickupDeferred?: boolean;
   /** Display-only; Stripe amount is computed on the server from listing + discounts. */
   totalAmount?: number;
   currency?: string;
@@ -357,6 +359,7 @@ export async function createBookingCheckoutSession(params: {
       customerPhone: params.customerPhone,
       specialRequests: params.specialRequests,
       travelerPickup: params.travelerPickup ?? undefined,
+      travelerPickupDeferred: params.travelerPickupDeferred === true,
       currency: params.currency,
       bookingOptionId: params.bookingOptionId,
       startTime: params.startTime,

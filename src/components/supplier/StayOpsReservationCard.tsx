@@ -1,8 +1,8 @@
 /**
  * Expandable Stay reservation row — Guest | Booking details | Payment.
  */
-import { type MouseEvent, type ReactNode } from 'react';
-import { Calendar, ChevronDown, Copy, Mail, Ticket, Users } from 'lucide-react';
+import { type MouseEvent } from 'react';
+import { Calendar, ChevronDown, Copy, Mail, Phone, Ticket, Users } from 'lucide-react';
 
 export type StayOpsCardModel = {
   id: string;
@@ -37,7 +37,6 @@ type Props = {
   expanded: boolean;
   selected: boolean;
   busy?: boolean;
-  checkbox: ReactNode;
   onToggleExpand: () => void;
   onOpenDetails: () => void;
   onMessageGuest: () => void;
@@ -54,7 +53,6 @@ export default function StayOpsReservationCard({
   model,
   expanded,
   selected,
-  checkbox,
   onToggleExpand,
   onOpenDetails,
   onMessageGuest,
@@ -62,13 +60,14 @@ export default function StayOpsReservationCard({
   copied,
 }: Props) {
   const stop = (e: MouseEvent) => e.stopPropagation();
-  const needsAttention = Boolean(model.warning);
+  const needsAttention =
+    Boolean(model.warning) && model.warning !== 'Pickup details missing';
 
   return (
     <article
       id={`supplier-booking-row-${model.id}`}
       data-highlight={selected ? 'true' : 'false'}
-      data-attention={needsAttention ? 'true' : 'false'}
+      data-attention={needsAttention || model.statusLabel === 'Pickup details missing' ? 'true' : 'false'}
       data-expanded={expanded ? 'true' : 'false'}
       className={`tour-ops-card${expanded ? ' is-expanded' : ''}`}
     >
@@ -86,9 +85,6 @@ export default function StayOpsReservationCard({
             aria-hidden
           />
         </button>
-        <div className="tour-ops-card__check" onClick={stop}>
-          {checkbox}
-        </div>
         <div className="tour-ops-card__scan">
           <button
             type="button"
@@ -161,7 +157,9 @@ export default function StayOpsReservationCard({
                   )}
                 </button>
               </div>
-              {model.warning ? <p className="tour-ops-card__warn">{model.warning}</p> : null}
+              {model.warning && model.warning !== 'Pickup details missing' ? (
+                <p className="tour-ops-card__warn">{model.warning}</p>
+              ) : null}
             </div>
           </div>
         </div>
@@ -172,21 +170,20 @@ export default function StayOpsReservationCard({
           <section className="tour-ops-card__summary-block">
             <h3 className="tour-ops-card__summary-heading">Guest</h3>
             <p className="tour-ops-card__summary-name">{model.guestName}</p>
-            {model.guestEmail ? (
-              <a href={`mailto:${model.guestEmail}`} className="tour-ops-card__summary-contact">
-                {model.guestEmail}
-              </a>
-            ) : null}
             {model.guestPhone ? (
               <a
                 href={`tel:${model.guestPhone.replace(/[^\d+]/g, '')}`}
-                className="tour-ops-card__summary-contact"
+                className="tour-ops-card__summary-contact tour-ops-card__summary-icon-row"
               >
+                <Phone className="tour-ops-card__summary-icon" strokeWidth={2} aria-hidden />
                 {model.guestPhone}
               </a>
             ) : null}
             {model.participantLabel ? (
-              <p className="tour-ops-card__summary-meta">{model.participantLabel}</p>
+              <p className="tour-ops-card__summary-meta tour-ops-card__summary-icon-row">
+                <Users className="tour-ops-card__summary-icon" strokeWidth={2} aria-hidden />
+                {model.participantLabel}
+              </p>
             ) : null}
             {model.purchaseDateLabel ? (
               <p className="tour-ops-card__summary-meta tour-ops-card__summary-meta--secondary">

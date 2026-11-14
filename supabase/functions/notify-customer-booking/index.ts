@@ -42,6 +42,7 @@ import { notifyUnpaidCheckoutFromPaymentStatus } from '../_shared/notify-unpaid-
 import { travelerOwnsCheckoutBooking } from '../_shared/booking-traveler-ownership.ts';
 import { resolveCustomerEmailIdempotencyKey } from '../_shared/transactional-idempotency-key.ts';
 import { isTransactionalEmailLogOnly } from '../_shared/transactional-email-mode.ts';
+import { bookingNeedsTravelerPickupLocationReminder } from '../_shared/booking-lifecycle-calendar.ts';
 import {
   customerEmailKindRequiresDeclinedCancellation,
   customerEmailKindRequiresOpenCancellationRequest,
@@ -62,6 +63,7 @@ type EmailKind =
   | 'cancellation_declined'
   | 'new_booking_message'
   | 'pickup_action_required'
+  | 'pickup_location_reminder'
   | 'traveler_welcome'
   | 'refund_completed'
   | 'refund_initiated'
@@ -419,6 +421,8 @@ function subjectForKind(
       return withRef('New message about your booking');
     case 'pickup_action_required':
       return withRef('Pickup details still needed');
+    case 'pickup_location_reminder':
+      return withRef('Add your pickup location');
     case 'traveler_welcome':
       return 'Welcome to Traverion';
     case 'refund_completed':
@@ -820,6 +824,19 @@ const handler = async (req: Request): Promise<Response> => {
       clientKey: typeof body.idempotencyKey === 'string' ? body.idempotencyKey : null,
     });
 
+    if (
+      kind === 'pickup_location_reminder' &&
+      bookingRow &&
+      !bookingNeedsTravelerPickupLocationReminder(bookingRow)
+    ) {
+      return json({
+        success: true,
+        skipped: true,
+        reason: 'pickup_location_already_provided_or_not_applicable',
+        idempotencyKey,
+      });
+    }
+
     if (admin) {
       const claim = await claimTransactionalSend(admin, {
         idempotencyKey,
@@ -1012,6 +1029,10 @@ const handler = async (req: Request): Promise<Response> => {
       footerNote =
         // Keep in sync with TRAVELER_PICKUP_ACTION_EMAIL_NOTE in booking-confirmation-copy.ts
         'Pickup details will appear on your booking when your operator confirms them.';
+    } else if (kind === 'pickup_location_reminder') {
+      headline = 'Add your pickup location';
+      intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">Your tour <strong>${escapeHtml(title)}</strong> still needs a pickup location. Open My bookings and add where we should collect you before departure.</p>`;
+      footerNote = 'We stop reminding you once a valid pickup location is saved, or after departure.';
     } else if (kind === 'pickup_confirmed') {
       headline = 'Pickup time confirmed';
       intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">Your host confirmed the pickup time for this booking. Details below — also visible in My bookings.</p>`;
@@ -1139,6 +1160,8 @@ const handler = async (req: Request): Promise<Response> => {
         ? 'Choose in My bookings'
         : kind === 'new_booking_message'
           ? 'View message'
+          : kind === 'pickup_location_reminder'
+            ? 'Add pickup location'
           : kind === 'pickup_action_required' || kind === 'pickup_confirmed' || kind === 'pickup_changed'
             ? 'View your booking'
           : kind === 'traveler_welcome'

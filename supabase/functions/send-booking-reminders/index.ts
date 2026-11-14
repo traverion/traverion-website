@@ -20,12 +20,15 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.4';
 import {
+  addCalendarDaysYmd,
   lifecycleBookingIsRental,
   lifecycleCandidateUtcWindow,
   lifecycleStayNightsCandidateUtcWindow,
   shouldSendExperienceReminder,
+  shouldSendPickupLocationReminder,
   shouldSendRentalReturnReminder,
   shouldSendReviewRequest,
+  type PickupLocationReminderWindow,
 } from '../_shared/booking-lifecycle-calendar.ts';
 
 function json(body: unknown, status = 200): Response {
@@ -126,9 +129,11 @@ serve(async (req) => {
 
   let remindersSent = 0;
   let returnRemindersSent = 0;
+  let pickupLocationRemindersSent = 0;
   let reviewsSent = 0;
   let reminderCandidates = 0;
   let returnReminderCandidates = 0;
+  let pickupLocationReminderCandidates = 0;
   let reviewCandidates = 0;
   const errors: string[] = [];
 
@@ -282,6 +287,57 @@ serve(async (req) => {
     }
   }
 
+  // Traveler pickup location reminders (7d / 3d / day-before) for deferred pickup tours.
+  const utcToday = new Date(nowMs).toISOString().slice(0, 10);
+  const pickupFromYmd = utcToday;
+  const pickupToYmd = addCalendarDaysYmd(utcToday, 8) ?? utcToday;
+  let pickupQuery = admin
+    .from('bookings')
+    .select(
+      'id, guest_email, guest_user_id, guest_name, booking_date, check_out, nights, special_requests, booking_number, listing_id, purchase_snapshot, status, payment_status'
+    )
+    .eq('status', 'confirmed')
+    .eq('payment_status', 'paid')
+    .filter('purchase_snapshot->>fulfillment', 'eq', 'pickup')
+    .gte('booking_date', pickupFromYmd)
+    .lte('booking_date', pickupToYmd);
+  if (onlyBookingIds) pickupQuery = pickupQuery.in('id', onlyBookingIds);
+  const { data: pickupRows, error: pickupErr } = await pickupQuery.limit(500);
+  if (pickupErr) return json({ error: pickupErr.message }, 500);
+
+  const pickupWindows: PickupLocationReminderWindow[] = ['7d', '3d', '24h'];
+  for (const row of pickupRows ?? []) {
+    for (const window of pickupWindows) {
+      if (!shouldSendPickupLocationReminder(row, window, nowMs)) continue;
+      pickupLocationReminderCandidates += 1;
+      const email = await resolveGuestEmail(admin, row);
+      if (!email) continue;
+      try {
+        const res = await fetch(notifyCustomerUrl, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            customerEmail: email,
+            bookingId: row.id,
+            emailKind: 'pickup_location_reminder',
+            publicSiteUrl: publicSite,
+            idempotencyKey: `customer:pickup_location_reminder:${row.id}:${window}`,
+          }),
+        });
+        const body = await res.json().catch(() => ({}));
+        if (res.ok && (body?.success || body?.skipped)) {
+          pickupLocationRemindersSent += 1;
+        } else {
+          errors.push(`pickup_location_${window} ${row.id}: ${body?.error ?? res.status}`);
+        }
+      } catch (e) {
+        errors.push(
+          `pickup_location_${window} ${row.id}: ${e instanceof Error ? e.message : 'fail'}`
+        );
+      }
+    }
+  }
+
   // Reviews: tour completion ≈ booking_date; stay completion = check_out / nights / snap.
   // Fetch by booking_date window OR check_out window OR nights-only OR snapshot checkOut, then filter locally.
   const reviewSelect =
@@ -410,9 +466,11 @@ serve(async (req) => {
     scopedToBookingIds: onlyBookingIds?.length ?? 0,
     reminderCandidates,
     returnReminderCandidates,
+    pickupLocationReminderCandidates,
     reviewCandidates,
     remindersSent,
     returnRemindersSent,
+    pickupLocationRemindersSent,
     reviewsSent,
     errors: errors.length ? errors : undefined,
   });

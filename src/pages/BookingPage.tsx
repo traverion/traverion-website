@@ -269,6 +269,7 @@ export default function BookingPage({
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState(user?.email ?? '');
   const [selectedPickup, setSelectedPickup] = useState<TravelerPickupPoint | null>(null);
+  const [pickupLater, setPickupLater] = useState(false);
   const [specialRequests, setSpecialRequests] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const payInFlightRef = useRef(false);
@@ -395,6 +396,7 @@ export default function BookingPage({
     fulfillment: pickupMode === 'pickup' ? 'pickup' : null,
     area: pickupArea,
     point: selectedPickup,
+    deferLocation: pickupLater,
   });
   const pickupContinueBlocked = pickupMode === 'pickup' && !pickupSelection.ok;
   const acceptedPickupAddress = checkoutSummaryPickupAddress({
@@ -1200,6 +1202,7 @@ export default function BookingPage({
         fulfillment: 'pickup',
         area: pickupArea,
         point: selectedPickup,
+        deferLocation: pickupLater,
       });
       if (!decision.ok) {
         setError(decision.error);
@@ -1381,6 +1384,7 @@ export default function BookingPage({
             fulfillment: 'pickup',
             area: pickupArea,
             point: selectedPickup,
+            deferLocation: pickupLater,
           });
           if (!decision.ok) {
             setError(decision.error);
@@ -1399,7 +1403,8 @@ export default function BookingPage({
           customerName: leadGuestName,
           customerPhone: phone.trim() || undefined,
           specialRequests: specialWithMix || undefined,
-          travelerPickup: pickupMode === 'pickup' ? selectedPickup : null,
+          travelerPickup: pickupMode === 'pickup' && !pickupLater ? selectedPickup : null,
+          travelerPickupDeferred: pickupMode === 'pickup' && pickupLater,
           bookingOptionId: quoted.optionId ?? undefined,
           startTime: departureTime,
           guestBreakdown: quoted.guestBreakdown,
@@ -1878,12 +1883,34 @@ export default function BookingPage({
                   label="Pickup location"
                   bias={pickupArea ? { lat: pickupArea.lat, lng: pickupArea.lng, radiusKm: pickupArea.radiusKm } : null}
                   area={pickupArea}
-                  selected={selectedPickup}
+                  selected={pickupLater ? null : selectedPickup}
                   onSelect={(place) => {
                     setSelectedPickup(place);
+                    setPickupLater(false);
                     setError(null);
                   }}
                 />
+                <div className="mt-4">
+                  <button
+                    type="button"
+                    className={`w-full rounded-xl border px-4 py-3 text-left text-sm font-semibold transition ${
+                      pickupLater
+                        ? 'border-finland bg-[#f0f4fa] text-finland'
+                        : 'border-black/10 bg-white text-ink hover:border-black/20'
+                    }`}
+                    aria-pressed={pickupLater}
+                    onClick={() => {
+                      setPickupLater(true);
+                      setSelectedPickup(null);
+                      setError(null);
+                    }}
+                  >
+                    I&apos;ll provide my pickup location later
+                    <span className="mt-1 block text-xs font-normal text-ink-muted">
+                      We&apos;ll remind you before departure until a valid location is added.
+                    </span>
+                  </button>
+                </div>
                 {pickupContinueBlocked ? (
                   <p id="booking-pickup-eligibility" className="mt-3 text-sm text-red-800" role="status">
                     {pickupSelection.error}
@@ -2024,7 +2051,9 @@ export default function BookingPage({
               </div>
               <p className="text-[13px] font-medium text-ink break-words">
                 {pickupMode === 'pickup'
-                  ? selectedPickup?.formattedAddress || 'No pickup location selected'
+                  ? pickupLater
+                    ? 'Pickup location later'
+                    : selectedPickup?.formattedAddress || 'No pickup location selected'
                   : pickupMode === 'meet'
                     ? meetingAddress || 'Meeting point not set'
                     : 'No pickup or meeting point for this option'}

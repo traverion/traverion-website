@@ -52,6 +52,7 @@ export type PurchaseSnapshot = {
   travelerPickupPlaceId?: string | null;
   travelerPickupLat?: number | null;
   travelerPickupLng?: number | null;
+  travelerPickupDeferred?: boolean | null;
   pickupTiming?: 'at_start' | 'before_start' | null;
   pickupWindowMinutes?: number | null;
   pickupTimeConfirmation?: 'at_booking' | 'day_before' | null;
@@ -160,6 +161,7 @@ export function buildPurchaseSnapshot(input: {
   travelerPickupPlaceId?: string | null;
   travelerPickupLat?: number | null;
   travelerPickupLng?: number | null;
+  travelerPickupDeferred?: boolean | null;
   pickupTiming?: 'at_start' | 'before_start' | null;
   pickupWindowMinutes?: number | null;
   pickupTimeConfirmation?: 'at_booking' | 'day_before' | null;
@@ -254,6 +256,7 @@ export function buildPurchaseSnapshot(input: {
   if (typeof input.travelerPickupLng === 'number' && Number.isFinite(input.travelerPickupLng)) {
     snap.travelerPickupLng = input.travelerPickupLng;
   }
+  if (input.travelerPickupDeferred === true) snap.travelerPickupDeferred = true;
   if (input.pickupTiming === 'at_start' || input.pickupTiming === 'before_start') snap.pickupTiming = input.pickupTiming;
   if (
     typeof input.pickupWindowMinutes === 'number' &&

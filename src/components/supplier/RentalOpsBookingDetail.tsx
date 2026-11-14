@@ -192,18 +192,6 @@ export default function RentalOpsBookingDetail({
             <h2 className="tour-ops-detail__heading">Customer</h2>
             <dl className="tour-ops-detail__facts">
               <BookingOpsFact label="Customer">{model.customerName}</BookingOpsFact>
-              {model.customerEmail ? (
-                <BookingOpsFact label="Email">
-                  <a
-                    href={`mailto:${model.customerEmail}`}
-                    className="text-finland hover:underline [overflow-wrap:anywhere]"
-                  >
-                    {model.customerEmail}
-                  </a>
-                </BookingOpsFact>
-              ) : (
-                <BookingOpsFact label="Email">No email on file</BookingOpsFact>
-              )}
               {model.customerPhone ? (
                 <BookingOpsFact label="Phone">
                   <a href={phoneHref} className="text-finland hover:underline">
