@@ -1,7 +1,7 @@
 import { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef } from 'react';
 import { ChevronDown, FileText, Wallet } from 'lucide-react';
 import PartnerSelect from '../../components/supplier/PartnerSelect';
-import { TraverionSingleDateField } from '../../components/calendar/TraverionSingleDateField';
+import { TraverionDateRangeField } from '../../components/calendar/TraverionDateRangeField';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import { useSupplierRole } from '../../hooks/useSupplierRole';
 import { canManageBookings, canManageFinance } from '../../lib/supplierTeamRoles';
@@ -1369,37 +1369,20 @@ export default function SupplierEarnings() {
               />
             </label>
             <div className="tv-income-field">
-              <span>From</span>
-              <div className="tv-income-date-shell">
-                <TraverionSingleDateField
-                  id="income-earning-from"
-                  label=""
-                  value={earningFrom}
-                  minIso=""
-                  placeholder="Activity from"
-                  onChange={(iso) => {
-                    setEarningFrom(iso);
-                    if (earningTo && iso > earningTo) setEarningTo(iso);
-                    setEarningPage(0);
-                  }}
-                />
-              </div>
-            </div>
-            <div className="tv-income-field">
-              <span>To</span>
-              <div className="tv-income-date-shell">
-                <TraverionSingleDateField
-                  id="income-earning-to"
-                  label=""
-                  value={earningTo}
-                  minIso={earningFrom || ''}
-                  placeholder="Activity to"
-                  onChange={(iso) => {
-                    setEarningTo(iso);
-                    setEarningPage(0);
-                  }}
-                />
-              </div>
+              <span>Activity dates</span>
+              <TraverionDateRangeField
+                id="income-earning-range"
+                className="mt-1"
+                from={earningFrom}
+                to={earningTo}
+                placeholder="Start and end"
+                aria-label="Activity dates"
+                onChange={({ from, to }) => {
+                  setEarningFrom(from);
+                  setEarningTo(to);
+                  setEarningPage(0);
+                }}
+              />
             </div>
             <label className="tv-income-field">
               <span>Experience</span>

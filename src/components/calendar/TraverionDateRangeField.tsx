@@ -10,11 +10,13 @@ import {
   stayDateRangeEdge,
   type StayDateRange,
 } from '../../lib/stay-calendar-selection';
+import { handleCalendarGridKeyDown } from '../../lib/calendar-grid-keys';
 import {
   TraverionCalendarDayButton,
   TraverionCalendarMonth,
   type TraverionCalendarDayVisual,
 } from './TraverionCalendarMonth';
+import { placeTraverionDatePanel, type TraverionDatePanelBox } from './placeTraverionDatePanel';
 
 export type TraverionDateRangeValue = { from: string; to: string };
 
@@ -30,10 +32,6 @@ type Props = {
   todayIso?: string;
   'aria-label'?: string;
 };
-
-type PanelBox =
-  | { mode: 'popover'; top: number; left: number; width: number }
-  | { mode: 'sheet' };
 
 function formatCompactDay(iso: string): string {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return iso;
@@ -84,7 +82,8 @@ export function TraverionDateRangeField({
   'aria-label': ariaLabelProp,
 }: Props) {
   const [open, setOpen] = useState(false);
-  const [panelBox, setPanelBox] = useState<PanelBox | null>(null);
+  const [panelBox, setPanelBox] = useState<TraverionDatePanelBox | null>(null);
+  const [focusIso, setFocusIso] = useState(from || '');
   const [hoverIso, setHoverIso] = useState<string | null>(null);
   const [draft, setDraft] = useState<StayDateRange | null>(() =>
     from && /^\d{4}-\d{2}-\d{2}$/.test(from)
@@ -95,6 +94,7 @@ export function TraverionDateRangeField({
   const buttonRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const panelId = useId();
+  const labelId = useId();
   const valueId = useId();
   const todayIso = todayIsoProp && /^\d{4}-\d{2}-\d{2}$/.test(todayIsoProp) ? todayIsoProp : localYmd();
 
@@ -130,28 +130,7 @@ export function TraverionDateRangeField({
   const placePanel = useCallback(() => {
     const btn = buttonRef.current;
     if (!btn) return;
-    const isSheet = typeof window !== 'undefined' && window.matchMedia('(max-width: 639px)').matches;
-    if (isSheet) {
-      setPanelBox({ mode: 'sheet' });
-      return;
-    }
-    const rect = btn.getBoundingClientRect();
-    const edge = 8;
-    const width = Math.min(21.5 * 16, window.innerWidth - edge * 2);
-    let left = rect.left;
-    if (left + width > window.innerWidth - edge) {
-      left = Math.max(edge, window.innerWidth - width - edge);
-    }
-    if (left < edge) left = edge;
-    const gap = 8;
-    const panelH = 360;
-    const spaceBelow = window.innerHeight - rect.bottom - gap - edge;
-    const spaceAbove = rect.top - gap - edge;
-    const preferBelow = spaceBelow >= panelH || spaceBelow >= spaceAbove;
-    const top = preferBelow
-      ? Math.min(rect.bottom + gap, window.innerHeight - edge)
-      : Math.max(edge, rect.top - gap - panelH);
-    setPanelBox({ mode: 'popover', top, left, width });
+    setPanelBox(placeTraverionDatePanel(btn));
   }, []);
 
   useLayoutEffect(() => {
@@ -181,6 +160,37 @@ export function TraverionDateRangeField({
   }, [open, close]);
 
   const cells = useMemo(() => monthGrid(cursor.y, cursor.m), [cursor.y, cursor.m]);
+  const visibleDays = cells.filter((iso): iso is string => Boolean(iso));
+  const activeFocus = visibleDays.includes(focusIso) ? focusIso : visibleDays[0] ?? '';
+
+  const pendingFocus = useRef<string | null>(null);
+  const moveFocus = (iso: string) => {
+    const [y, m] = iso.split('-').map(Number);
+    setCursor({ y, m: (m ?? 1) - 1 });
+    setFocusIso(iso);
+    pendingFocus.current = iso;
+  };
+
+  useEffect(() => {
+    const iso = pendingFocus.current;
+    if (!iso || !open) return;
+    const btn = panelRef.current?.querySelector<HTMLButtonElement>(`[data-cal-day="${iso}"]`);
+    if (!btn) return;
+    btn.focus();
+    pendingFocus.current = null;
+  });
+
+  useEffect(() => {
+    if (!open) return;
+    const iso = (from && /^\d{4}-\d{2}-\d{2}$/.test(from) ? from : null) || todayIso;
+    setFocusIso(iso);
+    const [y, m] = iso.split('-').map(Number);
+    setCursor({ y, m: (m ?? 1) - 1 });
+    const timer = window.setTimeout(() => {
+      panelRef.current?.querySelector<HTMLButtonElement>(`[data-cal-day="${iso}"]`)?.focus();
+    }, 40);
+    return () => window.clearTimeout(timer);
+  }, [open, from, todayIso]);
 
   const shift = (deltaMonths: number) => {
     setCursor((c) => {
@@ -212,33 +222,22 @@ export function TraverionDateRangeField({
 
   const calendar = (
     <TraverionCalendarMonth
+      bare
       year={cursor.y}
       month0={cursor.m}
       onPrevMonth={() => shift(-1)}
       onNextMonth={() => shift(1)}
+      onPrevYear={() => shift(-12)}
+      onNextYear={() => shift(12)}
+      onGridKeyDown={(event) => handleCalendarGridKeyDown(event, moveFocus)}
       footer={
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              className="text-xs font-semibold text-finland hover:underline"
-              onClick={() => shift(-12)}
-            >
-              Prev year
-            </button>
-            <button
-              type="button"
-              className="text-xs font-semibold text-finland hover:underline"
-              onClick={() => shift(12)}
-            >
-              Next year
-            </button>
-          </div>
+          <span>{draft && draft.start === draft.end ? 'Select an end date, or apply this day.' : 'Select a start date, then an end date.'}</span>
           <div className="flex items-center gap-2">
             {draft && draft.start === draft.end ? (
               <button
                 type="button"
-                className="text-xs font-semibold text-finland hover:underline"
+                className="text-xs font-semibold text-finland hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#073B83]"
                 onClick={() => {
                   onChange({ from: draft.start, to: draft.end });
                   close();
@@ -250,14 +249,12 @@ export function TraverionDateRangeField({
             {hasValue || draft ? (
               <button
                 type="button"
-                className="text-xs font-semibold text-finland hover:underline"
+                className="text-xs font-semibold text-finland hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#073B83]"
                 onClick={commitClear}
               >
                 Clear
               </button>
-            ) : (
-              <span className="text-[11px] text-ink-faint">Select start and end</span>
-            )}
+            ) : null}
           </div>
         </div>
       }
@@ -276,6 +273,8 @@ export function TraverionDateRangeField({
             key={iso}
             iso={iso}
             visual={visual}
+            today={iso === todayIso}
+            tabIndex={iso === activeFocus ? 0 : -1}
             ariaPressed={Boolean(edge)}
             ariaLabel={
               edge
@@ -286,6 +285,12 @@ export function TraverionDateRangeField({
             onSelect={(next) => {
               const prev = draft;
               const nextDraft = applyStayDateTap(prev, next);
+              setFocusIso(next);
+              if (!nextDraft && prev && prev.start === prev.end && prev.start === next) {
+                onChange({ from: prev.start, to: prev.end });
+                close();
+                return;
+              }
               setDraft(nextDraft);
               if (!nextDraft) {
                 onChange({ from: '', to: '' });
@@ -334,7 +339,7 @@ export function TraverionDateRangeField({
               role="dialog"
               aria-modal="true"
               aria-label={ariaLabelProp || placeholder}
-              className="motion-safe:animate-fade-in"
+              className={`tv-date-popover motion-safe:animate-fade-in${panelBox.placement === 'above' ? ' tv-date-popover--above' : ''}`}
               style={{
                 position: 'fixed',
                 top: panelBox.top,
@@ -343,6 +348,7 @@ export function TraverionDateRangeField({
                 zIndex: 130,
               }}
             >
+              <span className="tv-date-popover__caret" style={{ left: panelBox.caret }} aria-hidden />
               {calendar}
             </div>
           ),
@@ -356,14 +362,18 @@ export function TraverionDateRangeField({
         ref={buttonRef}
         type="button"
         id={id}
-        aria-labelledby={valueId}
-        aria-label={ariaLabelProp || placeholder}
+        aria-labelledby={
+          !hasValue && (ariaLabelProp || placeholder) === display ? valueId : `${labelId} ${valueId}`
+        }
         aria-expanded={open}
         aria-controls={panelId}
         aria-haspopup="dialog"
         onClick={() => setOpen((v) => !v)}
-        className="partner-bookings-daterange__trigger"
+        className={`partner-bookings-daterange__trigger${open ? ' is-open' : ''}`}
       >
+        <span id={labelId} className="sr-only">
+          {ariaLabelProp || placeholder}
+        </span>
         <Calendar className="partner-bookings-daterange__icon" strokeWidth={2} aria-hidden />
         <span
           id={valueId}

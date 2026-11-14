@@ -20,7 +20,7 @@ import {
 } from '../../components/supplier/supplierUi';
 import ErrorState from '../../components/ErrorState';
 import PartnerSelect from '../../components/supplier/PartnerSelect';
-import { TraverionSingleDateField } from '../../components/calendar/TraverionSingleDateField';
+import { TraverionDateRangeField } from '../../components/calendar/TraverionDateRangeField';
 import { formatMoney } from '../../lib/money';
 import { navigateSupplierUrl } from '../../lib/supplierPortalNavigation';
 import { PARTNER_APP_BASE, PARTNER_CREATE_PATH } from '../../lib/partnerPortalPaths';
@@ -633,42 +633,22 @@ export default function SupplierPerformance() {
             />
           </label>
           {rangeKey === 'custom' ? (
-            <>
-              <div className="tv-analytics-field min-w-[10.5rem]">
-                <span>From</span>
-                <div className="tv-analytics-date-shell">
-                  <TraverionSingleDateField
-                    id="analytics-custom-from"
-                    label=""
-                    value={customFrom}
-                    minIso=""
-                    placeholder="Start date"
-                    onChange={(iso) => {
-                      setCustomFrom(iso);
-                      const nextTo = customTo && iso > customTo ? iso : customTo;
-                      if (nextTo !== customTo) setCustomTo(nextTo);
-                      pushUrl({ customFrom: iso, range: 'custom', customTo: nextTo });
-                    }}
-                  />
-                </div>
-              </div>
-              <div className="tv-analytics-field min-w-[10.5rem]">
-                <span>To</span>
-                <div className="tv-analytics-date-shell">
-                  <TraverionSingleDateField
-                    id="analytics-custom-to"
-                    label=""
-                    value={customTo}
-                    minIso={customFrom || ''}
-                    placeholder="End date"
-                    onChange={(iso) => {
-                      setCustomTo(iso);
-                      pushUrl({ customTo: iso, range: 'custom' });
-                    }}
-                  />
-                </div>
-              </div>
-            </>
+            <div className="tv-analytics-field min-w-[14rem]">
+              <span>Custom dates</span>
+              <TraverionDateRangeField
+                id="analytics-custom-range"
+                className="mt-1"
+                from={customFrom}
+                to={customTo}
+                placeholder="Start and end"
+                aria-label="Custom date range"
+                onChange={({ from, to }) => {
+                  setCustomFrom(from);
+                  setCustomTo(to);
+                  pushUrl({ customFrom: from, customTo: to, range: 'custom' });
+                }}
+              />
+            </div>
           ) : null}
         </div>
       </div>

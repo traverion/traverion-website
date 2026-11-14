@@ -28,6 +28,7 @@ import {
   type CancellationFamily,
 } from '../../lib/supplier-cancellation-workflow';
 import PartnerSelect from './PartnerSelect';
+import { TraverionDateRangeField } from '../calendar/TraverionDateRangeField';
 
 export type CancellationWorkflowResultRow = {
   bookingId: string;
@@ -307,24 +308,16 @@ export default function SupplierCancellationWorkflow({
                     placeholder="Search reference, guest, or product"
                   />
                 </label>
-                <div className="flex items-center gap-2">
-                  <div className="flex h-10 min-w-0 flex-1 items-center gap-1.5 rounded-lg border border-black/10 bg-white px-2 transition-colors focus-within:border-[#073B83] focus-within:ring-2 focus-within:ring-[#073B83]/15 sm:flex-none">
-                    <input
-                      type="date"
-                      aria-label="From"
-                      className="min-w-0 flex-1 bg-transparent text-[13px] text-ink outline-none sm:w-[8.5rem] sm:flex-none"
-                      value={filters.dateFrom}
-                      onChange={(event) => setFilters((prev) => ({ ...prev, dateFrom: event.target.value }))}
-                    />
-                    <span className="text-ink-faint" aria-hidden>–</span>
-                    <input
-                      type="date"
-                      aria-label="To"
-                      className="min-w-0 flex-1 bg-transparent text-[13px] text-ink outline-none sm:w-[8.5rem] sm:flex-none"
-                      value={filters.dateTo}
-                      onChange={(event) => setFilters((prev) => ({ ...prev, dateTo: event.target.value }))}
-                    />
-                  </div>
+                <div className="flex min-w-0 flex-1 items-center gap-2 sm:flex-none">
+                  <TraverionDateRangeField
+                    id="cancel-bookings-dates"
+                    className="w-full sm:w-[16.5rem]"
+                    from={filters.dateFrom}
+                    to={filters.dateTo}
+                    placeholder="Travel dates"
+                    aria-label="Travel dates"
+                    onChange={({ from, to }) => setFilters((prev) => ({ ...prev, dateFrom: from, dateTo: to }))}
+                  />
                   <button
                     type="button"
                     className={`inline-flex h-10 shrink-0 items-center rounded-lg border px-3 text-[13px] font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#073B83] ${

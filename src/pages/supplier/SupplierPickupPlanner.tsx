@@ -3,6 +3,7 @@
  */
 import { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef } from 'react';
 import { Download, CalendarDays } from 'lucide-react';
+import { TraverionDateRangeField } from '../../components/calendar/TraverionDateRangeField';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import {
   fetchBookingsForSupplier,
@@ -657,11 +658,15 @@ export default function SupplierPickupPlanner() {
           </div>
 
           <div className="tv-pickup-toolbar">
-            <div className="tv-pickup-range" role="group" aria-label="Date range">
-              <input type="date" className="tv-input" value={dateFrom} aria-label="From" onChange={(e) => writePickupFiltersToUrl({ from: e.target.value, day: '' })} />
-              <span className="text-[#a1a1aa]" aria-hidden>–</span>
-              <input type="date" className="tv-input" value={dateTo} aria-label="To" onChange={(e) => writePickupFiltersToUrl({ to: e.target.value, day: '' })} />
-            </div>
+            <TraverionDateRangeField
+              id="pickup-dates"
+              className="tv-pickup-range"
+              from={dateFrom}
+              to={dateTo}
+              placeholder="Dates"
+              aria-label="Date range"
+              onChange={({ from, to }) => writePickupFiltersToUrl({ from, to, day: '' })}
+            />
             <select
               className="tv-input"
               aria-label="Experience"

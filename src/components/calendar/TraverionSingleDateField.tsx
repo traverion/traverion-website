@@ -5,11 +5,13 @@ import { useDialogFocus } from '../../hooks/useDialogFocus';
 import { monthGrid } from '../../lib/stay-calendar';
 import { formatBookingDateDisplay } from '../../lib/booking-flow';
 import { localYmd } from '../../lib/local-ymd';
+import { handleCalendarGridKeyDown } from '../../lib/calendar-grid-keys';
 import {
   TraverionCalendarDayButton,
   TraverionCalendarMonth,
   type TraverionCalendarDayVisual,
 } from './TraverionCalendarMonth';
+import { placeTraverionDatePanel, type TraverionDatePanelBox } from './placeTraverionDatePanel';
 
 type Props = {
   id: string;
@@ -42,9 +44,6 @@ type Props = {
   'aria-label'?: string;
 };
 
-type PanelBox =
-  | { mode: 'popover'; top: number; left: number; width: number }
-  | { mode: 'sheet' };
 
 /**
  * Traverion single-date field — portaled calendar (popover on desktop, bottom sheet on mobile).
@@ -67,7 +66,8 @@ export function TraverionSingleDateField({
   'aria-label': ariaLabelProp,
 }: Props) {
   const [open, setOpen] = useState(false);
-  const [panelBox, setPanelBox] = useState<PanelBox | null>(null);
+  const [panelBox, setPanelBox] = useState<TraverionDatePanelBox | null>(null);
+  const [focusIso, setFocusIso] = useState(value || '');
   const rootRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -97,28 +97,7 @@ export function TraverionSingleDateField({
   const placePanel = useCallback(() => {
     const btn = buttonRef.current;
     if (!btn) return;
-    const isSheet = typeof window !== 'undefined' && window.matchMedia('(max-width: 639px)').matches;
-    if (isSheet) {
-      setPanelBox({ mode: 'sheet' });
-      return;
-    }
-    const rect = btn.getBoundingClientRect();
-    const edge = 8;
-    const width = Math.min(20.5 * 16, window.innerWidth - edge * 2);
-    let left = rect.left;
-    if (left + width > window.innerWidth - edge) {
-      left = Math.max(edge, window.innerWidth - width - edge);
-    }
-    if (left < edge) left = edge;
-    const gap = 8;
-    const panelH = 340;
-    const spaceBelow = window.innerHeight - rect.bottom - gap - edge;
-    const spaceAbove = rect.top - gap - edge;
-    const preferBelow = spaceBelow >= panelH || spaceBelow >= spaceAbove;
-    const top = preferBelow
-      ? Math.min(rect.bottom + gap, window.innerHeight - edge)
-      : Math.max(edge, rect.top - gap - panelH);
-    setPanelBox({ mode: 'popover', top, left, width });
+    setPanelBox(placeTraverionDatePanel(btn, 20.5));
   }, []);
 
   useLayoutEffect(() => {
@@ -148,6 +127,35 @@ export function TraverionSingleDateField({
   }, [open, close]);
 
   const cells = useMemo(() => monthGrid(cursor.y, cursor.m), [cursor.y, cursor.m]);
+  const visibleDays = cells.filter((iso): iso is string => Boolean(iso));
+  const activeFocus = visibleDays.includes(focusIso) ? focusIso : visibleDays[0] ?? '';
+  const pendingFocus = useRef<string | null>(null);
+  const moveFocus = (iso: string) => {
+    const [y, m] = iso.split('-').map(Number);
+    setCursor({ y, m: (m ?? 1) - 1 });
+    setFocusIso(iso);
+    pendingFocus.current = iso;
+  };
+  useEffect(() => {
+    const iso = pendingFocus.current;
+    if (!iso || !open) return;
+    const btn = panelRef.current?.querySelector<HTMLButtonElement>(`[data-cal-day="${iso}"]`);
+    if (!btn || btn.disabled) return;
+    btn.focus();
+    pendingFocus.current = null;
+  });
+  useEffect(() => {
+    if (!open) return;
+    const iso = value && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : start;
+    setFocusIso(iso);
+    const [y, m] = iso.split('-').map(Number);
+    setCursor({ y, m: (m ?? 1) - 1 });
+    const timer = window.setTimeout(() => {
+      const btn = panelRef.current?.querySelector<HTMLButtonElement>(`[data-cal-day="${iso}"]`);
+      if (btn && !btn.disabled) btn.focus();
+    }, 40);
+    return () => window.clearTimeout(timer);
+  }, [open, start, value]);
 
   const shift = (delta: number) => {
     setCursor((c) => {
@@ -164,10 +172,14 @@ export function TraverionSingleDateField({
 
   const calendar = (
     <TraverionCalendarMonth
+      bare
       year={cursor.y}
       month0={cursor.m}
       onPrevMonth={() => shift(-1)}
       onNextMonth={() => shift(1)}
+      onPrevYear={() => shift(-12)}
+      onNextYear={() => shift(12)}
+      onGridKeyDown={(event) => handleCalendarGridKeyDown(event, moveFocus, dayBlocked)}
       footer={
         footerMode === 'compact' ? (
           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -232,6 +244,8 @@ export function TraverionSingleDateField({
             iso={iso}
             visual={visual}
             disabled={blocked}
+            today={iso === todayIso}
+            tabIndex={iso === activeFocus ? 0 : -1}
             ariaPressed={isSelected}
             ariaLabel={
               isSelected
@@ -280,7 +294,7 @@ export function TraverionSingleDateField({
               role="dialog"
               aria-modal="true"
               aria-label={ariaLabelProp || label || placeholder}
-              className="motion-safe:animate-fade-in"
+              className={`tv-date-popover motion-safe:animate-fade-in${panelBox.placement === 'above' ? ' tv-date-popover--above' : ''}`}
               style={{
                 position: 'fixed',
                 top: panelBox.top,
@@ -289,6 +303,7 @@ export function TraverionSingleDateField({
                 zIndex: 130,
               }}
             >
+              <span className="tv-date-popover__caret" style={{ left: panelBox.caret }} aria-hidden />
               {calendar}
             </div>
           ),
@@ -303,17 +318,14 @@ export function TraverionSingleDateField({
 
   return (
     <div className={`relative ${className}`} ref={rootRef}>
-      {showLabel ? (
-        <span id={labelId} className={labelClass}>
-          {label}
-        </span>
-      ) : null}
+      <span id={labelId} className={showLabel ? labelClass : 'sr-only'}>
+        {showLabel ? label : ariaLabelProp || placeholder}
+      </span>
       <button
         ref={buttonRef}
         type="button"
         id={id}
-        aria-labelledby={showLabel ? `${labelId} ${valueId}` : valueId}
-        aria-label={showLabel ? undefined : ariaLabelProp || placeholder}
+        aria-labelledby={`${labelId} ${valueId}`}
         aria-expanded={open}
         aria-controls={panelId}
         aria-haspopup="dialog"
