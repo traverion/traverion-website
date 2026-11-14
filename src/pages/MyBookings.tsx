@@ -56,7 +56,7 @@ import {
   travelerSelfCancelAvailable,
   travelerSelfCancelUnavailableMessage,
   travelerSelfCancelStartHm,
-  supplierCancellationReasonLabel,
+  customerFacingCancellationReason,
   travelerSelfCancelBlock,
   travelerSelfCancelError,
   travelerSelfCancelIsUnpaidCheckout,
@@ -1834,8 +1834,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                       }
                     >
                       <p>
-                        Reason: {supplierCancellationReasonLabel(openCancel.reason_code)}
-                        {openCancel.reason_text ? ` — ${openCancel.reason_text}` : ''}
+                        Reason: {customerFacingCancellationReason(openCancel.reason_code)}
                       </p>
                       <p className="mt-1">
                         {TRAVELER_ACCEPT_HOST_CANCEL_REFUND_POLICY}

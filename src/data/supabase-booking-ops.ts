@@ -40,8 +40,6 @@ export type CancellationRequestRow = {
   requested_by: 'traveler' | 'supplier';
   requester_user_id: string | null;
   reason_code: string;
-  reason_text: string;
-  evidence_note: string | null;
   status: string;
   policy_snapshot: Record<string, unknown> | null;
   applied_fee: number;
@@ -208,12 +206,29 @@ export async function fetchCancellationRequestsForBookings(
   const { data, error } = await supabase
     .from('cancellation_requests')
     .select(
-      'id, booking_id, requested_by, requester_user_id, reason_code, reason_text, evidence_note, status, policy_snapshot, applied_fee, fee_currency, traveler_refund_expectation, created_at, expires_at, responded_at'
+      'id, booking_id, requested_by, requester_user_id, reason_code, status, policy_snapshot, applied_fee, fee_currency, traveler_refund_expectation, created_at, expires_at, responded_at'
     )
     .in('booking_id', bookingIds)
     .order('created_at', { ascending: false });
   // Failure must not look like "no open cancels" (Phase 1084).
   return queryRowsOrThrow(data, error) as CancellationRequestRow[];
+}
+
+/** Private supplier explanation. Empty unless the caller is a Traverion panel admin. */
+export async function readCancellationPrivateNote(
+  requestId: string
+): Promise<{ reasonText: string; evidenceNote: string | null } | null> {
+  if (!supabase || !requestId.trim()) return null;
+  const { data, error } = await supabase.rpc('read_cancellation_private_note', {
+    p_request_id: requestId,
+  });
+  if (error) return null;
+  const row = Array.isArray(data) ? data[0] : data;
+  if (!row || typeof row.reason_text !== 'string') return null;
+  return {
+    reasonText: row.reason_text,
+    evidenceNote: typeof row.evidence_note === 'string' ? row.evidence_note : null,
+  };
 }
 
 export async function fetchOpenCancellationRequest(

@@ -8245,6 +8245,19 @@ details:not([open]) > :not(summary) {
   max-height: min(92dvh, 40rem);
 }
 
+.tv-cancel-check {
+  animation: tv-cancel-check-in 280ms ease-out;
+}
+
+@keyframes tv-cancel-check-in {
+  from { transform: scale(0.7); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tv-cancel-check { animation: none; }
+}
+
 .tv-date-popover {
   border-radius: 14px;
   background: #fff;

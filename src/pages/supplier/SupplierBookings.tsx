@@ -20,7 +20,7 @@ import { addCalendarDaysYmd } from '../../lib/booking-lifecycle-calendar';
 import { experienceTodayIsoForListing } from '../../lib/booking-quote';
 import { guestFacingBookingNotes } from '../../lib/booking-notes';
 import { formatBookingParticipantsLabel } from '../../lib/participant-mix';
-import { supplierCancellationReasonLabel } from '../../lib/cancellation-policy';
+import { customerFacingCancellationReason } from '../../lib/cancellation-policy';
 import { buildCancellationCandidate, type CancellationBatchRow, type CancellationCandidate, type CancellationFamily } from '../../lib/supplier-cancellation-workflow';
 import SupplierCancellationWorkflow, { type CancellationWorkflowResultRow } from '../../components/supplier/SupplierCancellationWorkflow';
 import { openHostCancelRequestVisible } from '../../lib/host-cancel-request-visibility';
@@ -66,7 +66,9 @@ import TourOpsBookingDetail from '../../components/supplier/TourOpsBookingDetail
 import { isStayRequestAwaitingHost } from '../../lib/stay-request-approval';
 import { insertSupplierExportRun } from '../../data/supabase-supplier-campaigns-exports';
 import { decrementAvailabilityBooked } from '../../data/supabase-availability';
-import { fetchMyListings, pgTimeToHm } from '../../data/supabase-listings';
+import { fetchListingSupplierMetaForParty, fetchMyListings, pgTimeToHm } from '../../data/supabase-listings';
+import { notifySupplierEvent } from '../../data/supabase-supplier-messaging';
+import { supplierPortalPublicBaseUrl } from '../../lib/partnerHost';
 import { useSupplierRole } from '../../hooks/useSupplierRole';
 import { canManageBookings, canManageFinance } from '../../lib/supplierTeamRoles';
 import { navigateSupplierUrl, openSupplierInbox, openSupplierPickup } from '../../lib/supplierPortalNavigation';
@@ -1066,8 +1068,18 @@ export default function SupplierBookings({
           autoRefundQueued: false,
           needsCustomerChoice: false,
         }));
-    const rows: CancellationWorkflowResultRow[] = [];
-    for (const result of sourceRows) {
+    const supplierByListing = new Map<string, Promise<string | null>>();
+    const supplierFor = (listingId: string) => {
+      let pending = supplierByListing.get(listingId);
+      if (!pending) {
+        pending = fetchListingSupplierMetaForParty(listingId)
+          .then((meta) => meta.supplier_id)
+          .catch(() => null);
+        supplierByListing.set(listingId, pending);
+      }
+      return pending;
+    };
+    const rows = await Promise.all(sourceRows.map(async (result): Promise<CancellationWorkflowResultRow> => {
       const booking = byId.get(result.bookingId);
       let notification: CancellationWorkflowResultRow['notification'] = 'not_sent';
       let refundNote = result.ok
@@ -1077,48 +1089,76 @@ export default function SupplierBookings({
             ? 'Refund submitted to Stripe when this cancellation succeeded.'
             : 'A full refund is due. Stripe has not confirmed it yet.'
         : 'Not submitted.';
+      const followUp: Promise<unknown>[] = [];
       if (result.ok && !result.replayed && booking?.status.toLowerCase() === 'confirmed' && booking.date) {
-        await decrementAvailabilityBooked(booking.listingId, booking.date, booking.guests || 1);
+        followUp.push(decrementAvailabilityBooked(booking.listingId, booking.date, booking.guests || 1));
       }
       if (result.ok && result.autoRefundQueued) {
-        const refund = await executeBookingRefund(result.bookingId);
-        if (!refund.success) {
-          refundNote = refund.error
-            ? `Cancellation stands. Refund was not submitted: ${refund.error}`
-            : 'Cancellation stands. Refund was not submitted.';
-        } else if (refund.alreadyRefunded) {
-          refundNote = 'Stripe already has this refund.';
-        } else if (refund.pending) {
-          refundNote = 'Refund is pending with Stripe.';
-        } else {
-          refundNote = 'Refund was submitted to Stripe. My bookings shows Refunded when Stripe confirms it.';
-        }
+        followUp.push((async () => {
+          const refund = await executeBookingRefund(result.bookingId);
+          if (!refund.success) {
+            refundNote = refund.error
+              ? `Cancellation stands. Refund was not submitted: ${refund.error}`
+              : 'Cancellation stands. Refund was not submitted.';
+          } else if (refund.alreadyRefunded) {
+            refundNote = 'Stripe already has this refund.';
+          } else if (refund.pending) {
+            refundNote = 'Refund is pending with Stripe.';
+          } else {
+            refundNote = 'Refund was submitted to Stripe. My bookings shows Refunded when Stripe confirms it.';
+          }
+        })());
       }
       if (result.ok && !result.replayed && booking) {
-        const notify = await notifyTravelerCancellationRequest({
-          customerEmail: booking.guestEmail || 'resolve@guest.local',
-          customerName: booking.guestName,
-          listingTitle: booking.listingTitle,
-          bookingId: booking.id,
-          bookingNumber: booking.bookingNumber ?? undefined,
-          bookingDate: booking.date || undefined,
-          reasonLabel: supplierCancellationReasonLabel(input.reasonCode),
-          requestId: result.requestId,
-          needsCustomerChoice: result.needsCustomerChoice,
-          startTimeLabel: booking.startHm || null,
-        });
-        notification = notify.sent ? 'accepted' : 'unconfirmed';
+        followUp.push((async () => {
+          const reasonLabel = customerFacingCancellationReason(input.reasonCode);
+          const [notify] = await Promise.all([
+            notifyTravelerCancellationRequest({
+              customerEmail: booking.guestEmail || 'resolve@guest.local',
+              customerName: booking.guestName,
+              listingTitle: booking.listingTitle,
+              bookingId: booking.id,
+              bookingNumber: booking.bookingNumber ?? undefined,
+              bookingDate: booking.date || undefined,
+              reasonLabel,
+              requestId: result.requestId,
+              needsCustomerChoice: result.needsCustomerChoice,
+              startTimeLabel: booking.startHm || null,
+            }),
+            supplierFor(booking.listingId).then(async (supplierId) => {
+              if (!supplierId) return;
+              await notifySupplierEvent({
+                supplierId,
+                eventType: 'booking_cancelled',
+                listingId: booking.listingId,
+                listingTitle: booking.listingTitle,
+                bookingId: booking.id,
+                bookingDate: booking.date || undefined,
+                guests: booking.guests,
+                guestName: booking.guestName,
+                bookingNumber: booking.bookingNumber ?? undefined,
+                portalBaseUrl: supplierPortalPublicBaseUrl(),
+                fieldDiffs: [
+                  { label: 'Reason', before: 'Active booking', after: reasonLabel },
+                  { label: 'Cancelled by', before: 'Active booking', after: 'Your team' },
+                ],
+              });
+            }),
+          ]);
+          notification = notify.sent ? 'accepted' : 'unconfirmed';
+        })());
       } else if (result.ok && result.replayed) {
         notification = 'unconfirmed';
       }
-      rows.push({
+      await Promise.all(followUp);
+      return {
         bookingId: result.bookingId,
         ok: result.ok,
         error: result.error,
         notification,
         refundNote,
-      });
-    }
+      };
+    }));
     if (rows.some((row) => row.ok)) await load();
     return {
       ok: batch.ok,

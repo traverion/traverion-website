@@ -119,6 +119,8 @@ export default function SupplierCancellationWorkflow({
   const [explanation, setExplanation] = useState('');
   const [evidence, setEvidence] = useState('');
   const [acknowledged, setAcknowledged] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const submittingRef = useRef(false);
   const [idempotencyKey] = useState(() => crypto.randomUUID());
   const [formError, setFormError] = useState<string | null>(null);
   const [phase, setPhase] = useState<'form' | 'processing' | 'success' | 'partial' | 'failure'>('form');
@@ -208,45 +210,50 @@ export default function SupplierCancellationWorkflow({
   };
 
   const submit = async () => {
-    if (!canSubmit || phase === 'processing') return;
+    if (!canSubmit || phase === 'processing' || submittingRef.current) return;
     const rows = candidatesByIds(pool, frozenIds ?? []);
     const nextKind = classifyCancellationSelection(rows);
     if (nextKind === 'paid' && !reasonReady) return;
     if (!acknowledged) return;
+    submittingRef.current = true;
     setPhase('processing');
     setFormError(null);
-    if (nextKind === 'unpaid' && rows[0]) {
-      const released = await onReleaseUnpaid(rows[0]);
-      const outcome: CancellationWorkflowResultRow = {
-        bookingId: rows[0].id,
-        ok: released.ok,
-        error: released.error,
-        notification: 'not_sent',
-        refundNote: 'No refund is due. Payment was not completed.',
-      };
-      setResultRows([outcome]);
-      setPhase(released.ok ? 'success' : 'failure');
-      return;
+    try {
+      if (nextKind === 'unpaid' && rows[0]) {
+        const released = await onReleaseUnpaid(rows[0]);
+        const outcome: CancellationWorkflowResultRow = {
+          bookingId: rows[0].id,
+          ok: released.ok,
+          error: released.error,
+          notification: 'not_sent',
+          refundNote: 'No refund is due. Payment was not completed.',
+        };
+        setResultRows([outcome]);
+        setPhase(released.ok ? 'success' : 'failure');
+        return;
+      }
+      const ran = await onConfirmPaid({
+        bookings: rows,
+        reasonCode,
+        reasonText: explanation.trim(),
+        evidenceNote: evidence.trim(),
+        idempotencyKey,
+      });
+      const listed = ran.rows.length ? ran.rows : rows.map((row) => ({
+        bookingId: row.id,
+        ok: false,
+        error: ran.error || 'This booking was not cancelled.',
+        notification: 'not_sent' as const,
+        refundNote: 'Not submitted.',
+      }));
+      setResultRows(listed);
+      const outcome = cancellationRunPhase(listed);
+      setFormError(outcome === 'failure' ? cancellationFailureSummary(listed, ran.error) : null);
+      setPhase(outcome);
+      setDetailsOpen(true);
+    } finally {
+      submittingRef.current = false;
     }
-    const ran = await onConfirmPaid({
-      bookings: rows,
-      reasonCode,
-      reasonText: explanation.trim(),
-      evidenceNote: evidence.trim(),
-      idempotencyKey,
-    });
-    const listed = ran.rows.length ? ran.rows : rows.map((row) => ({
-      bookingId: row.id,
-      ok: false,
-      error: ran.error || 'This booking was not cancelled.',
-      notification: 'not_sent' as const,
-      refundNote: 'Not submitted.',
-    }));
-    setResultRows(listed);
-    const outcome = cancellationRunPhase(listed);
-    setFormError(outcome === 'failure' ? cancellationFailureSummary(listed, ran.error) : null);
-    setPhase(outcome);
-    setDetailsOpen(true);
   };
 
   const resultById = new Map(resultRows.map((row) => [row.bookingId, row]));
@@ -730,8 +737,8 @@ export default function SupplierCancellationWorkflow({
               <button
                 type="button"
                 className={PRIMARY_BTN}
-                disabled={!canSubmit || !acknowledged || (paidFlow && !reasonReady)}
-                onClick={() => void submit()}
+                disabled={!canSubmit || !acknowledged || (paidFlow && !reasonReady) || confirmOpen}
+                onClick={() => setConfirmOpen(true)}
               >
                 {phase === 'failure' ? 'Try again' : 'Confirm cancellation'}
               </button>
@@ -744,6 +751,147 @@ export default function SupplierCancellationWorkflow({
           </div>
         </div>
       </footer>
+      {confirmOpen ? (
+        <CancellationConfirmModal
+          phase={phase}
+          bookings={reviewRows.length}
+          guests={previewTotals.guests}
+          refundLabel={formatMoney(previewTotals.refunds, previewTotals.currency)}
+          feeLabel={formatMoney(previewTotals.fees, previewTotals.currency)}
+          succeeded={resultCounts.cancelled}
+          failed={resultCounts.notCancelled}
+          failedReferences={reviewRows
+            .filter((row) => resultById.get(row.id)?.ok === false)
+            .map((row) => row.reference || row.id)}
+          error={formError}
+          onBack={() => {
+            if (phase === 'processing') return;
+            setConfirmOpen(false);
+          }}
+          onConfirm={() => void submit()}
+          onDone={onClose}
+          onViewResults={() => setConfirmOpen(false)}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+function CancellationConfirmModal({
+  phase,
+  bookings,
+  guests,
+  refundLabel,
+  feeLabel,
+  succeeded,
+  failed,
+  failedReferences,
+  error,
+  onBack,
+  onConfirm,
+  onDone,
+  onViewResults,
+}: {
+  phase: 'form' | 'processing' | 'success' | 'partial' | 'failure';
+  bookings: number;
+  guests: number;
+  refundLabel: string;
+  feeLabel: string;
+  succeeded: number;
+  failed: number;
+  failedReferences: string[];
+  error: string | null;
+  onBack: () => void;
+  onConfirm: () => void;
+  onDone: () => void;
+  onViewResults: () => void;
+}) {
+  const title =
+    phase === 'processing'
+      ? 'Cancelling bookings…'
+      : phase === 'success'
+        ? 'Cancellation completed'
+        : phase === 'partial'
+          ? 'Some bookings were not cancelled'
+          : phase === 'failure'
+            ? 'Cancellation was not completed'
+            : 'Confirm cancellation';
+  return (
+    <div className="fixed inset-0 z-[90] flex items-end justify-center bg-slate-900/40 p-4 sm:items-center">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="cancel-confirm-title"
+        className="w-full max-w-md rounded-2xl bg-white p-5 shadow-[0_18px_40px_rgba(15,23,42,0.16)]"
+      >
+        <div className="flex items-start gap-3">
+          {phase === 'processing' ? (
+            <span
+              className="mt-0.5 inline-block h-8 w-8 shrink-0 animate-spin rounded-full border-2 border-[#073B83]/20 border-t-[#073B83] motion-reduce:animate-none"
+              aria-hidden
+            />
+          ) : null}
+          {phase === 'success' ? (
+            <span className="tv-cancel-check mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-sm font-semibold text-white" aria-hidden>
+              ✓
+            </span>
+          ) : null}
+          {phase === 'partial' || phase === 'failure' ? (
+            <span className="mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-amber-100 text-sm font-semibold text-amber-800" aria-hidden>
+              !
+            </span>
+          ) : null}
+          <div className="min-w-0">
+            <h2 id="cancel-confirm-title" className="text-base font-semibold tracking-tight text-ink">{title}</h2>
+            {phase === 'form' ? (
+              <p className="mt-2 text-sm leading-snug text-ink-muted">
+                {`${bookings} ${bookings === 1 ? 'booking' : 'bookings'} · ${guests} ${guests === 1 ? 'guest' : 'guests'}. Customer refund obligation ${refundLabel}. Supplier fees ${feeLabel}. This cannot be undone.`}
+              </p>
+            ) : null}
+            {phase === 'processing' ? (
+              <p className="mt-2 text-sm text-ink-muted" role="status">Cancelling bookings…</p>
+            ) : null}
+            {phase === 'success' || phase === 'partial' ? (
+              <p className="mt-2 text-sm text-ink-muted" role="status">
+                {succeeded} succeeded. {failed} failed.
+              </p>
+            ) : null}
+            {phase === 'failure' && error ? (
+              <p className="mt-2 text-sm text-ink" role="alert">{error}</p>
+            ) : null}
+            {phase === 'partial' && failedReferences.length ? (
+              <p className="mt-2 text-sm text-ink">Not cancelled: {failedReferences.join(', ')}</p>
+            ) : null}
+          </div>
+        </div>
+        <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          {phase === 'form' || phase === 'failure' ? (
+            <button type="button" className={SECONDARY_BTN} onClick={onBack}>
+              Back
+            </button>
+          ) : null}
+          {phase === 'form' ? (
+            <button type="button" className={PRIMARY_BTN} onClick={onConfirm}>
+              Confirm cancellation
+            </button>
+          ) : null}
+          {phase === 'failure' ? (
+            <button type="button" className={PRIMARY_BTN} onClick={onConfirm}>
+              Try again
+            </button>
+          ) : null}
+          {phase === 'success' || phase === 'partial' ? (
+            <>
+              <button type="button" className={SECONDARY_BTN} onClick={onViewResults}>
+                View results
+              </button>
+              <button type="button" className={PRIMARY_BTN} onClick={onDone}>
+                Done
+              </button>
+            </>
+          ) : null}
+        </div>
+      </div>
     </div>
   );
 }

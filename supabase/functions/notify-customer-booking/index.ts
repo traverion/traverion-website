@@ -359,6 +359,30 @@ function buildDetailRows(p: Payload, opts?: { omitTitle?: boolean }): string {
   return rows.join('');
 }
 
+function customerFacingReasonFromCode(code: string | null | undefined): string {
+  switch ((code ?? '').trim()) {
+    case 'UNSAFE_WEATHER':
+      return 'Cancelled due to weather conditions.';
+    case 'FORCE_MAJEURE':
+      return 'Cancelled due to circumstances outside the operator\'s control.';
+    case 'GOVERNMENT_RESTRICTION':
+      return 'Cancelled due to a government restriction.';
+    case 'OVERBOOKING':
+      return 'Cancelled because this departure was overbooked.';
+    case 'MINIMUM_PARTICIPATION_NOT_MET':
+      return 'Cancelled because the minimum number of participants was not met.';
+    case 'TRAVELER_REQUESTED_DIRECTLY':
+      return 'Cancelled at your request.';
+    case 'SUPPLIER_STAFF_UNAVAILABLE':
+    case 'VEHICLE_OR_EQUIPMENT_FAILURE':
+    case 'OPERATIONAL_ERROR':
+    case 'OTHER':
+      return 'Cancelled because the operator could not run this departure.';
+    default:
+      return 'Cancelled by the operator.';
+  }
+}
+
 function subjectForKind(
   kind: EmailKind,
   title: string,
@@ -373,17 +397,15 @@ function subjectForKind(
     case 'booking_confirmed_paid':
       return `Your Traverion booking is confirmed · ${t}`;
     case 'your_details_updated':
-      return withRef('Your booking details were saved');
     case 'host_updated_schedule':
-      return withRef('Your schedule was updated');
+    case 'pickup_changed':
+      return 'Your booking details have changed — Traverion';
     case 'pickup_confirmed':
       return withRef('Pickup time confirmed');
-    case 'pickup_changed':
-      return withRef('Pickup details changed');
     case 'booking_cancelled':
       return ref ? `Your booking has been cancelled · ${ref}` : `Your booking has been cancelled — ${t}`;
     case 'cancellation_requested_by_supplier':
-      return withRef('Action needed on your booking');
+      return 'Your booking has been cancelled — Traverion';
     case 'supplier_cancelled_choose_resolution':
       return 'Your activity has been cancelled — choose a refund or new date';
     case 'cancellation_accepted':
@@ -868,6 +890,25 @@ const handler = async (req: Request): Promise<Response> => {
       ];
     }
 
+    if (
+      admin &&
+      body.bookingId &&
+      (kind === 'cancellation_requested_by_supplier' || kind === 'supplier_cancelled_choose_resolution')
+    ) {
+      const { data: requestRow } = await admin
+        .from('cancellation_requests')
+        .select('reason_code')
+        .eq('booking_id', body.bookingId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      const facing = customerFacingReasonFromCode(
+        typeof requestRow?.reason_code === 'string' ? requestRow.reason_code : '',
+      );
+      const rest = diffs.filter((diff) => diff.label.trim().toLowerCase() !== 'reason');
+      diffs = [{ label: 'Reason', before: 'Active booking', after: facing }, ...rest];
+    }
+
     let headline = 'Booking update';
     let intro = '';
     let extraHtml = '';
@@ -931,11 +972,11 @@ const handler = async (req: Request): Promise<Response> => {
           ? 'No refund applies for this cancellation. My bookings keeps the cancelled record if you need it.'
           : 'When a refund applies, My bookings shows Refund due until Stripe records Refunded. Traverion does not send Stripe refunds automatically. Timing then depends on your bank.';
     } else if (kind === 'cancellation_requested_by_supplier') {
-      headline = 'Action needed on your booking';
-      intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">The supplier can no longer operate this booking as planned. Your reservation is <strong>not cancelled yet</strong>. Open My bookings to accept the cancellation (refund due when payment was collected) or keep the booking if you decline.</p>`;
+      headline = 'Your booking has been cancelled';
+      intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">Your booking is cancelled. The reason below is the customer-facing reason. A refund is due when you paid online, and My bookings shows Refunded only after Stripe confirms it.</p>`;
       if (diffs.length) extraHtml = fieldDiffTableHtml(diffs);
       footerNote =
-        'If you accept, a full refund is due when you paid online. Status becomes Refunded only after Stripe records it. Traverion does not send refunds automatically.';
+        'Open My bookings for the updated record, or contact Traverion support if you need help. Traverion does not treat this email as proof the refund has reached your bank.';
     } else if (kind === 'supplier_cancelled_choose_resolution') {
       headline = 'Your activity was cancelled';
       intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">Your operator cancelled <strong>${escapeHtml(title)}</strong>. You are entitled to a <strong>full refund</strong>, or you can choose another available departure for the same activity in My bookings. If you do not choose before the original official start time, your full refund begins automatically.</p>`;

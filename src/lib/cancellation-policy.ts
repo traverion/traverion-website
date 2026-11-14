@@ -85,6 +85,31 @@ const FORCE_MAJEURE = new Set<SupplierCancellationReasonCode>([
 export const SUPPLIER_RESPONSIBILITY_FEE_EUR = 20;
 export const FORCE_MAJEURE_FEE_EUR = 0;
 
+/** Approved sentence for customers. Never the supplier's written explanation. */
+export function customerFacingCancellationReason(code: string): string {
+  switch (code) {
+    case 'UNSAFE_WEATHER':
+      return 'Cancelled due to weather conditions.';
+    case 'FORCE_MAJEURE':
+      return 'Cancelled due to circumstances outside the operator\'s control.';
+    case 'GOVERNMENT_RESTRICTION':
+      return 'Cancelled due to a government restriction.';
+    case 'OVERBOOKING':
+      return 'Cancelled because this departure was overbooked.';
+    case 'MINIMUM_PARTICIPATION_NOT_MET':
+      return 'Cancelled because the minimum number of participants was not met.';
+    case 'TRAVELER_REQUESTED_DIRECTLY':
+      return 'Cancelled at your request.';
+    case 'SUPPLIER_STAFF_UNAVAILABLE':
+    case 'VEHICLE_OR_EQUIPMENT_FAILURE':
+    case 'OPERATIONAL_ERROR':
+    case 'OTHER':
+      return 'Cancelled because the operator could not run this departure.';
+    default:
+      return 'Cancelled by the operator.';
+  }
+}
+
 export function supplierCancellationReasonLabel(code: string): string {
   switch (code) {
     case 'FORCE_MAJEURE':

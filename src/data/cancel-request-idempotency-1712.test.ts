@@ -6,7 +6,7 @@ describe('Phase 1712: cancel request email per request id', () => {
   it('notifyTravelerCancellationRequest suffixes idempotency with requestId', () => {
     const src = readFileSync(resolve(__dirname, 'supabase-booking-ops.ts'), 'utf8');
     expect(src).toContain('Phase 1712');
-    expect(src).toContain('customer:cancellation_requested_by_supplier:${params.bookingId}:${reqSuffix}');
+    expect(src).toContain('customer:cancellation_by_supplier:${params.bookingId}:${reqSuffix}');
     expect(src).not.toMatch(
       /idempotencyKey: `customer:cancellation_requested_by_supplier:\$\{params\.bookingId\}`/
     );
@@ -14,7 +14,6 @@ describe('Phase 1712: cancel request email per request id', () => {
 
   it('SupplierBookings passes res.id as requestId', () => {
     const src = readFileSync(resolve(__dirname, '../pages/supplier/SupplierBookings.tsx'), 'utf8');
-    expect(src).toContain('Phase 1712');
-    expect(src).toContain('requestId: res.id');
+    expect(src).toContain('requestId: result.requestId');
   });
 });

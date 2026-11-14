@@ -89,6 +89,10 @@ type Payload = {
   bookingNumber?: number;
   /** booking_cancelled: true when traveler cancelled an unpaid checkout. */
   unpaidCheckout?: boolean;
+  /** Set from cancellation_requests.requested_by. Never taken from the caller. */
+  teamCancelled?: boolean;
+  /** Customer-facing reason sentence. Never the private supplier explanation. */
+  customerFacingReason?: string;
   /**
    * Phase 1724: booking_cancelled paid path — DB refund_choice after rebuild
    * (`full_refund` / `no_refund`). Callers must not forge this; server overwrites.
@@ -117,6 +121,30 @@ type Payload = {
   arrivalPlace?: string;
   publicReference?: string;
 };
+
+function customerFacingReasonFromCode(code: string | null | undefined): string {
+  switch ((code ?? '').trim()) {
+    case 'UNSAFE_WEATHER':
+      return 'Cancelled due to weather conditions.';
+    case 'FORCE_MAJEURE':
+      return 'Cancelled due to circumstances outside the operator\'s control.';
+    case 'GOVERNMENT_RESTRICTION':
+      return 'Cancelled due to a government restriction.';
+    case 'OVERBOOKING':
+      return 'Cancelled because this departure was overbooked.';
+    case 'MINIMUM_PARTICIPATION_NOT_MET':
+      return 'Cancelled because the minimum number of participants was not met.';
+    case 'TRAVELER_REQUESTED_DIRECTLY':
+      return 'Cancelled at your request.';
+    case 'SUPPLIER_STAFF_UNAVAILABLE':
+    case 'VEHICLE_OR_EQUIPMENT_FAILURE':
+    case 'OPERATIONAL_ERROR':
+    case 'OTHER':
+      return 'Cancelled because the operator could not run this departure.';
+    default:
+      return 'Cancelled by the operator.';
+  }
+}
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -154,6 +182,7 @@ function eventSubject(payload: Payload): string {
     return `New booking · ${listing}${dated}`;
   }
   if (payload.eventType === 'booking_cancelled') {
+    if (payload.teamCancelled) return 'Booking cancelled — Traverion';
     return ref ? `Booking cancelled · ${ref}` : `Booking cancelled · ${listing}`;
   }
   if (payload.eventType === 'cancellation_accepted') {
@@ -166,11 +195,8 @@ function eventSubject(payload: Payload): string {
     if (payload.fieldDiffs?.length) return ref ? `Booking updated · ${ref}` : `Guest updated booking details · ${listing}`;
     return ref ? `New message · ${ref}` : `Message from a guest · ${listing}`;
   }
-  if (payload.eventType === 'booking_detail_changed') {
-    return ref ? `Booking updated · ${ref}` : `Booking updated · ${listing}`;
-  }
-  if (payload.eventType === 'host_schedule_updated') {
-    return ref ? `Schedule updated · ${ref}` : `Schedule updated · ${listing}`;
+  if (payload.eventType === 'booking_detail_changed' || payload.eventType === 'host_schedule_updated') {
+    return 'Booking updated — Traverion';
   }
   if (payload.eventType === 'refund_completed') {
     return ref ? `Refund complete · ${ref}` : `Refund recorded · ${listing}`;
@@ -227,8 +253,17 @@ function eventBody(payload: Payload): string {
     // Keep in sync with SUPPLIER_HOST_SCHEDULE_UPDATED_NOTIFY_SUB
     lines.push('The guest can see the update on their booking.');
   } else if (payload.eventType === 'booking_cancelled') {
-    lines.push(payload.unpaidCheckout === true ? 'Unpaid checkout cancelled (traveler)' : 'Booking cancelled (traveler)');
+    lines.push(
+      payload.teamCancelled
+        ? 'Booking cancelled (your team)'
+        : payload.unpaidCheckout === true
+          ? 'Unpaid checkout cancelled (traveler)'
+          : 'Booking cancelled (traveler)',
+    );
     lines.push(`Listing: ${listing}`);
+    if (payload.teamCancelled && payload.customerFacingReason) {
+      lines.push(`Customer-facing reason: ${payload.customerFacingReason}`);
+    }
     // Phase 1724: paid cancel plain-text follows DB refund_choice (keep in sync with eventHtml).
     lines.push(
       payload.unpaidCheckout === true
@@ -424,11 +459,16 @@ function eventHtml(payload: Payload): string {
         'A traveler started this booking. Payment is not confirmed yet.';
     }
   } else if (payload.eventType === 'booking_cancelled') {
-    headline = payload.unpaidCheckout === true ? 'Unpaid checkout cancelled' : 'Booking cancelled';
+    headline = payload.teamCancelled
+      ? 'Booking cancelled'
+      : payload.unpaidCheckout === true
+        ? 'Unpaid checkout cancelled'
+        : 'Booking cancelled';
     // Keep in sync with SUPPLIER_BOOKING_CANCELLED_*_NOTIFY_SUB in booking-confirmation-copy.ts
     // Phase 1724: paid path branches on DB refund_choice (full_refund / no_refund).
-    sub =
-      payload.unpaidCheckout === true
+    sub = payload.teamCancelled
+      ? `Cancelled by your team. ${payload.customerFacingReason ?? 'The customer sees only the approved cancellation reason.'} A full refund is due when payment was collected. Check Bookings for the fee and refund status. Traverion does not treat email delivery as proof you saw this.`
+      : payload.unpaidCheckout === true
         ? 'The traveler cancelled an unpaid checkout. No payment was collected. The hold is released; nothing is Refund due. Check Bookings if you need the record.'
         : payload.refundChoice === 'full_refund'
           ? 'The traveler cancelled this booking. A full refund is due until Stripe records it — Traverion does not send refunds automatically. Inventory is released; check Bookings and Income.'
@@ -1072,6 +1112,22 @@ const handler = async (req: Request): Promise<Response> => {
     // Phase 1129: cancel unpaid copy from booking payment_status, not caller flag.
     if (effectivePayload.eventType === 'booking_cancelled' && bookingRow) {
       effectivePayload.unpaidCheckout = notifyUnpaidCheckoutFromPaymentStatus(bookingRow.payment_status);
+      const bookingId = String(payload.bookingId ?? '').trim();
+      if (bookingId) {
+        const { data: requestRow } = await admin
+          .from('cancellation_requests')
+          .select('requested_by, reason_code')
+          .eq('booking_id', bookingId)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (requestRow?.requested_by === 'supplier') {
+          effectivePayload.teamCancelled = true;
+          effectivePayload.customerFacingReason = customerFacingReasonFromCode(
+            typeof requestRow.reason_code === 'string' ? requestRow.reason_code : '',
+          );
+        }
+      }
     }
     // Phase 1740: partial on cancelled Refund due — honest host copy from DB.
     if (effectivePayload.eventType === 'partial_refund_recorded' && bookingRow) {
@@ -1152,6 +1208,82 @@ const handler = async (req: Request): Promise<Response> => {
 
     // In-app bell notification (persisted). Same trusted path as email; unique on
     // (supplier_id, review_id) for new_review so edits/retries never duplicate.
+    if (
+      (effectivePayload.eventType === 'booking_cancelled' ||
+        effectivePayload.eventType === 'booking_detail_changed' ||
+        effectivePayload.eventType === 'host_schedule_updated') &&
+      String(payload.bookingId ?? '').trim()
+    ) {
+      const bookingId = String(payload.bookingId).trim();
+      const ref = (effectivePayload.publicReference ?? '').trim() || bookingId.slice(0, 8);
+      const guest = (effectivePayload.guestName ?? '').trim() || 'Customer';
+      const when = [effectivePayload.bookingDate, effectivePayload.startTimeLabel].filter(Boolean).join(' ');
+      const labels = (effectivePayload.fieldDiffs ?? []).map((diff) => diff.label.toLowerCase());
+      const title =
+        effectivePayload.eventType === 'booking_cancelled'
+          ? 'Booking cancelled'
+          : labels.some((label) => label.includes('meeting'))
+            ? 'Meeting point changed'
+            : labels.some((label) => label.includes('pickup'))
+              ? 'Pickup details changed'
+              : labels.some((label) => label.includes('guest') || label.includes('participant'))
+                ? 'Participant count changed'
+                : effectivePayload.eventType === 'host_schedule_updated'
+                  ? 'Booking rescheduled'
+                  : 'Booking updated';
+      const bodyText = [
+        ref,
+        effectivePayload.listingTitle ?? 'Listing',
+        guest,
+        when,
+        effectivePayload.eventType === 'booking_cancelled'
+          ? effectivePayload.teamCancelled
+            ? 'Cancelled by your team'
+            : 'Cancelled by the customer'
+          : '',
+        effectivePayload.customerFacingReason ?? '',
+        ...(effectivePayload.fieldDiffs ?? []).slice(0, 4).map((diff) => `${diff.label}: ${diff.after}`),
+      ].filter(Boolean).join('\n');
+      if (effectivePayload.eventType !== 'booking_cancelled') {
+        const { data: existing } = await admin
+          .from('supplier_activity_notifications')
+          .select('id')
+          .eq('supplier_id', payload.supplierId)
+          .eq('event_type', effectivePayload.eventType)
+          .eq('booking_id', bookingId)
+          .eq('body', bodyText)
+          .limit(1)
+          .maybeSingle();
+        if (existing?.id) {
+          // Same committed change already has a dashboard row.
+        } else {
+          const { error: activityErr } = await admin.from('supplier_activity_notifications').insert({
+            supplier_id: payload.supplierId,
+            event_type: effectivePayload.eventType,
+            title,
+            body: bodyText,
+            listing_id: String(payload.listingId ?? '').trim() || null,
+            booking_id: bookingId,
+            href_path: `/partner/bookings?booking=${encodeURIComponent(bookingId)}`,
+          });
+          if (activityErr) console.error('supplier_activity_notifications insert failed', activityErr.message);
+        }
+      } else {
+        const { error: activityErr } = await admin.from('supplier_activity_notifications').insert({
+          supplier_id: payload.supplierId,
+          event_type: 'booking_cancelled',
+          title,
+          body: bodyText,
+          listing_id: String(payload.listingId ?? '').trim() || null,
+          booking_id: bookingId,
+          href_path: `/partner/bookings?booking=${encodeURIComponent(bookingId)}`,
+        });
+        if (activityErr && !/duplicate|unique/i.test(activityErr.message ?? '')) {
+          console.error('supplier_activity_notifications insert failed', activityErr.message);
+        }
+      }
+    }
+
     if (effectivePayload.eventType === 'new_review' && String(effectivePayload.reviewId ?? '').trim()) {
       const stars =
         typeof effectivePayload.reviewRating === 'number' &&
