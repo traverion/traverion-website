@@ -11,13 +11,13 @@ import {
   TOUR_INCLUDE_MIN_REQUIRED,
 } from './listing-creation-lines';
 import {
-  isTourIdentitySatisfied,
   isTourLocationSatisfied,
   isTourProductTypeSatisfied,
 } from './listing-creation-scenes';
 import {
   fullDescriptionContinueMessage,
   isListingDescriptionLengthValid,
+  isListingTitleLengthValid,
   shortDescriptionContinueMessage,
 } from './listingQualityScore';
 import type { ListingBookingOption } from '../types/listingExtras';
@@ -192,18 +192,14 @@ export function tourStageBlocker(
         ? null
         : 'Add listing language, city, and country to continue.';
     case 'identity': {
-      if (
-        !isTourIdentitySatisfied({
-          title: check.title,
-          subtitle: check.subtitle,
-        })
-      ) {
-        return (
-          shortDescriptionContinueMessage(check.subtitle, 300) ??
-          'Add a title (10–65 characters) and short description (at least 100 characters).'
-        );
+      if (!isListingTitleLengthValid(check.title)) {
+        const len = (check.title || '').trim().length;
+        if (len < 10) {
+          return `Title must be at least 10 characters (${len} now).`;
+        }
+        return 'Title must be 65 characters or fewer.';
       }
-      return null;
+      return shortDescriptionContinueMessage(check.subtitle, 300);
     }
     case 'experience': {
       const desc = fullDescriptionContinueMessage(check.description);
@@ -257,14 +253,23 @@ export function tourScreenIndexForPublishLine(line: string): number {
   if (/option|schedule|price|meet|pickup|cutoff|weekday|spot|guest per|how guests start/.test(text)) {
     return tourScreenIndex('options');
   }
-  if (/booking contact|phone|language|spoken/.test(text)) return tourScreenIndex('languages-contact');
-  if (/accessib|know before|what to bring|requirement|not suitable/.test(text)) {
+  if (/booking contact|phone number|international phone/.test(text)) {
+    return tourScreenIndex('languages-contact');
+  }
+  if (/spoken language|additional language|languages & contact|communicate with you/.test(text)) {
+    return tourScreenIndex('languages-contact');
+  }
+  if (/accessib|not suitable|conflicts with|suitable for/.test(text)) {
+    return tourScreenIndex('suitability');
+  }
+  if (/know before|what to bring|guest preparation/.test(text)) {
     return tourScreenIndex('guest-prep');
   }
+  if (/requirement/.test(text)) return tourScreenIndex('suitability');
   if (/include|exclude|full description|highlight/.test(text)) return tourScreenIndex('experience');
   if (/short description|subtitle/.test(text)) return tourScreenIndex('identity');
   if (/title/.test(text)) return tourScreenIndex('identity');
-  if (/city|country|location|destination|language of this listing/.test(text)) {
+  if (/city|country|location|destination|language of this listing|listing language/.test(text)) {
     return tourScreenIndex('location');
   }
   if (/product type|tour or activity|ticket|transportation/.test(text)) {
@@ -273,7 +278,67 @@ export function tourScreenIndexForPublishLine(line: string): number {
   return tourScreenIndex('preview');
 }
 
+/** Map Listings-page / quality-check focus section ids onto focused Tour screens. */
+export function tourScreenIndexForFocusSection(section: string | null | undefined): number | null {
+  const s = (section ?? '').trim().toLowerCase().replace(/-/g, '_');
+  if (!s) return null;
+  if (s === 'category' || s === 'product_type' || s === 'experience_kind') {
+    return tourScreenIndex('product-type');
+  }
+  if (s === 'language' || s === 'city' || s === 'country' || s === 'destination' || s === 'location') {
+    return tourScreenIndex('location');
+  }
+  if (s === 'title' || s === 'subtitle' || s === 'identity') return tourScreenIndex('identity');
+  if (
+    s === 'description' ||
+    s === 'highlights' ||
+    s === 'includes' ||
+    s === 'excludes' ||
+    s === 'experience'
+  ) {
+    return tourScreenIndex('experience');
+  }
+  if (s === 'know_before' || s === 'what_to_bring' || s === 'guest_prep') {
+    return tourScreenIndex('guest-prep');
+  }
+  if (
+    s === 'accessibility' ||
+    s === 'requirements' ||
+    s === 'not_suitable' ||
+    s === 'suitability'
+  ) {
+    return tourScreenIndex('suitability');
+  }
+  if (
+    s === 'booking_contact' ||
+    s === 'phone' ||
+    s === 'additional_info' ||
+    s === 'additional_languages' ||
+    s === 'languages_contact'
+  ) {
+    return tourScreenIndex('languages-contact');
+  }
+  if (
+    s === 'options' ||
+    s === 'price' ||
+    s === 'meeting' ||
+    s === 'pickup' ||
+    s === 'group' ||
+    s === 'pickup_timing' ||
+    s === 'schedule'
+  ) {
+    return tourScreenIndex('options');
+  }
+  if (s === 'photos' || s === 'image' || s === 'gallery') return tourScreenIndex('photos');
+  if (s === 'preview' || s === 'publish') return tourScreenIndex('preview');
+  return null;
+}
+
 /** @deprecated Bridge older wizard step indexes into focused screens. */
 export function tourStageForLegacyWizardStep(step: number): number {
   return tourScreenIndex(LEGACY_STEP_TO_SCREEN[step] ?? 'product-type');
+}
+
+export function tourOnboardingScreenStorageKey(editingId: string | null | undefined): string {
+  return `traverion-tour-onboarding-screen-v1-${editingId ?? 'create'}`;
 }

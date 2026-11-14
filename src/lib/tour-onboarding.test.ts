@@ -3,7 +3,9 @@ import {
   TOUR_ONBOARDING_SCREENS,
   tourBasicsSceneIndexForScreen,
   tourInformationSceneIndexForScreen,
+  tourOnboardingScreenStorageKey,
   tourScreenIndex,
+  tourScreenIndexForFocusSection,
   tourScreenIndexFromStorage,
   tourScreenIndexForPublishLine,
   tourStageBlocker,
@@ -97,5 +99,31 @@ describe('tour onboarding screens', () => {
     expect(tourScreenIndexForPublishLine('Add a booking contact phone number')).toBe(
       tourScreenIndex('languages-contact')
     );
+    expect(tourScreenIndexForPublishLine('Accessibility conflicts with not suitable')).toBe(
+      tourScreenIndex('suitability')
+    );
+    expect(tourScreenIndexForPublishLine('Add know before you go notes')).toBe(
+      tourScreenIndex('guest-prep')
+    );
+  });
+
+  it('maps focus sections and storage keys for draft restore', () => {
+    expect(tourScreenIndexForFocusSection('subtitle')).toBe(tourScreenIndex('identity'));
+    expect(tourScreenIndexForFocusSection('description')).toBe(tourScreenIndex('experience'));
+    expect(tourScreenIndexForFocusSection('price')).toBe(tourScreenIndex('options'));
+    expect(tourScreenIndexForFocusSection('booking_contact')).toBe(
+      tourScreenIndex('languages-contact')
+    );
+    expect(tourOnboardingScreenStorageKey(null)).toBe('traverion-tour-onboarding-screen-v1-create');
+    expect(tourOnboardingScreenStorageKey('abc')).toBe('traverion-tour-onboarding-screen-v1-abc');
+  });
+
+  it('surfaces title guidance separately from short description on identity', () => {
+    expect(tourStageBlocker('identity', check({ title: 'Short', subtitle: pad(100) }))).toMatch(
+      /at least 10/
+    );
+    expect(
+      tourStageBlocker('identity', check({ title: 'Northern Lights evening tour', subtitle: pad(50) }))
+    ).toMatch(/at least 100/);
   });
 });

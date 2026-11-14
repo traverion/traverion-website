@@ -251,7 +251,10 @@ import { STAY_ARRIVAL_METHODS, stayArrivalMethodHint } from '../../lib/stay-arri
 import { STAY_ONBOARDING_SCREENS, stayScreenIndexForPublishLine, stayScreenIndexFromStorage, stayStageBlocker } from '../../lib/stay-onboarding';
 import {
   TOUR_ONBOARDING_SCREENS,
+  tourOnboardingScreenStorageKey,
+  tourScreenIndex,
   tourScreenIndexFromStorage,
+  tourScreenIndexForFocusSection,
   tourScreenIndexForPublishLine,
   tourStageBlocker,
   tourStageForLegacyWizardStep,
@@ -484,13 +487,19 @@ function migrateListingEditorStorage(fromId: string | null, toId: string, isStay
       if (sessionStorage.getItem(toKey) == null) sessionStorage.setItem(toKey, value);
       sessionStorage.removeItem(fromKey);
     };
+    const fromKey = fromId ?? 'create';
     copy(wizardStepStorageKey(fromId, isStay), wizardStepStorageKey(toId, isStay));
     copy(basicsSceneStorageKey(fromId), basicsSceneStorageKey(toId));
     copy(infoSceneStorageKey(fromId), infoSceneStorageKey(toId));
     copy(infoFarthestStorageKey(fromId), infoFarthestStorageKey(toId));
     copy(listingDraftBackupKey(fromId), listingDraftBackupKey(toId));
+    // Focused creators: preserve the current screen across create → first saved id.
+    copy(tourOnboardingScreenStorageKey(fromId), tourOnboardingScreenStorageKey(toId));
+    copy(
+      `traverion-rental-onboarding-screen-v1-${fromKey}`,
+      `traverion-rental-onboarding-screen-v1-${toId}`
+    );
     if (isStay) {
-      const fromKey = fromId ?? 'create';
       copy(`traverion-stay-onboarding-screen-v2-${fromKey}`, `traverion-stay-onboarding-screen-v2-${toId}`);
       copy(`traverion-stay-onboarding-screen-v2-${fromKey}-pin`, `traverion-stay-onboarding-screen-v2-${toId}-pin`);
       copy(`traverion-stay-onboarding-stage-v1-${fromKey}`, `traverion-stay-onboarding-stage-v1-${toId}`);
@@ -1696,7 +1705,9 @@ export default function SupplierListingForm({
   const [tourStage, setTourStage] = useState(0);
   const [tourStageDir, setTourStageDir] = useState<'forward' | 'back'>('forward');
   const [tourStageAttempted, setTourStageAttempted] = useState(false);
+  const [tourReturnStage, setTourReturnStage] = useState<number | null>(null);
   const tourStageHydrated = useRef(false);
+  const tourStageRef = useRef(0);
   useEffect(() => {
     if (!isStayForm || typeof window === 'undefined') return;
     const legacyKey = `traverion-stay-onboarding-stage-v1-${editingId ?? 'create'}`;
@@ -1713,18 +1724,33 @@ export default function SupplierListingForm({
   }, [isRentalForm, editingId]);
   useEffect(() => {
     if (!isTourForm || typeof window === 'undefined') return;
-    const key = `traverion-tour-onboarding-screen-v1-${editingId ?? 'create'}`;
+    // create → first saved id: copy screen key before reading so hydrate does not reset to product-type.
+    if (editingId) {
+      const createKey = tourOnboardingScreenStorageKey(null);
+      const idKey = tourOnboardingScreenStorageKey(editingId);
+      const createVal = sessionStorage.getItem(createKey);
+      if (createVal != null && sessionStorage.getItem(idKey) == null) {
+        sessionStorage.setItem(idKey, createVal);
+        sessionStorage.removeItem(createKey);
+      }
+    }
+    const key = tourOnboardingScreenStorageKey(editingId);
+    const stored = sessionStorage.getItem(key);
+    // Avoid wiping an in-progress stage when the id flips but storage is briefly empty.
+    if (stored == null && tourStageHydrated.current && tourStageRef.current > 0 && editingId) {
+      sessionStorage.setItem(key, TOUR_ONBOARDING_SCREENS[tourStageRef.current]?.id ?? 'product-type');
+    }
     const legacyStep = readWizardStepFromStorage(editingId, false);
     const legacyBasics = readBasicsSceneFromStorage(editingId);
     const legacyInfo = readInfoSceneFromStorage(editingId);
-    setTourStage(
-      tourScreenIndexFromStorage(
-        sessionStorage.getItem(key),
-        legacyStep != null ? String(legacyStep) : null,
-        legacyBasics != null ? String(legacyBasics) : null,
-        legacyInfo != null ? String(legacyInfo) : null
-      )
+    const next = tourScreenIndexFromStorage(
+      sessionStorage.getItem(key),
+      legacyStep != null ? String(legacyStep) : null,
+      legacyBasics != null ? String(legacyBasics) : null,
+      legacyInfo != null ? String(legacyInfo) : null
     );
+    setTourStage(next);
+    tourStageRef.current = next;
     tourStageHydrated.current = true;
   }, [isTourForm, editingId]);
   useEffect(() => {
@@ -1940,32 +1966,6 @@ export default function SupplierListingForm({
     ];
   }, [form.inventoryFamily, createFamily]);
 
-  const stepGuidance = useMemo(() => {
-    const stay = form.inventoryFamily === 'stay' || createFamily === 'stay';
-    if (stay) {
-      return [
-        'Search for the property location. A display name is optional.',
-        'Choose one accommodation or several room types, then add a title guests will recognize.',
-        'Help travelers understand what makes your property special.',
-        'Add the facilities guests can actually use.',
-        'Create the accommodation choices guests can book and manage their availability.',
-        'Add your strongest photo first — it becomes the cover in search.',
-        'Tell guests how they arrive. Access codes stay on the private address, not on the public page.',
-        'Cancellation, the private arrival address, and the house rules guests read before they book.',
-        'Check what’s ready, fix gaps, then save as draft or publish.',
-      ] as const;
-    }
-    return [
-      'Product type, place, listing language, then title and subtitle.',
-      'Description, highlights, inclusions, and exclusions.',
-      // Information: scene question + support already explain the task — no redundant stage blurb.
-      '',
-      'Create the different ways travelers can book your experience.',
-      'Cover photo first, then supporting shots travelers swipe through.',
-      'Review readiness, then save as draft or publish when Traverion verification allows.',
-    ] as const;
-  }, [form.inventoryFamily, createFamily]);
-
   const reviewRows = useMemo(() => {
     const photoCount = orderedPhotoUrls(normalizePhotoSlots(form.photoSlots)).length;
     const coverUrl = orderedPhotoUrls(normalizePhotoSlots(form.photoSlots))[0] ?? '';
@@ -2151,7 +2151,7 @@ export default function SupplierListingForm({
 
   useEffect(() => {
     document.querySelector('.listing-creation-content')?.scrollTo({ top: 0 });
-  }, [stepIdx]);
+  }, [stepIdx, tourStage, stayStage, rentalStage]);
 
   const setStepIdxPersisted = useCallback(
     (next: number | ((prev: number) => number)) => {
@@ -2630,6 +2630,62 @@ export default function SupplierListingForm({
       return;
     }
 
+    if (isTourForm) {
+      const focusedScreen =
+        tourScreenIndexForFocusSection(focusSection) ??
+        tourScreenIndexForPublishLine(
+          focusSection === 'subtitle'
+            ? 'Short description'
+            : focusSection === 'description'
+              ? 'Full description'
+              : focusSection
+        );
+      rememberTourStage(focusedScreen, 'forward');
+      setTourStageAttempted(true);
+
+      const optionFieldSections = new Set(['price', 'meeting', 'pickup', 'group', 'pickup_timing']);
+      if (optionFieldSections.has(focusSection)) {
+        const preferredOptionId =
+          typeof window !== 'undefined'
+            ? new URLSearchParams(window.location.search).get('option')
+            : null;
+        const existing =
+          (preferredOptionId
+            ? form.bookingOptions.find((o) => o.id === preferredOptionId)
+            : null) ?? form.bookingOptions[0];
+        if (!existing) {
+          // Options may still be hydrating — do not consume focus yet.
+          return;
+        }
+        setOptionModalEditingId(existing.id);
+        setOptionModalDraft(
+          normalizeListingBookingOption({ ...(existing as unknown as Record<string, unknown>) }, existing.id)
+        );
+        setOptionModalHasEndingDate(existing.availabilityDateTo.trim().length > 0);
+        setOptionModalErrors([]);
+        setOptionModalOpen(true);
+      }
+
+      const focusField = () => {
+        const el = document.getElementById(`supplier-listing-field-${focusSection}`);
+        if (!el) return false;
+        lastFocused.current = focusKey;
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        const focusable = el.querySelector<HTMLElement>('input, textarea, select, button');
+        focusable?.focus?.();
+        onFocusConsumed?.();
+        return true;
+      };
+      if (focusField()) return;
+      const t = window.setTimeout(() => {
+        if (!focusField()) {
+          lastFocused.current = focusKey;
+          onFocusConsumed?.();
+        }
+      }, 80);
+      return () => window.clearTimeout(t);
+    }
+
     const targetStep = focusToStep[focusSection];
     if (typeof targetStep !== 'number') return;
 
@@ -2672,7 +2728,7 @@ export default function SupplierListingForm({
       return () => window.clearTimeout(t);
     }
 
-    if (optionFieldSections.has(focusSection) && targetStep === 2) {
+    if (optionFieldSections.has(focusSection) && targetStep === 3) {
       const preferredOptionId =
         typeof window !== 'undefined'
           ? new URLSearchParams(window.location.search).get('option')
@@ -2711,12 +2767,13 @@ export default function SupplierListingForm({
     form.bookingOptions,
     isStayForm,
     isRentalForm,
+    isTourForm,
   ]);
 
   useEffect(() => {
     if (!stepContainerRef.current) return;
     stepContainerRef.current.scrollTo({ top: 0, behavior: 'auto' });
-  }, [stepIdx, basicsSceneIdx, infoSceneIdx]);
+  }, [stepIdx, basicsSceneIdx, infoSceneIdx, tourStage, stayStage, rentalStage]);
 
   useEffect(() => {
     const html = document.documentElement;
@@ -3922,12 +3979,21 @@ export default function SupplierListingForm({
     }
     optionUrlRestoredRef.current = true;
     setStepIdxPersisted(3);
+    if (isTourForm) {
+      const optionsStage = tourScreenIndex('options');
+      setTourStageDir('forward');
+      setTourStage(optionsStage);
+      tourStageRef.current = optionsStage;
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem(tourOnboardingScreenStorageKey(editingId), 'options');
+      }
+    }
     if (state.optionId === OPTION_EDITOR_NEW_ID) {
       openOptionModalCreateRef.current('none');
       return;
     }
     openOptionModalEditRef.current(state.optionId, { sceneIndex: state.sceneIndex }, 'none');
-  }, [isStayForm, editingId, form.bookingOptions, setStepIdxPersisted]);
+  }, [isStayForm, isTourForm, editingId, form.bookingOptions, setStepIdxPersisted]);
 
   // Browser Back/Forward: keep the option editor in sync with the URL.
   useEffect(() => {
@@ -3941,6 +4007,15 @@ export default function SupplierListingForm({
         return;
       }
       setStepIdxPersisted(3);
+      if (isTourForm) {
+        const optionsStage = tourScreenIndex('options');
+        setTourStageDir('forward');
+        setTourStage(optionsStage);
+        tourStageRef.current = optionsStage;
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem(tourOnboardingScreenStorageKey(editingId), 'options');
+        }
+      }
       if (state.optionId === OPTION_EDITOR_NEW_ID) {
         if (!optionModalOpenRef.current || !optionSessionOpenedAsCreateRef.current) {
           openOptionModalCreateRef.current('none');
@@ -3953,7 +4028,7 @@ export default function SupplierListingForm({
     };
     window.addEventListener('popstate', onPopState);
     return () => window.removeEventListener('popstate', onPopState);
-  }, [isStayForm, setStepIdxPersisted]);
+  }, [isStayForm, isTourForm, editingId, setStepIdxPersisted]);
 
   const tourOptionGuided = Boolean(optionModalOpen && optionModalDraft && !isStayForm);
   const optionEnding = { hasEndingDate: optionModalHasEndingDate };
@@ -3985,7 +4060,6 @@ export default function SupplierListingForm({
   });
 
   const canContinueStep = () => canContinueListingStep(stepIdx, form, sessionOpenedAsCreateRef.current === true);
-  const photosStepOpen = isStayForm ? stepIdx === 5 : stepIdx === 4;
   const tourBasicsGuided = !isStayForm && stepIdx === 0;
   const tourInformationGuided = !isStayForm && stepIdx === 2;
   const canContinueBasicsScene = canAdvanceTourBasicsScene(basicsSceneIdx, form);
@@ -4184,6 +4258,7 @@ export default function SupplierListingForm({
     const screenId = TOUR_ONBOARDING_SCREENS[clamped]?.id ?? 'product-type';
     setTourStageDir(dir);
     setTourStage(clamped);
+    tourStageRef.current = clamped;
     setTourStageAttempted(false);
     if (screenId === 'guest-prep' || screenId === 'suitability' || screenId === 'languages-contact') {
       const infoScene =
@@ -4194,9 +4269,22 @@ export default function SupplierListingForm({
         return bumped;
       });
     }
+    // Keep a coarse legacy wizard step so older restore paths stay aligned.
+    const legacyStep =
+      screenId === 'product-type' || screenId === 'location' || screenId === 'identity'
+        ? 0
+        : screenId === 'experience'
+          ? 1
+          : screenId === 'guest-prep' || screenId === 'suitability' || screenId === 'languages-contact'
+            ? 2
+            : screenId === 'options'
+              ? 3
+              : screenId === 'photos'
+                ? 4
+                : 5;
+    writeWizardStepToStorage(editingId, legacyStep, false);
     if (typeof window !== 'undefined') {
-      const key = `traverion-tour-onboarding-screen-v1-${editingId ?? 'create'}`;
-      sessionStorage.setItem(key, screenId);
+      sessionStorage.setItem(tourOnboardingScreenStorageKey(editingId), screenId);
     }
   };
 
@@ -4509,6 +4597,7 @@ export default function SupplierListingForm({
                         return;
                       }
                       if (isTourForm) {
+                        // Keep Continue clickable so blockers can surface as hints (disabled buttons never fire).
                         if (tourOnboardingBlocker) {
                           setTourStageAttempted(true);
                           return;
@@ -4535,7 +4624,7 @@ export default function SupplierListingForm({
                         : isStayForm
                         ? Boolean(stayOnboardingBlocker)
                         : isTourForm
-                          ? Boolean(tourOnboardingBlocker)
+                          ? false
                         : tourBasicsGuided
                         ? !canContinueBasicsScene
                         : tourInformationGuided
@@ -4902,33 +4991,21 @@ export default function SupplierListingForm({
             onInformationChange={(patch) => setForm((f) => ({ ...f, ...patch }))}
             informationFarthestReached={infoFarthest}
             phoneError={bookingContactPhoneError}
+            returnStage={tourReturnStage}
+            onReturnToPreview={() => {
+              if (tourReturnStage == null) return;
+              const back = tourReturnStage;
+              setTourReturnStage(null);
+              rememberTourStage(back, 'forward');
+            }}
             extraPanel={
           <div className="w-full">
-          {!(
-            (stepIdx === 0 && !isStayForm) ||
-            (stepIdx === 3 && !isStayForm) ||
-            photosStepOpen ||
-            stepIdx === steps.length - 1
-          ) ? (
+          {/* Focused TourOnboardingFlow owns screen titles — skip the legacy step header. */}
+          {false ? (
             <header className="mb-6 sm:mb-7">
-              <h3
-                className={
-                  isStayForm
-                    ? 'font-sans text-2xl font-bold tracking-tight text-[#111827] sm:text-[1.75rem]'
-                    : 'font-display text-[1.65rem] font-bold tracking-tight text-ink sm:text-[1.85rem]'
-                }
-              >
-                {isStayForm && stepIdx === 2
-                  ? 'Describe your stay'
-                  : isStayForm && stepIdx === 4
-                    ? 'Options & availability'
-                    : steps[stepIdx].label}
+              <h3 className="font-display text-[1.65rem] font-bold tracking-tight text-ink sm:text-[1.85rem]">
+                {steps[stepIdx].label}
               </h3>
-              {stepGuidance[stepIdx]?.trim() ? (
-                <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-ink-muted">
-                  {stepGuidance[stepIdx]}
-                </p>
-              ) : null}
             </header>
           ) : null}
           {stepIdx === 1 && isStayForm && (
@@ -5308,8 +5385,11 @@ export default function SupplierListingForm({
                       ? ` · shorten to ${MAX_DESCRIPTION_LENGTH.toLocaleString('en-US')} to publish`
                       : null}
                   </p>
-                  {!canContinueStep() &&
-                  form.description.trim().length < MIN_LISTING_DESCRIPTION_LENGTH ? (
+                  {(isTourForm
+                    ? tourStageAttempted &&
+                      form.description.trim().length < MIN_LISTING_DESCRIPTION_LENGTH
+                    : !canContinueStep() &&
+                      form.description.trim().length < MIN_LISTING_DESCRIPTION_LENGTH) ? (
                     <p className="mt-1.5 text-[12px] text-ink-muted" role="status">
                       Add at least {MIN_LISTING_DESCRIPTION_LENGTH} characters to continue.
                     </p>
@@ -5388,10 +5468,10 @@ export default function SupplierListingForm({
                   onChange={(includes) => setForm((f) => ({ ...f, includes }))}
                   enforceItemLength
                   fieldError={
-                    !canContinueStep() &&
+                    (isTourForm ? tourStageAttempted : !canContinueStep()) &&
                     form.includes.map((s) => s.trim()).filter(Boolean).length < TOUR_INCLUDE_MIN_REQUIRED
                       ? `Add at least ${TOUR_INCLUDE_MIN_REQUIRED} inclusions to continue.`
-                      : !canContinueStep() &&
+                      : (isTourForm ? tourStageAttempted : !canContinueStep()) &&
                           !areFilledListingLineItemsValid(form.includes)
                         ? `Each inclusion must be ${TOUR_LINE_ITEM_MIN_LENGTH}–${TOUR_LINE_ITEM_MAX_LENGTH} characters.`
                         : null
@@ -5413,7 +5493,7 @@ export default function SupplierListingForm({
                   addLabel="+ Add exclusion"
                   emptyHint="No exclusions yet — add items guests should not expect, or skip this section."
                   fieldError={
-                    !canContinueStep() &&
+                    (isTourForm ? tourStageAttempted : !canContinueStep()) &&
                     form.excludes.some((s) => s.trim()) &&
                     !areFilledListingLineItemsValid(form.excludes)
                       ? `Each exclusion must be ${TOUR_LINE_ITEM_MIN_LENGTH}–${TOUR_LINE_ITEM_MAX_LENGTH} characters.`
@@ -6193,6 +6273,7 @@ export default function SupplierListingForm({
                 isPublished={form.status === 'published'}
                 onEditStep={(step) => {
                   if (isTourForm) {
+                    setTourReturnStage(tourStage);
                     rememberTourStage(tourStageForLegacyWizardStep(step), 'back');
                     return;
                   }

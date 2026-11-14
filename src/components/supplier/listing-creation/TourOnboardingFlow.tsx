@@ -44,6 +44,9 @@ export type TourOnboardingFlowProps = {
   onInformationChange: (patch: Partial<ListingInformationFormSlice>) => void;
   informationFarthestReached: number;
   phoneError?: string | null;
+  /** Set when jumping from Preview to edit a earlier screen. */
+  returnStage?: number | null;
+  onReturnToPreview?: () => void;
   /** Experience / Options / Photos / Preview panels from SupplierListingForm. */
   extraPanel: ReactNode;
 };
@@ -57,6 +60,11 @@ export default function TourOnboardingFlow(props: TourOnboardingFlowProps) {
   const wide =
     id === 'options' || id === 'photos' || id === 'preview' || id === 'experience';
 
+  const showBackToPreview =
+    props.returnStage != null &&
+    props.stage !== props.returnStage &&
+    typeof props.onReturnToPreview === 'function';
+
   let body: ReactNode = null;
 
   if (basicsScene != null) {
@@ -67,7 +75,7 @@ export default function TourOnboardingFlow(props: TourOnboardingFlowProps) {
         direction={props.direction}
         languageOptions={props.languageOptions}
         languageLabel={props.languageLabel}
-        allowDirectSceneAccess={props.allowDirectSceneAccess}
+        allowDirectSceneAccess={false}
         hideProgress="all"
         onSelectScene={() => {
           /* Footer owns navigation in focused mode. */
@@ -83,7 +91,7 @@ export default function TourOnboardingFlow(props: TourOnboardingFlowProps) {
         sceneIndex={infoScene}
         direction={props.direction}
         farthestReached={props.informationFarthestReached}
-        allowDirectSceneAccess={props.allowDirectSceneAccess}
+        allowDirectSceneAccess={false}
         hideProgress="all"
         onSelectScene={() => {
           /* Footer owns navigation in focused mode. */
@@ -117,9 +125,18 @@ export default function TourOnboardingFlow(props: TourOnboardingFlowProps) {
       className={`tour-creator stay-creator mx-auto w-full ${wide ? 'max-w-[72rem]' : 'max-w-[52rem]'}`}
       data-tour-screen={id}
     >
+      {showBackToPreview ? (
+        <button
+          type="button"
+          className="mb-3 min-h-11 text-sm font-semibold text-finland"
+          onClick={props.onReturnToPreview}
+        >
+          Back to preview
+        </button>
+      ) : null}
       {body}
       {props.attemptedContinue && props.blocker ? (
-        <p className="mt-4 text-sm font-medium text-amber-900" role="status">
+        <p className="mt-4 text-sm font-medium text-amber-900" role="status" data-tour-continue-blocker>
           {props.blocker}
         </p>
       ) : null}
