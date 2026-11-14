@@ -71,5 +71,5 @@ export function partnerListingInternalReferences(
 export function formatListingRatingLabel(rating: number, count: number): string {
   const avg = Number.isFinite(rating) ? Math.max(0, rating) : 0;
   const n = Number.isFinite(count) ? Math.max(0, Math.floor(count)) : 0;
-  return `${avg.toFixed(1)} (${n})`;
+  return `★ ${avg.toFixed(1)} (${n})`;
 }

@@ -24,7 +24,6 @@ import {
   CalendarDays,
   ExternalLink,
   MapPin,
-  Star,
   X,
 } from 'lucide-react';
 import { TourPackage } from '../../types/tour';
@@ -1693,7 +1692,7 @@ export default function SupplierListings() {
               return (
                 <article key={listing.id} className="tv-ops-listing-row min-w-0">
                   <div className="tv-ops-listing-row__grid">
-                    <div className="tv-ops-listing-row__identity flex min-w-0 items-start gap-3">
+                    <div className="tv-ops-listing-row__identity flex min-w-0 items-start gap-2.5">
                       <div className="tv-ops-listing-row__media shrink-0">
                         <button
                           type="button"
@@ -1705,7 +1704,7 @@ export default function SupplierListings() {
                           {heroSrc ? (
                             <img src={heroSrc} alt="" className="h-full w-full object-cover" draggable={false} />
                           ) : (
-                            <span className="flex h-full w-full items-center justify-center text-[11px] font-medium text-ink-faint">
+                            <span className="flex h-full w-full items-center justify-center text-[10px] font-medium text-ink-faint">
                               No photo
                             </span>
                           )}
@@ -1713,7 +1712,7 @@ export default function SupplierListings() {
                         <span className="tv-ops-listing-row__family">{familyBadge}</span>
                       </div>
                       <div className="tv-ops-listing-row__copy min-w-0 flex-1">
-                        <div className="tv-ops-listing-row__mobile-meta flex flex-wrap items-center gap-1.5 lg:hidden">
+                        <div className="tv-ops-listing-row__mobile-meta mb-0.5 flex flex-wrap items-center gap-1 lg:hidden">
                           <StatusChip tone={statusTone}>{publicationLabel}</StatusChip>
                           {needsUpdate ? <StatusChip tone="warn">Needs update</StatusChip> : null}
                         </div>
@@ -1727,13 +1726,7 @@ export default function SupplierListings() {
                           <h2 className="tv-ops-listing-row__title">{listing.title}</h2>
                         </button>
                         <p className="tv-ops-listing-row__rating" aria-label={`Rating ${ratingLabel}`}>
-                          <Star
-                            className="tv-ops-listing-row__rating-icon"
-                            fill="currentColor"
-                            strokeWidth={0}
-                            aria-hidden
-                          />
-                          <span>{ratingLabel}</span>
+                          {ratingLabel}
                         </p>
                         {internalRef ? (
                           <p className="tv-ops-listing-row__ref">
