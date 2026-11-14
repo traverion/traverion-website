@@ -1790,20 +1790,17 @@ export default function SupplierListings() {
                         ) : null}
                         <div className="tv-ops-listing-row__commerce-row">
                           <p className="tv-ops-listing-row__price">{priceNode}</p>
-                          {validationNote ? (
-                            <>
-                              <span className="tv-ops-listing-row__pipe" aria-hidden />
-                              <p className="tv-ops-listing-row__note-inline" title={validationNote}>
-                                <Info
-                                  className="tv-ops-listing-row__note-icon"
-                                  strokeWidth={2}
-                                  aria-hidden
-                                />
-                                <span className="truncate">{validationNote}</span>
-                              </p>
-                            </>
-                          ) : null}
                         </div>
+                        {validationNote ? (
+                          <p className="tv-ops-listing-row__note-line" title={validationNote}>
+                            <Info
+                              className="tv-ops-listing-row__note-icon"
+                              strokeWidth={2}
+                              aria-hidden
+                            />
+                            <span className="truncate">{validationNote}</span>
+                          </p>
+                        ) : null}
                         {showFlash ? (
                           <div className="tv-ops-listing-row__flash-row">
                             {justPublishedId === listing.id ? (
@@ -1848,7 +1845,7 @@ export default function SupplierListings() {
                           aria-label={`Preview ${listing.title}`}
                           title="Preview"
                         >
-                          <Eye className="h-4 w-4" strokeWidth={2} aria-hidden />
+                          <Eye className="h-[1.05rem] w-[1.05rem]" strokeWidth={2} aria-hidden />
                           <span>Preview</span>
                         </a>
                       ) : (
@@ -1859,7 +1856,7 @@ export default function SupplierListings() {
                           title="No public product page for this listing type yet"
                           aria-label="Preview unavailable"
                         >
-                          <Eye className="h-4 w-4" strokeWidth={2} aria-hidden />
+                          <Eye className="h-[1.05rem] w-[1.05rem]" strokeWidth={2} aria-hidden />
                           <span>Preview</span>
                         </button>
                       )}
@@ -1878,7 +1875,7 @@ export default function SupplierListings() {
                         title="Edit"
                         className="tv-ops-listing-row__icon-btn lux-flat disabled:opacity-40"
                       >
-                        <Pencil className="h-4 w-4" strokeWidth={2} aria-hidden />
+                        <Pencil className="h-[1.05rem] w-[1.05rem]" strokeWidth={2} aria-hidden />
                       </button>
                     </div>
                   </div>
