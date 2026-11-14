@@ -9,7 +9,7 @@ import {
   CreditCard,
   Mail,
   type LucideIcon,
-  Trash2,
+  XCircle,
 } from 'lucide-react';
 
 export type TourOpsDetailFinance = {
@@ -249,9 +249,9 @@ export function BookingOpsActionRail({
           type="button"
           disabled={busy || cancelBlocked}
           onClick={onRequestCancel}
-          className="tv-btn-ghost inline-flex h-9 w-full items-center justify-center gap-1.5 !px-3 text-[13px] text-red-700 disabled:opacity-50"
+          className="tv-btn-danger inline-flex h-9 w-full items-center justify-center gap-1.5 !px-3 text-[13px] disabled:opacity-50"
         >
-          <Trash2 className="h-3.5 w-3.5" aria-hidden />
+          <XCircle className="h-3.5 w-3.5" strokeWidth={2} aria-hidden />
           Cancel booking
         </button>
       ) : null}

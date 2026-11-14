@@ -10,6 +10,9 @@ describe('Premium booking detail redesign', () => {
     expect(primitives).toContain('BookingOpsActionRail');
     expect(primitives).toContain('BookingOpsRuleList');
     expect(primitives).toContain('Message customer');
+    expect(primitives).toContain('tv-btn-danger');
+    expect(primitives).toContain('Cancel booking');
+    expect(primitives).toContain('XCircle');
 
     const tour = readFileSync(resolve(__dirname, 'TourOpsBookingDetail.tsx'), 'utf8');
     const stay = readFileSync(resolve(__dirname, 'StayOpsBookingDetail.tsx'), 'utf8');

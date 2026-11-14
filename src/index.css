@@ -172,25 +172,40 @@ body {
   .partner-app-shell .tv-btn-danger,
   .partner-app-shell .partner-btn-danger {
     min-height: var(--partner-control-h);
-    padding: 0.5rem 0.875rem;
+    padding: 0.4rem 0.875rem;
     font-size: 0.8125rem;
     font-weight: 600;
+    letter-spacing: -0.012em;
     border-radius: var(--partner-radius);
     background: #fff;
     color: #be123c;
-    border: 1px solid rgba(190, 18, 60, 0.28);
+    border: 1px solid rgba(190, 18, 60, 0.45);
+    box-shadow: none;
+    transition:
+      background-color var(--partner-dur-micro) var(--partner-ease),
+      border-color var(--partner-dur-micro) var(--partner-ease),
+      color var(--partner-dur-micro) var(--partner-ease),
+      opacity var(--partner-dur-micro) var(--partner-ease);
   }
 
   .partner-app-shell .tv-btn-danger:hover:not(:disabled),
   .partner-app-shell .partner-btn-danger:hover:not(:disabled) {
     background: #fff1f2;
-    border-color: rgba(190, 18, 60, 0.42);
+    border-color: rgba(190, 18, 60, 0.62);
+    color: #9f1239;
+  }
+
+  .partner-app-shell .tv-btn-danger:active:not(:disabled),
+  .partner-app-shell .partner-btn-danger:active:not(:disabled) {
+    transform: translateY(0.5px);
+    background: #ffe4e6;
   }
 
   .partner-app-shell .tv-btn-danger:disabled,
   .partner-app-shell .partner-btn-danger:disabled {
     opacity: 0.45;
     cursor: not-allowed;
+    transform: none;
   }
 
   .partner-app-shell .tv-input:focus-visible,
