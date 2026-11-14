@@ -2,6 +2,7 @@
  * Supplier-only private booking notes — full booking details, never customer chat.
  */
 import { useCallback, useEffect, useState } from 'react';
+import { NotebookPen } from 'lucide-react';
 import {
   deleteSupplierBookingOpsNote,
   fetchSupplierBookingOpsNotes,
@@ -59,7 +60,10 @@ export default function BookingOpsNotesEditor({ supplierId, bookingId, canEdit }
 
   return (
     <section className="tour-ops-detail__section" aria-label="Private supplier notes">
-      <h2 className="tour-ops-detail__heading">Private notes</h2>
+      <h2 className="tour-ops-detail__heading tour-ops-detail__heading--with-icon">
+        <NotebookPen className="tour-ops-detail__heading-icon" strokeWidth={2} aria-hidden />
+        Private notes
+      </h2>
       <p className="tour-ops-detail__muted mb-2">
         Visible only to your team. Never shown to the traveler or in messages.
       </p>

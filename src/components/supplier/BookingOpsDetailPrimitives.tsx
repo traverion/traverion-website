@@ -2,7 +2,15 @@
  * Shared presentation primitives for Tour and Stay booking detail pages.
  */
 import type { ReactNode } from 'react';
-import { ArrowLeft, CheckCircle, Copy, Mail, Trash2 } from 'lucide-react';
+import {
+  ArrowLeft,
+  CheckCircle,
+  Copy,
+  CreditCard,
+  Mail,
+  type LucideIcon,
+  Trash2,
+} from 'lucide-react';
 
 export type TourOpsDetailFinance = {
   state: 'loading' | 'ready' | 'missing' | 'error';
@@ -14,13 +22,41 @@ export type TourOpsDetailFinance = {
   commissionAdjusted?: boolean;
 };
 
-export function BookingOpsFact({ label, children }: { label: string; children: ReactNode }) {
+export function BookingOpsFact({
+  label,
+  children,
+  icon: Icon,
+}: {
+  label: string;
+  children: ReactNode;
+  icon?: LucideIcon;
+}) {
   if (children == null || children === '') return null;
   return (
     <div className="tour-ops-detail__fact">
-      <dt>{label}</dt>
+      <dt>
+        {Icon ? <Icon className="tour-ops-detail__fact-icon" strokeWidth={2} aria-hidden /> : null}
+        <span>{label}</span>
+      </dt>
       <dd>{children}</dd>
     </div>
+  );
+}
+
+export function BookingOpsMetaItem({
+  icon: Icon,
+  children,
+  title,
+}: {
+  icon?: LucideIcon;
+  children: ReactNode;
+  title?: string;
+}) {
+  return (
+    <span className="tour-ops-detail__meta-item" title={title}>
+      {Icon ? <Icon className="tour-ops-detail__meta-icon" strokeWidth={2} aria-hidden /> : null}
+      <span>{children}</span>
+    </span>
   );
 }
 
@@ -117,7 +153,10 @@ export function BookingOpsFinancePanel({
 }) {
   return (
     <section className="tour-ops-detail__aside-card">
-      <h2 className="tour-ops-detail__heading">Payment</h2>
+      <h2 className="tour-ops-detail__heading tour-ops-detail__heading--with-icon">
+        <CreditCard className="tour-ops-detail__heading-icon" strokeWidth={2} aria-hidden />
+        Payment
+      </h2>
       <p className="tour-ops-detail__payment-status">{finance.paymentStatus}</p>
       {finance.state === 'loading' ? (
         <p className="mt-2 text-[13px] text-ink-muted">Loading…</p>

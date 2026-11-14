@@ -2,6 +2,15 @@
  * Dedicated rental booking details — schedule, customer, terms, messaging (no handover workflow).
  */
 import { type ReactNode } from 'react';
+import {
+  Calendar,
+  Clock,
+  FileText,
+  MapPin,
+  Package,
+  Phone,
+  User,
+} from 'lucide-react';
 import RentalCollectionMap from './listing-creation/RentalCollectionMap';
 import {
   BookingOpsActionRail,
@@ -9,6 +18,7 @@ import {
   BookingOpsExperience,
   BookingOpsFact,
   BookingOpsFinancePanel,
+  BookingOpsMetaItem,
   BookingOpsRefBar,
   type TourOpsDetailFinance,
 } from './BookingOpsDetailPrimitives';
@@ -125,8 +135,8 @@ export default function RentalOpsBookingDetail({
         subtitle={model.variantLabel}
         meta={
           <>
-            <span>{model.periodLine}</span>
-            <span>{model.quantityLabel}</span>
+            <BookingOpsMetaItem icon={Calendar}>{model.periodLine}</BookingOpsMetaItem>
+            <BookingOpsMetaItem icon={Package}>{model.quantityLabel}</BookingOpsMetaItem>
           </>
         }
       />
@@ -136,16 +146,22 @@ export default function RentalOpsBookingDetail({
           <section className="tour-ops-detail__section">
             <h2 className="tour-ops-detail__heading">Rental details</h2>
             <dl className="tour-ops-detail__facts">
-              <BookingOpsFact label="Collection">{model.collectionLabel || '—'}</BookingOpsFact>
-              <BookingOpsFact label="Return">{model.returnLabel || '—'}</BookingOpsFact>
-              <BookingOpsFact label="Quantity">{model.quantityLabel}</BookingOpsFact>
+              <BookingOpsFact label="Collection" icon={Calendar}>
+                {model.collectionLabel || '—'}
+              </BookingOpsFact>
+              <BookingOpsFact label="Return" icon={Clock}>
+                {model.returnLabel || '—'}
+              </BookingOpsFact>
+              <BookingOpsFact label="Quantity" icon={Package}>
+                {model.quantityLabel}
+              </BookingOpsFact>
               {model.collectionPlace ? (
-                <BookingOpsFact label="Collection place">
+                <BookingOpsFact label="Collection place" icon={MapPin}>
                   <span className="[overflow-wrap:anywhere]">{model.collectionPlace}</span>
                 </BookingOpsFact>
               ) : null}
               {model.returnPlace ? (
-                <BookingOpsFact label="Return place">
+                <BookingOpsFact label="Return place" icon={MapPin}>
                   <span className="[overflow-wrap:anywhere]">
                     {model.returnSameAsCollection
                       ? `Same as collection · ${model.returnPlace}`
@@ -154,12 +170,12 @@ export default function RentalOpsBookingDetail({
                 </BookingOpsFact>
               ) : null}
               {model.collectionInstructions ? (
-                <BookingOpsFact label="Collection notes">
+                <BookingOpsFact label="Collection notes" icon={FileText}>
                   <span className="tour-ops-detail__body-text">{model.collectionInstructions}</span>
                 </BookingOpsFact>
               ) : null}
               {!model.returnSameAsCollection && model.returnInstructions ? (
-                <BookingOpsFact label="Return notes">
+                <BookingOpsFact label="Return notes" icon={FileText}>
                   <span className="tour-ops-detail__body-text">{model.returnInstructions}</span>
                 </BookingOpsFact>
               ) : null}
@@ -191,9 +207,11 @@ export default function RentalOpsBookingDetail({
           <section className="tour-ops-detail__section">
             <h2 className="tour-ops-detail__heading">Customer</h2>
             <dl className="tour-ops-detail__facts">
-              <BookingOpsFact label="Customer">{model.customerName}</BookingOpsFact>
+              <BookingOpsFact label="Customer" icon={User}>
+                {model.customerName}
+              </BookingOpsFact>
               {model.customerPhone ? (
-                <BookingOpsFact label="Phone">
+                <BookingOpsFact label="Phone" icon={Phone}>
                   <a href={phoneHref} className="text-finland hover:underline">
                     {model.customerPhone}
                   </a>
@@ -202,7 +220,10 @@ export default function RentalOpsBookingDetail({
             </dl>
             {model.requestNotes ? (
               <div className="tour-ops-detail__notes">
-                <p className="tour-ops-detail__sublabel">Customer notes</p>
+                <p className="tour-ops-detail__sublabel tour-ops-detail__sublabel--with-icon">
+                  <FileText className="tour-ops-detail__sublabel-icon" strokeWidth={2} aria-hidden />
+                  Customer notes
+                </p>
                 <p className="tour-ops-detail__body-text">{model.requestNotes}</p>
               </div>
             ) : null}

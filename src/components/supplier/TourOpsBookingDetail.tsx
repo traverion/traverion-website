@@ -2,13 +2,23 @@
  * Dedicated tour booking details page — premium two-column layout.
  */
 import { type ReactNode } from 'react';
-import { Clock } from 'lucide-react';
+import {
+  Calendar,
+  Clock,
+  FileText,
+  MapPin,
+  NotebookPen,
+  Phone,
+  User,
+  Users,
+} from 'lucide-react';
 import {
   BookingOpsActionRail,
   BookingOpsBackLink,
   BookingOpsExperience,
   BookingOpsFact,
   BookingOpsFinancePanel,
+  BookingOpsMetaItem,
   BookingOpsRefBar,
   type TourOpsDetailFinance,
 } from './BookingOpsDetailPrimitives';
@@ -110,14 +120,11 @@ export default function TourOpsBookingDetail({
         note={model.departureNote}
         meta={
           <>
-            <span>{model.whenLabel}</span>
+            <BookingOpsMetaItem icon={Calendar}>{model.whenLabel}</BookingOpsMetaItem>
             {model.durationLabel ? (
-              <span className="inline-flex items-center gap-1">
-                <Clock className="h-3 w-3 shrink-0 opacity-60" aria-hidden />
-                {model.durationLabel}
-              </span>
+              <BookingOpsMetaItem icon={Clock}>{model.durationLabel}</BookingOpsMetaItem>
             ) : null}
-            <span>{model.participantLabel}</span>
+            <BookingOpsMetaItem icon={Users}>{model.participantLabel}</BookingOpsMetaItem>
           </>
         }
       />
@@ -127,19 +134,26 @@ export default function TourOpsBookingDetail({
           <section className="tour-ops-detail__section">
             <h2 className="tour-ops-detail__heading">Guest</h2>
             <dl className="tour-ops-detail__facts">
-              <BookingOpsFact label="Lead guest">{model.guestName}</BookingOpsFact>
+              <BookingOpsFact label="Lead guest" icon={User}>
+                {model.guestName}
+              </BookingOpsFact>
               {model.guestPhone ? (
-                <BookingOpsFact label="Phone">
+                <BookingOpsFact label="Phone" icon={Phone}>
                   <a href={phoneHref} className="text-finland hover:underline">
                     {model.guestPhone}
                   </a>
                 </BookingOpsFact>
               ) : null}
-              <BookingOpsFact label="Participants">{model.participantLabel}</BookingOpsFact>
+              <BookingOpsFact label="Participants" icon={Users}>
+                {model.participantLabel}
+              </BookingOpsFact>
             </dl>
             {model.requestNotes ? (
               <div className="tour-ops-detail__notes">
-                <p className="tour-ops-detail__sublabel">Guest notes</p>
+                <p className="tour-ops-detail__sublabel tour-ops-detail__sublabel--with-icon">
+                  <FileText className="tour-ops-detail__sublabel-icon" strokeWidth={2} aria-hidden />
+                  Guest notes
+                </p>
                 <p className="tour-ops-detail__body-text">{model.requestNotes}</p>
               </div>
             ) : null}
@@ -148,7 +162,7 @@ export default function TourOpsBookingDetail({
           <section className="tour-ops-detail__section">
             <h2 className="tour-ops-detail__heading">{model.arrivalSectionLabel}</h2>
             <dl className="tour-ops-detail__facts">
-              <BookingOpsFact label="Location">
+              <BookingOpsFact label="Location" icon={MapPin}>
                 {model.arrivalPlace || (
                   <span className="tour-ops-detail__muted-inline">
                     {model.pickupGapMessage || 'Not available yet'}
@@ -156,17 +170,19 @@ export default function TourOpsBookingDetail({
                 )}
               </BookingOpsFact>
               {model.pickupTimeHm ? (
-                <BookingOpsFact label="Pickup time">
+                <BookingOpsFact label="Pickup time" icon={Clock}>
                   <span className="tour-ops-detail__pickup-time">{model.pickupTimeHm}</span>
                 </BookingOpsFact>
               ) : null}
               {model.arrivalInstructions ? (
-                <BookingOpsFact label="Instructions">
+                <BookingOpsFact label="Instructions" icon={FileText}>
                   <span className="tour-ops-detail__body-text">{model.arrivalInstructions}</span>
                 </BookingOpsFact>
               ) : null}
               {model.transferLine ? (
-                <BookingOpsFact label="Transport">{model.transferLine}</BookingOpsFact>
+                <BookingOpsFact label="Transport" icon={MapPin}>
+                  {model.transferLine}
+                </BookingOpsFact>
               ) : null}
             </dl>
             {model.pickupGapMessage && model.arrivalPlace ? (
@@ -187,7 +203,7 @@ export default function TourOpsBookingDetail({
             <section className="tour-ops-detail__section">
               <h2 className="tour-ops-detail__heading">Attention</h2>
               {model.unpaidHoldMessage ? (
-                <p className="text-[13px] text-ink-muted">{model.unpaidHoldMessage}</p>
+                <p className="text-[13px] text-ink">{model.unpaidHoldMessage}</p>
               ) : null}
               {model.cancelWaitingMessage ? (
                 <p className="mt-1 text-[13px] text-amber-900">{model.cancelWaitingMessage}</p>
@@ -199,8 +215,8 @@ export default function TourOpsBookingDetail({
           {onFulfillmentChange ? (
             <section className="tour-ops-detail__section">
               <h2 className="tour-ops-detail__heading">Service fulfillment</h2>
-              <p className="text-[13px] text-ink-muted">
-                Status: <span className="font-medium text-ink">{fulfillment.replace('_', ' ')}</span>
+              <p className="text-[13px] text-ink">
+                Status: <span className="font-semibold">{fulfillment.replace('_', ' ')}</span>
               </p>
               {model.fulfillmentHint ? (
                 <p className="mt-1 text-[12.5px] text-amber-900">{model.fulfillmentHint}</p>
@@ -238,7 +254,14 @@ export default function TourOpsBookingDetail({
             </section>
           ) : null}
 
-          {privateNotesSlot}
+          {privateNotesSlot ? (
+            <div className="tour-ops-detail__private-notes">
+              <span className="sr-only">
+                <NotebookPen aria-hidden />
+              </span>
+              {privateNotesSlot}
+            </div>
+          ) : null}
         </div>
 
         <aside className="tour-ops-detail__aside">

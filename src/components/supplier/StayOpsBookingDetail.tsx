@@ -3,11 +3,22 @@
  */
 import { type ReactNode } from 'react';
 import {
+  Calendar,
+  Clock,
+  FileText,
+  MapPin,
+  Moon,
+  Phone,
+  User,
+  Users,
+} from 'lucide-react';
+import {
   BookingOpsActionRail,
   BookingOpsBackLink,
   BookingOpsExperience,
   BookingOpsFact,
   BookingOpsFinancePanel,
+  BookingOpsMetaItem,
   BookingOpsRefBar,
   BookingOpsRuleList,
   type TourOpsDetailFinance,
@@ -120,9 +131,11 @@ export default function StayOpsBookingDetail({
         title={model.listingTitle}
         meta={
           <>
-            <span>{model.whenLabel}</span>
-            {model.nightLabel ? <span>{model.nightLabel}</span> : null}
-            <span>{model.participantLabel}</span>
+            <BookingOpsMetaItem icon={Calendar}>{model.whenLabel}</BookingOpsMetaItem>
+            {model.nightLabel ? (
+              <BookingOpsMetaItem icon={Moon}>{model.nightLabel}</BookingOpsMetaItem>
+            ) : null}
+            <BookingOpsMetaItem icon={Users}>{model.participantLabel}</BookingOpsMetaItem>
           </>
         }
       />
@@ -132,19 +145,26 @@ export default function StayOpsBookingDetail({
           <section className="tour-ops-detail__section">
             <h2 className="tour-ops-detail__heading">Guest</h2>
             <dl className="tour-ops-detail__facts">
-              <BookingOpsFact label="Lead guest">{model.guestName}</BookingOpsFact>
+              <BookingOpsFact label="Lead guest" icon={User}>
+                {model.guestName}
+              </BookingOpsFact>
               {model.guestPhone ? (
-                <BookingOpsFact label="Phone">
+                <BookingOpsFact label="Phone" icon={Phone}>
                   <a href={phoneHref} className="text-finland hover:underline">
                     {model.guestPhone}
                   </a>
                 </BookingOpsFact>
               ) : null}
-              <BookingOpsFact label="Guests">{model.participantLabel}</BookingOpsFact>
+              <BookingOpsFact label="Guests" icon={Users}>
+                {model.participantLabel}
+              </BookingOpsFact>
             </dl>
             {model.requestNotes ? (
               <div className="tour-ops-detail__notes">
-                <p className="tour-ops-detail__sublabel">Guest notes</p>
+                <p className="tour-ops-detail__sublabel tour-ops-detail__sublabel--with-icon">
+                  <FileText className="tour-ops-detail__sublabel-icon" strokeWidth={2} aria-hidden />
+                  Guest notes
+                </p>
                 <p className="tour-ops-detail__body-text">{model.requestNotes}</p>
               </div>
             ) : null}
@@ -153,15 +173,19 @@ export default function StayOpsBookingDetail({
           <section className="tour-ops-detail__section">
             <h2 className="tour-ops-detail__heading">Arrival & departure</h2>
             <dl className="tour-ops-detail__facts">
-              <BookingOpsFact label="Check-in">
+              <BookingOpsFact label="Check-in" icon={Calendar}>
                 {model.checkInDateLabel}
                 {model.checkInTimeLabel ? ` · from ${model.checkInTimeLabel}` : ''}
               </BookingOpsFact>
-              <BookingOpsFact label="Check-out">
+              <BookingOpsFact label="Check-out" icon={Clock}>
                 {model.checkOutDateLabel}
                 {model.checkOutTimeLabel ? ` · by ${model.checkOutTimeLabel}` : ''}
               </BookingOpsFact>
-              {model.nightLabel ? <BookingOpsFact label="Nights">{model.nightLabel}</BookingOpsFact> : null}
+              {model.nightLabel ? (
+                <BookingOpsFact label="Nights" icon={Moon}>
+                  {model.nightLabel}
+                </BookingOpsFact>
+              ) : null}
             </dl>
             {onOpenStayCalendar ? (
               <button
@@ -178,12 +202,12 @@ export default function StayOpsBookingDetail({
             <h2 className="tour-ops-detail__heading">Property & access</h2>
             <dl className="tour-ops-detail__facts">
               {model.propertyAddress ? (
-                <BookingOpsFact label="Address">
+                <BookingOpsFact label="Address" icon={MapPin}>
                   <span className="[overflow-wrap:anywhere]">{model.propertyAddress}</span>
                 </BookingOpsFact>
               ) : null}
               {model.accessInstructions ? (
-                <BookingOpsFact label="Access">
+                <BookingOpsFact label="Access" icon={FileText}>
                   <span className="tour-ops-detail__body-text">{model.accessInstructions}</span>
                 </BookingOpsFact>
               ) : null}
@@ -227,7 +251,7 @@ export default function StayOpsBookingDetail({
             <section className="tour-ops-detail__section">
               <h2 className="tour-ops-detail__heading">Attention</h2>
               {model.unpaidHoldMessage ? (
-                <p className="text-[13px] text-ink-muted">{model.unpaidHoldMessage}</p>
+                <p className="text-[13px] text-ink">{model.unpaidHoldMessage}</p>
               ) : null}
               {model.cancelWaitingMessage ? (
                 <p className="mt-1 text-[13px] text-amber-900">{model.cancelWaitingMessage}</p>
