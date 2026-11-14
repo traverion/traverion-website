@@ -2,7 +2,8 @@
  * Expandable rental booking row — Guest | Booking details | Payment.
  */
 import { type MouseEvent } from 'react';
-import { Calendar, ChevronDown, Copy, Mail, Package, Phone, Ticket } from 'lucide-react';
+import { Calendar, ChevronDown, Copy, CreditCard, Mail, MapPin, Package, Phone, Ticket } from 'lucide-react';
+import TruncatingText from './TruncatingText';
 
 export type RentalOpsCardModel = {
   id: string;
@@ -104,13 +105,9 @@ export default function RentalOpsBookingCard({
             <div className="tour-ops-card__body">
               <div className="tour-ops-card__level tour-ops-card__level--identity">
                 <div className="tour-ops-card__identity">
-                  <p className="tour-ops-card__title" title={model.listingTitle}>
-                    {model.listingTitle}
-                  </p>
+                  <TruncatingText text={model.listingTitle} as="p" className="tour-ops-card__title" />
                   {model.variantLabel ? (
-                    <p className="tour-ops-card__option" title={model.variantLabel}>
-                      {model.variantLabel}
-                    </p>
+                    <TruncatingText text={model.variantLabel} as="p" className="tour-ops-card__option" />
                   ) : null}
                 </div>
                 {model.statusLabel ? (
@@ -125,14 +122,14 @@ export default function RentalOpsBookingCard({
             <span className="tour-ops-card__facts-indent" aria-hidden />
             <div className="tour-ops-card__level tour-ops-card__level--facts">
               <div className="tour-ops-card__facts" onClick={onToggleExpand}>
-                <span className="tour-ops-card__fact tour-ops-card__fact--date" title={model.periodLine}>
+                <span className="tour-ops-card__fact tour-ops-card__fact--date">
                   <Calendar className="tour-ops-card__fact-icon" strokeWidth={2} aria-hidden />
-                  <span className="tour-ops-card__fact-text">{model.periodLine}</span>
+                  <TruncatingText text={model.periodLine} className="tour-ops-card__fact-text" />
                 </span>
                 {model.quantityLabel ? (
-                  <span className="tour-ops-card__fact tour-ops-card__fact--qty" title={model.quantityLabel}>
+                  <span className="tour-ops-card__fact tour-ops-card__fact--qty">
                     <Package className="tour-ops-card__fact-icon" strokeWidth={2} aria-hidden />
-                    <span className="tour-ops-card__fact-text">{model.quantityLabel}</span>
+                    <TruncatingText text={model.quantityLabel} className="tour-ops-card__fact-text" />
                   </span>
                 ) : null}
                 <button
@@ -176,14 +173,17 @@ export default function RentalOpsBookingCard({
             {model.customerPhone ? (
               <a
                 href={`tel:${model.customerPhone.replace(/[^\d+]/g, '')}`}
-                className="tour-ops-card__summary-contact tour-ops-card__summary-icon-row"
+                className="tour-ops-card__summary-contact tour-ops-card__summary-row"
               >
                 <Phone className="tour-ops-card__summary-icon" strokeWidth={2} aria-hidden />
-                {model.customerPhone}
+                <span>{model.customerPhone}</span>
               </a>
             ) : null}
             {model.quantityLabel ? (
-              <p className="tour-ops-card__summary-meta">{model.quantityLabel}</p>
+              <p className="tour-ops-card__summary-meta tour-ops-card__summary-row">
+                <Package className="tour-ops-card__summary-icon" strokeWidth={2} aria-hidden />
+                <span>{model.quantityLabel}</span>
+              </p>
             ) : null}
             {model.purchaseDateLabel ? (
               <p className="tour-ops-card__summary-meta tour-ops-card__summary-meta--secondary">
@@ -197,31 +197,47 @@ export default function RentalOpsBookingCard({
 
           <section className="tour-ops-card__summary-block">
             <h3 className="tour-ops-card__summary-heading">Booking details</h3>
-            <p className="tour-ops-card__summary-value">
-              <span className="tour-ops-card__summary-label">Collection</span>
-              {model.collectionLabel || '—'}
-            </p>
-            <p className="tour-ops-card__summary-meta">
-              <span className="tour-ops-card__summary-label">Return</span>
-              {model.returnLabel || '—'}
-            </p>
-            {model.variantLabel ? (
-              <p className="tour-ops-card__summary-meta">{model.variantLabel}</p>
-            ) : null}
+            <div className="tour-ops-card__summary-value tour-ops-card__summary-row">
+              <Calendar className="tour-ops-card__summary-icon" strokeWidth={2} aria-hidden />
+              <div className="tour-ops-card__summary-place">
+                <span className="tour-ops-card__summary-label">Collection</span>
+                <span>{model.collectionLabel || '—'}</span>
+              </div>
+            </div>
+            <div className="tour-ops-card__summary-meta tour-ops-card__summary-row">
+              <Calendar className="tour-ops-card__summary-icon" strokeWidth={2} aria-hidden />
+              <div className="tour-ops-card__summary-place">
+                <span className="tour-ops-card__summary-label">Return</span>
+                <span>{model.returnLabel || '—'}</span>
+              </div>
+            </div>
             {model.collectionPlace ? (
-              <p className="tour-ops-card__summary-note tour-ops-card__summary-value--place">
-                {model.collectionPlace}
-              </p>
+              <div className="tour-ops-card__summary-meta tour-ops-card__summary-row tour-ops-card__summary-row--place">
+                <MapPin className="tour-ops-card__summary-icon" strokeWidth={2} aria-hidden />
+                <div className="tour-ops-card__summary-place">
+                  <span className="tour-ops-card__summary-label">Location</span>
+                  <span className="tour-ops-card__summary-value--place">{model.collectionPlace}</span>
+                </div>
+              </div>
             ) : null}
             {model.returnPlace && model.returnPlace !== model.collectionPlace ? (
-              <p className="tour-ops-card__summary-note">Return: {model.returnPlace}</p>
+              <div className="tour-ops-card__summary-meta tour-ops-card__summary-row tour-ops-card__summary-row--place">
+                <MapPin className="tour-ops-card__summary-icon" strokeWidth={2} aria-hidden />
+                <div className="tour-ops-card__summary-place">
+                  <span className="tour-ops-card__summary-label">Return place</span>
+                  <span>{model.returnPlace}</span>
+                </div>
+              </div>
             ) : null}
           </section>
 
           <section className="tour-ops-card__summary-block tour-ops-card__summary-block--finance">
             <h3 className="tour-ops-card__summary-heading">Payment</h3>
             {model.paymentLabel ? (
-              <p className="tour-ops-card__payment-status">{model.paymentLabel}</p>
+              <p className="tour-ops-card__payment-status tour-ops-card__summary-row">
+                <CreditCard className="tour-ops-card__summary-icon" strokeWidth={2} aria-hidden />
+                <span>{model.paymentLabel}</span>
+              </p>
             ) : null}
             {model.financeLoading ? (
               <p className="tour-ops-card__summary-meta">Loading…</p>

@@ -2,7 +2,8 @@
  * Expandable Stay reservation row — Guest | Booking details | Payment.
  */
 import { type MouseEvent } from 'react';
-import { Calendar, ChevronDown, Copy, Mail, Phone, Ticket, Users } from 'lucide-react';
+import { Calendar, ChevronDown, Copy, CreditCard, Mail, Phone, Ticket, Users } from 'lucide-react';
+import TruncatingText from './TruncatingText';
 
 export type StayOpsCardModel = {
   id: string;
@@ -101,13 +102,9 @@ export default function StayOpsReservationCard({
             <div className="tour-ops-card__body">
               <div className="tour-ops-card__level tour-ops-card__level--identity">
                 <div className="tour-ops-card__identity">
-                  <p className="tour-ops-card__title" title={model.listingTitle}>
-                    {model.listingTitle}
-                  </p>
+                  <TruncatingText text={model.listingTitle} as="p" className="tour-ops-card__title" />
                   {model.nightLabel ? (
-                    <p className="tour-ops-card__option" title={model.nightLabel}>
-                      {model.nightLabel}
-                    </p>
+                    <TruncatingText text={model.nightLabel} as="p" className="tour-ops-card__option" />
                   ) : null}
                 </div>
                 {model.statusLabel ? (
@@ -122,14 +119,14 @@ export default function StayOpsReservationCard({
             <span className="tour-ops-card__facts-indent" aria-hidden />
             <div className="tour-ops-card__level tour-ops-card__level--facts">
               <div className="tour-ops-card__facts" onClick={onToggleExpand}>
-                <span className="tour-ops-card__fact tour-ops-card__fact--date" title={model.dateLine}>
+                <span className="tour-ops-card__fact tour-ops-card__fact--date">
                   <Calendar className="tour-ops-card__fact-icon" strokeWidth={2} aria-hidden />
-                  <span className="tour-ops-card__fact-text">{model.dateLine}</span>
+                  <TruncatingText text={model.dateLine} className="tour-ops-card__fact-text" />
                 </span>
                 {model.participantLabel ? (
-                  <span className="tour-ops-card__fact tour-ops-card__fact--qty" title={model.participantLabel}>
+                  <span className="tour-ops-card__fact tour-ops-card__fact--qty">
                     <Users className="tour-ops-card__fact-icon" strokeWidth={2} aria-hidden />
-                    <span className="tour-ops-card__fact-text">{model.participantLabel}</span>
+                    <TruncatingText text={model.participantLabel} className="tour-ops-card__fact-text" />
                   </span>
                 ) : null}
                 <button
@@ -173,16 +170,16 @@ export default function StayOpsReservationCard({
             {model.guestPhone ? (
               <a
                 href={`tel:${model.guestPhone.replace(/[^\d+]/g, '')}`}
-                className="tour-ops-card__summary-contact tour-ops-card__summary-icon-row"
+                className="tour-ops-card__summary-contact tour-ops-card__summary-row"
               >
                 <Phone className="tour-ops-card__summary-icon" strokeWidth={2} aria-hidden />
-                {model.guestPhone}
+                <span>{model.guestPhone}</span>
               </a>
             ) : null}
             {model.participantLabel ? (
-              <p className="tour-ops-card__summary-meta tour-ops-card__summary-icon-row">
+              <p className="tour-ops-card__summary-meta tour-ops-card__summary-row">
                 <Users className="tour-ops-card__summary-icon" strokeWidth={2} aria-hidden />
-                {model.participantLabel}
+                <span>{model.participantLabel}</span>
               </p>
             ) : null}
             {model.purchaseDateLabel ? (
@@ -197,17 +194,20 @@ export default function StayOpsReservationCard({
 
           <section className="tour-ops-card__summary-block">
             <h3 className="tour-ops-card__summary-heading">Booking details</h3>
-            <p className="tour-ops-card__summary-value">
-              <span className="tour-ops-card__summary-label">Check-in</span>
-              {model.checkInLabel || '—'}
-            </p>
-            <p className="tour-ops-card__summary-meta">
-              <span className="tour-ops-card__summary-label">Check-out</span>
-              {model.checkOutLabel || '—'}
-            </p>
-            {model.nightLabel ? (
-              <p className="tour-ops-card__summary-meta">{model.nightLabel}</p>
-            ) : null}
+            <div className="tour-ops-card__summary-value tour-ops-card__summary-row">
+              <Calendar className="tour-ops-card__summary-icon" strokeWidth={2} aria-hidden />
+              <div className="tour-ops-card__summary-place">
+                <span className="tour-ops-card__summary-label">Check-in</span>
+                <span>{model.checkInLabel || '—'}</span>
+              </div>
+            </div>
+            <div className="tour-ops-card__summary-meta tour-ops-card__summary-row">
+              <Calendar className="tour-ops-card__summary-icon" strokeWidth={2} aria-hidden />
+              <div className="tour-ops-card__summary-place">
+                <span className="tour-ops-card__summary-label">Check-out</span>
+                <span>{model.checkOutLabel || '—'}</span>
+              </div>
+            </div>
             {model.accessSummary ? (
               <p className="tour-ops-card__summary-note">{model.accessSummary}</p>
             ) : null}
@@ -216,7 +216,10 @@ export default function StayOpsReservationCard({
           <section className="tour-ops-card__summary-block tour-ops-card__summary-block--finance">
             <h3 className="tour-ops-card__summary-heading">Payment</h3>
             {model.paymentLabel ? (
-              <p className="tour-ops-card__payment-status">{model.paymentLabel}</p>
+              <p className="tour-ops-card__payment-status tour-ops-card__summary-row">
+                <CreditCard className="tour-ops-card__summary-icon" strokeWidth={2} aria-hidden />
+                <span>{model.paymentLabel}</span>
+              </p>
             ) : null}
             {model.financeLoading ? (
               <p className="tour-ops-card__summary-meta">Loading…</p>

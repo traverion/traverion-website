@@ -14,6 +14,7 @@ import {
   Ticket,
   Users,
 } from 'lucide-react';
+import TruncatingText from './TruncatingText';
 
 export type TourOpsCardModel = {
   id: string;
@@ -86,10 +87,10 @@ export default function TourOpsBookingCard({
   const arrivalPrimary =
     arrivalPlace ||
     model.pickupSummary?.trim() ||
-    arrivalInstructions ||
-    (model.arrivalRailWarn ? 'Pickup location needed' : '—');
-  const showInstructionUnderPlace = Boolean(arrivalPlace && arrivalInstructions);
-  const whenTitle = model.departureNote ? `${model.dateLine}. ${model.departureNote}` : model.dateLine;
+    (model.arrivalRailWarn ? 'Pickup location needed' : null);
+  const showInstructionUnderPlace = Boolean(
+    arrivalPlace && arrivalInstructions && arrivalInstructions !== arrivalPlace
+  );
   const needsAttention = Boolean(model.warning) || model.statusLabel === 'Pickup details missing';
 
   return (
@@ -130,13 +131,9 @@ export default function TourOpsBookingCard({
             <div className="tour-ops-card__body">
               <div className="tour-ops-card__level tour-ops-card__level--identity">
                 <div className="tour-ops-card__identity">
-                  <p className="tour-ops-card__title" title={model.listingTitle}>
-                    {model.listingTitle}
-                  </p>
+                  <TruncatingText text={model.listingTitle} as="p" className="tour-ops-card__title" />
                   {model.optionLabel ? (
-                    <p className="tour-ops-card__option" title={model.optionLabel}>
-                      {model.optionLabel}
-                    </p>
+                    <TruncatingText text={model.optionLabel} as="p" className="tour-ops-card__option" />
                   ) : null}
                 </div>
                 {model.statusLabel ? (
@@ -151,14 +148,14 @@ export default function TourOpsBookingCard({
             <span className="tour-ops-card__facts-indent" aria-hidden />
             <div className="tour-ops-card__level tour-ops-card__level--facts">
               <div className="tour-ops-card__facts" onClick={onToggleExpand}>
-                <span className="tour-ops-card__fact tour-ops-card__fact--date" title={whenTitle}>
+                <span className="tour-ops-card__fact tour-ops-card__fact--date">
                   <Calendar className="tour-ops-card__fact-icon" strokeWidth={2} aria-hidden />
-                  <span className="tour-ops-card__fact-text">{model.dateLine}</span>
+                  <TruncatingText text={model.dateLine} className="tour-ops-card__fact-text" />
                 </span>
                 {model.participantLabel ? (
-                  <span className="tour-ops-card__fact tour-ops-card__fact--qty" title={model.participantLabel}>
+                  <span className="tour-ops-card__fact tour-ops-card__fact--qty">
                     <Users className="tour-ops-card__fact-icon" strokeWidth={2} aria-hidden />
-                    <span className="tour-ops-card__fact-text">{model.participantLabel}</span>
+                    <TruncatingText text={model.participantLabel} className="tour-ops-card__fact-text" />
                   </span>
                 ) : null}
                 <button
@@ -200,16 +197,16 @@ export default function TourOpsBookingCard({
             {model.guestPhone ? (
               <a
                 href={`tel:${model.guestPhone.replace(/[^\d+]/g, '')}`}
-                className="tour-ops-card__summary-contact tour-ops-card__summary-icon-row"
+                className="tour-ops-card__summary-contact tour-ops-card__summary-row"
               >
                 <Phone className="tour-ops-card__summary-icon" strokeWidth={2} aria-hidden />
-                {model.guestPhone}
+                <span>{model.guestPhone}</span>
               </a>
             ) : null}
             {model.participantLabel ? (
-              <p className="tour-ops-card__summary-meta tour-ops-card__summary-icon-row">
+              <p className="tour-ops-card__summary-meta tour-ops-card__summary-row">
                 <Users className="tour-ops-card__summary-icon" strokeWidth={2} aria-hidden />
-                {model.participantLabel}
+                <span>{model.participantLabel}</span>
               </p>
             ) : null}
             {model.purchaseDateLabel ? (
@@ -221,30 +218,25 @@ export default function TourOpsBookingCard({
 
           <section className="tour-ops-card__summary-block">
             <h3 className="tour-ops-card__summary-heading">Booking details</h3>
-            <p className="tour-ops-card__summary-value tour-ops-card__summary-icon-row" title={whenTitle}>
+            <p className="tour-ops-card__summary-value tour-ops-card__summary-row">
               <Calendar className="tour-ops-card__summary-icon" strokeWidth={2} aria-hidden />
-              {model.dateLine}
+              <span>{model.dateLine}</span>
             </p>
-            {model.optionLabel ? (
-              <p className="tour-ops-card__summary-meta">{model.optionLabel}</p>
-            ) : null}
             {model.durationLabel ? (
-              <p className="tour-ops-card__summary-meta tour-ops-card__summary-icon-row">
+              <p className="tour-ops-card__summary-meta tour-ops-card__summary-row">
                 <Clock className="tour-ops-card__summary-icon" strokeWidth={2} aria-hidden />
-                {model.durationLabel}
+                <span>{model.durationLabel}</span>
               </p>
             ) : null}
-            <p
-              className={`tour-ops-card__summary-meta tour-ops-card__summary-icon-row${
-                arrivalPlace || model.pickupSummary ? ' tour-ops-card__summary-value--place' : ''
-              }`}
-            >
-              <MapPin className="tour-ops-card__summary-icon" strokeWidth={2} aria-hidden />
-              <span>
-                <span className="tour-ops-card__summary-label">{model.arrivalSectionLabel}</span>
-                {arrivalPrimary}
-              </span>
-            </p>
+            {arrivalPrimary ? (
+              <div className="tour-ops-card__summary-meta tour-ops-card__summary-row tour-ops-card__summary-row--place">
+                <MapPin className="tour-ops-card__summary-icon" strokeWidth={2} aria-hidden />
+                <div className="tour-ops-card__summary-place">
+                  <span className="tour-ops-card__summary-label">{model.arrivalSectionLabel}</span>
+                  <span className="tour-ops-card__summary-value--place">{arrivalPrimary}</span>
+                </div>
+              </div>
+            ) : null}
             {showInstructionUnderPlace ? (
               <p className="tour-ops-card__summary-note">{arrivalInstructions}</p>
             ) : null}
@@ -259,9 +251,9 @@ export default function TourOpsBookingCard({
           <section className="tour-ops-card__summary-block tour-ops-card__summary-block--finance">
             <h3 className="tour-ops-card__summary-heading">Payment</h3>
             {model.paymentLabel ? (
-              <p className="tour-ops-card__payment-status tour-ops-card__summary-icon-row">
+              <p className="tour-ops-card__payment-status tour-ops-card__summary-row">
                 <CreditCard className="tour-ops-card__summary-icon" strokeWidth={2} aria-hidden />
-                {model.paymentLabel}
+                <span>{model.paymentLabel}</span>
               </p>
             ) : null}
             {model.financeLoading ? (
