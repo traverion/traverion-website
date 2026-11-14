@@ -25,8 +25,8 @@ describe('partner listing publication display', () => {
   });
 
   it('formats ratings as avg (count)', () => {
-    expect(formatListingRatingLabel(4.8, 24)).toBe('★ 4.8 (24)');
-    expect(formatListingRatingLabel(0, 0)).toBe('★ 0.0 (0)');
+    expect(formatListingRatingLabel(4.8, 24)).toBe('4.8 (24)');
+    expect(formatListingRatingLabel(0, 0)).toBe('0.0 (0)');
   });
 
   it('matches search against internal references', () => {
