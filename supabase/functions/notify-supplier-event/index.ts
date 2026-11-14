@@ -15,9 +15,12 @@ import {
 } from '../_shared/transactional-html.ts';
 import {
   claimTransactionalSend,
+  enqueueTransactionalEmail,
+  kickTransactionalDelivery,
   recordTransactionalSend,
   sendResendEmail,
 } from '../_shared/transactional-email.ts';
+import { cancellationEmailShouldQueue } from '../_shared/transactional-email-queue.ts';
 import { isBookingTiedSupplierEvent, isReviewTiedSupplierEvent, isAuthorizedSupplierSelfNotifyCaller, isSupplierSelfNotifyEvent, resolveSupplierEventContext } from '../_shared/notify-supplier-event-guard.ts';
 import {
   guestMayInvokeSupplierEvent,
@@ -1343,12 +1346,40 @@ const handler = async (req: Request): Promise<Response> => {
 
     const textBody = eventBody(effectivePayload);
     const htmlBody = eventHtml(effectivePayload);
+    const subject = eventSubject(effectivePayload);
+    const recipientList = [...recipients];
+
+    if (cancellationEmailShouldQueue('supplier', payload.eventType)) {
+      const queued = await enqueueTransactionalEmail(admin, {
+        idempotencyKey,
+        channel: 'supplier',
+        templateKey: payload.eventType,
+        recipientEmail: recipientList.join(','),
+        entityType: payload.bookingId ? 'booking' : 'supplier_profile',
+        entityId: payload.bookingId ?? payload.supplierId,
+        payload: {
+          from: fromEmail,
+          to: recipientList,
+          subject,
+          text: textBody,
+          html: htmlBody,
+        },
+      });
+      if (!queued.ok) {
+        return json({ success: false, queued: false, error: 'Notification could not be queued' }, 500);
+      }
+      if (queued.alreadySent) {
+        return json({ success: true, skipped: true, reason: 'already_sent', notified: 0, idempotencyKey });
+      }
+      kickTransactionalDelivery();
+      return json({ success: true, queued: true, notified: recipientList.length, idempotencyKey });
+    }
 
     const sent = await sendResendEmail({
       apiKey,
       from: fromEmail,
-      to: [...recipients],
-      subject: eventSubject(effectivePayload),
+      to: recipientList,
+      subject,
       text: textBody,
       html: htmlBody,
     });

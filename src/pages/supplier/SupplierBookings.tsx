@@ -1109,45 +1109,7 @@ export default function SupplierBookings({
           }
         })());
       }
-      if (result.ok && !result.replayed && booking) {
-        followUp.push((async () => {
-          const reasonLabel = customerFacingCancellationReason(input.reasonCode);
-          const [notify] = await Promise.all([
-            notifyTravelerCancellationRequest({
-              customerEmail: booking.guestEmail || 'resolve@guest.local',
-              customerName: booking.guestName,
-              listingTitle: booking.listingTitle,
-              bookingId: booking.id,
-              bookingNumber: booking.bookingNumber ?? undefined,
-              bookingDate: booking.date || undefined,
-              reasonLabel,
-              requestId: result.requestId,
-              needsCustomerChoice: result.needsCustomerChoice,
-              startTimeLabel: booking.startHm || null,
-            }),
-            supplierFor(booking.listingId).then(async (supplierId) => {
-              if (!supplierId) return;
-              await notifySupplierEvent({
-                supplierId,
-                eventType: 'booking_cancelled',
-                listingId: booking.listingId,
-                listingTitle: booking.listingTitle,
-                bookingId: booking.id,
-                bookingDate: booking.date || undefined,
-                guests: booking.guests,
-                guestName: booking.guestName,
-                bookingNumber: booking.bookingNumber ?? undefined,
-                portalBaseUrl: supplierPortalPublicBaseUrl(),
-                fieldDiffs: [
-                  { label: 'Reason', before: 'Active booking', after: reasonLabel },
-                  { label: 'Cancelled by', before: 'Active booking', after: 'Your team' },
-                ],
-              });
-            }),
-          ]);
-          notification = notify.sent ? 'accepted' : 'unconfirmed';
-        })());
-      } else if (result.ok && result.replayed) {
+      if (result.ok && result.replayed) {
         notification = 'unconfirmed';
       }
       await Promise.all(followUp);
@@ -1164,6 +1126,64 @@ export default function SupplierBookings({
       ok: batch.ok,
       error: batch.ok ? undefined : batch.error || PARTNER_CANCEL_REQUEST_SUBMIT_ERROR,
       rows,
+      queueNotifications: async () => {
+        const next = await Promise.all(rows.map(async (row) => {
+          if (!row.ok || row.notification === 'unconfirmed') return row;
+          const result = sourceRows.find((item) => item.bookingId === row.bookingId);
+          const booking = byId.get(row.bookingId);
+          if (!result?.ok || result.replayed || !booking) return row;
+          const reasonLabel = customerFacingCancellationReason(input.reasonCode);
+          try {
+            const [customer, supplier] = await Promise.all([
+              notifyTravelerCancellationRequest({
+                customerEmail: booking.guestEmail || 'resolve@guest.local',
+                customerName: booking.guestName,
+                listingTitle: booking.listingTitle,
+                bookingId: booking.id,
+                bookingNumber: booking.bookingNumber ?? undefined,
+                bookingDate: booking.date || undefined,
+                reasonLabel,
+                requestId: result.requestId,
+                needsCustomerChoice: result.needsCustomerChoice,
+                startTimeLabel: booking.startHm || null,
+              }),
+              supplierFor(booking.listingId).then(async (supplierId) => {
+                if (!supplierId) return { success: true, queued: true };
+                return notifySupplierEvent({
+                  supplierId,
+                  eventType: 'booking_cancelled',
+                  listingId: booking.listingId,
+                  listingTitle: booking.listingTitle,
+                  bookingId: booking.id,
+                  bookingDate: booking.date || undefined,
+                  guests: booking.guests,
+                  guestName: booking.guestName,
+                  bookingNumber: booking.bookingNumber ?? undefined,
+                  portalBaseUrl: supplierPortalPublicBaseUrl(),
+                  fieldDiffs: [
+                    { label: 'Reason', before: 'Active booking', after: reasonLabel },
+                    { label: 'Cancelled by', before: 'Active booking', after: 'Your team' },
+                  ],
+                });
+              }),
+            ]);
+            const customerQueued = Boolean(customer.queued);
+            const supplierQueued = Boolean(supplier.queued);
+            const customerOk = customerQueued || customer.sent || Boolean(customer.skipped);
+            const supplierOk = supplierQueued || supplier.success;
+            if (!customerOk || !supplierOk) return { ...row, notification: 'failed' as const };
+            if (customer.sent && supplier.success && !customerQueued && !supplierQueued) {
+              return { ...row, notification: 'accepted' as const };
+            }
+            return { ...row, notification: 'queued' as const };
+          } catch {
+            return { ...row, notification: 'failed' as const };
+          }
+        }));
+        const failed = next.some((row) => row.ok && row.notification === 'failed');
+        const queued = next.some((row) => row.notification === 'queued');
+        return { rows: next, notice: failed ? 'failed' as const : queued ? 'queued' as const : 'none' as const };
+      },
     };
   }, [load]);
 

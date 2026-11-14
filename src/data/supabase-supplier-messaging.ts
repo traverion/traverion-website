@@ -71,7 +71,8 @@ export async function notifySupplierEvent(params: {
   });
   if (error) return { success: false, error: error.message };
   return {
-    success: !!data?.success,
+    success: !!data?.success && !data?.queued,
+    queued: !!data?.queued,
     notified: typeof data?.notified === 'number' ? data.notified : undefined,
     error: data?.error,
   };

@@ -1,0 +1,65 @@
+# Every 5 minutes: deliver queued transactional email that the inline kick
+# missed. A failed provider response stays failed and retryable.
+#
+# Auth: Bearer secret matching the Edge Function.
+# Prefer CANCEL_RESOLUTION_CRON_SECRET; otherwise CRON_SECRET or
+# BOOKING_REMINDER_CRON_SECRET.
+#
+# Ops: new scheduled workflows may not fire until a successful workflow_dispatch
+# has run once on main. Failures are visible in Actions run history + step logs.
+
+name: Deliver transactional email
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: deliver-transactional-email
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deliver:
+    name: Call deliver-transactional-email
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: POST deliver-transactional-email
+        env:
+          CANCEL_RESOLUTION_CRON_SECRET: ${{ secrets.CANCEL_RESOLUTION_CRON_SECRET }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          BOOKING_REMINDER_CRON_SECRET: ${{ secrets.BOOKING_REMINDER_CRON_SECRET }}
+          FUNCTION_URL: https://xcopqllkulxfkpunetbc.supabase.co/functions/v1/deliver-transactional-email
+        run: |
+          set -euo pipefail
+          SECRET="${CANCEL_RESOLUTION_CRON_SECRET:-${CRON_SECRET:-${BOOKING_REMINDER_CRON_SECRET:-}}}"
+          if [ -z "${SECRET}" ]; then
+            echo "::error::Set CANCEL_RESOLUTION_CRON_SECRET, CRON_SECRET, or BOOKING_REMINDER_CRON_SECRET in GitHub Actions secrets."
+            exit 1
+          fi
+
+          HTTP_CODE="$(curl -sS -o /tmp/deliver-transactional-email.json -w '%{http_code}' \
+            --connect-timeout 15 \
+            --max-time 120 \
+            -X POST "${FUNCTION_URL}" \
+            -H "Authorization: Bearer ${SECRET}" \
+            -H "Content-Type: application/json" \
+            -d '{"limit":20}')"
+
+          echo "HTTP status: ${HTTP_CODE}"
+          cat /tmp/deliver-transactional-email.json || true
+          echo
+
+          case "${HTTP_CODE}" in
+            2??)
+              echo "deliver-transactional-email succeeded."
+              ;;
+            *)
+              echo "::error::deliver-transactional-email failed with HTTP ${HTTP_CODE}"
+              exit 1
+              ;;
+          esac

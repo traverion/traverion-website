@@ -17,6 +17,10 @@ describe('booking lifecycle notifications', () => {
     expect(screen).toContain('Confirm cancellation');
     expect(screen).toContain('View results');
     expect(screen).toContain("if (!canSubmit || phase === 'processing' || submittingRef.current) return");
+    expect(screen).toContain('presentCancellationCompletion');
+    expect(screen).toContain('Customer and supplier notifications are being sent.');
+    expect(screen).toContain('This cancellation is still complete.');
+    expect(src('src/pages/supplier/SupplierBookings.tsx')).toContain('queueNotifications');
   });
 
   it('keeps the supplier explanation out of customer reads and mail', () => {

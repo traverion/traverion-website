@@ -11,6 +11,8 @@ import {
 describe('Phase 1859: soft-notification failure honesty', () => {
   it('separates skipped/success from failure in softNotify helpers', () => {
     expect(softNotifyFromEdgePayload({ success: true })).toEqual({ sent: true });
+    expect(softNotifyFromEdgePayload({ success: true, queued: true })).toEqual({ sent: false, queued: true });
+    expect(softNotifyWarningFromResults({ sent: false, queued: true })).toBeNull();
     expect(softNotifyFromEdgePayload({ skipped: true })).toEqual({ sent: false, skipped: true });
     expect(softNotifyFromEdgePayload({ success: false, error: 'Resend down' })).toEqual({
       sent: false,

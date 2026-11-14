@@ -6,6 +6,7 @@ import {
   PARTNER_CANCEL_REQUEST_REFUND_POLICY,
 } from '../../lib/booking-confirmation-copy';
 import { formatMoney } from '../../lib/money';
+import { presentCancellationCompletion, type CancellationNotice } from '../../lib/cancellation-completion';
 import {
   CANCELLATION_BATCH_LIMIT,
   EMPTY_CANCELLATION_FILTERS,
@@ -34,7 +35,7 @@ export type CancellationWorkflowResultRow = {
   bookingId: string;
   ok: boolean;
   error?: string;
-  notification: 'accepted' | 'unconfirmed' | 'not_sent';
+  notification: 'accepted' | 'queued' | 'failed' | 'unconfirmed' | 'not_sent';
   refundNote: string;
 };
 
@@ -71,6 +72,8 @@ const FAMILIES: { value: '' | CancellationFamily; label: string }[] = [
 
 function notificationLabel(status: CancellationWorkflowResultRow['notification']): string {
   if (status === 'accepted') return 'Mail provider accepted the notice';
+  if (status === 'queued') return 'Notifications are being sent';
+  if (status === 'failed') return 'Notification was not queued';
   if (status === 'unconfirmed') return 'Email was not confirmed';
   return 'No email sent';
 }
@@ -100,7 +103,12 @@ export default function SupplierCancellationWorkflow({
     reasonText: string;
     evidenceNote: string;
     idempotencyKey: string;
-  }) => Promise<{ ok: boolean; error?: string; rows: CancellationWorkflowResultRow[] }>;
+  }) => Promise<{
+    ok: boolean;
+    error?: string;
+    rows: CancellationWorkflowResultRow[];
+    queueNotifications?: () => Promise<{ notice: CancellationNotice; rows: CancellationWorkflowResultRow[] }>;
+  }>;
   onReleaseUnpaid: (booking: CancellationCandidate) => Promise<{ ok: boolean; error?: string }>;
 }) {
   const titleId = useId();
@@ -120,6 +128,7 @@ export default function SupplierCancellationWorkflow({
   const [evidence, setEvidence] = useState('');
   const [acknowledged, setAcknowledged] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [notice, setNotice] = useState<CancellationNotice>('none');
   const submittingRef = useRef(false);
   const [idempotencyKey] = useState(() => crypto.randomUUID());
   const [formError, setFormError] = useState<string | null>(null);
@@ -217,6 +226,7 @@ export default function SupplierCancellationWorkflow({
     if (!acknowledged) return;
     submittingRef.current = true;
     setPhase('processing');
+    setNotice('none');
     setFormError(null);
     try {
       if (nextKind === 'unpaid' && rows[0]) {
@@ -232,25 +242,40 @@ export default function SupplierCancellationWorkflow({
         setPhase(released.ok ? 'success' : 'failure');
         return;
       }
-      const ran = await onConfirmPaid({
-        bookings: rows,
-        reasonCode,
-        reasonText: explanation.trim(),
-        evidenceNote: evidence.trim(),
-        idempotencyKey,
+      await presentCancellationCompletion({
+        settle: async () => {
+          const ran = await onConfirmPaid({
+            bookings: rows,
+            reasonCode,
+            reasonText: explanation.trim(),
+            evidenceNote: evidence.trim(),
+            idempotencyKey,
+          });
+          const listed = ran.rows.length ? ran.rows : rows.map((row) => ({
+            bookingId: row.id,
+            ok: false,
+            error: ran.error || 'This booking was not cancelled.',
+            notification: 'not_sent' as const,
+            refundNote: 'Not submitted.',
+          }));
+          const outcome = cancellationRunPhase(listed);
+          return { phase: outcome, listed, error: ran.error, queueNotifications: ran.queueNotifications };
+        },
+        onSettled: (settled) => {
+          setResultRows(settled.listed);
+          setFormError(settled.phase === 'failure' ? cancellationFailureSummary(settled.listed, settled.error) : null);
+          setPhase(settled.phase);
+          setDetailsOpen(true);
+        },
+        queue: async (settled) => {
+          if (!settled.queueNotifications) return { notice: 'none' };
+          return settled.queueNotifications();
+        },
+        onQueued: (update) => {
+          if (update.rows) setResultRows(update.rows as CancellationWorkflowResultRow[]);
+          setNotice(update.notice);
+        },
       });
-      const listed = ran.rows.length ? ran.rows : rows.map((row) => ({
-        bookingId: row.id,
-        ok: false,
-        error: ran.error || 'This booking was not cancelled.',
-        notification: 'not_sent' as const,
-        refundNote: 'Not submitted.',
-      }));
-      setResultRows(listed);
-      const outcome = cancellationRunPhase(listed);
-      setFormError(outcome === 'failure' ? cancellationFailureSummary(listed, ran.error) : null);
-      setPhase(outcome);
-      setDetailsOpen(true);
     } finally {
       submittingRef.current = false;
     }
@@ -764,6 +789,7 @@ export default function SupplierCancellationWorkflow({
             .filter((row) => resultById.get(row.id)?.ok === false)
             .map((row) => row.reference || row.id)}
           error={formError}
+          notice={notice}
           onBack={() => {
             if (phase === 'processing') return;
             setConfirmOpen(false);
@@ -787,6 +813,7 @@ function CancellationConfirmModal({
   failed,
   failedReferences,
   error,
+  notice,
   onBack,
   onConfirm,
   onDone,
@@ -801,6 +828,7 @@ function CancellationConfirmModal({
   failed: number;
   failedReferences: string[];
   error: string | null;
+  notice: CancellationNotice;
   onBack: () => void;
   onConfirm: () => void;
   onDone: () => void;
@@ -855,6 +883,12 @@ function CancellationConfirmModal({
               <p className="mt-2 text-sm text-ink-muted" role="status">
                 {succeeded} succeeded. {failed} failed.
               </p>
+            ) : null}
+            {notice === 'queued' && (phase === 'success' || phase === 'partial') ? (
+              <p className="mt-2 text-sm text-ink-muted" role="status">Customer and supplier notifications are being sent.</p>
+            ) : null}
+            {notice === 'failed' && (phase === 'success' || phase === 'partial') ? (
+              <p className="mt-2 text-sm text-amber-800" role="status">Notifications could not be queued. This cancellation is still complete.</p>
             ) : null}
             {phase === 'failure' && error ? (
               <p className="mt-2 text-sm text-ink" role="alert">{error}</p>

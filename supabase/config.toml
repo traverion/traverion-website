@@ -41,6 +41,10 @@ verify_jwt = false
 [functions.notify-supplier-event]
 verify_jwt = false
 
+[functions.deliver-transactional-email]
+# Worker. Service role or cron secret. Clients do not call it.
+verify_jwt = false
+
 [functions.send-booking-reminders]
 # Cron / ops secret auth inside the function.
 verify_jwt = false

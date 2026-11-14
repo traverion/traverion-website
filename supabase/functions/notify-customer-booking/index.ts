@@ -18,9 +18,12 @@ import { clientErrorForEmailProvider } from '../_shared/email-provider-error.ts'
 import {
   adminClientFromEnv,
   claimTransactionalSend,
+  enqueueTransactionalEmail,
+  kickTransactionalDelivery,
   recordTransactionalSend,
   sendResendEmail,
 } from '../_shared/transactional-email.ts';
+import { cancellationEmailShouldQueue } from '../_shared/transactional-email-queue.ts';
 import {
   isAuthorizedTravelerWelcomeRecipient,
   isBookingTiedEmailKind,
@@ -1251,11 +1254,39 @@ const handler = async (req: Request): Promise<Response> => {
       }
     }
 
+    const subject = subjectForKind(kind, title, publicReference || undefined, listingKind);
+    if (cancellationEmailShouldQueue('customer', kind)) {
+      if (!admin) return json({ success: false, queued: false, error: 'Notification could not be queued' }, 500);
+      const queued = await enqueueTransactionalEmail(admin, {
+        idempotencyKey,
+        channel: 'customer',
+        templateKey: kind,
+        recipientEmail: to,
+        entityType: body.bookingId ? 'booking' : undefined,
+        entityId: body.bookingId,
+        payload: {
+          from: fromEmail,
+          to: [to],
+          subject,
+          text,
+          html,
+        },
+      });
+      if (!queued.ok) {
+        return json({ success: false, queued: false, error: 'Notification could not be queued' }, 500);
+      }
+      if (queued.alreadySent) {
+        return json({ success: true, skipped: true, reason: 'already_sent', idempotencyKey });
+      }
+      kickTransactionalDelivery();
+      return json({ success: true, queued: true, idempotencyKey });
+    }
+
     const sent = await sendResendEmail({
       apiKey,
       from: fromEmail,
       to: [to],
-      subject: subjectForKind(kind, title, publicReference || undefined, listingKind),
+      subject,
       text,
       html,
       attachments: attachments.length ? attachments : undefined,

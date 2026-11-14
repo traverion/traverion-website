@@ -7,6 +7,8 @@ export type SoftNotifyResult = {
   sent: boolean;
   /** Idempotent already_sent / intentional skip — not a failure to surface. */
   skipped?: boolean;
+  /** Committed to the outbox. Not provider acceptance. */
+  queued?: boolean;
   error?: string;
 };
 
@@ -15,7 +17,7 @@ export const SOFT_NOTIFY_FAILED_COPY =
   'Saved, but email notification may not have been sent. The change is already recorded in Traverion.';
 
 export function softNotifyWarningFromResults(...results: SoftNotifyResult[]): string | null {
-  const failed = results.filter((r) => !r.sent && !r.skipped);
+  const failed = results.filter((r) => !r.sent && !r.skipped && !r.queued);
   if (failed.length === 0) return null;
   const detail = failed.map((r) => (r.error ?? '').trim()).find(Boolean);
   if (detail) {
@@ -26,18 +28,21 @@ export function softNotifyWarningFromResults(...results: SoftNotifyResult[]): st
 
 export function softNotifyFromSupplierInvoke(r: {
   success: boolean;
+  queued?: boolean;
   error?: string;
 }): SoftNotifyResult {
+  if (r.queued) return { sent: false, queued: true };
   if (r.success) return { sent: true };
   return { sent: false, error: r.error };
 }
 
 /** Normalize edge JSON from notify-customer-booking / similar. */
 export function softNotifyFromEdgePayload(
-  data: { success?: boolean; skipped?: boolean; error?: string } | null | undefined,
+  data: { success?: boolean; skipped?: boolean; queued?: boolean; error?: string } | null | undefined,
   invokeError?: { message?: string } | null
 ): SoftNotifyResult {
   if (invokeError?.message) return { sent: false, error: invokeError.message };
+  if (data?.queued) return { sent: false, queued: true };
   if (data?.skipped) return { sent: false, skipped: true };
   if (data?.success) return { sent: true };
   return {
