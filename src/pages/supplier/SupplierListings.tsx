@@ -22,8 +22,9 @@ import {
   Copy,
   Search,
   CalendarDays,
-  MoreHorizontal,
-  ExternalLink,
+  Eye,
+  Layers,
+  MapPin,
   Star,
   X,
 } from 'lucide-react';
@@ -1621,18 +1622,11 @@ export default function SupplierListings() {
               </div>
             ) : (
           <div className="tv-ops-listings-table" aria-busy={loading || undefined}>
-            <div className="tv-ops-listings-head hidden lg:grid" aria-hidden>
-              <span>Listing</span>
-              <span>Status</span>
-              <span>From</span>
-              <span className="text-right">Actions</span>
-            </div>
             {filteredListings.map((listing) => {
               const isLive = listing.status !== 'draft';
               const family = inventoryFamilyFromListing(listing);
               const isStay = family === 'stay';
               const commerce = partnerListingCommerceSummary(listing);
-              const typeLabel = commerce.typeLabel;
               const currency = listing.price?.currency ?? 'EUR';
               const money =
                 commerce.amount == null || commerce.amount <= 0
@@ -1685,35 +1679,43 @@ export default function SupplierListings() {
                   liveAttention != null ? listingAttentionFocus(liveAttention) ?? undefined : undefined;
                 openSupplierListingEditor(listing.id, focus);
               };
-              const primaryLabel =
-                !isLive && (card.primaryCta === 'continue' || card.draftStateLabel === 'Incomplete')
-                  ? 'Continue editing'
-                  : 'Manage';
               const publicUrl = publicListingProductUrlFromListing(listing);
               const ratingAgg = listingRatings[listing.id] ?? { rating: 0, count: 0 };
               const ratingLabel = formatListingRatingLabel(ratingAgg.rating, ratingAgg.count);
               const internalRef = (parseListingExtras(listing.listingExtras).internalReference ?? '').trim();
+              const familyBadge =
+                family === 'stay' ? 'STAY' : family === 'rental' ? 'RENTAL' : 'TOUR';
+              const priceNode = money ? (
+                <>
+                  <span className="tv-ops-listing-row__price-from">From </span>
+                  <span className="tv-ops-listing-row__price-emph">{money}</span>
+                  {unitLabel ? (
+                    <span className="tv-ops-listing-row__price-qual"> {unitLabel}</span>
+                  ) : null}
+                </>
+              ) : (
+                <span className="tv-ops-listing-row__price-muted">Price not set</span>
+              );
               return (
                 <article key={listing.id} className="tv-ops-listing-row min-w-0">
                   <div className="tv-ops-listing-row__grid">
-                    <div className="tv-ops-listing-row__identity flex min-w-0 items-start gap-3">
+                    <div className="tv-ops-listing-row__main">
                       <button
                         type="button"
                         className="tv-ops-listing-row__thumb relative shrink-0 overflow-hidden bg-black/[0.04] lux-flat"
                         onClick={openManage}
                         disabled={!canEditListings}
-                        aria-label={`Manage ${listing.title}`}
+                        aria-label={`Open ${listing.title}`}
                       >
                         {heroSrc ? (
                           <img src={heroSrc} alt="" className="h-full w-full object-cover" draggable={false} />
                         ) : (
-                          <span className="flex h-full w-full items-center justify-center text-[11px] font-medium text-ink-faint">
-                            No photo
-                          </span>
+                          <span className="tv-ops-listing-row__thumb-empty">No photo</span>
                         )}
+                        <span className="tv-ops-listing-row__family">{familyBadge}</span>
                       </button>
                       <div className="tv-ops-listing-row__copy min-w-0 flex-1">
-                        <div className="tv-ops-listing-row__mobile-meta mb-1 flex flex-wrap items-center gap-1.5 lg:hidden">
+                        <div className="tv-ops-listing-row__mobile-meta lg:hidden">
                           <StatusChip tone={statusTone}>{publicationLabel}</StatusChip>
                           {needsUpdate ? <StatusChip tone="warn">Needs update</StatusChip> : null}
                         </div>
@@ -1726,10 +1728,24 @@ export default function SupplierListings() {
                         >
                           <h2 className="tv-ops-listing-row__title">{listing.title}</h2>
                         </button>
-                        <p className="tv-ops-listing-row__rating" aria-label={`Rating ${ratingLabel}`}>
-                          <Star className="tv-ops-listing-row__rating-icon" strokeWidth={2} aria-hidden />
-                          <span>{ratingLabel}</span>
-                        </p>
+                        <div className="tv-ops-listing-row__meta">
+                          <p className="tv-ops-listing-row__rating" aria-label={`Rating ${ratingLabel}`}>
+                            <Star
+                              className="tv-ops-listing-row__rating-icon"
+                              fill="currentColor"
+                              strokeWidth={0}
+                              aria-hidden
+                            />
+                            <span>{ratingLabel}</span>
+                          </p>
+                          <span className="tv-ops-listing-row__meta-dot" aria-hidden>
+                            ·
+                          </span>
+                          <p className="tv-ops-listing-row__place">
+                            <MapPin className="tv-ops-listing-row__place-icon" strokeWidth={2} aria-hidden />
+                            <span className="truncate">{place || 'Destination not set'}</span>
+                          </p>
+                        </div>
                         {internalRef ? (
                           <p className="tv-ops-listing-row__ref">
                             <span className="tv-ops-listing-row__ref-text" title={internalRef}>
@@ -1756,28 +1772,22 @@ export default function SupplierListings() {
                             </button>
                           </p>
                         ) : null}
-                        <p className="tv-ops-listing-row__place">
-                          <span className="tv-ops-listing-row__place-type">{typeLabel}</span>
-                          <span className="tv-ops-listing-row__place-sep" aria-hidden>
-                            ·
-                          </span>
-                          <span className="truncate">{place || 'Destination not set'}</span>
-                        </p>
-                        {inventoryLine ? (
-                          <p className="tv-ops-listing-row__inventory-inline">{inventoryLine}</p>
-                        ) : null}
-                        <p className="tv-ops-listing-row__mobile-commerce lg:hidden">
-                          {money ? (
-                            <>
-                              <span className="tv-ops-listing-row__price-emph">From {money}</span>
-                              {unitLabel ? (
-                                <span className="tv-ops-listing-row__price-qual"> {unitLabel}</span>
-                              ) : null}
-                            </>
-                          ) : (
-                            <span className="tv-ops-listing-row__price-muted">Price not set</span>
-                          )}
-                        </p>
+                        <div className="tv-ops-listing-row__commerce-row">
+                          {inventoryLine ? (
+                            <p className="tv-ops-listing-row__inventory-inline">
+                              <Layers
+                                className="tv-ops-listing-row__inventory-icon"
+                                strokeWidth={2}
+                                aria-hidden
+                              />
+                              <span>{inventoryLine}</span>
+                            </p>
+                          ) : null}
+                          {inventoryLine ? (
+                            <span className="tv-ops-listing-row__commerce-sep" aria-hidden />
+                          ) : null}
+                          <p className="tv-ops-listing-row__price">{priceNode}</p>
+                        </div>
                         {needsUpdate && liveAttention ? (
                           <p className="tv-ops-listing-row__detail">{liveAttention}</p>
                         ) : null}
@@ -1793,85 +1803,65 @@ export default function SupplierListings() {
                                   family === 'stay' ? 'stay' : family === 'rental' ? 'rental' : 'tour',
                               });
                             }}
-                            className="tv-ops-listing-row__flash mt-1 text-[11px] font-semibold text-finland hover:underline"
+                            className="tv-ops-listing-row__flash text-[11px] font-semibold text-finland hover:underline"
                           >
                             Published · Open calendar
                           </button>
                         ) : null}
                         {justDuplicatedId === listing.id ? (
-                          <span className="tv-ops-listing-row__flash mt-1 inline-block text-[11px] font-semibold text-finland">
+                          <span className="tv-ops-listing-row__flash inline-block text-[11px] font-semibold text-finland">
                             Draft copy created
                           </span>
                         ) : null}
                       </div>
                     </div>
 
-                    <div className="tv-ops-listing-row__status hidden min-w-0 lg:flex lg:flex-col lg:items-start lg:gap-1">
-                      <StatusChip tone={statusTone}>{publicationLabel}</StatusChip>
-                      {needsUpdate ? <StatusChip tone="warn">Needs update</StatusChip> : null}
-                    </div>
-
-                    <div className="tv-ops-listing-row__commerce hidden min-w-0 lg:flex lg:flex-col lg:justify-center">
-                      <p className="tv-ops-listing-row__price">
-                        {money ? (
-                          <>
-                            <span className="tv-ops-listing-row__price-emph">From {money}</span>
-                            {unitLabel ? (
-                              <span className="tv-ops-listing-row__price-qual"> {unitLabel}</span>
-                            ) : null}
-                          </>
+                    <div className="tv-ops-listing-row__rail">
+                      <div className="tv-ops-listing-row__status hidden lg:flex">
+                        <StatusChip tone={statusTone}>{publicationLabel}</StatusChip>
+                        {needsUpdate ? <StatusChip tone="warn">Needs update</StatusChip> : null}
+                      </div>
+                      <div className="tv-ops-listing-row__actions">
+                        {publicUrl ? (
+                          <a
+                            href={publicUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="tv-ops-listing-row__icon-btn lux-flat"
+                            aria-label={`Preview ${listing.title}`}
+                            title="Preview"
+                          >
+                            <Eye className="h-4 w-4" strokeWidth={2} aria-hidden />
+                          </a>
                         ) : (
-                          <span className="tv-ops-listing-row__price-muted">Price not set</span>
+                          <button
+                            type="button"
+                            className="tv-ops-listing-row__icon-btn lux-flat opacity-40"
+                            disabled
+                            title="No public product page for this listing type yet"
+                            aria-label="Preview unavailable"
+                          >
+                            <Eye className="h-4 w-4" strokeWidth={2} aria-hidden />
+                          </button>
                         )}
-                      </p>
-                    </div>
-
-                    <div className="tv-ops-listing-row__actions flex shrink-0 items-center justify-end gap-1.5">
-                      <button
-                        type="button"
-                        disabled={!canEditListings}
-                        onClick={openManage}
-                        className="tv-ops-listing-row__primary lux-flat disabled:opacity-40"
-                      >
-                        {primaryLabel}
-                      </button>
-                      {publicUrl ? (
-                        <a
-                          href={publicUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="tv-ops-listing-row__preview lux-flat inline-flex h-8 items-center gap-1 rounded-md px-2.5 text-[12.5px] font-semibold text-ink-muted ring-1 ring-black/[0.08] hover:bg-black/[0.04] hover:text-ink"
-                        >
-                          <ExternalLink className="h-3.5 w-3.5" strokeWidth={2} aria-hidden />
-                          Preview
-                        </a>
-                      ) : (
                         <button
                           type="button"
-                          className="tv-ops-listing-row__preview lux-flat inline-flex h-8 items-center gap-1 rounded-md px-2.5 text-[12.5px] font-semibold text-ink-muted ring-1 ring-black/[0.08] opacity-40"
-                          disabled
-                          title="No public product page for this listing type yet"
+                          data-listing-gear={listing.id}
+                          onClick={() =>
+                            setListingActionsMenuId((id) => (id === listing.id ? null : listing.id))
+                          }
+                          disabled={!canEditListings}
+                          aria-expanded={listingActionsMenuId === listing.id}
+                          aria-haspopup="menu"
+                          aria-label={
+                            isStay ? 'Stay actions' : family === 'rental' ? 'Rental actions' : 'Tour actions'
+                          }
+                          title="Edit"
+                          className="tv-ops-listing-row__icon-btn lux-flat disabled:opacity-40"
                         >
-                          <ExternalLink className="h-3.5 w-3.5" strokeWidth={2} aria-hidden />
-                          Preview
+                          <Pencil className="h-4 w-4" strokeWidth={2} aria-hidden />
                         </button>
-                      )}
-                      <button
-                        type="button"
-                        data-listing-gear={listing.id}
-                        onClick={() =>
-                          setListingActionsMenuId((id) => (id === listing.id ? null : listing.id))
-                        }
-                        disabled={!canEditListings}
-                        aria-expanded={listingActionsMenuId === listing.id}
-                        aria-haspopup="menu"
-                        aria-label={
-                          isStay ? 'Stay actions' : family === 'rental' ? 'Rental actions' : 'Tour actions'
-                        }
-                        className="tv-ops-listing-row__menu lux-flat inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-ink-muted hover:bg-black/[0.05] hover:text-ink disabled:opacity-40"
-                      >
-                        <MoreHorizontal className="h-4 w-4" aria-hidden />
-                      </button>
+                      </div>
                     </div>
                   </div>
                 </article>
