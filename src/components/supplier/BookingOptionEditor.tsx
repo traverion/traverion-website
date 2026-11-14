@@ -454,6 +454,28 @@ export default function BookingOptionEditor({
                 aria-invalid={nameInvalid || undefined}
               />
             </div>
+            <div id="supplier-listing-field-option-internal-reference" className="space-y-1.5">
+              <label
+                htmlFor="booking-option-internal-reference"
+                className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-[13px] font-semibold text-ink"
+              >
+                <span>Internal reference</span>
+                <span className="text-[11px] font-medium tracking-wide text-ink-faint">Optional</span>
+              </label>
+              <p className="text-[12px] text-ink-muted">
+                Partner-only code for this option. Not shown to travelers.
+              </p>
+              <input
+                id="booking-option-internal-reference"
+                type="text"
+                value={option.internalReference ?? ''}
+                maxLength={80}
+                onChange={(e) => onChange({ internalReference: e.target.value.slice(0, 80) })}
+                className="tv-input"
+                placeholder="e.g. OPT-SG-01"
+                autoComplete="off"
+              />
+            </div>
             <div id="supplier-listing-field-pickup" className="space-y-1.5">
               <label htmlFor="booking-option-info" className="block text-[13px] font-semibold text-ink">
                 Why choose this option *

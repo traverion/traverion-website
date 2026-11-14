@@ -138,6 +138,7 @@ import {
 
 export type RentalFormSlice = {
   title: string;
+  internalReference: string;
   subtitle: string;
   description: string;
   highlights: string[];
@@ -762,6 +763,18 @@ function TitleStage({ ctx }: { ctx: Ctx }) {
       <StayHelp>
         {values.title.trim().length}/{MAX_LISTING_TITLE_LENGTH} · at least {MIN_LISTING_TITLE_LENGTH} characters. Say what it is and where.
       </StayHelp>
+      <StayField label="Internal reference" optional>
+        <input
+          className="tv-input w-full"
+          value={values.internalReference}
+          maxLength={80}
+          placeholder="e.g. SKU-RENT-001"
+          autoComplete="off"
+          aria-label="Internal reference"
+          onChange={(e) => patch({ internalReference: e.target.value.slice(0, 80) })}
+        />
+      </StayField>
+      <StayHelp>Partner-only code for this listing. Not shown to travelers.</StayHelp>
     </div>
   );
 }

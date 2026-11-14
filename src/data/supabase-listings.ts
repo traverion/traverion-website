@@ -630,10 +630,38 @@ export async function deleteListing(
   return { ok: true };
 }
 
-/** Update only listing status (draft/published). */
-export async function updateListingStatus(id: string, status: 'draft' | 'published'): Promise<ListingStatusResult> {
+/** Update listing status (draft/published) and optional offline reason on listing extras. */
+export async function updateListingStatus(
+  id: string,
+  status: 'draft' | 'published',
+  opts?: { supplierVisibility?: 'paused' | 'deactivated' | null }
+): Promise<ListingStatusResult> {
   if (!supabase) return { ok: false, error: 'Supabase is not configured.' };
-  const { data, error } = await supabase.from('listings').update({ status }).eq('id', id).select('id').maybeSingle();
+
+  const patch: Record<string, unknown> = { status };
+  if (opts && 'supplierVisibility' in opts) {
+    const { data: row, error: readErr } = await supabase
+      .from('listings')
+      .select('listing_extras')
+      .eq('id', id)
+      .maybeSingle();
+    if (readErr) {
+      console.error('Supabase read listing extras for status:', readErr);
+      return { ok: false, error: formatSupabaseListingError('Could not update status', readErr) };
+    }
+    if (!row) {
+      return { ok: false, error: 'Listing not found or you do not have permission to change it.' };
+    }
+    const { parseListingExtras, listingExtrasToDb } = await import('../types/listingExtras');
+    const { withListingSupplierVisibility } = await import('../lib/partner-listing-publication');
+    const extras = withListingSupplierVisibility(
+      parseListingExtras((row as { listing_extras?: unknown }).listing_extras),
+      status === 'published' ? null : (opts.supplierVisibility ?? null)
+    );
+    patch.listing_extras = listingExtrasToDb(extras);
+  }
+
+  const { data, error } = await supabase.from('listings').update(patch).eq('id', id).select('id').maybeSingle();
   if (error) {
     console.error('Supabase update listing status:', error);
     return { ok: false, error: formatSupabaseListingError('Could not update status', error) };

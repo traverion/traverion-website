@@ -23,6 +23,8 @@ import {
   Search,
   CalendarDays,
   MoreHorizontal,
+  ExternalLink,
+  Star,
   X,
 } from 'lucide-react';
 import { TourPackage } from '../../types/tour';
@@ -36,6 +38,13 @@ import {
   deleteListing,
 } from '../../data/supabase-listings';
 import { fetchBookingsForSupplier } from '../../data/supabase-bookings';
+import { getReviewAggregatesForListingIds } from '../../data/supabase-reviews';
+import {
+  formatListingRatingLabel,
+  partnerListingPublicationLabel,
+  readListingSupplierVisibility,
+} from '../../lib/partner-listing-publication';
+import { parseListingExtras } from '../../types/listingExtras';
 import {
   countUpcomingPaidTripsForListing,
   countBookingsForListing,
@@ -128,6 +137,10 @@ export default function SupplierListings() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formFocusSection, setFormFocusSection] = useState<string | null>(null);
   const [listings, setListings] = useState<TourPackage[]>([]);
+  const [listingRatings, setListingRatings] = useState<Record<string, { rating: number; count: number }>>(
+    {}
+  );
+  const [copiedInternalRefId, setCopiedInternalRefId] = useState<string | null>(null);
   const [familyFilter, setFamilyFilter] = useState<PartnerListingsFamilyFilter>(() => {
     if (typeof window === 'undefined') return 'all';
     const params = new URLSearchParams(window.location.search);
@@ -630,9 +643,21 @@ export default function SupplierListings() {
       setLoading(true);
       setError(null);
       fetchMyListings(uid)
-        .then((data) => {
+        .then(async (data) => {
           if (gen !== loadGenRef.current) return;
           setListings(data);
+          try {
+            const aggregates = await getReviewAggregatesForListingIds(data.map((l) => l.id));
+            if (gen !== loadGenRef.current) return;
+            const next: Record<string, { rating: number; count: number }> = {};
+            for (const listing of data) {
+              next[listing.id] = aggregates.get(listing.id) ?? { rating: 0, count: 0 };
+            }
+            setListingRatings(next);
+          } catch {
+            if (gen !== loadGenRef.current) return;
+            // Keep prior ratings — failure must not look like every listing is unrated.
+          }
         })
         .catch((e) => {
           if (gen !== loadGenRef.current) return;
@@ -644,6 +669,7 @@ export default function SupplierListings() {
     } else {
       loadGenRef.current += 1;
       setListings(getSupplierListings());
+      setListingRatings({});
       setLoading(false);
     }
   }, [isSupabase, user?.id]);
@@ -651,6 +677,8 @@ export default function SupplierListings() {
   useLayoutEffect(() => {
     const clearListingsPartnerWorkspace = () => {
       setListings([]);
+      setListingRatings({});
+      setCopiedInternalRefId(null);
       setError(null);
       setListingActionsMenuId(null);
       setListingActionsMenuBox(null);
@@ -1092,7 +1120,11 @@ export default function SupplierListings() {
     setPublishGate(null);
     setPublishingId(listing.id);
     try {
-      const res = await updateListingStatus(listing.id, newStatus);
+      const res = await updateListingStatus(
+        listing.id,
+        newStatus,
+        newStatus === 'published' ? { supplierVisibility: null } : undefined
+      );
       if (res.ok) {
         setError(null);
         if (newStatus === 'published') {
@@ -1111,25 +1143,50 @@ export default function SupplierListings() {
     }
   };
 
+  const takeListingOffline = async (
+    listing: TourPackage,
+    visibility: 'paused' | 'deactivated'
+  ): Promise<boolean> => {
+    if (!canEditListings) return false;
+    if (isSupabase && user) {
+      setPublishingId(listing.id);
+      try {
+        const res = await updateListingStatus(listing.id, 'draft', { supplierVisibility: visibility });
+        if (!res.ok) {
+          setError(userFacingError(res.error, USER_ERROR.listingSave));
+          return false;
+        }
+        setError(null);
+        loadListings();
+        window.dispatchEvent(new CustomEvent('traverion:published-listings-changed'));
+        return true;
+      } finally {
+        setPublishingId(null);
+      }
+    }
+    const list = getSupplierListings();
+    const idx = list.findIndex((t) => t.id === listing.id);
+    if (idx < 0) return false;
+    const extras = parseListingExtras(list[idx].listingExtras);
+    const next = [...list];
+    next[idx] = {
+      ...next[idx],
+      status: 'draft',
+      listingExtras: { ...extras, supplierVisibility: visibility },
+    };
+    setSupplierListings(next);
+    loadListings();
+    window.dispatchEvent(new CustomEvent('traverion:published-listings-changed'));
+    return true;
+  };
+
   const confirmDeactivateListing = async () => {
     const listing = listingPendingDeactivate;
     if (!listing || !canEditListings || deactivateUpcomingPaidCheckPending) return;
     setDeactivateBusy(true);
     try {
-      if (isSupabase && user) {
-        const ok = await handleStatusChange(listing, 'draft');
-        if (ok) setListingPendingDeactivate(null);
-      } else {
-        const list = getSupplierListings();
-        const idx = list.findIndex((t) => t.id === listing.id);
-        if (idx < 0) return;
-        const next = [...list];
-        next[idx] = { ...next[idx], status: 'draft' };
-        setSupplierListings(next);
-        loadListings();
-        window.dispatchEvent(new CustomEvent('traverion:published-listings-changed'));
-        setListingPendingDeactivate(null);
-      }
+      const ok = await takeListingOffline(listing, 'deactivated');
+      if (ok) setListingPendingDeactivate(null);
     } finally {
       setDeactivateBusy(false);
     }
@@ -1597,26 +1654,27 @@ export default function SupplierListings() {
                 accountEligible: canPostNewListing,
                 liveAttention,
               });
-              const displayStatus = isLive
-                ? card.statusLabel
-                : card.primaryCta === 'publish'
-                  ? 'Ready to publish'
-                  : 'Draft';
+              const publicationLabel = partnerListingPublicationLabel(listing);
+              const needsUpdate = Boolean(isLive && liveAttention);
               const statusTone =
-                displayStatus === 'Live'
+                publicationLabel === 'Live'
                   ? 'good'
-                  : displayStatus === 'Needs update' || displayStatus === 'Ready to publish'
-                    ? displayStatus === 'Ready to publish'
-                      ? 'info'
-                      : 'warn'
-                    : 'neutral';
+                  : publicationLabel === 'Paused'
+                    ? 'info'
+                    : publicationLabel === 'Deactivated'
+                      ? 'warn'
+                      : 'neutral';
               const detailLine = !isLive
                 ? card.primaryCta === 'verify'
                   ? 'Verification required before publish.'
                   : card.draftStateLabel === 'Incomplete'
                     ? draftPublish?.subtitle ?? card.publishDisabledReason
-                    : null
-                : liveAttention;
+                    : readListingSupplierVisibility(listing)
+                      ? null
+                      : card.primaryCta === 'publish'
+                        ? 'Ready to publish'
+                        : null
+                : null;
               const inventoryLine =
                 commerce.optionsLine && !commerce.optionsLine.startsWith('No ')
                   ? commerce.optionsLine
@@ -1631,6 +1689,10 @@ export default function SupplierListings() {
                 !isLive && (card.primaryCta === 'continue' || card.draftStateLabel === 'Incomplete')
                   ? 'Continue editing'
                   : 'Manage';
+              const publicUrl = publicListingProductUrlFromListing(listing);
+              const ratingAgg = listingRatings[listing.id] ?? { rating: 0, count: 0 };
+              const ratingLabel = formatListingRatingLabel(ratingAgg.rating, ratingAgg.count);
+              const internalRef = (parseListingExtras(listing.listingExtras).internalReference ?? '').trim();
               return (
                 <article key={listing.id} className="tv-ops-listing-row min-w-0">
                   <div className="tv-ops-listing-row__grid">
@@ -1652,7 +1714,8 @@ export default function SupplierListings() {
                       </button>
                       <div className="tv-ops-listing-row__copy min-w-0 flex-1">
                         <div className="tv-ops-listing-row__mobile-meta mb-1 flex flex-wrap items-center gap-1.5 lg:hidden">
-                          <StatusChip tone={statusTone}>{displayStatus}</StatusChip>
+                          <StatusChip tone={statusTone}>{publicationLabel}</StatusChip>
+                          {needsUpdate ? <StatusChip tone="warn">Needs update</StatusChip> : null}
                         </div>
                         <button
                           type="button"
@@ -1663,6 +1726,36 @@ export default function SupplierListings() {
                         >
                           <h2 className="tv-ops-listing-row__title">{listing.title}</h2>
                         </button>
+                        <p className="tv-ops-listing-row__rating" aria-label={`Rating ${ratingLabel}`}>
+                          <Star className="tv-ops-listing-row__rating-icon" strokeWidth={2} aria-hidden />
+                          <span>{ratingLabel}</span>
+                        </p>
+                        {internalRef ? (
+                          <p className="tv-ops-listing-row__ref">
+                            <span className="tv-ops-listing-row__ref-text" title={internalRef}>
+                              {internalRef}
+                            </span>
+                            <button
+                              type="button"
+                              className="tv-ops-listing-row__ref-copy lux-flat"
+                              aria-label={
+                                copiedInternalRefId === listing.id
+                                  ? 'Copied internal reference'
+                                  : 'Copy internal reference'
+                              }
+                              onClick={() => {
+                                void navigator.clipboard.writeText(internalRef).then(() => {
+                                  setCopiedInternalRefId(listing.id);
+                                  window.setTimeout(() => {
+                                    setCopiedInternalRefId((id) => (id === listing.id ? null : id));
+                                  }, 1500);
+                                });
+                              }}
+                            >
+                              <Copy className="h-3 w-3" strokeWidth={2} aria-hidden />
+                            </button>
+                          </p>
+                        ) : null}
                         <p className="tv-ops-listing-row__place">
                           <span className="tv-ops-listing-row__place-type">{typeLabel}</span>
                           <span className="tv-ops-listing-row__place-sep" aria-hidden>
@@ -1685,6 +1778,9 @@ export default function SupplierListings() {
                             <span className="tv-ops-listing-row__price-muted">Price not set</span>
                           )}
                         </p>
+                        {needsUpdate && liveAttention ? (
+                          <p className="tv-ops-listing-row__detail">{liveAttention}</p>
+                        ) : null}
                         {detailLine ? (
                           <p className="tv-ops-listing-row__detail">{detailLine}</p>
                         ) : null}
@@ -1710,8 +1806,9 @@ export default function SupplierListings() {
                       </div>
                     </div>
 
-                    <div className="tv-ops-listing-row__status hidden min-w-0 lg:flex lg:items-center">
-                      <StatusChip tone={statusTone}>{displayStatus}</StatusChip>
+                    <div className="tv-ops-listing-row__status hidden min-w-0 lg:flex lg:flex-col lg:items-start lg:gap-1">
+                      <StatusChip tone={statusTone}>{publicationLabel}</StatusChip>
+                      {needsUpdate ? <StatusChip tone="warn">Needs update</StatusChip> : null}
                     </div>
 
                     <div className="tv-ops-listing-row__commerce hidden min-w-0 lg:flex lg:flex-col lg:justify-center">
@@ -1738,6 +1835,27 @@ export default function SupplierListings() {
                       >
                         {primaryLabel}
                       </button>
+                      {publicUrl ? (
+                        <a
+                          href={publicUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="tv-ops-listing-row__preview lux-flat inline-flex h-8 items-center gap-1 rounded-md px-2.5 text-[12.5px] font-semibold text-ink-muted ring-1 ring-black/[0.08] hover:bg-black/[0.04] hover:text-ink"
+                        >
+                          <ExternalLink className="h-3.5 w-3.5" strokeWidth={2} aria-hidden />
+                          Preview
+                        </a>
+                      ) : (
+                        <button
+                          type="button"
+                          className="tv-ops-listing-row__preview lux-flat inline-flex h-8 items-center gap-1 rounded-md px-2.5 text-[12.5px] font-semibold text-ink-muted ring-1 ring-black/[0.08] opacity-40"
+                          disabled
+                          title="No public product page for this listing type yet"
+                        >
+                          <ExternalLink className="h-3.5 w-3.5" strokeWidth={2} aria-hidden />
+                          Preview
+                        </button>
+                      )}
                       <button
                         type="button"
                         data-listing-gear={listing.id}
@@ -1846,37 +1964,6 @@ export default function SupplierListings() {
                 >
                   Edit
                 </button>
-                {menuIsLive
-                  ? (() => {
-                      const menuPublicUrl = publicListingProductUrlFromListing(menuListing);
-                      return menuPublicUrl ? (
-                        <a
-                          role="menuitem"
-                          href={menuPublicUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className={menuItemClass}
-                          onClick={() => closeListingActionsMenu()}
-                        >
-                          Preview
-                        </a>
-                      ) : (
-                        <button
-                          type="button"
-                          role="menuitem"
-                          className={menuItemClass}
-                          onClick={() => {
-                            closeListingActionsMenu();
-                            setError(
-                              'This listing has no public product page for its category. Open Edit to check the listing type.'
-                            );
-                          }}
-                        >
-                          Preview
-                        </button>
-                      );
-                    })()
-                  : null}
                 <button
                   type="button"
                   role="menuitem"
@@ -1918,40 +2005,57 @@ export default function SupplierListings() {
                   {duplicatingId === menuListing.id ? 'Duplicating\u2026' : 'Duplicate as draft'}
                 </button>
                 {menuIsLive ? (
-                  <button
-                    type="button"
-                    role="menuitem"
-                    className={menuItemClass}
-                    onClick={() => {
-                      closeListingActionsMenu();
-                      setListingPendingDeactivate(menuListing);
-                      setDeactivateUpcomingPaid(null);
-                      setDeactivateUpcomingPaidCheckFailed(false);
-                      if (isSupabase && user?.id) {
-                        const listingId = menuListing.id;
-                        const gen = ++deactivateUpcomingGenRef.current;
-                        void fetchBookingsForSupplier(user.id)
-                          .then((rows) => {
-                            // Phase 1489: stale fetch must not paint another listing's upcoming-paid count.
-                            if (gen !== deactivateUpcomingGenRef.current) return;
-                            if (listingPendingDeactivateRef.current?.id !== listingId) return;
-                            setDeactivateUpcomingPaidCheckFailed(false);
-                            setDeactivateUpcomingPaid(countUpcomingPaidTripsForListing(rows, listingId));
-                          })
-                          .catch(() => {
-                            if (gen !== deactivateUpcomingGenRef.current) return;
-                            if (listingPendingDeactivateRef.current?.id !== listingId) return;
-                            // Phase 1471: fetch failure ≠ zero upcoming paid trips.
-                            setDeactivateUpcomingPaid(null);
-                            setDeactivateUpcomingPaidCheckFailed(true);
-                          });
-                      }
-                    }}
-                  >
-                    Deactivate
-                  </button>
+                  <>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className={menuItemClass}
+                      disabled={publishingId === menuListing.id}
+                      onClick={() => {
+                        closeListingActionsMenu();
+                        void takeListingOffline(menuListing, 'paused');
+                      }}
+                    >
+                      Pause
+                    </button>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className={menuItemClass}
+                      onClick={() => {
+                        closeListingActionsMenu();
+                        setListingPendingDeactivate(menuListing);
+                        setDeactivateUpcomingPaid(null);
+                        setDeactivateUpcomingPaidCheckFailed(false);
+                        if (isSupabase && user?.id) {
+                          const listingId = menuListing.id;
+                          const gen = ++deactivateUpcomingGenRef.current;
+                          void fetchBookingsForSupplier(user.id)
+                            .then((rows) => {
+                              // Phase 1489: stale fetch must not paint another listing's upcoming-paid count.
+                              if (gen !== deactivateUpcomingGenRef.current) return;
+                              if (listingPendingDeactivateRef.current?.id !== listingId) return;
+                              setDeactivateUpcomingPaidCheckFailed(false);
+                              setDeactivateUpcomingPaid(countUpcomingPaidTripsForListing(rows, listingId));
+                            })
+                            .catch(() => {
+                              if (gen !== deactivateUpcomingGenRef.current) return;
+                              if (listingPendingDeactivateRef.current?.id !== listingId) return;
+                              // Phase 1471: fetch failure ≠ zero upcoming paid trips.
+                              setDeactivateUpcomingPaid(null);
+                              setDeactivateUpcomingPaidCheckFailed(true);
+                            });
+                        }
+                      }}
+                    >
+                      Deactivate
+                    </button>
+                  </>
                 ) : null}
-                {!menuIsLive && isSupabase && menuCard.primaryCta === 'publish' ? (
+                {!menuIsLive &&
+                isSupabase &&
+                (menuCard.primaryCta === 'publish' ||
+                  readListingSupplierVisibility(menuListing) != null) ? (
                   <button
                     type="button"
                     role="menuitem"
@@ -1962,7 +2066,11 @@ export default function SupplierListings() {
                       void handleStatusChange(menuListing, 'published');
                     }}
                   >
-                    {publishingId === menuListing.id ? 'Publishing\u2026' : 'Reactivate'}
+                    {publishingId === menuListing.id
+                      ? 'Publishing\u2026'
+                      : readListingSupplierVisibility(menuListing)
+                        ? 'Reactivate'
+                        : 'Publish'}
                   </button>
                 ) : null}
                 {!menuIsLive && isSupabase && menuCard.primaryCta === 'verify' ? (

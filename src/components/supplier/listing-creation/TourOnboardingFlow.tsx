@@ -27,6 +27,7 @@ type BasicsSlice = {
   destinationLng: number | null;
   destinationFormatted: string;
   title: string;
+  internalReference: string;
   subtitle: string;
 };
 

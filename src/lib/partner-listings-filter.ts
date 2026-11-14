@@ -8,6 +8,7 @@ import {
   rentalLowestDayPriceMinor,
   rentalLowestHourPriceMinor,
 } from './rental-details';
+import { partnerListingInternalReferences } from './partner-listing-publication';
 import { materializedBookingOptions, parseListingExtras } from '../types/listingExtras';
 import type { TourPackage } from '../types/tour';
 
@@ -103,12 +104,20 @@ export function partnerListingMatchesQuery(
     country?: string | null;
     destination?: string | null;
     status?: string | null;
+    listingExtras?: unknown;
   },
   query: string
 ): boolean {
   const q = query.trim().toLowerCase();
   if (!q) return true;
-  const hay = [listing.title, listing.city, listing.country, listing.destination, listing.id]
+  const hay = [
+    listing.title,
+    listing.city,
+    listing.country,
+    listing.destination,
+    listing.id,
+    ...partnerListingInternalReferences(listing),
+  ]
     .map((v) => (v ?? '').toString().toLowerCase())
     .join(' ');
   return hay.includes(q);

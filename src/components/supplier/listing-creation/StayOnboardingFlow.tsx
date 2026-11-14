@@ -57,6 +57,7 @@ type Values = {
   stayPropertyType: string;
   stayAccommodationMode: 'single' | 'multi';
   title: string;
+  internalReference: string;
   subtitle: string;
   description: string;
   highlights: string[];
@@ -564,6 +565,18 @@ function PropertyNameStage({ values, onChange, minTitle, maxTitle }: Props) {
         />
       </Field>
       <p className="text-xs tabular-nums text-ink-muted">{values.title.trim().length} / {maxTitle}. At least {minTitle} characters.</p>
+      <StayField label="Internal reference" optional>
+        <input
+          className="tv-input w-full"
+          value={values.internalReference}
+          maxLength={80}
+          aria-label="Internal reference"
+          placeholder="e.g. SKU-STAY-001"
+          autoComplete="off"
+          onChange={(e) => onChange({ internalReference: e.target.value.slice(0, 80) })}
+        />
+      </StayField>
+      <StayHelp>Partner-only code for this listing. Not shown to travelers.</StayHelp>
     </div>
   );
 }

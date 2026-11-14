@@ -103,6 +103,8 @@ export interface ListingPriceCategory {
 export interface ListingBookingOption {
   id: string;
   name: string;
+  /** Optional partner-only SKU / internal code for this option. Never shown to travelers. */
+  internalReference?: string;
   /**
    * Headline / uniform unit price.
    * When pricingMode is age_dependent, kept in sync with the adult (or primary) category
@@ -273,6 +275,16 @@ export interface ListingOptionSchedule {
 }
 
 export interface ListingExtras {
+  /**
+   * Optional partner-only SKU / internal code for the listing.
+   * Never shown on the public product page.
+   */
+  internalReference?: string;
+  /**
+   * Why a draft is offline after a live listing was paused or deactivated.
+   * Cleared when the listing is published again. Omitted on ordinary drafts.
+   */
+  supplierVisibility?: 'paused' | 'deactivated';
   additionalLanguages?: string[];
   venueSetting?: VenueSetting;
   accessibilitySummary?: string;
@@ -667,6 +679,9 @@ export function normalizeListingBookingOption(raw: Record<string, unknown>, fall
     availabilityDateFrom: typeof raw.availabilityDateFrom === 'string' ? raw.availabilityDateFrom : '',
     availabilityDateTo: typeof raw.availabilityDateTo === 'string' ? raw.availabilityDateTo : '',
   };
+  if (typeof raw.internalReference === 'string' && raw.internalReference.trim()) {
+    out.internalReference = raw.internalReference.trim().slice(0, 80);
+  }
   {
     const weekdayStartTimes = normalizeWeekdayStartTimes(raw.weekdayStartTimes);
     if (weekdayStartTimes) out.weekdayStartTimes = weekdayStartTimes;
@@ -1001,6 +1016,13 @@ export function parseListingExtras(raw: unknown): ListingExtras {
   const o = raw as Record<string, unknown>;
   const out: ListingExtras = {};
 
+  if (typeof o.internalReference === 'string' && o.internalReference.trim()) {
+    out.internalReference = o.internalReference.trim().slice(0, 80);
+  }
+  if (o.supplierVisibility === 'paused' || o.supplierVisibility === 'deactivated') {
+    out.supplierVisibility = o.supplierVisibility;
+  }
+
   if (Array.isArray(o.additionalLanguages)) {
     out.additionalLanguages = normalizeSpokenLanguageIds(
       o.additionalLanguages.map((x) => String(x ?? '').trim()).filter(Boolean)
@@ -1188,6 +1210,12 @@ export function parseListingExtras(raw: unknown): ListingExtras {
 export function listingExtrasToDb(extras: ListingExtras | undefined): Record<string, unknown> | null {
   if (!extras) return null;
   const payload: Record<string, unknown> = {};
+  if (extras.internalReference?.trim()) {
+    payload.internalReference = extras.internalReference.trim().slice(0, 80);
+  }
+  if (extras.supplierVisibility === 'paused' || extras.supplierVisibility === 'deactivated') {
+    payload.supplierVisibility = extras.supplierVisibility;
+  }
   const spoken = normalizeSpokenLanguageIds(extras.additionalLanguages);
   if (spoken.length) payload.additionalLanguages = spoken;
   if (extras.venueSetting && extras.venueSetting !== 'unspecified') payload.venueSetting = extras.venueSetting;

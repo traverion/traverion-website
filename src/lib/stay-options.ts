@@ -28,6 +28,8 @@ export const STAY_SCHEDULES_MAX = 12;
 export type StayAccommodationOption = {
   id: string;
   name: string;
+  /** Optional partner-only SKU / internal code for this accommodation option. */
+  internalReference?: string;
   description: string;
   propertyType: string;
   maxGuests: number | null;
@@ -142,6 +144,9 @@ export function normalizeStayOption(raw: unknown): StayAccommodationOption | nul
   return {
     id,
     name: typeof o.name === 'string' ? o.name.trim().slice(0, 80) : '',
+    ...(typeof o.internalReference === 'string' && o.internalReference.trim()
+      ? { internalReference: o.internalReference.trim().slice(0, 80) }
+      : {}),
     description: typeof o.description === 'string' ? o.description.trim().slice(0, 240) : '',
     propertyType: typeof o.propertyType === 'string' && o.propertyType.trim() ? o.propertyType.trim().slice(0, 40) : 'Apartment',
     maxGuests: count(o.maxGuests, 1, 50),

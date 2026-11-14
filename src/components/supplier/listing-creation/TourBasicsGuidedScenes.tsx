@@ -41,6 +41,7 @@ type TourBasicsFormSlice = {
   destinationLng: number | null;
   destinationFormatted: string;
   title: string;
+  internalReference: string;
   subtitle: string;
 };
 
@@ -256,6 +257,28 @@ export function TourBasicsGuidedScenes({
                   ? ` · shorten to ${MAX_LISTING_TITLE_LENGTH} to publish`
                   : null}
               </p>
+            </div>
+            <div id="supplier-listing-field-internal-reference">
+              <label
+                htmlFor="supplier-listing-internal-reference"
+                className="mb-1 flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-[13px] font-semibold text-ink"
+              >
+                <span>Internal reference</span>
+                <span className="text-[11px] font-medium tracking-wide text-ink-faint">Optional</span>
+              </label>
+              <p className="mb-1.5 text-[12px] text-ink-muted">
+                Partner-only code for this listing. Not shown to travelers.
+              </p>
+              <input
+                id="supplier-listing-internal-reference"
+                type="text"
+                value={form.internalReference}
+                maxLength={80}
+                onChange={(e) => onChange({ internalReference: e.target.value.slice(0, 80) })}
+                className="tv-input min-w-0 py-2.5 text-[15px] [overflow-wrap:anywhere]"
+                placeholder="e.g. SKU-NL-001"
+                autoComplete="off"
+              />
             </div>
             <div id="supplier-listing-field-subtitle">
               <label htmlFor="supplier-listing-subtitle" className="mb-1 block text-[13px] font-semibold text-ink">

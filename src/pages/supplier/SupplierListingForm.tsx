@@ -900,6 +900,8 @@ type ListingFormState = {
   experienceLanguage: string;
   experienceKind: '' | 'tour' | 'ticket' | 'transportation';
   title: string;
+  /** Optional partner-only SKU / internal code for the listing. */
+  internalReference: string;
   subtitle: string;
   highlights: string[];
   destination: string;
@@ -1091,6 +1093,9 @@ function buildListingFromForm(form: ListingFormState, existingId?: string): Tour
   const originalsNorm = normalizePhotoOriginalUrls(form.photoOriginalUrls);
   const cropsNorm = normalizePhotoCropSettings(form.photoCropSettings);
   const extras: ListingExtras = {
+    ...(form.internalReference.trim()
+      ? { internalReference: form.internalReference.trim().slice(0, 80) }
+      : {}),
     ...(spokenLangs.length ? { additionalLanguages: spokenLangs } : {}),
     ...(form.venueSetting !== 'unspecified' ? { venueSetting: form.venueSetting } : {}),
     ...((form.accessibilitySummary ?? '').trim()
@@ -1457,6 +1462,7 @@ const emptyForm: ListingFormState = {
   experienceLanguage: '',
   experienceKind: '',
   title: '',
+  internalReference: '',
   subtitle: '',
   highlights: Array.from({ length: TOUR_HIGHLIGHT_MIN_VISIBLE }, () => ''),
   destination: '',
@@ -2314,6 +2320,7 @@ export default function SupplierListingForm({
               ? existing.experienceKind
               : '',
           title: existing.title,
+          internalReference: extras.internalReference ?? '',
           subtitle: existing.subtitle?.trim() ?? '',
           highlights: listingIsStay
             ? normalizeHighlightSlots(existing.highlights)
@@ -4773,6 +4780,7 @@ export default function SupplierListingForm({
                 attemptedContinue={rentalStageAttempted}
                 values={{
                   title: form.title,
+                  internalReference: form.internalReference,
                   subtitle: form.subtitle,
                   description: form.description,
                   highlights: form.highlights,
@@ -4944,6 +4952,7 @@ export default function SupplierListingForm({
               destinationLng: form.destinationLng,
               destinationFormatted: form.destinationFormatted,
               title: form.title,
+              internalReference: form.internalReference,
               subtitle: form.subtitle,
             }}
             onBasicsChange={(patch) =>
@@ -5278,6 +5287,7 @@ export default function SupplierListingForm({
                 destinationLng: form.destinationLng,
                 destinationFormatted: form.destinationFormatted,
                 title: form.title,
+                internalReference: form.internalReference,
                 subtitle: form.subtitle,
               }}
               sceneIndex={basicsSceneIdx}

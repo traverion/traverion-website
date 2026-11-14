@@ -158,6 +158,9 @@ function normalizeVariant(raw: unknown): RentalVariant | null {
   return {
     id,
     name,
+    ...(typeof o.internalReference === 'string' && o.internalReference.trim()
+      ? { internalReference: o.internalReference.trim().slice(0, 80) }
+      : {}),
     description:
       typeof o.description === 'string' && o.description.trim()
         ? o.description.trim().slice(0, 500)

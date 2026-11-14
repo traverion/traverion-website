@@ -499,6 +499,24 @@ function AccommodationScene({
           Option name
           <input id="stay-option-name" className={`tv-input mt-1 w-full font-normal ${showErrors && !draft.name.trim() ? '!border-red-600' : ''}`} value={draft.name} maxLength={80} onChange={(e) => onChange({ ...draft, name: e.target.value.slice(0, 80) })} />
         </label>
+        <label className="block text-sm font-semibold text-ink sm:col-span-2">
+          <span className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+            <span>Internal reference</span>
+            <span className="text-[11px] font-medium tracking-wide text-ink-faint">Optional</span>
+          </span>
+          <p className="mt-1 text-[12px] font-normal text-ink-muted">
+            Partner-only code for this option. Not shown to travelers.
+          </p>
+          <input
+            id="stay-option-internal-reference"
+            className="tv-input mt-1 w-full font-normal"
+            value={draft.internalReference ?? ''}
+            maxLength={80}
+            placeholder="e.g. ROOM-A1"
+            autoComplete="off"
+            onChange={(e) => onChange({ ...draft, internalReference: e.target.value.slice(0, 80) })}
+          />
+        </label>
         <label className="block text-sm font-semibold text-ink">
           Accommodation type
           <select className="tv-input mt-1 w-full font-normal" value={draft.propertyType} onChange={(e) => onChange({ ...draft, propertyType: e.target.value })}>

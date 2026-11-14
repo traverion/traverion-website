@@ -57,6 +57,8 @@ export type RentalVariant = {
   /** Stable UUID — never reuse index or display name as identity. */
   id: string;
   name: string;
+  /** Optional partner-only SKU / internal code for this rental option. */
+  internalReference?: string;
   description?: string;
   /** Category-specific attributes (size, electric, length, etc.). */
   attributes?: Record<string, string>;

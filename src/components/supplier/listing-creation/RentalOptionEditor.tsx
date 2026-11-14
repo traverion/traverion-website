@@ -715,6 +715,18 @@ export default function RentalOptionEditor({
                       : 'Name this option to continue.'}
                   </p>
                 ) : null}
+                <StayField label="Internal reference" optional>
+                  <input
+                    className="tv-input rental-option-identity__input w-full"
+                    value={variant.internalReference ?? ''}
+                    maxLength={80}
+                    placeholder="e.g. VAR-M-01"
+                    autoComplete="off"
+                    aria-label="Internal reference"
+                    onChange={(e) => patch({ internalReference: e.target.value.slice(0, 80) })}
+                  />
+                </StayField>
+                <StayHelp>Partner-only code for this option. Not shown to travelers.</StayHelp>
               </div>
 
               {attributeKeys.length > 0 ? (
