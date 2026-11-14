@@ -169,7 +169,7 @@ export async function enqueueTransactionalEmail(
 /** Ask the worker to drain the outbox without making the caller wait for Resend. */
 export function kickTransactionalDelivery(): void {
   const url = Deno.env.get('SUPABASE_URL')?.replace(/\/$/, '');
-  const key = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')?.trim();
+  const key = Deno.env.get('EMAIL_DELIVERY_CRON_SECRET')?.trim();
   if (!url || !key) return;
   const run = fetch(`${url}/functions/v1/deliver-transactional-email`, {
     method: 'POST',

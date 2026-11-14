@@ -3,7 +3,7 @@
  * the provider accepts the message. Failed rows stay failed and retryable
  * until the attempt cap.
  *
- * Auth: service role, or the same cron secret family as the other workers.
+ * Auth: EMAIL_DELIVERY_CRON_SECRET only. The service-role key is not accepted.
  */
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { adminClientFromEnv, sendResendEmail } from '../_shared/transactional-email.ts';
@@ -19,15 +19,13 @@ function json(body: unknown, status = 200): Response {
 function authorized(req: Request): boolean {
   const auth = req.headers.get('authorization')?.trim() ?? '';
   const bearer = auth.toLowerCase().startsWith('bearer ') ? auth.slice(7).trim() : '';
-  if (!bearer) return false;
-  const serviceRole = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')?.trim();
-  if (serviceRole && bearer === serviceRole) return true;
-  const secrets = [
-    Deno.env.get('CANCEL_RESOLUTION_CRON_SECRET')?.trim(),
-    Deno.env.get('CRON_SECRET')?.trim(),
-    Deno.env.get('BOOKING_REMINDER_CRON_SECRET')?.trim(),
-  ].filter((value): value is string => Boolean(value));
-  return secrets.some((secret) => secret === bearer);
+  const expected = Deno.env.get('EMAIL_DELIVERY_CRON_SECRET')?.trim();
+  if (!bearer || !expected || bearer.length !== expected.length) return false;
+  let mismatch = 0;
+  for (let i = 0; i < expected.length; i += 1) {
+    mismatch |= bearer.charCodeAt(i) ^ expected.charCodeAt(i);
+  }
+  return mismatch === 0;
 }
 
 function payloadOf(value: unknown): QueuedEmailPayload | null {

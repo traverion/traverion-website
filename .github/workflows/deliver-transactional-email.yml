@@ -1,18 +1,20 @@
-# Every 5 minutes: deliver queued transactional email that the inline kick
-# missed. A failed provider response stays failed and retryable.
+# Manual second caller for the delivery worker.
 #
-# Auth: Bearer secret matching the Edge Function.
-# Prefer CANCEL_RESOLUTION_CRON_SECRET; otherwise CRON_SECRET or
-# BOOKING_REMINDER_CRON_SECRET.
+# The recurring worker is the database job deliver-transactional-email.
+# This workflow is not on a schedule: this account cannot write Actions
+# secrets, and a scheduled run without EMAIL_DELIVERY_CRON_SECRET would fail.
 #
-# Ops: new scheduled workflows may not fire until a successful workflow_dispatch
-# has run once on main. Failures are visible in Actions run history + step logs.
+# Admin action, once, if a GitHub caller is also wanted:
+# 1. Settings → Secrets and variables → Actions → add EMAIL_DELIVERY_CRON_SECRET
+#    with the same value as the Edge Function secret of that name.
+# 2. Actions → Deliver transactional email → Run workflow on main.
+# 3. After that run succeeds, add `schedule: cron '*/5 * * * *'` back.
+#
+# Auth is that one secret. Other cron secrets are not accepted.
 
 name: Deliver transactional email
 
 on:
-  schedule:
-    - cron: '*/5 * * * *'
   workflow_dispatch:
 
 concurrency:
@@ -30,15 +32,12 @@ jobs:
     steps:
       - name: POST deliver-transactional-email
         env:
-          CANCEL_RESOLUTION_CRON_SECRET: ${{ secrets.CANCEL_RESOLUTION_CRON_SECRET }}
-          CRON_SECRET: ${{ secrets.CRON_SECRET }}
-          BOOKING_REMINDER_CRON_SECRET: ${{ secrets.BOOKING_REMINDER_CRON_SECRET }}
+          EMAIL_DELIVERY_CRON_SECRET: ${{ secrets.EMAIL_DELIVERY_CRON_SECRET }}
           FUNCTION_URL: https://xcopqllkulxfkpunetbc.supabase.co/functions/v1/deliver-transactional-email
         run: |
           set -euo pipefail
-          SECRET="${CANCEL_RESOLUTION_CRON_SECRET:-${CRON_SECRET:-${BOOKING_REMINDER_CRON_SECRET:-}}}"
-          if [ -z "${SECRET}" ]; then
-            echo "::error::Set CANCEL_RESOLUTION_CRON_SECRET, CRON_SECRET, or BOOKING_REMINDER_CRON_SECRET in GitHub Actions secrets."
+          if [ -z "${EMAIL_DELIVERY_CRON_SECRET}" ]; then
+            echo "::error::Set the EMAIL_DELIVERY_CRON_SECRET Actions secret to the Edge Function secret of the same name."
             exit 1
           fi
 
@@ -46,13 +45,25 @@ jobs:
             --connect-timeout 15 \
             --max-time 120 \
             -X POST "${FUNCTION_URL}" \
-            -H "Authorization: Bearer ${SECRET}" \
+            -H "Authorization: Bearer ${EMAIL_DELIVERY_CRON_SECRET}" \
             -H "Content-Type: application/json" \
             -d '{"limit":20}')"
 
           echo "HTTP status: ${HTTP_CODE}"
-          cat /tmp/deliver-transactional-email.json || true
-          echo
+          python3 - <<'PY'
+          import json
+          try:
+              body = json.load(open("/tmp/deliver-transactional-email.json"))
+          except Exception:
+              print("response was not json")
+              raise SystemExit(0)
+          print(json.dumps({
+              "success": body.get("success"),
+              "claimed": body.get("claimed"),
+              "sent": body.get("sent"),
+              "failed": body.get("failed"),
+          }))
+          PY
 
           case "${HTTP_CODE}" in
             2??)

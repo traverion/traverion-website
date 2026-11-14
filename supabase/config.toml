@@ -42,7 +42,7 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.deliver-transactional-email]
-# Worker. Service role or cron secret. Clients do not call it.
+# Worker. EMAIL_DELIVERY_CRON_SECRET only. Clients do not call it.
 verify_jwt = false
 
 [functions.send-booking-reminders]
