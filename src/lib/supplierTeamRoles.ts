@@ -58,3 +58,35 @@ export function canManageTeam(role: SupplierRole): boolean {
   return role === 'owner';
 }
 
+export function sameSupplierUserId(a: string, b: string): boolean {
+  return a.trim().toLowerCase() === b.trim().toLowerCase();
+}
+
+export function normalizeSupplierRole(role: string | null | undefined): SupplierRole | null {
+  const value = String(role ?? '').trim().toLowerCase();
+  if (value === 'owner' || value === 'manager' || value === 'ops' || value === 'finance' || value === 'viewer') {
+    return value;
+  }
+  return null;
+}
+
+/**
+ * Listing create/edit/publish role.
+ * Editor roles stay editors. Explicit finance and viewer stay read-only.
+ * The supplier account itself (user id = supplier id) stays an editor when the
+ * stored role is missing, matching is_supplier_account_editor. A teammate with
+ * no readable role stays a viewer.
+ */
+export function effectiveListingRole(input: {
+  userId: string;
+  supplierId: string | null | undefined;
+  role: string | null | undefined;
+}): SupplierRole {
+  const stored = normalizeSupplierRole(input.role);
+  if (stored) return stored;
+  const userId = input.userId.trim().toLowerCase();
+  const supplierId = String(input.supplierId ?? '').trim().toLowerCase();
+  if (userId && supplierId && userId === supplierId) return 'owner';
+  return 'viewer';
+}
+

@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { fetchSupplierTeamMembers } from '../data/supabase-supplier-team';
+import { fetchSupplierListingAccess } from '../data/supabase-supplier-team';
 import type { SupplierRole, SupplierTeamMember } from '../lib/supplierTeamRoles';
 import { useSupplierAuth } from './SupplierAuthContext';
 
@@ -26,6 +26,7 @@ export function SupplierRoleProvider({ children }: { children: React.ReactNode }
   const [role, setRole] = useState<SupplierRole>('viewer');
   const [roleStatus, setRoleStatus] = useState<SupplierRoleStatus>('loading');
   const loadedForUserRef = useRef<string | null>(null);
+  const requestRef = useRef(0);
 
   const refresh = useCallback(async () => {
     if (authLoading) {
@@ -34,25 +35,28 @@ export function SupplierRoleProvider({ children }: { children: React.ReactNode }
     }
     const uid = user?.id;
     if (!isSupabase || !uid) {
+      requestRef.current += 1;
       setMembers([]);
       setRole('viewer');
       loadedForUserRef.current = null;
       setRoleStatus('ready');
       return;
     }
+    const requestId = ++requestRef.current;
     const switchingUser = loadedForUserRef.current !== uid;
     if (switchingUser) {
       setRole('viewer');
       setRoleStatus('loading');
     }
     try {
-      const roster = await fetchSupplierTeamMembers(uid);
-      setMembers(roster);
-      const mine = roster.find((m) => m.id === uid);
-      setRole(mine?.role ?? 'viewer');
+      const access = await fetchSupplierListingAccess(uid);
+      if (requestId !== requestRef.current) return;
+      setMembers(access.members);
+      setRole(access.role);
       loadedForUserRef.current = uid;
       setRoleStatus('ready');
     } catch {
+      if (requestId !== requestRef.current) return;
       // Phase 1775: transient failure → viewer (do not keep a forged owner window).
       setRole('viewer');
       loadedForUserRef.current = uid;
@@ -71,6 +75,15 @@ export function SupplierRoleProvider({ children }: { children: React.ReactNode }
     window.addEventListener('traverion-supplier-team-roles', onRoles);
     return () => window.removeEventListener('traverion-supplier-team-roles', onRoles);
   }, [refresh]);
+
+  useEffect(() => {
+    if (roleStatus !== 'error') return;
+    const retry = () => {
+      void refresh();
+    };
+    window.addEventListener('focus', retry);
+    return () => window.removeEventListener('focus', retry);
+  }, [refresh, roleStatus]);
 
   const value = useMemo(
     () => ({ role, members, roleStatus, refresh }),
