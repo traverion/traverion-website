@@ -19516,6 +19516,74 @@ details:not([open]) > :not(summary) {
   gap: 0.65rem 1rem;
 }
 
+.partner-unified-cal__filters-toggle {
+  display: inline-flex;
+  min-height: 2rem;
+  align-items: center;
+  gap: 0.35rem;
+  margin-left: auto;
+  padding: 0 0.75rem;
+  border: 1px solid var(--puc-border);
+  border-radius: 9px;
+  background: var(--puc-surface);
+  color: var(--puc-muted);
+  font-family: inherit;
+  font-size: var(--puc-size-sm);
+  font-weight: var(--puc-weight-strong);
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease, color 0.15s ease;
+}
+
+.partner-unified-cal__filters-toggle:hover,
+.partner-unified-cal__filters-toggle.is-open,
+.partner-unified-cal__filters-toggle.has-active {
+  border-color: color-mix(in srgb, var(--puc-accent) 30%, var(--puc-border));
+  background: var(--puc-soft);
+  color: var(--puc-accent);
+}
+
+.partner-unified-cal__filters-count {
+  display: inline-flex;
+  min-width: 1.15rem;
+  height: 1.15rem;
+  align-items: center;
+  justify-content: center;
+  padding: 0 0.3rem;
+  border-radius: 999px;
+  background: var(--puc-accent);
+  color: #fff;
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.partner-unified-cal__filters-actions {
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.partner-unified-cal__filters-clear {
+  display: inline-flex;
+  min-height: 2rem;
+  align-items: center;
+  padding: 0 0.65rem;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--puc-muted);
+  font-family: inherit;
+  font-size: var(--puc-size-sm);
+  font-weight: var(--puc-weight-strong);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
+.partner-unified-cal__filters-clear:hover {
+  color: var(--puc-ink);
+}
+
 .partner-unified-cal__toolbar-controls {
   display: flex;
   flex-wrap: wrap;
@@ -21330,6 +21398,14 @@ details:not([open]) > :not(summary) {
   .partner-unified-cal__chrome {
     padding: 0.7rem 0.75rem;
     border-radius: 12px;
+  }
+
+  .partner-unified-cal__toolbar-lead {
+    gap: 0.55rem 0.65rem;
+  }
+
+  .partner-unified-cal__filters-toggle {
+    margin-left: 0;
   }
 
   .partner-unified-cal__toolbar-controls {

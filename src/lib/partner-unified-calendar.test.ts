@@ -21,12 +21,15 @@ import {
   partnerUnifiedWeekRangeContaining,
   parsePartnerUnifiedCategoryFilter,
   partnerUnifiedEventIsUpcomingOrOngoing,
+  partnerUnifiedEventIsBookableInventory,
+  partnerUnifiedSmartDefaultFocusYmd,
   partnerUnifiedNormalizeRange,
   partnerUnifiedRollingRange,
   partnerUnifiedShiftRange,
   partnerUnifiedWeeksCoveringRange,
   summarizePartnerUnifiedMonthDays,
 } from './partner-unified-calendar';
+import type { PartnerUnifiedCalendarEvent } from './partner-unified-calendar';
 
 function tourBooking(params: {
   id?: string;
@@ -498,5 +501,141 @@ describe('partner-unified-calendar', () => {
     });
     expect(withHistory.length).toBeGreaterThan(upcoming.length);
     expect(withHistory.some((e) => e.key.includes('past-tour'))).toBe(true);
+  });
+});
+
+function bookableEvent(
+  partial: Partial<PartnerUnifiedCalendarEvent> &
+    Pick<PartnerUnifiedCalendarEvent, 'key' | 'ymd' | 'kind'>
+): PartnerUnifiedCalendarEvent {
+  return {
+    category: 'tour',
+    listingId: 'l1',
+    listingTitle: 'Test',
+    optionLabel: null,
+    guestName: null,
+    reference: null,
+    bookingId: null,
+    timeHm: null,
+    quantityLabel: null,
+    metaLine: null,
+    activeTodayIso: '2026-11-14',
+    source: 'availability',
+    ...partial,
+  };
+}
+
+describe('partnerUnifiedSmartDefaultFocusYmd', () => {
+  it('stays on today when bookable inventory remains today', () => {
+    const events = [
+      bookableEvent({
+        key: 't1',
+        ymd: '2026-11-14',
+        kind: 'tour_departure',
+        departureStatus: 'available',
+        remainingCount: 4,
+      }),
+      bookableEvent({
+        key: 't2',
+        ymd: '2026-11-16',
+        kind: 'tour_departure',
+        departureStatus: 'available',
+        remainingCount: 8,
+      }),
+    ];
+    expect(
+      partnerUnifiedSmartDefaultFocusYmd({ todayIso: '2026-11-14', events })
+    ).toBe('2026-11-14');
+  });
+
+  it('skips sold-out, cutoff, blocked, and occupied inventory', () => {
+    const events = [
+      bookableEvent({
+        key: 'sold',
+        ymd: '2026-11-14',
+        kind: 'tour_departure',
+        departureStatus: 'sold_out',
+        remainingCount: 0,
+      }),
+      bookableEvent({
+        key: 'cut',
+        ymd: '2026-11-14',
+        kind: 'tour_departure',
+        departureStatus: 'cutoff',
+        remainingCount: 2,
+      }),
+      bookableEvent({
+        key: 'blocked-stay',
+        ymd: '2026-11-14',
+        kind: 'stay_listing',
+        category: 'stay',
+        quantityLabel: 'Blocked',
+        departureStatus: 'closed',
+      }),
+      bookableEvent({
+        key: 'occ-stay',
+        ymd: '2026-11-14',
+        kind: 'stay_listing',
+        category: 'stay',
+        quantityLabel: 'Occupied',
+      }),
+      bookableEvent({
+        key: 'rental-zero',
+        ymd: '2026-11-14',
+        kind: 'rental_listing',
+        category: 'rental',
+        remainingCount: 0,
+        capacityCount: 5,
+      }),
+      bookableEvent({
+        key: 'next',
+        ymd: '2026-11-17',
+        kind: 'tour_departure',
+        departureStatus: 'limited',
+        remainingCount: 1,
+      }),
+    ];
+    expect(
+      partnerUnifiedSmartDefaultFocusYmd({ todayIso: '2026-11-14', events })
+    ).toBe('2026-11-17');
+    expect(partnerUnifiedEventIsBookableInventory(events[0]!)).toBe(false);
+    expect(partnerUnifiedEventIsBookableInventory(events[5]!)).toBe(true);
+  });
+
+  it('defaults to today when nothing bookable remains', () => {
+    const events = [
+      bookableEvent({
+        key: 'past',
+        ymd: '2026-11-10',
+        kind: 'tour_departure',
+        departureStatus: 'available',
+        remainingCount: 3,
+      }),
+      bookableEvent({
+        key: 'full',
+        ymd: '2026-11-15',
+        kind: 'tour_departure',
+        departureStatus: 'sold_out',
+        remainingCount: 0,
+      }),
+    ];
+    expect(
+      partnerUnifiedSmartDefaultFocusYmd({ todayIso: '2026-11-14', events })
+    ).toBe('2026-11-14');
+  });
+
+  it('never focuses a past date', () => {
+    const events = [
+      bookableEvent({
+        key: 'past',
+        ymd: '2026-11-01',
+        kind: 'stay_listing',
+        category: 'stay',
+        quantityLabel: 'Available',
+      }),
+    ];
+    expect(
+      partnerUnifiedSmartDefaultFocusYmd({ todayIso: '2026-11-14', events })
+    ).toBe('2026-11-14');
   });
 });

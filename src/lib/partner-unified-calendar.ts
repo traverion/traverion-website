@@ -446,6 +446,56 @@ export function partnerUnifiedEventIsUpcomingOrOngoing(
   return event.ymd >= event.activeTodayIso;
 }
 
+/**
+ * True when an event represents bookable inventory (not a booking row, block,
+ * sold-out, cutoff-passed, or occupied night).
+ */
+export function partnerUnifiedEventIsBookableInventory(
+  event: PartnerUnifiedCalendarEvent
+): boolean {
+  if (event.kind === 'tour_departure' || event.kind === 'tour') {
+    const status = event.departureStatus;
+    return status === 'available' || status === 'limited';
+  }
+  if (event.kind === 'stay_listing') {
+    if (event.departureStatus === 'closed') return false;
+    return (event.quantityLabel ?? '').trim().toLowerCase() === 'available';
+  }
+  if (event.kind === 'rental_listing') {
+    if (event.departureStatus === 'closed') return false;
+    const remaining = event.remainingCount;
+    return typeof remaining === 'number' && remaining > 0;
+  }
+  return false;
+}
+
+/**
+ * Smart calendar focus: today when bookable inventory remains today; otherwise the
+ * next future bookable date in `events`; otherwise today (empty state).
+ * Never returns a past date relative to `todayIso`.
+ */
+export function partnerUnifiedSmartDefaultFocusYmd(params: {
+  todayIso: string;
+  events: PartnerUnifiedCalendarEvent[];
+}): string {
+  const today =
+    /^\d{4}-\d{2}-\d{2}$/.test(params.todayIso) ? params.todayIso : params.todayIso;
+  let nextFuture: string | null = null;
+  let todayBookable = false;
+  for (const event of params.events) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(event.ymd)) continue;
+    if (event.ymd < today) continue;
+    if (!partnerUnifiedEventIsBookableInventory(event)) continue;
+    if (event.ymd === today) {
+      todayBookable = true;
+      break;
+    }
+    if (nextFuture == null || event.ymd < nextFuture) nextFuture = event.ymd;
+  }
+  if (todayBookable) return today;
+  return nextFuture ?? today;
+}
+
 export function filterPartnerUnifiedCalendarEvents(
   events: PartnerUnifiedCalendarEvent[],
   filters: {

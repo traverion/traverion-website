@@ -11,7 +11,7 @@ import {
   type Dispatch,
   type SetStateAction,
 } from 'react';
-import { CalendarDays, ChevronLeft, ChevronRight, ImageOff, Pencil } from 'lucide-react';
+import { CalendarDays, ChevronLeft, ChevronRight, ImageOff, ListFilter, Pencil } from 'lucide-react';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import { useSupplierRole } from '../../hooks/useSupplierRole';
 import { canManageBookings } from '../../lib/supplierTeamRoles';
@@ -50,6 +50,7 @@ import {
   partnerUnifiedOptionChoices,
   partnerUnifiedRollingRange,
   partnerUnifiedSharedFocusYmd,
+  partnerUnifiedSmartDefaultFocusYmd,
   partnerUnifiedWeeksCoveringRange,
   type PartnerUnifiedCalendarEvent,
   type PartnerUnifiedCalendarView,
@@ -282,7 +283,8 @@ export default function SupplierUnifiedCalendar() {
     const view = parsePartnerUnifiedCalendarView(q.get('view'));
     const fromRaw = parseIsoParam(q.get('from')) ?? parseIsoParam(q.get('date'));
     const toRaw = parseIsoParam(q.get('to'));
-    const selectedYmd = parseIsoParam(q.get('day')) ?? todayIso;
+    const dayFromUrl = parseIsoParam(q.get('day'));
+    const selectedYmd = dayFromUrl ?? todayIso;
     const focus = partnerUnifiedSharedFocusYmd({
       selectedYmd,
       fromYmd: fromRaw,
@@ -308,6 +310,7 @@ export default function SupplierUnifiedCalendar() {
       fromYmd: range.fromYmd,
       toYmd: range.toYmd,
       selectedYmd: focus,
+      hadExplicitDay: Boolean(dayFromUrl),
     };
   }, [todayIso]);
 
@@ -337,11 +340,16 @@ export default function SupplierUnifiedCalendar() {
   const [rentalBlocks, setRentalBlocks] = useState<RentalAvailabilityBlockRow[]>([]);
   const [rentalHolds, setRentalHolds] = useState<RentalInventoryHoldRow[]>([]);
   const [visibilityNote, setVisibilityNote] = useState<string | null>(null);
+  const [visibilityReady, setVisibilityReady] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
   /** Last Agenda From/To so Week/Month switches can restore it when focus still falls inside. */
   const calendarLoadedForRef = useRef<string | null>(null);
   const agendaRangeRef = useRef<{ fromYmd: string; toYmd: string } | null>(
     initial.view === 'agenda' ? { fromYmd: initial.fromYmd, toYmd: initial.toYmd } : null
   );
+  /** Once the supplier picks a date (or URL had day=), stop auto-focus for the session. */
+  const userPinnedFocusRef = useRef(initial.hadExplicitDay);
+  const smartFocusDoneRef = useRef(initial.hadExplicitDay);
 
   /**
    * Focus never falls back to fromYmd here — on Week, fromYmd is Monday and may be the
@@ -546,10 +554,12 @@ export default function SupplierUnifiedCalendar() {
       setRentalBlocks([]);
       setRentalHolds([]);
       setVisibilityNote(null);
+      setVisibilityReady(true);
       return;
     }
 
     let cancelled = false;
+    setVisibilityReady(false);
     const tourIds = tourListingIdsKey ? tourListingIdsKey.split(',').filter(Boolean) : [];
     const stayIds = stayListingIdsKey ? stayListingIdsKey.split(',').filter(Boolean) : [];
     const rentalIds = rentalListingIdsKey ? rentalListingIdsKey.split(',').filter(Boolean) : [];
@@ -636,9 +646,15 @@ export default function SupplierUnifiedCalendar() {
           setRentalHolds([]);
         }
 
-        if (!cancelled) setVisibilityNote(notes[0] ?? null);
+        if (!cancelled) {
+          setVisibilityNote(notes[0] ?? null);
+          setVisibilityReady(true);
+        }
       } catch (e) {
-        if (!cancelled) setVisibilityNote(userFacingError(e, USER_ERROR.calendar));
+        if (!cancelled) {
+          setVisibilityNote(userFacingError(e, USER_ERROR.calendar));
+          setVisibilityReady(true);
+        }
       }
     })();
 
@@ -767,6 +783,39 @@ export default function SupplierUnifiedCalendar() {
     [allEvents, category, listingId, optionKey, includePast]
   );
 
+  /**
+   * One-shot smart default: today if still bookable, else next future bookable date.
+   * Skipped when URL had day=, after manual navigation, or before visibility overlays settle.
+   */
+  useEffect(() => {
+    if (loading || !visibilityReady) return;
+    if (smartFocusDoneRef.current || userPinnedFocusRef.current) return;
+    const today = operatingTodayIso || todayIso;
+    const nextFocus = partnerUnifiedSmartDefaultFocusYmd({
+      todayIso: today,
+      events: filteredEvents,
+    });
+    smartFocusDoneRef.current = true;
+    if (nextFocus === selectedYmd) return;
+    setSelectedYmd(nextFocus);
+    if (view === 'agenda' && !partnerUnifiedFocusInRange(nextFocus, fromYmd, toYmd)) {
+      const rolling = partnerUnifiedRollingRange(nextFocus);
+      setFromYmd(rolling.fromYmd);
+      setToYmd(rolling.toYmd);
+      agendaRangeRef.current = rolling;
+    }
+  }, [
+    loading,
+    visibilityReady,
+    filteredEvents,
+    operatingTodayIso,
+    todayIso,
+    selectedYmd,
+    view,
+    fromYmd,
+    toYmd,
+  ]);
+
   const agendaGroups = useMemo(
     () => groupPartnerUnifiedEventsByDate(filteredEvents),
     [filteredEvents]
@@ -870,8 +919,14 @@ export default function SupplierUnifiedCalendar() {
     if (optionKey && !optionChoices.some((o) => o.value === optionKey)) setOptionKey('');
   }, [optionKey, optionChoices]);
 
+  const pinFocus = () => {
+    userPinnedFocusRef.current = true;
+    smartFocusDoneRef.current = true;
+  };
+
   /** Keep one shared focus date; Week/Month ranges re-derive from it automatically. */
   const focusOnDate = (iso: string) => {
+    pinFocus();
     setSelectedYmd(iso);
   };
 
@@ -895,6 +950,7 @@ export default function SupplierUnifiedCalendar() {
   };
 
   const shiftRange = (direction: 1 | -1) => {
+    pinFocus();
     const applied = partnerUnifiedApplyShift(
       {
         view,
@@ -912,6 +968,7 @@ export default function SupplierUnifiedCalendar() {
   };
 
   const goToday = () => {
+    pinFocus();
     const iso = operatingTodayIso || todayIso;
     setSelectedYmd(iso);
     if (view === 'agenda') {
@@ -923,6 +980,7 @@ export default function SupplierUnifiedCalendar() {
   };
 
   const setRangeFrom = (iso: string) => {
+    pinFocus();
     setSelectedYmd(iso);
     if (view === 'week' || view === 'month') return;
     const next = partnerUnifiedNormalizeRange(iso, toYmd < iso ? iso : toYmd, todayIso);
@@ -931,6 +989,7 @@ export default function SupplierUnifiedCalendar() {
   };
 
   const setRangeTo = (iso: string) => {
+    pinFocus();
     if (view === 'week' || view === 'month') {
       setSelectedYmd(iso);
       return;
@@ -949,6 +1008,19 @@ export default function SupplierUnifiedCalendar() {
       : view === 'month'
         ? formatPartnerUnifiedMonthLabel(range.fromYmd)
         : `${formatDayShort(range.fromYmd)} – ${formatDayShort(range.toYmd)}`;
+
+  const activeFilterCount =
+    (category !== 'all' ? 1 : 0) +
+    (listingId ? 1 : 0) +
+    (optionKey ? 1 : 0) +
+    (includePast ? 1 : 0);
+
+  const clearSecondaryFilters = () => {
+    setCategory('all');
+    setListingId('');
+    setOptionKey('');
+    setIncludePast(false);
+  };
 
   const refreshAfterEdit = useCallback(() => {
     void load().then(() => setCalendarEpoch((n) => n + 1));
@@ -1111,66 +1183,103 @@ export default function SupplierUnifiedCalendar() {
               </button>
               <p className="partner-unified-cal__period">{periodLabel}</p>
             </div>
+
+            <button
+              type="button"
+              className={`partner-unified-cal__filters-toggle${filtersOpen ? ' is-open' : ''}${
+                activeFilterCount > 0 ? ' has-active' : ''
+              }`}
+              aria-expanded={filtersOpen}
+              aria-controls="partner-unified-cal-filters-panel"
+              onClick={() => setFiltersOpen((v) => !v)}
+            >
+              <ListFilter className="h-3.5 w-3.5" aria-hidden />
+              Filters
+              {activeFilterCount > 0 ? (
+                <span className="partner-unified-cal__filters-count" aria-hidden>
+                  {activeFilterCount}
+                </span>
+              ) : null}
+            </button>
           </div>
 
-          <div className="partner-unified-cal__toolbar-controls">
-            <div className="partner-unified-cal__range">
-              <TraverionSingleDateField
-                id="unified-cal-from"
-                label="From"
-                value={range.fromYmd}
-                onChange={setRangeFrom}
-                minIso=""
-                tone="premium"
-              />
-              <TraverionSingleDateField
-                id="unified-cal-to"
-                label="To"
-                value={range.toYmd}
-                onChange={setRangeTo}
-                minIso=""
-                tone="premium"
-              />
-            </div>
+          {filtersOpen ? (
+            <div
+              id="partner-unified-cal-filters-panel"
+              className="partner-unified-cal__toolbar-controls"
+              role="region"
+              aria-label="Calendar filters"
+            >
+              <div className="partner-unified-cal__range">
+                <TraverionSingleDateField
+                  id="unified-cal-from"
+                  label="From"
+                  value={range.fromYmd}
+                  onChange={setRangeFrom}
+                  minIso=""
+                  tone="premium"
+                />
+                <TraverionSingleDateField
+                  id="unified-cal-to"
+                  label="To"
+                  value={range.toYmd}
+                  onChange={setRangeTo}
+                  minIso=""
+                  tone="premium"
+                />
+              </div>
 
-            <div className="partner-unified-cal__filters">
-              <PartnerSelect
-                id="unified-cal-category"
-                aria-label="Category"
-                value={category}
-                onChange={(v) => setCategory(parsePartnerUnifiedCategoryFilter(v))}
-                options={[
-                  { value: 'all', label: 'All' },
-                  { value: 'tour', label: 'Tours' },
-                  { value: 'stay', label: 'Stays' },
-                  { value: 'rental', label: 'Rentals' },
-                ]}
-              />
-              <PartnerSelect
-                id="unified-cal-listing"
-                aria-label="Listing"
-                value={listingId}
-                onChange={setListingId}
-                options={listingOptions}
-              />
-              <PartnerSelect
-                id="unified-cal-option"
-                aria-label="Option"
-                value={optionKey}
-                onChange={setOptionKey}
-                options={optionChoices}
-                disabled={optionChoices.length <= 1}
-              />
-              <button
-                type="button"
-                className={`partner-unified-cal__history${includePast ? ' is-active' : ''}`}
-                aria-pressed={includePast}
-                onClick={() => setIncludePast((v) => !v)}
-              >
-                {includePast ? 'Past on' : 'Show past'}
-              </button>
+              <div className="partner-unified-cal__filters">
+                <PartnerSelect
+                  id="unified-cal-category"
+                  aria-label="Category"
+                  value={category}
+                  onChange={(v) => setCategory(parsePartnerUnifiedCategoryFilter(v))}
+                  options={[
+                    { value: 'all', label: 'All' },
+                    { value: 'tour', label: 'Tours' },
+                    { value: 'stay', label: 'Stays' },
+                    { value: 'rental', label: 'Rentals' },
+                  ]}
+                />
+                <PartnerSelect
+                  id="unified-cal-listing"
+                  aria-label="Listing"
+                  value={listingId}
+                  onChange={setListingId}
+                  options={listingOptions}
+                />
+                <PartnerSelect
+                  id="unified-cal-option"
+                  aria-label="Option"
+                  value={optionKey}
+                  onChange={setOptionKey}
+                  options={optionChoices}
+                  disabled={optionChoices.length <= 1}
+                />
+                <button
+                  type="button"
+                  className={`partner-unified-cal__history${includePast ? ' is-active' : ''}`}
+                  aria-pressed={includePast}
+                  onClick={() => setIncludePast((v) => !v)}
+                >
+                  {includePast ? 'Past on' : 'Show past'}
+                </button>
+              </div>
+
+              {activeFilterCount > 0 ? (
+                <div className="partner-unified-cal__filters-actions">
+                  <button
+                    type="button"
+                    className="partner-unified-cal__filters-clear"
+                    onClick={clearSecondaryFilters}
+                  >
+                    Clear filters
+                  </button>
+                </div>
+              ) : null}
             </div>
-          </div>
+          ) : null}
         </div>
       </div>
 
