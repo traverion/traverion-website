@@ -1791,6 +1791,39 @@ export default function SupplierListings() {
                         <div className="tv-ops-listing-row__commerce-row">
                           <p className="tv-ops-listing-row__price">{priceNode}</p>
                         </div>
+                        {validationNote ? (
+                          <p className="tv-ops-listing-row__note-line" title={validationNote}>
+                            <Info className="tv-ops-listing-row__note-icon" strokeWidth={2} aria-hidden />
+                            <span className="truncate">{validationNote}</span>
+                          </p>
+                        ) : null}
+                        {showFlash ? (
+                          <div className="tv-ops-listing-row__flash-row">
+                            {justPublishedId === listing.id ? (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  openSupplierCalendar(listing.id, {
+                                    category:
+                                      family === 'stay'
+                                        ? 'stay'
+                                        : family === 'rental'
+                                          ? 'rental'
+                                          : 'tour',
+                                  });
+                                }}
+                                className="tv-ops-listing-row__flash text-[11px] font-semibold text-finland hover:underline"
+                              >
+                                Published · Open calendar
+                              </button>
+                            ) : null}
+                            {justDuplicatedId === listing.id ? (
+                              <span className="tv-ops-listing-row__flash inline-block text-[11px] font-semibold text-finland">
+                                Draft copy created
+                              </span>
+                            ) : null}
+                          </div>
+                        ) : null}
                       </div>
                     </div>
 
@@ -1842,35 +1875,6 @@ export default function SupplierListings() {
                       </button>
                     </div>
                   </div>
-                  {validationNote ? (
-                    <p className="tv-ops-listing-row__note-line" title={validationNote}>
-                      <Info className="tv-ops-listing-row__note-icon" strokeWidth={2} aria-hidden />
-                      <span className="truncate">{validationNote}</span>
-                    </p>
-                  ) : null}
-                  {showFlash ? (
-                    <div className="tv-ops-listing-row__flash-row">
-                      {justPublishedId === listing.id ? (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            openSupplierCalendar(listing.id, {
-                              category:
-                                family === 'stay' ? 'stay' : family === 'rental' ? 'rental' : 'tour',
-                            });
-                          }}
-                          className="tv-ops-listing-row__flash text-[11px] font-semibold text-finland hover:underline"
-                        >
-                          Published · Open calendar
-                        </button>
-                      ) : null}
-                      {justDuplicatedId === listing.id ? (
-                        <span className="tv-ops-listing-row__flash inline-block text-[11px] font-semibold text-finland">
-                          Draft copy created
-                        </span>
-                      ) : null}
-                    </div>
-                  ) : null}
                 </article>
               );
             })}

@@ -3096,7 +3096,11 @@ export default function SupplierListingForm({
           { ...savedSnapshot, status: effectiveStatus },
           editingId ?? undefined
         );
-        if (effectiveStatus === 'published') {
+        // Full publish bar only when entering Live. Already-Live saves must persist
+        // (including listings with legacy validation warnings); DB still guards while published.
+        const enteringPublished =
+          effectiveStatus === 'published' && savedSnapshot.status !== 'published';
+        if (enteringPublished) {
           if (!canPostNewListing) {
             const msg =
               'Publishing needs Traverion to verify your business and your payout (IBAN + BIC). Finish both in Settings, then try again.';
@@ -3124,6 +3128,8 @@ export default function SupplierListingForm({
             }
             return false;
           }
+        } else if (effectiveStatus === 'published') {
+          setPublishBlockers(null);
         }
         setPublishBlockers(null);
         setSubmitError(null);

@@ -210,4 +210,19 @@ describe('listing description requirements (tour / stay / rental)', () => {
     expect(sql).toContain("if new.status = 'published'");
     expect(sql).toMatch(/Drafts stay writable|draft/i);
   });
+
+  it('SQL description floors apply only when entering published (Live edits stay writable)', () => {
+    const sql = readFileSync(
+      resolve(
+        __dirname,
+        '../../supabase/migrations/20261114235851_listing_publish_description_on_transition_only.sql'
+      ),
+      'utf8'
+    );
+    expect(sql).toContain('v_entering_published');
+    expect(sql).toContain("tg_op = 'INSERT' or old.status is distinct from 'published'");
+    expect(sql).toContain('char_length(v_short) < 100');
+    expect(sql).toContain('char_length(v_description) < 500');
+    expect(sql).toMatch(/never block Live|already-published|Does not unpublish/i);
+  });
 });
