@@ -21,8 +21,11 @@ export function ListingCreationSceneFrame({
   headingId,
   /** Options editor uses denser headings to match the full-screen compact chrome. */
   density = 'default',
-  /** When the option shell has a left step rail, hide the duplicate horizontal progress on desktop. */
-  hideProgress = false,
+  /**
+   * `desktop` — hide horizontal progress on large screens (option shell left rail).
+   * `all` — hide nested progress entirely (focused Tour/Stay/Rental footer bar owns progress).
+   */
+  hideProgress = false as boolean | 'desktop' | 'all',
   children,
 }: {
   question: string;
@@ -39,14 +42,15 @@ export function ListingCreationSceneFrame({
   headingRef?: Ref<HTMLHeadingElement>;
   headingId: string;
   density?: 'default' | 'compact';
-  hideProgress?: boolean;
+  hideProgress?: boolean | 'desktop' | 'all';
   children: ReactNode;
 }) {
   const compact = density === 'compact';
+  const hideMode = hideProgress === true ? 'desktop' : hideProgress === false ? false : hideProgress;
   return (
     <div className={`listing-creation-scene listing-creation-scene--${direction} w-full`}>
       <header className={compact ? 'mb-5 space-y-3' : 'mb-6 space-y-3.5 sm:mb-7 sm:space-y-4'}>
-        {hideProgress ? (
+        {hideMode === 'all' ? null : hideMode === 'desktop' ? (
           <div className="lg:hidden">
             <ListingCreationSceneProgress
               index={sceneIndex}

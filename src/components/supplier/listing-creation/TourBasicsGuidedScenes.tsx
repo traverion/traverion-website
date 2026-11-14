@@ -51,6 +51,7 @@ export function TourBasicsGuidedScenes({
   languageOptions,
   languageLabel,
   allowDirectSceneAccess = false,
+  hideProgress = false,
   onSelectScene,
   onChange,
 }: {
@@ -60,6 +61,8 @@ export function TourBasicsGuidedScenes({
   languageOptions: readonly { code: string; label: string }[];
   languageLabel: string | null;
   allowDirectSceneAccess?: boolean;
+  /** Focused Tour onboarding: footer progress replaces nested scene dots. */
+  hideProgress?: boolean | 'desktop' | 'all';
   onSelectScene: (index: number) => void;
   onChange: (patch: Partial<TourBasicsFormSlice>) => void;
 }) {
@@ -105,6 +108,7 @@ export function TourBasicsGuidedScenes({
       direction={direction}
       headingRef={headingRef}
       headingId={headingId}
+      hideProgress={hideProgress}
     >
       {scene.id === 'product_type' ? (
         <fieldset id="supplier-listing-field-category" className="min-w-0 max-w-2xl">

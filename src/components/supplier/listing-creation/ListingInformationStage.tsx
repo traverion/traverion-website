@@ -51,6 +51,8 @@ type Props = {
   businessCountry?: string | null;
   businessPhoneHint?: string | null;
   showPhoneRequired?: boolean;
+  /** Focused Tour onboarding: footer progress replaces nested scene dots. */
+  hideProgress?: boolean | 'desktop' | 'all';
 };
 
 function AutoGrowTextarea({
@@ -130,6 +132,7 @@ export default function ListingInformationStage({
   businessCountry = null,
   businessPhoneHint = null,
   showPhoneRequired = true,
+  hideProgress = false,
 }: Props) {
   const baseId = useId();
   const headingRef = useRef<HTMLHeadingElement>(null);
@@ -198,6 +201,7 @@ export default function ListingInformationStage({
       direction={direction}
       headingRef={headingRef}
       headingId={headingId}
+      hideProgress={hideProgress}
     >
       <div className="listing-information-form max-w-[46rem] space-y-8">
         {scene.id === 'guest_preparation' ? (

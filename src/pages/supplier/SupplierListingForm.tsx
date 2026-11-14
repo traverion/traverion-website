@@ -249,6 +249,14 @@ import { normalizeStayBedMix, staySleepCapacity, type StayBedMix } from '../../l
 import { normalizeStayGuestPolicy } from '../../lib/stay-guest-party';
 import { STAY_ARRIVAL_METHODS, stayArrivalMethodHint } from '../../lib/stay-arrival';
 import { STAY_ONBOARDING_SCREENS, stayScreenIndexForPublishLine, stayScreenIndexFromStorage, stayStageBlocker } from '../../lib/stay-onboarding';
+import {
+  TOUR_ONBOARDING_SCREENS,
+  tourScreenIndexFromStorage,
+  tourScreenIndexForPublishLine,
+  tourStageBlocker,
+  tourStageForLegacyWizardStep,
+  type TourOnboardingCheck,
+} from '../../lib/tour-onboarding';
 import { parseLegacyStayAddress, stayAddressKey, stayPinMatchesAddress } from '../../lib/stay-address';
 import StayAmenityPicker from '../../components/supplier/listing-creation/StayAmenityPicker';
 import StayOptionsStep from '../../components/supplier/listing-creation/StayOptionsStep';
@@ -276,6 +284,7 @@ import NoticeCallout from '../../components/NoticeCallout';
 
 const StayOnboardingFlow = lazy(() => import('../../components/supplier/listing-creation/StayOnboardingFlow'));
 const RentalOnboardingFlow = lazy(() => import('../../components/supplier/listing-creation/RentalOnboardingFlow'));
+const TourOnboardingFlow = lazy(() => import('../../components/supplier/listing-creation/TourOnboardingFlow'));
 
 function stayAmenityTokens(raw: string): string[] {
   return raw
@@ -1662,7 +1671,8 @@ export default function SupplierListingForm({
   const [publishBlockers, setPublishBlockers] = useState<string[] | null>(null);
   const isStayForm = form.inventoryFamily === 'stay' || createFamily === 'stay';
   const isRentalForm = form.inventoryFamily === 'rental' || createFamily === 'rental';
-  const isFocusedCreator = isStayForm || isRentalForm;
+  const isTourForm = !isStayForm && !isRentalForm;
+  const isFocusedCreator = isStayForm || isRentalForm || isTourForm;
   const infoEnterFromOptionsBackRef = useRef(false);
   const infoPendingSceneRef = useRef<number | null>(null);
 
@@ -1683,6 +1693,10 @@ export default function SupplierListingForm({
   const [rentalReturnStage, setRentalReturnStage] = useState<number | null>(null);
   const [rentalCommissionBps, setRentalCommissionBps] = useState<number | null>(null);
   const rentalStageHydrated = useRef(false);
+  const [tourStage, setTourStage] = useState(0);
+  const [tourStageDir, setTourStageDir] = useState<'forward' | 'back'>('forward');
+  const [tourStageAttempted, setTourStageAttempted] = useState(false);
+  const tourStageHydrated = useRef(false);
   useEffect(() => {
     if (!isStayForm || typeof window === 'undefined') return;
     const legacyKey = `traverion-stay-onboarding-stage-v1-${editingId ?? 'create'}`;
@@ -1697,6 +1711,22 @@ export default function SupplierListingForm({
     setRentalStage(rentalScreenIndexFromStorage(sessionStorage.getItem(key)));
     rentalStageHydrated.current = true;
   }, [isRentalForm, editingId]);
+  useEffect(() => {
+    if (!isTourForm || typeof window === 'undefined') return;
+    const key = `traverion-tour-onboarding-screen-v1-${editingId ?? 'create'}`;
+    const legacyStep = readWizardStepFromStorage(editingId, false);
+    const legacyBasics = readBasicsSceneFromStorage(editingId);
+    const legacyInfo = readInfoSceneFromStorage(editingId);
+    setTourStage(
+      tourScreenIndexFromStorage(
+        sessionStorage.getItem(key),
+        legacyStep != null ? String(legacyStep) : null,
+        legacyBasics != null ? String(legacyBasics) : null,
+        legacyInfo != null ? String(legacyInfo) : null
+      )
+    );
+    tourStageHydrated.current = true;
+  }, [isTourForm, editingId]);
   useEffect(() => {
     if (!isRentalForm || !user?.id) {
       setRentalCommissionBps(null);
@@ -2814,6 +2844,21 @@ export default function SupplierListingForm({
         }
         return;
       }
+      if (isTourForm) {
+        const next = Math.max(
+          0,
+          Math.min(TOUR_ONBOARDING_SCREENS.length - 1, tourScreenIndexForPublishLine(line))
+        );
+        setTourStageDir('forward');
+        setTourStage(next);
+        setTourStageAttempted(true);
+        setPublishBlockers(null);
+        if (typeof window !== 'undefined') {
+          const key = `traverion-tour-onboarding-screen-v1-${editingId ?? 'create'}`;
+          sessionStorage.setItem(key, TOUR_ONBOARDING_SCREENS[next]?.id ?? 'product-type');
+        }
+        return;
+      }
       setStepIdxPersisted(step);
       if (step === 0 && !isStayForm) {
         const scene = /short description|subtitle|title/.test(t)
@@ -2856,6 +2901,7 @@ export default function SupplierListingForm({
     [
       isStayForm,
       isRentalForm,
+      isTourForm,
       editingId,
       setStepIdxPersisted,
       setBasicsSceneIdxPersisted,
@@ -4081,11 +4127,38 @@ export default function SupplierListingForm({
         rentalOnboardingCheck
       )
     : null;
+  const tourOptionsContinueReady = (() => {
+    const active = materializedBookingOptions(form.bookingOptions);
+    const ready = readyBookingOptions(active, optionValidationMessages);
+    return optionsWithFulfillment(ready).length >= 1;
+  })();
+  const tourOnboardingCheck: TourOnboardingCheck = {
+    experienceKind: form.experienceKind,
+    experienceLanguage: form.experienceLanguage,
+    city: form.city,
+    country: form.country,
+    title: form.title,
+    subtitle: form.subtitle,
+    description: form.description,
+    includes: form.includes,
+    excludes: form.excludes,
+    bookingOptions: form.bookingOptions,
+    optionsContinueReady: tourOptionsContinueReady,
+    photoCount: orderedPhotoUrls(normalizePhotoSlots(form.photoSlots)).length,
+    photosPublishReady: listingPhotosReadyToPublish(form),
+    isNewCreation: sessionOpenedAsCreateRef.current === true,
+  };
+  const tourOnboardingBlocker = isTourForm
+    ? tourStageBlocker(TOUR_ONBOARDING_SCREENS[tourStage]?.id ?? 'product-type', tourOnboardingCheck)
+    : null;
+  const tourScreenId = TOUR_ONBOARDING_SCREENS[tourStage]?.id ?? 'product-type';
   const onCreationLastStep = isRentalForm
     ? rentalStage >= RENTAL_ONBOARDING_SCREENS.length - 1
     : isStayForm
       ? stayStage >= STAY_ONBOARDING_SCREENS.length - 1
-      : stepIdx >= steps.length - 1;
+      : isTourForm
+        ? tourStage >= TOUR_ONBOARDING_SCREENS.length - 1
+        : stepIdx >= steps.length - 1;
 
   const rememberStayStage = (next: number, dir: 'forward' | 'back') => {
     const bounded = Math.max(0, Math.min(STAY_ONBOARDING_SCREENS.length - 1, next));
@@ -4104,6 +4177,26 @@ export default function SupplierListingForm({
     if (typeof window !== 'undefined') {
       const key = `traverion-rental-onboarding-screen-v1-${editingId ?? 'create'}`;
       sessionStorage.setItem(key, RENTAL_ONBOARDING_SCREENS[clamped]?.id ?? 'category');
+    }
+  };
+  const rememberTourStage = (next: number, dir: 'forward' | 'back') => {
+    const clamped = Math.max(0, Math.min(TOUR_ONBOARDING_SCREENS.length - 1, next));
+    const screenId = TOUR_ONBOARDING_SCREENS[clamped]?.id ?? 'product-type';
+    setTourStageDir(dir);
+    setTourStage(clamped);
+    setTourStageAttempted(false);
+    if (screenId === 'guest-prep' || screenId === 'suitability' || screenId === 'languages-contact') {
+      const infoScene =
+        screenId === 'guest-prep' ? 0 : screenId === 'suitability' ? 1 : 2;
+      setInfoFarthest((far) => {
+        const bumped = Math.max(far, infoScene);
+        writeInfoFarthestToStorage(editingId, bumped);
+        return bumped;
+      });
+    }
+    if (typeof window !== 'undefined') {
+      const key = `traverion-tour-onboarding-screen-v1-${editingId ?? 'create'}`;
+      sessionStorage.setItem(key, screenId);
     }
   };
 
@@ -4270,14 +4363,36 @@ export default function SupplierListingForm({
                 className="pointer-events-none absolute inset-x-0 top-0 h-0.5 bg-[#E6EAF0]"
                 role="progressbar"
                 aria-valuemin={1}
-                aria-valuemax={isRentalForm ? RENTAL_ONBOARDING_SCREENS.length : STAY_ONBOARDING_SCREENS.length}
-                aria-valuenow={(isRentalForm ? rentalStage : stayStage) + 1}
-                aria-label={`Step ${(isRentalForm ? rentalStage : stayStage) + 1} of ${isRentalForm ? RENTAL_ONBOARDING_SCREENS.length : STAY_ONBOARDING_SCREENS.length}`}
+                aria-valuemax={
+                  isRentalForm
+                    ? RENTAL_ONBOARDING_SCREENS.length
+                    : isStayForm
+                      ? STAY_ONBOARDING_SCREENS.length
+                      : TOUR_ONBOARDING_SCREENS.length
+                }
+                aria-valuenow={
+                  (isRentalForm ? rentalStage : isStayForm ? stayStage : tourStage) + 1
+                }
+                aria-label={`Step ${(isRentalForm ? rentalStage : isStayForm ? stayStage : tourStage) + 1} of ${
+                  isRentalForm
+                    ? RENTAL_ONBOARDING_SCREENS.length
+                    : isStayForm
+                      ? STAY_ONBOARDING_SCREENS.length
+                      : TOUR_ONBOARDING_SCREENS.length
+                }`}
               >
                 <div
                   className="h-full bg-[#0B397E] transition-[width] duration-200 motion-reduce:transition-none"
                   style={{
-                    width: `${(((isRentalForm ? rentalStage : stayStage) + 1) / (isRentalForm ? RENTAL_ONBOARDING_SCREENS.length : STAY_ONBOARDING_SCREENS.length)) * 100}%`,
+                    width: `${
+                      (((isRentalForm ? rentalStage : isStayForm ? stayStage : tourStage) + 1) /
+                        (isRentalForm
+                          ? RENTAL_ONBOARDING_SCREENS.length
+                          : isStayForm
+                            ? STAY_ONBOARDING_SCREENS.length
+                            : TOUR_ONBOARDING_SCREENS.length)) *
+                      100
+                    }%`,
                   }}
                 />
               </div>
@@ -4293,6 +4408,10 @@ export default function SupplierListingForm({
                     }
                     if (isStayForm) {
                       rememberStayStage(Math.max(0, stayStage - 1), 'back');
+                      return;
+                    }
+                    if (isTourForm) {
+                      rememberTourStage(Math.max(0, tourStage - 1), 'back');
                       return;
                     }
                     if (tourBasicsGuided && basicsSceneIdx > 0) {
@@ -4313,6 +4432,8 @@ export default function SupplierListingForm({
                       ? rentalStage === 0
                       : isStayForm
                       ? stayStage === 0
+                      : isTourForm
+                        ? tourStage === 0
                       : tourBasicsGuided
                       ? basicsSceneIdx === 0
                       : tourInformationGuided
@@ -4387,6 +4508,14 @@ export default function SupplierListingForm({
                         rememberStayStage(stayStage + 1, 'forward');
                         return;
                       }
+                      if (isTourForm) {
+                        if (tourOnboardingBlocker) {
+                          setTourStageAttempted(true);
+                          return;
+                        }
+                        rememberTourStage(tourStage + 1, 'forward');
+                        return;
+                      }
                       if (tourBasicsGuided && basicsSceneIdx < TOUR_BASICS_SCENE_COUNT - 1) {
                         setBasicsSceneIdxPersisted(nextTourBasicsScene(basicsSceneIdx), 'forward');
                         return;
@@ -4405,6 +4534,8 @@ export default function SupplierListingForm({
                         ? Boolean(rentalOnboardingBlocker) || rentalPhotosBusy
                         : isStayForm
                         ? Boolean(stayOnboardingBlocker)
+                        : isTourForm
+                          ? Boolean(tourOnboardingBlocker)
                         : tourBasicsGuided
                         ? !canContinueBasicsScene
                         : tourInformationGuided
@@ -4506,6 +4637,10 @@ export default function SupplierListingForm({
                     ? stayStageAttempted
                       ? stayOnboardingBlocker
                       : null
+                    : isTourForm
+                      ? tourStageAttempted
+                        ? tourOnboardingBlocker
+                        : null
                     : form.inventoryFamily === 'stay' &&
                     form.stayAccommodationMode === 'multi' &&
                     !canContinueStep() &&
@@ -4695,24 +4830,80 @@ export default function SupplierListingForm({
             />
             </Suspense>
           ) : (
-          <div
-            key={stepIdx}
-            className={`w-full ${
-              stepIdx === 0 && !isStayForm
-                ? ''
-                : `motion-safe:animate-fade-in ${
-                    stepIdx === steps.length - 1
-                      ? 'max-w-[72rem]'
-                      : photosStepOpen
-                        ? 'max-w-5xl'
-                        : isStayForm
-                          ? 'mx-auto max-w-[52rem]'
-                          : stepIdx === 2
-                            ? 'max-w-[48rem]'
-                            : 'max-w-xl'
-                  }`
-            }`}
+          <Suspense
+            fallback={
+              <div
+                className="min-h-[16rem] rounded-xl bg-black/[0.03] animate-pulse motion-reduce:animate-none"
+                aria-busy="true"
+                aria-label="Loading tour editor"
+              />
+            }
           >
+          <TourOnboardingFlow
+            stage={tourStage}
+            direction={tourStageDir}
+            attemptedContinue={tourStageAttempted}
+            blocker={tourOnboardingBlocker}
+            basics={{
+              experienceKind: form.experienceKind,
+              experienceLanguage: form.experienceLanguage,
+              city: form.city,
+              country: form.country,
+              destinationPlaceId: form.destinationPlaceId,
+              destinationCountryCode: form.destinationCountryCode,
+              destinationLat: form.destinationLat,
+              destinationLng: form.destinationLng,
+              destinationFormatted: form.destinationFormatted,
+              title: form.title,
+              subtitle: form.subtitle,
+            }}
+            onBasicsChange={(patch) =>
+              setForm((f) => {
+                const next = { ...f, ...patch };
+                const place = verifiedDestination({
+                  placeId: patch.destinationPlaceId,
+                  city: patch.city,
+                  country: patch.country,
+                  countryCode: patch.destinationCountryCode,
+                  lat: patch.destinationLat,
+                  lng: patch.destinationLng,
+                });
+                if (place && place.placeId !== f.destinationPlaceId) {
+                  next.destination = '';
+                  if (f.destinationPlaceId) {
+                    next.bookingOptions = syncLinkedPickupCenters(
+                      f.bookingOptions,
+                      f.destinationPlaceId,
+                      place
+                    );
+                  }
+                }
+                return next;
+              })
+            }
+            languageOptions={LANGUAGE_OPTIONS}
+            languageLabel={
+              LANGUAGE_OPTIONS.find((o) => o.code === form.experienceLanguage)?.label ?? null
+            }
+            allowDirectSceneAccess={Boolean(editingId)}
+            information={{
+              experienceKind: form.experienceKind,
+              knowBeforeYouGo: form.knowBeforeYouGo,
+              whatToBring: form.whatToBring,
+              whatToBringIds: form.whatToBringIds,
+              requirementsNotes: form.requirementsNotes,
+              notSuitableForIds: form.notSuitableForIds,
+              accessibilitySummary: form.accessibilitySummary,
+              accessibilityFeatureIds: form.accessibilityFeatureIds,
+              additionalInfo: form.additionalInfo,
+              additionalLanguages: form.additionalLanguages,
+              bookingContactPhoneE164: form.bookingContactPhoneE164,
+            }}
+            onInformationChange={(patch) => setForm((f) => ({ ...f, ...patch }))}
+            informationFarthestReached={infoFarthest}
+            phoneError={bookingContactPhoneError}
+            extraPanel={
+          <div className="w-full">
           {!(
             (stepIdx === 0 && !isStayForm) ||
             (stepIdx === 3 && !isStayForm) ||
@@ -4997,7 +5188,7 @@ export default function SupplierListingForm({
               </section>
             </div>
           )}
-          {stepIdx === 0 && !isStayForm && (
+          {false && tourScreenId === 'product-type' && (
             <TourBasicsGuidedScenes
               form={{
                 experienceKind: form.experienceKind,
@@ -5054,7 +5245,7 @@ export default function SupplierListingForm({
             />
           )}
 
-          {stepIdx === 1 && form.inventoryFamily !== 'stay' && (
+          {tourScreenId === 'experience' && (
             <div className="max-w-2xl space-y-7">
               <section className="space-y-3" aria-labelledby="tour-details-story">
                 <h4 id="tour-details-story" className="text-[13px] font-semibold text-ink">
@@ -5614,7 +5805,7 @@ export default function SupplierListingForm({
             </div>
           )}
 
-          {stepIdx === 2 && form.inventoryFamily !== 'stay' && (
+          {false && tourScreenId === 'guest-prep' && (
             <ListingInformationStage
               form={{
                 experienceKind: form.experienceKind,
@@ -5643,7 +5834,7 @@ export default function SupplierListingForm({
             />
           )}
 
-          {stepIdx === 3 && form.inventoryFamily !== 'stay' && (() => {
+          {tourScreenId === 'options' && (() => {
             const optionsList = materializedBookingOptions(form.bookingOptions);
             const hasOptions = optionsList.length > 0;
             return (
@@ -5783,7 +5974,7 @@ export default function SupplierListingForm({
             );
           })()}
 
-          {photosStepOpen && (() => {
+          {tourScreenId === 'photos' && (() => {
             const photoCount = orderedPhotoUrls(normalizePhotoSlots(form.photoSlots)).length;
             const photosPublishReady = listingPhotosReadyToPublish(form);
             return (
@@ -5878,7 +6069,7 @@ export default function SupplierListingForm({
             );
           })()}
 
-          {stepIdx === steps.length - 1 && (() => {
+          {tourScreenId === 'preview' && (() => {
             const listingReady = publishBlockersPreview.length === 0;
             const truth = listingPublishTruth({
               listingReady,
@@ -6000,11 +6191,20 @@ export default function SupplierListingForm({
                     : null
                 }
                 isPublished={form.status === 'published'}
-                onEditStep={(step) => setStepIdxPersisted(step)}
+                onEditStep={(step) => {
+                  if (isTourForm) {
+                    rememberTourStage(tourStageForLegacyWizardStep(step), 'back');
+                    return;
+                  }
+                  setStepIdxPersisted(step);
+                }}
               />
             );
           })()}
           </div>
+            }
+          />
+          </Suspense>
           )}
         </ListingCreationWorkspace>
         {tourOptionGuided && optionModalDraft ? (
