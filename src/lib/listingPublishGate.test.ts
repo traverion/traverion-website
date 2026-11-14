@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import type { TourPackage } from '../types/tour';
 import {
+  getListingLiveAttentionBlockers,
   getListingPublishBlockers,
+  isListingDescriptionLengthPublishBlocker,
   partnerListingCardPresentation,
   partnerListingDraftPublishSubtitle,
   publishBlockerListingWizardStep,
@@ -224,6 +226,52 @@ describe('partnerListingCardPresentation', () => {
     });
     expect(card.statusLabel).toBe('Needs update');
     expect(card.publishDisabledReason).toContain('included');
+  });
+});
+
+describe('live attention ignores description-length-only gates', () => {
+  it('recognizes short/full description length blockers', () => {
+    expect(
+      isListingDescriptionLengthPublishBlocker(
+        'Full description must be at least 500 characters (220 now).'
+      )
+    ).toBe(true);
+    expect(
+      isListingDescriptionLengthPublishBlocker(
+        'Short description must be at least 100 characters (40 now).'
+      )
+    ).toBe(true);
+    expect(
+      isListingDescriptionLengthPublishBlocker(
+        'Every schedule season has ended. Extend dates or travelers cannot book.'
+      )
+    ).toBe(false);
+  });
+
+  it('keeps description length on publish bar but not on Live attention', () => {
+    const tour = {
+      id: 't1',
+      title: 'Guaranteed Northern Lights Tour',
+      subtitle: SHORT,
+      description: 'd'.repeat(220),
+      city: 'Rovaniemi',
+      country: 'Finland',
+      image: 'https://cdn.example.com/hero.jpg',
+      groupSize: '1-8 People',
+      includes: ['Guide', 'Transfers'],
+      excludes: [],
+      meetingPoint: 'City center meeting point',
+      experienceStartStyle: 'fixed_meeting_place',
+      listingExtras: {
+        galleryImageUrls: ['a', 'b', 'c'],
+        bookingContactPhoneE164: '+358401234567',
+        bookingOptions: [],
+      },
+    } as TourPackage;
+    const publish = getListingPublishBlockers(tour);
+    expect(publish.some((b) => /Full description must be/i.test(b))).toBe(true);
+    const live = getListingLiveAttentionBlockers(tour);
+    expect(live.some((b) => isListingDescriptionLengthPublishBlocker(b))).toBe(false);
   });
 });
 

@@ -307,6 +307,28 @@ export function getListingPublishBlockers(
 }
 
 /**
+ * Description-length floors/ceilings raised after a listing went live.
+ * Still required to create/republish, but must not force Live → “Needs update”.
+ */
+export function isListingDescriptionLengthPublishBlocker(line: string): boolean {
+  return /^(Short description must be|Full description must be)/i.test(line.trim());
+}
+
+/**
+ * Live-list attention: publish bar minus description-length-only gates.
+ * Create/republish still uses {@link getListingPublishBlockers} in full.
+ */
+export function getListingLiveAttentionBlockers(
+  listing: TourPackage,
+  todayIso?: string,
+  nowMs?: number
+): string[] {
+  return getListingPublishBlockers(listing, todayIso, nowMs).filter(
+    (line) => !isListingDescriptionLengthPublishBlocker(line)
+  );
+}
+
+/**
  * Draft list cards: never say “Ready for travelers” while publish blockers remain.
  */
 export function partnerListingDraftPublishSubtitle(

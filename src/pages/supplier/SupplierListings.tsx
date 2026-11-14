@@ -85,6 +85,7 @@ import { useSupplierRole } from '../../hooks/useSupplierRole';
 import { publicListingProductUrlFromListing } from '../../lib/publicSiteUrl';
 import {
   getListingPublishBlockers,
+  getListingLiveAttentionBlockers,
   listingAttentionFocus,
   partnerListingCardPresentation,
   partnerListingDraftPublishSubtitle,
@@ -1640,7 +1641,7 @@ export default function SupplierListings() {
                 .join(', ');
               const heroSrc = listingHeroImageSrc(listing.image);
               const draftPublish = !isLive ? partnerListingDraftPublishSubtitle(listing) : null;
-              const liveBlockers = isLive ? getListingPublishBlockers(listing) : [];
+              const liveBlockers = isLive ? getListingLiveAttentionBlockers(listing) : [];
               const liveAttention = liveBlockers[0] ?? null;
               const card = partnerListingCardPresentation({
                 isLive,
@@ -1889,7 +1890,7 @@ export default function SupplierListings() {
             ? partnerListingDraftPublishSubtitle(menuListing)
             : null;
           const menuLiveAttention = menuIsLive
-            ? getListingPublishBlockers(menuListing)[0] ?? null
+            ? getListingLiveAttentionBlockers(menuListing)[0] ?? null
             : null;
           const menuCard = partnerListingCardPresentation({
             isLive: menuIsLive,
