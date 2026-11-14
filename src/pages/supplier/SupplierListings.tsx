@@ -23,6 +23,7 @@ import {
   Search,
   CalendarDays,
   Eye,
+  Info,
   Layers,
   MapPin,
   Star,
@@ -1742,13 +1743,24 @@ export default function SupplierListings() {
                             />
                             <span>{ratingLabel}</span>
                           </p>
-                          <span className="tv-ops-listing-row__meta-dot" aria-hidden>
-                            ·
-                          </span>
+                          <span className="tv-ops-listing-row__pipe" aria-hidden />
                           <p className="tv-ops-listing-row__place">
                             <MapPin className="tv-ops-listing-row__place-icon" strokeWidth={2} aria-hidden />
                             <span className="truncate">{place || 'Destination not set'}</span>
                           </p>
+                          {inventoryLine ? (
+                            <>
+                              <span className="tv-ops-listing-row__pipe" aria-hidden />
+                              <p className="tv-ops-listing-row__inventory-inline">
+                                <Layers
+                                  className="tv-ops-listing-row__inventory-icon"
+                                  strokeWidth={2}
+                                  aria-hidden
+                                />
+                                <span className="truncate">{inventoryLine}</span>
+                              </p>
+                            </>
+                          ) : null}
                         </div>
                         {internalRef ? (
                           <p className="tv-ops-listing-row__ref">
@@ -1777,21 +1789,48 @@ export default function SupplierListings() {
                           </p>
                         ) : null}
                         <div className="tv-ops-listing-row__commerce-row">
-                          {inventoryLine ? (
-                            <p className="tv-ops-listing-row__inventory-inline">
-                              <Layers
-                                className="tv-ops-listing-row__inventory-icon"
-                                strokeWidth={2}
-                                aria-hidden
-                              />
-                              <span>{inventoryLine}</span>
-                            </p>
-                          ) : null}
-                          {inventoryLine ? (
-                            <span className="tv-ops-listing-row__commerce-sep" aria-hidden />
-                          ) : null}
                           <p className="tv-ops-listing-row__price">{priceNode}</p>
+                          {validationNote ? (
+                            <>
+                              <span className="tv-ops-listing-row__pipe" aria-hidden />
+                              <p className="tv-ops-listing-row__note-inline" title={validationNote}>
+                                <Info
+                                  className="tv-ops-listing-row__note-icon"
+                                  strokeWidth={2}
+                                  aria-hidden
+                                />
+                                <span className="truncate">{validationNote}</span>
+                              </p>
+                            </>
+                          ) : null}
                         </div>
+                        {showFlash ? (
+                          <div className="tv-ops-listing-row__flash-row">
+                            {justPublishedId === listing.id ? (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  openSupplierCalendar(listing.id, {
+                                    category:
+                                      family === 'stay'
+                                        ? 'stay'
+                                        : family === 'rental'
+                                          ? 'rental'
+                                          : 'tour',
+                                  });
+                                }}
+                                className="tv-ops-listing-row__flash text-[11px] font-semibold text-finland hover:underline"
+                              >
+                                Published · Open calendar
+                              </button>
+                            ) : null}
+                            {justDuplicatedId === listing.id ? (
+                              <span className="tv-ops-listing-row__flash inline-block text-[11px] font-semibold text-finland">
+                                Draft copy created
+                              </span>
+                            ) : null}
+                          </div>
+                        ) : null}
                       </div>
                     </div>
 
@@ -1805,21 +1844,23 @@ export default function SupplierListings() {
                           href={publicUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="tv-ops-listing-row__icon-btn lux-flat"
+                          className="tv-ops-listing-row__preview-btn lux-flat"
                           aria-label={`Preview ${listing.title}`}
                           title="Preview"
                         >
                           <Eye className="h-4 w-4" strokeWidth={2} aria-hidden />
+                          <span>Preview</span>
                         </a>
                       ) : (
                         <button
                           type="button"
-                          className="tv-ops-listing-row__icon-btn lux-flat opacity-40"
+                          className="tv-ops-listing-row__preview-btn lux-flat opacity-40"
                           disabled
                           title="No public product page for this listing type yet"
                           aria-label="Preview unavailable"
                         >
                           <Eye className="h-4 w-4" strokeWidth={2} aria-hidden />
+                          <span>Preview</span>
                         </button>
                       )}
                       <button
@@ -1841,33 +1882,6 @@ export default function SupplierListings() {
                       </button>
                     </div>
                   </div>
-
-                  {validationNote || showFlash ? (
-                    <div className="tv-ops-listing-row__note">
-                      {validationNote ? (
-                        <p className="tv-ops-listing-row__note-text">{validationNote}</p>
-                      ) : null}
-                      {justPublishedId === listing.id ? (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            openSupplierCalendar(listing.id, {
-                              category:
-                                family === 'stay' ? 'stay' : family === 'rental' ? 'rental' : 'tour',
-                            });
-                          }}
-                          className="tv-ops-listing-row__flash text-[11px] font-semibold text-finland hover:underline"
-                        >
-                          Published · Open calendar
-                        </button>
-                      ) : null}
-                      {justDuplicatedId === listing.id ? (
-                        <span className="tv-ops-listing-row__flash inline-block text-[11px] font-semibold text-finland">
-                          Draft copy created
-                        </span>
-                      ) : null}
-                    </div>
-                  ) : null}
                 </article>
               );
             })}
