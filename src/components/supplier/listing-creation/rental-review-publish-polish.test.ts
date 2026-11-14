@@ -43,8 +43,8 @@ describe('rental review & publish polish', () => {
   it('still blocks incomplete options and missing publish requirements', () => {
     const incomplete = {
       title: 'Arctic Fatbike',
-      subtitle: 'Fatbikes ready for snow trails.',
-      description: 'Guided-ready fatbikes for a full day on prepared winter trails around Rovaniemi.',
+      subtitle: 'S'.repeat(100),
+      description: 'D'.repeat(500),
       galleryCount: 3,
       city: 'Rovaniemi',
       country: 'Finland',
@@ -53,7 +53,7 @@ describe('rental review & publish polish', () => {
         ...emptyRentalDetails(),
         category: 'bikes' as const,
         itemType: 'fat_bike',
-        shortIntro: 'Fatbikes ready for snow trails.',
+        shortIntro: 'S'.repeat(100),
         pickupAddress: 'Koskikatu 1',
         returnSameAsPickup: true,
         staffAssisted: true,

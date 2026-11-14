@@ -83,7 +83,7 @@ describe('missing-requirement copy', () => {
         isStay: false,
         isSatisfied: (i) => i === 0,
       })
-    ).toBe('Add a description and two inclusions to continue.');
+    ).toBe('Add a full description of at least 500 characters and two inclusions to continue.');
   });
 
   it('explains a disabled Continue with the current step requirement', () => {
@@ -98,8 +98,8 @@ describe('missing-requirement copy', () => {
 
   it('uses stay copy for stay steps', () => {
     expect(listingCreationStepRequirement(0, true)).toContain('location from search');
-    expect(listingCreationStepRequirement(1, true)).toContain('title and subtitle');
-    expect(listingCreationStepRequirement(2, true)).toContain('description');
+    expect(listingCreationStepRequirement(1, true)).toContain('short description');
+    expect(listingCreationStepRequirement(2, true)).toContain('full description');
     expect(listingCreationStepRequirement(3, true)).toContain('pets');
     expect(listingCreationStepRequirement(4, true)).toContain('nightly rate');
     expect(listingCreationStepRequirement(5, true)).toContain('photos');

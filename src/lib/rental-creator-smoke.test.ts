@@ -6,6 +6,10 @@ import { describe, expect, it } from 'vitest';
 import { applyRentalCategoryChange } from './rental-categories';
 import { emptyRentalDetails } from './rental-details';
 import {
+  MIN_LISTING_DESCRIPTION_LENGTH,
+  MIN_SHORT_DESCRIPTION_LENGTH,
+} from './listingQualityScore';
+import {
   RENTAL_ONBOARDING_SCREENS,
   resolveRentalScreenId,
   rentalScreenIndexFromStorage,
@@ -13,11 +17,14 @@ import {
   type RentalOnboardingCheck,
 } from './rental-onboarding';
 
+const SHORT = 'S'.repeat(MIN_SHORT_DESCRIPTION_LENGTH);
+const FULL = 'F'.repeat(MIN_LISTING_DESCRIPTION_LENGTH);
+
 function baseCheck(overrides: Partial<RentalOnboardingCheck> = {}): RentalOnboardingCheck {
   return {
     title: 'Arctic Fatbike Day Hire',
-    subtitle: 'Fatbikes ready for snow trails.',
-    description: 'Guided-ready fatbikes for a full day on prepared winter trails around Rovaniemi.',
+    subtitle: SHORT,
+    description: FULL,
     highlights: ['Helmet included', 'Studded tires'],
     galleryCount: 3,
     city: 'Rovaniemi',
@@ -27,7 +34,7 @@ function baseCheck(overrides: Partial<RentalOnboardingCheck> = {}): RentalOnboar
       ...emptyRentalDetails(),
       category: 'bikes',
       itemType: 'fat_bike',
-      shortIntro: 'Fatbikes ready for snow trails.',
+      shortIntro: SHORT,
       pickupAddress: 'Koskikatu 1, Rovaniemi',
       returnSameAsPickup: true,
       staffAssisted: true,
@@ -137,8 +144,15 @@ describe('rental creator 23-screen smoke', () => {
       }),
     ).toMatch(/item type/i);
     expect(rentalStageBlocker('basics-item', baseCheck())).toBeNull();
-    expect(rentalStageBlocker('basics-description', empty)).toMatch(/40/);
+    expect(rentalStageBlocker('basics-description', empty)).toMatch(/at least 500/i);
     expect(rentalStageBlocker('basics-description', baseCheck())).toBeNull();
+    expect(
+      rentalStageBlocker('basics-title', {
+        ...baseCheck(),
+        subtitle: 'Short',
+        rental: { ...baseCheck().rental, shortIntro: 'Short' },
+      })
+    ).toMatch(/at least 100/i);
     expect(rentalStageBlocker('basics-highlights', { ...baseCheck(), highlights: [] })).toBeNull();
     expect(rentalStageBlocker('basics-highlights', baseCheck())).toBeNull();
     expect(rentalStageBlocker('photos', { ...baseCheck(), galleryCount: 1 })).toMatch(/3 photos/i);

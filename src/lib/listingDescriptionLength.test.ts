@@ -12,20 +12,20 @@ import type { TourPackage } from '../types/tour';
 describe('listing description length bounds', () => {
   const at = (n: number) => 'x'.repeat(n);
 
-  it('keeps the publish minimum and raises the ceiling to 3,500', () => {
-    expect(MIN_LISTING_DESCRIPTION_LENGTH).toBe(100);
+  it('keeps the publish minimum at 500 and the ceiling at 3,500', () => {
+    expect(MIN_LISTING_DESCRIPTION_LENGTH).toBe(500);
     expect(MAX_LISTING_DESCRIPTION_LENGTH).toBe(3500);
     expect(TOUR_BASICS_DESCRIPTION_MAX).toBe(3500);
   });
 
-  it('accepts boundary lengths at 1,999, 2,000, 3,499 and 3,500', () => {
-    for (const n of [1999, 2000, 3499, 3500]) {
+  it('accepts boundary lengths at 500, 1,999, 2,000, 3,499 and 3,500', () => {
+    for (const n of [500, 1999, 2000, 3499, 3500]) {
       expect(isListingDescriptionLengthValid(at(n))).toBe(true);
     }
   });
 
   it('rejects under-min and over-max (including 3,501)', () => {
-    expect(isListingDescriptionLengthValid(at(99))).toBe(false);
+    expect(isListingDescriptionLengthValid(at(499))).toBe(false);
     expect(isListingDescriptionLengthValid(at(3501))).toBe(false);
   });
 
@@ -41,7 +41,7 @@ describe('listing description length bounds', () => {
     const tour = {
       id: 't1',
       title: 'Guaranteed Northern Lights Tour',
-      subtitle: 'Small-group evening hunt',
+      subtitle: 's'.repeat(100),
       description: long,
       city: 'Rovaniemi',
       country: 'Finland',

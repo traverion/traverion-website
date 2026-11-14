@@ -7,10 +7,10 @@ import {
 import type { ListingBookingOption } from '../types/listingExtras';
 import {
   LISTING_PLACEHOLDER_IMAGE,
-  MAX_LISTING_DESCRIPTION_LENGTH,
   MAX_LISTING_TITLE_LENGTH,
-  MIN_LISTING_DESCRIPTION_LENGTH,
   MIN_LISTING_TITLE_LENGTH,
+  fullDescriptionContinueMessage,
+  shortDescriptionContinueMessage,
 } from './listingQualityScore';
 import {
   TOUR_EXCLUDE_MAX,
@@ -146,23 +146,10 @@ export function getListingPublishBlockers(
       `Title is too long — shorten it to ${MAX_LISTING_TITLE_LENGTH} characters or fewer.`
     );
   }
-  const sub = listing.subtitle?.trim() ?? '';
-  if (sub.length === 0) {
-    out.push('Add a subtitle (short line under the title) so guests quickly understand the offer.');
-  } else if (sub.length > 300) {
-    out.push('Subtitle must be 300 characters or fewer.');
-  }
-  const desc = listing.description?.trim() ?? '';
-  if (desc.length < MIN_LISTING_DESCRIPTION_LENGTH) {
-    out.push(
-      `Description is too short — use at least ${MIN_LISTING_DESCRIPTION_LENGTH} characters so guests know what they book.`
-    );
-  }
-  if (desc.length > MAX_LISTING_DESCRIPTION_LENGTH) {
-    out.push(
-      `Main description must be ${MAX_LISTING_DESCRIPTION_LENGTH.toLocaleString('en-US')} characters or fewer.`
-    );
-  }
+  const shortIssue = shortDescriptionContinueMessage(listing.subtitle, 300);
+  if (shortIssue) out.push(shortIssue);
+  const fullIssue = fullDescriptionContinueMessage(listing.description);
+  if (fullIssue) out.push(fullIssue);
   const bookingOptions = materializedBookingOptions(listing.listingExtras?.bookingOptions);
   const price = listing.price?.startingFrom;
   if (isStay) {
@@ -410,7 +397,8 @@ export function publishBlockerListingWizardStep(blockerLine: string, isStay: boo
     if (/check-in address|arrival address|street/.test(t)) return 7;
     if (/city|country|location|destination/.test(t)) return 0;
     if (/guest|bedroom|bed|space|host/.test(t)) return 4;
-    if (/description|highlight/.test(t)) return 2;
+    if (/short description|subtitle|introduction/.test(t) && !/full description/.test(t)) return 1;
+    if (/full description|description|highlight/.test(t)) return 2;
     return 1;
   }
   if (/photo|image|gallery|cover|hero|placeholder/.test(t)) return 4;
@@ -428,7 +416,17 @@ export function publishBlockerListingWizardStep(blockerLine: string, isStay: boo
   ) {
     return 2;
   }
-  if (/include|exclude|description/.test(t)) return 1;
+  if (/short description|subtitle/.test(t) && !/full description/.test(t)) return 0;
+  if (/include|exclude|full description|description/.test(t)) return 1;
   if (/city|country|location|destination|meeting|pickup/.test(t)) return 1;
+  if (/title/.test(t)) return 0;
   return 0;
+}
+
+/** Listings-page deep link for a description requirement. */
+export function listingAttentionFocus(blockerLine: string): 'description' | 'subtitle' | null {
+  const t = blockerLine.toLowerCase();
+  if (/short description|subtitle|introduction/.test(t)) return 'subtitle';
+  if (/full description|description/.test(t)) return 'description';
+  return null;
 }

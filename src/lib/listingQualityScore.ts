@@ -6,8 +6,11 @@ import { LISTING_QUALITY_PUBLISH_TIP } from './booking-confirmation-copy';
 export const LISTING_PLACEHOLDER_IMAGE =
   'https://images.pexels.com/photos/346885/pexels-photo-346885.jpeg';
 
-/** Minimum main description length to publish (aligned with partner form and publish gate). */
-export const MIN_LISTING_DESCRIPTION_LENGTH = 100;
+/** Short description (subtitle / rental introduction), trimmed. */
+export const MIN_SHORT_DESCRIPTION_LENGTH = 100;
+
+/** Minimum full description length to publish or continue (trimmed). */
+export const MIN_LISTING_DESCRIPTION_LENGTH = 500;
 
 /** Maximum main description length to publish — Experience / stay Basics must use the same ceiling. */
 export const MAX_LISTING_DESCRIPTION_LENGTH = 3500;
@@ -30,6 +33,38 @@ export function clampListingDescriptionInput(next: string, previous: string): st
 export function isListingDescriptionLengthValid(description: string): boolean {
   const t = description.trim();
   return t.length >= MIN_LISTING_DESCRIPTION_LENGTH && t.length <= MAX_LISTING_DESCRIPTION_LENGTH;
+}
+
+export function trimmedListingText(value: string | null | undefined): string {
+  return (value ?? '').trim();
+}
+
+/** Short description bounds. Max stays the subtitle ceiling unless a caller passes a tighter one. */
+export function isShortDescriptionLengthValid(value: string | null | undefined, max = 300): boolean {
+  const t = trimmedListingText(value);
+  return t.length >= MIN_SHORT_DESCRIPTION_LENGTH && t.length <= max;
+}
+
+export function shortDescriptionContinueMessage(value: string | null | undefined, max = 300): string | null {
+  const t = trimmedListingText(value);
+  if (t.length < MIN_SHORT_DESCRIPTION_LENGTH) {
+    return `Short description must be at least ${MIN_SHORT_DESCRIPTION_LENGTH} characters (${t.length} now).`;
+  }
+  if (t.length > max) {
+    return `Short description must be ${max} characters or fewer.`;
+  }
+  return null;
+}
+
+export function fullDescriptionContinueMessage(value: string | null | undefined): string | null {
+  const t = trimmedListingText(value);
+  if (t.length < MIN_LISTING_DESCRIPTION_LENGTH) {
+    return `Full description must be at least ${MIN_LISTING_DESCRIPTION_LENGTH} characters (${t.length} now).`;
+  }
+  if (t.length > MAX_LISTING_DESCRIPTION_LENGTH) {
+    return `Full description must be ${MAX_LISTING_DESCRIPTION_LENGTH.toLocaleString('en-US')} characters or fewer.`;
+  }
+  return null;
 }
 
 /** Minimum title length to publish — Basics Continue must use the same floor. */

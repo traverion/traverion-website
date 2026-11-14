@@ -21,7 +21,7 @@ const ready: StayOnboardingCheck = {
   pinReady: true,
   title: 'Quiet apartment by the river',
   maxTitle: 65,
-  subtitle: 'A calm apartment beside the river, with a sauna for late evenings.',
+  subtitle: 'S'.repeat(100),
   maxSubtitle: 300,
   propertyType: 'Apartment',
   areasWithBeds: 1,
@@ -36,8 +36,8 @@ const ready: StayOnboardingCheck = {
   photoCount: 4,
   address: 'Koskikatu 12, 96200 Rovaniemi',
   rulesChosen: true,
-  descriptionLength: 120,
-  minDescription: 100,
+  descriptionLength: 500,
+  minDescription: 500,
   minTitle: 10,
   exteriorCamera: false,
   cameraLocation: '',
@@ -65,7 +65,8 @@ describe('stay onboarding screens', () => {
     expect(stayStageBlocker('property-name', ready)).toBeNull();
     expect(stayStageBlocker('property-name', { ...ready, title: 'Too short' })).toMatch(/10/);
     expect(stayStageBlocker('property-intro', ready)).toBeNull();
-    expect(stayStageBlocker('property-intro', { ...ready, subtitle: '' })).toMatch(/introduction/);
+    expect(stayStageBlocker('property-intro', { ...ready, subtitle: '' })).toMatch(/at least 100/i);
+    expect(stayStageBlocker('property-intro', { ...ready, subtitle: 'A'.repeat(99) })).toMatch(/at least 100/i);
     expect(stayStageBlocker('property-intro', { ...ready, subtitle: 'A'.repeat(301) })).toMatch(/300/);
   });
 

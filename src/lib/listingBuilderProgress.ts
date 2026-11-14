@@ -16,6 +16,8 @@ import {
   MAX_LISTING_TITLE_LENGTH,
   MIN_LISTING_DESCRIPTION_LENGTH,
   MIN_LISTING_TITLE_LENGTH,
+  MIN_SHORT_DESCRIPTION_LENGTH,
+  isShortDescriptionLengthValid,
 } from './listingQualityScore';
 import {
   TOUR_INCLUDE_MIN_REQUIRED,
@@ -94,7 +96,11 @@ export function listingBuilderSections(form: BuilderFormSlice): ListingBuilderSe
   } else if (title.length > MAX_LISTING_TITLE_LENGTH) {
     basicsIssues.push(`Shorten the title to ${MAX_LISTING_TITLE_LENGTH} characters or fewer`);
   }
-  if (!sub) basicsIssues.push('Add a subtitle');
+  if (!isShortDescriptionLengthValid(sub)) {
+    basicsIssues.push(
+      `Add a short description of at least ${MIN_SHORT_DESCRIPTION_LENGTH} characters`
+    );
+  }
 
   const desc = (form.description ?? '').trim();
   const highlights = (form.highlights ?? []).map((s) => s.trim()).filter(Boolean);

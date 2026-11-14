@@ -572,11 +572,11 @@ describe('legacy rental screen aliases', () => {
       experienceLanguage: 'en',
       rental: emptyRentalDetails(),
     };
-    expect(rentalStageBlocker('basics-description', check)).toMatch(/40/);
+    expect(rentalStageBlocker('basics-description', check)).toMatch(/at least 500/i);
     expect(
       rentalStageBlocker('basics-description', {
         ...check,
-        description: 'Warm thermal overalls for Arctic conditions, sized for a full day outside.',
+        description: 'D'.repeat(500),
       })
     ).toBeNull();
     expect(rentalStageBlocker('basics-highlights', { ...check, highlights: [] })).toBeNull();
@@ -718,12 +718,13 @@ describe('rental publish readiness', () => {
     expect(rental?.variants?.find((variant) => variant.id === 'xl')?.pricingOverride?.pricePerDayMinor).toBe(2500);
     const blockers = rentalPublishBlockers({
       title: 'Premium Thermal Overall Rental',
-      description: 'Warm thermal overalls for Arctic conditions, sized S through XL.',
+      subtitle: 'S'.repeat(100),
+      description: 'D'.repeat(500),
       city: 'Rovaniemi',
       country: 'Finland',
       galleryCount: 4,
       experienceLanguage: 'en',
-      rental: rental!,
+      rental: { ...rental!, shortIntro: 'S'.repeat(100) },
     });
     expect(blockers).toEqual([]);
     expect(rentalStartingFromMajor(rental!)).toBe(20);

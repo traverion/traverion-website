@@ -2,7 +2,13 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Pencil } from 'lucide-react';
 import { STAY_ONBOARDING_SCREENS, clampStayIntroInput, quietHoursMentioned, stayScreenIndex, stayStageBlocker, type StayOnboardingCheck } from '../../../lib/stay-onboarding';
 import { STAY_SAFETY_CONSIDERATIONS, staySafetyConsiderationLines } from '../../../lib/stay-safety';
-import { clampListingDescriptionInput, clampListingTitleInput } from '../../../lib/listingQualityScore';
+import {
+  clampListingDescriptionInput,
+  clampListingTitleInput,
+  MIN_SHORT_DESCRIPTION_LENGTH,
+  fullDescriptionContinueMessage,
+  shortDescriptionContinueMessage,
+} from '../../../lib/listingQualityScore';
 import { stayAmenityDisplayList } from '../../../lib/stay-amenities';
 import { stayHighlightAmenityHints, staySelfCheckInConflict, stayTurnoverAdvisory } from '../../../lib/stay-creator-consistency';
 import { isStandardStayPropertyType, stayPropertyTypesForMode } from '../../../lib/stay-accommodation';
@@ -562,8 +568,10 @@ function PropertyNameStage({ values, onChange, minTitle, maxTitle }: Props) {
   );
 }
 
-function PropertyIntroStage({ values, onChange, maxSubtitle }: Props) {
+function PropertyIntroStage({ values, onChange, maxSubtitle, attempted }: Props) {
   const fieldRef = useRef<HTMLTextAreaElement>(null);
+  const trimmed = values.subtitle.trim().length;
+  const error = attempted ? shortDescriptionContinueMessage(values.subtitle, maxSubtitle) : null;
   useLayoutEffect(() => {
     const field = fieldRef.current;
     if (!field) return;
@@ -575,15 +583,25 @@ function PropertyIntroStage({ values, onChange, maxSubtitle }: Props) {
       <Field label="Short introduction">
         <textarea
           ref={fieldRef}
-          className="tv-input stay-intro-input w-full resize-y py-2"
+          className={`tv-input stay-intro-input w-full resize-y py-2${error ? ' ring-1 ring-red-400' : ''}`}
           value={values.subtitle}
           maxLength={maxSubtitle}
           aria-label="Short introduction"
+          aria-invalid={Boolean(error)}
           onChange={(e) => onChange({ subtitle: clampStayIntroInput(e.target.value, values.subtitle, maxSubtitle) })}
         />
       </Field>
-      <StayHelp>This appears under the property name. Maximum {maxSubtitle} characters.</StayHelp>
-      <p className="text-xs tabular-nums text-ink-muted">{values.subtitle.trim().length} / {maxSubtitle}</p>
+      <StayHelp>
+        This appears under the property name. At least {MIN_SHORT_DESCRIPTION_LENGTH} characters, up to {maxSubtitle}.
+      </StayHelp>
+      <p className={`text-xs tabular-nums ${error ? 'text-red-700' : 'text-ink-muted'}`}>
+        {trimmed} / {maxSubtitle}. At least {MIN_SHORT_DESCRIPTION_LENGTH} characters
+        {trimmed > 0 && trimmed < MIN_SHORT_DESCRIPTION_LENGTH
+          ? ` (${MIN_SHORT_DESCRIPTION_LENGTH - trimmed} more)`
+          : ''}
+        .
+      </p>
+      {error ? <p className="text-xs text-red-700">{error}</p> : null}
     </div>
   );
 }
@@ -688,10 +706,11 @@ function RoomsStage({
   );
 }
 
-function DescriptionStage({ values, onChange, minDescription, maxDescription }: Props) {
+function DescriptionStage({ values, onChange, minDescription, maxDescription, attempted }: Props) {
   const fieldRef = useRef<HTMLTextAreaElement>(null);
   const length = values.description.trim().length;
   const short = length < minDescription;
+  const error = attempted ? fullDescriptionContinueMessage(values.description) : null;
   useLayoutEffect(() => {
     const field = fieldRef.current;
     if (!field) return;
@@ -713,16 +732,19 @@ function DescriptionStage({ values, onChange, minDescription, maxDescription }: 
       <Field label="Description">
         <textarea
           ref={fieldRef}
-          className="tv-input stay-description-input w-full resize-y leading-relaxed"
+          className={`tv-input stay-description-input w-full resize-y leading-relaxed${error ? ' ring-1 ring-red-400' : ''}`}
           value={values.description}
           aria-label="Description"
+          aria-invalid={Boolean(error)}
           onChange={(e) => onChange({ description: clampListingDescriptionInput(e.target.value, values.description) })}
         />
       </Field>
       <StayHelp>Scroll inside the field when the text grows past the visible area. At least {minDescription} characters, up to {maxDescription}.</StayHelp>
-      <p className={`text-xs ${short ? 'font-semibold text-[#9f1239]' : 'text-ink-muted'}`}>
-        {length} / {maxDescription}. At least {minDescription} characters.
+      <p className={`text-xs ${short || error ? 'font-semibold text-[#9f1239]' : 'text-ink-muted'}`}>
+        {length} / {maxDescription}. At least {minDescription} characters
+        {length > 0 && length < minDescription ? ` (${minDescription - length} more)` : ''}.
       </p>
+      {error ? <p className="text-xs text-red-700">{error}</p> : null}
     </div>
   );
 }

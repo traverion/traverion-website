@@ -7,13 +7,16 @@ import {
   publishBlockerListingWizardStep,
 } from './listingPublishGate';
 
+const SHORT = 's'.repeat(100);
+const FULL = 'd'.repeat(500);
+
 describe('Information stage publish gates', () => {
   it('requires a valid booking contact phone for tour listings', () => {
     const tour = {
       id: 't1',
       title: 'Guaranteed Northern Lights Tour',
-      subtitle: 'Small-group evening hunt',
-      description: 'x'.repeat(120),
+      subtitle: SHORT,
+      description: FULL,
       city: 'Rovaniemi',
       country: 'Finland',
       image: 'https://cdn.example.com/hero.jpg',
@@ -35,8 +38,8 @@ describe('Information stage publish gates', () => {
     const tour = {
       id: 't1',
       title: 'Guaranteed Northern Lights Tour',
-      subtitle: 'Small-group evening hunt',
-      description: 'x'.repeat(120),
+      subtitle: SHORT,
+      description: FULL,
       city: 'Rovaniemi',
       country: 'Finland',
       image: 'https://cdn.example.com/hero.jpg',
@@ -62,8 +65,9 @@ describe('Phase 1240: legacy group size publish gate', () => {
   it('blocks no-option tours without a parseable min–max group size', () => {
     const tour = {
       id: 't1',
-      title: 'Aurora',
-      description: 'x'.repeat(80),
+      title: 'Aurora hunt tour',
+      subtitle: SHORT,
+      description: FULL,
       city: 'Rovaniemi',
       country: 'Finland',
       image: 'https://example.com/hero.jpg',
@@ -80,8 +84,9 @@ describe('Phase 1240: legacy group size publish gate', () => {
   it('accepts a parseable group size when there are no booking options', () => {
     const tour = {
       id: 't1',
-      title: 'Aurora',
-      description: 'x'.repeat(80),
+      title: 'Aurora hunt tour',
+      subtitle: SHORT,
+      description: FULL,
       city: 'Rovaniemi',
       country: 'Finland',
       image: 'https://example.com/hero.jpg',
@@ -100,8 +105,8 @@ describe('includes and excludes publish bounds', () => {
   const base = {
     id: 't1',
     title: 'Guaranteed Northern Lights Tour',
-    subtitle: 'Small-group evening hunt',
-    description: 'x'.repeat(120),
+    subtitle: SHORT,
+    description: FULL,
     city: 'Rovaniemi',
     country: 'Finland',
     image: 'https://cdn.example.com/hero.jpg',
@@ -256,8 +261,8 @@ describe('stay exterior camera publish gate', () => {
   const baseStay = {
     id: 's1',
     title: 'Quiet riverside cabin stay',
-    subtitle: 'A calm cabin beside the river for slow mornings.',
-    description: 'x'.repeat(120),
+    subtitle: SHORT,
+    description: FULL,
     city: 'Rovaniemi',
     country: 'Finland',
     image: 'https://cdn.example.com/hero.jpg',
@@ -336,8 +341,8 @@ describe('stay exterior camera publish gate', () => {
 describe('rental publish gate', () => {
   const rentalBase = {
     title: 'Premium Thermal Overall Rental',
-    subtitle: 'Arctic sizes S–XL',
-    description: 'Warm thermal overalls for Arctic conditions, sized S through XL for winter guests.',
+    subtitle: SHORT,
+    description: FULL,
     city: 'Rovaniemi',
     country: 'Finland',
     image: 'https://example.com/rental.jpg',
@@ -353,6 +358,7 @@ describe('rental publish gate', () => {
       rental: {
         category: 'winter_clothing',
         itemType: 'thermal_overall',
+        shortIntro: SHORT,
         durationMode: 'daily',
         minDurationDays: 1,
         maxDurationDays: 14,

@@ -2,7 +2,10 @@ import { useEffect, useRef } from 'react';
 import {
   MAX_LISTING_TITLE_LENGTH,
   MIN_LISTING_TITLE_LENGTH,
+  MIN_SHORT_DESCRIPTION_LENGTH,
   clampListingTitleInput,
+  isShortDescriptionLengthValid,
+  shortDescriptionContinueMessage,
 } from '../../../lib/listingQualityScore';
 import DestinationSearch from '../DestinationSearch';
 import { travelerDestinationLabel, verifiedDestination, type VerifiedDestination } from '../../../lib/destination-place';
@@ -252,10 +255,10 @@ export function TourBasicsGuidedScenes({
             </div>
             <div id="supplier-listing-field-subtitle">
               <label htmlFor="supplier-listing-subtitle" className="mb-1 block text-[13px] font-semibold text-ink">
-                Subtitle *
+                Short description *
               </label>
               <p className="mb-1.5 text-[12px] text-ink-muted">
-                One line under the title · max {TOUR_BASICS_SUBTITLE_MAX}
+                One line under the title · at least {MIN_SHORT_DESCRIPTION_LENGTH}, up to {TOUR_BASICS_SUBTITLE_MAX}
               </p>
               <textarea
                 id="supplier-listing-subtitle"
@@ -263,7 +266,16 @@ export function TourBasicsGuidedScenes({
                 maxLength={TOUR_BASICS_SUBTITLE_MAX}
                 onChange={(e) => onChange({ subtitle: e.target.value.slice(0, TOUR_BASICS_SUBTITLE_MAX) })}
                 rows={3}
-                className="tv-input min-h-[5.5rem] min-w-0 resize-y text-[15px] leading-relaxed [overflow-wrap:anywhere] sm:min-h-[6.5rem]"
+                aria-invalid={
+                  form.subtitle.trim().length > 0 &&
+                  !isShortDescriptionLengthValid(form.subtitle, TOUR_BASICS_SUBTITLE_MAX)
+                }
+                className={`tv-input min-h-[5.5rem] min-w-0 resize-y text-[15px] leading-relaxed [overflow-wrap:anywhere] sm:min-h-[6.5rem] ${
+                  form.subtitle.trim().length > 0 &&
+                  !isShortDescriptionLengthValid(form.subtitle, TOUR_BASICS_SUBTITLE_MAX)
+                    ? 'border-amber-300 focus:border-amber-400 focus:ring-amber-200'
+                    : ''
+                }`}
                 placeholder={
                   form.experienceKind === 'transportation'
                     ? 'e.g. Door-to-door private vehicle for up to 6 guests'
@@ -271,8 +283,19 @@ export function TourBasicsGuidedScenes({
                 }
               />
               <p className="mt-1 text-[12px] tabular-nums text-ink-muted">
-                {form.subtitle.length}/{TOUR_BASICS_SUBTITLE_MAX}
+                {form.subtitle.trim().length}/{TOUR_BASICS_SUBTITLE_MAX} · at least{' '}
+                {MIN_SHORT_DESCRIPTION_LENGTH} characters
+                {form.subtitle.trim().length > 0 &&
+                form.subtitle.trim().length < MIN_SHORT_DESCRIPTION_LENGTH
+                  ? ` (${MIN_SHORT_DESCRIPTION_LENGTH - form.subtitle.trim().length} more)`
+                  : null}
               </p>
+              {form.subtitle.trim().length > 0 &&
+              shortDescriptionContinueMessage(form.subtitle, TOUR_BASICS_SUBTITLE_MAX) ? (
+                <p className="mt-1.5 text-[12px] text-amber-800" role="status">
+                  {shortDescriptionContinueMessage(form.subtitle, TOUR_BASICS_SUBTITLE_MAX)}
+                </p>
+              ) : null}
             </div>
           </div>
           <div className="xl:sticky xl:top-2 min-w-0">

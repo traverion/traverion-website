@@ -31,7 +31,7 @@ function option(
     travelerStartInstructions:
       'Please wait outside the main entrance 10 minutes before pickup. Look for the marked vehicle.',
     weekdays: [true, true, true, true, true, true, true],
-    availabilityDateFrom: '',
+    availabilityDateFrom: '2020-01-01',
     availabilityDateTo: '',
     ...partial,
   };
@@ -42,7 +42,8 @@ export function sampleNorthernLightsExperience(over: Partial<TourPackage> = {}):
   return {
     id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
     title: 'Guaranteed Northern Lights Tour',
-    subtitle: 'Small-group aurora hunt from Rovaniemi with a local guide',
+    subtitle:
+      'Small-group aurora hunt from Rovaniemi with a local guide, dark-sky stops, and a hot drink before the return to town.',
     destination: 'Rovaniemi, Finland',
     duration: '3 hours',
     style: 'Tour',
@@ -62,7 +63,7 @@ export function sampleNorthernLightsExperience(over: Partial<TourPackage> = {}):
     validity: 'Year round',
     image: 'https://example.com/aurora-hero.jpg',
     description:
-      'Join a small group north of Rovaniemi to hunt the northern lights with a local guide. We drive to dark skies, stop for photos, and serve a hot drink before returning to town.',
+      'Join a small group north of Rovaniemi to hunt the northern lights with a local guide. We drive to dark skies away from city lights, stop for photos when the aurora appears, and serve a hot drink before returning to town. You learn how weather and cloud cover shape the night, what to wear for standing outside, and how the guide chooses each viewing stop. The experience is paced for first-time visitors and photographers who want clear instructions without a rushed itinerary. Pickup details and meeting notes are confirmed on the booking.',
     highlights: ['Small group', 'Hot drink', 'Photo stops'],
     itinerary: [],
     includes: ['Guide', 'Hot drink'],
@@ -77,14 +78,20 @@ export function sampleNorthernLightsExperience(over: Partial<TourPackage> = {}):
     status: 'draft',
     city: 'Rovaniemi',
     country: 'Finland',
+    experienceStartStyle: 'operator_pickup',
     listingExtras: {
       bookingOptions: [
         option({
           id: 'opt-aurora',
           name: 'Small group aurora hunt',
           priceUsd: 149,
+          fulfillment: 'pickup',
+          pickupPlace: 'Rovaniemi city hotels',
+          travelerStartInstructions: 'Wait outside the lobby 10 minutes early.',
+          optionInfo: 'Small group evening departure.',
         }),
       ],
+      bookingContactPhoneE164: '+358401234567',
       galleryImageUrls: [
         'https://example.com/aurora-2.jpg',
         'https://example.com/aurora-3.jpg',
@@ -135,8 +142,11 @@ export function runMarketplaceLoop(input?: {
   clientTotalAttempt?: number;
   todayIso?: string;
 }): MarketplaceLoopResult {
-  const todayIso = input?.todayIso ?? '2026-09-05';
-  const bookingDate = input?.bookingDate ?? '2026-09-12';
+  // Keep calendar "today" and cutoff clock aligned — quoteBooking uses Date.now() for
+  // departure cutoffs unless nowMs is supplied (Phase 1531).
+  const todayIso = input?.todayIso ?? '2026-11-14';
+  const bookingDate = input?.bookingDate ?? '2026-11-21';
+  const nowMs = Date.parse(`${todayIso}T12:00:00Z`);
   const guests = input?.guests ?? 2;
   const supplierId = 'supplier-aurora';
   const travelerId = 'traveler-1';
@@ -158,6 +168,7 @@ export function runMarketplaceLoop(input?: {
     guests,
     bookingOptionId: 'opt-aurora',
     todayIso,
+    nowMs,
   });
   const unpublishedQuote = quoteBooking({
     tour: unpublished,
@@ -166,6 +177,7 @@ export function runMarketplaceLoop(input?: {
     guests,
     bookingOptionId: 'opt-aurora',
     todayIso,
+    nowMs,
   });
   const badDateQuote = quoteBooking({
     tour: complete,
@@ -174,6 +186,7 @@ export function runMarketplaceLoop(input?: {
     guests,
     bookingOptionId: 'opt-aurora',
     todayIso,
+    nowMs,
   });
 
   const quotedTotal = quote.ok ? quote.totalAmount : null;

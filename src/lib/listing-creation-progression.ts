@@ -95,16 +95,17 @@ export function listingCreationLockedReason(input: {
 export function listingCreationStepRequirement(stepIndex: number, isStay: boolean): string {
   if (isStay) {
     if (stepIndex === 0) return 'Choose a location from search to continue.';
-    if (stepIndex === 1) return 'Add a title and subtitle to continue.';
-    if (stepIndex === 2) return 'Add a description of the stay to continue.';
+  if (stepIndex === 1) return 'Add a title and a short description of at least 100 characters to continue.';
+  if (stepIndex === 2) return 'Add a full description of at least 500 characters to continue.';
     if (stepIndex === 3) return 'Choose pets, smoking, and parties to continue.';
     if (stepIndex === 4) return 'Set guests, a nightly rate, and check-in times to continue.';
     if (stepIndex === 5) return 'Add at least four photos to continue.';
     if (stepIndex === 6) return 'Add the private arrival address to continue.';
     return 'Finish the previous step to continue.';
   }
-  if (stepIndex === 0) return 'Choose a product type, place, language, title and subtitle to continue.';
-  if (stepIndex === 1) return 'Add a description and two inclusions to continue.';
+  if (stepIndex === 0)
+    return 'Choose a product type, place, language, title and a short description of at least 100 characters to continue.';
+  if (stepIndex === 1) return 'Add a full description of at least 500 characters and two inclusions to continue.';
   if (stepIndex === 2) return 'Information is optional — continue when you are ready.';
   if (stepIndex === 3)
     return 'Add at least one complete bookable option and how guests start to continue.';

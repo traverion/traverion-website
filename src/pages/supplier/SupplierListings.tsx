@@ -73,7 +73,12 @@ import {
 import { canManageBookings } from '../../lib/supplierTeamRoles';
 import { useSupplierRole } from '../../hooks/useSupplierRole';
 import { publicListingProductUrlFromListing } from '../../lib/publicSiteUrl';
-import { getListingPublishBlockers, partnerListingCardPresentation, partnerListingDraftPublishSubtitle } from '../../lib/listingPublishGate';
+import {
+  getListingPublishBlockers,
+  listingAttentionFocus,
+  partnerListingCardPresentation,
+  partnerListingDraftPublishSubtitle,
+} from '../../lib/listingPublishGate';
 import {
   PARTNER_LISTINGS_BUSINESS_REVIEW_NOTE,
   PARTNER_LISTINGS_PAYOUT_REVIEW_NOTE,
@@ -1618,7 +1623,9 @@ export default function SupplierListings() {
                   : null;
               const openManage = () => {
                 if (!canEditListings) return;
-                openSupplierListingEditor(listing.id);
+                const focus =
+                  liveAttention != null ? listingAttentionFocus(liveAttention) ?? undefined : undefined;
+                openSupplierListingEditor(listing.id, focus);
               };
               const primaryLabel =
                 !isLive && (card.primaryCta === 'continue' || card.draftStateLabel === 'Incomplete')

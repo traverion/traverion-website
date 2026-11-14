@@ -4,6 +4,7 @@
  */
 
 import { stayPropertyTypeBlocker } from './stay-accommodation';
+import { shortDescriptionContinueMessage } from './listingQualityScore';
 
 export const STAY_ONBOARDING_SCREENS = [
   { id: 'location', group: 'Location', part: '1 of 2', title: 'Where is the property?', body: 'Choose the street address from the suggestions. Guests see the city before they book.' },
@@ -85,7 +86,8 @@ export function stayScreenIndexForPublishLine(line: string): number {
   if (/city|country|location|destination/.test(text)) return stayScreenIndex('location');
   if (/nightly|price/.test(text)) return stayScreenIndex('price');
   if (/check-in time|check-out time/.test(text)) return stayScreenIndex('booking-times');
-  if (/subtitle|introduction/.test(text)) return stayScreenIndex('property-intro');
+  if (/short description|subtitle|introduction/.test(text)) return stayScreenIndex('property-intro');
+  if (/full description/.test(text)) return stayScreenIndex('description');
   if (/at least one bed|sleeping/.test(text)) return stayScreenIndex('rooms');
   if (/guest|bedroom|bed|sleep|host/.test(text)) return stayScreenIndex('guests');
   if (/description|highlight/.test(text)) return stayScreenIndex('description');
@@ -152,12 +154,8 @@ export function stayStageBlocker(screenId: string, draft: StayOnboardingCheck): 
       if (title.length > draft.maxTitle) return `Shorten the name to ${draft.maxTitle} characters.`;
       return null;
     }
-    case 'property-intro': {
-      const intro = draft.subtitle.trim();
-      if (!intro) return 'Add a short introduction.';
-      if (intro.length > draft.maxSubtitle) return `Shorten the introduction to ${draft.maxSubtitle} characters.`;
-      return null;
-    }
+    case 'property-intro':
+      return shortDescriptionContinueMessage(draft.subtitle, draft.maxSubtitle);
     case 'rooms':
       return draft.areasWithBeds >= 1 ? null : 'Add at least one bed guests can sleep in.';
     case 'description':

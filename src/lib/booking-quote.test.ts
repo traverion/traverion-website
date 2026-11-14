@@ -996,8 +996,8 @@ describe('getListingPublishBlockers', () => {
 
     const ready = getListingPublishBlockers(
       tour({
-        subtitle: 'Northern lights by snowmobile with a local guide',
-        description: 'A'.repeat(120),
+        subtitle: 'N'.repeat(100),
+        description: 'A'.repeat(500),
         image: 'https://example.com/real.jpg',
         experienceStartStyle: 'operator_pickup',
         listingExtras: {
@@ -1025,8 +1025,8 @@ describe('getListingPublishBlockers', () => {
 
   it('does not call a photo-short draft Ready for travelers on the list subtitle', () => {
     const almost = tour({
-      subtitle: 'Northern lights by snowmobile with a local guide',
-      description: 'A'.repeat(120),
+      subtitle: 'N'.repeat(100),
+      description: 'A'.repeat(500),
       image: 'https://example.com/real.jpg',
       listingExtras: {
         bookingOptions: [option({ id: 'opt-small', name: 'Small group', priceUsd: 149 })],
@@ -1043,8 +1043,8 @@ describe('getListingPublishBlockers', () => {
   it('blocks an option whose season already ended', () => {
     const ended = getListingPublishBlockers(
       tour({
-        subtitle: 'Northern lights by snowmobile with a local guide',
-        description: 'A'.repeat(120),
+        subtitle: 'N'.repeat(100),
+        description: 'A'.repeat(500),
         image: 'https://example.com/real.jpg',
         listingExtras: {
           bookingOptions: [
@@ -1072,8 +1072,8 @@ describe('getListingPublishBlockers', () => {
     // 2026-09-15 22:30 UTC = 2026-09-16 in Europe/Helsinki
     const now = Date.UTC(2026, 8, 15, 22, 30, 0);
     const base = {
-      subtitle: 'Northern lights by snowmobile with a local guide',
-      description: 'A'.repeat(120),
+      subtitle: 'N'.repeat(100),
+      description: 'A'.repeat(500),
       image: 'https://example.com/real.jpg',
       listingExtras: {
         departureTimezone: 'Europe/Helsinki',
@@ -1123,8 +1123,8 @@ describe('getListingPublishBlockers', () => {
   it('publishes a stay without tour meeting points or booking options', () => {
     const stayReady = getListingPublishBlockers(
       tour({
-        subtitle: 'Quiet apartment near the harbour',
-        description: 'A'.repeat(120),
+        subtitle: 'S'.repeat(100),
+        description: 'A'.repeat(500),
         image: 'https://example.com/real.jpg',
         includes: [],
         excludes: [],
@@ -1154,8 +1154,8 @@ describe('getListingPublishBlockers', () => {
   it('blocks a stay missing check-in or check-out times', () => {
     const missingTimes = getListingPublishBlockers(
       tour({
-        subtitle: 'Quiet apartment near the harbour',
-        description: 'A'.repeat(120),
+        subtitle: 'S'.repeat(100),
+        description: 'A'.repeat(500),
         image: 'https://example.com/real.jpg',
         includes: [],
         excludes: [],

@@ -33,6 +33,7 @@ import {
 } from 'lucide-react';
 import {
   RENTAL_ONBOARDING_SCREENS,
+  RENTAL_SHORT_INTRO_MAX,
   resolveRentalScreenId,
   rentalPublishBlockers,
   rentalScreenIndex,
@@ -83,7 +84,17 @@ import {
   rentalVariantMetaLine,
   upsertRentalVariant,
 } from '../../../lib/rental-details';
-import { clampListingDescriptionInput, clampListingTitleInput, MAX_LISTING_DESCRIPTION_LENGTH, MAX_LISTING_TITLE_LENGTH } from '../../../lib/listingQualityScore';
+import {
+  clampListingDescriptionInput,
+  clampListingTitleInput,
+  MAX_LISTING_DESCRIPTION_LENGTH,
+  MAX_LISTING_TITLE_LENGTH,
+  MIN_LISTING_DESCRIPTION_LENGTH,
+  MIN_LISTING_TITLE_LENGTH,
+  MIN_SHORT_DESCRIPTION_LENGTH,
+  fullDescriptionContinueMessage,
+  shortDescriptionContinueMessage,
+} from '../../../lib/listingQualityScore';
 import {
   LISTING_PHOTO_MAX,
   RENTAL_PHOTO_MIN,
@@ -749,53 +760,69 @@ function TitleStage({ ctx }: { ctx: Ctx }) {
         />
       </StayField>
       <StayHelp>
-        {values.title.trim().length}/{MAX_LISTING_TITLE_LENGTH} · at least 8 characters. Say what it is and where.
+        {values.title.trim().length}/{MAX_LISTING_TITLE_LENGTH} · at least {MIN_LISTING_TITLE_LENGTH} characters. Say what it is and where.
       </StayHelp>
     </div>
   );
 }
 
 function IntroStage({ ctx }: { ctx: Ctx }) {
-  const { values, rental, patch } = ctx;
+  const { values, rental, patch, props } = ctx;
   const value = rental.shortIntro ?? values.subtitle;
+  const trimmed = value.trim().length;
+  const error = props.attemptedContinue ? shortDescriptionContinueMessage(value, RENTAL_SHORT_INTRO_MAX) : null;
   return (
     <div className="space-y-2">
       <StayField label="Short introduction">
         <textarea
-          className="tv-input w-full resize-y py-2"
+          className={`tv-input w-full resize-y py-2${error ? ' ring-1 ring-red-400' : ''}`}
           rows={3}
-          maxLength={280}
+          maxLength={RENTAL_SHORT_INTRO_MAX}
           value={value}
+          aria-invalid={Boolean(error)}
           placeholder="e.g. Lightweight e-bikes with helmets and a map of local trails."
           onChange={(e) => {
-            const next = e.target.value.slice(0, 280);
+            const next = e.target.value.slice(0, RENTAL_SHORT_INTRO_MAX);
             patch({ subtitle: next, rental: { ...rental, shortIntro: next } });
           }}
         />
       </StayField>
-      <StayHelp>{value.length}/280 · at least 12 characters.</StayHelp>
+      <StayHelp>
+        {trimmed}/{RENTAL_SHORT_INTRO_MAX} · at least {MIN_SHORT_DESCRIPTION_LENGTH} characters
+        {trimmed > 0 && trimmed < MIN_SHORT_DESCRIPTION_LENGTH
+          ? ` (${MIN_SHORT_DESCRIPTION_LENGTH - trimmed} more)`
+          : ''}
+        .
+      </StayHelp>
+      {error ? <p className="text-xs text-red-700">{error}</p> : null}
     </div>
   );
 }
 
 function DescriptionStage({ ctx }: { ctx: Ctx }) {
-  const { values, patch } = ctx;
+  const { values, patch, props } = ctx;
   const length = values.description.trim().length;
+  const error = props.attemptedContinue ? fullDescriptionContinueMessage(values.description) : null;
   return (
     <div className="space-y-2">
       <StayField label="Description">
         <textarea
-          className="tv-input w-full resize-y py-2"
+          className={`tv-input w-full resize-y py-2${error ? ' ring-1 ring-red-400' : ''}`}
           rows={8}
           value={values.description}
+          aria-invalid={Boolean(error)}
           placeholder="What the rental is, how it is used, and what the customer should expect."
           onChange={(e) => patch({ description: clampListingDescriptionInput(e.target.value, values.description) })}
         />
       </StayField>
       <StayHelp>
-        {length}/{MAX_LISTING_DESCRIPTION_LENGTH} · at least 40 characters
-        {length > 0 && length < 40 ? ` (${40 - length} more)` : ''}.
+        {length}/{MAX_LISTING_DESCRIPTION_LENGTH} · at least {MIN_LISTING_DESCRIPTION_LENGTH} characters
+        {length > 0 && length < MIN_LISTING_DESCRIPTION_LENGTH
+          ? ` (${MIN_LISTING_DESCRIPTION_LENGTH - length} more)`
+          : ''}
+        .
       </StayHelp>
+      {error ? <p className="text-xs text-red-700">{error}</p> : null}
     </div>
   );
 }
@@ -2833,7 +2860,6 @@ export default function RentalOnboardingFlow(props: Props) {
     id === 'return-location' ||
     id === 'pickup-handover' ||
     id === 'return-handover' ||
-    id === 'duration' ||
     id === 'booking-rules' ||
     id === 'requirements' ||
     id === 'inclusions';

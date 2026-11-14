@@ -14,6 +14,14 @@ import {
   rentalOptionNameReady,
   rentalVariantComplete,
 } from './rental-details';
+import {
+  MIN_LISTING_TITLE_LENGTH,
+  fullDescriptionContinueMessage,
+  shortDescriptionContinueMessage,
+} from './listingQualityScore';
+
+/** Short introduction ceiling in the rental creator (must stay ≥ the shared 100-character floor). */
+export const RENTAL_SHORT_INTRO_MAX = 280;
 
 export const RENTAL_ONBOARDING_SCREENS = [
   {
@@ -276,16 +284,14 @@ export function rentalStageBlocker(screenId: RentalOnboardingScreenId, check: Re
       if (!(check.experienceLanguage || '').trim()) return 'Choose a listing language.';
       return null;
     case 'basics-title': {
-      if ((check.title || '').trim().length < 8) return 'Use a title of at least 8 characters.';
-      if ((r.shortIntro || check.subtitle || '').trim().length < 12) {
-        return 'Add a short introduction (at least 12 characters).';
+      const title = (check.title || '').trim();
+      if (title.length < MIN_LISTING_TITLE_LENGTH) {
+        return `Use a title of at least ${MIN_LISTING_TITLE_LENGTH} characters.`;
       }
-      return null;
+      return shortDescriptionContinueMessage(r.shortIntro || check.subtitle, RENTAL_SHORT_INTRO_MAX);
     }
     case 'basics-description':
-      return (check.description || '').trim().length >= 40
-        ? null
-        : 'Add a description of at least 40 characters.';
+      return fullDescriptionContinueMessage(check.description);
     case 'basics-highlights':
       return null;
     case 'basics-specs':
@@ -357,10 +363,14 @@ export function rentalPublishBlockers(check: RentalOnboardingCheck): string[] {
   const r = check.rental;
   if (!r.category) out.push('Choose a rental category.');
   if (!r.itemType && !(r.customItemType || '').trim()) out.push('Choose an item type.');
-  if (!(check.title || '').trim()) out.push('Add a rental title.');
-  if (!(check.description || '').trim() || (check.description || '').trim().length < 40) {
-    out.push('Add a fuller description.');
+  const title = (check.title || '').trim();
+  if (title.length < MIN_LISTING_TITLE_LENGTH) {
+    out.push(`Title is too short — add a clear, specific title (${MIN_LISTING_TITLE_LENGTH} characters minimum).`);
   }
+  const shortIssue = shortDescriptionContinueMessage(r.shortIntro || check.subtitle, RENTAL_SHORT_INTRO_MAX);
+  if (shortIssue) out.push(shortIssue);
+  const fullIssue = fullDescriptionContinueMessage(check.description);
+  if (fullIssue) out.push(fullIssue);
   if (!(check.city || '').trim() || !(check.country || '').trim()) out.push('Add city and country.');
   if (check.galleryCount < 3) out.push('Add at least 3 photos.');
   if (!(r.pickupAddress || '').trim()) out.push('Add pickup location.');
@@ -393,9 +403,12 @@ export function rentalScreenIndexForPublishLine(line: string): number {
   if (/photo|gallery|image/.test(text)) return rentalScreenIndex('photos');
   if (/item type/.test(text)) return rentalScreenIndex('basics-item');
   if (/categor/.test(text)) return rentalScreenIndex('basics-category');
-  if (/title|introduction/.test(text)) return rentalScreenIndex('basics-title');
+  if (/short description|subtitle|introduction/.test(text) && !/full description/.test(text)) {
+    return rentalScreenIndex('basics-title');
+  }
+  if (/title/.test(text)) return rentalScreenIndex('basics-title');
   if (/highlight/.test(text)) return rentalScreenIndex('basics-highlights');
-  if (/description/.test(text)) return rentalScreenIndex('basics-description');
+  if (/full description|description/.test(text)) return rentalScreenIndex('basics-description');
   if (/city|country|location|language/.test(text)) return rentalScreenIndex('basics-location');
   if (/return handover|staff return|self-service return/.test(text)) {
     return rentalScreenIndex('return-handover');

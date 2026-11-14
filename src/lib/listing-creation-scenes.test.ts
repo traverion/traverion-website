@@ -43,7 +43,8 @@ const filled: TourBasicsFields = {
   city: 'Rovaniemi',
   country: 'Finland',
   title: 'Old town walking tour',
-  subtitle: 'Small-group walk with a local host',
+  subtitle:
+    'Small-group walk with a local host through the old town, with stories and photo stops along the way.',
 };
 
 describe('tour Basics scene order', () => {

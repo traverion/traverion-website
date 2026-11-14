@@ -1,4 +1,9 @@
-import { isListingTitleLengthValid, MAX_LISTING_DESCRIPTION_LENGTH } from './listingQualityScore';
+import {
+  isListingDescriptionLengthValid,
+  isListingTitleLengthValid,
+  isShortDescriptionLengthValid,
+  MAX_LISTING_DESCRIPTION_LENGTH,
+} from './listingQualityScore';
 
 /** Guided scenes inside Tour → Basics. Stay Basics stays a single page. */
 export const TOUR_BASICS_SCENES = [
@@ -82,14 +87,15 @@ export function isTourLocationSatisfied(
 }
 
 export function isTourIdentitySatisfied(fields: Pick<TourBasicsFields, 'title' | 'subtitle'>): boolean {
-  const sub = fields.subtitle.trim();
-  return isListingTitleLengthValid(fields.title) && sub.length > 0 && sub.length <= TOUR_BASICS_SUBTITLE_MAX;
+  return (
+    isListingTitleLengthValid(fields.title) &&
+    isShortDescriptionLengthValid(fields.subtitle, TOUR_BASICS_SUBTITLE_MAX)
+  );
 }
 
 /** @deprecated Description moved to Experience — kept for callers that still check description length. */
 export function isTourStorySatisfied(fields: { description?: string }): boolean {
-  const desc = (fields.description ?? '').trim();
-  return desc.length >= 40 && desc.length <= TOUR_BASICS_DESCRIPTION_MAX;
+  return isListingDescriptionLengthValid(fields.description ?? '');
 }
 
 /** Same truth as Tour Basics Continue-to-Experience / isStepSatisfied(0). */

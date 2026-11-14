@@ -220,6 +220,8 @@ import {
   clampListingTitleInput,
   isListingDescriptionLengthValid,
   isListingTitleLengthValid,
+  isShortDescriptionLengthValid,
+  shortDescriptionContinueMessage,
 } from '../../lib/listingQualityScore';
 import { DEFAULT_CURRENCY, formatMoney, normalizeCurrency } from '../../lib/money';
 import { formatStayAmenityLabel, stayAmenityDisplayList } from '../../lib/stay-amenities';
@@ -1343,14 +1345,15 @@ function isStepSatisfied(idx: number, form: ListingFormState): boolean {
       form.city.trim().length > 0 &&
       form.country.trim().length > 0 &&
       isListingTitleLengthValid(form.title) &&
-      sub.length > 0 &&
-      sub.length <= MAX_SUBTITLE_LENGTH
+      isShortDescriptionLengthValid(sub, MAX_SUBTITLE_LENGTH)
     );
   }
   if (idx === 1) {
     if (isStay) {
-      const sub = form.subtitle.trim();
-      return isListingTitleLengthValid(form.title) && sub.length > 0 && sub.length <= MAX_SUBTITLE_LENGTH;
+      return (
+        isListingTitleLengthValid(form.title) &&
+        isShortDescriptionLengthValid(form.subtitle, MAX_SUBTITLE_LENGTH)
+      );
     }
     const incLines = form.includes.map((s) => s.trim()).filter(Boolean);
     const excLines = form.excludes.map((s) => s.trim()).filter(Boolean);
@@ -2555,11 +2558,50 @@ export default function SupplierListingForm({
 
   useEffect(() => {
     if (!focusSection || !editingId) return;
-    const targetStep = focusToStep[focusSection];
-    if (typeof targetStep !== 'number') return;
-
     const focusKey = `${editingId}:${focusSection}`;
     if (lastFocused.current === focusKey) return;
+
+    if (isRentalForm) {
+      const line =
+        focusSection === 'subtitle'
+          ? 'Short description'
+          : focusSection === 'description'
+            ? 'Full description'
+            : focusSection;
+      const next = rentalScreenIndexForPublishLine(line);
+      setRentalStageDir('forward');
+      setRentalStage(next);
+      setRentalStageAttempted(true);
+      lastFocused.current = focusKey;
+      if (typeof window !== 'undefined') {
+        const key = `traverion-rental-onboarding-screen-v1-${editingId}`;
+        sessionStorage.setItem(key, RENTAL_ONBOARDING_SCREENS[next]?.id ?? 'category');
+      }
+      onFocusConsumed?.();
+      return;
+    }
+    if (isStayForm) {
+      const line =
+        focusSection === 'subtitle'
+          ? 'Short description'
+          : focusSection === 'description'
+            ? 'Full description'
+            : focusSection;
+      const next = stayScreenIndexForPublishLine(line);
+      setStayStageDir('forward');
+      setStayStage(next);
+      setStayStageAttempted(true);
+      lastFocused.current = focusKey;
+      if (typeof window !== 'undefined') {
+        const key = `traverion-stay-onboarding-screen-v2-${editingId}`;
+        sessionStorage.setItem(key, STAY_ONBOARDING_SCREENS[next]?.id ?? 'location');
+      }
+      onFocusConsumed?.();
+      return;
+    }
+
+    const targetStep = focusToStep[focusSection];
+    if (typeof targetStep !== 'number') return;
 
     writeWizardStepToStorage(editingId, targetStep, form.inventoryFamily === 'stay');
     setStepIdx(targetStep);
@@ -2631,7 +2673,15 @@ export default function SupplierListingForm({
       }, 100);
       return () => window.clearTimeout(t);
     }
-  }, [focusSection, editingId, onFocusConsumed, focusToStep, form.bookingOptions]);
+  }, [
+    focusSection,
+    editingId,
+    onFocusConsumed,
+    focusToStep,
+    form.bookingOptions,
+    isStayForm,
+    isRentalForm,
+  ]);
 
   useEffect(() => {
     if (!stepContainerRef.current) return;
@@ -2766,7 +2816,11 @@ export default function SupplierListingForm({
       }
       setStepIdxPersisted(step);
       if (step === 0 && !isStayForm) {
-        const scene = /subtitle|title|language/.test(t) ? 1 : /descri|highlight/.test(t) ? 2 : 0;
+        const scene = /short description|subtitle|title/.test(t)
+          ? 2
+          : /language|city|country|location|destination/.test(t)
+            ? 1
+            : 0;
         setBasicsSceneIdxPersisted(scene, 'forward');
       }
       if (step === 2 && !isStayForm) {
@@ -3900,7 +3954,8 @@ export default function SupplierListingForm({
             ? `Title needs at least ${MIN_LISTING_TITLE_LENGTH} characters to continue.`
             : form.title.trim().length > MAX_LISTING_TITLE_LENGTH
               ? `Title must be ${MAX_LISTING_TITLE_LENGTH} characters or fewer to continue.`
-              : 'Add a title and subtitle to continue.'
+              : shortDescriptionContinueMessage(form.subtitle, MAX_SUBTITLE_LENGTH) ??
+                'Add a title and short description to continue.'
           : listingCreationContinueHint({
               stepIndex: 0,
               isStay: false,
@@ -5026,6 +5081,10 @@ export default function SupplierListingForm({
                       }))
                     }
                     rows={6}
+                    aria-invalid={
+                      form.description.trim().length > 0 &&
+                      form.description.trim().length < MIN_LISTING_DESCRIPTION_LENGTH
+                    }
                     className={`tv-input min-h-[8rem] break-words text-[15px] leading-relaxed [overflow-wrap:anywhere] ${
                       form.description.trim().length > 0 &&
                       form.description.trim().length < MIN_LISTING_DESCRIPTION_LENGTH
@@ -5047,8 +5106,13 @@ export default function SupplierListingForm({
                         : 'text-ink-muted'
                     }`}
                   >
-                    {form.description.length.toLocaleString('en-US')} /{' '}
-                    {MAX_DESCRIPTION_LENGTH.toLocaleString('en-US')}
+                    {form.description.trim().length.toLocaleString('en-US')} /{' '}
+                    {MAX_DESCRIPTION_LENGTH.toLocaleString('en-US')} · at least{' '}
+                    {MIN_LISTING_DESCRIPTION_LENGTH.toLocaleString('en-US')} characters
+                    {form.description.trim().length > 0 &&
+                    form.description.trim().length < MIN_LISTING_DESCRIPTION_LENGTH
+                      ? ` (${MIN_LISTING_DESCRIPTION_LENGTH - form.description.trim().length} more)`
+                      : null}
                     {form.description.length > MAX_DESCRIPTION_LENGTH
                       ? ` · shorten to ${MAX_DESCRIPTION_LENGTH.toLocaleString('en-US')} to publish`
                       : null}
