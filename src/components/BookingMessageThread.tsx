@@ -14,6 +14,7 @@ import {
   TRAVELER_BOOKING_THREAD_DELIVERY_NOTE,
   BOOKING_MESSAGE_SUBMIT_ERROR,
   BOOKING_MESSAGE_SUBMIT_ERROR_TITLE,
+  presentTravelerSystemMessage,
 } from '../lib/booking-confirmation-copy';
 
 type Props = {
@@ -367,7 +368,10 @@ export default function BookingMessageThread({
                 >
                   {day !== prevDay ? <p className="tv-msg-day">{day}</p> : null}
                   <div className={`tv-chat__bubble tv-chat__bubble--${tone}`}>
-                    <MessageText text={m.body} mine={tone === 'mine'} />
+                    <MessageText
+                      text={viewerRole === 'traveler' ? presentTravelerSystemMessage(m.body) : m.body}
+                      mine={tone === 'mine'}
+                    />
                   </div>
                   {!continues ? (
                     <time dateTime={m.created_at} className="tv-chat__time">
@@ -556,7 +560,7 @@ export default function BookingMessageThread({
                   {new Date(m.created_at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}
                 </span>
               </p>
-              <p className="mt-1.5 leading-relaxed break-words [overflow-wrap:anywhere] whitespace-pre-wrap">{m.body}</p>
+              <p className="mt-1.5 leading-relaxed break-words [overflow-wrap:anywhere] whitespace-pre-wrap">{viewerRole === 'traveler' ? presentTravelerSystemMessage(m.body) : m.body}</p>
             </div>
             </li>
             );

@@ -796,7 +796,7 @@ export async function promotePaidFromCheckoutSession(params: {
           currency: orphanCurrency,
           reasonKey: 'orphan_checkout_refund',
           fieldBefore: 'A superseded checkout session was paid',
-          fieldAfter: 'Stripe payment automatically reversed — your booking uses the current checkout',
+          fieldAfter: 'The extra checkout payment was reversed — your booking uses the current checkout',
           ensureCancelled: false,
         });
       } catch (refundErr) {
@@ -866,7 +866,7 @@ export async function promotePaidFromCheckoutSession(params: {
           currency: cancelCurrency,
           reasonKey: 'cancelled_checkout_refund',
           fieldBefore: 'Checkout completed after the hold was released',
-          fieldAfter: 'Stripe payment automatically reversed — no booking',
+          fieldAfter: 'The extra checkout payment was reversed — no booking',
         });
       } catch (refundErr) {
         const msg = refundErr instanceof Error ? refundErr.message : String(refundErr);
@@ -951,7 +951,7 @@ export async function promotePaidFromCheckoutSession(params: {
         currency: String(existingBooking?.currency || session.currency || 'eur').toUpperCase(),
         reasonKey: 'refunded_before_promote',
         fieldBefore: 'Checkout was charged but already fully refunded before confirmation',
-        fieldAfter: 'Stripe payment reversed — no booking',
+        fieldAfter: 'The extra checkout payment was reversed — no booking',
         ensureCancelled: true,
       });
       await markProcessed('processed');
@@ -1107,7 +1107,7 @@ export async function promotePaidFromCheckoutSession(params: {
           currency: underpayCurrency,
           reasonKey: 'underpay_checkout_refund',
           fieldBefore: 'Checkout paid less than the quoted total',
-          fieldAfter: 'Stripe payment automatically reversed — no booking',
+          fieldAfter: 'The extra checkout payment was reversed — no booking',
           ensureCancelled: true,
         });
       } catch (refundErr) {
@@ -1182,7 +1182,7 @@ export async function promotePaidFromCheckoutSession(params: {
           currency: mismatchCurrency,
           reasonKey: 'currency_mismatch_checkout_refund',
           fieldBefore: 'Checkout currency did not match the booking quote',
-          fieldAfter: 'Stripe payment automatically reversed — no booking',
+          fieldAfter: 'The extra checkout payment was reversed — no booking',
           ensureCancelled: true,
         });
       } catch (refundErr) {
@@ -1291,7 +1291,7 @@ export async function promotePaidFromCheckoutSession(params: {
             currency,
             reasonKey: 'listing_unavailable_checkout_refund',
             fieldBefore: 'Checkout completed after the listing left the live catalog',
-            fieldAfter: 'Stripe payment automatically reversed — no booking',
+            fieldAfter: 'The extra checkout payment was reversed — no booking',
             ensureCancelled: true,
           });
         } catch (refundErr) {
@@ -1414,7 +1414,7 @@ export async function promotePaidFromCheckoutSession(params: {
               currency,
               reasonKey: 'departure_cutoff_checkout_refund',
               fieldBefore: 'Checkout completed after the departure booking window closed',
-              fieldAfter: 'Stripe payment automatically reversed — no booking',
+              fieldAfter: 'The extra checkout payment was reversed — no booking',
               ensureCancelled: true,
             });
           } catch (refundErr) {
@@ -1527,7 +1527,7 @@ export async function promotePaidFromCheckoutSession(params: {
             currency,
             reasonKey: 'self_book_checkout_refund',
             fieldBefore: 'Checkout completed on your own listing',
-            fieldAfter: 'Stripe payment automatically reversed — hosts cannot book themselves',
+            fieldAfter: 'The extra checkout payment was reversed — hosts cannot book themselves',
             ensureCancelled: true,
           });
         } catch (refundErr) {
@@ -1700,7 +1700,7 @@ export async function promotePaidFromCheckoutSession(params: {
           currency,
           reasonKey: 'inventory_conflict_checkout_refund',
           fieldBefore: 'Checkout completed after this departure sold out',
-          fieldAfter: 'Stripe payment automatically reversed — no booking',
+          fieldAfter: 'The extra checkout payment was reversed — no booking',
           ensureCancelled: true,
         });
       } catch (refundErr) {
@@ -1828,7 +1828,7 @@ export async function promotePaidFromCheckoutSession(params: {
             currency: String(again?.currency || session.currency || 'eur').toUpperCase(),
             reasonKey: 'orphan_checkout_refund_unpromoted',
             fieldBefore: 'An extra checkout payment was captured',
-            fieldAfter: 'Stripe payment automatically reversed — your booking stays as already paid',
+            fieldAfter: 'The extra checkout payment was reversed — your booking stays as already paid',
             ensureCancelled: false,
           });
         } catch (refundErr) {

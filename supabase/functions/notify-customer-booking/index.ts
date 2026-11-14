@@ -81,7 +81,7 @@ type Payload = {
   guests?: number;
   totalAmount?: number;
   currency?: string;
-  /** Stripe PaymentIntent id (printed on PDF receipt). */
+  /** PaymentIntent id kept for the caller. It is not printed on the customer receipt. */
   paymentIntentId?: string;
   /** ISO timestamp when payment completed (PDF). */
   paidAtIso?: string;
@@ -422,7 +422,7 @@ function subjectForKind(
     case 'traveler_welcome':
       return 'Welcome to Traverion';
     case 'refund_completed':
-      return withRef('Your refund is complete');
+      return withRef('Your refund has been processed');
     case 'refund_initiated':
       return withRef('Your refund is being processed');
     case 'partial_refund_recorded':
@@ -880,10 +880,10 @@ const handler = async (req: Request): Promise<Response> => {
       const after = unpaid
         ? 'Unpaid checkout cancelled — no payment was collected.'
         : refundChoice === 'full_refund'
-          ? 'Cancelled — full refund due until Stripe records it (not automatic)'
+          ? 'Cancelled — a refund is due'
           : refundChoice === 'no_refund'
             ? 'Cancelled — no refund for this traveler-initiated cancellation'
-            : 'Cancelled — refund status follows My bookings / Stripe';
+            : 'Cancelled — refund status follows My bookings';
       diffs = [
         {
           label: 'Cancellation & refund',
@@ -968,15 +968,18 @@ const handler = async (req: Request): Promise<Response> => {
         ? `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">You cancelled an unpaid checkout. No payment was collected. Summary below.</p>`
         : `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">Your reservation has been cancelled as requested. Summary below.</p>`;
       if (diffs.length) extraHtml = fieldDiffTableHtml(diffs);
+      const dueAmount = typeof amount === 'number' ? `${currency} ${amount.toFixed(2)}` : null;
       footerNote = unpaid
         ? // Keep in sync with TRAVELER_CANCEL_UNPAID_CHECKOUT_EMAIL_FOOTER
           'This was an unpaid checkout. No payment was collected. My bookings keeps the cancelled record if you need it.'
         : refundChoice === 'no_refund'
           ? 'No refund applies for this cancellation. My bookings keeps the cancelled record if you need it.'
-          : 'When a refund applies, My bookings shows Refund due until Stripe records Refunded. Traverion does not send Stripe refunds automatically. Timing then depends on your bank.';
+          : dueAmount
+            ? `Your booking has been cancelled. A refund of ${dueAmount} is due. My bookings shows Refund pending only after Traverion starts it, and Refund completed only after Traverion confirms it.`
+            : 'Your booking has been cancelled. A refund is due. My bookings shows Refund pending only after Traverion starts it, and Refund completed only after Traverion confirms it.';
     } else if (kind === 'cancellation_requested_by_supplier') {
       headline = 'Your booking has been cancelled';
-      intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">Your booking is cancelled. The reason below is the customer-facing reason. A refund is due when you paid online, and My bookings shows Refunded only after Stripe confirms it.</p>`;
+      intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">Your booking has been cancelled. A refund is due when you paid online. My bookings shows Refund completed only after Traverion confirms it.</p>`;
       if (diffs.length) extraHtml = fieldDiffTableHtml(diffs);
       footerNote =
         'Open My bookings for the updated record, or contact Traverion support if you need help. Traverion does not treat this email as proof the refund has reached your bank.';
@@ -985,11 +988,11 @@ const handler = async (req: Request): Promise<Response> => {
       intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">Your operator cancelled <strong>${escapeHtml(title)}</strong>. You are entitled to a <strong>full refund</strong>, or you can choose another available departure for the same activity in My bookings. If you do not choose before the original official start time, your full refund begins automatically.</p>`;
       if (diffs.length) extraHtml = fieldDiffTableHtml(diffs);
       footerNote =
-        'Open My bookings to get a full refund or pick another date. This email cannot issue a refund. Refunded appears only after Stripe confirms.';
+        'Open My bookings to choose a refund or another date. This email cannot issue a refund. Refund completed appears only after Traverion confirms it.';
     } else if (kind === 'cancellation_accepted') {
       headline = 'Cancellation confirmed';
-      intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">You accepted the host’s cancellation request. This booking is cancelled. A refund is due; it is recorded when Stripe processes it — Traverion does not refund automatically.</p>`;
-      footerNote = 'Watch My bookings for Refund due, then Refunded. Traverion does not refund automatically. Timing depends on your bank.';
+      intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">You accepted the host’s cancellation request. Your booking has been cancelled. A refund is due.</p>`;
+      footerNote = 'My bookings shows Refund pending only after Traverion starts the refund, and Refund completed only after Traverion confirms it.';
     } else if (kind === 'cancellation_declined') {
       headline = 'Your booking stays confirmed';
       intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">You declined the host’s cancellation request. The booking remains active.</p>`;
@@ -1027,34 +1030,44 @@ const handler = async (req: Request): Promise<Response> => {
       intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">Your traveler account is ready. Browse experiences, book securely, and manage trips in one place.</p>`;
       footerNote = 'You can update your profile anytime from Account.';
     } else if (kind === 'refund_completed') {
-      headline = 'Your refund is complete';
-      intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">Stripe has recorded a full refund for this booking. Timing to your bank depends on your card issuer.</p>`;
-      if (typeof amount === 'number') {
-        extraHtml = `<p style="margin:0;font-size:14px;color:#374151;"><strong>Refunded:</strong> ${escapeHtml(currency)} ${amount.toFixed(2)}</p>`;
-      }
+      headline = 'Your refund has been processed';
+      intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">${
+        typeof amount === 'number'
+          ? `Your refund of ${escapeHtml(currency)} ${amount.toFixed(2)} has been processed. It may take additional time to appear in your account, depending on your payment method.`
+          : 'Your refund has been processed. It may take additional time to appear in your account, depending on your payment method.'
+      }</p>`;
       footerNote =
         body.refundStatusNote?.trim() ||
-        'Your booking shows this refund as complete. Your bank may take a few days to post it.';
+        'My bookings shows this refund as complete.';
     } else if (kind === 'refund_initiated') {
       headline = 'Your refund is being processed';
-      intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">We submitted a refund to Stripe for this cancelled booking. My bookings will show Refunded when Stripe confirms it.</p>`;
-      if (typeof amount === 'number') {
-        extraHtml = `<p style="margin:0;font-size:14px;color:#374151;"><strong>Refund amount:</strong> ${escapeHtml(currency)} ${amount.toFixed(2)}</p>`;
-      }
+      intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">${
+        typeof amount === 'number'
+          ? `Your refund of ${escapeHtml(currency)} ${amount.toFixed(2)} is being processed by Traverion.`
+          : 'Your refund is being processed by Traverion.'
+      }</p>`;
       footerNote =
-        'Bank timing varies by card issuer. You will get another email when Stripe confirms the refund.';
+        'My bookings shows Refund completed only after Traverion confirms the refund.';
     } else if (kind === 'partial_refund_recorded') {
       // Phase 1735: active paid booking stays Paid; inventory held.
       // Phase 1740: cancelled Refund due — do not claim reservation still active.
       headline = 'A partial refund was recorded';
+      const partialAmount =
+        typeof amount === 'number' ? `${escapeHtml(currency)} ${amount.toFixed(2)}` : null;
       if (cancelledRefundDuePartial) {
-        intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">Stripe recorded a partial refund toward the amount due on this cancelled booking. My bookings still shows Refund due for any remaining charge until Stripe records a full refund.</p>`;
-        footerNote =
-          'Your bank may take a few days to post this refund. Any remaining amount still shows as due on your booking.';
+        intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">${
+          partialAmount
+            ? `Your refund of ${partialAmount} has been processed. A refund of the remaining amount is still due for this cancelled booking.`
+            : 'A partial refund has been processed. A refund of the remaining amount is still due for this cancelled booking.'
+        } It may take additional time to appear in your account, depending on your payment method.</p>`;
+        footerNote = 'My bookings still shows Refund due for any amount Traverion has not confirmed.';
       } else {
-        intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">Stripe recorded a partial refund for this booking. Your reservation stays active and My bookings still shows Paid for the remaining amount.</p>`;
-        footerNote =
-          'Your bank may take a few days to post this refund. The remaining amount stays paid on your booking.';
+        intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">${
+          partialAmount
+            ? `Your refund of ${partialAmount} has been processed.`
+            : 'A partial refund has been processed.'
+        } Your booking stays active for the remaining amount. It may take additional time to appear in your account, depending on your payment method.</p>`;
+        footerNote = 'The remaining amount stays paid on your booking.';
       }
       if (typeof amount === 'number') {
         extraHtml = `<p style="margin:0;font-size:14px;color:#374151;"><strong>Refunded this time:</strong> ${escapeHtml(currency)} ${amount.toFixed(2)}</p>`;
@@ -1094,7 +1107,7 @@ const handler = async (req: Request): Promise<Response> => {
     } else if (kind === 'checkout_payment_reversed') {
       // Phase 1719: orphan / duplicate capture reverse while booking stays paid/active.
       headline = 'A checkout payment was reversed';
-      intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">Stripe reversed an extra or invalid checkout payment for <strong>${escapeHtml(title)}</strong>. Your booking status in My bookings is unchanged unless noted below.</p>`;
+      intro = `<p style="margin:0 0 8px;">${escapeHtml(greeting)}</p><p style="margin:0;">Traverion reversed an extra or invalid checkout payment for <strong>${escapeHtml(title)}</strong>. Your booking status in My bookings is unchanged unless noted below.</p>`;
       if (diffs.length) extraHtml = fieldDiffTableHtml(diffs);
       if (typeof amount === 'number') {
         extraHtml += `<p style="margin:12px 0 0;font-size:14px;color:#374151;"><strong>Amount reversed:</strong> ${escapeHtml(currency)} ${amount.toFixed(2)}</p>`;

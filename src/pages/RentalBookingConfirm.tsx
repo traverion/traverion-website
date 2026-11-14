@@ -425,7 +425,7 @@ export default function RentalBookingConfirm({ listing, rental, initial, onBackT
           timing.mark('redirect');
           window.location.assign(res.checkoutUrl);
         } catch {
-          setPayError('Could not open Stripe Checkout. Try again — you were not charged.');
+          setPayError('Could not open checkout. Try again — you were not charged.');
           setPaying(false);
           checkoutLockRef.current = false;
         }

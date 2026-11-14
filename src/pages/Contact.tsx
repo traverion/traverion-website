@@ -25,7 +25,7 @@ type ContactTopic = 'booking' | 'trip' | 'payment' | 'partner' | 'general';
 const TOPICS: { id: ContactTopic; label: string; hint: string }[] = [
   { id: 'booking', label: 'Booking help', hint: 'Before you pay or while choosing dates' },
   { id: 'trip', label: 'My trip', hint: 'Confirmed booking, dates, pickup' },
-  { id: 'payment', label: 'Payment', hint: 'Stripe charge, receipt, refund status' },
+  { id: 'payment', label: 'Payment', hint: 'Payment, receipt, or refund status' },
   { id: 'partner', label: 'Partner / supplier', hint: 'Listing, payouts, portal access' },
   { id: 'general', label: 'Something else', hint: 'General questions about Traverion' },
 ];

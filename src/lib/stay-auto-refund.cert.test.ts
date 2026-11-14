@@ -77,8 +77,9 @@ describe('Step 2.3 stay auto-refund', () => {
     expect(isRefundProcessingBooking({ ...base, auto_refund_status: 'processing' })).toBe(true);
     expect(isRefundDelayedBooking({ ...base, auto_refund_status: 'failed' })).toBe(true);
     expect(isRefundDueBooking({ ...base, auto_refund_status: 'queued' })).toBe(true);
-    expect(REFUND_PROCESSING_COPY.toLowerCase()).toContain('stripe');
-    expect(REFUND_DELAYED_COPY.toLowerCase()).toContain('retry');
+    expect(REFUND_PROCESSING_COPY.toLowerCase()).toContain('being processed by traverion');
+    expect(REFUND_PROCESSING_COPY.toLowerCase()).not.toContain('stripe');
+    expect(REFUND_DELAYED_COPY.toLowerCase()).toContain('traverion support');
   });
 
   it('non-refundable cancel stays No refund', () => {

@@ -20,7 +20,7 @@ describe('Phase 1740: partial refund on cancelled Refund due', () => {
       'utf8'
     );
     expect(customer).toContain('cancelledRefundDuePartial');
-    expect(customer).toContain('Refund due for any remaining charge');
+    expect(customer).toContain('still due for this cancelled booking');
 
     const supplier = readFileSync(
       resolve(__dirname, '../../supabase/functions/notify-supplier-event/index.ts'),

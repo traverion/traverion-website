@@ -108,7 +108,7 @@ export default function CartPage({ onNavigate }: Props) {
           <p className="mb-1.5 text-[12px] font-semibold tracking-wide text-finland">Your travel</p>
           <h1 className="text-[1.75rem] font-semibold tracking-tight text-ink sm:text-[2rem]">Cart</h1>
           <p className="mt-2 max-w-2xl text-sm leading-relaxed text-ink-muted">
-            Open Instant Book checkouts stay here while the Stripe session is live. Nights are not reserved until payment succeeds.
+            Open Instant Book checkouts stay here while checkout is open. Nights are not reserved until payment succeeds.
           </p>
         </header>
 

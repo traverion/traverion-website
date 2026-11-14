@@ -157,10 +157,6 @@ export async function buildReceiptPdfBytes(input: ReceiptPdfInput): Promise<Uint
       /* ignore */
     }
   }
-  if (input.paymentIntentId) {
-    kv('Payment reference', clip(input.paymentIntentId, 54));
-  }
-
   ruleLine(16);
 
   const seller = (input.sellerLine ?? '').trim();

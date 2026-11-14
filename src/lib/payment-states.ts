@@ -4,6 +4,7 @@
  */
 
 import { unpaidCheckoutSessionIsLive } from './booking-hold';
+import { formatMoney } from './money';
 
 export const BOOKING_PAYMENT_STATES = [
   'pending',
@@ -127,13 +128,13 @@ export function partnerCollectedAmountCaption(b: MoneyBookingRow): string {
   return 'Paid';
 }
 
-/** Traveler/partner copy when a refund is owed (tour/stay auto-refund path). */
+/** Traveler/partner copy when a refund is owed and has not been started. */
 export const REFUND_DUE_MANUAL_COPY =
-  'A refund is due. For eligible tour and stay cancellations, Traverion queues an automatic Stripe refund. This status clears when Stripe confirms the refund.';
+  'A refund is due for this cancelled booking. Traverion has not started it yet.';
 
-/** Rental refunds are never auto-issued — keep partner/traveler copy honest. */
+/** Rental refunds are never auto-issued — keep the obligation visible without calling it started. */
 export const REFUND_DUE_RENTAL_COPY =
-  'A refund may be owed under the rental cancellation terms. Traverion does not issue automatic rental refunds — any refund must be processed manually. This status clears when Stripe confirms the refund.';
+  'A refund is due for this cancelled booking. Traverion has not started it yet.';
 
 export function refundDueManualCopy(family?: string | null): string {
   return (family ?? '').trim().toLowerCase() === 'rental'
@@ -141,11 +142,67 @@ export function refundDueManualCopy(family?: string | null): string {
     : REFUND_DUE_MANUAL_COPY;
 }
 
-export const REFUND_PROCESSING_COPY =
-  'Your refund was submitted to Stripe. Bank timing depends on your card issuer — My bookings will show Refunded when Stripe confirms it.';
+export const REFUND_PROCESSING_COPY = 'Your refund is being processed by Traverion.';
 
 export const REFUND_DELAYED_COPY =
-  'We could not finish submitting this refund to Stripe. Traverion will keep the refund obligation visible until it succeeds. You can retry from this trip, or contact support if it stays delayed.';
+  "We couldn't complete your refund automatically. Traverion Support will help resolve this.";
+
+export type CustomerRefundPhase = 'due' | 'pending' | 'completed' | 'attention' | 'none';
+
+/** Maps the authoritative payment label. Pending is only a started refund. Completed is only a confirmed refund. */
+export function customerRefundPhase(b: MoneyBookingRowWithAutoRefund): CustomerRefundPhase {
+  const label = travelerPaymentLabel(b);
+  if (label === 'Refunded') return 'completed';
+  if (label === 'Refund processing') return 'pending';
+  if (label === 'Refund delayed') return 'attention';
+  if (label === 'Refund due') return 'due';
+  return 'none';
+}
+
+export function customerRefundStatusTitle(phase: CustomerRefundPhase): string | null {
+  if (phase === 'due') return 'Refund due';
+  if (phase === 'pending') return 'Refund pending';
+  if (phase === 'completed') return 'Refund completed';
+  if (phase === 'attention') return 'Refund needs attention';
+  return null;
+}
+
+export function customerPaymentStatusLabel(label: string): string {
+  if (label === 'Refund processing') return 'Refund pending';
+  if (label === 'Refund delayed') return 'Refund needs attention';
+  if (label === 'Refunded') return 'Refund completed';
+  return label;
+}
+
+export function customerRefundAmountLabel(b: MoneyBookingRow): string | null {
+  const amount = Number(b.amount_paid ?? 0);
+  if (!Number.isFinite(amount) || amount <= 0) return null;
+  return formatMoney(amount, b.currency);
+}
+
+export function customerRefundExplanation(b: MoneyBookingRowWithAutoRefund): string | null {
+  const phase = customerRefundPhase(b);
+  const amount = customerRefundAmountLabel(b);
+  if (phase === 'due') {
+    return amount
+      ? `A refund of ${amount} is due for this cancelled booking.`
+      : 'A refund is due for this cancelled booking.';
+  }
+  if (phase === 'pending') {
+    return amount
+      ? `Your refund of ${amount} is being processed by Traverion.`
+      : 'Your refund is being processed by Traverion.';
+  }
+  if (phase === 'completed') {
+    return amount
+      ? `Your refund of ${amount} has been processed. It may take additional time to appear in your account, depending on your payment method.`
+      : 'Your refund has been processed. It may take additional time to appear in your account, depending on your payment method.';
+  }
+  if (phase === 'attention') {
+    return REFUND_DELAYED_COPY;
+  }
+  return null;
+}
 
 /** Cancelled + still paid with refund entitlement (includes processing / delayed). */
 export function isRefundDueBooking(b: MoneyBookingRowWithAutoRefund): boolean {

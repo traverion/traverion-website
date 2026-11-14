@@ -9,10 +9,10 @@ import {
   isPaidPaymentStatus,
   normalizePaymentStatus,
   travelerPaymentLabel,
-  refundDueManualCopy,
+  customerPaymentStatusLabel,
+  customerRefundExplanation,
   type MoneyBookingRow,
 } from './payment-states';
-import { bookingIsRental, bookingIsStayNight } from './pickup-completeness';
 
 export const BOOKING_CONFIRMATION_EMAIL_DISCLAIMER =
   'My bookings is your confirmation. If an email arrives, keep it for your records — Traverion does not treat email delivery as booking proof.';
@@ -76,17 +76,12 @@ export function confirmationLoadErrorShouldSurface(hasBookingRow: boolean): bool
 export const BOOKING_CONFIRMATION_NEEDS_PAY_TITLE = 'Payment not completed';
 
 export const BOOKING_CONFIRMATION_NEEDS_PAY_BODY =
-  'Checkout expired or did not finish. You were not charged for a completed booking. Use Pay now to open a new Stripe checkout, or manage the hold from My bookings.';
+  'Checkout expired or did not finish. You were not charged for a completed booking. Use Pay now to open checkout again, or manage the booking from My bookings.';
 
 export function bookingConfirmationCancelledBody(b: MoneyBookingRow): string {
+  const explanation = customerRefundExplanation(b);
+  if (explanation) return `This booking is cancelled. ${explanation}`;
   const pay = travelerPaymentLabel(b);
-  if (pay === 'Refund due') {
-    const family = bookingIsRental(b) ? 'rental' : bookingIsStayNight(b) ? 'stay' : 'tour';
-    return `This booking is cancelled. Status: Refund due. ${refundDueManualCopy(family)}`;
-  }
-  if (pay === 'Refunded') {
-    return 'This booking is cancelled and marked Refunded in Stripe.';
-  }
   if (pay === 'No refund') {
     return 'This booking is cancelled. No refund applies for this cancellation.';
   }
@@ -96,11 +91,8 @@ export function bookingConfirmationCancelledBody(b: MoneyBookingRow): string {
 /** Post-checkout “What happens next” for cancelled bookings — must match payment label, not always Refund due. */
 export function bookingConfirmationCancelledNextStep(b: MoneyBookingRow): string {
   const pay = travelerPaymentLabel(b);
-  if (pay === 'Refund due') {
-    return 'Manage this booking from My bookings — Cancelled shows Refund due until Stripe records a refund.';
-  }
-  if (pay === 'Refunded') {
-    return 'Manage this booking from My bookings — Cancelled shows Refunded.';
+  if (pay === 'Refund due' || pay === 'Refund processing' || pay === 'Refund delayed' || pay === 'Refunded') {
+    return `Manage this booking from My bookings. Refund status: ${customerPaymentStatusLabel(pay)}.`;
   }
   if (pay === 'No refund') {
     return 'Manage this booking from My bookings — no refund applies for this cancellation.';
@@ -150,9 +142,9 @@ export const BOOKING_CONTACT_EMAIL_FIELD_NOTE =
 /** Checkout pay step: confirmation is My bookings / Booking confirmed; email may arrive but is not proof. */
 export function bookingPayConfirmAfterPayCopy(holdMinutes: number): string {
   return (
-    `After Stripe confirms payment, Traverion shows Booking confirmed with your reference. Manage the booking from My bookings. ` +
+    `After Traverion confirms payment, your booking shows as confirmed with your reference. Manage it from My bookings. ` +
     `${BOOKING_CONFIRMATION_EMAIL_DISCLAIMER} ` +
-    `Inventory is reserved only after payment succeeds. If you leave Stripe without paying, the checkout window closes after ${holdMinutes} minutes and nothing is charged.`
+    `Inventory is reserved only after payment succeeds. If you leave checkout without paying, the checkout window closes after ${holdMinutes} minutes and nothing is charged.`
   );
 }
 
@@ -248,7 +240,7 @@ export const TRAVELER_PAY_NOW_TEST_CTA = 'Pay now · test mode';
 
 /** Traveler My bookings — Pay now after the unpaid Stripe checkout window closed. */
 export const TRAVELER_HOLD_EXPIRED_PAY_NOW_NOTE =
-  'Your Stripe checkout session ended before payment. Inventory was never reserved. Pay now opens a new checkout if the selection is still available.';
+  'Checkout ended before payment. Inventory was never reserved. Pay now opens a new checkout if the selection is still available.';
 
 /** Tour / stay sticky + booking card — continue into checkout (Stripe TEST disclosed beside CTA). */
 export const TRAVELER_CONTINUE_TEST_CTA = 'Continue to checkout';
@@ -265,7 +257,7 @@ export const TRAVELER_SELF_CANCEL_CONTACT_OPERATOR_NOTE =
 
 /** Traveler My bookings — success after self-cancel with refund due. */
 export const TRAVELER_SELF_CANCEL_SUCCESS_REFUND_DUE =
-  'Booking cancelled. A refund is due — for stays Traverion submits it to Stripe automatically. Open Cancelled to follow status until Stripe confirms Refunded.';
+  'Your booking has been cancelled. A refund is due.';
 
 /** Traveler My bookings — success after self-cancel with no refund (unpaid / legacy). */
 export const TRAVELER_SELF_CANCEL_SUCCESS_NO_REFUND =
@@ -307,7 +299,7 @@ export const SUPPLIER_BOOKING_CANCELLED_UNPAID_NOTIFY_SUB =
 
 /** Traveler My bookings — success after accepting host cancel request. */
 export const TRAVELER_ACCEPT_CANCEL_SUCCESS =
-  'You accepted the cancellation. A full refund is due — for stays Traverion submits it to Stripe automatically. Open Cancelled to follow status until Stripe confirms Refunded.';
+  'You accepted the cancellation. Your booking has been cancelled. A refund is due.';
 
 /** Traveler My bookings — success after declining host cancel request. */
 export const TRAVELER_DECLINE_CANCEL_SUCCESS =
@@ -351,11 +343,11 @@ export const TRAVELER_SELF_CANCEL_DELIVERY_NOTE =
  * Do not say “you should receive a full refund” as if Stripe already moved money.
  */
 export const TRAVELER_SELF_CANCEL_FULL_REFUND_POLICY =
-  'A full refund is due under the cancellation window. After you confirm, Traverion submits the refund to Stripe. My bookings shows Refunded when Stripe confirms it — bank timing varies.';
+  'A refund is due under the cancellation window. After you confirm, Traverion can start it. My bookings shows Refund pending only after it starts, and Refund completed only after Traverion confirms it.';
 
 /** Email / notify fieldDiff after traveler self-cancel with a refund due. */
 export const TRAVELER_SELF_CANCEL_EMAIL_DIFF_FULL_REFUND =
-  'Cancelled — full refund due until Stripe records it (not automatic)';
+  'Cancelled — a refund is due';
 
 /** Email / notify fieldDiff after traveler self-cancel with no refund. */
 export const TRAVELER_SELF_CANCEL_EMAIL_DIFF_NO_REFUND =
@@ -366,7 +358,7 @@ export const TRAVELER_SELF_CANCEL_EMAIL_DIFF_NO_REFUND =
  * Do not promise an automatic payout as if money already moved.
  */
 export const TRAVELER_ACCEPT_HOST_CANCEL_REFUND_POLICY =
-  'If you accept, this booking is cancelled and a full refund is due. Traverion submits the stay refund to Stripe after you accept. Status becomes Refunded only after Stripe confirms it, and the booking does not cancel if you do nothing';
+  'If you accept, this booking is cancelled and a refund is due. Traverion starts the refund after you accept. Refund completed appears only after Traverion confirms it, and the booking does not cancel if you do nothing';
 
 /** System thread after traveler accepts host cancel — Refund due honesty. */
 export const TRAVELER_ACCEPT_CANCEL_SYSTEM_MESSAGE =
@@ -375,6 +367,15 @@ export const TRAVELER_ACCEPT_CANCEL_SYSTEM_MESSAGE =
 /** System thread after traveler self-cancel with refund due — keep in sync with cancel_booking_as_traveler. */
 export const TRAVELER_SELF_CANCEL_SYSTEM_MESSAGE_FULL_REFUND =
   'Traveler cancelled this booking. A refund has been queued with Stripe. Status updates when Stripe confirms the refund.';
+
+/** Traveler thread display. Stored cancellation messages stay unchanged. */
+export function presentTravelerSystemMessage(body: string): string {
+  return body
+    .split('A full refund has been queued with Stripe. Status updates when Stripe confirms the refund.')
+    .join('A refund is being processed by Traverion.')
+    .split('A refund has been queued with Stripe. Status updates when Stripe confirms the refund.')
+    .join('A refund is being processed by Traverion.');
+}
 
 /** System thread after traveler self-cancel with no refund — keep in sync with cancel_booking_as_traveler. */
 export const TRAVELER_SELF_CANCEL_SYSTEM_MESSAGE_NO_REFUND =

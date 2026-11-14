@@ -38,6 +38,7 @@ import {
   TRAVELER_SELF_CANCEL_EMAIL_DIFF_NO_REFUND,
   TRAVELER_ACCEPT_CANCEL_SYSTEM_MESSAGE,
   TRAVELER_SELF_CANCEL_SYSTEM_MESSAGE_FULL_REFUND,
+  presentTravelerSystemMessage,
   TRAVELER_SELF_CANCEL_SYSTEM_MESSAGE_NO_REFUND,
   SUPPLIER_BOOKING_CANCELLED_NOTIFY_SUB,
   SUPPLIER_BOOKING_CANCELLED_FULL_REFUND_NOTIFY_SUB,
@@ -298,7 +299,8 @@ describe('booking confirmation copy', () => {
     expect(TRAVELER_PAY_NOW_TEST_CTA).toBe('Pay now · test mode');
     expect(TRAVELER_CONTINUE_TEST_CTA).toBe('Continue to checkout');
     expect(TRAVELER_SELF_CANCEL_SUCCESS_REFUND_DUE.toLowerCase()).toContain('refund is due');
-    expect(TRAVELER_SELF_CANCEL_SUCCESS_REFUND_DUE.toLowerCase()).toContain('stripe');
+    expect(TRAVELER_SELF_CANCEL_SUCCESS_REFUND_DUE.toLowerCase()).not.toContain('stripe');
+    expect(TRAVELER_SELF_CANCEL_SUCCESS_REFUND_DUE.toLowerCase()).not.toContain('being processed');
     expect(TRAVELER_SELF_CANCEL_SUCCESS_REFUND_DUE.toLowerCase()).toContain('cancelled');
     expect(TRAVELER_SELF_CANCEL_SUCCESS_REFUND_DUE.toLowerCase()).not.toContain('you should receive');
     expect(bookingConfirmationPromisesEmailSent(TRAVELER_SELF_CANCEL_SUCCESS_REFUND_DUE)).toBe(false);
@@ -311,8 +313,9 @@ describe('booking confirmation copy', () => {
     expect(TRAVELER_CANCEL_UNPAID_CHECKOUT_SUCCESS.toLowerCase()).toContain('no payment was collected');
     expect(TRAVELER_CANCEL_UNPAID_CHECKOUT_SUCCESS.toLowerCase()).not.toContain('refund due');
     expect(bookingConfirmationPromisesEmailSent(TRAVELER_CANCEL_UNPAID_CHECKOUT_SUCCESS)).toBe(false);
-    expect(TRAVELER_ACCEPT_CANCEL_SUCCESS.toLowerCase()).toContain('full refund is due');
-    expect(TRAVELER_ACCEPT_CANCEL_SUCCESS.toLowerCase()).toContain('stripe');
+    expect(TRAVELER_ACCEPT_CANCEL_SUCCESS.toLowerCase()).toContain('a refund is due');
+    expect(TRAVELER_ACCEPT_CANCEL_SUCCESS.toLowerCase()).not.toContain('stripe');
+    expect(TRAVELER_ACCEPT_CANCEL_SUCCESS.toLowerCase()).not.toContain('being processed');
     expect(TRAVELER_ACCEPT_CANCEL_SUCCESS.toLowerCase()).not.toContain('you should receive');
     expect(bookingConfirmationPromisesEmailSent(TRAVELER_ACCEPT_CANCEL_SUCCESS)).toBe(false);
     expect(TRAVELER_DECLINE_CANCEL_SUCCESS.toLowerCase()).toContain('stays active');
@@ -321,15 +324,18 @@ describe('booking confirmation copy', () => {
 
   it('traveler cancel refund copy does not promise money already moved', () => {
     expect(TRAVELER_SELF_CANCEL_FULL_REFUND_POLICY.toLowerCase()).toContain('refund is due');
-    expect(TRAVELER_SELF_CANCEL_FULL_REFUND_POLICY.toLowerCase()).toContain('stripe confirms');
-    expect(TRAVELER_SELF_CANCEL_FULL_REFUND_POLICY.toLowerCase()).toContain('bank timing');
+    expect(TRAVELER_SELF_CANCEL_FULL_REFUND_POLICY.toLowerCase()).toContain('refund pending');
+    expect(TRAVELER_SELF_CANCEL_FULL_REFUND_POLICY.toLowerCase()).toContain('refund completed');
+    expect(TRAVELER_SELF_CANCEL_FULL_REFUND_POLICY.toLowerCase()).not.toContain('stripe');
     expect(TRAVELER_SELF_CANCEL_FULL_REFUND_POLICY.toLowerCase()).not.toContain('you should receive');
-    expect(TRAVELER_ACCEPT_HOST_CANCEL_REFUND_POLICY.toLowerCase()).toContain('full refund is due');
-    expect(TRAVELER_ACCEPT_HOST_CANCEL_REFUND_POLICY.toLowerCase()).toContain('stripe confirms');
+    expect(TRAVELER_ACCEPT_HOST_CANCEL_REFUND_POLICY.toLowerCase()).toContain('a refund is due');
+    expect(TRAVELER_ACCEPT_HOST_CANCEL_REFUND_POLICY.toLowerCase()).toContain('refund completed');
+    expect(TRAVELER_ACCEPT_HOST_CANCEL_REFUND_POLICY.toLowerCase()).not.toContain('stripe');
     expect(TRAVELER_ACCEPT_HOST_CANCEL_REFUND_POLICY.toLowerCase()).not.toContain('full refund is expected');
     expect(bookingConfirmationPromisesEmailSent(TRAVELER_SELF_CANCEL_FULL_REFUND_POLICY)).toBe(false);
     expect(bookingConfirmationPromisesEmailSent(TRAVELER_ACCEPT_HOST_CANCEL_REFUND_POLICY)).toBe(false);
-    expect(TRAVELER_SELF_CANCEL_EMAIL_DIFF_FULL_REFUND.toLowerCase()).toContain('refund due until stripe');
+    expect(TRAVELER_SELF_CANCEL_EMAIL_DIFF_FULL_REFUND.toLowerCase()).toContain('a refund is due');
+    expect(TRAVELER_SELF_CANCEL_EMAIL_DIFF_FULL_REFUND.toLowerCase()).not.toContain('stripe');
     expect(TRAVELER_SELF_CANCEL_EMAIL_DIFF_FULL_REFUND.toLowerCase()).not.toContain('per policy where applicable');
     expect(TRAVELER_SELF_CANCEL_EMAIL_DIFF_NO_REFUND.toLowerCase()).toContain('no refund');
     expect(bookingConfirmationPromisesEmailSent(TRAVELER_SELF_CANCEL_EMAIL_DIFF_FULL_REFUND)).toBe(false);
@@ -362,6 +368,12 @@ describe('booking confirmation copy', () => {
     // Keep SQL cancel_booking_as_traveler bodies in sync with these constants.
     expect(TRAVELER_SELF_CANCEL_SYSTEM_MESSAGE_FULL_REFUND).toContain(
       'A refund has been queued with Stripe'
+    );
+    expect(presentTravelerSystemMessage(TRAVELER_SELF_CANCEL_SYSTEM_MESSAGE_FULL_REFUND).toLowerCase()).toContain(
+      'being processed by traverion'
+    );
+    expect(presentTravelerSystemMessage(TRAVELER_SELF_CANCEL_SYSTEM_MESSAGE_FULL_REFUND).toLowerCase()).not.toContain(
+      'stripe'
     );
     expect(SUPPLIER_BOOKING_CANCELLED_NOTIFY_SUB.toLowerCase()).toContain('traveler cancelled');
     expect(SUPPLIER_BOOKING_CANCELLED_NOTIFY_SUB.toLowerCase()).toContain('refund');
@@ -658,7 +670,9 @@ describe('booking confirmation copy', () => {
       payment_status: 'paid',
       amount_paid: 189,
     });
-    expect(due.toLowerCase()).toContain('refund due');
+    expect(due.toLowerCase()).toContain('a refund of');
+    expect(due.toLowerCase()).toContain('is due');
+    expect(due.toLowerCase()).not.toContain('stripe');
     expect(bookingConfirmationPromisesEmailSent(due)).toBe(false);
 
     const dueNext = bookingConfirmationCancelledNextStep({
@@ -666,7 +680,7 @@ describe('booking confirmation copy', () => {
       payment_status: 'paid',
       amount_paid: 189,
     });
-    expect(dueNext.toLowerCase()).toContain('refund due');
+    expect(dueNext.toLowerCase()).toContain('refund status: refund due');
 
     const noRefundNext = bookingConfirmationCancelledNextStep({
       status: 'cancelled',

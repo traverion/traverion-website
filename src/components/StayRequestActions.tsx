@@ -114,7 +114,7 @@ export default function StayRequestActions({
       ) : null}
       {capturing ? (
         <p className="mt-2 text-xs leading-relaxed text-ink-muted">
-          Payment capture is in progress. Confirmation appears only after Stripe verifies the capture.
+          Payment capture is in progress. Confirmation appears only after Traverion verifies the payment.
         </p>
       ) : null}
       {awaiting && role === 'supplier' && stayRequestCanAccept(booking) ? (

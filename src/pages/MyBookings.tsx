@@ -41,11 +41,13 @@ import {
 import { formatMoney } from '../lib/money';
 import {
   travelerPaymentLabel,
-  refundDueManualCopy,
-  REFUND_PROCESSING_COPY,
   REFUND_DELAYED_COPY,
   bookingPaymentWasCollected,
-  isRefundDueBooking,
+  customerPaymentStatusLabel,
+  customerRefundAmountLabel,
+  customerRefundExplanation,
+  customerRefundPhase,
+  customerRefundStatusTitle,
 } from '../lib/payment-states';
 import { formatBookingParticipantsLabel } from '../lib/participant-mix';
 import { formatBookingDateDisplay } from '../lib/booking-flow';
@@ -430,21 +432,27 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
       // Phase 1726: toast follows server refund_choice (SQL may coerce near cutoff).
       const serverChoice = res.refundChoice ?? refundChoice;
       const serverUnpaid = res.unpaidCheckout ?? unpaid;
+      const refundAmount = customerRefundAmountLabel(b);
+      const dueBody = refundAmount
+        ? `Your booking has been cancelled. A refund of ${refundAmount} is due.`
+        : TRAVELER_SELF_CANCEL_SUCCESS_REFUND_DUE;
+      const pendingBody = refundAmount
+        ? `Your booking has been cancelled. Your refund of ${refundAmount} is being processed by Traverion.`
+        : 'Your booking has been cancelled. Your refund is being processed by Traverion.';
       let baseBody = serverUnpaid
         ? TRAVELER_CANCEL_UNPAID_CHECKOUT_SUCCESS
         : serverChoice === 'full_refund'
-          ? TRAVELER_SELF_CANCEL_SUCCESS_REFUND_DUE
+          ? dueBody
           : TRAVELER_SELF_CANCEL_SUCCESS_NO_REFUND;
       if (!serverUnpaid && serverChoice === 'full_refund' && res.refundExecution?.success) {
-        baseBody =
-          'Booking cancelled. Your refund was submitted to Stripe. My bookings will show Refunded when Stripe confirms it — bank timing varies.';
+        baseBody = pendingBody;
       } else if (
         !serverUnpaid &&
         serverChoice === 'full_refund' &&
         res.refundExecution &&
         !res.refundExecution.success
       ) {
-        baseBody = `${TRAVELER_SELF_CANCEL_SUCCESS_REFUND_DUE} ${REFUND_DELAYED_COPY}`;
+        baseBody = `${dueBody} ${REFUND_DELAYED_COPY}`;
       }
       // Phase 1859: cancel is authoritative; append soft notify warning when present.
       setActionSuccess({
@@ -642,7 +650,6 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
     [bookings]
   );
 
-  const refundDueCount = useMemo(() => bookings.filter(isRefundDueBooking).length, [bookings]);
   const tripViewBookings = useMemo(() => {
     const rows = bookings.filter((b) => bookingMatchesTripView(b, tripView));
     if (tripView === 'cancelled') return sortTravelerCancelledTrips(rows);
@@ -844,7 +851,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
               {loading
                 ? 'Updating your bookings…'
                 : pendingPayBookings.length > 0
-                  ? 'Stripe reported success. If a booking still shows Pay now, wait a moment and refresh — confirmation can lag the redirect.'
+                  ? 'Traverion received the payment. If a booking still shows Pay now, wait a moment and refresh — confirmation can lag the return from checkout.'
                   : `Your booking is confirmed. Open this page anytime for details. ${BOOKING_CONFIRMED_UI_FOLLOWUP_NOTE} ${BOOKING_CONFIRMATION_EMAIL_DISCLAIMER}`}
             </p>
             <div className="mt-4 flex flex-wrap gap-2">
@@ -984,7 +991,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                     ? 'Nothing is scheduled yet. Book a tour or stay to see it here.'
                     : tripView === 'past'
                       ? 'You have no completed trips in this list yet. That is normal until a booked date has passed.'
-                      : 'You have no cancelled or refunded bookings. Bookings that still show Refund due appear here until Stripe records a refund.'
+                      : 'You have no cancelled bookings. A cancelled booking stays here with its refund status.'
                 }
                 action={
                   tripView === 'upcoming' ? (
@@ -1007,12 +1014,6 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
               )
             ) : (
           <div className="space-y-4">
-            {tripView === 'cancelled' && refundDueCount > 0 ? (
-              <NoticeCallout title="Refunds in progress" tone="warn">
-                {refundDueCount} trip{refundDueCount === 1 ? '' : 's'} still need a completed Stripe refund.
-                Open a trip for status details.
-              </NoticeCallout>
-            ) : null}
           <div className="space-y-3">
             {visibleBookings.map((b) => {
               const open = openTripId === b.id;
@@ -1256,7 +1257,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                         {openCancel ? <StatusChip tone="warn">Host cancellation</StatusChip> : null}
                         <StatusChip tone={toneForPaymentLabel(lifecycle)}>{lifecycle}</StatusChip>
                         {payLabel !== lifecycle ? (
-                          <StatusChip tone={toneForPaymentLabel(payLabel)}>{payLabel}</StatusChip>
+                          <StatusChip tone={toneForPaymentLabel(payLabel)}>{customerPaymentStatusLabel(payLabel)}</StatusChip>
                         ) : null}
                         {tripView === 'upcoming' && pickupMissing ? (
                           <StatusChip tone="warn">Pickup needed</StatusChip>
@@ -1845,43 +1846,50 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                       </p>
                     </NoticeCallout>
                   ) : null}
-                  {tripDetailTab === 'overview' && b.status === 'cancelled' && payLabel === 'Refund processing' ? (
-                    <NoticeCallout title="Refund processing" tone="info">
-                      {REFUND_PROCESSING_COPY}
-                    </NoticeCallout>
-                  ) : null}
-                  {tripDetailTab === 'overview' && b.status === 'cancelled' && payLabel === 'Refund delayed' ? (
-                    <NoticeCallout title="Refund delayed" tone="warn">
-                      <p>{REFUND_DELAYED_COPY}</p>
-                      <button
-                        type="button"
-                        className="tv-btn-secondary mt-3"
-                        disabled={cancellingId === b.id}
-                        onClick={async () => {
-                          setCancellingId(b.id);
-                          const retry = await executeBookingRefund(b.id);
-                          setCancellingId(null);
-                          if (retry.success) {
-                            setActionSuccess({
-                              title: 'Refund resubmitted',
-                              body: REFUND_PROCESSING_COPY,
-                            });
-                            load();
-                          } else {
-                            setActionError(
-                              userFacingError(retry.error, 'Could not resubmit this refund. Try again shortly.')
-                            );
-                          }
-                        }}
-                      >
-                        {cancellingId === b.id ? 'Retrying…' : 'Retry refund'}
-                      </button>
-                    </NoticeCallout>
-                  ) : null}
-                  {tripDetailTab === 'overview' && b.status === 'cancelled' && payLabel === 'Refund due' ? (
-                    <NoticeCallout title="Refund due" tone="warn">
-                      {refundDueManualCopy(bookingIsRental(b) ? 'rental' : bookingIsStayNight(b) ? 'stay' : 'tour')}
-                      {bookingIsStayNight(b) ? (
+                  {tripDetailTab === 'overview' && b.status === 'cancelled' && customerRefundPhase(b) !== 'none' ? (
+                    <section className="rounded-xl border border-black/[0.06] bg-white px-4 py-3" aria-label="Refund status">
+                      <p className="text-sm text-ink">Booking status: Cancelled</p>
+                      <p className="mt-1 text-sm font-semibold text-ink">
+                        Refund status: {customerRefundStatusTitle(customerRefundPhase(b))}
+                      </p>
+                      {customerRefundAmountLabel(b) ? (
+                        <p className="mt-1 text-sm text-ink">Refund amount: {customerRefundAmountLabel(b)}</p>
+                      ) : null}
+                      <p className="mt-2 text-sm text-ink-muted">{customerRefundExplanation(b)}</p>
+                      {customerRefundPhase(b) === 'attention' ? (
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            className="tv-btn-secondary"
+                            disabled={cancellingId === b.id}
+                            onClick={async () => {
+                              setCancellingId(b.id);
+                              const retry = await executeBookingRefund(b.id);
+                              setCancellingId(null);
+                              if (retry.success) {
+                                const amount = customerRefundAmountLabel(b);
+                                setActionSuccess({
+                                  title: 'Refund resubmitted',
+                                  body: amount
+                                    ? `Your refund of ${amount} is being processed by Traverion.`
+                                    : 'Your refund is being processed by Traverion.',
+                                });
+                                load();
+                              } else {
+                                setActionError(
+                                  userFacingError(retry.error, 'Could not resubmit this refund. Try again shortly.')
+                                );
+                              }
+                            }}
+                          >
+                            {cancellingId === b.id ? 'Retrying…' : 'Retry refund'}
+                          </button>
+                          <button type="button" className="tv-btn-ghost" onClick={() => onNavigate('contact')}>
+                            Contact Traverion Support
+                          </button>
+                        </div>
+                      ) : null}
+                      {customerRefundPhase(b) === 'due' && bookingIsStayNight(b) ? (
                         <button
                           type="button"
                           className="tv-btn-secondary mt-3"
@@ -1891,9 +1899,12 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                             const retry = await executeBookingRefund(b.id);
                             setCancellingId(null);
                             if (retry.success) {
+                              const amount = customerRefundAmountLabel(b);
                               setActionSuccess({
                                 title: 'Refund submitted',
-                                body: REFUND_PROCESSING_COPY,
+                                body: amount
+                                  ? `Your refund of ${amount} is being processed by Traverion.`
+                                  : 'Your refund is being processed by Traverion.',
                               });
                               load();
                             } else {
@@ -1906,7 +1917,7 @@ export default function MyBookings({ onNavigate, onTourSelect }: MyBookingsProps
                           {cancellingId === b.id ? 'Submitting…' : 'Submit refund'}
                         </button>
                       ) : null}
-                    </NoticeCallout>
+                    </section>
                   ) : null}
                   {b.status === 'cancelled' && guestNotes ? (
                     <p className="text-sm text-ink-muted break-words [overflow-wrap:anywhere] whitespace-pre-wrap">{guestNotes}</p>

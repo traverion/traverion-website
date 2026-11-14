@@ -90,7 +90,7 @@ export default function BookingSupportCasePanel({
           <p className="text-sm">
             {supportCaseStatusLabel(latest.status)}
             {latest.resolution_code === 'full_refund' || latest.resolution_code === 'partial_refund'
-              ? ' · Refund processing where approved — Refunded appears after Stripe confirms.'
+              ? ' · Traverion Support approved a refund. My bookings shows whether it is due, pending, or complete.'
               : null}
           </p>
           <p className="mt-1 text-sm text-ink-muted">
