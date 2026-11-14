@@ -22,9 +22,8 @@ import {
   Copy,
   Search,
   CalendarDays,
-  MoreHorizontal,
   ExternalLink,
-  Star,
+  MapPin,
   X,
 } from 'lucide-react';
 import { TourPackage } from '../../types/tour';
@@ -1632,7 +1631,6 @@ export default function SupplierListings() {
               const family = inventoryFamilyFromListing(listing);
               const isStay = family === 'stay';
               const commerce = partnerListingCommerceSummary(listing);
-              const typeLabel = commerce.typeLabel;
               const currency = listing.price?.currency ?? 'EUR';
               const money =
                 commerce.amount == null || commerce.amount <= 0
@@ -1669,11 +1667,7 @@ export default function SupplierListings() {
                   ? 'Verification required before publish.'
                   : card.draftStateLabel === 'Incomplete'
                     ? draftPublish?.subtitle ?? card.publishDisabledReason
-                    : readListingSupplierVisibility(listing)
-                      ? null
-                      : card.primaryCta === 'publish'
-                        ? 'Ready to publish'
-                        : null
+                    : null
                 : null;
               const inventoryLine =
                 commerce.optionsLine && !commerce.optionsLine.startsWith('No ')
@@ -1693,27 +1687,32 @@ export default function SupplierListings() {
               const ratingAgg = listingRatings[listing.id] ?? { rating: 0, count: 0 };
               const ratingLabel = formatListingRatingLabel(ratingAgg.rating, ratingAgg.count);
               const internalRef = (parseListingExtras(listing.listingExtras).internalReference ?? '').trim();
+              const familyBadge =
+                family === 'stay' ? 'STAY' : family === 'rental' ? 'RENTAL' : 'TOUR';
               return (
                 <article key={listing.id} className="tv-ops-listing-row min-w-0">
                   <div className="tv-ops-listing-row__grid">
-                    <div className="tv-ops-listing-row__identity flex min-w-0 items-start gap-3">
-                      <button
-                        type="button"
-                        className="tv-ops-listing-row__thumb relative shrink-0 overflow-hidden bg-black/[0.04] lux-flat"
-                        onClick={openManage}
-                        disabled={!canEditListings}
-                        aria-label={`Manage ${listing.title}`}
-                      >
-                        {heroSrc ? (
-                          <img src={heroSrc} alt="" className="h-full w-full object-cover" draggable={false} />
-                        ) : (
-                          <span className="flex h-full w-full items-center justify-center text-[11px] font-medium text-ink-faint">
-                            No photo
-                          </span>
-                        )}
-                      </button>
+                    <div className="tv-ops-listing-row__identity flex min-w-0 items-start gap-2.5">
+                      <div className="tv-ops-listing-row__media shrink-0">
+                        <button
+                          type="button"
+                          className="tv-ops-listing-row__thumb relative overflow-hidden bg-black/[0.04] lux-flat"
+                          onClick={openManage}
+                          disabled={!canEditListings}
+                          aria-label={`Manage ${listing.title}`}
+                        >
+                          {heroSrc ? (
+                            <img src={heroSrc} alt="" className="h-full w-full object-cover" draggable={false} />
+                          ) : (
+                            <span className="flex h-full w-full items-center justify-center text-[10px] font-medium text-ink-faint">
+                              No photo
+                            </span>
+                          )}
+                        </button>
+                        <span className="tv-ops-listing-row__family">{familyBadge}</span>
+                      </div>
                       <div className="tv-ops-listing-row__copy min-w-0 flex-1">
-                        <div className="tv-ops-listing-row__mobile-meta mb-1 flex flex-wrap items-center gap-1.5 lg:hidden">
+                        <div className="tv-ops-listing-row__mobile-meta mb-0.5 flex flex-wrap items-center gap-1 lg:hidden">
                           <StatusChip tone={statusTone}>{publicationLabel}</StatusChip>
                           {needsUpdate ? <StatusChip tone="warn">Needs update</StatusChip> : null}
                         </div>
@@ -1727,8 +1726,7 @@ export default function SupplierListings() {
                           <h2 className="tv-ops-listing-row__title">{listing.title}</h2>
                         </button>
                         <p className="tv-ops-listing-row__rating" aria-label={`Rating ${ratingLabel}`}>
-                          <Star className="tv-ops-listing-row__rating-icon" strokeWidth={2} aria-hidden />
-                          <span>{ratingLabel}</span>
+                          {ratingLabel}
                         </p>
                         {internalRef ? (
                           <p className="tv-ops-listing-row__ref">
@@ -1757,10 +1755,7 @@ export default function SupplierListings() {
                           </p>
                         ) : null}
                         <p className="tv-ops-listing-row__place">
-                          <span className="tv-ops-listing-row__place-type">{typeLabel}</span>
-                          <span className="tv-ops-listing-row__place-sep" aria-hidden>
-                            ·
-                          </span>
+                          <MapPin className="tv-ops-listing-row__place-icon" strokeWidth={2} aria-hidden />
                           <span className="truncate">{place || 'Destination not set'}</span>
                         </p>
                         {inventoryLine ? (
@@ -1793,13 +1788,13 @@ export default function SupplierListings() {
                                   family === 'stay' ? 'stay' : family === 'rental' ? 'rental' : 'tour',
                               });
                             }}
-                            className="tv-ops-listing-row__flash mt-1 text-[11px] font-semibold text-finland hover:underline"
+                            className="tv-ops-listing-row__flash mt-0.5 text-[11px] font-semibold text-finland hover:underline"
                           >
                             Published · Open calendar
                           </button>
                         ) : null}
                         {justDuplicatedId === listing.id ? (
-                          <span className="tv-ops-listing-row__flash mt-1 inline-block text-[11px] font-semibold text-finland">
+                          <span className="tv-ops-listing-row__flash mt-0.5 inline-block text-[11px] font-semibold text-finland">
                             Draft copy created
                           </span>
                         ) : null}
@@ -1831,7 +1826,7 @@ export default function SupplierListings() {
                         type="button"
                         disabled={!canEditListings}
                         onClick={openManage}
-                        className="tv-ops-listing-row__primary lux-flat disabled:opacity-40"
+                        className="tv-ops-listing-row__action lux-flat disabled:opacity-40"
                       >
                         {primaryLabel}
                       </button>
@@ -1840,7 +1835,7 @@ export default function SupplierListings() {
                           href={publicUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="tv-ops-listing-row__preview lux-flat inline-flex h-8 items-center gap-1 rounded-md px-2.5 text-[12.5px] font-semibold text-ink-muted ring-1 ring-black/[0.08] hover:bg-black/[0.04] hover:text-ink"
+                          className="tv-ops-listing-row__action lux-flat"
                         >
                           <ExternalLink className="h-3.5 w-3.5" strokeWidth={2} aria-hidden />
                           Preview
@@ -1848,7 +1843,7 @@ export default function SupplierListings() {
                       ) : (
                         <button
                           type="button"
-                          className="tv-ops-listing-row__preview lux-flat inline-flex h-8 items-center gap-1 rounded-md px-2.5 text-[12.5px] font-semibold text-ink-muted ring-1 ring-black/[0.08] opacity-40"
+                          className="tv-ops-listing-row__action lux-flat opacity-40"
                           disabled
                           title="No public product page for this listing type yet"
                         >
@@ -1868,9 +1863,9 @@ export default function SupplierListings() {
                         aria-label={
                           isStay ? 'Stay actions' : family === 'rental' ? 'Rental actions' : 'Tour actions'
                         }
-                        className="tv-ops-listing-row__menu lux-flat inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-ink-muted hover:bg-black/[0.05] hover:text-ink disabled:opacity-40"
+                        className="tv-ops-listing-row__action tv-ops-listing-row__action--icon lux-flat disabled:opacity-40"
                       >
-                        <MoreHorizontal className="h-4 w-4" aria-hidden />
+                        <Pencil className="h-3.5 w-3.5" strokeWidth={2} aria-hidden />
                       </button>
                     </div>
                   </div>
