@@ -1697,6 +1697,10 @@ export default function SupplierListings() {
               ) : (
                 <span className="tv-ops-listing-row__price-muted">Price not set</span>
               );
+              const validationNote =
+                needsUpdate && liveAttention ? liveAttention : detailLine ? detailLine : null;
+              const showFlash =
+                justPublishedId === listing.id || justDuplicatedId === listing.id;
               return (
                 <article key={listing.id} className="tv-ops-listing-row min-w-0">
                   <div className="tv-ops-listing-row__grid">
@@ -1718,7 +1722,6 @@ export default function SupplierListings() {
                       <div className="tv-ops-listing-row__copy min-w-0 flex-1">
                         <div className="tv-ops-listing-row__mobile-meta lg:hidden">
                           <StatusChip tone={statusTone}>{publicationLabel}</StatusChip>
-                          {needsUpdate ? <StatusChip tone="warn">Needs update</StatusChip> : null}
                         </div>
                         <button
                           type="button"
@@ -1789,82 +1792,82 @@ export default function SupplierListings() {
                           ) : null}
                           <p className="tv-ops-listing-row__price">{priceNode}</p>
                         </div>
-                        {needsUpdate && liveAttention ? (
-                          <p className="tv-ops-listing-row__detail">{liveAttention}</p>
-                        ) : null}
-                        {detailLine ? (
-                          <p className="tv-ops-listing-row__detail">{detailLine}</p>
-                        ) : null}
-                        {justPublishedId === listing.id ? (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              openSupplierCalendar(listing.id, {
-                                category:
-                                  family === 'stay' ? 'stay' : family === 'rental' ? 'rental' : 'tour',
-                              });
-                            }}
-                            className="tv-ops-listing-row__flash text-[11px] font-semibold text-finland hover:underline"
-                          >
-                            Published · Open calendar
-                          </button>
-                        ) : null}
-                        {justDuplicatedId === listing.id ? (
-                          <span className="tv-ops-listing-row__flash inline-block text-[11px] font-semibold text-finland">
-                            Draft copy created
-                          </span>
-                        ) : null}
                       </div>
                     </div>
 
-                    <div className="tv-ops-listing-row__rail">
-                      <div className="tv-ops-listing-row__status hidden lg:flex">
-                        <StatusChip tone={statusTone}>{publicationLabel}</StatusChip>
-                        {needsUpdate ? <StatusChip tone="warn">Needs update</StatusChip> : null}
-                      </div>
-                      <div className="tv-ops-listing-row__actions">
-                        {publicUrl ? (
-                          <a
-                            href={publicUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="tv-ops-listing-row__icon-btn lux-flat"
-                            aria-label={`Preview ${listing.title}`}
-                            title="Preview"
-                          >
-                            <Eye className="h-4 w-4" strokeWidth={2} aria-hidden />
-                          </a>
-                        ) : (
-                          <button
-                            type="button"
-                            className="tv-ops-listing-row__icon-btn lux-flat opacity-40"
-                            disabled
-                            title="No public product page for this listing type yet"
-                            aria-label="Preview unavailable"
-                          >
-                            <Eye className="h-4 w-4" strokeWidth={2} aria-hidden />
-                          </button>
-                        )}
+                    <div className="tv-ops-listing-row__status hidden lg:flex">
+                      <StatusChip tone={statusTone}>{publicationLabel}</StatusChip>
+                    </div>
+
+                    <div className="tv-ops-listing-row__actions">
+                      {publicUrl ? (
+                        <a
+                          href={publicUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="tv-ops-listing-row__icon-btn lux-flat"
+                          aria-label={`Preview ${listing.title}`}
+                          title="Preview"
+                        >
+                          <Eye className="h-4 w-4" strokeWidth={2} aria-hidden />
+                        </a>
+                      ) : (
                         <button
                           type="button"
-                          data-listing-gear={listing.id}
-                          onClick={() =>
-                            setListingActionsMenuId((id) => (id === listing.id ? null : listing.id))
-                          }
-                          disabled={!canEditListings}
-                          aria-expanded={listingActionsMenuId === listing.id}
-                          aria-haspopup="menu"
-                          aria-label={
-                            isStay ? 'Stay actions' : family === 'rental' ? 'Rental actions' : 'Tour actions'
-                          }
-                          title="Edit"
-                          className="tv-ops-listing-row__icon-btn lux-flat disabled:opacity-40"
+                          className="tv-ops-listing-row__icon-btn lux-flat opacity-40"
+                          disabled
+                          title="No public product page for this listing type yet"
+                          aria-label="Preview unavailable"
                         >
-                          <Pencil className="h-4 w-4" strokeWidth={2} aria-hidden />
+                          <Eye className="h-4 w-4" strokeWidth={2} aria-hidden />
                         </button>
-                      </div>
+                      )}
+                      <button
+                        type="button"
+                        data-listing-gear={listing.id}
+                        onClick={() =>
+                          setListingActionsMenuId((id) => (id === listing.id ? null : listing.id))
+                        }
+                        disabled={!canEditListings}
+                        aria-expanded={listingActionsMenuId === listing.id}
+                        aria-haspopup="menu"
+                        aria-label={
+                          isStay ? 'Stay actions' : family === 'rental' ? 'Rental actions' : 'Tour actions'
+                        }
+                        title="Edit"
+                        className="tv-ops-listing-row__icon-btn lux-flat disabled:opacity-40"
+                      >
+                        <Pencil className="h-4 w-4" strokeWidth={2} aria-hidden />
+                      </button>
                     </div>
                   </div>
+
+                  {validationNote || showFlash ? (
+                    <div className="tv-ops-listing-row__note">
+                      {validationNote ? (
+                        <p className="tv-ops-listing-row__note-text">{validationNote}</p>
+                      ) : null}
+                      {justPublishedId === listing.id ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            openSupplierCalendar(listing.id, {
+                              category:
+                                family === 'stay' ? 'stay' : family === 'rental' ? 'rental' : 'tour',
+                            });
+                          }}
+                          className="tv-ops-listing-row__flash text-[11px] font-semibold text-finland hover:underline"
+                        >
+                          Published · Open calendar
+                        </button>
+                      ) : null}
+                      {justDuplicatedId === listing.id ? (
+                        <span className="tv-ops-listing-row__flash inline-block text-[11px] font-semibold text-finland">
+                          Draft copy created
+                        </span>
+                      ) : null}
+                    </div>
+                  ) : null}
                 </article>
               );
             })}
