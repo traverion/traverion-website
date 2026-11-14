@@ -32,6 +32,8 @@ type Props = {
   bookingDate?: string | null;
   /** Fires only after mark_booking_messages_read succeeds (Phase 1500). */
   onMarkedRead?: () => void;
+  /** Fires after post_booking_message succeeds so Inbox can list the conversation. */
+  onMessageSent?: () => void;
   /** Focus the composer after the thread loads. */
   autoFocus?: boolean;
   /** Supplier Inbox fills the conversation column. Traveler Trips keeps the stacked thread. */
@@ -110,6 +112,7 @@ export default function BookingMessageThread({
   bookingNumber,
   bookingDate,
   onMarkedRead,
+  onMessageSent,
   autoFocus = false,
   layout = 'stack',
 }: Props) {
@@ -130,6 +133,8 @@ export default function BookingMessageThread({
   /** Keep load() stable — parent often passes a new onMarkedRead each render. */
   const onMarkedReadRef = useRef(onMarkedRead);
   onMarkedReadRef.current = onMarkedRead;
+  const onMessageSentRef = useRef(onMessageSent);
+  onMessageSentRef.current = onMessageSent;
   const composeBlockRef = useRef(composeBlock);
   composeBlockRef.current = composeBlock;
   const viewerRoleRef = useRef(viewerRole);
@@ -241,6 +246,7 @@ export default function BookingMessageThread({
     if (layout === 'panel') panelDrafts.delete(bookingId);
     stickToBottomRef.current = true;
     await load();
+    onMessageSentRef.current?.();
     // Phase 1859: message RPC already succeeded — soft-warn if email notify fails.
     const notify = await notifyNewBookingMessage({
       fromRole: viewerRole,

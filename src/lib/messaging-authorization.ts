@@ -61,8 +61,11 @@ export function messagingComposeBlock(row: {
   return 'unpaid';
 }
 
-/** Inbox: live paid threads always; closed collected threads only if they already have messages.
- * Request-to-Book authorized holds appear so hosts can Accept / Decline. */
+/**
+ * Inbox list: only real conversations (at least one message), plus Request-to-Book
+ * holds awaiting Accept / Decline. Paid bookings with no messages stay out of Inbox
+ * until someone sends — Message customer deep-links the composer without listing.
+ */
 export function partnerInboxListsBooking(
   row: {
     status?: string | null;
@@ -78,6 +81,5 @@ export function partnerInboxListsBooking(
     return true;
   }
   if (!bookingPaymentWasCollected(row.payment_status)) return false;
-  if (bookingAllowsMessaging(row)) return true;
   return hasMessageHistory;
 }

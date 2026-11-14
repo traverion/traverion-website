@@ -94,17 +94,21 @@ describe('messaging authorization', () => {
     ).toBe(true);
   });
 
-  it('keeps closed paid threads in Inbox only when they have message history', () => {
+  it('lists Inbox conversations only after message history (or R2B holds)', () => {
     const refunded = { status: 'confirmed', payment_status: 'refunded' };
     const paid = { status: 'confirmed', payment_status: 'paid' };
     const pending = { status: 'pending', payment_status: 'pending' };
-    expect(partnerInboxListsBooking(paid, false)).toBe(true);
+    expect(partnerInboxListsBooking(paid, false)).toBe(false);
+    expect(partnerInboxListsBooking(paid, true)).toBe(true);
     expect(partnerInboxListsBooking(refunded, false)).toBe(false);
     expect(partnerInboxListsBooking(refunded, true)).toBe(true);
     expect(partnerInboxListsBooking(pending, true)).toBe(false);
     expect(
       partnerInboxListsBooking({ status: 'cancelled', payment_status: 'paid' }, true)
     ).toBe(true);
+    expect(
+      partnerInboxListsBooking({ status: 'cancelled', payment_status: 'paid' }, false)
+    ).toBe(false);
     expect(
       partnerInboxListsBooking(
         { status: 'pending', payment_status: 'authorized', approval_status: 'pending' },

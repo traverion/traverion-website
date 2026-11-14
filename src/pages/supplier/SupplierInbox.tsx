@@ -307,12 +307,13 @@ export default function SupplierInbox() {
           {
             status: b.status,
             payment_status: b.payment_status,
+            approval_status: b.approval_status,
             openCancellation: openIds.has(b.id),
           },
           Boolean(mergedLasts[b.id])
         )
       );
-      // Keep a deep-linked paid booking visible even when it would otherwise be filtered out.
+      // Message customer / deep-link: open composer for this booking without permanently listing empties.
       if (deepLinkId && !listed.some((b) => b.id === deepLinkId)) {
         const deep = collected.find((b) => b.id === deepLinkId);
         if (deep) listed.unshift(deep);
@@ -374,7 +375,8 @@ export default function SupplierInbox() {
   useEffect(() => {
     const tick = () => {
       if (document.visibilityState !== 'visible') return;
-      if (bookingsLenRef.current === 0) return;
+      // Allow refresh while a deep-linked empty composer is open (list may otherwise be empty).
+      if (bookingsLenRef.current === 0 && !readBookingIdFromUrl()) return;
       void load();
     };
     const id = window.setInterval(tick, 20_000);
@@ -461,7 +463,13 @@ export default function SupplierInbox() {
   const visibleThreads = useMemo(() => {
     const qRaw = filterQuery.trim();
     const qLower = qRaw.toLowerCase();
-    let rows = threads;
+    // Hide empty composers once the supplier leaves them (deep-link only while open).
+    let rows = threads.filter(
+      (b) =>
+        Boolean(lastByBooking[b.id]) ||
+        isStayRequestAwaitingHost(b) ||
+        b.id === openId
+    );
     if (qLower) {
       rows = rows.filter((b) => {
         // Phase 1487: desk parity — match collapsed card labels (Bookings 1481/1484), not live renames.
@@ -496,7 +504,7 @@ export default function SupplierInbox() {
     }
     if (!unreadOnly) return rows;
     return rows.filter(isUnreadThread);
-  }, [threads, filterQuery, unreadOnly, isUnreadThread, titles, listingsById, lastByBooking]);
+  }, [threads, filterQuery, unreadOnly, isUnreadThread, titles, listingsById, lastByBooking, openId]);
 
   const openBooking = useMemo(
     () => (openId ? threads.find((b) => b.id === openId) ?? null : null),
@@ -622,6 +630,10 @@ export default function SupplierInbox() {
       bookingNumber={typeof b.booking_number === 'number' ? b.booking_number : undefined}
       bookingDate={b.booking_date}
       onMarkedRead={() => markInboxThreadRead(b.id)}
+      onMessageSent={() => {
+        void load();
+      }}
+      autoFocus
     />
   );
 
@@ -837,7 +849,7 @@ export default function SupplierInbox() {
                             >
                               {isStayRequestAwaitingHost(b)
                                 ? 'Booking request · Accept or decline'
-                                : last?.body ?? 'Start a conversation'}
+                                : last?.body ?? 'New message'}
                             </span>
                             <span className="tv-inbox-thread__meta">
                               {inboxHeaderExperienceTitle(b, titles[b.listing_id])}

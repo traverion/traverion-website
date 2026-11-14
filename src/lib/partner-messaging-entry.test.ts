@@ -14,9 +14,10 @@ describe('Partner Message guest entry points', () => {
     expect(bookings).toContain('openSupplierInbox(bookingId, { fromBookingDetail: true })');
     expect(bookings.match(/openBookingInbox\(booking\.id\)/g)?.length).toBeGreaterThanOrEqual(3);
 
-    // Deep-linked booking stays visible even without prior messages.
+    // Deep-linked booking opens the composer; empty threads are not permanently listed.
     expect(inbox).toContain('deepLinkId');
     expect(inbox).toContain('listed.unshift(deep)');
+    expect(inbox).toContain('onMessageSent');
     expect(inbox).toContain('BookingMessageThread');
     expect(inbox).toContain('composeBlock');
   });
