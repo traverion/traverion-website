@@ -13,7 +13,8 @@ describe('Inbox ↔ Booking Details navigation', () => {
     expect(bookings).toContain('partnerInboxReturnMatches');
     expect(bookings).toContain('Back to Inbox');
     expect(bookings).toContain('tour-ops-detail--skeleton');
-    expect(bookings).toContain('takePartnerBookingsDeskPrefetch');
+    expect(bookings).toContain('takePrefetchedPartnerBookingCommercial');
+    expect(bookings).toContain('openSupplierInbox');
   });
 
   it('layout applies directional main-pane enter classes', () => {

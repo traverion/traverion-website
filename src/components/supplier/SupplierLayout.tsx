@@ -782,8 +782,9 @@ export default function SupplierLayout() {
     const marked = consumePartnerPageTransition();
     let dir = marked;
     if (!dir && typeof window !== 'undefined') {
-      const desk = section === 'bookings' || section === 'reservations';
-      const wasDesk = prev === 'bookings' || prev === 'reservations';
+      const desk =
+        section === 'bookings' || section === 'reservations' || section === 'rental-bookings';
+      const wasDesk = prev === 'bookings' || prev === 'reservations' || prev === 'rental-bookings';
       if (prev === 'inbox' && desk) dir = 'forward';
       else if (wasDesk && section === 'inbox') dir = 'back';
     }

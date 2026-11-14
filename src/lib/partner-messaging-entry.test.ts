@@ -9,7 +9,7 @@ describe('Partner Message guest entry points', () => {
     const inbox = readFileSync(resolve(__dirname, '../pages/supplier/SupplierInbox.tsx'), 'utf8');
 
     expect(nav).toContain('export function openSupplierInbox');
-    expect(nav).toContain("q.set('booking', bookingId)");
+    expect(nav).toContain('partnerInboxHref');
     expect(bookings).toContain('openBookingInbox');
     expect(bookings).toContain('openSupplierInbox(bookingId, { fromBookingDetail: true })');
     expect(bookings.match(/openBookingInbox\(booking\.id\)/g)?.length).toBeGreaterThanOrEqual(3);
@@ -17,6 +17,8 @@ describe('Partner Message guest entry points', () => {
     // Deep-linked booking opens the composer; empty threads are not permanently listed.
     expect(inbox).toContain('deepLinkId');
     expect(inbox).toContain('listed.unshift(deep)');
+    expect(inbox).toContain('focusedBooking');
+    expect(inbox).toContain('readPartnerInboxBookingId');
     expect(inbox).toContain('onMessageSent');
     expect(inbox).toContain('BookingMessageThread');
     expect(inbox).toContain('composeBlock');

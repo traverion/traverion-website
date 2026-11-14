@@ -24,6 +24,7 @@ import NoticeCallout from '../../components/NoticeCallout';
 import ErrorState from '../../components/ErrorState';
 import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
 import { navigateSupplierUrl, openSupplierBooking } from '../../lib/supplierPortalNavigation';
+import { partnerInboxHref, readPartnerInboxBookingId } from '../../lib/partner-inbox-route';
 import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
 import BookingMessageThread from '../../components/BookingMessageThread';
 import { bookingPaymentWasCollected } from '../../lib/payment-states';
@@ -85,11 +86,6 @@ function inboxHeaderExperienceTitle(b: BookingRow, liveTitle: string | undefined
   return displayListingTitleFromPurchase(b.purchase_snapshot, liveTitle, 'Listing');
 }
 
-function readBookingIdFromUrl(): string | null {
-  const id = new URLSearchParams(window.location.search).get('booking');
-  return id && id.length > 0 ? id : null;
-}
-
 const PARTNER_INBOX_TABPANEL_ID = 'partner-inbox-tabpanel';
 
 function partnerInboxTabId(unreadOnly: boolean): string {
@@ -120,10 +116,12 @@ export default function SupplierInbox() {
   const openCancelIdsRef = useRef(openCancelIds);
   openCancelIdsRef.current = openCancelIds;
   const [cancelRequestsError, setCancelRequestsError] = useState<string | null>(null);
-  const [openId, setOpenId] = useState<string | null>(() => readBookingIdFromUrl());
+  const [openId, setOpenId] = useState<string | null>(() => readPartnerInboxBookingId());
+  const [focusedBooking, setFocusedBooking] = useState<BookingRow | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const loadGenRef = useRef(0);
+  const focusGenRef = useRef(0);
   const inboxHubUserIdRef = useRef<string | null>(null);
   const [olderConversationsHidden, setOlderConversationsHidden] = useState(false);
   const [messageFetchCap, setMessageFetchCap] = useState(PARTNER_INBOX_MESSAGE_FETCH_CAP);
@@ -132,6 +130,8 @@ export default function SupplierInbox() {
   const [deepLinkMissing, setDeepLinkMissing] = useState(false);
   const [unreadOnly, setUnreadOnly] = useState(() => {
     if (typeof window === 'undefined') return false;
+    // Message customer deep-links must open All + composer, not a persisted Unread filter.
+    if (readPartnerInboxBookingId()) return false;
     const fromUrl = new URLSearchParams(window.location.search).get('unread') === '1';
     if (fromUrl) return true;
     return Boolean(readPartnerInboxUiState()?.unread);
@@ -237,7 +237,7 @@ export default function SupplierInbox() {
     setError(null);
     setCancelRequestsError(null);
     try {
-      const deepLinkId = readBookingIdFromUrl();
+      const deepLinkId = readPartnerInboxBookingId();
       const cap = messageFetchCapRef.current;
       const desk =
         (cap === PARTNER_INBOX_MESSAGE_FETCH_CAP ? takePartnerBookingsDeskPrefetch(uid) : null) ??
@@ -248,14 +248,24 @@ export default function SupplierInbox() {
           bookings,
           listings,
         }));
-      const loaded = await desk;
+      // Resolve Message customer focus in parallel so header + composer do not wait on the list.
+      const focusFetch =
+        deepLinkId != null
+          ? fetchBookingsForSupplier(uid, { bookingId: deepLinkId, limit: 1 })
+          : Promise.resolve([] as BookingRow[]);
+      const [loaded, focusedRows] = await Promise.all([desk, focusFetch]);
       let rows = loaded.bookings;
-      if (deepLinkId && !rows.some((b) => b.id === deepLinkId)) {
+      if (deepLinkId && focusedRows[0] && !rows.some((b) => b.id === deepLinkId)) {
+        rows = [focusedRows[0], ...rows];
+      } else if (deepLinkId && !rows.some((b) => b.id === deepLinkId)) {
         const extra = await fetchBookingsForSupplier(uid, { bookingId: deepLinkId, limit: 1 });
         if (extra[0]) rows = [extra[0], ...rows];
       }
       const { listings } = loaded;
       if (gen !== loadGenRef.current) return;
+      if (deepLinkId && focusedRows[0]?.id === deepLinkId) {
+        setFocusedBooking(focusedRows[0]);
+      }
       const collected = rows.filter(
         (b) =>
           bookingPaymentWasCollected(b.payment_status) ||
@@ -315,12 +325,19 @@ export default function SupplierInbox() {
       );
       // Message customer / deep-link: open composer for this booking without permanently listing empties.
       if (deepLinkId && !listed.some((b) => b.id === deepLinkId)) {
-        const deep = collected.find((b) => b.id === deepLinkId);
-        if (deep) listed.unshift(deep);
+        const deep =
+          collected.find((b) => b.id === deepLinkId) ?? rows.find((b) => b.id === deepLinkId) ?? null;
+        if (deep) {
+          listed.unshift(deep);
+          setFocusedBooking(deep);
+        }
       }
       setBookings(listed);
       if (deepLinkId) {
-        const found = listed.some((b) => b.id === deepLinkId) || collected.some((b) => b.id === deepLinkId);
+        const found =
+          listed.some((b) => b.id === deepLinkId) ||
+          collected.some((b) => b.id === deepLinkId) ||
+          rows.some((b) => b.id === deepLinkId);
         setDeepLinkMissing(!found);
         if (found) setOpenId(deepLinkId);
       } else {
@@ -345,7 +362,8 @@ export default function SupplierInbox() {
       setOpenCancelIds(new Set());
       // Keep ?booking= selected across first paint / account switch so Message Guest
       // never flashes the empty "Select a conversation" pane.
-      setOpenId(preserveUrlBooking ? readBookingIdFromUrl() : null);
+      setOpenId(preserveUrlBooking ? readPartnerInboxBookingId() : null);
+      if (!preserveUrlBooking) setFocusedBooking(null);
       setDeepLinkMissing(false);
       setOlderConversationsHidden(false);
       setMessageFetchCap(PARTNER_INBOX_MESSAGE_FETCH_CAP);
@@ -376,7 +394,7 @@ export default function SupplierInbox() {
     const tick = () => {
       if (document.visibilityState !== 'visible') return;
       // Allow refresh while a deep-linked empty composer is open (list may otherwise be empty).
-      if (bookingsLenRef.current === 0 && !readBookingIdFromUrl()) return;
+      if (bookingsLenRef.current === 0 && !readPartnerInboxBookingId()) return;
       void load();
     };
     const id = window.setInterval(tick, 20_000);
@@ -392,9 +410,12 @@ export default function SupplierInbox() {
 
   useEffect(() => {
     const syncFromUrl = () => {
-      const id = readBookingIdFromUrl();
+      const id = readPartnerInboxBookingId();
       setOpenId(id);
-      if (!id) setDeepLinkMissing(false);
+      if (!id) {
+        setDeepLinkMissing(false);
+        setFocusedBooking(null);
+      }
       const params = new URLSearchParams(window.location.search);
       if (params.has('unread')) {
         setUnreadOnly(params.get('unread') === '1');
@@ -408,6 +429,36 @@ export default function SupplierInbox() {
     return () => window.removeEventListener('popstate', syncFromUrl);
   }, []);
 
+  // Bootstrap the focused booking as soon as Message customer lands on /inbox/:id.
+  useEffect(() => {
+    if (!openId || !user?.id || !isSupabase) {
+      if (!openId) setFocusedBooking(null);
+      return;
+    }
+    let cancelled = false;
+    const gen = ++focusGenRef.current;
+    void (async () => {
+      try {
+        const rows = await fetchBookingsForSupplier(user.id, { bookingId: openId, limit: 1 });
+        if (cancelled || gen !== focusGenRef.current) return;
+        if (rows[0]) {
+          setFocusedBooking(rows[0]);
+          setDeepLinkMissing(false);
+          setBookings((prev) => (prev.some((b) => b.id === openId) ? prev : [rows[0]!, ...prev]));
+        } else {
+          setFocusedBooking(null);
+          setDeepLinkMissing(true);
+        }
+      } catch {
+        if (cancelled || gen !== focusGenRef.current) return;
+        setDeepLinkMissing(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [openId, user?.id, isSupabase]);
+
   useEffect(() => {
     writePartnerInboxUiState({
       q: filterQuery,
@@ -416,13 +467,17 @@ export default function SupplierInbox() {
     });
   }, [filterQuery, unreadOnly]);
 
-  const setUnreadOnlyAndUrl = useCallback((next: boolean) => {
-    setUnreadOnly(next);
-    const url = new URL(window.location.href);
-    if (next) url.searchParams.set('unread', '1');
-    else url.searchParams.delete('unread');
-    window.history.replaceState({}, '', `${url.pathname}${url.search}`);
-  }, []);
+  const setUnreadOnlyAndUrl = useCallback(
+    (next: boolean) => {
+      setUnreadOnly(next);
+      window.history.replaceState(
+        {},
+        '',
+        partnerInboxHref({ bookingId: openId, unreadOnly: next || undefined })
+      );
+    },
+    [openId]
+  );
 
   const markInboxThreadRead = useCallback((bookingId: string) => {
     // Phase 1500: only after mark_booking_messages_read succeeds (BookingMessageThread).
@@ -435,11 +490,13 @@ export default function SupplierInbox() {
 
   const setOpenBookingId = useCallback((id: string | null) => {
     setOpenId(id);
-    const url = new URL(window.location.href);
-    if (id) url.searchParams.set('booking', id);
-    else url.searchParams.delete('booking');
-    window.history.replaceState({}, '', `${url.pathname}${url.search}`);
-    if (!id) setDeepLinkMissing(false);
+    if (!id) {
+      setFocusedBooking(null);
+      setDeepLinkMissing(false);
+    }
+    const unread =
+      new URLSearchParams(window.location.search).get('unread') === '1' ? true : undefined;
+    window.history.replaceState({}, '', partnerInboxHref({ bookingId: id, unreadOnly: unread }));
   }, []);
 
   const threads = useMemo(() => {
@@ -506,10 +563,11 @@ export default function SupplierInbox() {
     return rows.filter(isUnreadThread);
   }, [threads, filterQuery, unreadOnly, isUnreadThread, titles, listingsById, lastByBooking, openId]);
 
-  const openBooking = useMemo(
-    () => (openId ? threads.find((b) => b.id === openId) ?? null : null),
-    [openId, threads]
-  );
+  const openBooking = useMemo(() => {
+    if (!openId) return null;
+    if (focusedBooking?.id === openId) return focusedBooking;
+    return threads.find((b) => b.id === openId) ?? null;
+  }, [openId, focusedBooking, threads]);
 
   useEffect(() => {
     if (!openId || loading) return;

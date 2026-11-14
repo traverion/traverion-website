@@ -62,6 +62,6 @@ describe('Partner Inbox luxury redesign', () => {
   it('preserves URL booking selection across partner workspace clear', () => {
     const src = readFileSync(resolve(__dirname, 'SupplierInbox.tsx'), 'utf8');
     expect(src).toContain('preserveUrlBooking');
-    expect(src).toContain('setOpenId(preserveUrlBooking ? readBookingIdFromUrl() : null)');
+    expect(src).toContain('setOpenId(preserveUrlBooking ? readPartnerInboxBookingId() : null)');
   });
 });

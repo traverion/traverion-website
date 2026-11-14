@@ -3,6 +3,7 @@
  */
 
 import { partnerBookingDeskPath } from './partner-booking-desk-path';
+import { partnerInboxHref } from './partner-inbox-route';
 import { PARTNER_APP_BASE } from './partnerPortalPaths';
 import {
   clearPartnerInboxReturn,
@@ -78,12 +79,12 @@ export function openSupplierInbox(
     markPartnerPageTransition('back');
     clearPartnerInboxReturn();
   }
-  const path = `${PARTNER_APP_BASE}/inbox`;
-  const q = new URLSearchParams();
-  if (bookingId) q.set('booking', bookingId);
-  if (opts?.unreadOnly) q.set('unread', '1');
-  const qs = q.toString();
-  navigateSupplierUrl(qs ? `${path}?${qs}` : path);
+  navigateSupplierUrl(
+    partnerInboxHref({
+      bookingId: bookingId ?? null,
+      unreadOnly: opts?.unreadOnly,
+    })
+  );
 }
 
 /** Open pickup planner and optionally open a booking detail. */
