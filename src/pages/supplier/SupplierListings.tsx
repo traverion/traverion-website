@@ -1689,10 +1689,10 @@ export default function SupplierListings() {
                 family === 'stay' ? 'STAY' : family === 'rental' ? 'RENTAL' : 'TOUR';
               const priceNode = money ? (
                 <>
-                  <span className="tv-ops-listing-row__price-from">From </span>
+                  <span className="tv-ops-listing-row__price-from">From</span>
                   <span className="tv-ops-listing-row__price-emph">{money}</span>
                   {unitLabel ? (
-                    <span className="tv-ops-listing-row__price-qual"> {unitLabel}</span>
+                    <span className="tv-ops-listing-row__price-qual">{unitLabel}</span>
                   ) : null}
                 </>
               ) : (
@@ -1791,43 +1791,6 @@ export default function SupplierListings() {
                         <div className="tv-ops-listing-row__commerce-row">
                           <p className="tv-ops-listing-row__price">{priceNode}</p>
                         </div>
-                        {validationNote ? (
-                          <p className="tv-ops-listing-row__note-line" title={validationNote}>
-                            <Info
-                              className="tv-ops-listing-row__note-icon"
-                              strokeWidth={2}
-                              aria-hidden
-                            />
-                            <span className="truncate">{validationNote}</span>
-                          </p>
-                        ) : null}
-                        {showFlash ? (
-                          <div className="tv-ops-listing-row__flash-row">
-                            {justPublishedId === listing.id ? (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  openSupplierCalendar(listing.id, {
-                                    category:
-                                      family === 'stay'
-                                        ? 'stay'
-                                        : family === 'rental'
-                                          ? 'rental'
-                                          : 'tour',
-                                  });
-                                }}
-                                className="tv-ops-listing-row__flash text-[11px] font-semibold text-finland hover:underline"
-                              >
-                                Published · Open calendar
-                              </button>
-                            ) : null}
-                            {justDuplicatedId === listing.id ? (
-                              <span className="tv-ops-listing-row__flash inline-block text-[11px] font-semibold text-finland">
-                                Draft copy created
-                              </span>
-                            ) : null}
-                          </div>
-                        ) : null}
                       </div>
                     </div>
 
@@ -1879,6 +1842,35 @@ export default function SupplierListings() {
                       </button>
                     </div>
                   </div>
+                  {validationNote ? (
+                    <p className="tv-ops-listing-row__note-line" title={validationNote}>
+                      <Info className="tv-ops-listing-row__note-icon" strokeWidth={2} aria-hidden />
+                      <span className="truncate">{validationNote}</span>
+                    </p>
+                  ) : null}
+                  {showFlash ? (
+                    <div className="tv-ops-listing-row__flash-row">
+                      {justPublishedId === listing.id ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            openSupplierCalendar(listing.id, {
+                              category:
+                                family === 'stay' ? 'stay' : family === 'rental' ? 'rental' : 'tour',
+                            });
+                          }}
+                          className="tv-ops-listing-row__flash text-[11px] font-semibold text-finland hover:underline"
+                        >
+                          Published · Open calendar
+                        </button>
+                      ) : null}
+                      {justDuplicatedId === listing.id ? (
+                        <span className="tv-ops-listing-row__flash inline-block text-[11px] font-semibold text-finland">
+                          Draft copy created
+                        </span>
+                      ) : null}
+                    </div>
+                  ) : null}
                 </article>
               );
             })}
@@ -1981,7 +1973,7 @@ export default function SupplierListings() {
                   }}
                 >
                   <CalendarDays className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                  Manage availability
+                  Availability
                 </button>
                 {menuIsTour ? (
                   <button
