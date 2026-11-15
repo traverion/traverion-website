@@ -66,12 +66,12 @@ describe('P8.3 pilot isolation hardening', () => {
     expect(adminUi).not.toContain('pilotDryRun: false');
   });
 
-  it('partner settings uses hosted Account Link + humanized requirements', () => {
+  it('partner settings uses hosted Account Link fallback + humanized requirements', () => {
     expect(partnerSettings).toContain("invokeConnectSupplierOnboarding('account_link')");
-    expect(partnerSettings).toContain('Complete Stripe Setup');
-    expect(partnerSettings).toContain('humanizeConnectRequirements');
+    expect(partnerSettings).toMatch(/Start verification|Continue verification|Update verification/);
+    expect(partnerSettings).toContain('groupConnectRequirements');
     expect(partnerSettings).toContain("connect !== 'return'");
-    expect(partnerSettings).toContain('never collects identity documents');
+    expect(partnerSettings).toMatch(/does not store|never store/i);
   });
 
   it('humanizeConnectRequirements never surfaces representative PII fields', () => {
@@ -83,9 +83,10 @@ describe('P8.3 pilot isolation hardening', () => {
       'individual.verification.document',
     ]);
     expect(labels).toContain('Account representative details');
-    expect(labels).toContain('Bank account for payouts');
+    expect(labels).toContain("Representative's date of birth");
+    expect(labels).toContain('Bank account required');
     expect(labels).toContain('Identity verification');
-    expect(labels.join(' ')).not.toMatch(/first_name|last_name|dob/i);
+    expect(labels.join(' ')).not.toMatch(/first_name|last_name|dob\.(day|month|year)/i);
   });
 
   it('documents Royal Nordic pilot selection fixture', () => {

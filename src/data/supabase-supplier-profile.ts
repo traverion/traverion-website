@@ -487,6 +487,7 @@ export async function updateSupplierCompanyProfile(
     company_legal_name: string | null;
     company_registration_number: string | null;
     managing_directors: string | null;
+    contact_phone: string | null;
     business_address: string | null;
     address_street: string | null;
     address_country: string | null;
@@ -512,7 +513,13 @@ export async function updateSupplierCompanyProfile(
   if (!supabase) return { success: false, error: 'Supabase not configured' };
   // Phase 1702: team JWT → owner profile id (parity with updateSupplierPayout / Phase 1219).
   const ownerSupplierId = await resolveSupplierId(userId);
-  const { company_legal_name, display_name, ...rest } = payload;
+  const { company_legal_name, display_name, contact_phone, ...rest } = payload;
+  const normalizedContactPhone =
+    contact_phone !== undefined
+      ? contact_phone
+        ? normalizePhoneNumber(contact_phone)
+        : null
+      : undefined;
   const { data, error } = await supabase
     .from('supplier_profiles')
     .update({
@@ -521,6 +528,7 @@ export async function updateSupplierCompanyProfile(
         ? { company_legal_name: company_legal_name?.trim() || null }
         : {}),
       ...(display_name !== undefined ? { display_name: display_name?.trim() || null } : {}),
+      ...(normalizedContactPhone !== undefined ? { contact_phone: normalizedContactPhone || null } : {}),
       updated_at: new Date().toISOString(),
     })
     .eq('id', ownerSupplierId)

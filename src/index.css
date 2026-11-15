@@ -20436,11 +20436,11 @@ details:not([open]) > :not(summary) {
   min-height: 0;
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: flex-start;
   width: 100%;
-  max-width: 40rem;
+  max-width: 42rem;
   margin: 0 auto;
-  padding: 1rem 1.25rem;
+  padding: 1rem 1.25rem 1.5rem;
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -20452,6 +20452,15 @@ details:not([open]) > :not(summary) {
   max-width: 42rem;
   padding-top: 1.25rem;
   padding-bottom: 1.5rem;
+}
+
+.tv-connect-embed-frame {
+  width: 100%;
+  max-width: 42rem;
+}
+
+.tv-connect-embed {
+  max-width: 42rem;
 }
 
 .tv-verify-workspace__stage {

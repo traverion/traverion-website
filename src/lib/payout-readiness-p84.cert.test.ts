@@ -63,9 +63,9 @@ describe('P8.4 LIVE Connect verification', () => {
     expect(labels).toEqual(
       expect.arrayContaining([
         'Business type',
-        'Bank account for payouts',
+        'Bank account required',
         'Account representative details',
-        'Stripe terms acceptance',
+        'Accept Stripe terms of service',
       ])
     );
     expect(labels.join(' ')).not.toMatch(/first_name|dob\.|postal_code/i);

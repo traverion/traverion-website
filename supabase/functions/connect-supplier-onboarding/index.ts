@@ -1166,6 +1166,11 @@ serve(async (req) => {
       }
 
       try {
+        // P8.7: Express accounts with Stripe-collected requirements always require Stripe user
+        // authentication for sensitive embedded steps. `disable_stripe_user_authentication` is only
+        // valid when the platform collects requirements (Custom). Do not set it for Express —
+        // Stripe rejects or ignores it and the secure login window remains required.
+        const isCustom = ensured.accountType === 'custom';
         const sessionParams: Stripe.AccountSessionCreateParams = {
           account: accountId,
           components:
@@ -1175,6 +1180,7 @@ serve(async (req) => {
                     enabled: true,
                     features: {
                       external_account_collection: true,
+                      ...(isCustom ? { disable_stripe_user_authentication: true } : {}),
                     },
                   },
                 }
@@ -1183,6 +1189,7 @@ serve(async (req) => {
                     enabled: true,
                     features: {
                       external_account_collection: true,
+                      ...(isCustom ? { disable_stripe_user_authentication: true } : {}),
                     },
                   },
                 },

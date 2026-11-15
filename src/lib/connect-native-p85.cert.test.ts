@@ -99,8 +99,8 @@ describe('P8.5 native onboarding experience', () => {
   });
 
   it('Income settings embeds onboarding + bank management with Business Details', () => {
-    expect(settings).toContain('Business Details');
-    expect(settings).toContain('Identity verification');
+    expect(settings).toContain('Business details');
+    expect(settings).toContain('Representative verification');
     expect(settings).toContain('Bank account');
     expect(settings).toContain('Payout preferences');
     expect(settings).toContain('ConnectEmbeddedPanel');
@@ -108,7 +108,7 @@ describe('P8.5 native onboarding experience', () => {
     expect(settings).toContain('account_management');
     expect(settings).toContain('never rewrites frozen booking commissions');
     expect(settings).toContain('Continue on Stripe');
-    expect(settings).toContain('Edit in Company Settings');
+    expect(settings).toContain('Edit business details');
   });
 
   it('Express verification journey opens embedded panel instead of support wall', () => {

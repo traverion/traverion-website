@@ -6,6 +6,7 @@ import {
 } from '@stripe/react-connect-js';
 import { loadConnectAndInitialize, type StripeConnectInstance } from '@stripe/connect-js';
 import { fetchConnectAccountSessionSecret, type ConnectEmbeddedComponent } from '../../data/supabase-connect-onboarding';
+import { EXPRESS_STRIPE_AUTH_LIMITATION } from '../../lib/connect-requirement-labels';
 import { resolveStripePublishableKey } from '../../lib/stripe-payment-mode';
 import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
 
@@ -17,6 +18,8 @@ type Props = {
   onExit: () => void;
   onHostedFallback: (url: string) => void;
   onError?: (message: string) => void;
+  /** When true, show Express Stripe-auth explainer above the embedded component. */
+  expectStripeAuth?: boolean;
 };
 
 /**
@@ -24,7 +27,13 @@ type Props = {
  * Client secret is always fetched server-side; never trusts supplier-supplied account IDs.
  * Locale is fixed to English (en-GB) so browser language cannot switch the component to Finnish.
  */
-export default function ConnectEmbeddedPanel({ component, onExit, onHostedFallback, onError }: Props) {
+export default function ConnectEmbeddedPanel({
+  component,
+  onExit,
+  onHostedFallback,
+  onError,
+  expectStripeAuth = false,
+}: Props) {
   const [stripeConnectInstance, setStripeConnectInstance] = useState<StripeConnectInstance | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -124,7 +133,21 @@ export default function ConnectEmbeddedPanel({ component, onExit, onHostedFallba
   if (!stripeConnectInstance) return null;
 
   return (
-    <div className="w-full min-w-0 overflow-visible bg-white">
+    <div className="tv-connect-embed w-full min-w-0 overflow-visible bg-white">
+      {expectStripeAuth ? (
+        <div
+          className="mb-3 rounded-[10px] border border-[#dbe4f0] bg-[#f0f4fa] px-3 py-2.5 text-[12px] leading-relaxed text-[#1e3a5f]"
+          role="note"
+        >
+          <p className="font-semibold text-[#073b83]">Secure Stripe sign-in may open</p>
+          <p className="mt-1">
+            Stripe may ask you to confirm your email or phone before collecting identity or bank details. Stay in this
+            Traverion page — complete the short authentication step, then continue here. Traverion never sees your Stripe
+            password or identity documents.
+          </p>
+          <p className="mt-1 text-[11px] text-[#52525b]">{EXPRESS_STRIPE_AUTH_LIMITATION}</p>
+        </div>
+      ) : null}
       <ConnectComponentsProvider connectInstance={stripeConnectInstance}>
         {component === 'account_management' ? (
           <ConnectAccountManagement />

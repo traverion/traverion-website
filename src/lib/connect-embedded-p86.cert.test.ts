@@ -55,8 +55,8 @@ describe('P8.6 embedded Connect production certification (unit/source)', () => {
   });
 
   it('partner settings keeps Traverion chrome around embedded Stripe components', () => {
-    expect(settings).toContain('Business Details');
-    expect(settings).toContain('Identity verification');
+    expect(settings).toContain('Business details');
+    expect(settings).toContain('Representative verification');
     expect(settings).toContain('Bank account');
     expect(settings).toContain('Payout preferences');
     expect(settings).toContain('ConnectEmbeddedPanel');

@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import {
   fetchSupplierProfile,
+  updateSupplierCompanyProfile,
   updateSupplierPayout,
   type SupplierProfileRow,
 } from '../../data/supabase-supplier-profile';
@@ -30,7 +31,10 @@ import {
   deriveConnectExperienceState,
   listSupplierPayoutBlocks,
 } from '../../lib/connect-payout-progress';
-import { humanizeConnectRequirements } from '../../lib/connect-requirement-labels';
+import {
+  EXPRESS_STRIPE_AUTH_LIMITATION,
+  groupConnectRequirements,
+} from '../../lib/connect-requirement-labels';
 import { bankAlreadyManaged } from '../../lib/verification-workspace-lifecycle';
 import {
   catalogPayoutRates,
@@ -189,6 +193,21 @@ export default function IncomeFinancialSettings({
   const [connectNote, setConnectNote] = useState<string | null>(null);
   const [embedComponent, setEmbedComponent] = useState<ConnectEmbeddedComponent | null>(null);
   const [hostedFallbackUrl, setHostedFallbackUrl] = useState<string | null>(null);
+  const [bizEditing, setBizEditing] = useState(false);
+  const [bizSaving, setBizSaving] = useState(false);
+  const [bizMessage, setBizMessage] = useState<string | null>(null);
+  const [bizError, setBizError] = useState<string | null>(null);
+  const [bizForm, setBizForm] = useState({
+    company_legal_name: '',
+    business_type: '' as '' | 'company' | 'individual',
+    company_registration_number: '',
+    address_street: '',
+    address_city: '',
+    address_postal_code: '',
+    address_country: '',
+    contact_phone: '',
+    managing_directors: '',
+  });
 
   const experience = deriveConnectExperienceState(profile);
   const experienceLabel = connectExperienceLabel(experience);
@@ -199,14 +218,16 @@ export default function IncomeFinancialSettings({
   const progress = buildConnectProgressSteps(profile).filter(
     (s) => s.id !== 'ready_for_payouts'
   );
-  const requirementLabels = humanizeConnectRequirements([
+  const dueRequirements = [
     ...(Array.isArray(profile?.connect_requirements_currently_due)
       ? profile!.connect_requirements_currently_due!
       : []),
     ...(Array.isArray(profile?.connect_requirements_past_due)
       ? profile!.connect_requirements_past_due!
       : []),
-  ]);
+  ];
+  const requirementGroups = groupConnectRequirements(dueRequirements);
+  const isExpressAccount = profile?.connect_account_type === 'express';
   /** Express LIVE (and incomplete accounts) use embedded components inside Traverion. */
   const useEmbeddedStripeSetup =
     Boolean(profile?.stripe_connected_account_id) &&
@@ -242,6 +263,24 @@ export default function IncomeFinancialSettings({
     setCycle(profile?.payment_cycle ?? '');
     setThreshold(profile?.payout_threshold_min != null ? String(profile.payout_threshold_min) : '');
   }, [profile?.id, profile?.updated_at, profile?.payment_cycle, profile?.payout_threshold_min]);
+
+  useEffect(() => {
+    if (bizEditing) return;
+    setBizForm({
+      company_legal_name: profile?.company_legal_name ?? '',
+      business_type:
+        profile?.business_type === 'company' || profile?.business_type === 'individual'
+          ? profile.business_type
+          : '',
+      company_registration_number: profile?.company_registration_number ?? '',
+      address_street: profile?.address_street ?? '',
+      address_city: profile?.address_city ?? '',
+      address_postal_code: profile?.address_postal_code ?? '',
+      address_country: profile?.address_country ?? '',
+      contact_phone: profile?.contact_phone ?? '',
+      managing_directors: profile?.managing_directors ?? '',
+    });
+  }, [profile, bizEditing]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -360,6 +399,54 @@ export default function IncomeFinancialSettings({
   const providerPayoutCapability =
     Boolean(profile?.connect_payouts_enabled) && canReceiveTransfers;
 
+  const saveBusinessDetails = async () => {
+    setBizError(null);
+    setBizMessage(null);
+    if (!canEdit) {
+      setBizError('Your role can view business details but cannot change them.');
+      return;
+    }
+    if (!bizForm.company_legal_name.trim()) {
+      setBizError('Legal business name is required.');
+      return;
+    }
+    setBizSaving(true);
+    const composedAddress = [
+      bizForm.address_street.trim(),
+      [bizForm.address_postal_code.trim(), bizForm.address_city.trim()].filter(Boolean).join(' '),
+      bizForm.address_country.trim(),
+    ]
+      .filter(Boolean)
+      .join(', ');
+    const res = await updateSupplierCompanyProfile(userId, {
+      company_legal_name: bizForm.company_legal_name.trim(),
+      business_type: bizForm.business_type || null,
+      company_registration_number: bizForm.company_registration_number.trim() || null,
+      address_street: bizForm.address_street.trim() || null,
+      address_city: bizForm.address_city.trim() || null,
+      address_postal_code: bizForm.address_postal_code.trim() || null,
+      address_country: bizForm.address_country.trim() || null,
+      business_address: composedAddress || null,
+      contact_phone: bizForm.contact_phone.trim() || null,
+      managing_directors: bizForm.managing_directors.trim() || null,
+    });
+    if (!res.success) {
+      setBizSaving(false);
+      setBizError(userFacingError(res.error, USER_ERROR.generic));
+      return;
+    }
+    // Prefill Stripe with non-sensitive company fields when an Account Session opens next.
+    if (profile?.stripe_connected_account_id) {
+      await invokeConnectSupplierOnboarding('ensure_account');
+    }
+    onProfile(await fetchSupplierProfile(userId));
+    setBizSaving(false);
+    setBizEditing(false);
+    setBizMessage(
+      'Business details saved in Traverion. Stripe will use them to prefill the next verification step where permitted.'
+    );
+  };
+
   const savePreferences = async () => {
     setPreferenceError(null);
     setPreferenceMessage(null);
@@ -462,112 +549,282 @@ export default function IncomeFinancialSettings({
         ))}
       </ol>
 
-      {/* A. Business Details */}
+      {/* 1. Business Details — editable in Traverion */}
       <section
         id="income-business-details"
         className="rounded-[12px] border border-[#e5e7eb] bg-white px-4 py-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)] sm:px-5"
       >
         <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="min-w-0 space-y-1.5">
+          <div className="min-w-0 space-y-1">
             <div className="flex items-center gap-2">
               <Building2 className="h-4 w-4 shrink-0 text-[#073b83]" aria-hidden />
-              <h2 className="text-sm font-bold text-[#18181b]">Business Details</h2>
+              <h2 className="text-sm font-bold text-[#18181b]">1. Business details</h2>
             </div>
-            <p className="max-w-md text-[12px] leading-relaxed text-[#52525b]">
-              Ordinary company information comes from your Traverion profile. Sensitive verification is completed
-              through Stripe’s secure component — not duplicated here.
+            <p className="max-w-lg text-[12px] leading-relaxed text-[#52525b]">
+              Edit ordinary company information here. Sensitive identity documents are collected only through Stripe’s
+              secure step — Traverion does not store them.
             </p>
-            <dl className="mt-2 grid gap-x-6 gap-y-1.5 text-[12px] sm:grid-cols-2">
-              <div>
-                <dt className="text-[#71717a]">Legal name</dt>
-                <dd className="font-medium text-[#18181b]">
-                  {profile?.company_legal_name || profile?.display_name || '—'}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-[#71717a]">Business type</dt>
-                <dd className="font-medium text-[#18181b]">{profile?.business_type || '—'}</dd>
-              </div>
-              <div>
-                <dt className="text-[#71717a]">Registration number</dt>
-                <dd className="font-medium text-[#18181b]">
-                  {profile?.company_registration_number || '—'}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-[#71717a]">Tax / VAT</dt>
-                <dd className="font-medium text-[#18181b]">
-                  {[profile?.tax_id, profile?.vat_id].filter(Boolean).join(' · ') || '—'}
-                </dd>
-              </div>
-              <div className="sm:col-span-2">
-                <dt className="text-[#71717a]">Registered address</dt>
-                <dd className="font-medium text-[#18181b]">
-                  {[profile?.address_street, profile?.address_postal_code, profile?.address_city, profile?.address_country]
-                    .filter(Boolean)
-                    .join(', ') ||
-                    profile?.business_address ||
-                    '—'}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-[#71717a]">Contact</dt>
-                <dd className="font-medium text-[#18181b]">{profile?.contact_phone || '—'}</dd>
-              </div>
-              <div>
-                <dt className="text-[#71717a]">Verification status</dt>
-                <dd className="font-medium text-[#18181b]">
-                  {experienceLabel}
-                  <span className="ml-1 text-[11px] font-medium text-[#71717a]">({statusLabel})</span>
-                  {profile?.connect_account_livemode === true ? (
-                    <span className="ml-1 text-[11px] font-medium text-[#71717a]">LIVE</span>
-                  ) : null}
-                </dd>
-              </div>
-            </dl>
-            {profile?.stripe_connected_account_id ? (
-              <p className="font-mono text-[11px] text-[#71717a]">
-                Stripe {profile.stripe_connected_account_id}
-                {profile.connect_account_type ? ` · ${profile.connect_account_type}` : ''}
-              </p>
-            ) : null}
           </div>
-          <button
-            type="button"
-            className="tv-btn-secondary h-10 px-3 text-[13px]"
-            onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/business-profile`)}
-          >
-            Edit in Company Settings
-          </button>
+          {!bizEditing ? (
+            <button
+              type="button"
+              className="tv-btn-secondary h-10 px-3 text-[13px]"
+              disabled={!canEdit}
+              onClick={() => {
+                setBizEditing(true);
+                setBizMessage(null);
+                setBizError(null);
+              }}
+            >
+              Edit business details
+            </button>
+          ) : null}
         </div>
+
+        {bizEditing ? (
+          <form
+            className="mt-4 grid max-w-xl gap-3 sm:grid-cols-2"
+            onSubmit={(e) => {
+              e.preventDefault();
+              void saveBusinessDetails();
+            }}
+          >
+            <label className="block text-[13px] sm:col-span-2">
+              <span className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.1em] text-[#71717a]">
+                Legal business name
+              </span>
+              <input
+                className="tv-input h-10 w-full"
+                value={bizForm.company_legal_name}
+                onChange={(e) => setBizForm((f) => ({ ...f, company_legal_name: e.target.value }))}
+                required
+                autoComplete="organization"
+              />
+            </label>
+            <label className="block text-[13px]">
+              <span className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.1em] text-[#71717a]">
+                Business type
+              </span>
+              <select
+                className="tv-input h-10 w-full"
+                value={bizForm.business_type}
+                onChange={(e) =>
+                  setBizForm((f) => ({
+                    ...f,
+                    business_type: e.target.value as '' | 'company' | 'individual',
+                  }))
+                }
+              >
+                <option value="">Select…</option>
+                <option value="company">Company</option>
+                <option value="individual">Individual</option>
+              </select>
+            </label>
+            <label className="block text-[13px]">
+              <span className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.1em] text-[#71717a]">
+                Registration number
+              </span>
+              <input
+                className="tv-input h-10 w-full"
+                value={bizForm.company_registration_number}
+                onChange={(e) =>
+                  setBizForm((f) => ({ ...f, company_registration_number: e.target.value }))
+                }
+              />
+            </label>
+            <label className="block text-[13px] sm:col-span-2">
+              <span className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.1em] text-[#71717a]">
+                Street address
+              </span>
+              <input
+                className="tv-input h-10 w-full"
+                value={bizForm.address_street}
+                onChange={(e) => setBizForm((f) => ({ ...f, address_street: e.target.value }))}
+                autoComplete="street-address"
+              />
+            </label>
+            <label className="block text-[13px]">
+              <span className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.1em] text-[#71717a]">
+                Postal code
+              </span>
+              <input
+                className="tv-input h-10 w-full"
+                value={bizForm.address_postal_code}
+                onChange={(e) => setBizForm((f) => ({ ...f, address_postal_code: e.target.value }))}
+                autoComplete="postal-code"
+              />
+            </label>
+            <label className="block text-[13px]">
+              <span className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.1em] text-[#71717a]">
+                City
+              </span>
+              <input
+                className="tv-input h-10 w-full"
+                value={bizForm.address_city}
+                onChange={(e) => setBizForm((f) => ({ ...f, address_city: e.target.value }))}
+                autoComplete="address-level2"
+              />
+            </label>
+            <label className="block text-[13px]">
+              <span className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.1em] text-[#71717a]">
+                Country
+              </span>
+              <input
+                className="tv-input h-10 w-full"
+                value={bizForm.address_country}
+                onChange={(e) => setBizForm((f) => ({ ...f, address_country: e.target.value }))}
+                placeholder="FI"
+                autoComplete="country"
+              />
+            </label>
+            <label className="block text-[13px]">
+              <span className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.1em] text-[#71717a]">
+                Business phone
+              </span>
+              <input
+                className="tv-input h-10 w-full"
+                value={bizForm.contact_phone}
+                onChange={(e) => setBizForm((f) => ({ ...f, contact_phone: e.target.value }))}
+                autoComplete="tel"
+              />
+            </label>
+            <label className="block text-[13px] sm:col-span-2">
+              <span className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.1em] text-[#71717a]">
+                Authorized representative (name)
+              </span>
+              <input
+                className="tv-input h-10 w-full"
+                value={bizForm.managing_directors}
+                onChange={(e) => setBizForm((f) => ({ ...f, managing_directors: e.target.value }))}
+                placeholder="Where permitted — full legal name"
+              />
+              <span className="mt-1 block text-[11px] text-[#71717a]">
+                Date of birth and identity documents are collected only by Stripe during verification.
+              </span>
+            </label>
+            <div className="flex flex-wrap gap-2 sm:col-span-2">
+              <button type="submit" className="tv-btn-primary h-10 px-3 text-[13px]" disabled={bizSaving}>
+                {bizSaving ? 'Saving…' : 'Save business details'}
+              </button>
+              <button
+                type="button"
+                className="tv-btn-secondary h-10 px-3 text-[13px]"
+                disabled={bizSaving}
+                onClick={() => {
+                  setBizEditing(false);
+                  setBizError(null);
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        ) : (
+          <dl className="mt-3 grid max-w-xl gap-x-6 gap-y-2 text-[12px] sm:grid-cols-2">
+            <div>
+              <dt className="text-[#71717a]">Legal name</dt>
+              <dd className="font-medium text-[#18181b]">
+                {profile?.company_legal_name || profile?.display_name || '—'}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-[#71717a]">Business type</dt>
+              <dd className="font-medium capitalize text-[#18181b]">{profile?.business_type || '—'}</dd>
+            </div>
+            <div>
+              <dt className="text-[#71717a]">Registration number</dt>
+              <dd className="font-medium text-[#18181b]">
+                {profile?.company_registration_number || '—'}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-[#71717a]">Contact phone</dt>
+              <dd className="font-medium text-[#18181b]">{profile?.contact_phone || '—'}</dd>
+            </div>
+            <div className="sm:col-span-2">
+              <dt className="text-[#71717a]">Registered address</dt>
+              <dd className="font-medium text-[#18181b]">
+                {[profile?.address_street, profile?.address_postal_code, profile?.address_city, profile?.address_country]
+                  .filter(Boolean)
+                  .join(', ') ||
+                  profile?.business_address ||
+                  '—'}
+              </dd>
+            </div>
+            <div className="sm:col-span-2">
+              <dt className="text-[#71717a]">Authorized representative</dt>
+              <dd className="font-medium text-[#18181b]">{profile?.managing_directors || '—'}</dd>
+            </div>
+            <div>
+              <dt className="text-[#71717a]">Verification status</dt>
+              <dd className="font-medium text-[#18181b]">
+                {experienceLabel}
+                <span className="ml-1 text-[11px] font-medium text-[#71717a]">({statusLabel})</span>
+                {profile?.connect_account_livemode === true ? (
+                  <span className="ml-1 text-[11px] font-medium text-[#71717a]">LIVE</span>
+                ) : null}
+              </dd>
+            </div>
+          </dl>
+        )}
+        {bizMessage ? (
+          <p className="mt-3 text-[12px] text-[#18181b]" role="status">
+            {bizMessage}
+          </p>
+        ) : null}
+        {bizError ? (
+          <p className="mt-3 text-[12px] text-red-800" role="alert">
+            {bizError}
+          </p>
+        ) : null}
+        {profile?.stripe_connected_account_id ? (
+          <p className="mt-3 font-mono text-[11px] text-[#71717a]">
+            Stripe {profile.stripe_connected_account_id}
+            {profile.connect_account_type ? ` · ${profile.connect_account_type}` : ''}
+          </p>
+        ) : null}
       </section>
 
-      {/* B. Identity verification (embedded) */}
+      {/* 2. Representative verification (embedded) */}
       <section
         id="business-payouts"
         className="rounded-[12px] border border-[#e5e7eb] bg-white px-4 py-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)] sm:px-5"
       >
         <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="min-w-0 space-y-1.5">
+          <div className="min-w-0 max-w-xl space-y-1.5">
             <div className="flex items-center gap-2">
               <ShieldCheck className="h-4 w-4 shrink-0 text-[#073b83]" aria-hidden />
-              <h2 className="text-sm font-bold text-[#18181b]">Identity verification</h2>
+              <h2 className="text-sm font-bold text-[#18181b]">2. Representative verification</h2>
             </div>
             {nextAction ? (
-              <p className="max-w-md text-[12px] leading-relaxed text-[#52525b]">{nextAction}</p>
+              <p className="text-[12px] leading-relaxed text-[#52525b]">{nextAction}</p>
             ) : (
-              <p className="max-w-md text-[12px] leading-relaxed text-[#52525b]">
+              <p className="text-[12px] leading-relaxed text-[#52525b]">
                 {canReceiveTransfers
                   ? 'Provider marks this account ready. Traverion transfers still follow internal controls.'
-                  : 'Complete Stripe verification inside Traverion. Identity documents stay with Stripe.'}
+                  : 'Complete identity verification inside Traverion. Documents stay with Stripe.'}
               </p>
             )}
-            {requirementLabels.length > 0 && !canReceiveTransfers ? (
-              <ul className="mt-1 list-disc space-y-0.5 pl-4 text-[12px] text-[#52525b]">
-                {requirementLabels.map((label) => (
-                  <li key={label}>{label}</li>
+            {requirementGroups.length > 0 && !canReceiveTransfers ? (
+              <div className="mt-2 space-y-2">
+                {requirementGroups.map((group) => (
+                  <div key={group.id}>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-[#71717a]">
+                      {group.title}
+                    </p>
+                    <ul className="mt-0.5 list-disc space-y-0.5 pl-4 text-[12px] text-[#52525b]">
+                      {group.items.map((label) => (
+                        <li key={`${group.id}-${label}`}>{label}</li>
+                      ))}
+                    </ul>
+                  </div>
                 ))}
-              </ul>
+              </div>
+            ) : null}
+            {isExpressAccount && !canReceiveTransfers ? (
+              <p className="mt-2 rounded-[8px] border border-[#dbe4f0] bg-[#f0f4fa] px-2.5 py-2 text-[11px] leading-relaxed text-[#1e3a5f]">
+                {EXPRESS_STRIPE_AUTH_LIMITATION}
+              </p>
             ) : null}
           </div>
           <div className="flex flex-wrap gap-2">
@@ -593,7 +850,7 @@ export default function IncomeFinancialSettings({
         </div>
 
         {embedComponent === 'account_onboarding' ? (
-          <div className="mt-4 space-y-2">
+          <div className="mt-4 max-w-xl space-y-2">
             <Suspense
               fallback={
                 <p className="text-[13px] text-[#52525b]" role="status">
@@ -603,6 +860,7 @@ export default function IncomeFinancialSettings({
             >
               <ConnectEmbeddedPanel
                 component="account_onboarding"
+                expectStripeAuth={isExpressAccount}
                 onExit={() => void onEmbedExit()}
                 onHostedFallback={(url) => {
                   setHostedFallbackUrl(url);
@@ -611,10 +869,6 @@ export default function IncomeFinancialSettings({
                 onError={(msg) => setConnectError(msg)}
               />
             </Suspense>
-            <p className="text-[11px] text-[#71717a]">
-              If Stripe requires a short authentication step, complete it in the panel. Expired sessions restart
-              automatically when you open verification again.
-            </p>
           </div>
         ) : null}
 
@@ -647,31 +901,35 @@ export default function IncomeFinancialSettings({
         ) : null}
       </section>
 
-      {/* C. Bank account */}
+      {/* 3. Bank account */}
       <section
         id="income-payout-account"
         className="rounded-[12px] border border-[#e5e7eb] bg-white px-4 py-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)] sm:px-5"
       >
         <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="min-w-0 space-y-1.5">
+          <div className="min-w-0 max-w-xl space-y-1.5">
             <div className="flex items-center gap-2">
               <CreditCard className="h-4 w-4 shrink-0 text-[#073b83]" aria-hidden />
-              <h2 className="text-sm font-bold text-[#18181b]">Bank account</h2>
+              <h2 className="text-sm font-bold text-[#18181b]">3. Bank account</h2>
             </div>
             <p className="text-[13px] font-semibold text-[#18181b]">{bank.headline}</p>
-            <p className="max-w-md text-[12px] leading-relaxed text-[#52525b]">{bank.detail}</p>
+            <p className="text-[12px] leading-relaxed text-[#52525b]">{bank.detail}</p>
             <dl className="mt-2 flex flex-wrap gap-x-6 gap-y-1 text-[12px]">
               <div className="flex gap-1.5">
                 <dt className="text-[#71717a]">Currency</dt>
                 <dd className="font-medium text-[#18181b]">{currency}</dd>
               </div>
               <div className="flex gap-1.5">
-                <dt className="text-[#71717a]">Provider payouts</dt>
+                <dt className="text-[#71717a]">Verification</dt>
                 <dd className="font-medium text-[#18181b]">
-                  {profile?.connect_payouts_enabled ? 'Capability on' : 'Not enabled'}
+                  {profile?.connect_payouts_enabled ? 'Payouts enabled by provider' : 'Pending provider verification'}
                 </dd>
               </div>
             </dl>
+            <p className="text-[11px] text-[#71717a]">
+              Full account numbers are collected only by Stripe. Traverion shows status only — never stores complete
+              IBAN or account numbers from this flow.
+            </p>
           </div>
           <button
             type="button"
@@ -688,7 +946,7 @@ export default function IncomeFinancialSettings({
         </div>
 
         {embedComponent === 'account_management' ? (
-          <div className="mt-4 space-y-2">
+          <div className="mt-4 max-w-xl space-y-2">
             <Suspense
               fallback={
                 <p className="text-[13px] text-[#52525b]" role="status">
@@ -698,6 +956,7 @@ export default function IncomeFinancialSettings({
             >
               <ConnectEmbeddedPanel
                 component="account_management"
+                expectStripeAuth={isExpressAccount}
                 onExit={() => void onEmbedExit()}
                 onHostedFallback={(url) => {
                   setHostedFallbackUrl(url);
@@ -722,11 +981,14 @@ export default function IncomeFinancialSettings({
         ) : null}
       </section>
 
-      {/* C. Payout preferences */}
-      <section className="rounded-[12px] border border-[#e5e7eb] bg-white px-4 py-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)] sm:px-5">
+      {/* 4. Payout preferences */}
+      <section
+        id="income-payout-preferences"
+        className="rounded-[12px] border border-[#e5e7eb] bg-white px-4 py-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)] sm:px-5"
+      >
         <div className="flex flex-wrap items-center gap-2">
           <Wallet className="h-4 w-4 text-[#073b83]" aria-hidden />
-          <h2 className="text-sm font-bold text-[#18181b]">Payout preferences</h2>
+          <h2 className="text-sm font-bold text-[#18181b]">4. Payout preferences</h2>
           <InfoTip label="About payout preferences">{PARTNER_PAYOUT_FREQUENCY_HINT}</InfoTip>
         </div>
 
@@ -822,6 +1084,33 @@ export default function IncomeFinancialSettings({
         {preferenceError ? (
           <p className="mt-2 text-[12px] text-red-800" role="alert">
             {preferenceError}
+          </p>
+        ) : null}
+      </section>
+
+      {/* 5. Completion */}
+      <section
+        id="income-payout-completion"
+        className="rounded-[12px] border border-[#e5e7eb] bg-white px-4 py-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)] sm:px-5"
+      >
+        <div className="flex items-center gap-2">
+          <CheckCircle2
+            className={`h-4 w-4 shrink-0 ${canReceiveTransfers ? 'text-emerald-600' : 'text-[#a1a1aa]'}`}
+            aria-hidden
+          />
+          <h2 className="text-sm font-bold text-[#18181b]">5. Completion</h2>
+        </div>
+        <p className="mt-2 max-w-xl text-[12px] leading-relaxed text-[#52525b]">
+          {canReceiveTransfers
+            ? 'Verification is complete with the payment provider. Traverion payout execution remains separately controlled and is currently off for this pilot.'
+            : requirementGroups.length > 0
+              ? 'Finish the outstanding items above, then refresh status. Automatic Traverion payouts stay disabled until operations enable them.'
+              : 'Continue verification until the provider marks the account ready. Automatic Traverion payouts stay disabled until operations enable them.'}
+        </p>
+        {!canReceiveTransfers && requirementGroups[0] ? (
+          <p className="mt-2 text-[12px] font-medium text-[#18181b]">
+            Next: complete {requirementGroups[0].title.toLowerCase()} requirements, then continue with bank and
+            preferences.
           </p>
         ) : null}
       </section>

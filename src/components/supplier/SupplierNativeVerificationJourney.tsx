@@ -1108,21 +1108,39 @@ export default function SupplierNativeVerificationJourney({
       <div className={fullScreen ? 'tv-verify-workspace' : 'mx-auto w-full max-w-[720px] space-y-4'}>
         {fullScreen ? (
           <header className="tv-verify-workspace__header">
-            <img src={BRAND_LOGO_SRC} alt="Traverion" className="h-7 w-auto" />
-            <span className="text-[12px] font-semibold uppercase tracking-[0.14em] text-[#71717a]">Identity</span>
-            <button type="button" className="text-[13px] font-semibold text-[#073b83]" onClick={() => setShowIdentityEmbed(false)}>
-              Back
+            <div className="flex min-w-0 items-center gap-3">
+              <img src={BRAND_LOGO_SRC} alt="Traverion" className="h-7 w-auto shrink-0" />
+              <span className="hidden text-[12px] font-semibold uppercase tracking-[0.14em] text-[#71717a] sm:inline">
+                Verification
+              </span>
+            </div>
+            <button
+              type="button"
+              className="text-[13px] font-semibold text-[#073b83]"
+              onClick={() => setShowIdentityEmbed(false)}
+            >
+              Save &amp; exit
             </button>
           </header>
         ) : null}
-        <div className={fullScreen ? 'tv-verify-workspace__stage tv-verify-workspace__stage--scroll' : ''}>
-          <h1 className="stay-title text-xl font-bold tracking-tight text-[#18181b]">Identity verification</h1>
-          <p className="mt-2 max-w-xl text-[13px] text-[#52525b]">
-            A secure provider step is required for identity documents. Traverion does not store raw identity images.
+        <div
+          className={
+            fullScreen
+              ? 'tv-verify-workspace__main tv-verify-workspace__main--status'
+              : 'space-y-3'
+          }
+        >
+          <p className="tv-verify-kicker">Guided payout setup</p>
+          <h1 className="tv-verify-title">Representative verification</h1>
+          <p className="tv-verify-lede">
+            Complete identity and required business details with Stripe inside Traverion. A short Stripe sign-in may
+            open for Express accounts — that is required by Stripe, not a Traverion redirect. Identity documents stay
+            with Stripe.
           </p>
-          <div className="mt-4 overflow-visible rounded-[12px] border border-[#e5e7eb] bg-white p-3 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+          <div className="tv-connect-embed-frame overflow-visible rounded-[12px] border border-[#e5e7eb] bg-white p-3 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
             <ConnectEmbeddedPanel
               component="account_onboarding"
+              expectStripeAuth
               onExit={async () => {
                 setShowIdentityEmbed(false);
                 await refresh();
@@ -1140,6 +1158,25 @@ export default function SupplierNativeVerificationJourney({
             />
           </div>
         </div>
+        {fullScreen ? (
+          <footer className="tv-verify-workspace__footer">
+            <button
+              type="button"
+              className="tv-btn-secondary h-11 px-4 text-[13px]"
+              onClick={onClose}
+            >
+              Exit to payout settings
+            </button>
+            <button
+              type="button"
+              className="tv-btn-primary h-11 px-5 text-[13px]"
+              disabled={busy}
+              onClick={() => void refresh()}
+            >
+              Refresh status
+            </button>
+          </footer>
+        ) : null}
       </div>
     );
   }
