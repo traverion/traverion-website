@@ -39,24 +39,44 @@ jobs:
             exit 1
           fi
 
-          HTTP_CODE="$(curl -sS -o /tmp/refresh-supplier-earnings.json -w '%{http_code}' \
-            --connect-timeout 15 \
-            --max-time 120 \
-            -X POST "${FUNCTION_URL}" \
-            -H "Authorization: Bearer ${SECRET}" \
-            -H "Content-Type: application/json" \
-            -d '{}')"
-
-          echo "HTTP status: ${HTTP_CODE}"
-          cat /tmp/refresh-supplier-earnings.json || true
-          echo
-
-          case "${HTTP_CODE}" in
-            2??)
-              echo "refresh-supplier-earnings succeeded."
-              ;;
-            *)
-              echo "::error::refresh-supplier-earnings failed with HTTP ${HTTP_CODE}"
+          # Retry transient origin/outage failures (timeout, 521/502/503). Auth errors do not retry.
+          ATTEMPT=1
+          MAX_ATTEMPTS=3
+          HTTP_CODE="000"
+          while [ "${ATTEMPT}" -le "${MAX_ATTEMPTS}" ]; do
+            set +e
+            HTTP_CODE="$(curl -sS -o /tmp/refresh-supplier-earnings.json -w '%{http_code}' \
+              --connect-timeout 15 \
+              --max-time 120 \
+              -X POST "${FUNCTION_URL}" \
+              -H "Authorization: Bearer ${SECRET}" \
+              -H "Content-Type: application/json" \
+              -d '{}')"
+            CURL_EC=$?
+            set -e
+            echo "Attempt ${ATTEMPT}/${MAX_ATTEMPTS} HTTP status: ${HTTP_CODE} curl_ec=${CURL_EC}"
+            cat /tmp/refresh-supplier-earnings.json || true
+            echo
+            case "${HTTP_CODE}" in
+              2??)
+                echo "refresh-supplier-earnings succeeded."
+                exit 0
+                ;;
+              401|403)
+                echo "::error::refresh-supplier-earnings unauthorized (HTTP ${HTTP_CODE})"
+                exit 1
+                ;;
+              000|521|502|503|504)
+                ;;
+              *)
+                echo "::error::refresh-supplier-earnings failed with HTTP ${HTTP_CODE}"
+                exit 1
+                ;;
+            esac
+            if [ "${ATTEMPT}" -eq "${MAX_ATTEMPTS}" ]; then
+              echo "::error::refresh-supplier-earnings exhausted retries (last HTTP ${HTTP_CODE}, curl_ec=${CURL_EC})"
               exit 1
-              ;;
-          esac
+            fi
+            sleep $((ATTEMPT * 20))
+            ATTEMPT=$((ATTEMPT + 1))
+          done

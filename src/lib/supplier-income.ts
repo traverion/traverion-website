@@ -19,9 +19,10 @@ export type IncomeEarningRow = {
   /** Active financial hold blocks automatic payout eligibility. */
   held?: boolean;
   holdReason?: string | null;
-  /** Booking lifecycle — cancelled/refunded rows stay on Earnings but leave Overview pools. */
+  /** Booking lifecycle — refund-due cancels leave Overview pools; no_refund retained cancels stay payable. */
   bookingStatus?: string | null;
   paymentStatus?: string | null;
+  refundChoice?: string | null;
 };
 
 export type IncomeBookingInput = {
@@ -36,6 +37,7 @@ export type IncomeBookingInput = {
   booking_number?: number | null;
   status?: string | null;
   payment_status?: string | null;
+  refund_choice?: string | null;
 };
 
 export type IncomeSnapshotInput = {
@@ -154,21 +156,49 @@ export function buildIncomeEarningRows(input: {
       holdReason,
       bookingStatus: booking.status ?? null,
       paymentStatus: booking.payment_status ?? null,
+      refundChoice: booking.refund_choice ?? null,
     });
   }
   return rows;
 }
 
-/** Cancelled / refunded bookings must not inflate Overview eligible or awaiting totals. */
-export function isIncomeRowOpenForPayoutPools(row: Pick<IncomeEarningRow, 'bookingStatus' | 'paymentStatus'>): boolean {
+/** Late cancel that keeps the charge — supplier earnings remain payable (not reversed). */
+export function isSupplierRetainedCancel(
+  row: Pick<IncomeEarningRow, 'bookingStatus' | 'paymentStatus' | 'refundChoice'>
+): boolean {
   const bookingStatus = String(row.bookingStatus ?? '')
     .trim()
     .toLowerCase();
   const paymentStatus = String(row.paymentStatus ?? '')
     .trim()
     .toLowerCase();
-  if (bookingStatus === 'cancelled' || bookingStatus === 'canceled') return false;
+  const refundChoice = String(row.refundChoice ?? '')
+    .trim()
+    .toLowerCase();
+  return (
+    (bookingStatus === 'cancelled' || bookingStatus === 'canceled') &&
+    refundChoice === 'no_refund' &&
+    (paymentStatus === 'paid' || paymentStatus === 'complete' || paymentStatus === 'succeeded')
+  );
+}
+
+/**
+ * Refund-due / refunded bookings must not inflate Overview pools.
+ * Supplier-retained (no_refund) cancels remain eligible for next-payout / clearance pools.
+ */
+export function isIncomeRowOpenForPayoutPools(
+  row: Pick<IncomeEarningRow, 'bookingStatus' | 'paymentStatus' | 'refundChoice'>
+): boolean {
+  const bookingStatus = String(row.bookingStatus ?? '')
+    .trim()
+    .toLowerCase();
+  const paymentStatus = String(row.paymentStatus ?? '')
+    .trim()
+    .toLowerCase();
   if (paymentStatus === 'refunded') return false;
+  if (bookingStatus === 'cancelled' || bookingStatus === 'canceled') {
+    return isSupplierRetainedCancel(row);
+  }
   return true;
 }
 

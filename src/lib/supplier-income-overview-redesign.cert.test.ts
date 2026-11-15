@@ -32,6 +32,7 @@ function row(partial: Partial<IncomeEarningRow>): IncomeEarningRow {
     holdReason: partial.holdReason,
     bookingStatus: partial.bookingStatus,
     paymentStatus: partial.paymentStatus,
+    refundChoice: partial.refundChoice,
   };
 }
 
@@ -79,7 +80,7 @@ describe('Partner Income Overview payout redesign', () => {
     ).toBe('2026-11-15');
   });
 
-  it('eligible pool excludes held, allocated, cancelled, and refunded rows', () => {
+  it('eligible pool excludes held, allocated, refund-due cancels, and refunded rows', () => {
     const rows = [
       row({ bookingId: 'a', status: 'eligible', netMinor: 1000 }),
       row({ bookingId: 'b', status: 'eligible', held: true, netMinor: 2000 }),
@@ -91,6 +92,7 @@ describe('Partner Income Overview payout redesign', () => {
         netMinor: 10115,
         bookingStatus: 'cancelled',
         paymentStatus: 'paid',
+        refundChoice: 'full_refund',
       }),
       row({
         bookingId: 'f',
@@ -99,10 +101,18 @@ describe('Partner Income Overview payout redesign', () => {
         bookingStatus: 'confirmed',
         paymentStatus: 'refunded',
       }),
+      row({
+        bookingId: 'g',
+        status: 'eligible',
+        netMinor: 10115,
+        bookingStatus: 'cancelled',
+        paymentStatus: 'paid',
+        refundChoice: 'no_refund',
+      }),
     ];
     const eligible = selectUnallocatedEligibleEarnings(rows);
-    expect(eligible.map((r) => r.bookingId)).toEqual(['a']);
-    expect(sumIncomeRowsNetMinor(eligible)).toBe(1000);
+    expect(eligible.map((r) => r.bookingId)).toEqual(['a', 'g']);
+    expect(sumIncomeRowsNetMinor(eligible)).toBe(11115);
     expect(selectAwaitingClearanceEarnings(rows).map((r) => r.bookingId)).toEqual(['d']);
     expect(payoutPreferenceLabel({ payout_cadence: 'monthly', commission_bps: 1500 })).toBe(
       'Monthly (15%)'

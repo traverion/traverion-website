@@ -83,9 +83,9 @@ jobs:
               echo "execute-supplier-transfers succeeded (TEST path)."
               ;;
             503)
-              # Kill switch off is an expected safe no-op until TEST env is authorized.
-              if grep -q 'transfers disabled\|kill switch\|LIVE secret' /tmp/execute-supplier-transfers.json; then
-                echo "Transfers safely disabled — treating as successful guardrail response."
+              # Kill switch / LIVE block are expected safe no-ops (payout execution stays OFF).
+              if grep -Eqi 'transfers disabled|kill switch|LIVE secret|live_blocked|LIVE supplier payouts are not enabled|not enabled' /tmp/execute-supplier-transfers.json; then
+                echo "Transfers safely disabled / LIVE blocked — treating as successful guardrail response."
                 exit 0
               fi
               echo "::error::execute-supplier-transfers returned 503"
