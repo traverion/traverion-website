@@ -8,6 +8,7 @@ import {
   PARTNER_LOGIN_PATH,
   PARTNER_APP_BASE,
 } from '../../lib/partnerPortalPaths';
+import { setPartnerAuthFlash } from '../../lib/partnerAuthFlash';
 import { setPageMetaWithOg } from '../../lib/seo';
 
 type Phase = 'checking' | 'verified' | 'already' | 'invalid' | 'unconfigured';
@@ -23,6 +24,16 @@ export default function PartnerEmailVerifiedPage() {
   useEffect(() => {
     setPageMetaWithOg('Partner email', 'Confirm your Traverion Partner email to open your workspace.');
   }, []);
+
+  useEffect(() => {
+    if (phase !== 'invalid') return;
+    setPartnerAuthFlash({
+      message:
+        'This confirmation link has expired or was already used. Request a new confirmation email after you enter your address.',
+      needsEmailConfirmation: true,
+      tab: 'signin',
+    });
+  }, [phase]);
 
   useLayoutEffect(() => {
     if (!supabase) {

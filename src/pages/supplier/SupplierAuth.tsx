@@ -25,6 +25,11 @@ import { isValidEmailFormat } from '../../lib/authFormValidation';
 import ForgotPasswordInline, { type ForgotPasswordSendResult } from '../../components/auth/ForgotPasswordInline';
 import { AUTH_CONFIRMATION_EMAIL_REQUESTED, AUTH_PASSWORD_RESET_REQUESTED } from '../../lib/booking-confirmation-copy';
 import NoticeCallout from '../../components/NoticeCallout';
+import {
+  isEmailConfirmationRequiredMessage,
+  mapPartnerConfirmationResendError,
+  shouldShowPartnerConfirmationResend,
+} from '../../lib/partnerLoginConfirmationUi';
 
 /** Fire-and-forget welcome email (Edge Function dedupes via welcome_email_sent_at). */
 function sendSupplierWelcomeEmail(userId: string): void {
@@ -88,6 +93,11 @@ export default function SupplierAuth({
   const [resetPasswordFieldError, setResetPasswordFieldError] = useState<string | null>(null);
   const [resetPasswordSuccess, setResetPasswordSuccess] = useState<string | null>(null);
   const [resendSending, setResendSending] = useState(false);
+  /** True only when Auth has indicated this account still needs email verification. */
+  const [needsEmailConfirmation, setNeedsEmailConfirmation] = useState(false);
+  /** True only after a confirmation email was actually requested (signup or resend). */
+  const [confirmationEmailRequested, setConfirmationEmailRequested] = useState(false);
+
   useEffect(() => {
     if (!isSupabase || !supabase) return;
     return subscribePasswordRecovery(supabase, () => {
@@ -107,8 +117,18 @@ export default function SupplierAuth({
     setMode(flash.tab === 'signup' ? 'signup' : 'signin');
     if (flash.email) setEmail(flash.email);
     setSuccessMessage(null);
+    setConfirmationEmailRequested(false);
+    setNeedsEmailConfirmation(
+      Boolean(flash.needsEmailConfirmation) || isEmailConfirmationRequiredMessage(flash.message)
+    );
     setPasswordResetPanel(false);
   }, []);
+
+  const clearConfirmationUi = () => {
+    setNeedsEmailConfirmation(false);
+    setConfirmationEmailRequested(false);
+    setSuccessMessage(null);
+  };
 
   const mapAuthError = (message: string): string => {
     if (message.startsWith(DUPLICATE_TRAVERION_EMAIL_MESSAGE_PREFIX)) return message;
@@ -121,6 +141,14 @@ export default function SupplierAuth({
     }
     if (m.includes('invalid login credentials')) {
       return 'Incorrect email or password.';
+    }
+    if (
+      m.includes('rate limit') ||
+      m.includes('too many') ||
+      m.includes('over_email') ||
+      m.includes('email send rate')
+    ) {
+      return 'Too many emails requested. Wait a few minutes, then try again.';
     }
     if (
       (m.includes('duplicate key') && m.includes('contact_phone')) ||
@@ -169,7 +197,9 @@ export default function SupplierAuth({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFieldErrors({});
+    // Keep confirmation UI if Auth already required verification; drop "check email" until a new request.
     setSuccessMessage(null);
+    setConfirmationEmailRequested(false);
 
     const next: SupplierFieldErrors = {};
     const trimmedEmail = email.trim();
@@ -240,13 +270,15 @@ export default function SupplierAuth({
           }
           if (isSignUpEmailAlreadyRegistered(data.user)) {
             setFieldErrors({ email: partnerSignUpDuplicateEmailMessage(`${publicSiteBaseUrl()}/log-in`) });
-            setSuccessMessage(null);
+            clearConfirmationUi();
             setMode('signin');
             return;
           }
           if (data.session) {
             if (!data.user?.email_confirmed_at) {
               await supabase.auth.signOut();
+              setNeedsEmailConfirmation(true);
+              setConfirmationEmailRequested(true);
               setSuccessMessage(AUTH_CONFIRMATION_EMAIL_REQUESTED);
               setMode('signin');
               return;
@@ -260,21 +292,34 @@ export default function SupplierAuth({
               setFieldErrors({ form: mapAuthError(ensured.error ?? 'Could not create your supplier profile.') });
               return;
             }
+            clearConfirmationUi();
             sendSupplierWelcomeEmail(data.session.user.id);
             onAuthenticated();
             return;
           }
+          setNeedsEmailConfirmation(true);
+          setConfirmationEmailRequested(true);
           setSuccessMessage(AUTH_CONFIRMATION_EMAIL_REQUESTED);
           setMode('signin');
         } else {
           const { data, error: err } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password });
           if (err) {
-            setFieldErrors(serverMessageToFields(err.message));
+            const fields = serverMessageToFields(err.message);
+            setFieldErrors(fields);
+            if (
+              isEmailConfirmationRequiredMessage(err.message) ||
+              isEmailConfirmationRequiredMessage(fields.email) ||
+              isEmailConfirmationRequiredMessage(fields.form)
+            ) {
+              setNeedsEmailConfirmation(true);
+            }
             return;
           }
           if (data.user && !data.user.email_confirmed_at) {
             await supabase.auth.signOut();
             setSuccessMessage(null);
+            setConfirmationEmailRequested(false);
+            setNeedsEmailConfirmation(true);
             setFieldErrors({
               email: 'Please confirm your email before signing in.',
             });
@@ -290,6 +335,7 @@ export default function SupplierAuth({
               fetchConsumerProfile(data.user.id),
             ]);
             if (existingProfile) {
+              clearConfirmationUi();
               onAuthenticated();
               return;
             }
@@ -318,10 +364,12 @@ export default function SupplierAuth({
               setFieldErrors({ form: mapAuthError(ensured.error ?? 'Could not load your supplier profile.') });
               return;
             }
+            clearConfirmationUi();
             sendSupplierWelcomeEmail(data.user.id);
             onAuthenticated();
             return;
           }
+          clearConfirmationUi();
           onAuthenticated();
         }
       } else {
@@ -380,7 +428,11 @@ export default function SupplierAuth({
   };
 
   const handleResendConfirmation = async () => {
-    setFieldErrors({});
+    setFieldErrors((prev) => {
+      const next = { ...prev };
+      delete next.form;
+      return next;
+    });
     if (!email.trim()) {
       setFieldErrors({ email: 'Enter your email address, then resend confirmation.' });
       return;
@@ -402,11 +454,24 @@ export default function SupplierAuth({
     });
     setResendSending(false);
     if (err) {
-      setFieldErrors(serverMessageToFields(err.message));
-      return;
+      const mapped = mapPartnerConfirmationResendError(err.message);
+      if (mapped.kind === 'rate_limit' || mapped.kind === 'generic_failure') {
+        setFieldErrors({ form: mapped.message });
+        return;
+      }
+      // treat_as_requested — same notice as success; do not disclose account existence
     }
+    setNeedsEmailConfirmation(true);
+    setConfirmationEmailRequested(true);
     setSuccessMessage(AUTH_CONFIRMATION_EMAIL_REQUESTED);
   };
+
+  const showConfirmationResend = shouldShowPartnerConfirmationResend({
+    needsEmailConfirmation,
+    confirmationEmailRequested,
+    emailError: fieldErrors.email,
+    formError: fieldErrors.form,
+  });
 
   return (
     <div className={`w-full ${compact ? '' : 'flex flex-col lg:flex-row lg:items-stretch xl:items-center lg:justify-between xl:justify-center gap-10 lg:gap-12 xl:gap-16 2xl:gap-20 px-0 sm:px-2 py-6 sm:py-8'}`}>
@@ -472,7 +537,7 @@ export default function SupplierAuth({
               onClick={() => {
                 setMode('signin');
                 setFieldErrors({});
-                setSuccessMessage(null);
+                clearConfirmationUi();
                 exitPartnerPasswordReset();
                 onModeChange?.('signin');
               }}
@@ -486,7 +551,7 @@ export default function SupplierAuth({
               onClick={() => {
                 setMode('signup');
                 setFieldErrors({});
-                setSuccessMessage(null);
+                clearConfirmationUi();
                 exitPartnerPasswordReset();
                 onModeChange?.('signup');
               }}
@@ -518,8 +583,8 @@ export default function SupplierAuth({
                 {fieldErrors.form}
               </NoticeCallout>
             ) : null}
-            {successMessage ? (
-              <NoticeCallout title="Check your email" tone="success">
+            {confirmationEmailRequested && successMessage ? (
+              <NoticeCallout title="Check your email" tone="info" className="!py-2.5">
                 {successMessage}
               </NoticeCallout>
             ) : null}
@@ -558,35 +623,6 @@ export default function SupplierAuth({
                 <p id="supplier-auth-email-error" className="mt-1.5 text-sm text-red-600" role="alert">
                   {fieldErrors.email}
                 </p>
-              )}
-              {/* Always offer resend on sign-in; also when confirm-email error appears on either mode */}
-              {(mode === 'signin' ||
-                /confirm your email/i.test(fieldErrors.email ?? '') ||
-                /confirm your email/i.test(fieldErrors.form ?? '')) && (
-                <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
-                  <button
-                    type="button"
-                    onClick={() => void handleResendConfirmation()}
-                    disabled={resendSending}
-                    className="text-xs text-finland hover:underline disabled:opacity-50"
-                  >
-                    {resendSending ? 'Sending confirmation…' : 'Resend confirmation email'}
-                  </button>
-                  {mode === 'signin' ? (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setResetPasswordEmail(email.trim());
-                        setResetPasswordFieldError(null);
-                        setResetPasswordSuccess(null);
-                        setPasswordResetPanel(true);
-                      }}
-                      className="text-xs text-finland hover:underline"
-                    >
-                      Forgot password?
-                    </button>
-                  ) : null}
-                </div>
               )}
             </div>
             {mode === 'signup' && (
@@ -699,6 +735,22 @@ export default function SupplierAuth({
                   {fieldErrors.password}
                 </p>
               )}
+              {mode === 'signin' ? (
+                <div className="mt-2 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setResetPasswordEmail(email.trim());
+                      setResetPasswordFieldError(null);
+                      setResetPasswordSuccess(null);
+                      setPasswordResetPanel(true);
+                    }}
+                    className="text-xs font-medium text-finland hover:underline"
+                  >
+                    Forgot password?
+                  </button>
+                </div>
+              ) : null}
             </div>
             {mode === 'signup' && (
               <div>
@@ -742,6 +794,18 @@ export default function SupplierAuth({
                 )}
               </div>
             )}
+            {showConfirmationResend ? (
+              <div className="pt-0.5">
+                <button
+                  type="button"
+                  onClick={() => void handleResendConfirmation()}
+                  disabled={resendSending}
+                  className="text-sm font-medium text-finland hover:underline disabled:opacity-50"
+                >
+                  {resendSending ? 'Sending…' : 'Resend confirmation email'}
+                </button>
+              </div>
+            ) : null}
             <button
               type="submit"
               disabled={submitting}

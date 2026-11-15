@@ -7,9 +7,13 @@ export type PartnerAuthFlash = {
   message: string;
   email?: string;
   tab?: 'signin' | 'signup';
+  /** When true, login form may offer “Resend confirmation email”. */
+  needsEmailConfirmation?: boolean;
 };
 
-export function setPartnerAuthFlash(payload: Omit<PartnerAuthFlash, 'kind'> & { kind?: 'error' }): void {
+export function setPartnerAuthFlash(
+  payload: Omit<PartnerAuthFlash, 'kind'> & { kind?: 'error'; needsEmailConfirmation?: boolean }
+): void {
   try {
     sessionStorage.setItem(
       STORAGE_KEY,
@@ -18,6 +22,7 @@ export function setPartnerAuthFlash(payload: Omit<PartnerAuthFlash, 'kind'> & { 
         message: payload.message,
         email: payload.email,
         tab: payload.tab ?? 'signin',
+        needsEmailConfirmation: Boolean(payload.needsEmailConfirmation),
       } satisfies PartnerAuthFlash)
     );
   } catch {
@@ -37,6 +42,7 @@ export function consumePartnerAuthFlash(): PartnerAuthFlash | null {
         message: parsed.message.trim(),
         email: typeof parsed.email === 'string' ? parsed.email : undefined,
         tab: parsed.tab === 'signup' ? 'signup' : 'signin',
+        needsEmailConfirmation: Boolean(parsed.needsEmailConfirmation),
       };
     }
   } catch {
