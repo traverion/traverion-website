@@ -932,7 +932,7 @@ export default function SupplierEarnings() {
 
   const openPayoutStatement = async (period: SupplierPayoutPeriodRow, download: boolean) => {
     // Completed payout statements require verified payment confirmation — never for READY alone.
-    if (!payoutMaySayPaid(period.status, period.paid_at)) {
+    if (!payoutMaySayPaid(period.status, period.paid_at, period.connect_lifecycle)) {
       setError(
         'A completed payout statement is available only after payment is confirmed with a completion time. Prepared periods are not bank payouts.'
       );
@@ -1564,13 +1564,13 @@ export default function SupplierEarnings() {
           {(() => {
             const payoutStatementDocs = payoutPeriods.filter(
               (period) =>
-                payoutMaySayPaid(period.status, period.paid_at) &&
+                payoutMaySayPaid(period.status, period.paid_at, period.connect_lifecycle) &&
                 (docKind === 'all' || docKind === 'payouts') &&
                 (docYear === 'all' || period.period_end.startsWith(docYear))
             );
             const paymentConfirmationDocs = payoutPeriods.filter(
               (period) =>
-                payoutMaySayPaid(period.status, period.paid_at) &&
+                payoutMaySayPaid(period.status, period.paid_at, period.connect_lifecycle) &&
                 (docKind === 'all' || docKind === 'confirmations') &&
                 (docYear === 'all' || period.period_end.startsWith(docYear))
             );
@@ -1822,7 +1822,7 @@ export default function SupplierEarnings() {
                 </ul>
               </section>
             ) : null}
-            {!payoutMaySayPaid(selectedPayout.status, selectedPayout.paid_at) &&
+            {!payoutMaySayPaid(selectedPayout.status, selectedPayout.paid_at, selectedPayout.connect_lifecycle) &&
             (selectedPayout.connect_lifecycle ?? 'internal_only') !== 'bank_payout_paid' ? (
               <p className="mt-4 text-[12px] leading-relaxed text-[#52525b]">
                 Status: {periodPayoutLabel(selectedPayout.status, selectedPayout.paid_at, selectedPayout.connect_lifecycle)}.

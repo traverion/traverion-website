@@ -229,7 +229,17 @@ export function commissionPercentLabel(bps: number | null): string | null {
  * A payout may be described as paid only when the record has a completion timestamp.
  * Status text alone is not transfer evidence.
  */
-export function payoutMaySayPaid(status: string, paidAt: string | null | undefined): boolean {
+export function payoutMaySayPaid(
+  status: string,
+  paidAt: string | null | undefined,
+  connectLifecycle?: string | null
+): boolean {
+  const life = (connectLifecycle ?? '').toLowerCase();
+  if (life === 'reversed' || life === 'failed' || life === 'bank_payout_failed') return false;
+  // Transfer to connected account alone is never "paid" for Documents / statements.
+  if (life === 'transfer_completed' || life === 'transfer_pending' || life === 'bank_payout_pending') {
+    return false;
+  }
   return status === 'paid' && Boolean(paidAt);
 }
 
@@ -402,11 +412,11 @@ export function payoutConfirmedScheduleDate(period: {
 }
 
 /** Latest payout with a completion timestamp (manual or bank). */
-export function selectLastCompletedPayout<T extends { status: string; paid_at?: string | null }>(
-  periods: T[]
-): T | null {
+export function selectLastCompletedPayout<
+  T extends { status: string; paid_at?: string | null; connect_lifecycle?: string | null },
+>(periods: T[]): T | null {
   const completed = periods
-    .filter((period) => payoutMaySayPaid(period.status, period.paid_at))
+    .filter((period) => payoutMaySayPaid(period.status, period.paid_at, period.connect_lifecycle))
     .sort((a, b) => String(b.paid_at ?? '').localeCompare(String(a.paid_at ?? '')));
   return completed[0] ?? null;
 }

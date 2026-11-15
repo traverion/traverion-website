@@ -52,7 +52,7 @@ describe('Phase 6: supplier income experience', () => {
     expect(payoutMaySayPaid('paid', null)).toBe(false);
     expect(payoutMaySayPaid('paid', '2026-11-01T00:00:00Z')).toBe(true);
     expect(page).toContain('How payout statuses work');
-    expect(page).toContain('payoutMaySayPaid(period.status, period.paid_at)');
+    expect(page).toContain('payoutMaySayPaid(period.status, period.paid_at, period.connect_lifecycle)');
     expect(page).toContain('A completed payout statement is available only after payment is confirmed');
     expect(page).toContain('Sending funds to your payout account alone is not a bank payment');
   });

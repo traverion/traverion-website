@@ -228,9 +228,9 @@ export const LISTING_QUALITY_PUBLISH_TIP =
 export const SUPPLIER_WELCOME_LISTING_STEP_NOTE =
   'Create your first listing (draft anytime). Publishing needs Traverion business and payout verification.';
 
-/** Partner Settings — threshold applies only once payouts are enabled; do not imply automatic sends today. */
+/** Partner Settings — threshold gates preparation; never implies a bank transfer by itself. */
 export const PARTNER_PAYOUT_THRESHOLD_HINT =
-  'Preference only: minimum balance Traverion will consider once payouts are enabled (e.g. 50). Not an active payout queue.';
+  'Minimum balance required before Traverion prepares a payout period (e.g. 50). Changing it does not alter periods already prepared, and never sends money by itself.';
 
 /** Traveler My bookings / confirmation — unpaid checkout CTA while Stripe session opens. */
 export const TRAVELER_OPENING_CHECKOUT_CTA = 'Opening checkout…';

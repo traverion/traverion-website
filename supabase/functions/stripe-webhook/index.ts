@@ -1162,6 +1162,31 @@ serve(async (req) => {
             .from('supplier_payout_periods')
             .update({ connect_lifecycle: 'reversed' })
             .eq('id', attempt.payout_period_id);
+
+          // P4: confirm queued/pending reversal attempts for this transfer (idempotent).
+          const reversalObj = transfer as Stripe.Transfer & {
+            reversals?: { data?: Array<{ id: string; amount?: number }> };
+          };
+          const revList = reversalObj.reversals?.data ?? [];
+          const { data: pendingRevs } = await admin
+            .from('supplier_transfer_reversal_attempts')
+            .select('id, amount_minor, stripe_reversal_id, status')
+            .eq('transfer_attempt_id', attempt.id)
+            .in('status', ['queued', 'pending', 'succeeded']);
+          for (const pr of pendingRevs ?? []) {
+            if (pr.status === 'succeeded' && pr.stripe_reversal_id) continue;
+            const match =
+              revList.find((r) => r.id === pr.stripe_reversal_id) ||
+              revList.find((r) => Number(r.amount) === Number(pr.amount_minor)) ||
+              revList[0];
+            if (!match?.id) continue;
+            await admin.rpc('confirm_connect_transfer_reversal', {
+              p_reversal_attempt_id: pr.id,
+              p_stripe_reversal_id: match.id,
+              p_amount_minor: Number(match.amount ?? pr.amount_minor),
+              p_outcome: 'succeeded',
+            });
+          }
         } else if (attempt.status !== 'transfer_completed' && attempt.status !== 'reversed') {
           await admin
             .from('supplier_transfer_attempts')
@@ -1254,21 +1279,29 @@ serve(async (req) => {
             : nextStatus === 'failed' || nextStatus === 'canceled'
               ? 'bank_payout_failed'
               : 'bank_payout_pending';
-        await admin
-          .from('supplier_payout_periods')
-          .update({
-            connect_lifecycle: lifecycle,
-            latest_bank_payout_attempt_id: attempt.id,
-            ...(nextStatus === 'paid'
-              ? {
-                  status: 'paid',
-                  paid_at: new Date().toISOString(),
-                  paid_via: 'stripe_connect_payout',
-                  note: payout.id,
-                }
-              : {}),
-          })
-          .eq('id', attempt.payout_period_id);
+        if (nextStatus === 'paid') {
+          // P4: bank confirmation is the only Connect path that marks period + items paid.
+          await admin.rpc('mark_payout_period_bank_paid', {
+            p_period_id: attempt.payout_period_id,
+            p_payment_reference: payout.id,
+            p_paid_at: new Date().toISOString(),
+          });
+          await admin
+            .from('supplier_payout_periods')
+            .update({
+              connect_lifecycle: 'bank_payout_paid',
+              latest_bank_payout_attempt_id: attempt.id,
+            })
+            .eq('id', attempt.payout_period_id);
+        } else {
+          await admin
+            .from('supplier_payout_periods')
+            .update({
+              connect_lifecycle: lifecycle,
+              latest_bank_payout_attempt_id: attempt.id,
+            })
+            .eq('id', attempt.payout_period_id);
+        }
         await admin.from('supplier_payout_reconciliation_events').insert({
           supplier_id: attempt.supplier_id,
           payout_period_id: attempt.payout_period_id,

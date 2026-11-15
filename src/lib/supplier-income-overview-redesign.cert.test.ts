@@ -61,7 +61,7 @@ describe('Partner Income Overview payout redesign', () => {
     expect(page).toContain('Payout statements');
     expect(page).toContain('Payment confirmations');
     expect(page).not.toContain('Earnings statements');
-    expect(page).toContain('payoutMaySayPaid(period.status, period.paid_at)');
+    expect(page).toContain('payoutMaySayPaid(period.status, period.paid_at, period.connect_lifecycle)');
     expect(page).toContain('One payout statement per confirmed payout period');
   });
 

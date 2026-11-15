@@ -1,6 +1,11 @@
 /**
- * Phase 5: refresh supplier earning eligibility (service completion + clearance).
+ * Phase 5 / P4: refresh supplier earning eligibility (service completion + clearance).
  * Optionally prepares READY payout periods (internal only — no Stripe transfer).
+ *
+ * prepare_payouts:
+ *   true | "manual"     → always call prepare_due_supplier_payouts
+ *   "scheduled" | "auto"→ call run_scheduled_supplier_payout_prepare (flag-gated)
+ *   omitted / false     → eligibility only
  *
  * Auth: Bearer matching EARNINGS_REFRESH_CRON_SECRET, CRON_SECRET, or
  * BOOKING_REMINDER_CRON_SECRET (same family as other Traverion crons).
@@ -54,7 +59,8 @@ serve(async (req) => {
 
   const admin = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } });
   const body = (await req.json().catch(() => ({}))) as {
-    prepare_payouts?: boolean;
+    prepare_payouts?: boolean | string;
+    force_prepare?: boolean;
     now?: string;
   };
   const nowIso =
@@ -69,7 +75,30 @@ serve(async (req) => {
   }
 
   let prepare: unknown = null;
-  if (body.prepare_payouts === true) {
+  const prepMode = body.prepare_payouts;
+  const wantScheduled =
+    prepMode === 'scheduled' || prepMode === 'auto' || prepMode === 'scheduler';
+  const wantManual = prepMode === true || prepMode === 'manual';
+
+  if (wantScheduled) {
+    const prep = await admin.rpc('run_scheduled_supplier_payout_prepare', {
+      p_now: nowIso,
+      p_triggered_by: 'scheduler:refresh-supplier-earnings',
+      p_force: body.force_prepare === true,
+    });
+    if (prep.error) {
+      return json(
+        {
+          success: false,
+          error: prep.error.message,
+          stage: 'run_scheduled_supplier_payout_prepare',
+          refresh: refresh.data,
+        },
+        500
+      );
+    }
+    prepare = prep.data;
+  } else if (wantManual) {
     const prep = await admin.rpc('prepare_due_supplier_payouts', { p_now: nowIso });
     if (prep.error) {
       return json(
@@ -82,6 +111,21 @@ serve(async (req) => {
         500
       );
     }
+    const utcDay = new Date(nowIso).getUTCDate();
+    await admin.from('supplier_payout_prepare_runs').insert({
+      triggered_by: 'manual:refresh-supplier-earnings',
+      trigger_note: 'manual prepare_due (no bank transfer)',
+      p_now: nowIso,
+      utc_day: utcDay,
+      auto_prepare_enabled: false,
+      ok: true,
+      result: prep.data ?? {},
+    });
+    await admin.from('financial_audit_log').insert({
+      action: 'prepare_due_supplier_payouts',
+      reason: 'Manual payout preparation run (READY only — no bank transfer)',
+      after_state: { triggered_by: 'manual:refresh-supplier-earnings', result: prep.data },
+    });
     prepare = prep.data;
   }
 
@@ -90,6 +134,7 @@ serve(async (req) => {
     refresh: refresh.data,
     prepare,
     stripe_transfer: false,
-    note: 'Eligibility only by default; prepare_payouts creates READY periods with no Stripe bank payout',
+    note:
+      'Eligibility by default; scheduled prepare respects payout_auto_prepare_enabled; never bank transfer',
   });
 });

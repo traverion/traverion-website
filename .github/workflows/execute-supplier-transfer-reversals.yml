@@ -1,0 +1,63 @@
+# P4: Stripe Connect transfer REVERSALS — TEST only.
+# Requires STRIPE_CONNECT_TRANSFERS_ENABLED=test and DB stripe_connect_transfers_enabled=1.
+# Default dry_run=true. Never marks recovery settled without Stripe confirmation.
+# Live money remains blocked inside the Edge Function.
+
+name: Execute supplier Connect transfer reversals (TEST)
+
+on:
+  schedule:
+    - cron: '50 6 * * *'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (list queued only)'
+        required: true
+        default: 'true'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+
+concurrency:
+  group: execute-supplier-transfer-reversals
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  reverse:
+    name: Call execute-supplier-transfer-reversals
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: POST execute-supplier-transfer-reversals
+        env:
+          STRIPE_CONNECT_TRANSFERS_CRON_SECRET: ${{ secrets.STRIPE_CONNECT_TRANSFERS_CRON_SECRET }}
+          EARNINGS_REFRESH_CRON_SECRET: ${{ secrets.EARNINGS_REFRESH_CRON_SECRET }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          BOOKING_REMINDER_CRON_SECRET: ${{ secrets.BOOKING_REMINDER_CRON_SECRET }}
+          FUNCTION_URL: https://xcopqllkulxfkpunetbc.supabase.co/functions/v1/execute-supplier-transfer-reversals
+          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run || 'true' }}
+        run: |
+          set -euo pipefail
+          SECRET="${STRIPE_CONNECT_TRANSFERS_CRON_SECRET:-${EARNINGS_REFRESH_CRON_SECRET:-${CRON_SECRET:-${BOOKING_REMINDER_CRON_SECRET:-}}}}"
+          if [ -z "${SECRET}" ]; then
+            echo "::error::Set a cron secret for Connect transfer reversals."
+            exit 1
+          fi
+          BODY="$(jq -nc --argjson dry "$([ "${DRY_RUN}" = "true" ] && echo true || echo false)" '{dry_run:$dry,limit:25}')"
+          HTTP_CODE="$(curl -sS -o /tmp/execute-reversals.json -w '%{http_code}' \
+            --connect-timeout 15 --max-time 180 \
+            -X POST "${FUNCTION_URL}" \
+            -H "Authorization: Bearer ${SECRET}" \
+            -H "Content-Type: application/json" \
+            -d "${BODY}")"
+          echo "HTTP ${HTTP_CODE}"
+          cat /tmp/execute-reversals.json || true
+          echo
+          case "${HTTP_CODE}" in
+            2??|503) echo "Reversal worker responded (503 = kill switch off — expected until authorized)." ;;
+            *) echo "::error::unexpected HTTP ${HTTP_CODE}"; exit 1 ;;
+          esac

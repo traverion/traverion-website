@@ -56,6 +56,19 @@ type PayoutExceptionRow = {
   created_at: string;
 };
 
+type PrepareRunRow = {
+  id: string;
+  triggered_by: string;
+  trigger_note: string | null;
+  p_now: string;
+  utc_day: number;
+  auto_prepare_enabled: boolean;
+  ok: boolean;
+  result: Record<string, unknown> | null;
+  error_message: string | null;
+  created_at: string;
+};
+
 function majorFromMinor(minor: number, currency: string): string {
   return formatMoney(fromMinorUnits(Number(minor) || 0), currency);
 }
@@ -66,6 +79,7 @@ export default function AdminCommercialPanel() {
   const [detail, setDetail] = useState<CommercialGetPayload | null>(null);
   const [periods, setPeriods] = useState<PayoutPeriodRow[]>([]);
   const [exceptions, setExceptions] = useState<PayoutExceptionRow[]>([]);
+  const [prepareRuns, setPrepareRuns] = useState<PrepareRunRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [periodsLoading, setPeriodsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -81,19 +95,24 @@ export default function AdminCommercialPanel() {
     if (!isSupabaseConfigured()) return;
     setPeriodsLoading(true);
     try {
-      const [periodsData, exceptionsData] = await Promise.all([
+      const [periodsData, exceptionsData, prepareRunsData] = await Promise.all([
         invokeAdminEdgeFunction<{ items: PayoutPeriodRow[] }>({
           action: 'payout_periods_list',
         }),
         invokeAdminEdgeFunction<{ items: PayoutExceptionRow[] }>({
           action: 'payout_exceptions_list',
         }).catch(() => ({ items: [] as PayoutExceptionRow[] })),
+        invokeAdminEdgeFunction<{ items: PrepareRunRow[] }>({
+          action: 'prepare_runs_list',
+        }).catch(() => ({ items: [] as PrepareRunRow[] })),
       ]);
       setPeriods(Array.isArray(periodsData.items) ? periodsData.items : []);
       setExceptions(Array.isArray(exceptionsData.items) ? exceptionsData.items : []);
+      setPrepareRuns(Array.isArray(prepareRunsData.items) ? prepareRunsData.items : []);
     } catch {
       setPeriods([]);
       setExceptions([]);
+      setPrepareRuns([]);
     } finally {
       setPeriodsLoading(false);
     }
@@ -480,6 +499,53 @@ export default function AdminCommercialPanel() {
                   >
                     Mark paid
                   </button>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      <div className="tv-card p-4 sm:p-5 space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="font-display text-lg text-ink tracking-tight">Prepare audit trail</h2>
+          <button
+            type="button"
+            onClick={() => void loadPeriods()}
+            disabled={periodsLoading || !isSupabaseConfigured()}
+            className="tv-btn-ghost text-sm disabled:opacity-50"
+          >
+            Refresh
+          </button>
+        </div>
+        <p className="text-sm text-ink-muted">
+          Every preparation attempt (scheduler, admin, or manual) is logged. Preparation never initiates a bank
+          transfer. Auto-prepare stays behind <code className="text-xs">payout_auto_prepare_enabled</code>.
+        </p>
+        {prepareRuns.length === 0 ? (
+          <p className="text-sm text-ink-muted">No prepare runs recorded yet.</p>
+        ) : (
+          <ul className="divide-y divide-black/[0.06]">
+            {prepareRuns.slice(0, 20).map((run) => (
+              <li key={run.id} className="py-3">
+                <p className="text-sm font-medium text-ink">
+                  {run.ok ? 'OK' : 'FAILED'} · {run.triggered_by} · UTC day {run.utc_day}
+                  {run.auto_prepare_enabled ? ' · auto-flag on' : ''}
+                </p>
+                <p className="text-xs text-ink-muted mt-0.5">
+                  {new Date(run.created_at).toLocaleString()}
+                  {run.trigger_note ? ` · ${run.trigger_note}` : ''}
+                  {run.error_message ? ` · ${run.error_message}` : ''}
+                </p>
+                {run.result && typeof run.result === 'object' ? (
+                  <p className="text-xs font-mono text-ink-faint mt-1 truncate">
+                    periods={String((run.result as { periods_touched?: number }).periods_touched ?? '—')}
+                    {' · '}
+                    items={String((run.result as { items_included?: number }).items_included ?? '—')}
+                    {' · '}
+                    below_threshold=
+                    {String((run.result as { skipped_below_threshold?: number }).skipped_below_threshold ?? '—')}
+                  </p>
                 ) : null}
               </li>
             ))}

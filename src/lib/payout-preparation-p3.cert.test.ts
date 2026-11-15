@@ -176,9 +176,14 @@ describe('P3 payout preparation certification', () => {
     expect(prepareMig).toContain("'stripe_transfer', false");
   });
 
-  it('prepare does not read partner payout_threshold_min (known gap)', () => {
+  it('P3 noted threshold gap; P4 migration 307 enforces payout_threshold_min', () => {
+    const p4 = readFileSync(
+      resolve(root, 'supabase/migrations/307_p4_payout_hardening.sql'),
+      'utf8'
+    );
+    expect(p4).toContain('supplier_payout_threshold_minor');
+    expect(p4).toContain('skipped_below_threshold');
     expect(prepareMig).not.toMatch(/payout_threshold_min/);
-    expect(gatesMig).not.toMatch(/payout_threshold_min/);
   });
 
   it('admin mark-paid and Connect preflight stay behind payout_execution_enabled', () => {
@@ -194,11 +199,12 @@ describe('P3 payout preparation certification', () => {
     expect(connectFoundation).toMatch(/live_money_enabled\s*=\s*false/i);
   });
 
-  it('hourly cron refreshes eligibility only — does not prepare payable periods', () => {
+  it('hourly cron refreshes eligibility only — scheduled prepare is a separate workflow', () => {
     expect(refreshWorkflow).toContain("-d '{}'");
     expect(refreshWorkflow).not.toContain('prepare_payouts');
-    expect(refreshEdge).toContain('prepare_payouts === true');
-    expect(refreshEdge).toContain('Eligibility only by default');
+    expect(refreshEdge).toContain("prepMode === 'scheduled'");
+    expect(refreshEdge).toContain('wantManual');
+    expect(refreshEdge).toContain('never bank transfer');
   });
 
   it('partner Overview shows eligible pool and awaiting clearance without implying paid', () => {

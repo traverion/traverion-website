@@ -1,0 +1,96 @@
+# P4: Scheduled payout PREPARATION (READY periods only — never bank transfers).
+# Requires commercial_runtime_config.payout_auto_prepare_enabled = 1.
+# Runs daily; SQL skips non-cadence days and when the flag is off.
+# Keep payout_execution_enabled=0 and stripe_connect_transfers_enabled=0 unless separately authorized.
+
+name: Prepare supplier payout periods
+
+on:
+  schedule:
+    # Daily 06:10 UTC — no-ops unless auto-prepare flag is on and UTC day is 1 or 15.
+    - cron: '10 6 * * *'
+  workflow_dispatch:
+    inputs:
+      force:
+        description: 'Force prepare even if auto-prepare flag is off (still no bank transfer)'
+        required: true
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
+
+concurrency:
+  group: prepare-supplier-payouts
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  prepare:
+    name: Call refresh-supplier-earnings (prepare)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: POST prepare via refresh-supplier-earnings
+        env:
+          EARNINGS_REFRESH_CRON_SECRET: ${{ secrets.EARNINGS_REFRESH_CRON_SECRET }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          BOOKING_REMINDER_CRON_SECRET: ${{ secrets.BOOKING_REMINDER_CRON_SECRET }}
+          FUNCTION_URL: https://xcopqllkulxfkpunetbc.supabase.co/functions/v1/refresh-supplier-earnings
+          FORCE: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.force || 'false' }}
+        run: |
+          set -euo pipefail
+          SECRET="${EARNINGS_REFRESH_CRON_SECRET:-${CRON_SECRET:-${BOOKING_REMINDER_CRON_SECRET:-}}}"
+          if [ -z "${SECRET}" ]; then
+            echo "::error::Set EARNINGS_REFRESH_CRON_SECRET, CRON_SECRET, or BOOKING_REMINDER_CRON_SECRET."
+            exit 1
+          fi
+
+          if [ "${FORCE}" = "true" ]; then
+            BODY='{"prepare_payouts":"scheduled","force_prepare":true}'
+          else
+            BODY='{"prepare_payouts":"scheduled"}'
+          fi
+
+          ATTEMPT=1
+          MAX_ATTEMPTS=3
+          HTTP_CODE="000"
+          while [ "${ATTEMPT}" -le "${MAX_ATTEMPTS}" ]; do
+            set +e
+            HTTP_CODE="$(curl -sS -o /tmp/prepare-supplier-payouts.json -w '%{http_code}' \
+              --connect-timeout 15 \
+              --max-time 120 \
+              -X POST "${FUNCTION_URL}" \
+              -H "Authorization: Bearer ${SECRET}" \
+              -H "Content-Type: application/json" \
+              -d "${BODY}")"
+            CURL_EC=$?
+            set -e
+            echo "Attempt ${ATTEMPT}/${MAX_ATTEMPTS} HTTP status: ${HTTP_CODE} curl_ec=${CURL_EC}"
+            cat /tmp/prepare-supplier-payouts.json || true
+            echo
+            case "${HTTP_CODE}" in
+              2??)
+                echo "prepare-supplier-payouts succeeded (or skipped safely)."
+                exit 0
+                ;;
+              401|403)
+                echo "::error::unauthorized (HTTP ${HTTP_CODE})"
+                exit 1
+                ;;
+              000|521|502|503|504)
+                ;;
+              *)
+                echo "::error::failed with HTTP ${HTTP_CODE}"
+                exit 1
+                ;;
+            esac
+            if [ "${ATTEMPT}" -eq "${MAX_ATTEMPTS}" ]; then
+              echo "::error::exhausted retries (last HTTP ${HTTP_CODE})"
+              exit 1
+            fi
+            sleep $((ATTEMPT * 20))
+            ATTEMPT=$((ATTEMPT + 1))
+          done

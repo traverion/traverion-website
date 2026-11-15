@@ -312,7 +312,9 @@ export default function IncomeFinancialSettings({
     }
     onProfile(await fetchSupplierProfile(userId));
     setPreferenceSaving(false);
-    setPreferenceMessage('Saved. This preference is not an active payout schedule.');
+    setPreferenceMessage(
+      'Saved. Your minimum is enforced when Traverion prepares the next payout period; it does not move money by itself.'
+    );
   };
 
   const preferenceOptions = [

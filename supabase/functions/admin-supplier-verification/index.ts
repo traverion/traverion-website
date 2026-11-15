@@ -139,6 +139,8 @@ type Body = {
     | 'commercial_terms_set'
     | 'payout_periods_list'
     | 'prepare_due_payouts'
+    | 'prepare_runs_list'
+    | 'transfer_reversals_list'
     | 'mark_payout_period_paid'
     | 'refresh_earning_eligibility'
     | 'reconcile_supplier_commercial'
@@ -1317,11 +1319,50 @@ serve(async (req) => {
   }
 
   if (body.action === 'prepare_due_payouts') {
+    const nowIso = new Date().toISOString();
     const { data, error } = await admin.rpc('prepare_due_supplier_payouts', {
-      p_now: new Date().toISOString(),
+      p_now: nowIso,
     });
     if (error) return json({ error: error.message }, 500);
+    await admin.from('supplier_payout_prepare_runs').insert({
+      triggered_by: 'admin:prepare_due_payouts',
+      trigger_note: 'Admin manual prepare (no bank transfer)',
+      p_now: nowIso,
+      utc_day: new Date(nowIso).getUTCDate(),
+      auto_prepare_enabled: false,
+      ok: true,
+      result: data ?? {},
+    });
+    await admin.from('financial_audit_log').insert({
+      action: 'prepare_due_supplier_payouts',
+      reason: 'Admin payout preparation run (READY only — no bank transfer)',
+      after_state: { triggered_by: 'admin:prepare_due_payouts', result: data },
+    });
     return json(data ?? { ok: true });
+  }
+
+  if (body.action === 'prepare_runs_list') {
+    const { data, error } = await admin
+      .from('supplier_payout_prepare_runs')
+      .select(
+        'id, triggered_by, trigger_note, p_now, utc_day, auto_prepare_enabled, ok, result, error_message, created_at'
+      )
+      .order('created_at', { ascending: false })
+      .limit(50);
+    if (error) return json({ error: error.message }, 500);
+    return json({ items: data ?? [] });
+  }
+
+  if (body.action === 'transfer_reversals_list') {
+    const { data, error } = await admin
+      .from('supplier_transfer_reversal_attempts')
+      .select(
+        'id, transfer_attempt_id, payout_period_id, supplier_id, booking_id, amount_minor, status, idempotency_key, stripe_reversal_id, error_code, error_message, recovered_confirmed_at, created_at'
+      )
+      .order('created_at', { ascending: false })
+      .limit(100);
+    if (error) return json({ error: error.message }, 500);
+    return json({ items: data ?? [] });
   }
 
   if (body.action === 'refresh_earning_eligibility') {
