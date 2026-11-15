@@ -1854,7 +1854,7 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
                       // Phase 1560: failed quote beats “Checking offers…” (sticky parity).
                       if (selectedBookingVariant && panelQuote && !panelQuote.ok) {
                         return (
-                          <p className="mb-3 text-lg font-semibold text-ink">Price unavailable</p>
+                          <p className="mb-1 text-lg font-semibold text-ink">Price unavailable</p>
                         );
                       }
                       // Phase 1561: successful quote is the hero total (sticky parity — not catalog From).
@@ -1862,8 +1862,8 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
                         const lines = (panelQuote.lineItems ?? []).filter((line) => line.quantity > 0);
                         const several = panelQuote.guests > 1 || lines.length > 1;
                         return (
-                          <div className="mb-3">
-                            <p className="text-[1.65rem] font-bold leading-none tracking-tight text-[#111827]">{quotedOfferPrice(panelQuote)}</p>
+                          <div>
+                            <p className="text-[1.65rem] font-bold leading-none tracking-tight text-[#0b1b33] tabular-nums">{quotedOfferPrice(panelQuote)}</p>
                             <p className="mt-1.5 text-sm text-ink-muted">
                               {several ? 'Total for this booking' : lines[0]?.label ? `Per ${lines[0].label.toLowerCase()}` : 'Per person'}
                             </p>
@@ -1882,7 +1882,7 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
                       // Phase 1561: catalog From only before a live quote (ok/fail already returned above).
                       if (discountsByListing == null) {
                         return (
-                          <p className="mb-4 text-sm font-medium text-ink-faint">Checking offers…</p>
+                          <p className="mb-1 text-sm font-medium text-ink-faint">Checking offers…</p>
                         );
                       }
                       const { price, originalPrice, label, qualifier } = getDisplayPriceForTour(
@@ -1893,13 +1893,13 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
                       const currency = normalizeCurrency(tour.price?.currency);
                       const unit = qualifier ? `From / ${qualifier}` : 'From / person';
                       return (
-                        <div className="mb-3">
+                        <div>
                           {hasDiscount ? (
                             <p className="text-sm font-medium text-ink-muted line-through tabular-nums">
                               {formatMoney(originalPrice, currency)}
                             </p>
                           ) : null}
-                          <p className="text-[1.65rem] font-bold leading-none tracking-tight tabular-nums text-[#111827]">
+                          <p className="text-[1.65rem] font-bold leading-none tracking-tight tabular-nums text-[#0b1b33]">
                             {formatMoney(Number(price), currency)}
                           </p>
                           <div className="mt-1.5 flex flex-wrap items-center gap-2">
@@ -1911,7 +1911,7 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
                         </div>
                       );
                     })()}
-                    <div className="space-y-3">
+                    <div className="tv-booking-sticky__section space-y-3.5">
                       <TourDatePicker
                         id="tour-booking-date-input"
                         presentation="field"
@@ -1931,10 +1931,10 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
                         todayIso={experienceTodayIso}
                       />
                       <div id="tour-participant-field" ref={participantsRef} className="relative">
-                        <p className="mb-1.5 text-sm font-semibold tracking-tight text-[#111827]">Participants</p>
+                        <p className="mb-1.5 text-sm font-semibold tracking-tight text-[#0b1b33]">Participants</p>
                         <button
                           type="button"
-                          className="relative flex w-full min-h-11 items-center justify-between gap-3 rounded-xl border border-[#E8EBF0] bg-white px-3.5 text-left transition-[border-color,box-shadow] duration-150 hover:border-[#0758CB]/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0758CB]/25"
+                          className="relative flex w-full min-h-11 items-center justify-between gap-3 rounded-xl border border-[rgba(7,88,203,0.12)] bg-white px-3.5 text-left transition-[border-color,box-shadow] duration-200 motion-reduce:transition-none hover:border-[#0758CB]/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0758CB]/25"
                           aria-expanded={participantsOpen}
                           aria-haspopup="dialog"
                           onClick={() => setParticipantsOpen((open) => !open)}
@@ -2053,10 +2053,13 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
                         </p>
                       ) : null}
                       {selectedBookingVariant ? (
-                        <div className="space-y-2.5 border-t border-[#E8EBF0] pt-3">
-                          <div className="flex items-start justify-between gap-3">
+                        <div className="tv-booking-sticky__section space-y-3">
+                          <div className="tv-booking-sticky__summary flex items-start justify-between gap-3">
                             <div className="min-w-0">
-                              <p className="text-sm font-semibold leading-snug tracking-tight text-[#111827] break-words [overflow-wrap:anywhere]">
+                              <p className="text-[11px] font-semibold uppercase tracking-[0.04em] text-[#0758CB]">
+                                Selected option
+                              </p>
+                              <p className="mt-1 text-sm font-semibold leading-snug tracking-tight text-[#0b1b33] break-words [overflow-wrap:anywhere]">
                                 {selectedBookingVariant.label}
                               </p>
                               <p className="mt-0.5 text-xs text-ink-muted">
@@ -2069,12 +2072,12 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
                                       : null,
                                 ]
                                   .filter(Boolean)
-                                  .join(' · ') || 'Selected option'}
+                                  .join(' · ') || 'Ready to book'}
                               </p>
                             </div>
                             <button
                               type="button"
-                              className="shrink-0 text-sm font-semibold text-[#0758CB]"
+                              className="shrink-0 text-sm font-semibold text-[#0758CB] hover:underline"
                               onClick={scrollToOptionsSection}
                             >
                               Change
@@ -2257,7 +2260,7 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
                           </button>
                         </div>
                       ) : (
-                        <div className="space-y-3">
+                        <div className="tv-booking-sticky__section space-y-3">
                           <p className="text-sm text-ink-muted">
                             {!bookingDate.trim()
                               ? 'Choose a date to see available options.'

@@ -4616,27 +4616,45 @@ a:focus-visible,
 .tv-booking-sticky {
   border-radius: var(--tv-radius-lg, 1rem);
   background: #ffffff;
-  padding: 1rem 1.05rem 1.1rem;
+  padding: 1.05rem 1.1rem 1.15rem;
+  border: 1px solid rgba(7, 88, 203, 0.14);
   box-shadow:
     0 1px 2px rgba(15, 23, 42, 0.04),
-    0 12px 32px -18px rgba(15, 23, 42, 0.22),
-    0 0 0 1px rgba(28, 25, 23, 0.06);
-  border: 1px solid rgba(232, 235, 240, 0.95);
+    0 14px 36px -20px rgba(7, 88, 203, 0.22),
+    0 0 0 1px rgba(7, 88, 203, 0.04);
+}
+.tv-booking-sticky__section {
+  padding-top: 0.85rem;
+  margin-top: 0.85rem;
+  border-top: 1px solid rgba(7, 88, 203, 0.1);
+}
+.tv-booking-sticky__summary {
+  border-radius: 0.75rem;
+  background: rgba(7, 88, 203, 0.035);
+  border: 1px solid rgba(7, 88, 203, 0.12);
+  padding: 0.7rem 0.75rem;
 }
 .tv-booking-sticky .tv-btn-primary.tv-tour-book {
   min-height: var(--tv-control-h, 2.75rem);
-  font-weight: 650;
+  font-weight: 700;
   letter-spacing: -0.01em;
+  box-shadow: 0 8px 18px -14px rgba(7, 88, 203, 0.55);
   transition:
     background-color var(--tv-duration-fast, 150ms) var(--tv-ease),
-    box-shadow var(--tv-duration-ui, 180ms) var(--tv-ease),
+    box-shadow 200ms var(--tv-ease),
     transform var(--tv-duration-hover, 160ms) var(--tv-ease);
 }
 .tv-booking-sticky .tv-btn-primary.tv-tour-book:hover:not(:disabled) {
-  box-shadow: 0 8px 20px -12px rgba(7, 88, 203, 0.55);
+  box-shadow: 0 10px 22px -12px rgba(7, 88, 203, 0.62);
 }
 .tv-booking-sticky .tv-btn-primary.tv-tour-book:active:not(:disabled) {
   transform: translateY(0.5px);
+}
+.tv-booking-sticky .tv-btn-primary.tv-tour-book:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 3px rgba(7, 88, 203, 0.28),
+    0 8px 18px -14px rgba(7, 88, 203, 0.55);
 }
 /* Keep sticky CTAs clear of the fixed mobile booking bar below lg. */
 @media (max-width: 1023px) {
@@ -4690,21 +4708,73 @@ a:focus-visible,
 
 /* Tour Details — compact option cards (selection price parity with sticky) */
 .tv-tour-option-card {
+  position: relative;
   border-radius: var(--tv-radius, 0.75rem);
   background: #ffffff;
-  border: 1px solid rgba(232, 235, 240, 0.98);
+  border: 1px solid rgba(7, 88, 203, 0.12);
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.03),
+    0 8px 20px -18px rgba(7, 88, 203, 0.18);
+  transition:
+    background-color 200ms var(--tv-ease, ease),
+    border-color 200ms var(--tv-ease, ease),
+    box-shadow 200ms var(--tv-ease, ease);
+}
+.tv-tour-option-card--idle {
+  background: #ffffff;
+  border-color: rgba(226, 232, 240, 0.98);
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
 }
 .tv-tour-option-card--idle:hover {
-  border-color: rgba(7, 88, 203, 0.28);
-  box-shadow: 0 8px 20px -16px rgba(15, 23, 42, 0.28);
+  border-color: rgba(7, 88, 203, 0.38);
+  box-shadow:
+    0 2px 4px rgba(15, 23, 42, 0.04),
+    0 12px 28px -16px rgba(7, 88, 203, 0.32);
+}
+.tv-tour-option-card--idle:focus-within {
+  border-color: rgba(7, 88, 203, 0.42);
+  box-shadow:
+    0 0 0 3px rgba(7, 88, 203, 0.16),
+    0 8px 20px -16px rgba(7, 88, 203, 0.22);
 }
 .tv-tour-option-card--selected {
   border-color: #0758cb;
-  background: rgba(7, 88, 203, 0.03);
+  background: rgba(7, 88, 203, 0.045);
   box-shadow:
-    0 0 0 1px rgba(7, 88, 203, 0.12),
-    0 10px 24px -18px rgba(7, 88, 203, 0.28);
+    0 0 0 1px rgba(7, 88, 203, 0.16),
+    0 12px 28px -16px rgba(7, 88, 203, 0.34);
+}
+.tv-tour-option-card--selected::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.7rem;
+  bottom: 0.7rem;
+  width: 3px;
+  border-radius: 999px;
+  background: #0758cb;
+}
+.tv-tour-option-card__price {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  color: #0b1b33;
+}
+.tv-tour-option-card__cta {
+  transition:
+    background-color 200ms var(--tv-ease, ease),
+    border-color 200ms var(--tv-ease, ease),
+    color 200ms var(--tv-ease, ease),
+    box-shadow 200ms var(--tv-ease, ease);
+}
+.tv-tour-option-card__cta:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(7, 88, 203, 0.28);
+}
+@media (prefers-reduced-motion: reduce) {
+  .tv-tour-option-card,
+  .tv-tour-option-card__cta {
+    transition: none;
+  }
 }
 .tv-selection-restored {
   display: flex;

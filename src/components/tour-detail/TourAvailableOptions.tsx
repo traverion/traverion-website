@@ -154,7 +154,7 @@ export default function TourAvailableOptions({
       ) : null}
 
       {kind === 'many' ? (
-        <ul className="mt-4 grid gap-2.5">
+        <ul className="mt-4 grid gap-3">
           {available.map((variant) => (
             <li key={variant.id}>
               <OptionRow
@@ -285,24 +285,32 @@ function OptionRow({
   const discounted = Boolean(price.discountLabel) && price.originalTotal != null && price.total != null;
   return (
     <article
-      className={`tv-tour-option-card flex flex-col px-3.5 py-3 transition-[background-color,border-color,box-shadow] duration-150 motion-reduce:transition-none ${
+      className={`tv-tour-option-card flex flex-col px-3.5 py-3.5 motion-reduce:transition-none ${
         selected
           ? 'tv-tour-option-card--selected'
           : 'tv-tour-option-card--idle'
       }`}
     >
-      <h3 className="min-w-0 text-[0.9375rem] font-bold leading-snug tracking-tight text-[#111827] break-words [overflow-wrap:anywhere]">
-        {variant.label}
-      </h3>
+      <div className="flex items-start justify-between gap-2">
+        <h3 className="min-w-0 text-[0.9375rem] font-bold leading-snug tracking-tight text-[#0b1b33] break-words [overflow-wrap:anywhere]">
+          {variant.label}
+        </h3>
+        {selected ? (
+          <span className="inline-flex shrink-0 items-center gap-1 rounded-md bg-[#0758CB]/10 px-1.5 py-0.5 text-[11px] font-semibold uppercase tracking-[0.03em] text-[#0758CB]">
+            <Check className="h-3 w-3" aria-hidden />
+            Selected
+          </span>
+        ) : null}
+      </div>
       {detail ? (
-        <p className={`mt-1 text-sm leading-snug text-ink-muted ${detailLong && !detailOpen ? 'line-clamp-2' : ''}`}>
+        <p className={`mt-1.5 text-sm leading-snug text-ink-muted ${detailLong && !detailOpen ? 'line-clamp-2' : ''}`}>
           {detail}
         </p>
       ) : null}
       {detailLong ? (
         <button
           type="button"
-          className="mt-1 self-start text-sm font-semibold text-[#0758CB]"
+          className="mt-1.5 self-start text-sm font-semibold text-[#0758CB]"
           aria-expanded={detailOpen}
           onClick={() => setDetailOpen((open) => !open)}
         >
@@ -310,7 +318,7 @@ function OptionRow({
         </button>
       ) : null}
       {meta.length > 0 || times.length === 1 ? (
-        <ul className="mt-2 flex flex-wrap gap-x-3 gap-y-1">
+        <ul className="mt-2.5 flex flex-wrap gap-x-3 gap-y-1.5">
           {meta.map((part) => {
             const Icon = metaIcon(part);
             return (
@@ -329,8 +337,8 @@ function OptionRow({
         </ul>
       ) : null}
       {times.length > 1 ? (
-        <div className="mt-2">
-          <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.04em] text-ink-faint">Departure</p>
+        <div className="mt-2.5">
+          <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.04em] text-ink-faint">Departure</p>
           <div className="flex flex-wrap gap-1.5" role="group" aria-label={`Departure times for ${variant.label}`}>
             {times.map((time) => {
               const timeSelected = selected && selectedDepartureTime === time;
@@ -338,7 +346,7 @@ function OptionRow({
                 <button
                   key={time}
                   type="button"
-                  className={`min-h-9 rounded-lg px-2.5 text-sm font-semibold transition-colors duration-150 ${
+                  className={`min-h-9 rounded-lg px-2.5 text-sm font-semibold transition-colors duration-200 motion-reduce:transition-none ${
                     timeSelected
                       ? 'border border-[#0758CB] bg-[#0758CB] text-white'
                       : 'border border-[#E8EBF0] bg-white text-ink hover:border-[#0758CB] hover:text-[#0758CB]'
@@ -353,7 +361,7 @@ function OptionRow({
         </div>
       ) : null}
       {categoryFacts && categoryFacts.facts.length > 0 ? (
-        <div className="mt-1.5">
+        <div className="mt-2">
           <button
             type="button"
             className="text-xs font-semibold text-[#0758CB]"
@@ -377,10 +385,10 @@ function OptionRow({
           ) : null}
         </div>
       ) : null}
-      <div className="mt-2.5 flex items-end justify-between gap-3 border-t border-black/[0.05] pt-2.5">
+      <div className="mt-3 flex items-end justify-between gap-3 border-t border-[rgba(7,88,203,0.1)] pt-3">
         <div className="min-w-0">
           {price.mode === 'unavailable' || price.total == null ? (
-            <p className="text-sm font-semibold text-[#111827]">Price unavailable</p>
+            <p className="tv-tour-option-card__price text-sm font-semibold">Price unavailable</p>
           ) : (
             <>
               {discounted && price.originalTotal != null ? (
@@ -388,10 +396,10 @@ function OptionRow({
                   {price.mode === 'from' ? `From ${formatMoney(price.originalTotal, currency)}` : formatMoney(price.originalTotal, currency)}
                 </p>
               ) : null}
-              <p className="text-[1.125rem] font-bold leading-none tracking-tight tabular-nums text-[#111827]">
+              <p className="tv-tour-option-card__price text-[1.1875rem] font-bold leading-none tracking-tight tabular-nums">
                 {price.mode === 'from' ? `From ${formatMoney(price.total, currency)}` : formatMoney(price.total, currency)}
               </p>
-              <div className="mt-1 flex flex-wrap items-center gap-1.5">
+              <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
                 <span className="text-xs text-ink-muted">{price.caption}</span>
                 {discounted && price.discountLabel ? (
                   <span className="rounded-md bg-[#F8EFEA] px-1.5 py-0.5 text-[11px] font-semibold text-[#9A3412]">
@@ -407,9 +415,9 @@ function OptionRow({
           data-tour-option-cta="choose"
           onClick={() => onChoose(variant)}
           aria-pressed={selected}
-          className={`inline-flex min-h-10 shrink-0 items-center justify-center gap-1.5 rounded-lg px-3.5 text-sm font-semibold transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0758CB]/35 ${
+          className={`tv-tour-option-card__cta inline-flex min-h-10 shrink-0 items-center justify-center gap-1.5 rounded-lg px-3.5 text-sm font-semibold motion-reduce:transition-none ${
             selected
-              ? 'bg-[#0758CB] text-white'
+              ? 'bg-[#0758CB] text-white shadow-[0_6px_14px_-10px_rgba(7,88,203,0.7)]'
               : 'border border-[#0758CB] bg-white text-[#0758CB] hover:bg-[#F3F7FD]'
           }`}
         >
