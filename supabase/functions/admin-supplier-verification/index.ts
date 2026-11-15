@@ -1274,7 +1274,7 @@ serve(async (req) => {
     const { data, error } = await admin
       .from('supplier_payout_periods')
       .select(
-        'id, supplier_id, currency, cadence, period_key, period_start, period_end, scheduled_for, status, amount_minor, item_count, created_at, paid_at, note, connect_lifecycle'
+        'id, supplier_id, currency, cadence, period_key, period_start, period_end, scheduled_for, status, amount_minor, item_count, created_at, paid_at, paid_via, note, connect_lifecycle'
       )
       .order('scheduled_for', { ascending: false })
       .limit(100);
@@ -1390,11 +1390,21 @@ serve(async (req) => {
     const note = typeof body.payoutNote === 'string' ? body.payoutNote.trim() : '';
     const paymentReference =
       typeof body.payoutPaymentReference === 'string' ? body.payoutPaymentReference.trim() : '';
-    if (!paymentReference) {
+    if (!paymentReference || paymentReference.length < 4) {
       return json(
         {
           error:
             'payoutPaymentReference required — cannot mark a period paid without payment confirmation evidence',
+        },
+        400
+      );
+    }
+    // Manual admin path must never impersonate Stripe Connect bank confirmation.
+    if (/^po_/i.test(paymentReference) || /^stripe_connect/i.test(paymentReference)) {
+      return json(
+        {
+          error:
+            'manual_mark_rejects_stripe_payout_reference — Connect bank payouts are confirmed only by payout.paid webhooks',
         },
         400
       );
@@ -1406,9 +1416,13 @@ serve(async (req) => {
       p_payment_reference: paymentReference,
     });
     if (error) return json({ error: error.message }, 500);
-    const result = data as { ok?: boolean; error?: string } | null;
+    const result = data as { ok?: boolean; error?: string; already?: boolean } | null;
     if (!result?.ok) return json({ error: result?.error ?? 'Could not mark paid' }, 400);
-    return json(result);
+    return json({
+      ...result,
+      paid_via_kind: 'manual_admin',
+      note: 'Manual bank recording only — does not confirm Stripe Connect payout.paid',
+    });
   }
 
   if (body.action === 'booking_financial_investigation') {

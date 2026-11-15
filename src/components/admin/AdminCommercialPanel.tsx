@@ -41,6 +41,7 @@ type PayoutPeriodRow = {
   item_count: number;
   created_at: string;
   paid_at: string | null;
+  paid_via?: string | null;
   note: string | null;
   connect_lifecycle?: string | null;
 };
@@ -90,6 +91,12 @@ export default function AdminCommercialPanel() {
   const [effectiveFrom, setEffectiveFrom] = useState('');
   const [note, setNote] = useState('');
   const [confirmText, setConfirmText] = useState('');
+
+  /** Manual bank completion draft — never used for Stripe Connect payout.paid. */
+  const [markPaidPeriodId, setMarkPaidPeriodId] = useState<string | null>(null);
+  const [markPaidReference, setMarkPaidReference] = useState('');
+  const [markPaidNote, setMarkPaidNote] = useState('');
+  const [markPaidConfirm, setMarkPaidConfirm] = useState('');
 
   const loadPeriods = useCallback(async () => {
     if (!isSupabaseConfigured()) return;
@@ -224,8 +231,36 @@ export default function AdminCommercialPanel() {
     }
   };
 
-  const markPaid = async (periodId: string) => {
-    if (!window.confirm('Mark this READY payout period as paid? This records a payout — it does not send money.')) {
+  const openMarkPaid = (periodId: string) => {
+    setMarkPaidPeriodId(periodId);
+    setMarkPaidReference('');
+    setMarkPaidNote('');
+    setMarkPaidConfirm('');
+    setActionMsg(null);
+  };
+
+  const cancelMarkPaid = () => {
+    setMarkPaidPeriodId(null);
+    setMarkPaidReference('');
+    setMarkPaidNote('');
+    setMarkPaidConfirm('');
+  };
+
+  const markPaid = async () => {
+    if (!markPaidPeriodId) return;
+    const paymentReference = markPaidReference.trim();
+    if (paymentReference.length < 4) {
+      setActionMsg('Payment reference required (bank transfer ID, statement ref, or remittance note).');
+      return;
+    }
+    if (/^po_/i.test(paymentReference) || /^stripe_connect/i.test(paymentReference)) {
+      setActionMsg(
+        'Do not enter a Stripe payout id here. Manual mark-paid records a bank payment only — Connect bank confirmation comes from payout.paid webhooks.'
+      );
+      return;
+    }
+    if (markPaidConfirm.trim().toUpperCase() !== 'CONFIRM MANUAL BANK') {
+      setActionMsg('Type CONFIRM MANUAL BANK to record a manual bank payout (not a Stripe Connect payout).');
       return;
     }
     setBusy(true);
@@ -233,10 +268,14 @@ export default function AdminCommercialPanel() {
     try {
       await invokeAdminEdgeFunction({
         action: 'mark_payout_period_paid',
-        payoutPeriodId: periodId,
-        payoutNote: 'Marked paid via admin commercial panel',
+        payoutPeriodId: markPaidPeriodId,
+        payoutPaymentReference: paymentReference,
+        payoutNote:
+          markPaidNote.trim() ||
+          'Manual bank payout recorded via admin commercial panel (not Stripe Connect)',
       });
-      setActionMsg('Payout period marked paid.');
+      setActionMsg('Manual bank payout recorded on period (paid_via=manual_admin). No Stripe money movement.');
+      cancelMarkPaid();
       await loadPeriods();
       if (loadedId) await loadSupplier(loadedId);
     } catch (e) {
@@ -459,7 +498,10 @@ export default function AdminCommercialPanel() {
           </div>
           <div className="flex-1 min-w-0">
             <h2 className="font-display text-lg text-ink tracking-tight">Payout periods</h2>
-            <p className="text-sm text-ink-muted mt-1">READY / PAID preparation ledger. No automatic bank transfer.</p>
+            <p className="text-sm text-ink-muted mt-1">
+              READY / PAID preparation ledger. Mark paid records a manual bank payment only — it never
+              confirms Stripe Connect transfers or bank payouts.
+            </p>
           </div>
           <button
             type="button"
@@ -470,6 +512,62 @@ export default function AdminCommercialPanel() {
             Refresh
           </button>
         </div>
+
+        {markPaidPeriodId ? (
+          <div className="mb-4 rounded-lg border border-black/[0.08] bg-black/[0.02] p-4 space-y-3">
+            <p className="text-sm font-medium text-ink">Record manual bank payment</p>
+            <p className="text-xs text-ink-muted leading-relaxed">
+              Requires a real bank remittance reference. Stripe Connect payout confirmation is webhook-only (
+              <code className="text-[11px]">payout.paid</code> → <code className="text-[11px]">paid_via=stripe_connect_payout</code>
+              ). Gated by <code className="text-[11px]">payout_execution_enabled</code>.
+            </p>
+            <label className="block">
+              <span className="text-xs font-medium text-ink-muted">Payment reference</span>
+              <input
+                type="text"
+                value={markPaidReference}
+                onChange={(e) => setMarkPaidReference(e.target.value)}
+                className="tv-input mt-1 w-full text-sm font-mono"
+                placeholder="Bank transfer / remittance ID"
+                autoComplete="off"
+              />
+            </label>
+            <label className="block">
+              <span className="text-xs font-medium text-ink-muted">Note (optional)</span>
+              <input
+                type="text"
+                value={markPaidNote}
+                onChange={(e) => setMarkPaidNote(e.target.value)}
+                className="tv-input mt-1 w-full text-sm"
+                placeholder="Operator note"
+              />
+            </label>
+            <label className="block">
+              <span className="text-xs font-medium text-ink-muted">Type CONFIRM MANUAL BANK</span>
+              <input
+                type="text"
+                value={markPaidConfirm}
+                onChange={(e) => setMarkPaidConfirm(e.target.value)}
+                className="tv-input mt-1 w-full text-sm font-mono"
+                placeholder="CONFIRM MANUAL BANK"
+                autoComplete="off"
+              />
+            </label>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => void markPaid()}
+                disabled={busy}
+                className="tv-btn-secondary text-sm disabled:opacity-50"
+              >
+                Record manual bank paid
+              </button>
+              <button type="button" onClick={cancelMarkPaid} disabled={busy} className="tv-btn-ghost text-sm">
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : null}
 
         {!periodsLoading && periods.length === 0 ? (
           <EmptyState
@@ -485,6 +583,12 @@ export default function AdminCommercialPanel() {
                   <p className="text-sm font-medium text-ink">
                     {p.status.toUpperCase()} · {majorFromMinor(p.amount_minor, p.currency)} · {p.item_count}{' '}
                     booking{p.item_count === 1 ? '' : 's'}
+                    {p.paid_via ? (
+                      <span className="text-xs font-normal text-ink-muted"> · via {p.paid_via}</span>
+                    ) : null}
+                    {p.connect_lifecycle ? (
+                      <span className="text-xs font-normal text-ink-muted"> · {p.connect_lifecycle}</span>
+                    ) : null}
                   </p>
                   <p className="text-xs text-ink-muted font-mono mt-0.5">
                     {p.supplier_id.slice(0, 8)}… · {p.period_key} · {p.cadence} · {p.currency}
@@ -493,11 +597,11 @@ export default function AdminCommercialPanel() {
                 {p.status === 'ready' ? (
                   <button
                     type="button"
-                    onClick={() => void markPaid(p.id)}
-                    disabled={busy}
+                    onClick={() => openMarkPaid(p.id)}
+                    disabled={busy || markPaidPeriodId !== null}
                     className="tv-btn-secondary text-sm disabled:opacity-50"
                   >
-                    Mark paid
+                    Record manual bank paid
                   </button>
                 ) : null}
               </li>
