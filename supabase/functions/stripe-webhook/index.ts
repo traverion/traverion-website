@@ -70,6 +70,7 @@ serve(async (req) => {
       webhookSecret: Deno.env.get('STRIPE_WEBHOOK_SECRET'),
       webhookSecretLive: Deno.env.get('STRIPE_WEBHOOK_SECRET_LIVE'),
       webhookSecretTest: Deno.env.get('STRIPE_WEBHOOK_SECRET_TEST'),
+      webhookSecretConnectTest: Deno.env.get('STRIPE_WEBHOOK_SECRET_CONNECT_TEST'),
     });
     if (!signing.ok) return json({ success: false, error: signing.error }, 500);
 

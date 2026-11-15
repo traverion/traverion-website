@@ -127,11 +127,22 @@ export function webhookSigningSecrets(input: {
   webhookSecret: string | null | undefined;
   webhookSecretLive?: string | null | undefined;
   webhookSecretTest?: string | null | undefined;
+  /** Optional second TEST secret (e.g. Connect-listener endpoint). */
+  webhookSecretConnectTest?: string | null | undefined;
 }): { ok: true; candidates: WebhookSecretCandidate[] } | { ok: false; error: string } {
   const primary = (input.webhookSecret ?? '').trim();
   const live = (input.webhookSecretLive ?? '').trim();
   const testExplicit = (input.webhookSecretTest ?? '').trim();
+  const connectTest = (input.webhookSecretConnectTest ?? '').trim();
   const candidates: WebhookSecretCandidate[] = [];
+  const seen = new Set<string>();
+
+  const push = (mode: StripePaymentMode, secret: string) => {
+    const s = secret.trim();
+    if (!s || seen.has(`${mode}:${s}`)) return;
+    seen.add(`${mode}:${s}`);
+    candidates.push({ mode, secret: s });
+  };
 
   if (input.livePaymentsEnabled) {
     const liveSecret = live || primary;
@@ -141,17 +152,21 @@ export function webhookSigningSecrets(input: {
         error: 'STRIPE_WEBHOOK_SECRET_LIVE (or STRIPE_WEBHOOK_SECRET) required when LIVE payments are enabled',
       };
     }
-    candidates.push({ mode: 'live', secret: liveSecret });
-    const testSecret = testExplicit || (live && primary ? primary : '');
-    if (testSecret && testSecret !== liveSecret) {
-      candidates.push({ mode: 'test', secret: testSecret });
+    push('live', liveSecret);
+    // Cutover: still accept TEST endpoint secrets while LIVE is enabled.
+    for (const s of [testExplicit, connectTest, live && primary ? primary : '']) {
+      if (s && s !== liveSecret) push('test', s);
     }
   } else {
-    const testSecret = testExplicit || primary;
-    if (!testSecret) {
+    const testSecrets = [testExplicit, primary, connectTest].filter(Boolean);
+    if (testSecrets.length === 0) {
       return { ok: false, error: 'STRIPE_WEBHOOK_SECRET not configured' };
     }
-    candidates.push({ mode: 'test', secret: testSecret });
+    for (const s of testSecrets) push('test', s);
+  }
+
+  if (candidates.length === 0) {
+    return { ok: false, error: 'No webhook signing secrets configured' };
   }
 
   return { ok: true, candidates };

@@ -107,6 +107,24 @@ describe('stripe-payment-mode', () => {
     }
   });
 
+  it('webhook secrets: accepts platform + Connect TEST secrets together', () => {
+    const r = webhookSigningSecrets({
+      livePaymentsEnabled: false,
+      webhookSecret: 'whsec_legacy',
+      webhookSecretTest: 'whsec_platform',
+      webhookSecretConnectTest: 'whsec_connect',
+    });
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.candidates.map((c) => c.secret)).toEqual([
+        'whsec_platform',
+        'whsec_legacy',
+        'whsec_connect',
+      ]);
+      expect(r.candidates.every((c) => c.mode === 'test')).toBe(true);
+    }
+  });
+
   it('webhook secrets: LIVE primary when LIVE enabled; optional TEST secondary', () => {
     const r = webhookSigningSecrets({
       livePaymentsEnabled: true,
