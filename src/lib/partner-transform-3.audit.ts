@@ -149,7 +149,7 @@ export const TRANSFORM3_AUDIT_FINDINGS = [
   'Stay calendar cell density and selected-day states need cohesive polish',
   'Creator workspaces still feel form-heavy on some steps',
   'Modal padding and action alignment not fully unified across Confirm vs detail drawers',
-  'Must preserve Period Sales vs Period Earnings semantics and Connect lifecycle',
+  'Must preserve payout Overview semantics (eligible vs clearance) and Connect lifecycle',
 ] as const;
 
 export const PARTNER_TRANSFORM_3_AUDIT = true as const;

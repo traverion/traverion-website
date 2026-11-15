@@ -26,25 +26,24 @@ describe('Phase 6: supplier income experience', () => {
     'utf8'
   );
 
-  it('Overview uses exactly two primary cards from Phase 5 period RPCs', () => {
+  it('Overview uses payout-focused primary cards (eligible + awaiting clearance)', () => {
     expect(page).toContain('data-testid="income-overview-primary-cards"');
-    expect(page).toContain('Period sales');
-    expect(page).toContain('Period earnings');
-    expect(page).toContain('fetchSupplierPeriodSales');
-    expect(page).toContain('fetchSupplierPeriodEarnings');
+    expect(page).toContain('Next payout — eligible');
+    expect(page).toContain('Awaiting clearance');
+    expect(page).not.toContain('Period sales');
+    expect(page).not.toContain('Period earnings');
     expect(page).not.toMatch(/Total earnings[\s\S]*Pending[\s\S]*Available[\s\S]*Paid out/);
+    // Period RPCs remain available for reporting/admin; Overview no longer drives them.
     expect(earningsData).toContain("rpc('supplier_period_sales'");
     expect(earningsData).toContain("rpc('supplier_period_earnings'");
   });
 
-  it('keeps Income navigation tabs and period selector', () => {
+  it('keeps Income navigation tabs', () => {
     expect(page).toContain("['overview', 'Overview']");
     expect(page).toContain("['earnings', 'Earnings']");
     expect(page).toContain("['payouts', 'Payouts']");
     expect(page).toContain("['documents', 'Documents']");
     expect(page).toContain("['settings', 'Settings']");
-    expect(page).toContain('Reporting period');
-    expect(page).toContain('buildIncomeReportPeriods');
   });
 
   it('never labels READY as Paid and gates completed statements', () => {

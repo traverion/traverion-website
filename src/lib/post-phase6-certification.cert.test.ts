@@ -68,11 +68,10 @@ describe('Post-Phase-6 certification contracts', () => {
     expect(mig270).not.toContain('transfers.create');
   });
 
-  it('Income Overview uses Phase 5 RPCs and does not label READY as Paid', () => {
-    expect(incomePage).toContain('fetchSupplierPeriodSales');
-    expect(incomePage).toContain('fetchSupplierPeriodEarnings');
-    expect(incomePage).toContain('Period sales');
-    expect(incomePage).toContain('Period earnings');
+  it('Income Overview is payout-focused and does not label READY as Paid', () => {
+    expect(incomePage).toContain('Next payout — eligible');
+    expect(incomePage).toContain('Awaiting clearance');
+    expect(incomePage).not.toContain('Period sales');
     expect(incomePage).toContain('Automatic bank payouts are not enabled');
     expect(mig271).toContain('payment_reference_required');
   });

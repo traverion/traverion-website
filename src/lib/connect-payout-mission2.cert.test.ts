@@ -102,10 +102,9 @@ describe('Mission 2: Connect onboarding + TEST transfer engine', () => {
 
   it('6. Income UI preserves two overview cards and shows Connect lifecycle labels', () => {
     expect(earnings).toContain('data-testid="income-overview-primary-cards"');
-    expect(earnings).toContain('Period sales');
-    expect(earnings).toContain('Period earnings');
+    expect(earnings).toContain('Next payout — eligible');
+    expect(earnings).toContain('Awaiting clearance');
     expect(earnings).toContain('connectPayoutPresentationStatus');
-    expect(earnings).toContain('Scheduled payout date');
     expect(earnings).toContain('How payout statuses work');
     expect(earnings).toContain('Sending funds to your payout account alone is not a bank payment');
     expect(settings).toContain('Payout settings');

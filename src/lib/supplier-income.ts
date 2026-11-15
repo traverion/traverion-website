@@ -304,3 +304,94 @@ export function earningStatusExplanation(status: IncomeEarningStatus): string {
   }
   return 'Recorded from booking history. A frozen commercial split may still be missing.';
 }
+
+/**
+ * Cleared earnings not yet allocated to a payout period.
+ * Held rows stay visible in Earnings but are excluded from the next-payout pool.
+ */
+export function selectUnallocatedEligibleEarnings(rows: IncomeEarningRow[]): IncomeEarningRow[] {
+  return rows.filter((row) => row.status === 'eligible' && !row.held && row.netMinor > 0);
+}
+
+/** Earnings still awaiting service completion / clearance. */
+export function selectAwaitingClearanceEarnings(rows: IncomeEarningRow[]): IncomeEarningRow[] {
+  return rows.filter((row) => row.status === 'pending' && row.netMinor > 0);
+}
+
+export function sumIncomeRowsNetMinor(rows: IncomeEarningRow[]): number {
+  return rows.reduce((sum, row) => sum + Math.max(0, row.netMinor), 0);
+}
+
+/**
+ * Bank-facing schedule/transfer date only when confirmation exists.
+ * Internal READY `scheduled_for` alone is preparation — not a confirmed transfer date.
+ */
+export function payoutConfirmedScheduleDate(period: {
+  status?: string | null;
+  scheduled_for?: string | null;
+  paid_at?: string | null;
+  connect_lifecycle?: string | null;
+} | null | undefined): string | null {
+  if (!period) return null;
+  const life = (period.connect_lifecycle ?? 'internal_only').toLowerCase();
+  if (life === 'bank_payout_paid' || life === 'bank_payout_pending') {
+    return (period.paid_at || period.scheduled_for || null)?.slice(0, 10) ?? null;
+  }
+  if (period.status === 'paid' && period.paid_at) {
+    return period.paid_at.slice(0, 10);
+  }
+  return null;
+}
+
+/** Latest payout with a completion timestamp (manual or bank). */
+export function selectLastCompletedPayout<T extends { status: string; paid_at?: string | null }>(
+  periods: T[]
+): T | null {
+  const completed = periods
+    .filter((period) => payoutMaySayPaid(period.status, period.paid_at))
+    .sort((a, b) => String(b.paid_at ?? '').localeCompare(String(a.paid_at ?? '')));
+  return completed[0] ?? null;
+}
+
+/** Supplier-facing preference label from active commercial terms (catalog rates). */
+export function payoutPreferenceLabel(input: {
+  payout_cadence?: string | null;
+  commission_bps?: number | null;
+} | null): string {
+  if (!input) return 'Not set';
+  const cadence =
+    (input.payout_cadence ?? '').toLowerCase() === 'semimonthly' ? 'Twice monthly' : 'Monthly';
+  const pct =
+    typeof input.commission_bps === 'number' && Number.isFinite(input.commission_bps)
+      ? formatBpsAsPercent(input.commission_bps)
+      : null;
+  return pct ? `${cadence} (${pct})` : cadence;
+}
+
+/**
+ * Preparation / scheduling copy for Overview — never equates READY with money in bank.
+ */
+export function nextPayoutPreparationLabel(input: {
+  eligibleCount: number;
+  periodStatus?: string | null;
+  connectLifecycle?: string | null;
+  paidAt?: string | null;
+}): string {
+  const life = (input.connectLifecycle ?? 'internal_only').toLowerCase();
+  if (life === 'bank_payout_paid' || (input.periodStatus === 'paid' && input.paidAt)) {
+    return 'Last transfer confirmed';
+  }
+  if (life === 'bank_payout_pending' || life === 'transfer_pending' || input.periodStatus === 'processing') {
+    return 'Transfer initiated — awaiting bank confirmation';
+  }
+  if (life === 'bank_payout_failed' || life === 'failed' || input.periodStatus === 'failed') {
+    return 'Transfer failed or restricted';
+  }
+  if (input.periodStatus === 'ready' || input.periodStatus === 'drafting') {
+    return 'Allocated to a payout period — preparation only, not a bank transfer';
+  }
+  if (input.eligibleCount > 0) {
+    return 'Available for the next payout cycle — not yet allocated';
+  }
+  return 'No eligible earnings yet';
+}
