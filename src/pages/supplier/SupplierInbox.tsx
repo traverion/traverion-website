@@ -28,7 +28,10 @@ import { partnerInboxHref, readPartnerInboxBookingId } from '../../lib/partner-i
 import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
 import BookingMessageThread from '../../components/BookingMessageThread';
 import { bookingPaymentWasCollected } from '../../lib/payment-states';
-import { partnerInboxListsBooking } from '../../lib/messaging-authorization';
+import {
+  isHumanBookingMessageSender,
+  partnerInboxListsBooking,
+} from '../../lib/messaging-authorization';
 import { travelerPublicBookingReference } from '../../lib/public-booking-reference';
 import {
   PARTNER_INBOX_MESSAGE_FETCH_CAP,
@@ -117,6 +120,8 @@ export default function SupplierInbox() {
   openCancelIdsRef.current = openCancelIds;
   const [cancelRequestsError, setCancelRequestsError] = useState<string | null>(null);
   const [openId, setOpenId] = useState<string | null>(() => readPartnerInboxBookingId());
+  const openIdRef = useRef(openId);
+  openIdRef.current = openId;
   const [focusedBooking, setFocusedBooking] = useState<BookingRow | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -320,7 +325,7 @@ export default function SupplierInbox() {
             approval_status: b.approval_status,
             openCancellation: openIds.has(b.id),
           },
-          Boolean(mergedLasts[b.id])
+          isHumanBookingMessageSender(mergedLasts[b.id]?.sender_role)
         )
       );
       // Message customer / deep-link: open composer for this booking without permanently listing empties.
@@ -489,6 +494,23 @@ export default function SupplierInbox() {
   }, []);
 
   const setOpenBookingId = useCallback((id: string | null) => {
+    const prevOpen = openIdRef.current;
+    // Drop Message-customer deep-links that never received a human send.
+    if (prevOpen && prevOpen !== id) {
+      const last = lastByBookingRef.current[prevOpen];
+      setBookings((rows) =>
+        rows.filter((b) => {
+          if (b.id !== prevOpen) return true;
+          if (isStayRequestAwaitingHost(b)) return true;
+          return isHumanBookingMessageSender(last?.sender_role);
+        })
+      );
+      setFocusedBooking((focused) => {
+        if (focused?.id !== prevOpen) return focused;
+        if (isHumanBookingMessageSender(last?.sender_role)) return focused;
+        return null;
+      });
+    }
     setOpenId(id);
     if (!id) {
       setFocusedBooking(null);
@@ -523,7 +545,7 @@ export default function SupplierInbox() {
     // Hide empty composers once the supplier leaves them (deep-link only while open).
     let rows = threads.filter(
       (b) =>
-        Boolean(lastByBooking[b.id]) ||
+        isHumanBookingMessageSender(lastByBooking[b.id]?.sender_role) ||
         isStayRequestAwaitingHost(b) ||
         b.id === openId
     );

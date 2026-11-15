@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { canAccessBookingThread, canPostBookingMessage, bookingAllowsMessaging, messagingComposeBlock, partnerInboxListsBooking, BOOKING_MESSAGE_CLOSED } from './messaging-authorization';
+import {
+  canAccessBookingThread,
+  canPostBookingMessage,
+  bookingAllowsMessaging,
+  messagingComposeBlock,
+  partnerInboxListsBooking,
+  isHumanBookingMessageSender,
+  BOOKING_MESSAGE_CLOSED,
+} from './messaging-authorization';
 
 describe('messaging authorization', () => {
   it('blocks anonymous and pre-booking contact', () => {
@@ -94,10 +102,13 @@ describe('messaging authorization', () => {
     ).toBe(true);
   });
 
-  it('lists Inbox conversations only after message history (or R2B holds)', () => {
+  it('lists Inbox conversations only after human message history (or R2B holds)', () => {
     const refunded = { status: 'confirmed', payment_status: 'refunded' };
     const paid = { status: 'confirmed', payment_status: 'paid' };
     const pending = { status: 'pending', payment_status: 'pending' };
+    expect(isHumanBookingMessageSender('system')).toBe(false);
+    expect(isHumanBookingMessageSender('traveler')).toBe(true);
+    expect(isHumanBookingMessageSender('supplier')).toBe(true);
     expect(partnerInboxListsBooking(paid, false)).toBe(false);
     expect(partnerInboxListsBooking(paid, true)).toBe(true);
     expect(partnerInboxListsBooking(refunded, false)).toBe(false);

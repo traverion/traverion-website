@@ -560,7 +560,13 @@ export default function BookingMessageThread({
                     : 'tv-msg-bubble--theirs'
               }`}
             >
-              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-faint">
+              <p
+                className={`text-[11px] font-semibold uppercase tracking-[0.12em] ${
+                  m.sender_role === viewerRole && m.sender_role !== 'system'
+                    ? 'text-white/75'
+                    : 'text-zinc-600'
+                }`}
+              >
                 {roleLabel(m.sender_role, viewerRole)}
                 <span className="ml-2 font-normal normal-case tracking-normal">
                   {new Date(m.created_at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}

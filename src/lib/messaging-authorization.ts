@@ -61,10 +61,18 @@ export function messagingComposeBlock(row: {
   return 'unpaid';
 }
 
+/** Personal chat only — system booking/cancel/refund notices are not Inbox threads. */
+export function isHumanBookingMessageSender(
+  role: string | null | undefined
+): role is 'traveler' | 'supplier' {
+  return role === 'traveler' || role === 'supplier';
+}
+
 /**
- * Inbox list: only real conversations (at least one message), plus Request-to-Book
- * holds awaiting Accept / Decline. Paid bookings with no messages stay out of Inbox
- * until someone sends — Message customer deep-links the composer without listing.
+ * Inbox list: only real conversations (at least one traveler/supplier message),
+ * plus Request-to-Book holds awaiting Accept / Decline. Paid bookings with no
+ * human messages stay out of Inbox until someone sends — Message customer
+ * deep-links the composer without listing. System notices stay in-thread only.
  */
 export function partnerInboxListsBooking(
   row: {
@@ -73,7 +81,7 @@ export function partnerInboxListsBooking(
     approval_status?: string | null;
     openCancellation?: boolean;
   },
-  hasMessageHistory: boolean
+  hasHumanMessageHistory: boolean
 ): boolean {
   const pay = (row.payment_status ?? '').trim().toLowerCase();
   const approval = (row.approval_status ?? '').trim().toLowerCase();
@@ -81,5 +89,5 @@ export function partnerInboxListsBooking(
     return true;
   }
   if (!bookingPaymentWasCollected(row.payment_status)) return false;
-  return hasMessageHistory;
+  return hasHumanMessageHistory;
 }

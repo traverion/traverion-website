@@ -6773,12 +6773,12 @@ details:not([open]) > :not(summary) {
 }
 
 .tv-inbox-thread__unread-dot {
-  width: 0.4rem;
-  height: 0.4rem;
+  width: 0.45rem;
+  height: 0.45rem;
   flex: none;
   border-radius: 999px;
   background: #073b83;
-  box-shadow: 0 0 0 2px rgba(7, 59, 131, 0.12);
+  box-shadow: 0 0 0 3px rgba(7, 59, 131, 0.14);
 }
 
 .tv-inbox-thread__time {
@@ -6786,34 +6786,34 @@ details:not([open]) > :not(summary) {
   font-size: 0.6875rem;
   font-weight: 550;
   font-variant-numeric: tabular-nums;
-  color: #71717a;
+  color: #52525b;
 }
 
 .tv-inbox-thread__preview {
   display: block;
-  margin-top: 0.15rem;
+  margin-top: 0.12rem;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: 0.8125rem;
   font-weight: 450;
-  color: #667085;
+  color: #3f3f46;
 }
 
 .tv-inbox-thread__preview--unread {
-  font-weight: 600;
+  font-weight: 650;
   color: #18181b;
 }
 
 .tv-inbox-thread__meta {
   display: block;
-  margin-top: 0.1rem;
+  margin-top: 0.08rem;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: 0.75rem;
   font-weight: 500;
-  color: #98a2b3;
+  color: #52525b;
 }
 
 .tv-inbox-search {
@@ -6827,7 +6827,7 @@ details:not([open]) > :not(summary) {
   width: 0.9rem;
   height: 0.9rem;
   transform: translateY(-50%);
-  color: #98a2b3;
+  color: #71717a;
   pointer-events: none;
 }
 
@@ -6883,7 +6883,7 @@ details:not([open]) > :not(summary) {
   white-space: nowrap;
   font-size: 0.75rem;
   font-weight: 500;
-  color: #667085;
+  color: #3f3f46;
 }
 
 .tv-inbox-chat__secondary {
@@ -6895,11 +6895,11 @@ details:not([open]) > :not(summary) {
   font-size: 0.75rem;
   font-weight: 550;
   line-height: 1.35;
-  color: #475467;
+  color: #3f3f46;
 }
 
 .tv-inbox-chat__sep {
-  color: #98a2b3;
+  color: #71717a;
 }
 
 .tv-inbox-chat__experience {
@@ -6908,7 +6908,7 @@ details:not([open]) > :not(summary) {
   font-size: 0.6875rem;
   font-weight: 500;
   line-height: 1.4;
-  color: #667085;
+  color: #52525b;
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
@@ -6974,7 +6974,7 @@ details:not([open]) > :not(summary) {
   max-width: 18rem;
   font-size: 0.8125rem;
   line-height: 1.5;
-  color: #5b6472;
+  color: #3f3f46;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -7204,7 +7204,7 @@ details:not([open]) > :not(summary) {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  margin-top: 0.55rem;
+  margin-top: 0.62rem;
   max-width: 100%;
 }
 
@@ -7218,48 +7218,53 @@ details:not([open]) > :not(summary) {
 }
 
 .tv-chat__item--grouped {
-  margin-top: 0.18rem;
+  margin-top: 0.2rem;
 }
 
 .tv-chat__bubble {
   width: fit-content;
-  max-width: min(26rem, 68%);
-  padding: 0.4rem 0.7rem;
+  max-width: min(26rem, 72%);
+  padding: 0.48rem 0.78rem;
   font-size: 0.875rem;
-  font-weight: 400;
-  line-height: 1.45;
+  font-weight: 450;
+  line-height: 1.48;
   overflow-wrap: anywhere;
   word-break: break-word;
 }
 
 .tv-chat__bubble--mine {
-  border-radius: 0.85rem 0.85rem 0.3rem 0.85rem;
+  border-radius: 0.9rem 0.9rem 0.28rem 0.9rem;
   background: #073b83;
   color: #fff;
 }
 
 .tv-chat__bubble--theirs {
-  border-radius: 0.85rem 0.85rem 0.85rem 0.3rem;
-  background: #f3f4f6;
+  border-radius: 0.9rem 0.9rem 0.9rem 0.28rem;
+  background: #f1f3f5;
   color: #18181b;
+  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.04);
 }
 
 .tv-chat__bubble--system {
-  border-radius: 0.7rem;
-  background: #f7f7f8;
-  color: #57534e;
+  max-width: min(28rem, 88%);
+  border-radius: 0.65rem;
+  background: #f4f4f5;
+  color: #3f3f46;
   font-size: 0.8125rem;
+  font-weight: 500;
+  line-height: 1.45;
+  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.04);
 }
 
 .tv-chat__time {
   display: block;
-  margin-top: 0.18rem;
-  padding: 0 0.15rem;
-  font-size: 0.625rem;
-  font-weight: 500;
+  margin-top: 0.2rem;
+  padding: 0 0.2rem;
+  font-size: 0.65625rem;
+  font-weight: 550;
   line-height: 1.2;
   letter-spacing: 0.01em;
-  color: #a1a1aa;
+  color: #52525b;
   font-variant-numeric: tabular-nums;
 }
 
@@ -7371,7 +7376,7 @@ details:not([open]) > :not(summary) {
   flex: none;
   padding: 0 0.9rem 0.35rem;
   font-size: 12px;
-  color: #78716c;
+  color: #52525b;
 }
 
 .tv-chat__alert {
@@ -7601,12 +7606,12 @@ details:not([open]) > :not(summary) {
 }
 
 .tv-inbox-booking__section-title {
-  margin: 0 0 0.35rem;
+  margin: 0 0 0.4rem;
   font-size: 0.625rem;
-  font-weight: 650;
+  font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: #78716c;
+  color: #52525b;
 }
 
 .tv-inbox-booking__summary {
@@ -7668,16 +7673,17 @@ details:not([open]) > :not(summary) {
 .tv-inbox-booking__fact dt {
   margin: 0;
   font-size: 0.6875rem;
-  font-weight: 500;
-  color: #a8a29e;
+  font-weight: 550;
+  color: #52525b;
   line-height: 1.35;
 }
 
 .tv-inbox-booking__fact dd {
   margin: 0;
   font-size: 0.75rem;
+  font-weight: 500;
   line-height: 1.35;
-  color: #292524;
+  color: #18181b;
   word-break: break-word;
   min-width: 0;
 }
@@ -10292,35 +10298,42 @@ details:not([open]) > :not(summary) {
   }
 }
 
-/* Phase 1819: booking message bubbles + composer */
+/* Phase 1819: booking message bubbles + composer (customer trips + panel parity) */
 .tv-msg-bubble {
-  border-radius: 0.85rem;
-  padding: 0.7rem 0.85rem;
+  border-radius: 0.9rem;
+  padding: 0.65rem 0.85rem;
   font-size: 0.875rem;
+  font-weight: 450;
+  line-height: 1.48;
 }
 
 .tv-msg-bubble--mine {
-  background: rgba(0, 53, 128, 0.1);
-  color: #1c1917;
+  background: #073b83;
+  color: #fff;
+  border-radius: 0.9rem 0.9rem 0.28rem 0.9rem;
 }
 
 .tv-msg-bubble--theirs {
-  background: #ffffff;
-  color: #1c1917;
-  box-shadow: inset 0 0 0 1px rgba(28, 25, 23, 0.07);
+  background: #f1f3f5;
+  color: #18181b;
+  border-radius: 0.9rem 0.9rem 0.9rem 0.28rem;
+  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.04);
 }
 
 .tv-msg-bubble--system {
-  background: rgba(28, 25, 23, 0.04);
-  color: #57534e;
+  background: #f4f4f5;
+  color: #3f3f46;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.04);
 }
 
 .tv-msg-composer {
-  margin-top: 0.25rem;
+  margin-top: 0.35rem;
   border-radius: 0.85rem;
   background: #ffffff;
   padding: 0.75rem;
-  box-shadow: inset 0 0 0 1px rgba(28, 25, 23, 0.07);
+  box-shadow: inset 0 0 0 1px rgba(28, 25, 23, 0.09);
 }
 
 /* Phase 1820: skeleton shimmer for perceived speed */

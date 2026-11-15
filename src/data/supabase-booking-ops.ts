@@ -159,10 +159,12 @@ async function fetchLatestMessageChunk(
   if (!/latest_booking_messages|does not exist|PGRST202|42883|schema cache/i.test(rpc.error.message)) {
     throw new Error(rpc.error.message);
   }
+  // Fallback matches RPC: human chat only (exclude system booking/cancel/refund notices).
   const { data, error } = await client
     .from('booking_messages')
     .select(LATEST_MESSAGE_COLUMNS)
     .in('booking_id', chunk)
+    .in('sender_role', ['traveler', 'supplier'])
     .order('created_at', { ascending: false });
   if (error) throw new Error(error.message);
   return (data ?? []) as BookingMessageRow[];
@@ -181,6 +183,7 @@ export async function fetchLatestBookingMessage(
       .from('booking_messages')
       .select(LATEST_MESSAGE_COLUMNS)
       .eq('booking_id', id)
+      .in('sender_role', ['traveler', 'supplier'])
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle();
