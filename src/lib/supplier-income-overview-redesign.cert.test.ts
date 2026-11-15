@@ -30,6 +30,8 @@ function row(partial: Partial<IncomeEarningRow>): IncomeEarningRow {
     status: partial.status ?? 'eligible',
     held: partial.held,
     holdReason: partial.holdReason,
+    bookingStatus: partial.bookingStatus,
+    paymentStatus: partial.paymentStatus,
   };
 }
 
@@ -77,12 +79,26 @@ describe('Partner Income Overview payout redesign', () => {
     ).toBe('2026-11-15');
   });
 
-  it('eligible pool excludes held and allocated statuses', () => {
+  it('eligible pool excludes held, allocated, cancelled, and refunded rows', () => {
     const rows = [
       row({ bookingId: 'a', status: 'eligible', netMinor: 1000 }),
       row({ bookingId: 'b', status: 'eligible', held: true, netMinor: 2000 }),
       row({ bookingId: 'c', status: 'included', netMinor: 3000 }),
       row({ bookingId: 'd', status: 'pending', netMinor: 4000 }),
+      row({
+        bookingId: 'e',
+        status: 'pending',
+        netMinor: 10115,
+        bookingStatus: 'cancelled',
+        paymentStatus: 'paid',
+      }),
+      row({
+        bookingId: 'f',
+        status: 'eligible',
+        netMinor: 5000,
+        bookingStatus: 'confirmed',
+        paymentStatus: 'refunded',
+      }),
     ];
     const eligible = selectUnallocatedEligibleEarnings(rows);
     expect(eligible.map((r) => r.bookingId)).toEqual(['a']);

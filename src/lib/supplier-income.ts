@@ -19,6 +19,9 @@ export type IncomeEarningRow = {
   /** Active financial hold blocks automatic payout eligibility. */
   held?: boolean;
   holdReason?: string | null;
+  /** Booking lifecycle — cancelled/refunded rows stay on Earnings but leave Overview pools. */
+  bookingStatus?: string | null;
+  paymentStatus?: string | null;
 };
 
 export type IncomeBookingInput = {
@@ -31,6 +34,8 @@ export type IncomeBookingInput = {
   guest_name?: string | null;
   public_reference?: string | null;
   booking_number?: number | null;
+  status?: string | null;
+  payment_status?: string | null;
 };
 
 export type IncomeSnapshotInput = {
@@ -147,9 +152,24 @@ export function buildIncomeEarningRows(input: {
       status,
       held: Boolean(holdReason),
       holdReason,
+      bookingStatus: booking.status ?? null,
+      paymentStatus: booking.payment_status ?? null,
     });
   }
   return rows;
+}
+
+/** Cancelled / refunded bookings must not inflate Overview eligible or awaiting totals. */
+export function isIncomeRowOpenForPayoutPools(row: Pick<IncomeEarningRow, 'bookingStatus' | 'paymentStatus'>): boolean {
+  const bookingStatus = String(row.bookingStatus ?? '')
+    .trim()
+    .toLowerCase();
+  const paymentStatus = String(row.paymentStatus ?? '')
+    .trim()
+    .toLowerCase();
+  if (bookingStatus === 'cancelled' || bookingStatus === 'canceled') return false;
+  if (paymentStatus === 'refunded') return false;
+  return true;
 }
 
 export function sumNetMinor(rows: IncomeEarningRow[], currency: string, statuses?: IncomeEarningStatus[]): number {
@@ -307,15 +327,23 @@ export function earningStatusExplanation(status: IncomeEarningStatus): string {
 
 /**
  * Cleared earnings not yet allocated to a payout period.
- * Held rows stay visible in Earnings but are excluded from the next-payout pool.
+ * Held / cancelled / refunded rows stay visible in Earnings but are excluded from the next-payout pool.
  */
 export function selectUnallocatedEligibleEarnings(rows: IncomeEarningRow[]): IncomeEarningRow[] {
-  return rows.filter((row) => row.status === 'eligible' && !row.held && row.netMinor > 0);
+  return rows.filter(
+    (row) =>
+      row.status === 'eligible' &&
+      !row.held &&
+      row.netMinor > 0 &&
+      isIncomeRowOpenForPayoutPools(row)
+  );
 }
 
 /** Earnings still awaiting service completion / clearance. */
 export function selectAwaitingClearanceEarnings(rows: IncomeEarningRow[]): IncomeEarningRow[] {
-  return rows.filter((row) => row.status === 'pending' && row.netMinor > 0);
+  return rows.filter(
+    (row) => row.status === 'pending' && row.netMinor > 0 && isIncomeRowOpenForPayoutPools(row)
+  );
 }
 
 export function sumIncomeRowsNetMinor(rows: IncomeEarningRow[]): number {
