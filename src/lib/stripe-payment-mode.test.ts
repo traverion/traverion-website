@@ -140,6 +140,23 @@ describe('stripe-payment-mode', () => {
     }
   });
 
+  it('webhook secrets: accepts platform + Connect LIVE secrets together', () => {
+    const r = webhookSigningSecrets({
+      livePaymentsEnabled: true,
+      webhookSecretLive: 'whsec_live_platform',
+      webhookSecretConnectLive: 'whsec_live_connect',
+      webhookSecretTest: 'whsec_test',
+    });
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.candidates.filter((c) => c.mode === 'live').map((c) => c.secret)).toEqual([
+        'whsec_live_platform',
+        'whsec_live_connect',
+      ]);
+      expect(r.candidates.some((c) => c.mode === 'test' && c.secret === 'whsec_test')).toBe(true);
+    }
+  });
+
   it('ignores livemode mismatches so TEST events cannot mutate LIVE mode and vice versa', () => {
     expect(
       stripeEventLivemodeDecision({ eventLivemode: true, platformMode: 'test' })

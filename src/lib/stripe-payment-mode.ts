@@ -181,11 +181,14 @@ export function webhookSigningSecrets(input: {
   webhookSecretTest?: string | null | undefined;
   /** Optional second TEST secret (e.g. Connect-listener endpoint). */
   webhookSecretConnectTest?: string | null | undefined;
+  /** Optional second LIVE secret (Connect-listener endpoint). */
+  webhookSecretConnectLive?: string | null | undefined;
 }): { ok: true; candidates: WebhookSecretCandidate[] } | { ok: false; error: string } {
   const primary = (input.webhookSecret ?? '').trim();
   const live = (input.webhookSecretLive ?? '').trim();
   const testExplicit = (input.webhookSecretTest ?? '').trim();
   const connectTest = (input.webhookSecretConnectTest ?? '').trim();
+  const connectLive = (input.webhookSecretConnectLive ?? '').trim();
   const candidates: WebhookSecretCandidate[] = [];
   const seen = new Set<string>();
 
@@ -205,6 +208,7 @@ export function webhookSigningSecrets(input: {
       };
     }
     push('live', liveSecret);
+    if (connectLive && connectLive !== liveSecret) push('live', connectLive);
     for (const s of [testExplicit, connectTest, live && primary ? primary : '']) {
       if (s && s !== liveSecret) push('test', s);
     }
