@@ -3,6 +3,7 @@
 export type ConnectAccountLike = {
   id: string;
   type?: string | null;
+  livemode?: boolean | null;
   charges_enabled?: boolean | null;
   payouts_enabled?: boolean | null;
   details_submitted?: boolean | null;
@@ -24,6 +25,8 @@ export type ConnectAccountLike = {
 export type ConnectProfileMirror = {
   stripe_connected_account_id: string;
   connect_account_type: 'express' | 'custom' | 'standard' | null;
+  /** True when the Stripe account object is LIVE; false for TEST. */
+  connect_account_livemode: boolean | null;
   connect_charges_enabled: boolean;
   connect_payouts_enabled: boolean;
   connect_details_submitted: boolean;
@@ -56,9 +59,12 @@ export function mirrorConnectAccount(account: ConnectAccountLike, nowIso = new D
   const rawType = (account.type ?? '').toLowerCase();
   const accountType =
     rawType === 'express' || rawType === 'custom' || rawType === 'standard' ? rawType : null;
+  const livemode =
+    typeof account.livemode === 'boolean' ? account.livemode : null;
   return {
     stripe_connected_account_id: account.id,
     connect_account_type: accountType,
+    connect_account_livemode: livemode,
     connect_charges_enabled: Boolean(account.charges_enabled),
     connect_payouts_enabled: payoutsEnabled,
     connect_details_submitted: Boolean(account.details_submitted),
@@ -77,7 +83,19 @@ export function mirrorConnectAccount(account: ConnectAccountLike, nowIso = new D
   };
 }
 
-export function connectCanReceiveTransfers(mirror: Pick<ConnectProfileMirror, 'connect_payouts_enabled' | 'connect_onboarding_status' | 'connect_requirements_currently_due' | 'connect_requirements_past_due'>): boolean {
+export function connectCanReceiveTransfers(
+  mirror: Pick<
+    ConnectProfileMirror,
+    | 'connect_payouts_enabled'
+    | 'connect_onboarding_status'
+    | 'connect_requirements_currently_due'
+    | 'connect_requirements_past_due'
+    | 'connect_account_livemode'
+  > & { require_live?: boolean }
+): boolean {
+  // Never treat a known TEST connected account as transfer-ready on LIVE platform.
+  if (mirror.require_live === true && mirror.connect_account_livemode !== true) return false;
+  if (mirror.connect_account_livemode === false) return false;
   if (!mirror.connect_payouts_enabled) return false;
   if (mirror.connect_onboarding_status === 'restricted' || mirror.connect_onboarding_status === 'rejected') {
     return false;

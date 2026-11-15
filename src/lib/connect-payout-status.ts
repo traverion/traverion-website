@@ -18,10 +18,19 @@ export type ConnectLifecycle =
   | 'reversed';
 
 /** Single clear status for the payout account summary. */
-export function connectOnboardingLabel(status: string | null | undefined): string {
+export function connectOnboardingLabel(
+  status: string | null | undefined,
+  opts?: { connect_account_livemode?: boolean | null }
+): string {
+  // Never label TEST (or unknown non-LIVE) accounts as Verified in partner UI.
+  if (opts && opts.connect_account_livemode === false) {
+    return 'LIVE onboarding required';
+  }
   switch ((status ?? 'not_started').toLowerCase()) {
     case 'complete':
-      return 'Verified';
+      return opts?.connect_account_livemode === true || opts?.connect_account_livemode == null
+        ? 'Verified'
+        : 'LIVE onboarding required';
     case 'pending':
       return 'Under review';
     case 'restricted':
@@ -38,7 +47,11 @@ export function connectCanReceiveTransfers(input: {
   connect_onboarding_status?: string | null;
   connect_requirements_currently_due?: unknown;
   connect_requirements_past_due?: unknown;
+  connect_account_livemode?: boolean | null;
+  require_live?: boolean;
 }): boolean {
+  if (input.require_live === true && input.connect_account_livemode !== true) return false;
+  if (input.connect_account_livemode === false) return false;
   if (!input.connect_payouts_enabled) return false;
   const status = (input.connect_onboarding_status ?? '').toLowerCase();
   if (status === 'restricted' || status === 'rejected') return false;

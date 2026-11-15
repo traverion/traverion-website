@@ -48,6 +48,8 @@ export type SupplierProfileRow = {
   connect_account_type?: 'express' | 'custom' | 'standard' | null;
   /** Archived previous connected account when switching to native Custom (TEST). */
   connect_legacy_account_id?: string | null;
+  /** True when stripe_connected_account_id is a LIVE Stripe account; false for TEST. */
+  connect_account_livemode?: boolean | null;
   payout_rail?: 'manual_iban' | 'stripe_connect' | null;
   connect_onboarding_status?: 'not_started' | 'pending' | 'restricted' | 'complete' | 'rejected' | null;
   connect_charges_enabled?: boolean | null;

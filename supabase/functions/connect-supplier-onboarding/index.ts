@@ -1,5 +1,5 @@
 /**
- * Stripe Connect onboarding for Traverion suppliers (TEST only).
+ * Stripe Connect onboarding for Traverion suppliers (TEST or LIVE).
  *
  * Preferred (new accounts): Custom connected accounts + API updates from
  * Traverion-native forms (no Express login popup / hosted Account Link).
@@ -7,8 +7,11 @@
  * Legacy Express accounts: Account Session embedded components (or hosted
  * Account Link fallback). Never silently recreate Express → Custom.
  *
+ * LIVE platform never reuses TEST connected-account IDs. Orphan TEST links are
+ * archived to connect_legacy_account_id and a new LIVE account is created.
+ *
  * Verification status always comes from Account sync / webhooks — never from
- * form submission alone.
+ * form submission alone. Do not show Verified unless LIVE capabilities confirm it.
  */
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.4';
@@ -40,7 +43,10 @@ type Body = {
     | 'submit_representative'
     | 'accept_tos'
     | 'attach_bank_token'
-    | 'submit_identity_file';
+    | 'submit_identity_file'
+    /** Service-role only: archive TEST link + create LIVE Custom account + Account Link. */
+    | 'admin_ensure_live_connect';
+  supplier_id?: string;
   /** Required confirmation for archiving an Express link before Custom create (TEST). */
   confirm_archive_express?: boolean;
   component?: 'account_onboarding' | 'account_management';
@@ -159,20 +165,239 @@ serve(async (req) => {
     const authHeader = req.headers.get('Authorization') ?? '';
     if (!authHeader) return json({ success: false, error: 'Missing Authorization header' }, 401);
 
+    const admin = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } });
+    const stripe = new Stripe(stripeSecret);
+    const platformMode = stripeMoney.mode; // 'test' | 'live'
+    const body = (await req.json().catch(() => ({}))) as Body;
+    const action = (body.action ?? 'status') as NonNullable<Body['action']>;
+
+    const bearer = authHeader.toLowerCase().startsWith('bearer ')
+      ? authHeader.slice(7).trim()
+      : '';
+    const bootstrapSecret = (Deno.env.get('P81_LIVE_CONNECT_BOOTSTRAP_SECRET') ?? '').trim();
+    const serviceRoleAuthorized = Boolean(
+      bearer &&
+        (bearer === serviceRoleKey ||
+          (bootstrapSecret.length > 0 && bearer === bootstrapSecret))
+    );
+
+    // --- Service-role / bootstrap LIVE Connect ensure (P8.1) ---
+    if (action === 'admin_ensure_live_connect') {
+      if (!serviceRoleAuthorized) {
+        return json({ success: false, error: 'Unauthorized' }, 401);
+      }
+      if (platformMode !== 'live') {
+        return json({
+          success: false,
+          error: 'admin_ensure_live_connect requires LIVE Stripe platform secret',
+          platform_mode: platformMode,
+        }, 503);
+      }
+      const targetSupplierId = (body.supplier_id ?? '').trim();
+      if (!targetSupplierId) {
+        return json({ success: false, error: 'supplier_id required' }, 400);
+      }
+
+      const { data: targetProfile, error: targetErr } = await admin
+        .from('supplier_profiles')
+        .select(
+          'id, display_name, company_legal_name, business_type, address_street, address_city, address_postal_code, address_country, contact_phone, company_registration_number, tax_id, stripe_connected_account_id, connect_account_type, connect_legacy_account_id, connect_account_livemode, connect_onboarding_status, connect_country, payout_rail'
+        )
+        .eq('id', targetSupplierId)
+        .maybeSingle();
+      if (targetErr || !targetProfile) {
+        return json({ success: false, error: targetErr?.message ?? 'Supplier not found' }, 404);
+      }
+
+      let existingId = (targetProfile.stripe_connected_account_id as string | null) ?? null;
+      let archivedTestId: string | null =
+        (targetProfile.connect_legacy_account_id as string | null) ?? null;
+
+      if (existingId) {
+        try {
+          const existing = await stripe.accounts.retrieve(existingId);
+          if ((existing as { livemode?: boolean }).livemode === true) {
+            const mirror = mirrorConnectAccount(existing as Parameters<typeof mirrorConnectAccount>[0]);
+            await admin
+              .from('supplier_profiles')
+              .update({ ...mirror, updated_at: new Date().toISOString() })
+              .eq('id', targetSupplierId);
+            const link = await stripe.accountLinks.create({
+              account: existingId,
+              refresh_url: `${publicSiteUrl}/partner/money?tab=settings&connect=refresh`,
+              return_url: `${publicSiteUrl}/partner/money?tab=settings&connect=return`,
+              type: 'account_onboarding',
+            });
+            return json({
+              success: true,
+              action: 'admin_ensure_live_connect',
+              created: false,
+              environment: 'live',
+              account_id: existingId,
+              onboarding: mirror,
+              account_link_url: link.url,
+              account_link_expires_at: link.expires_at,
+              note: 'Existing LIVE connected account reused — supplier must finish Stripe onboarding if incomplete.',
+            });
+          }
+          // Retrievable but not LIVE → archive (should be rare with LIVE key)
+          archivedTestId = existingId;
+        } catch {
+          // Not retrievable on LIVE platform → treat as TEST orphan
+          archivedTestId = existingId;
+        }
+
+        await admin
+          .from('supplier_profiles')
+          .update({
+            connect_legacy_account_id: archivedTestId,
+            stripe_connected_account_id: null,
+            connect_account_type: null,
+            connect_account_livemode: false,
+            connect_onboarding_status: 'not_started',
+            connect_charges_enabled: false,
+            connect_payouts_enabled: false,
+            connect_details_submitted: false,
+            connect_disabled_reason: 'archived_test_account_pending_live_onboarding',
+            connect_requirements_currently_due: [],
+            connect_requirements_past_due: [],
+            payout_rail: 'manual_iban',
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', targetSupplierId);
+        existingId = null;
+      }
+
+      const { data: userRow } = await admin.auth.admin.getUserById(targetSupplierId);
+      const email = userRow?.user?.email ?? undefined;
+      const country = (targetProfile.address_country || targetProfile.connect_country || 'FI')
+        .toString()
+        .slice(0, 2)
+        .toUpperCase();
+      const isIndividual = targetProfile.business_type === 'individual';
+      const commonMeta = {
+        traverion_supplier_id: targetSupplierId,
+        traverion_environment: 'live',
+        traverion_onboarding: 'p81_live_admin_ensure',
+      };
+      const businessProfile = {
+        name:
+          (targetProfile.display_name || targetProfile.company_legal_name || undefined) ?? undefined,
+        product_description: 'Travel experiences and stays sold on Traverion',
+        mcc: '4722',
+        support_email: email,
+        support_phone: targetProfile.contact_phone || undefined,
+      };
+
+      // Prefer Custom (native forms). If platform Connect profile responsibilities are
+      // incomplete, fall back to Express + hosted Account Link (still LIVE).
+      let created: Stripe.Account;
+      let createPath: 'custom' | 'express' = 'custom';
+      try {
+        created = await stripe.accounts.create({
+          type: 'custom',
+          country,
+          email,
+          business_type: isIndividual ? 'individual' : 'company',
+          capabilities: { transfers: { requested: true } },
+          metadata: { ...commonMeta, traverion_account_type: 'custom' },
+          settings: { payouts: { schedule: { interval: 'daily' } } },
+          business_profile: businessProfile,
+          company: !isIndividual && targetProfile.company_legal_name
+            ? {
+                name: targetProfile.company_legal_name,
+                phone: targetProfile.contact_phone || undefined,
+                tax_id: targetProfile.tax_id || targetProfile.company_registration_number || undefined,
+                address: {
+                  line1: targetProfile.address_street || undefined,
+                  city: targetProfile.address_city || undefined,
+                  postal_code: targetProfile.address_postal_code || undefined,
+                  country,
+                },
+              }
+            : undefined,
+        });
+      } catch (customErr) {
+        const customMsg = customErr instanceof Error ? customErr.message : String(customErr);
+        created = await stripe.accounts.create({
+          type: 'express',
+          country,
+          email,
+          capabilities: { transfers: { requested: true } },
+          metadata: {
+            ...commonMeta,
+            traverion_account_type: 'express',
+            traverion_custom_create_error: customMsg.slice(0, 180),
+          },
+          business_profile: businessProfile,
+          settings: { payouts: { schedule: { interval: 'daily' } } },
+        });
+        createPath = 'express';
+      }
+
+      const mirror = mirrorConnectAccount(created as Parameters<typeof mirrorConnectAccount>[0]);
+      // Force livemode true for LIVE platform creates (Stripe may omit on create response)
+      const mirrorLive = { ...mirror, connect_account_livemode: true as boolean };
+      const { error: updErr } = await admin
+        .from('supplier_profiles')
+        .update({
+          ...mirrorLive,
+          connect_legacy_account_id: archivedTestId,
+          payout_rail: 'manual_iban',
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', targetSupplierId);
+      if (updErr) return json({ success: false, error: updErr.message }, 500);
+
+      await admin.from('financial_audit_log').insert({
+        action: 'p81_create_live_connect_account',
+        supplier_id: targetSupplierId,
+        amount_minor: 0,
+        currency: 'EUR',
+        reason: `Created LIVE ${createPath} Connect account; onboarding incomplete until Stripe confirms`,
+        provider_ref: created.id,
+        after_state: {
+          account_id: created.id,
+          account_type: createPath,
+          archived_test_account_id: archivedTestId,
+          connect_onboarding_status: mirrorLive.connect_onboarding_status,
+          connect_account_livemode: true,
+        },
+      });
+
+      const link = await stripe.accountLinks.create({
+        account: created.id,
+        refresh_url: `${publicSiteUrl}/partner/money?tab=settings&connect=refresh`,
+        return_url: `${publicSiteUrl}/partner/money?tab=settings&connect=return`,
+        type: 'account_onboarding',
+      });
+
+      return json({
+        success: true,
+        action: 'admin_ensure_live_connect',
+        created: true,
+        environment: 'live',
+        account_id: created.id,
+        account_type: createPath,
+        archived_test_account_id: archivedTestId,
+        onboarding: mirrorLive,
+        account_link_url: link.url,
+        account_link_expires_at: link.expires_at,
+        charges_enabled: mirrorLive.connect_charges_enabled,
+        payouts_enabled: mirrorLive.connect_payouts_enabled,
+        details_submitted: mirrorLive.connect_details_submitted,
+        connect_onboarding_status: mirrorLive.connect_onboarding_status,
+        note: `LIVE ${createPath} account created. Not Verified until Stripe confirms capabilities after supplier completes onboarding.`,
+      });
+    }
+
     const authed = createClient(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: authHeader } },
     });
-    const admin = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } });
-    const stripe = new Stripe(stripeSecret);
-
-    const [{ data: authData, error: authError }, body] = await Promise.all([
-      authed.auth.getUser(),
-      req.json().catch(() => ({})) as Promise<Body>,
-    ]);
+    const { data: authData, error: authError } = await authed.auth.getUser();
     if (authError || !authData?.user) return json({ success: false, error: 'Unauthorized' }, 401);
 
     const userId = authData.user.id;
-    const action = (body.action ?? 'status') as NonNullable<Body['action']>;
 
     const { data: membership } = await admin
       .from('supplier_team_members')
@@ -199,7 +424,7 @@ serve(async (req) => {
     const { data: profile, error: profileErr } = await admin
       .from('supplier_profiles')
       .select(
-        'id, display_name, company_legal_name, business_type, address_street, address_city, address_postal_code, address_country, contact_phone, company_registration_number, tax_id, stripe_connected_account_id, connect_account_type, connect_legacy_account_id, connect_onboarding_status, connect_charges_enabled, connect_payouts_enabled, connect_details_submitted, connect_disabled_reason, connect_requirements_currently_due, connect_requirements_past_due, connect_default_currency, connect_country, connect_debit_negative_balances, connect_last_synced_at, payout_rail, payment_cycle'
+        'id, display_name, company_legal_name, business_type, address_street, address_city, address_postal_code, address_country, contact_phone, company_registration_number, tax_id, stripe_connected_account_id, connect_account_type, connect_legacy_account_id, connect_account_livemode, connect_onboarding_status, connect_charges_enabled, connect_payouts_enabled, connect_details_submitted, connect_disabled_reason, connect_requirements_currently_due, connect_requirements_past_due, connect_default_currency, connect_country, connect_debit_negative_balances, connect_last_synced_at, payout_rail, payment_cycle'
       )
       .eq('id', supplierId)
       .maybeSingle();
@@ -221,15 +446,39 @@ serve(async (req) => {
     }
 
     async function syncAccount(accountId: string) {
-      const account = await stripe.accounts.retrieve(accountId);
+      let account: Stripe.Account;
+      try {
+        account = await stripe.accounts.retrieve(accountId);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        // LIVE platform cannot retrieve TEST accounts — archive and force re-onboard.
+        if (platformMode === 'live') {
+          await archiveLinkedAccount(accountId);
+          throw new Error(
+            `Connected account ${accountId} is not available on LIVE Stripe (archived). Start LIVE onboarding again.`
+          );
+        }
+        throw new Error(msg);
+      }
       // Ownership: only allow accounts tagged to this supplier (or legacy untagged during TEST).
       const metaSupplier = (account.metadata?.traverion_supplier_id ?? '').trim();
       if (metaSupplier && metaSupplier !== supplierId) {
         throw new Error('Connected account does not belong to this supplier organization');
       }
+      if (platformMode === 'live' && (account as { livemode?: boolean }).livemode === false) {
+        await archiveLinkedAccount(accountId);
+        throw new Error('TEST connected accounts cannot be used on LIVE Traverion. Start LIVE onboarding again.');
+      }
       const mirror = mirrorConnectAccount(account as Parameters<typeof mirrorConnectAccount>[0]);
-      await persistMirror(mirror);
-      return { account, mirror };
+      const mirrorWithMode = {
+        ...mirror,
+        connect_account_livemode:
+          typeof (account as { livemode?: boolean }).livemode === 'boolean'
+            ? Boolean((account as { livemode?: boolean }).livemode)
+            : platformMode === 'live',
+      };
+      await persistMirror(mirrorWithMode);
+      return { account, mirror: mirrorWithMode };
     }
 
     async function moneyMovementCounts(): Promise<{ transfers: number; bankPayouts: number }> {
@@ -253,11 +502,12 @@ serve(async (req) => {
           connect_legacy_account_id: existingId,
           stripe_connected_account_id: null,
           connect_account_type: null,
+          connect_account_livemode: false,
           connect_onboarding_status: 'not_started',
           connect_charges_enabled: false,
           connect_payouts_enabled: false,
           connect_details_submitted: false,
-          connect_disabled_reason: null,
+          connect_disabled_reason: 'archived_non_live_connect_account',
           connect_requirements_currently_due: [],
           connect_requirements_past_due: [],
           payout_rail: 'manual_iban',
@@ -267,7 +517,11 @@ serve(async (req) => {
       if (archiveErr) throw new Error(archiveErr.message);
       profile.stripe_connected_account_id = null;
       profile.connect_account_type = null;
+      profile.connect_account_livemode = false;
       profile.connect_legacy_account_id = existingId;
+      profile.connect_onboarding_status = 'not_started';
+      profile.connect_charges_enabled = false;
+      profile.connect_payouts_enabled = false;
     }
 
     /**
@@ -335,7 +589,7 @@ serve(async (req) => {
         },
         metadata: {
           traverion_supplier_id: supplierId!,
-          traverion_environment: 'test',
+          traverion_environment: platformMode,
           traverion_onboarding: 'api_native',
         },
         settings: {
@@ -379,13 +633,42 @@ serve(async (req) => {
         };
       }
 
-      const created = await stripe.accounts.create(createParams);
+      let created: Stripe.Account;
+      let createdType: 'custom' | 'express' = 'custom';
+      try {
+        created = await stripe.accounts.create(createParams);
+      } catch (customErr) {
+        if (platformMode !== 'live') throw customErr;
+        // LIVE platform profile may not allow Custom requirement collection yet.
+        created = await stripe.accounts.create({
+          type: 'express',
+          country,
+          email,
+          capabilities: { transfers: { requested: true } },
+          metadata: {
+            traverion_supplier_id: supplierId!,
+            traverion_environment: platformMode,
+            traverion_onboarding: 'api_native_express_fallback',
+            traverion_custom_create_error: (customErr instanceof Error
+              ? customErr.message
+              : String(customErr)
+            ).slice(0, 180),
+          },
+          business_profile: createParams.business_profile,
+          settings: createParams.settings,
+        });
+        createdType = 'express';
+      }
       accountId = created.id;
       const mirror = mirrorConnectAccount(created as Parameters<typeof mirrorConnectAccount>[0]);
+      const mirrorMode = {
+        ...mirror,
+        connect_account_livemode: platformMode === 'live',
+      };
       const { error: insertErr } = await admin
         .from('supplier_profiles')
         .update({
-          ...mirror,
+          ...mirrorMode,
           payout_rail: 'manual_iban',
           updated_at: new Date().toISOString(),
         })
@@ -393,10 +676,11 @@ serve(async (req) => {
       if (insertErr) throw new Error(insertErr.message);
       // Refresh local profile pointer for subsequent actions in this request.
       profile.stripe_connected_account_id = accountId;
-      profile.connect_account_type = 'custom';
+      profile.connect_account_type = createdType;
+      profile.connect_account_livemode = platformMode === 'live';
       return {
         accountId,
-        accountType: 'custom',
+        accountType: createdType,
         archived_legacy_account_id:
           archivedFrom || ((profile.connect_legacy_account_id as string | null) ?? null),
       };
@@ -411,12 +695,17 @@ serve(async (req) => {
         (mirror as { connect_account_type?: string | null }).connect_account_type ??
         profile.connect_account_type ??
         null;
+      const livemode =
+        (mirror as { connect_account_livemode?: boolean | null }).connect_account_livemode ??
+        (platformMode === 'live' ? true : platformMode === 'test' ? false : null);
       return {
         success: true as const,
-        environment: 'test' as const,
-        can_receive_transfers: connectCanReceiveTransfers(
-          mirror as Parameters<typeof connectCanReceiveTransfers>[0]
-        ),
+        environment: platformMode,
+        connect_account_livemode: livemode,
+        can_receive_transfers: connectCanReceiveTransfers({
+          ...(mirror as Parameters<typeof connectCanReceiveTransfers>[0]),
+          require_live: platformMode === 'live',
+        }),
         account_id: accountId,
         account_type: accountType,
         onboarding_mode: accountType === 'custom' ? 'api_native' : accountType === 'express' ? 'embedded' : 'unknown',
@@ -425,7 +714,7 @@ serve(async (req) => {
           profile.payment_cycle === 'biweekly'
             ? 'Twice monthly (Traverion cadence)'
             : 'Monthly (Traverion cadence)',
-        note: 'Verification status comes from Account capabilities, not form submission alone.',
+        note: 'Verification status comes from Account capabilities, not form submission alone. Verified requires LIVE capabilities when the platform is LIVE.',
         ...extras,
       };
     }
@@ -822,7 +1111,7 @@ serve(async (req) => {
           success: true,
           action: 'account_session',
           mode: 'embedded',
-          environment: 'test',
+          environment: platformMode,
           account_id: accountId,
           client_secret: session.client_secret,
           publishable_key: publishableKey || null,
@@ -841,7 +1130,7 @@ serve(async (req) => {
           success: true,
           action: 'account_session',
           mode: 'hosted_fallback',
-          environment: 'test',
+          environment: platformMode,
           account_id: accountId,
           url: link.url,
           expires_at: link.expires_at,
@@ -863,7 +1152,7 @@ serve(async (req) => {
         success: true,
         action: 'account_link',
         mode: 'hosted',
-        environment: 'test',
+        environment: platformMode,
         account_id: accountId,
         url: link.url,
         expires_at: link.expires_at,

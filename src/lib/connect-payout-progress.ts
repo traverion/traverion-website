@@ -35,6 +35,10 @@ function dueCount(profile: SupplierProfileRow | null | undefined): number {
 export function deriveConnectExperienceState(
   profile: SupplierProfileRow | null | undefined
 ): ConnectExperienceState {
+  // TEST connected accounts must never present as verified on the LIVE partner surface.
+  if (profile?.connect_account_livemode === false) {
+    return profile?.stripe_connected_account_id ? 'information_required' : 'not_started';
+  }
   const status = (profile?.connect_onboarding_status ?? 'not_started').toLowerCase();
   if (status === 'not_started' || !profile?.stripe_connected_account_id) return 'not_started';
   if (status === 'rejected') return 'restricted';
@@ -70,6 +74,7 @@ export function connectExperienceLabel(state: ConnectExperienceState): string {
     case 'restricted':
       return 'Restricted';
     case 'ready_for_transfers':
+      // Only reached when connect_account_livemode is not false.
       return 'Verified';
     case 'ready_for_bank_payouts':
       return 'Payouts enabled';

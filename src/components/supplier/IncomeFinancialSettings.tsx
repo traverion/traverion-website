@@ -364,6 +364,11 @@ export default function IncomeFinancialSettings({
             <p className="text-[13px]">
               <span className="text-[#71717a]">Status</span>{' '}
               <span className="font-semibold text-[#18181b]">{experienceLabel}</span>
+              {profile?.connect_account_livemode === true ? (
+                <span className="ml-2 text-[11px] font-medium text-[#71717a]">LIVE</span>
+              ) : profile?.connect_account_livemode === false ? (
+                <span className="ml-2 text-[11px] font-medium text-[#71717a]">TEST (not used for LIVE payouts)</span>
+              ) : null}
             </p>
             {nextAction ? (
               <p className="max-w-md text-[12px] leading-relaxed text-[#52525b]">{nextAction}</p>
