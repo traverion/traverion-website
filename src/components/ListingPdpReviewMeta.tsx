@@ -35,7 +35,7 @@ export default function ListingPdpReviewMeta({
     <>
       <Star size={15} className="shrink-0 fill-[#C9A227] text-[#C9A227]" aria-hidden />
       {showScore ? <span className="font-bold tabular-nums text-[#111827]">{score}</span> : null}
-      <span className="font-medium text-ink-muted underline decoration-[#E8EBF0] underline-offset-2">
+      <span className="font-semibold text-[#475569] underline decoration-[#D7DEE8] underline-offset-2 hover:text-[#0758CB]">
         {reviewCountLabel(count)}
       </span>
     </>

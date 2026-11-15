@@ -89,8 +89,8 @@ type Props = {
   onNavigate: (page: string) => void;
 };
 
-const sectionClass = 'tv-pdp-section mt-7 border-t border-[#E8EBF0] pt-7';
-const headingClass = 'tv-section-heading mb-3.5';
+const sectionClass = 'tv-pdp-section';
+const headingClass = 'tv-section-heading';
 
 async function viewerMayPreviewDraft(supplierId: string | undefined, userId: string | undefined): Promise<boolean> {
   if (!supplierId || !userId) return false;
@@ -520,23 +520,23 @@ function RentalBody({
           </p>
         ) : null}
 
-        <header className="mb-3 sm:mb-3.5">
+        <header>
           <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#0B397E]">
             {[rentalCategoryTitle(rental), item].filter(Boolean).join(' · ')}
           </p>
-          <h1 className="tv-tour-title font-sans font-bold tracking-tight text-[#111827] break-words [overflow-wrap:anywhere]">
+          <h1 className="tv-tour-title font-sans tracking-tight text-[#111827] break-words [overflow-wrap:anywhere]">
             {listing.title}
           </h1>
-          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-sm">
+          <div className="tv-pdp-meta-row flex flex-wrap items-center gap-x-3 gap-y-1.5 text-sm">
             <ListingPdpReviewMeta
               score={review.score}
               count={review.count}
               reviewsSectionId="rental-reviews"
             />
             {place ? (
-              <span className="inline-flex min-w-0 items-center gap-1 text-ink">
+              <span className="inline-flex min-w-0 items-center gap-1.5 text-[#111827]">
                 <MapPin size={14} className="shrink-0 text-[#0B397E]" aria-hidden />
-                <span className="font-bold tracking-tight break-words [overflow-wrap:anywhere]">{place}</span>
+                <span className="font-semibold tracking-tight break-words [overflow-wrap:anywhere]">{place}</span>
               </span>
             ) : null}
           </div>
@@ -551,7 +551,7 @@ function RentalBody({
             />
 
             {rental.shortIntro || listing.subtitle ? (
-              <p className="tv-tour-subtitle mt-4 max-w-2xl text-[0.9375rem] leading-relaxed text-ink-muted break-words [overflow-wrap:anywhere]">
+              <p className="tv-tour-subtitle tv-pdp-lede mt-4 max-w-2xl break-words [overflow-wrap:anywhere]">
                 {(rental.shortIntro || listing.subtitle || '').trim()}
               </p>
             ) : null}
@@ -574,7 +574,7 @@ function RentalBody({
                 <h2 id="rental-options-heading" className={headingClass}>
                   Available options
                 </h2>
-                <div id="rental-options" role="radiogroup" aria-label="Rental option" className="grid gap-2.5">
+                <div id="rental-options" role="radiogroup" aria-label="Rental option" className="grid gap-3">
                   {variants.map((variant) => {
                     const selected = variant.id === variantId;
                     const rates = rentalOptionRateLabel(rental, effectiveVariantPricing(rental, variant), variant);
@@ -588,7 +588,7 @@ function RentalBody({
                         type="button"
                         role="radio"
                         aria-checked={selected}
-                        className={`tv-tour-option-card flex w-full flex-col px-3.5 py-3 text-left transition-[background-color,border-color,box-shadow] duration-150 ${
+                        className={`tv-tour-option-card flex w-full flex-col px-3.5 py-3.5 text-left motion-reduce:transition-none ${
                           selected ? 'tv-tour-option-card--selected' : 'tv-tour-option-card--idle'
                         }`}
                         onClick={() => setVariantId(variant.id)}
@@ -598,19 +598,21 @@ function RentalBody({
                             {variant.name}
                           </span>
                           {rates ? (
-                            <span className="shrink-0 text-sm font-bold tabular-nums text-[#111827]">{rates}</span>
+                            <span className="tv-tour-option-card__price shrink-0 text-[1.0625rem] font-bold tabular-nums">
+                              {rates}
+                            </span>
                           ) : null}
                         </span>
                         {attrLine ? (
-                          <span className="mt-1 text-sm leading-snug text-ink-muted">{attrLine}</span>
+                          <span className="mt-1.5 text-sm leading-snug text-[#273244]">{attrLine}</span>
                         ) : null}
-                        <ul className="mt-2 flex flex-wrap gap-x-3 gap-y-1">
-                          <li className="inline-flex items-center gap-1.5 text-xs font-medium text-ink">
+                        <ul className="mt-2.5 flex flex-wrap gap-x-3 gap-y-1.5">
+                          <li className="inline-flex items-center gap-1.5 text-xs font-medium text-[#273244]">
                             <Clock className="h-3.5 w-3.5 shrink-0 text-[#0B397E]" aria-hidden />
                             {modeLabel}
                           </li>
                           {typeof variant.quantity === 'number' && variant.quantity > 0 ? (
-                            <li className="inline-flex items-center gap-1.5 text-xs font-medium text-ink">
+                            <li className="inline-flex items-center gap-1.5 text-xs font-medium text-[#273244]">
                               <Package className="h-3.5 w-3.5 shrink-0 text-[#0B397E]" aria-hidden />
                               Up to {variant.quantity} {variant.quantity === 1 ? units.singular : units.plural}
                             </li>
@@ -626,7 +628,7 @@ function RentalBody({
             {listing.description?.trim() ? (
               <section className={sectionClass}>
                 <h2 className={headingClass}>About this rental</h2>
-                <p className="max-w-xl whitespace-pre-wrap text-[15px] leading-relaxed text-ink-muted break-words [overflow-wrap:anywhere]">
+                <p className="max-w-xl whitespace-pre-wrap text-[15px] leading-[1.65] text-[#273244] break-words [overflow-wrap:anywhere]">
                   {listing.description.trim()}
                 </p>
               </section>

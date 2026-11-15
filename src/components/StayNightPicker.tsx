@@ -419,7 +419,7 @@ export default function StayNightPicker({
           aria-controls={panelId}
           onClick={() => setOpen(true)}
         >
-          <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-ink-muted">Check-in</span>
+          <span className="tv-booking-label text-[10px] uppercase tracking-[0.12em]">Check-in</span>
           <span className={`text-sm font-semibold tabular-nums ${checkIn ? 'text-ink' : 'text-ink-faint'}`}>
             {checkIn ? formatStayNightHuman(checkIn) : 'Add date'}
           </span>
@@ -432,7 +432,7 @@ export default function StayNightPicker({
           aria-controls={panelId}
           onClick={() => setOpen(true)}
         >
-          <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-ink-muted">Check-out</span>
+          <span className="tv-booking-label text-[10px] uppercase tracking-[0.12em]">Check-out</span>
           <span className={`text-sm font-semibold tabular-nums ${checkOut ? 'text-ink' : 'text-ink-faint'}`}>
             {checkOut ? formatStayNightHuman(checkOut) : 'Add date'}
           </span>

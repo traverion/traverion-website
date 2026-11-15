@@ -25,7 +25,7 @@ export default function ListingPdpQuickFacts({ facts, className = '' }: Props) {
             </span>
             <div className="min-w-0">
               <dd className="text-sm font-bold leading-snug tracking-tight text-[#111827]">{fact.value}</dd>
-              <dt className="mt-0.5 text-[11px] font-medium leading-snug text-ink-muted">{fact.label}</dt>
+              <dt className="mt-0.5 text-[11px] font-medium leading-snug text-[#64748B]">{fact.label}</dt>
             </div>
           </div>
         );

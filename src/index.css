@@ -4136,6 +4136,15 @@ a:focus-visible,
   --tv-section-y: 2.25rem;
   --tv-section-y-lg: 3rem;
   --tv-discover-gap: 1rem; /* 16px destination / discovery gaps */
+  /* Listing PDP typography / contrast (Tour · Stay · Rental) */
+  --tv-pdp-ink: #111827;
+  --tv-pdp-body: #273244;
+  --tv-pdp-secondary: #475569;
+  --tv-pdp-muted: #64748b;
+  --tv-pdp-accent: #0758cb;
+  --tv-pdp-border: rgba(232, 235, 240, 0.98);
+  --tv-pdp-section-gap: 1.85rem;
+  --tv-pdp-section-gap-lg: 2.15rem;
   /* Platform motion (premium, restrained) — transform/opacity preferred over layout */
   --tv-ease: cubic-bezier(0.22, 1, 0.36, 1);
   --tv-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
@@ -4229,10 +4238,10 @@ a:focus-visible,
 .tv-section-heading {
   font-family: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
   font-size: var(--tv-type-section);
-  font-weight: 700;
+  font-weight: 650;
   letter-spacing: -0.022em;
   line-height: var(--tv-leading-tight);
-  color: #111827;
+  color: var(--tv-pdp-ink, #111827);
 }
 
 .tv-card-title {
@@ -4664,21 +4673,144 @@ a:focus-visible,
   }
 }
 
-/* Tour Details — premium hero + surfaces */
+/* Listing PDP — shared premium typography, spacing, booking chrome */
+.tv-tour-pdp,
+.tv-stay-pdp,
+.tv-rental-pdp {
+  color: var(--tv-pdp-ink);
+}
+
 .tv-tour-pdp .tv-tour-title,
 .tv-stay-pdp .tv-tour-title,
 .tv-rental-pdp .tv-tour-title {
   font-size: clamp(1.45rem, 2.1vw, 2rem);
+  font-weight: 750;
   line-height: 1.18;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.025em;
   max-width: 100%;
+  color: var(--tv-pdp-ink);
 }
+
 .tv-tour-pdp .tv-tour-subtitle,
 .tv-stay-pdp .tv-tour-subtitle,
-.tv-rental-pdp .tv-tour-subtitle {
-  font-size: 0.9375rem;
-  line-height: 1.6;
-  letter-spacing: -0.005em;
+.tv-rental-pdp .tv-tour-subtitle,
+.tv-pdp-lede {
+  font-size: 0.96875rem;
+  line-height: 1.65;
+  letter-spacing: -0.01em;
+  font-weight: 500;
+  color: var(--tv-pdp-body) !important;
+}
+
+.tv-tour-pdp > .tv-shell > header,
+.tv-stay-pdp > .tv-shell > header,
+.tv-rental-pdp > .tv-shell > header {
+  margin-bottom: 1rem;
+}
+
+@media (min-width: 640px) {
+  .tv-tour-pdp > .tv-shell > header,
+  .tv-stay-pdp > .tv-shell > header,
+  .tv-rental-pdp > .tv-shell > header {
+    margin-bottom: 1.15rem;
+  }
+}
+
+.tv-tour-pdp .tv-section-heading,
+.tv-stay-pdp .tv-section-heading,
+.tv-rental-pdp .tv-section-heading {
+  font-weight: 650;
+  color: var(--tv-pdp-ink);
+}
+
+.tv-pdp-section {
+  margin-top: var(--tv-pdp-section-gap);
+  padding-top: var(--tv-pdp-section-gap);
+  border-top: 1px solid var(--tv-pdp-border);
+}
+
+@media (min-width: 640px) {
+  .tv-pdp-section {
+    margin-top: var(--tv-pdp-section-gap-lg);
+    padding-top: var(--tv-pdp-section-gap-lg);
+  }
+}
+
+.tv-tour-pdp .tv-pdp-section .tv-section-heading,
+.tv-stay-pdp .tv-pdp-section .tv-section-heading,
+.tv-rental-pdp .tv-pdp-section .tv-section-heading {
+  margin-bottom: 0.9rem;
+}
+
+/* Readable prose / amenity / policy copy — charcoal, not faded gray */
+.tv-tour-pdp .tv-pdp-section p.text-ink-muted,
+.tv-stay-pdp .tv-pdp-section p.text-ink-muted,
+.tv-rental-pdp .tv-pdp-section p.text-ink-muted,
+.tv-tour-pdp .tv-pdp-section dd.text-ink-muted,
+.tv-stay-pdp .tv-pdp-section dd.text-ink-muted,
+.tv-rental-pdp .tv-pdp-section dd.text-ink-muted,
+.tv-tour-pdp .tv-pdp-section li.text-ink-muted,
+.tv-stay-pdp .tv-pdp-section li.text-ink-muted,
+.tv-rental-pdp .tv-pdp-section li.text-ink-muted,
+.tv-tour-pdp .tv-pdp-section ul.text-ink-muted,
+.tv-stay-pdp .tv-pdp-section ul.text-ink-muted,
+.tv-rental-pdp .tv-pdp-section ul.text-ink-muted {
+  color: var(--tv-pdp-body);
+  font-weight: 450;
+}
+
+.tv-tour-pdp .tv-pdp-section .text-xs.text-ink-muted,
+.tv-stay-pdp .tv-pdp-section .text-xs.text-ink-muted,
+.tv-rental-pdp .tv-pdp-section .text-xs.text-ink-muted {
+  color: var(--tv-pdp-secondary);
+  font-weight: 500;
+}
+
+.tv-tour-pdp .tv-pdp-main > .tv-tour-subtitle,
+.tv-stay-pdp .tv-pdp-main > .tv-tour-subtitle,
+.tv-rental-pdp .tv-pdp-main > .tv-tour-subtitle {
+  margin-top: 1.15rem;
+  max-width: 40rem;
+}
+
+.tv-pdp-meta-row {
+  margin-top: 0.55rem;
+}
+
+.tv-booking-sticky .tv-booking-label,
+.tv-booking-sticky p.tv-booking-label,
+.tv-booking-sticky [data-booking-label] {
+  color: var(--tv-pdp-ink);
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
+
+.tv-booking-sticky .tv-booking-label.uppercase {
+  letter-spacing: 0.1em;
+  color: var(--tv-pdp-secondary);
+}
+
+.tv-booking-sticky > div > p.text-\[1\.65rem\],
+.tv-booking-sticky .tv-booking-price {
+  color: var(--tv-pdp-ink);
+  font-weight: 750;
+  letter-spacing: -0.03em;
+}
+
+/* Stay/Rental sticky — same premium elevation language as Tour */
+.tv-booking-sticky.tv-booking-sticky--stay,
+.tv-booking-sticky.tv-booking-sticky--rental {
+  border: 1px solid rgba(7, 88, 203, 0.14);
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.04),
+    0 14px 36px -20px rgba(7, 88, 203, 0.22),
+    0 0 0 1px rgba(7, 88, 203, 0.04);
+}
+
+.tv-booking-sticky.tv-booking-sticky--stay .tv-btn-primary,
+.tv-booking-sticky.tv-booking-sticky--rental .tv-btn-primary {
+  font-weight: 700;
+  box-shadow: 0 8px 18px -14px rgba(7, 88, 203, 0.55);
 }
 .tv-icon-btn {
   background: #ffffff;
@@ -4893,7 +5025,6 @@ details:not([open]) > :not(summary) {
   /* Match Tour sticky chrome; slightly denser padding for stay date/guest stack. */
   padding: 0.95rem 1rem 1.05rem;
   border-radius: var(--tv-radius-lg, 1rem);
-  border: 1px solid rgba(232, 235, 240, 0.95);
 }
 .tv-booking-sticky.tv-booking-sticky--stay .tv-input {
   min-height: 2.5rem;
@@ -4902,18 +5033,15 @@ details:not([open]) > :not(summary) {
 }
 .tv-booking-sticky.tv-booking-sticky--stay .tv-btn-primary {
   min-height: var(--tv-control-h, 2.75rem);
-  font-weight: 650;
   letter-spacing: -0.01em;
 }
 /* Rental PDP: dense sticky card for option + dates/times + quantity + CTA */
 .tv-booking-sticky.tv-booking-sticky--rental {
   padding: 0.85rem 0.9rem 0.95rem;
   border-radius: var(--tv-radius-lg, 1rem);
-  border: 1px solid rgba(232, 235, 240, 0.95);
 }
 .tv-booking-sticky.tv-booking-sticky--rental .tv-btn-primary {
   min-height: var(--tv-control-h, 2.75rem);
-  font-weight: 650;
   letter-spacing: -0.01em;
 }
 .tv-booking-sticky.tv-booking-sticky--rental .tv-input {

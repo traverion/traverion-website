@@ -108,8 +108,8 @@ type Props = {
   backLabel?: string;
 };
 
-const sectionClass = 'tv-pdp-section mt-7 border-t border-[#E8EBF0] pt-7';
-const headingClass = 'tv-section-heading mb-3.5';
+const sectionClass = 'tv-pdp-section';
+const headingClass = 'tv-section-heading';
 
 const STAY_DEFAULT_PARTY = { adults: 2, children: 0, infants: 0 } as const;
 
@@ -960,14 +960,14 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
           </div>
         </div>
 
-        <header className="mb-3 sm:mb-3.5">
+        <header>
           {s?.accommodationMode === 'multi' ? (
-            <p className="mb-2 text-sm text-ink-muted">Room types for this property are not open for booking yet.</p>
+            <p className="mb-2 text-sm text-[#475569]">Room types for this property are not open for booking yet.</p>
           ) : null}
-          <h1 className="tv-tour-title font-sans font-bold tracking-tight text-[#111827] break-words [overflow-wrap:anywhere]">
+          <h1 className="tv-tour-title font-sans tracking-tight text-[#111827] break-words [overflow-wrap:anywhere]">
             {stay.title}
           </h1>
-          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-sm">
+          <div className="tv-pdp-meta-row flex flex-wrap items-center gap-x-3 gap-y-1.5 text-sm">
             {(() => {
               const review = publicReviewLabel(reviewAggregate);
               return (
@@ -979,9 +979,9 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
               );
             })()}
             {stayPlace ? (
-              <span className="inline-flex min-w-0 items-center gap-1 text-ink">
+              <span className="inline-flex min-w-0 items-center gap-1.5 text-[#111827]">
                 <MapPin size={14} className="shrink-0 text-[#0B397E]" aria-hidden />
-                <span className="font-bold tracking-tight break-words [overflow-wrap:anywhere]">
+                <span className="font-semibold tracking-tight break-words [overflow-wrap:anywhere]">
                   {stayPlace}
                 </span>
               </span>
@@ -998,7 +998,7 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
             />
 
             {stay.subtitle?.trim() ? (
-              <p className="tv-tour-subtitle mt-4 max-w-2xl text-[0.9375rem] leading-relaxed text-ink-muted break-words [overflow-wrap:anywhere]">
+              <p className="tv-tour-subtitle tv-pdp-lede mt-4 max-w-2xl break-words [overflow-wrap:anywhere]">
                 {stay.subtitle.trim()}
               </p>
             ) : null}
@@ -1247,28 +1247,28 @@ export default function StayDetails({ stayId, onBack, backLabel = 'Stays' }: Pro
               </p>
             ) : quoteOk && stayQuote?.ok ? (
               <div className="tv-quote-reveal">
-                <p className="font-sans text-[1.75rem] font-bold tabular-nums tracking-tight text-ink leading-none">
+                <p className="tv-booking-price font-sans text-[1.75rem] tabular-nums tracking-tight leading-none">
                   {formatMoney(stayQuote.totalAmount, stayQuote.currency)}
                 </p>
-                <p className="tv-meta mt-1">
+                <p className="tv-meta mt-1.5 text-[#475569]">
                   Total · {stayQuote.nights} night{stayQuote.nights === 1 ? '' : 's'}
                   {nightly > 0 ? ` · ${formatMoney(nightly, currency)} / night` : ''}
                 </p>
               </div>
             ) : nightly > 0 ? (
               <div>
-                <p className="font-sans text-[1.75rem] font-bold tabular-nums tracking-tight text-ink leading-none">
+                <p className="tv-booking-price font-sans text-[1.75rem] tabular-nums tracking-tight leading-none">
                   {formatMoney(nightly, currency)}
                 </p>
-                <p className="mt-1 text-sm text-ink-muted">
+                <p className="mt-1.5 text-sm text-[#475569]">
                   / night
                   {minNights > 1 ? ` · ${minNights} nights minimum` : ''}
                 </p>
               </div>
             ) : (
-              <p className="font-display text-2xl font-semibold text-ink">—</p>
+              <p className="tv-booking-price font-sans text-2xl">—</p>
             )}
-            <div className="mt-3 space-y-2.5">
+            <div className="mt-3.5 space-y-3">
               <StayNightPicker
                 id="stay-night-picker"
                 checkIn={checkIn}

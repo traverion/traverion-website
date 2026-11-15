@@ -258,7 +258,7 @@ export default function StayGuestPartySelector({ id, party, policy, maxGuests, o
       >
         <Users className="h-4 w-4 shrink-0 text-finland" aria-hidden strokeWidth={2} />
         <span className="min-w-0 flex-1">
-          <span className="block text-[10px] font-semibold uppercase tracking-[0.12em] text-ink-muted">Guests</span>
+          <span className="tv-booking-label block text-[10px] uppercase tracking-[0.12em]">Guests</span>
           <span className="block truncate text-sm font-semibold text-ink">{summary}</span>
         </span>
         <ChevronDown

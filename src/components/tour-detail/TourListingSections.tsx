@@ -40,8 +40,8 @@ type Props = {
   showOperator?: boolean;
 };
 
-const sectionClass = 'tv-pdp-section mt-7 border-t border-[#E8EBF0] pt-7';
-const headingClass = 'tv-section-heading mb-3.5';
+const sectionClass = 'tv-pdp-section';
+const headingClass = 'tv-section-heading';
 
 function Fact({ label, children }: { label: string; children: string }) {
   const value = children.trim();

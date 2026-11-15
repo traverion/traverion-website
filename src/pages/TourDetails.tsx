@@ -1729,20 +1729,20 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
           </div>
         </div>
 
-        <header className="mb-3 sm:mb-3.5">
-          <h1 className="tv-tour-title font-sans font-bold tracking-tight text-[#111827] break-words [overflow-wrap:anywhere]">
+        <header>
+          <h1 className="tv-tour-title font-sans tracking-tight text-[#111827] break-words [overflow-wrap:anywhere]">
             {tour.title}
           </h1>
-          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-sm">
+          <div className="tv-pdp-meta-row flex flex-wrap items-center gap-x-3 gap-y-1.5 text-sm">
             <ListingPdpReviewMeta
               score={review.score}
               count={review.count}
               reviewsSectionId="tour-reviews"
             />
             {tour.destination?.trim() ? (
-              <span className="inline-flex min-w-0 items-center gap-1 text-ink">
+              <span className="inline-flex min-w-0 items-center gap-1.5 text-[#111827]">
                 <MapPin size={14} className="shrink-0 text-[#0B397E]" aria-hidden />
-                <span className="font-bold tracking-tight break-words [overflow-wrap:anywhere]">
+                <span className="font-semibold tracking-tight break-words [overflow-wrap:anywhere]">
                   {tour.destination.trim()}
                 </span>
               </span>
@@ -1759,7 +1759,7 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
         />
 
         {tour.subtitle?.trim() ? (
-          <p className="tv-tour-subtitle mt-4 max-w-2xl text-[0.9375rem] leading-relaxed text-ink-muted break-words [overflow-wrap:anywhere]">
+          <p className="tv-tour-subtitle tv-pdp-lede mt-4 max-w-2xl break-words [overflow-wrap:anywhere]">
             {tour.subtitle.trim()}
           </p>
         ) : null}
@@ -1863,7 +1863,7 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
                         const several = panelQuote.guests > 1 || lines.length > 1;
                         return (
                           <div>
-                            <p className="text-[1.65rem] font-bold leading-none tracking-tight text-[#0b1b33] tabular-nums">{quotedOfferPrice(panelQuote)}</p>
+                            <p className="tv-booking-price text-[1.65rem] leading-none tracking-tight tabular-nums">{quotedOfferPrice(panelQuote)}</p>
                             <p className="mt-1.5 text-sm text-ink-muted">
                               {several ? 'Total for this booking' : lines[0]?.label ? `Per ${lines[0].label.toLowerCase()}` : 'Per person'}
                             </p>
@@ -1899,7 +1899,7 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
                               {formatMoney(originalPrice, currency)}
                             </p>
                           ) : null}
-                          <p className="text-[1.65rem] font-bold leading-none tracking-tight tabular-nums text-[#0b1b33]">
+                          <p className="tv-booking-price text-[1.65rem] leading-none tracking-tight tabular-nums">
                             {formatMoney(Number(price), currency)}
                           </p>
                           <div className="mt-1.5 flex flex-wrap items-center gap-2">
@@ -1931,7 +1931,7 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
                         todayIso={experienceTodayIso}
                       />
                       <div id="tour-participant-field" ref={participantsRef} className="relative">
-                        <p className="mb-1.5 text-sm font-semibold tracking-tight text-[#0b1b33]">Participants</p>
+                        <p className="tv-booking-label mb-1.5 text-sm tracking-tight">Participants</p>
                         <button
                           type="button"
                           className="relative flex w-full min-h-11 items-center justify-between gap-3 rounded-xl border border-[rgba(7,88,203,0.12)] bg-white px-3.5 text-left transition-[border-color,box-shadow] duration-200 motion-reduce:transition-none hover:border-[#0758CB]/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0758CB]/25"

@@ -567,17 +567,17 @@ export default function RentalBookingWidget({
     !onContinue;
 
   return (
-    <div className="space-y-2.5">
+    <div className="space-y-3">
       <div>
-        <p className="font-sans text-[1.65rem] font-bold leading-none tracking-tight text-[#111827] tabular-nums">
+        <p className="tv-booking-price font-sans text-[1.65rem] leading-none tracking-tight tabular-nums">
           {unitPriceLabel}
-          <span className="ml-1.5 text-sm font-semibold text-ink-muted">
+          <span className="ml-1.5 text-sm font-semibold text-[#475569]">
             / {durationUnit === 'hour' ? 'hour' : 'day'}
           </span>
         </p>
         {hideOptionPicker && selected ? (
-          <p className="mt-1.5 text-sm text-ink-muted">
-            <span className="font-semibold text-ink">{selected.name}</span>{' '}
+          <p className="mt-1.5 text-sm text-[#475569]">
+            <span className="font-semibold text-[#111827]">{selected.name}</span>{' '}
             <a href="#rental-options" className="font-semibold text-[#0758CB]">
               Change
             </a>
@@ -639,7 +639,7 @@ export default function RentalBookingWidget({
       <div className="space-y-2">
         <div className="grid grid-cols-2 gap-2">
           <div className="min-w-0">
-            <span className="mb-1 block text-sm font-medium text-ink">Pickup</span>
+            <span className="tv-booking-label mb-1 block text-sm">Pickup</span>
             <div className="tv-input tv-rental-datetime flex w-full items-center">
               <TraverionSingleDateField
                 id="rental-pickup-date"
@@ -672,7 +672,7 @@ export default function RentalBookingWidget({
             </div>
           </div>
           <div className="min-w-0">
-            <span className="mb-1 block text-sm font-medium text-ink">Time</span>
+            <span className="tv-booking-label mb-1 block text-sm">Time</span>
             <div className="tv-input tv-rental-datetime flex w-full items-center">
               <TraverionTimeListField
                 id="rental-pickup-time"
@@ -692,7 +692,7 @@ export default function RentalBookingWidget({
         </div>
         <div className="grid grid-cols-2 gap-2">
           <div className="min-w-0">
-            <span className="mb-1 block text-sm font-medium text-ink">Return</span>
+            <span className="tv-booking-label mb-1 block text-sm">Return</span>
             <div className="tv-input tv-rental-datetime flex w-full items-center">
               <TraverionSingleDateField
                 id="rental-return-date"
@@ -713,7 +713,7 @@ export default function RentalBookingWidget({
             </div>
           </div>
           <div className="min-w-0">
-            <span className="mb-1 block text-sm font-medium text-ink">Time</span>
+            <span className="tv-booking-label mb-1 block text-sm">Time</span>
             <div className="tv-input tv-rental-datetime flex w-full items-center">
               <TraverionTimeListField
                 id="rental-return-time"
