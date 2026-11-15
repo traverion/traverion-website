@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Flag, X } from 'lucide-react';
 import { useDialogFocus } from '../hooks/useDialogFocus';
 import { useAuth } from '../contexts/AuthContext';
@@ -75,6 +75,20 @@ export function ListingReviewsModal({ open, onClose, reviews, replies, listingTi
   const [feedback, setFeedback] = useState<string | null>(null);
   const [reportedIds, setReportedIds] = useState<Record<string, true>>({});
 
+  useEffect(() => {
+    if (!open) return;
+    const html = document.documentElement;
+    const body = document.body;
+    const prevHtmlOverflow = html.style.overflow;
+    const prevBodyOverflow = body.style.overflow;
+    html.style.overflow = 'hidden';
+    body.style.overflow = 'hidden';
+    return () => {
+      html.style.overflow = prevHtmlOverflow;
+      body.style.overflow = prevBodyOverflow;
+    };
+  }, [open]);
+
   const distribution = useMemo(() => {
     const counts = [0, 0, 0, 0, 0];
     for (const r of reviews) {
@@ -117,30 +131,33 @@ export function ListingReviewsModal({ open, onClose, reviews, replies, listingTi
   };
 
   return (
-    <div ref={sheetRef} className="tv-sheet-overlay">
-      <button type="button" tabIndex={-1} className="absolute inset-0" aria-label="Close reviews" onClick={onClose} />
+    <div ref={sheetRef} className="tv-reviews-modal-overlay">
+      <button
+        type="button"
+        tabIndex={-1}
+        className="tv-reviews-modal-backdrop"
+        aria-label="Close reviews"
+        onClick={onClose}
+      />
       <aside
         role="dialog"
         aria-modal="true"
         aria-labelledby="listing-reviews-title"
-        className="tv-sheet-panel tv-reviews-modal-panel relative flex max-h-[min(92dvh,48rem)] w-full flex-col overflow-hidden motion-safe:animate-slide-up sm:rounded-2xl"
+        className="tv-reviews-modal-panel"
       >
-        <div className="mb-3 flex items-start justify-between gap-3 shrink-0">
-          <div className="min-w-0">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-finland">Reviews</p>
-            <h2
-              id="listing-reviews-title"
-              className="mt-1 truncate font-display text-xl tracking-tight text-ink sm:text-2xl"
-              title={listingTitle}
-            >
+        <header className="tv-reviews-modal-header">
+          <div className="tv-reviews-modal-header__copy min-w-0">
+            <h2 id="listing-reviews-title" className="tv-reviews-modal-title" title={listingTitle}>
               {listingTitle}
             </h2>
-            <div className="mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-sm text-ink-muted">
+            <div className="tv-reviews-modal-meta">
               {avg != null ? (
                 <>
-                  <span className="font-semibold tabular-nums text-ink">{avg.toFixed(1)}</span>
-                  <StarRatingDisplay rating={avg} size={13} />
-                  <span aria-hidden>·</span>
+                  <span className="tv-reviews-modal-meta__avg tabular-nums">{avg.toFixed(1)}</span>
+                  <StarRatingDisplay rating={avg} size={14} />
+                  <span className="tv-reviews-modal-meta__sep" aria-hidden>
+                    ·
+                  </span>
                 </>
               ) : null}
               <span className="tabular-nums">
@@ -151,30 +168,34 @@ export function ListingReviewsModal({ open, onClose, reviews, replies, listingTi
           <button
             type="button"
             onClick={onClose}
-            className="lux-tap-target inline-flex min-h-11 min-w-11 items-center justify-center p-2 -mr-1"
+            className="tv-reviews-modal-close lux-tap-target"
             aria-label="Close"
           >
-            <X className="w-5 h-5" aria-hidden />
+            <X className="h-5 w-5" aria-hidden />
           </button>
-        </div>
+        </header>
 
         {feedback ? (
-          <p className="mb-3 shrink-0 rounded-xl bg-finland/[0.06] px-3 py-2 text-sm text-ink ring-1 ring-finland/15" role="status">
+          <p className="tv-reviews-modal-feedback" role="status">
             {feedback}
           </p>
         ) : null}
 
-        <div className="tv-reviews-modal-filters mb-4 shrink-0">
-          <div className="flex flex-wrap gap-1.5" role="group" aria-label="Filter by rating">
+        <div className="tv-reviews-modal-toolbar">
+          <div
+            className="tv-reviews-modal-filters"
+            role="group"
+            aria-label="Filter by rating"
+          >
             <button
               type="button"
               aria-pressed={starFilter === 'all'}
               onClick={() => setStarFilter('all')}
-              className={`tv-chip min-h-9 px-2.5 text-[12.5px] ${
-                starFilter === 'all' ? 'bg-finland text-white' : 'bg-paper text-ink ring-1 ring-black/[0.06]'
+              className={`tv-reviews-modal-pill ${
+                starFilter === 'all' ? 'tv-reviews-modal-pill--active' : ''
               }`}
             >
-              All
+              All · {reviews.length}
             </button>
             {[5, 4, 3, 2, 1].map((star) => (
               <button
@@ -182,15 +203,15 @@ export function ListingReviewsModal({ open, onClose, reviews, replies, listingTi
                 type="button"
                 aria-pressed={starFilter === star}
                 onClick={() => setStarFilter(star)}
-                className={`tv-chip min-h-9 px-2.5 text-[12.5px] tabular-nums ${
-                  starFilter === star ? 'bg-finland text-white' : 'bg-paper text-ink ring-1 ring-black/[0.06]'
+                className={`tv-reviews-modal-pill tabular-nums ${
+                  starFilter === star ? 'tv-reviews-modal-pill--active' : ''
                 }`}
               >
                 {star}★ · {distribution[star - 1]}
               </button>
             ))}
           </div>
-          <div className="ml-auto min-w-[10.5rem]">
+          <div className="tv-reviews-modal-sort">
             <PartnerSelect
               value={sort}
               options={SORT_OPTIONS}
@@ -201,10 +222,10 @@ export function ListingReviewsModal({ open, onClose, reviews, replies, listingTi
           </div>
         </div>
 
-        <div className="min-h-0 flex-1 space-y-0 overflow-y-auto overscroll-contain pr-0.5">
+        <div className="tv-reviews-modal-body">
           {filtered.length === 0 ? (
             // Phase 1618: star filter empty — offer Reset, do not strand the traveler.
-            <div className="py-6">
+            <div className="tv-reviews-modal-empty">
               <p className="text-sm text-ink-muted">
                 {reviews.length > 0
                   ? 'No reviews match this rating filter.'
@@ -223,40 +244,40 @@ export function ListingReviewsModal({ open, onClose, reviews, replies, listingTi
           ) : (
             filtered.map((r) => (
               <article key={r.id} className="tv-reviews-modal-row">
-                <p className="text-[15px] font-semibold tracking-tight text-ink">
-                  {displayReviewGuestName(r)}
-                </p>
-                <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                  <StarRatingDisplay rating={r.rating} size={13} />
-                  <span className="text-xs text-ink-muted">{formatReviewDate(r.created_at)}</span>
-                  {r.verified ? <span className="tv-review-verified">Verified</span> : null}
+                <div className="tv-reviews-modal-row__head">
+                  <p className="tv-reviews-modal-row__name">{displayReviewGuestName(r)}</p>
+                  <div className="tv-reviews-modal-row__meta">
+                    <StarRatingDisplay rating={r.rating} size={13} />
+                    <span className="tv-reviews-modal-row__date">{formatReviewDate(r.created_at)}</span>
+                    {r.verified ? <span className="tv-review-verified">Verified</span> : null}
+                  </div>
                 </div>
                 {r.title ? (
-                  <p className="mt-2 text-sm font-semibold text-ink break-words [overflow-wrap:anywhere]">
-                    {r.title}
-                  </p>
+                  <p className="tv-reviews-modal-row__title">{r.title}</p>
                 ) : null}
-                <div className="mt-1">
+                <div className="tv-reviews-modal-row__comment">
                   <ReviewCommentClamp
                     text={r.comment}
-                    className="text-[14px] leading-relaxed text-ink"
+                    className="tv-reviews-modal-comment"
                     toggleClassName="tv-reviews-see-more"
+                    moreLabel="Show more"
+                    lessLabel="Show less"
                   />
                 </div>
                 {replies[r.id]?.reply_text ? (
                   <div className="tv-public-review-reply">
                     <p className="tv-public-review-reply__label">Response from the operator</p>
-                    <p className="mt-1 text-sm leading-relaxed text-ink break-words [overflow-wrap:anywhere] whitespace-pre-wrap">
+                    <p className="mt-1 text-[15px] leading-[1.6] text-ink break-words [overflow-wrap:anywhere] whitespace-pre-wrap">
                       {replies[r.id]!.reply_text}
                     </p>
                   </div>
                 ) : null}
 
-                <div className="mt-2.5">
+                <div className="tv-reviews-modal-row__actions">
                   {reportedIds[r.id] ? (
                     <p className="text-xs text-ink-muted">Report submitted</p>
                   ) : reportingId === r.id ? (
-                    <div className="space-y-2 rounded-xl bg-paper px-3 py-3 ring-1 ring-black/[0.06]">
+                    <div className="tv-reviews-modal-report">
                       <p className="text-[12px] font-semibold text-ink">Report review</p>
                       <label className="block text-sm text-ink-muted">
                         Reason
@@ -309,9 +330,9 @@ export function ListingReviewsModal({ open, onClose, reviews, replies, listingTi
                         setReportingId(r.id);
                         setFeedback(null);
                       }}
-                      className="inline-flex min-h-9 items-center gap-1.5 text-xs font-medium text-ink-muted hover:text-ink"
+                      className="tv-reviews-modal-report-trigger"
                     >
-                      <Flag className="w-3.5 h-3.5" aria-hidden />
+                      <Flag className="h-3.5 w-3.5" aria-hidden />
                       Report
                     </button>
                   )}

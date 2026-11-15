@@ -6202,37 +6202,395 @@ details:not([open]) > :not(summary) {
   color: #073b83;
 }
 
+/* Public listing reviews modal — centered reading surface above sticky chrome */
+.tv-reviews-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10050;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: max(1.5rem, env(safe-area-inset-top, 0px))
+    max(1.5rem, env(safe-area-inset-right, 0px))
+    max(1.5rem, env(safe-area-inset-bottom, 0px))
+    max(1.5rem, env(safe-area-inset-left, 0px));
+  background: rgba(11, 27, 51, 0.42);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  animation: tv-reviews-modal-overlay-in 180ms ease-out;
+}
+
+.tv-reviews-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  cursor: default;
+}
+
 .tv-reviews-modal-panel {
-  width: min(100%, 48rem);
-  max-width: min(48rem, calc(100vw - 1.5rem));
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  width: min(820px, calc(100vw - 48px));
+  max-width: min(820px, calc(100vw - 48px));
+  max-height: calc(100dvh - 96px);
+  overflow: hidden;
+  border-radius: 1.125rem;
+  background: #ffffff;
+  color: #0b1b33;
+  box-shadow:
+    0 0 0 1px rgba(15, 23, 42, 0.06),
+    0 24px 56px -28px rgba(15, 23, 42, 0.45);
+  animation: tv-reviews-modal-panel-in 200ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.tv-reviews-modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-shrink: 0;
+  padding: 1.15rem 1.15rem 0.9rem;
+  border-bottom: 1px solid rgba(7, 88, 203, 0.1);
+}
+
+.tv-reviews-modal-title {
+  margin: 0;
+  max-width: 100%;
+  font-size: clamp(1.125rem, 2.4vw, 1.375rem);
+  font-weight: 700;
+  line-height: 1.3;
+  letter-spacing: -0.02em;
+  color: #0b1b33;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.tv-reviews-modal-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.55rem;
+  margin-top: 0.45rem;
+  font-size: 0.875rem;
+  color: #5b6575;
+}
+
+.tv-reviews-modal-meta__avg {
+  font-weight: 700;
+  color: #0b1b33;
+}
+
+.tv-reviews-modal-meta__sep {
+  color: #94a3b8;
+}
+
+.tv-reviews-modal-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  min-height: 2.75rem;
+  min-width: 2.75rem;
+  margin: -0.35rem -0.35rem 0 0;
+  border-radius: 0.75rem;
+  color: #0b1b33;
+  transition:
+    background-color 160ms ease,
+    color 160ms ease;
+}
+
+.tv-reviews-modal-close:hover {
+  background: rgba(7, 88, 203, 0.06);
+}
+
+.tv-reviews-modal-close:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(7, 88, 203, 0.28);
+}
+
+.tv-reviews-modal-feedback {
+  flex-shrink: 0;
+  margin: 0.75rem 1.15rem 0;
+  border-radius: 0.75rem;
+  background: rgba(7, 88, 203, 0.06);
+  padding: 0.65rem 0.8rem;
+  font-size: 0.875rem;
+  color: #0b1b33;
+  box-shadow: inset 0 0 0 1px rgba(7, 88, 203, 0.14);
+}
+
+.tv-reviews-modal-toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  flex-shrink: 0;
+  padding: 0.85rem 1.15rem 0.75rem;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+  background: #ffffff;
 }
 
 .tv-reviews-modal-filters {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
-  gap: 0.5rem 0.65rem;
+  gap: 0.45rem;
+  min-width: 0;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  padding-bottom: 0.1rem;
 }
 
-.tv-reviews-modal-filters .partner-select__trigger {
+.tv-reviews-modal-filters::-webkit-scrollbar {
+  display: none;
+}
+
+.tv-reviews-modal-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  min-height: 2.25rem;
+  padding: 0 0.8rem;
+  border-radius: 999px;
+  border: 1px solid rgba(226, 232, 240, 0.98);
+  background: #ffffff;
+  color: #0b1b33;
+  font-size: 0.78125rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  transition:
+    background-color 180ms ease,
+    border-color 180ms ease,
+    color 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.tv-reviews-modal-pill:hover {
+  border-color: rgba(7, 88, 203, 0.35);
+  color: #0758cb;
+}
+
+.tv-reviews-modal-pill:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(7, 88, 203, 0.22);
+}
+
+.tv-reviews-modal-pill--active,
+.tv-reviews-modal-pill--active:hover {
+  border-color: #0758cb;
+  background: #0758cb;
+  color: #ffffff;
+  box-shadow: 0 6px 14px -12px rgba(7, 88, 203, 0.7);
+}
+
+.tv-reviews-modal-sort {
+  width: 100%;
+  min-width: 0;
+}
+
+.tv-reviews-modal-sort .partner-select__trigger {
   min-height: 2.25rem;
   height: 2.25rem;
   border-radius: 999px;
   font-size: 0.8125rem;
 }
 
+.tv-reviews-modal-body {
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0.35rem 1.15rem max(1.25rem, env(safe-area-inset-bottom, 0px));
+}
+
+.tv-reviews-modal-empty {
+  padding: 1.75rem 0.25rem;
+}
+
 .tv-reviews-modal-row {
-  padding-bottom: 1.05rem;
-  border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+  padding: 1.15rem 0 1.2rem;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.07);
 }
 
 .tv-reviews-modal-row:last-child {
   border-bottom: 0;
-  padding-bottom: 0.25rem;
+  padding-bottom: 0.55rem;
+}
+
+.tv-reviews-modal-row__name {
+  margin: 0;
+  font-size: 0.96875rem;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  color: #0b1b33;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.tv-reviews-modal-row__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.55rem;
+  margin-top: 0.35rem;
+}
+
+.tv-reviews-modal-row__date {
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+.tv-reviews-modal-row__title {
+  margin: 0.7rem 0 0;
+  font-size: 0.9375rem;
+  font-weight: 650;
+  line-height: 1.4;
+  color: #0b1b33;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.tv-reviews-modal-row__comment {
+  margin-top: 0.45rem;
+  max-width: 42rem;
+}
+
+.tv-reviews-modal-comment {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.6;
+  color: #1f2937;
+}
+
+.tv-reviews-modal-row__actions {
+  margin-top: 0.7rem;
+}
+
+.tv-reviews-modal-report-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 2rem;
+  padding: 0.15rem 0.1rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #94a3b8;
+  transition: color 160ms ease;
+}
+
+.tv-reviews-modal-report-trigger:hover {
+  color: #475569;
+}
+
+.tv-reviews-modal-report-trigger:focus-visible {
+  outline: none;
+  border-radius: 0.35rem;
+  box-shadow: 0 0 0 3px rgba(7, 88, 203, 0.22);
+}
+
+.tv-reviews-modal-report {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  border-radius: 0.75rem;
+  background: #f8fafc;
+  padding: 0.8rem 0.85rem;
+  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.06);
+}
+
+@keyframes tv-reviews-modal-overlay-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes tv-reviews-modal-panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.55rem) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (min-width: 640px) {
+  .tv-reviews-modal-header {
+    padding: 1.25rem 1.35rem 1rem;
+  }
+
+  .tv-reviews-modal-toolbar {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem 1rem;
+    padding: 0.9rem 1.35rem 0.85rem;
+  }
+
+  .tv-reviews-modal-filters {
+    flex: 1 1 auto;
+  }
+
+  .tv-reviews-modal-sort {
+    width: auto;
+    min-width: 10.5rem;
+    margin-left: auto;
+    flex-shrink: 0;
+  }
+
+  .tv-reviews-modal-body {
+    padding-inline: 1.35rem;
+  }
+
+  .tv-reviews-modal-feedback {
+    margin-inline: 1.35rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .tv-reviews-modal-overlay {
+    padding: max(0.75rem, env(safe-area-inset-top, 0px))
+      max(0.75rem, env(safe-area-inset-right, 0px))
+      max(0.75rem, env(safe-area-inset-bottom, 0px))
+      max(0.75rem, env(safe-area-inset-left, 0px));
+  }
+
+  .tv-reviews-modal-panel {
+    width: min(820px, calc(100vw - 24px));
+    max-width: min(820px, calc(100vw - 24px));
+    max-height: calc(100dvh - 48px);
+    border-radius: 1rem;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .tv-public-review-card {
+    transition: none !important;
+  }
+
+  .tv-reviews-modal-overlay,
+  .tv-reviews-modal-panel,
+  .tv-reviews-modal-pill,
+  .tv-reviews-modal-close,
+  .tv-reviews-modal-report-trigger {
+    animation: none !important;
     transition: none !important;
   }
 }

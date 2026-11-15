@@ -7,14 +7,18 @@ import { useLayoutEffect, useRef, useState } from 'react';
 type Props = {
   text: string | null | undefined;
   className?: string;
-  /** Button class for See more / See less */
+  /** Button class for Show more / Show less */
   toggleClassName?: string;
+  moreLabel?: string;
+  lessLabel?: string;
 };
 
 export default function ReviewCommentClamp({
   text,
   className = 'text-sm leading-relaxed text-ink',
   toggleClassName = 'mt-1 text-[12.5px] font-semibold text-finland hover:underline',
+  moreLabel = 'See more',
+  lessLabel = 'See less',
 }: Props) {
   const trimmed = (text ?? '').trim();
   const ref = useRef<HTMLParagraphElement>(null);
@@ -64,7 +68,7 @@ export default function ReviewCommentClamp({
           aria-expanded={expanded}
           onClick={() => setExpanded((v) => !v)}
         >
-          {expanded ? 'See less' : 'See more'}
+          {expanded ? lessLabel : moreLabel}
         </button>
       ) : null}
     </div>
