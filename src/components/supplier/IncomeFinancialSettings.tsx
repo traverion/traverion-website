@@ -1,5 +1,6 @@
-import { useEffect, useId, useState } from 'react';
+import { lazy, Suspense, useEffect, useId, useState } from 'react';
 import {
+  Building2,
   CheckCircle2,
   Circle,
   CreditCard,
@@ -13,7 +14,10 @@ import {
   updateSupplierPayout,
   type SupplierProfileRow,
 } from '../../data/supabase-supplier-profile';
-import { invokeConnectSupplierOnboarding } from '../../data/supabase-connect-onboarding';
+import {
+  invokeConnectSupplierOnboarding,
+  type ConnectEmbeddedComponent,
+} from '../../data/supabase-connect-onboarding';
 import type { SupplierCommercialTermsRow } from '../../data/supabase-earnings';
 import { formatBpsAsPercent, nextPayoutRunDateUtc } from '../../lib/commercial-money';
 import {
@@ -49,6 +53,8 @@ import {
 } from '../../lib/booking-confirmation-copy';
 import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
 import { navigateSupplierUrl } from '../../lib/supplierPortalNavigation';
+
+const ConnectEmbeddedPanel = lazy(() => import('./ConnectEmbeddedPanel'));
 
 type Props = {
   userId: string;
@@ -181,6 +187,8 @@ export default function IncomeFinancialSettings({
   const [connectBusy, setConnectBusy] = useState(false);
   const [connectError, setConnectError] = useState<string | null>(null);
   const [connectNote, setConnectNote] = useState<string | null>(null);
+  const [embedComponent, setEmbedComponent] = useState<ConnectEmbeddedComponent | null>(null);
+  const [hostedFallbackUrl, setHostedFallbackUrl] = useState<string | null>(null);
 
   const experience = deriveConnectExperienceState(profile);
   const experienceLabel = connectExperienceLabel(experience);
@@ -188,7 +196,9 @@ export default function IncomeFinancialSettings({
     connect_account_livemode: profile?.connect_account_livemode,
   });
   const canReceiveTransfers = connectCanReceiveTransfers(profile ?? {});
-  const progress = buildConnectProgressSteps(profile);
+  const progress = buildConnectProgressSteps(profile).filter(
+    (s) => s.id !== 'ready_for_payouts'
+  );
   const requirementLabels = humanizeConnectRequirements([
     ...(Array.isArray(profile?.connect_requirements_currently_due)
       ? profile!.connect_requirements_currently_due!
@@ -197,11 +207,14 @@ export default function IncomeFinancialSettings({
       ? profile!.connect_requirements_past_due!
       : []),
   ]);
-  const useHostedStripeSetup =
-    profile?.connect_account_livemode === true &&
-    (profile?.connect_account_type === 'express' || Boolean(profile?.stripe_connected_account_id)) &&
-    !canReceiveTransfers &&
-    experience !== 'ready_for_bank_payouts';
+  /** Express LIVE (and incomplete accounts) use embedded components inside Traverion. */
+  const useEmbeddedStripeSetup =
+    Boolean(profile?.stripe_connected_account_id) &&
+    (profile?.connect_account_type === 'express' || profile?.connect_account_livemode === true) &&
+    !canReceiveTransfers;
+  const useNativeCustomForms =
+    profile?.connect_account_type === 'custom' ||
+    (!profile?.stripe_connected_account_id && profile?.connect_account_livemode !== true);
   const accountBlocks = listSupplierPayoutBlocks({
     profile,
     financialHold,
@@ -278,27 +291,31 @@ export default function IncomeFinancialSettings({
     onProfile(await fetchSupplierProfile(userId));
   };
 
-  const openHostedStripeSetup = async () => {
-    setConnectError(null);
-    setConnectNote(null);
-    if (!canEdit) {
-      setConnectError('Your role can view payout verification but cannot change it.');
-      return;
-    }
+  const openHostedFallback = async () => {
     setConnectBusy(true);
     const result = await invokeConnectSupplierOnboarding('account_link');
     setConnectBusy(false);
     if (!result.success || !result.url) {
       setConnectError(
         userFacingError(
-          result.error ?? 'Could not open Stripe setup. Try Refresh status, then try again.',
+          result.error ?? 'Could not open secure Stripe setup. Try again.',
           USER_ERROR.generic
         )
       );
       return;
     }
-    // Fresh hosted Account Link — handles expired prior links by regenerating each click.
     window.location.assign(result.url);
+  };
+
+  const openEmbedded = (component: ConnectEmbeddedComponent) => {
+    setConnectError(null);
+    setConnectNote(null);
+    setHostedFallbackUrl(null);
+    if (!canEdit) {
+      setConnectError('Your role can view payout verification but cannot change it.');
+      return;
+    }
+    setEmbedComponent(component);
   };
 
   const openVerification = (focus: 'full' | 'bank' = 'full', opts?: { replace?: boolean }) => {
@@ -308,16 +325,30 @@ export default function IncomeFinancialSettings({
       setConnectError('Your role can view payout verification but cannot change it.');
       return;
     }
-    if (useHostedStripeSetup && focus === 'full') {
-      void openHostedStripeSetup();
+    if (useEmbeddedStripeSetup) {
+      openEmbedded(focus === 'bank' ? 'account_management' : 'account_onboarding');
       return;
     }
-    const params = new URLSearchParams();
-    if (focus === 'bank') params.set('focus', 'bank');
-    // Only force replace collection when explicitly requested — never on ordinary Manage bank.
-    if (focus === 'bank' && opts?.replace) params.set('replace', '1');
-    const q = params.toString() ? `?${params.toString()}` : '';
-    navigateSupplierUrl(`${PARTNER_APP_BASE}/verification${q}`);
+    if (useNativeCustomForms) {
+      const params = new URLSearchParams();
+      if (focus === 'bank') params.set('focus', 'bank');
+      if (focus === 'bank' && opts?.replace) params.set('replace', '1');
+      const q = params.toString() ? `?${params.toString()}` : '';
+      navigateSupplierUrl(`${PARTNER_APP_BASE}/verification${q}`);
+      return;
+    }
+    void openHostedFallback();
+  };
+
+  const onEmbedExit = async () => {
+    setEmbedComponent(null);
+    setConnectBusy(true);
+    await invokeConnectSupplierOnboarding('refresh');
+    onProfile(await fetchSupplierProfile(userId));
+    setConnectBusy(false);
+    setConnectNote(
+      'Status updated. Submitting a form does not by itself mean verification is complete.'
+    );
   };
 
   const selectedCatalog =
@@ -377,10 +408,9 @@ export default function IncomeFinancialSettings({
     },
   ] as const;
 
-  const primaryVerifyCta = useHostedStripeSetup
-    ? 'Complete Stripe Setup'
-    : experience === 'not_started'
-      ? 'Complete verification'
+  const primaryVerifyCta =
+    experience === 'not_started'
+      ? 'Start verification'
       : experience === 'information_required'
         ? 'Continue verification'
         : experience === 'additional_information_required' || experience === 'restricted'
@@ -390,15 +420,129 @@ export default function IncomeFinancialSettings({
   return (
     <div id="income-payout-settings" className="mx-auto w-full max-w-[880px] space-y-4">
       <header className="space-y-1">
-        <h1 className="text-lg font-bold tracking-tight text-[#18181b] sm:text-xl">Payout settings</h1>
+        <h1 className="text-lg font-bold tracking-tight text-[#18181b] sm:text-xl">
+          Income &amp; Payouts · Settings
+        </h1>
         <p className="max-w-xl text-[13px] leading-relaxed text-[#52525b]">
-          {useHostedStripeSetup
-            ? 'Finish payout setup securely on Stripe. Traverion never collects identity documents or bank details here.'
-            : 'Verification, bank account, and payout preferences — managed securely inside Traverion.'}
+          Manage business details, verification, bank destination, and payout preferences inside Traverion.
+          Stripe remains the regulated payment provider — Traverion never stores full bank numbers or identity
+          documents.
         </p>
       </header>
 
-      {/* A. Payout account */}
+      <ol
+        className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5"
+        aria-label="Payout setup progression"
+      >
+        {progress.map((step) => (
+          <li
+            key={step.id}
+            className={[
+              'flex items-center gap-2 rounded-lg border px-2.5 py-2 text-[12px] transition-colors',
+              step.state === 'complete'
+                ? 'border-emerald-200 bg-emerald-50/80'
+                : step.state === 'current'
+                  ? 'border-[#073b83]/30 bg-[#f0f4fa]'
+                  : step.state === 'blocked'
+                    ? 'border-red-200 bg-red-50/60'
+                    : 'border-[#e5e7eb] bg-[#fafafa]',
+            ].join(' ')}
+          >
+            {stepIcon(step.state)}
+            <span
+              className={
+                step.state === 'complete' || step.state === 'current'
+                  ? 'font-semibold text-[#18181b]'
+                  : 'font-medium text-[#52525b]'
+              }
+            >
+              {step.label}
+            </span>
+          </li>
+        ))}
+      </ol>
+
+      {/* A. Business Details */}
+      <section
+        id="income-business-details"
+        className="rounded-[12px] border border-[#e5e7eb] bg-white px-4 py-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)] sm:px-5"
+      >
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0 space-y-1.5">
+            <div className="flex items-center gap-2">
+              <Building2 className="h-4 w-4 shrink-0 text-[#073b83]" aria-hidden />
+              <h2 className="text-sm font-bold text-[#18181b]">Business Details</h2>
+            </div>
+            <p className="max-w-md text-[12px] leading-relaxed text-[#52525b]">
+              Ordinary company information comes from your Traverion profile. Sensitive verification is completed
+              through Stripe’s secure component — not duplicated here.
+            </p>
+            <dl className="mt-2 grid gap-x-6 gap-y-1.5 text-[12px] sm:grid-cols-2">
+              <div>
+                <dt className="text-[#71717a]">Legal name</dt>
+                <dd className="font-medium text-[#18181b]">
+                  {profile?.company_legal_name || profile?.display_name || '—'}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-[#71717a]">Business type</dt>
+                <dd className="font-medium text-[#18181b]">{profile?.business_type || '—'}</dd>
+              </div>
+              <div>
+                <dt className="text-[#71717a]">Registration number</dt>
+                <dd className="font-medium text-[#18181b]">
+                  {profile?.company_registration_number || '—'}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-[#71717a]">Tax / VAT</dt>
+                <dd className="font-medium text-[#18181b]">
+                  {[profile?.tax_id, profile?.vat_id].filter(Boolean).join(' · ') || '—'}
+                </dd>
+              </div>
+              <div className="sm:col-span-2">
+                <dt className="text-[#71717a]">Registered address</dt>
+                <dd className="font-medium text-[#18181b]">
+                  {[profile?.address_street, profile?.address_postal_code, profile?.address_city, profile?.address_country]
+                    .filter(Boolean)
+                    .join(', ') ||
+                    profile?.business_address ||
+                    '—'}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-[#71717a]">Contact</dt>
+                <dd className="font-medium text-[#18181b]">{profile?.contact_phone || '—'}</dd>
+              </div>
+              <div>
+                <dt className="text-[#71717a]">Verification status</dt>
+                <dd className="font-medium text-[#18181b]">
+                  {experienceLabel}
+                  <span className="ml-1 text-[11px] font-medium text-[#71717a]">({statusLabel})</span>
+                  {profile?.connect_account_livemode === true ? (
+                    <span className="ml-1 text-[11px] font-medium text-[#71717a]">LIVE</span>
+                  ) : null}
+                </dd>
+              </div>
+            </dl>
+            {profile?.stripe_connected_account_id ? (
+              <p className="font-mono text-[11px] text-[#71717a]">
+                Stripe {profile.stripe_connected_account_id}
+                {profile.connect_account_type ? ` · ${profile.connect_account_type}` : ''}
+              </p>
+            ) : null}
+          </div>
+          <button
+            type="button"
+            className="tv-btn-secondary h-10 px-3 text-[13px]"
+            onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/business-profile`)}
+          >
+            Edit in Company Settings
+          </button>
+        </div>
+      </section>
+
+      {/* B. Identity verification (embedded) */}
       <section
         id="business-payouts"
         className="rounded-[12px] border border-[#e5e7eb] bg-white px-4 py-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)] sm:px-5"
@@ -407,33 +551,15 @@ export default function IncomeFinancialSettings({
           <div className="min-w-0 space-y-1.5">
             <div className="flex items-center gap-2">
               <ShieldCheck className="h-4 w-4 shrink-0 text-[#073b83]" aria-hidden />
-              <h2 className="text-sm font-bold text-[#18181b]">Payout account</h2>
+              <h2 className="text-sm font-bold text-[#18181b]">Identity verification</h2>
             </div>
-            <p className="text-[13px]">
-              <span className="text-[#71717a]">Status</span>{' '}
-              <span className="font-semibold text-[#18181b]">{experienceLabel}</span>
-              <span className="ml-2 text-[11px] font-medium text-[#71717a]">({statusLabel})</span>
-              {profile?.connect_account_livemode === true ? (
-                <span className="ml-2 text-[11px] font-medium text-[#71717a]">LIVE</span>
-              ) : profile?.connect_account_livemode === false ? (
-                <span className="ml-2 text-[11px] font-medium text-[#71717a]">TEST (not used for LIVE payouts)</span>
-              ) : null}
-            </p>
-            {profile?.stripe_connected_account_id ? (
-              <p className="font-mono text-[11px] text-[#71717a]">
-                Stripe account {profile.stripe_connected_account_id}
-                {profile.connect_account_type ? ` · ${profile.connect_account_type}` : ''}
-              </p>
-            ) : null}
             {nextAction ? (
               <p className="max-w-md text-[12px] leading-relaxed text-[#52525b]">{nextAction}</p>
             ) : (
               <p className="max-w-md text-[12px] leading-relaxed text-[#52525b]">
                 {canReceiveTransfers
-                  ? providerPayoutCapability
-                    ? 'Provider marks this account ready for payouts. Traverion transfers still follow internal controls and schedules.'
-                    : 'You can receive earnings transfers when Traverion enables them. Bank payout capability depends on the provider.'
-                  : 'Additional steps are needed before you can receive earnings.'}
+                  ? 'Provider marks this account ready. Traverion transfers still follow internal controls.'
+                  : 'Complete Stripe verification inside Traverion. Identity documents stay with Stripe.'}
               </p>
             )}
             {requirementLabels.length > 0 && !canReceiveTransfers ? (
@@ -466,34 +592,48 @@ export default function IncomeFinancialSettings({
           </div>
         </div>
 
-        <ol className="mt-4 grid gap-2 sm:grid-cols-4" aria-label="Verification progress">
-          {progress.map((step) => (
-            <li
-              key={step.id}
-              className={[
-                'flex items-center gap-2 rounded-lg border px-2.5 py-2 text-[12px] transition-colors',
-                step.state === 'complete'
-                  ? 'border-emerald-200 bg-emerald-50/80'
-                  : step.state === 'current'
-                    ? 'border-[#073b83]/30 bg-[#f0f4fa]'
-                    : step.state === 'blocked'
-                      ? 'border-red-200 bg-red-50/60'
-                      : 'border-[#e5e7eb] bg-[#fafafa]',
-              ].join(' ')}
+        {embedComponent === 'account_onboarding' ? (
+          <div className="mt-4 space-y-2">
+            <Suspense
+              fallback={
+                <p className="text-[13px] text-[#52525b]" role="status">
+                  Loading secure verification…
+                </p>
+              }
             >
-              {stepIcon(step.state)}
-              <span
-                className={
-                  step.state === 'complete' || step.state === 'current'
-                    ? 'font-semibold text-[#18181b]'
-                    : 'font-medium text-[#52525b]'
-                }
-              >
-                {step.label}
-              </span>
-            </li>
-          ))}
-        </ol>
+              <ConnectEmbeddedPanel
+                component="account_onboarding"
+                onExit={() => void onEmbedExit()}
+                onHostedFallback={(url) => {
+                  setHostedFallbackUrl(url);
+                  setEmbedComponent(null);
+                }}
+                onError={(msg) => setConnectError(msg)}
+              />
+            </Suspense>
+            <p className="text-[11px] text-[#71717a]">
+              If Stripe requires a short authentication step, complete it in the panel. Expired sessions restart
+              automatically when you open verification again.
+            </p>
+          </div>
+        ) : null}
+
+        {hostedFallbackUrl ? (
+          <div className="mt-3 rounded-[10px] border border-amber-200 bg-amber-50 px-3 py-3 text-[12px] text-amber-950">
+            <p className="font-semibold">Secure Stripe-hosted step required</p>
+            <p className="mt-1 leading-relaxed">
+              Embedded onboarding is unavailable for this requirement. Continue on Stripe’s secure page, then return
+              here and refresh status.
+            </p>
+            <button
+              type="button"
+              className="tv-btn-primary mt-2 h-9 px-3 text-[13px]"
+              onClick={() => window.location.assign(hostedFallbackUrl)}
+            >
+              Continue on Stripe
+            </button>
+          </div>
+        ) : null}
 
         {connectNote ? (
           <p className="mt-3 text-[12px] text-[#18181b]" role="status">
@@ -507,7 +647,7 @@ export default function IncomeFinancialSettings({
         ) : null}
       </section>
 
-      {/* B. Bank account */}
+      {/* C. Bank account */}
       <section
         id="income-payout-account"
         className="rounded-[12px] border border-[#e5e7eb] bg-white px-4 py-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)] sm:px-5"
@@ -539,7 +679,6 @@ export default function IncomeFinancialSettings({
             disabled={!canEdit || connectBusy}
             onClick={() =>
               openVerification('bank', {
-                // Only jump straight into replace when nothing is on file yet.
                 replace: !bank.managed,
               })
             }
@@ -547,6 +686,29 @@ export default function IncomeFinancialSettings({
             {bank.managed ? 'Manage bank account' : 'Add bank account'}
           </button>
         </div>
+
+        {embedComponent === 'account_management' ? (
+          <div className="mt-4 space-y-2">
+            <Suspense
+              fallback={
+                <p className="text-[13px] text-[#52525b]" role="status">
+                  Loading secure bank management…
+                </p>
+              }
+            >
+              <ConnectEmbeddedPanel
+                component="account_management"
+                onExit={() => void onEmbedExit()}
+                onHostedFallback={(url) => {
+                  setHostedFallbackUrl(url);
+                  setEmbedComponent(null);
+                }}
+                onError={(msg) => setConnectError(msg)}
+              />
+            </Suspense>
+          </div>
+        ) : null}
+
         {locked && profile?.payout_iban ? (
           <p className="mt-3 text-[12px] text-[#71717a]">
             Need to change a previously reviewed Traverion bank record?{' '}
@@ -584,13 +746,14 @@ export default function IncomeFinancialSettings({
         </dl>
 
         <p className="mt-2 text-[12px] leading-relaxed text-[#52525b]">
-          Monthly and twice-monthly preferences are saved for when Traverion runs payouts. They are not an active
-          automatic schedule by themselves
+          Monthly (15%) and twice-monthly (18%) preferences are saved for when Traverion runs payouts. They are not an
+          active automatic schedule by themselves
           {estimatedNext && commercialTerms?.payout_cadence
             ? ` (illustrative next agreement date: ${formatEstimateDate(estimatedNext)}).`
             : '.'}{' '}
-          Commission follows your commercial agreement
-          {agreementRate ? ` (${agreementRate})` : ''}
+          Changing a preference never rewrites frozen booking commissions — those stay on the commercial snapshot at
+          booking time
+          {agreementRate ? ` (current agreement ${agreementRate})` : ''}
           {selectedCatalog && agreementRate && selectedCatalog !== agreementRate
             ? ` — catalog preference ${selectedCatalog} does not add a second commission until assigned.`
             : '.'}

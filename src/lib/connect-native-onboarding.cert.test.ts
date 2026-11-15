@@ -52,7 +52,7 @@ describe('Native Traverion Custom Connect onboarding', () => {
 
   it('does not force hosted Account Link for the primary native path', () => {
     expect(settings).toContain('/verification');
-    expect(settings).not.toContain('ConnectEmbeddedPanel');
+    expect(settings).toContain('ConnectEmbeddedPanel');
     expect(journey).toContain('tv-verify-workspace');
     expect(journey).toContain('SupplierVerificationStatusView');
     expect(journey).toContain('resolveVerificationWorkspacePhase');
@@ -72,14 +72,13 @@ describe('Native Traverion Custom Connect onboarding', () => {
     expect(stripeJs).toContain('isStripeTestPublishableKey');
   });
 
-  it('auto-routes Express safely and keeps identity embed as narrow exception', () => {
-    expect(journey).toContain('Support required');
-    expect(journey).toContain('Contact Traverion support');
-    expect(journey).not.toContain('Use Traverion verification forms');
-    expect(journey).not.toContain('Continue Express verification');
+  it('routes Express to embedded Account Sessions; Custom keeps API-native forms', () => {
+    expect(journey).toContain('setShowIdentityEmbed(true)');
+    expect(journey).toContain('ConnectEmbeddedPanel');
     expect(edge).toContain('archiveLinkedAccount');
     expect(edge).toContain('moneyMovementCounts');
     expect(edge).toContain('accountSessions.create');
+    expect(edge).toContain('p85_embedded');
     expect(mig).toContain('connect_account_type');
   });
 

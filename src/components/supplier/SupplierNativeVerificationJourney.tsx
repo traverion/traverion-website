@@ -541,13 +541,16 @@ export default function SupplierNativeVerificationJourney({
         return;
       }
       setLastMirror(ensured);
+      // P8.5: Express uses embedded Connect components — do not hard-block.
       const blocked =
         typeof (ensured as { native_blocked_reason?: string }).native_blocked_reason === 'string'
           ? (ensured as { native_blocked_reason?: string }).native_blocked_reason!
-          : ensured.account_type === 'express'
-            ? 'This organization needs help completing verification. Contact Traverion support.'
-            : null;
+          : null;
       setBlockedReason(blocked);
+      if (ensured.account_type === 'express' && !blocked) {
+        setShowIdentityEmbed(true);
+        setNote('Complete verification inside Traverion. Stripe handles identity and bank collection securely.');
+      }
       if (ensured.archived_legacy_account_id) {
         setNote('Verification is ready in Traverion.');
       }

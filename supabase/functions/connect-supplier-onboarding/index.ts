@@ -543,13 +543,16 @@ serve(async (req) => {
           return { accountId, accountType: 'custom' };
         }
         if (accountType === 'express') {
-          if ((account as { livemode?: boolean }).livemode) {
-            return {
-              accountId,
-              accountType: 'express',
-              native_blocked_reason:
-                'This payout account cannot use Traverion forms automatically. Contact Traverion support.',
-            };
+          // P8.5: Express uses Traverion-branded embedded Account Sessions.
+          // Account.retrieve often omits `livemode`; on a LIVE platform treat Express as LIVE
+          // unless Stripe explicitly marks livemode=false (TEST). Never archive LIVE Express.
+          const accountLivemode = (account as { livemode?: boolean }).livemode;
+          const treatAsLive =
+            platformMode === 'live'
+              ? accountLivemode !== false
+              : accountLivemode === true;
+          if (treatAsLive || platformMode === 'live') {
+            return { accountId, accountType: 'express' };
           }
           const movement = await moneyMovementCounts();
           if (movement.transfers > 0 || movement.bankPayouts > 0) {
@@ -571,6 +574,42 @@ serve(async (req) => {
 
       if (accountId) {
         return { accountId, accountType: (profile.connect_account_type as string) || 'unknown' };
+      }
+
+      // P8.5: Never create a second LIVE connected account. Prefer restoring a prior LIVE Express link.
+      const legacyId = (profile.connect_legacy_account_id as string | null) ?? null;
+      if (platformMode === 'live' && legacyId) {
+        try {
+          const legacy = await stripe.accounts.retrieve(legacyId);
+          if ((legacy as { livemode?: boolean }).livemode !== false) {
+            const mirror = mirrorConnectAccount(legacy as Parameters<typeof mirrorConnectAccount>[0]);
+            await admin
+              .from('supplier_profiles')
+              .update({
+                ...mirror,
+                connect_account_livemode: true,
+                stripe_connected_account_id: legacyId,
+                connect_legacy_account_id: null,
+                updated_at: new Date().toISOString(),
+              })
+              .eq('id', supplierId);
+            profile.stripe_connected_account_id = legacyId;
+            profile.connect_account_type = mirror.connect_account_type || 'express';
+            profile.connect_account_livemode = true;
+            profile.connect_legacy_account_id = null;
+            return {
+              accountId: legacyId,
+              accountType: mirror.connect_account_type || (legacy.type as string) || 'express',
+            };
+          }
+        } catch {
+          // Fall through only if legacy cannot be restored.
+        }
+      }
+      if (platformMode === 'live' && legacyId) {
+        throw new Error(
+          'A LIVE connected account already exists for this supplier and must be restored by Traverion support — refusing to create a second LIVE account.'
+        );
       }
 
       const country = (profile.address_country || profile.connect_country || 'FI')
@@ -752,7 +791,12 @@ serve(async (req) => {
           account_type: ensured.accountType,
           native_blocked_reason: ensured.native_blocked_reason ?? null,
           archived_legacy_account_id: ensured.archived_legacy_account_id ?? null,
-          onboarding_mode: ensured.accountType === 'custom' ? 'api_native' : 'legacy_protected',
+          onboarding_mode:
+            ensured.accountType === 'custom'
+              ? 'api_native'
+              : ensured.accountType === 'express'
+                ? 'embedded'
+                : 'unknown',
         }),
       });
     }
@@ -1077,11 +1121,49 @@ serve(async (req) => {
       return json({ action, ...statusPayload(mirror, accountId) });
     }
 
-    // Embedded Account Session — used for Express legacy + risk remediation exceptions.
+    // Embedded Account Session — Express LIVE primary path (P8.5) + Custom remediation.
     if (action === 'account_session') {
-      const { accountId } = await ensureConnectedAccount();
+      const ensured = await ensureConnectedAccount();
+      const accountId = ensured.accountId;
       const component =
         body.component === 'account_management' ? 'account_management' : 'account_onboarding';
+
+      // Prefill non-sensitive Traverion profile fields into Stripe where still writable.
+      try {
+        const country = (profile.address_country || profile.connect_country || 'FI')
+          .toString()
+          .slice(0, 2)
+          .toUpperCase();
+        const prefill: Stripe.AccountUpdateParams = {
+          business_profile: {
+            name: (profile.display_name || profile.company_legal_name || undefined) ?? undefined,
+            support_email: authData.user.email ?? undefined,
+            support_phone: profile.contact_phone || undefined,
+            mcc: '4722',
+            product_description: 'Travel experiences and stays sold on Traverion',
+          },
+          metadata: {
+            traverion_supplier_id: supplierId!,
+            traverion_environment: platformMode,
+            traverion_onboarding: 'p85_embedded',
+          },
+        };
+        if (profile.business_type === 'company' && profile.company_legal_name) {
+          prefill.company = {
+            name: profile.company_legal_name,
+            phone: profile.contact_phone || undefined,
+            address: {
+              line1: profile.address_street || undefined,
+              city: profile.address_city || undefined,
+              postal_code: profile.address_postal_code || undefined,
+              country,
+            },
+          };
+        }
+        await stripe.accounts.update(accountId, prefill);
+      } catch {
+        // Express may reject KYC updates after Account Links exist — continue to session.
+      }
 
       try {
         const sessionParams: Stripe.AccountSessionCreateParams = {
@@ -1113,13 +1195,15 @@ serve(async (req) => {
           mode: 'embedded',
           environment: platformMode,
           account_id: accountId,
+          account_type: ensured.accountType,
           client_secret: session.client_secret,
           publishable_key: publishableKey || null,
           component,
           expires_at: session.expires_at,
-          note: 'Embedded component reserved for legacy Express accounts or provider-controlled remediation.',
+          note: 'Traverion-branded embedded Connect component. Secrets never leave the server session.',
         });
       } catch (sessionErr) {
+        // Unavoidable fallback: Stripe-hosted Account Link for this step only.
         const link = await stripe.accountLinks.create({
           account: accountId,
           refresh_url: refreshUrl,
@@ -1132,10 +1216,11 @@ serve(async (req) => {
           mode: 'hosted_fallback',
           environment: platformMode,
           account_id: accountId,
+          account_type: ensured.accountType,
           url: link.url,
           expires_at: link.expires_at,
           fallback_reason: sessionErr instanceof Error ? sessionErr.message : 'account_session_unavailable',
-          note: 'Embedded Account Session unavailable; hosted Account Link fallback (legacy path).',
+          note: 'Embedded Account Session unavailable for this account; secure Stripe-hosted fallback for this step only.',
         });
       }
     }

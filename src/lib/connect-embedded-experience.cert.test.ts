@@ -106,20 +106,21 @@ describe('Supplier embedded Connect experience', () => {
     expect(embedded).toContain('fetchConnectAccountSessionSecret');
   });
 
-  it('premium payout settings covers three money sections and routes to dedicated verification', () => {
-    expect(ui).toContain('Payout settings');
-    expect(ui).toContain('Payout account');
+  it('premium payout settings covers Business Details, verification, bank, and preferences', () => {
+    expect(ui).toContain('Income &amp; Payouts · Settings');
+    expect(ui).toContain('Business Details');
+    expect(ui).toContain('Identity verification');
     expect(ui).toContain('Bank account');
     expect(ui).toContain('Payout preferences');
-    expect(ui).toContain('Complete verification');
     expect(ui).toContain('Manage bank account');
     expect(ui).toContain('Add bank account');
     expect(ui).toContain('/verification');
+    expect(ui).toContain('ConnectEmbeddedPanel');
     expect(ui).toContain('Provider payout capability');
     expect(ui).toContain('bankAlreadyManaged');
     expect(ui).not.toContain('SupplierNativeVerificationJourney');
-    expect(ui).not.toContain('Business information');
-    expect(ui).not.toMatch(/Complete Stripe|Stripe Connect|Sandbox|TEST mode|Connected account/i);
+    expect(ui).not.toContain('Complete Stripe Setup');
+    expect(ui).not.toMatch(/Sandbox|TEST mode/i);
   });
 
   it('progress adapts to Stripe capability state', () => {
@@ -154,7 +155,16 @@ describe('Supplier embedded Connect experience', () => {
         connect_onboarding_status: 'pending',
       })
     );
-    expect(steps).toHaveLength(4);
+    expect(steps).toHaveLength(6);
+    expect(steps.map((s) => s.id)).toEqual(
+      expect.arrayContaining([
+        'business_details',
+        'identity_verification',
+        'bank_account',
+        'payout_preferences',
+        'setup_complete',
+      ])
+    );
   });
 
   it('separates account verification blocks from earnings eligibility', () => {

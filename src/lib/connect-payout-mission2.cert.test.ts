@@ -54,10 +54,10 @@ describe('Mission 2: Connect onboarding + TEST transfer engine', () => {
     expect(onboarding).toContain('accountLinks.create');
     expect(onboarding).toContain('resolveStripeMoneySecretFromEnv');
     expect(onboarding).toContain('accounts.retrieve');
-    expect(settings).toContain('Complete verification');
+    expect(settings).toContain('Start verification');
     expect(settings).toContain('/verification');
     expect(settings).toContain('invokeConnectSupplierOnboarding');
-    expect(settings).toContain('Payout account');
+    expect(settings).toContain('Identity verification');
     expect(mirror).toContain('Never treat a browser return URL alone as verified');
   });
 
@@ -107,8 +107,8 @@ describe('Mission 2: Connect onboarding + TEST transfer engine', () => {
     expect(earnings).toContain('connectPayoutPresentationStatus');
     expect(earnings).toContain('How payout statuses work');
     expect(earnings).toContain('Sending funds to your payout account alone is not a bank payment');
-    expect(settings).toContain('Payout settings');
-    expect(settings).toContain('Payout account');
+    expect(settings).toContain('Income &amp; Payouts · Settings');
+    expect(settings).toContain('Business Details');
     expect(settings).toContain('Bank account');
   });
 

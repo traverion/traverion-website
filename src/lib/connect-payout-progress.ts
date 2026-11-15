@@ -5,6 +5,8 @@ export type ConnectProgressStepId =
   | 'business_details'
   | 'identity_verification'
   | 'bank_account'
+  | 'payout_preferences'
+  | 'setup_complete'
   | 'ready_for_payouts';
 
 export type ConnectProgressStep = {
@@ -93,6 +95,10 @@ export function buildConnectProgressSteps(
   const due = dueCount(profile);
   const transfers = connectCanReceiveTransfers(profile ?? {});
   const payouts = Boolean(profile?.connect_payouts_enabled) && transfers;
+  const hasBusinessProfile = Boolean(
+    profile?.company_legal_name || profile?.display_name || profile?.business_type
+  );
+  const prefsSaved = Boolean(profile?.payment_cycle);
 
   const mark = (
     complete: boolean,
@@ -105,25 +111,49 @@ export function buildConnectProgressSteps(
     return 'upcoming';
   };
 
+  const identityDone =
+    details &&
+    due === 0 &&
+    state !== 'verification_in_progress' &&
+    state !== 'additional_information_required' &&
+    state !== 'information_required' &&
+    state !== 'not_started';
+  const bankDone = payouts;
+  const setupComplete = payouts && prefsSaved;
+
   return [
     {
       id: 'business_details',
-      label: 'Business details',
-      state: mark(hasAccount && details, !details && state !== 'not_started', state === 'restricted'),
+      label: 'Business information',
+      state: mark(
+        hasBusinessProfile && hasAccount,
+        !hasBusinessProfile || state === 'not_started',
+        state === 'restricted'
+      ),
     },
     {
       id: 'identity_verification',
       label: 'Identity verification',
       state: mark(
-        details && due === 0 && state !== 'verification_in_progress' && state !== 'additional_information_required',
-        details && (due > 0 || state === 'verification_in_progress' || state === 'additional_information_required'),
+        identityDone,
+        hasAccount && !identityDone && (due > 0 || !details || state === 'verification_in_progress'),
         state === 'restricted'
       ),
     },
     {
       id: 'bank_account',
       label: 'Bank account',
-      state: mark(payouts, details && due === 0 && !payouts, state === 'restricted'),
+      state: mark(bankDone, identityDone && !bankDone, state === 'restricted'),
+    },
+    {
+      id: 'payout_preferences',
+      label: 'Payout preferences',
+      state: mark(prefsSaved, bankDone && !prefsSaved, false),
+    },
+    {
+      id: 'setup_complete',
+      label: 'Setup complete',
+      state: mark(setupComplete, prefsSaved && bankDone && !setupComplete, state === 'restricted'),
     },
     {
       id: 'ready_for_payouts',
