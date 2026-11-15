@@ -139,6 +139,8 @@ type Body = {
     | 'commercial_terms_set'
     | 'payout_periods_list'
     | 'prepare_due_payouts'
+    | 'pilot_payout_preview'
+    | 'pilot_payout_prepare'
     | 'prepare_runs_list'
     | 'transfer_reversals_list'
     | 'mark_payout_period_paid'
@@ -201,6 +203,11 @@ type Body = {
   commercialNote?: string;
   commercialConfirm?: boolean;
   payoutPeriodId?: string;
+  /** P8.3 pilot isolation */
+  pilotLabel?: string;
+  pilotConfirmBookingRef?: string;
+  pilotConfirmAmountMinor?: number;
+  pilotDryRun?: boolean;
   financialHoldReason?: string;
   financialHoldNote?: string;
   financialHoldId?: string;
@@ -1316,6 +1323,61 @@ serve(async (req) => {
     if (error) return json({ error: error.message }, 500);
     if (!data) return json({ error: 'exception_not_found' }, 404);
     return json({ ok: true, item: data });
+  }
+
+  if (body.action === 'pilot_payout_preview') {
+    const label =
+      typeof body.pilotLabel === 'string' && body.pilotLabel.trim()
+        ? body.pilotLabel.trim()
+        : 'p81_rn_first_live';
+    const { data, error } = await admin.rpc('preview_supplier_payout_pilot', {
+      p_pilot_label: label,
+    });
+    if (error) return json({ error: error.message }, 500);
+    return json(data ?? { ok: false, error: 'preview_failed' });
+  }
+
+  if (body.action === 'pilot_payout_prepare') {
+    const label =
+      typeof body.pilotLabel === 'string' && body.pilotLabel.trim()
+        ? body.pilotLabel.trim()
+        : 'p81_rn_first_live';
+    const confirmRef =
+      typeof body.pilotConfirmBookingRef === 'string' ? body.pilotConfirmBookingRef.trim() : '';
+    const confirmAmount =
+      typeof body.pilotConfirmAmountMinor === 'number' ? body.pilotConfirmAmountMinor : null;
+    // P8.3: never execute real preparation from admin — dry_run only.
+    const dryRun = body.pilotDryRun !== false;
+    if (!confirmRef || confirmAmount == null) {
+      return json(
+        {
+          error:
+            'pilotConfirmBookingRef and pilotConfirmAmountMinor required — preview is not authorization',
+        },
+        400
+      );
+    }
+    if (!dryRun) {
+      return json(
+        {
+          error:
+            'pilot_prepare_execution_blocked_in_p83 — production READY periods are not created in this mission',
+          dry_run_required: true,
+        },
+        403
+      );
+    }
+    const { data, error } = await admin.rpc('prepare_supplier_payout_pilot', {
+      p_pilot_label: label,
+      p_confirm_booking_ref: confirmRef,
+      p_confirm_amount_minor: confirmAmount,
+      p_actor_id: adminUserId,
+      p_dry_run: true,
+    });
+    if (error) return json({ error: error.message }, 500);
+    const result = data as { ok?: boolean; error?: string } | null;
+    if (!result?.ok) return json({ error: result?.error ?? 'pilot_prepare_failed', result }, 400);
+    return json(result);
   }
 
   if (body.action === 'prepare_due_payouts') {

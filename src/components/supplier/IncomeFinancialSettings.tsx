@@ -18,6 +18,7 @@ import type { SupplierCommercialTermsRow } from '../../data/supabase-earnings';
 import { formatBpsAsPercent, nextPayoutRunDateUtc } from '../../lib/commercial-money';
 import {
   connectCanReceiveTransfers,
+  connectOnboardingLabel,
 } from '../../lib/connect-payout-status';
 import {
   buildConnectProgressSteps,
@@ -25,6 +26,7 @@ import {
   deriveConnectExperienceState,
   listSupplierPayoutBlocks,
 } from '../../lib/connect-payout-progress';
+import { humanizeConnectRequirements } from '../../lib/connect-requirement-labels';
 import { bankAlreadyManaged } from '../../lib/verification-workspace-lifecycle';
 import {
   catalogPayoutRates,
@@ -182,8 +184,24 @@ export default function IncomeFinancialSettings({
 
   const experience = deriveConnectExperienceState(profile);
   const experienceLabel = connectExperienceLabel(experience);
+  const statusLabel = connectOnboardingLabel(profile?.connect_onboarding_status, {
+    connect_account_livemode: profile?.connect_account_livemode,
+  });
   const canReceiveTransfers = connectCanReceiveTransfers(profile ?? {});
   const progress = buildConnectProgressSteps(profile);
+  const requirementLabels = humanizeConnectRequirements([
+    ...(Array.isArray(profile?.connect_requirements_currently_due)
+      ? profile!.connect_requirements_currently_due!
+      : []),
+    ...(Array.isArray(profile?.connect_requirements_past_due)
+      ? profile!.connect_requirements_past_due!
+      : []),
+  ]);
+  const useHostedStripeSetup =
+    profile?.connect_account_livemode === true &&
+    (profile?.connect_account_type === 'express' || Boolean(profile?.stripe_connected_account_id)) &&
+    !canReceiveTransfers &&
+    experience !== 'ready_for_bank_payouts';
   const accountBlocks = listSupplierPayoutBlocks({
     profile,
     financialHold,
@@ -260,11 +278,38 @@ export default function IncomeFinancialSettings({
     onProfile(await fetchSupplierProfile(userId));
   };
 
+  const openHostedStripeSetup = async () => {
+    setConnectError(null);
+    setConnectNote(null);
+    if (!canEdit) {
+      setConnectError('Your role can view payout verification but cannot change it.');
+      return;
+    }
+    setConnectBusy(true);
+    const result = await invokeConnectSupplierOnboarding('account_link');
+    setConnectBusy(false);
+    if (!result.success || !result.url) {
+      setConnectError(
+        userFacingError(
+          result.error ?? 'Could not open Stripe setup. Try Refresh status, then try again.',
+          USER_ERROR.generic
+        )
+      );
+      return;
+    }
+    // Fresh hosted Account Link — handles expired prior links by regenerating each click.
+    window.location.assign(result.url);
+  };
+
   const openVerification = (focus: 'full' | 'bank' = 'full', opts?: { replace?: boolean }) => {
     setConnectError(null);
     setConnectNote(null);
     if (!canEdit) {
       setConnectError('Your role can view payout verification but cannot change it.');
+      return;
+    }
+    if (useHostedStripeSetup && focus === 'full') {
+      void openHostedStripeSetup();
       return;
     }
     const params = new URLSearchParams();
@@ -332,8 +377,9 @@ export default function IncomeFinancialSettings({
     },
   ] as const;
 
-  const primaryVerifyCta =
-    experience === 'not_started'
+  const primaryVerifyCta = useHostedStripeSetup
+    ? 'Complete Stripe Setup'
+    : experience === 'not_started'
       ? 'Complete verification'
       : experience === 'information_required'
         ? 'Continue verification'
@@ -346,7 +392,9 @@ export default function IncomeFinancialSettings({
       <header className="space-y-1">
         <h1 className="text-lg font-bold tracking-tight text-[#18181b] sm:text-xl">Payout settings</h1>
         <p className="max-w-xl text-[13px] leading-relaxed text-[#52525b]">
-          Verification, bank account, and payout preferences — managed securely inside Traverion.
+          {useHostedStripeSetup
+            ? 'Finish payout setup securely on Stripe. Traverion never collects identity documents or bank details here.'
+            : 'Verification, bank account, and payout preferences — managed securely inside Traverion.'}
         </p>
       </header>
 
@@ -364,12 +412,19 @@ export default function IncomeFinancialSettings({
             <p className="text-[13px]">
               <span className="text-[#71717a]">Status</span>{' '}
               <span className="font-semibold text-[#18181b]">{experienceLabel}</span>
+              <span className="ml-2 text-[11px] font-medium text-[#71717a]">({statusLabel})</span>
               {profile?.connect_account_livemode === true ? (
                 <span className="ml-2 text-[11px] font-medium text-[#71717a]">LIVE</span>
               ) : profile?.connect_account_livemode === false ? (
                 <span className="ml-2 text-[11px] font-medium text-[#71717a]">TEST (not used for LIVE payouts)</span>
               ) : null}
             </p>
+            {profile?.stripe_connected_account_id ? (
+              <p className="font-mono text-[11px] text-[#71717a]">
+                Stripe account {profile.stripe_connected_account_id}
+                {profile.connect_account_type ? ` · ${profile.connect_account_type}` : ''}
+              </p>
+            ) : null}
             {nextAction ? (
               <p className="max-w-md text-[12px] leading-relaxed text-[#52525b]">{nextAction}</p>
             ) : (
@@ -381,6 +436,13 @@ export default function IncomeFinancialSettings({
                   : 'Additional steps are needed before you can receive earnings.'}
               </p>
             )}
+            {requirementLabels.length > 0 && !canReceiveTransfers ? (
+              <ul className="mt-1 list-disc space-y-0.5 pl-4 text-[12px] text-[#52525b]">
+                {requirementLabels.map((label) => (
+                  <li key={label}>{label}</li>
+                ))}
+              </ul>
+            ) : null}
           </div>
           <div className="flex flex-wrap gap-2">
             <button

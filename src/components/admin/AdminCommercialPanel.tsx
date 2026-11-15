@@ -98,6 +98,33 @@ export default function AdminCommercialPanel() {
   const [markPaidNote, setMarkPaidNote] = useState('');
   const [markPaidConfirm, setMarkPaidConfirm] = useState('');
 
+  /** P8.3 pilot isolation — preview + dry-run authorization only (no READY period). */
+  type PilotPreview = {
+    ok?: boolean;
+    error?: string;
+    supplier_display_name?: string | null;
+    stripe_connected_account_id?: string | null;
+    connect_account_livemode?: boolean | null;
+    connect_onboarding_status?: string | null;
+    connect_payouts_enabled?: boolean | null;
+    selected_public_reference?: string | null;
+    amount_minor?: number;
+    currency?: string;
+    commission_bps?: number | null;
+    selected_count?: number;
+    excluded_count?: number;
+    eligible_other_count?: number;
+    expected_period_key?: string;
+    blockers?: string[];
+    ready_for_prepare_authorization?: boolean;
+    pilot_prepare_enabled?: boolean;
+    note?: string;
+  };
+  const [pilotPreview, setPilotPreview] = useState<PilotPreview | null>(null);
+  const [pilotConfirmRef, setPilotConfirmRef] = useState('');
+  const [pilotConfirmAmount, setPilotConfirmAmount] = useState('');
+  const [pilotDryRunMsg, setPilotDryRunMsg] = useState<string | null>(null);
+
   const loadPeriods = useCallback(async () => {
     if (!isSupabaseConfigured()) return;
     setPeriodsLoading(true);
@@ -231,6 +258,68 @@ export default function AdminCommercialPanel() {
     }
   };
 
+  const loadPilotPreview = async () => {
+    setBusy(true);
+    setPilotDryRunMsg(null);
+    setActionMsg(null);
+    try {
+      const data = await invokeAdminEdgeFunction<PilotPreview>({
+        action: 'pilot_payout_preview',
+        pilotLabel: 'p81_rn_first_live',
+      });
+      setPilotPreview(data);
+      if (data.selected_public_reference) setPilotConfirmRef(data.selected_public_reference);
+      if (data.amount_minor != null) setPilotConfirmAmount(String(data.amount_minor));
+      setActionMsg(
+        data.ok
+          ? 'Pilot preview loaded (read-only — no earnings reserved).'
+          : `Pilot preview failed: ${data.error ?? 'unknown'}`
+      );
+    } catch (e) {
+      setPilotPreview(null);
+      setActionMsg(e instanceof Error ? e.message : 'Pilot preview failed');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const authorizePilotDryRun = async () => {
+    const ref = pilotConfirmRef.trim();
+    const amount = Number(pilotConfirmAmount);
+    if (!ref || !Number.isFinite(amount) || amount <= 0) {
+      setPilotDryRunMsg('Enter exact booking reference and amount (minor units) to authorize dry-run.');
+      return;
+    }
+    setBusy(true);
+    setPilotDryRunMsg(null);
+    try {
+      const data = await invokeAdminEdgeFunction<{
+        ok?: boolean;
+        dry_run?: boolean;
+        allocated?: boolean;
+        error?: string;
+        note?: string;
+        eligible_other_count?: number;
+        would_amount_minor?: number;
+      }>({
+        action: 'pilot_payout_prepare',
+        pilotLabel: 'p81_rn_first_live',
+        pilotConfirmBookingRef: ref,
+        pilotConfirmAmountMinor: amount,
+        pilotDryRun: true,
+      });
+      setPilotDryRunMsg(
+        data.ok
+          ? `Dry-run authorized: would allocate €${((data.would_amount_minor ?? amount) / 100).toFixed(2)} only; reject ${data.eligible_other_count ?? '?'} other eligible. READY period NOT created.`
+          : `Dry-run rejected: ${data.error ?? 'unknown'}`
+      );
+    } catch (e) {
+      setPilotDryRunMsg(e instanceof Error ? e.message : 'Pilot dry-run failed');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const openMarkPaid = (periodId: string) => {
     setMarkPaidPeriodId(periodId);
     setMarkPaidReference('');
@@ -332,6 +421,14 @@ export default function AdminCommercialPanel() {
           >
             Prepare due payouts
           </button>
+          <button
+            type="button"
+            onClick={() => void loadPilotPreview()}
+            disabled={busy || !isSupabaseConfigured()}
+            className="tv-btn-secondary text-sm disabled:opacity-50"
+          >
+            Pilot preview
+          </button>
         </div>
 
         {error ? (
@@ -346,6 +443,117 @@ export default function AdminCommercialPanel() {
             <NoticeCallout title="Commercial action" tone="success">
               {actionMsg}
             </NoticeCallout>
+          </div>
+        ) : null}
+
+        {pilotPreview ? (
+          <div className="mt-4 rounded-lg border border-black/[0.08] bg-black/[0.02] p-4 space-y-3">
+            <p className="text-[11px] uppercase tracking-[0.14em] text-ink-faint">
+              P8.3 pilot isolation preview · read-only
+            </p>
+            {!pilotPreview.ok ? (
+              <p className="text-sm text-red-700">{pilotPreview.error ?? 'Preview failed'}</p>
+            ) : (
+              <>
+                <dl className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
+                  <div>
+                    <dt className="text-[10px] uppercase tracking-[0.12em] text-ink-faint">Supplier</dt>
+                    <dd className="mt-0.5 font-semibold">{pilotPreview.supplier_display_name ?? '—'}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-[10px] uppercase tracking-[0.12em] text-ink-faint">LIVE Connect</dt>
+                    <dd className="mt-0.5 font-mono text-xs">
+                      {pilotPreview.stripe_connected_account_id ?? '—'}
+                      {pilotPreview.connect_account_livemode === true ? ' · LIVE' : ''}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-[10px] uppercase tracking-[0.12em] text-ink-faint">Selected booking</dt>
+                    <dd className="mt-0.5 font-semibold">{pilotPreview.selected_public_reference ?? '—'}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-[10px] uppercase tracking-[0.12em] text-ink-faint">Commission</dt>
+                    <dd className="mt-0.5 tabular-nums">
+                      {pilotPreview.commission_bps != null
+                        ? formatBpsAsPercent(pilotPreview.commission_bps)
+                        : '—'}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-[10px] uppercase tracking-[0.12em] text-ink-faint">Supplier payout</dt>
+                    <dd className="mt-0.5 font-semibold tabular-nums">
+                      {majorFromMinor(pilotPreview.amount_minor ?? 0, pilotPreview.currency ?? 'EUR')}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-[10px] uppercase tracking-[0.12em] text-ink-faint">Expected period</dt>
+                    <dd className="mt-0.5 font-mono text-xs">{pilotPreview.expected_period_key ?? '—'}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-[10px] uppercase tracking-[0.12em] text-ink-faint">Selected / excluded</dt>
+                    <dd className="mt-0.5 tabular-nums">
+                      {pilotPreview.selected_count ?? 0} / {pilotPreview.excluded_count ?? 0}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-[10px] uppercase tracking-[0.12em] text-ink-faint">Other eligible (unallocated)</dt>
+                    <dd className="mt-0.5 tabular-nums">{pilotPreview.eligible_other_count ?? 0}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-[10px] uppercase tracking-[0.12em] text-ink-faint">Connect status</dt>
+                    <dd className="mt-0.5 text-xs">
+                      {pilotPreview.connect_onboarding_status ?? '—'}
+                      {pilotPreview.connect_payouts_enabled ? ' · payouts on' : ' · payouts off'}
+                    </dd>
+                  </div>
+                </dl>
+                {Array.isArray(pilotPreview.blockers) && pilotPreview.blockers.length > 0 ? (
+                  <NoticeCallout title="Safety blockers" tone="danger">
+                    {pilotPreview.blockers.join(', ')}
+                  </NoticeCallout>
+                ) : (
+                  <p className="text-xs text-ink-muted">No safety blockers on preview gates.</p>
+                )}
+                <p className="text-xs text-ink-muted">
+                  Preview is not authorization. Confirm exact booking ref + amount for dry-run only.
+                  Live READY preparation stays disabled (pilot_prepare_enabled=
+                  {pilotPreview.pilot_prepare_enabled ? '1' : '0'}).
+                </p>
+                <div className="flex flex-wrap gap-2 items-end">
+                  <label className="block min-w-[10rem]">
+                    <span className="text-xs font-medium text-ink-muted">Confirm booking ref</span>
+                    <input
+                      type="text"
+                      value={pilotConfirmRef}
+                      onChange={(e) => setPilotConfirmRef(e.target.value)}
+                      className="tv-input mt-1 w-full text-sm font-mono"
+                      placeholder="TV-…"
+                    />
+                  </label>
+                  <label className="block min-w-[8rem]">
+                    <span className="text-xs font-medium text-ink-muted">Confirm amount (minor)</span>
+                    <input
+                      type="text"
+                      value={pilotConfirmAmount}
+                      onChange={(e) => setPilotConfirmAmount(e.target.value)}
+                      className="tv-input mt-1 w-full text-sm font-mono"
+                      placeholder="8500"
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => void authorizePilotDryRun()}
+                    disabled={busy || !isSupabaseConfigured()}
+                    className="tv-btn-secondary text-sm disabled:opacity-50"
+                  >
+                    Authorize dry-run (no READY)
+                  </button>
+                </div>
+                {pilotDryRunMsg ? (
+                  <p className="text-sm text-ink-muted">{pilotDryRunMsg}</p>
+                ) : null}
+              </>
+            )}
           </div>
         ) : null}
       </div>
