@@ -70,44 +70,34 @@ function NavButton({
             ? `${item.label} · ${badge}`
             : item.label
       }
-      className={`partner-nav-item lux-flat group relative flex w-full items-center gap-2 rounded-md text-left text-[13px] ${
-        collapsed
-          ? 'justify-center px-2 py-[5px]'
-          : nested
-            ? 'pl-7 pr-2 py-[4px]'
-            : 'px-2 py-[5px]'
-      } ${
-        disabled
-          ? 'cursor-default font-medium text-slate-400'
-          : active
-            ? 'bg-finland/[0.08] font-semibold text-finland'
-            : 'font-medium text-slate-600 hover:bg-slate-900/[0.04] hover:text-slate-900'
-      }`}
+      className={[
+        'partner-nav-item lux-flat group relative flex w-full items-center text-left',
+        collapsed ? 'partner-nav-item--collapsed' : '',
+        nested ? 'partner-nav-item--nested' : '',
+        disabled ? 'partner-nav-item--disabled' : '',
+      ]
+        .filter(Boolean)
+        .join(' ')}
     >
       {active && !collapsed && !disabled ? (
-        <span
-          className="absolute left-0 top-1/2 h-[1.05rem] w-[2.5px] -translate-y-1/2 rounded-full bg-finland"
-          aria-hidden
-        />
+        <span className="partner-nav-item__indicator" aria-hidden />
       ) : null}
       <item.icon
         className={`partner-icon shrink-0 ${
           disabled
             ? 'text-slate-300'
             : active
-              ? 'text-finland'
-              : 'text-slate-400 group-hover:text-slate-600'
+              ? 'text-[color:var(--partner-nav-active-ink,#0b3d88)]'
+              : 'text-slate-500 group-hover:text-[color:var(--partner-nav-active-ink,#0b3d88)]'
         }`}
-        strokeWidth={active && !disabled ? 2.1 : 1.7}
+        strokeWidth={active && !disabled ? 2.25 : 1.85}
         aria-hidden
       />
       {collapsed ? (
         <span className="sr-only">{item.label}</span>
       ) : (
         <>
-          <span className="min-w-0 flex-1 leading-snug tracking-tight [overflow-wrap:anywhere]">
-            {item.label}
-          </span>
+          <span className="partner-nav-item__label">{item.label}</span>
           {badge ? (
             <span className="shrink-0 rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.06em] text-slate-500">
               {badge}
@@ -139,7 +129,7 @@ function GroupChildren({
       {...(!open ? { inert: true } : {})}
     >
       <div className="partner-nav-group-panel__inner">
-        <ul className="mb-1 mt-0.5 space-y-0.5 pb-1">
+        <ul className="partner-nav-group-children list-none p-0">
           {group.children.map((child: PartnerSidebarChild) => {
             if (isPartnerNavSoonItem(child)) {
               return (
@@ -211,46 +201,46 @@ export default function PartnerSidebar({
   return (
     <aside
       className={`partner-sidebar hidden md:flex shrink-0 flex-col border-r border-[color:var(--partner-border,#e4e7ec)] ${
-        collapsed ? 'w-[60px]' : 'w-[240px]'
+        collapsed ? 'w-[60px]' : 'w-[248px]'
       }`}
       aria-label="Partner navigation"
     >
-      <div className={`shrink-0 ${collapsed ? 'px-1.5 pt-2.5 pb-1.5' : 'px-2.5 pt-2.5 pb-2'}`}>
+      <div className={`shrink-0 ${collapsed ? 'px-1.5 pt-3 pb-2' : 'px-3 pt-3 pb-2.5'}`}>
         <button
           type="button"
           onClick={onHome}
-          className={`partner-nav-item lux-flat flex min-w-0 items-center rounded-md ${
-            collapsed ? 'justify-center px-1 py-1' : 'gap-2 px-1.5 py-1'
-          } hover:bg-slate-900/[0.035]`}
+          className={`partner-nav-item lux-flat flex min-w-0 items-center ${
+            collapsed ? 'partner-nav-item--collapsed' : ''
+          }`}
           aria-label="Partner home"
         >
           <img src={BRAND_LOGO_SRC} alt="" className="h-5 w-5 shrink-0 object-contain" />
           {!collapsed ? (
             <span className="min-w-0 text-left">
-              <span className="block font-sans text-[10px] font-bold tracking-[0.16em] text-[color:var(--partner-ink,#0c1118)]">
+              <span className="block font-sans text-[11px] font-bold tracking-[0.16em] text-[color:var(--partner-ink,#0c1118)]">
                 TRAVERION
               </span>
-              <span className="mt-px block text-[10px] font-medium text-[color:var(--partner-ink-faint,#8892a0)]">
+              <span className="mt-px block text-[11px] font-semibold text-[color:var(--partner-ink-muted,#5a6472)]">
                 Partner
               </span>
             </span>
           ) : null}
         </button>
         {!collapsed ? (
-          <div className="mt-2.5 min-w-0 border-t border-[color:var(--partner-border,#e4e7ec)] px-1.5 pt-2.5">
+          <div className="mt-3.5 min-w-0 border-t border-[color:var(--partner-border,#e4e7ec)] px-1.5 pt-3.5">
             {businessLabel ? (
-              <p className="truncate text-[12.5px] font-semibold leading-snug tracking-tight text-[color:var(--partner-ink,#0c1118)]">
-                {businessLabel}
-              </p>
+              <p className="partner-workspace-name truncate leading-snug">{businessLabel}</p>
             ) : null}
-            <p className="mt-0.5 text-[10px] font-medium uppercase tracking-[0.08em] text-[color:var(--partner-ink-faint,#8892a0)]">
-              Workspace
-            </p>
+            <p className="partner-workspace-kicker">Workspace</p>
           </div>
         ) : null}
       </div>
 
-      <nav className="partner-sidebar__scroll min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-2 pb-2">
+      <nav
+        className={`partner-sidebar__scroll partner-nav-list min-h-0 flex-1 overflow-y-auto overflow-x-hidden pb-3 ${
+          collapsed ? 'px-1.5' : 'px-2.5'
+        } ${collapsed ? 'pt-1' : 'pt-2'}`}
+      >
         {primary.map((entry) => {
           // Create listing lives on Listings / Home — keep action slots inert if present.
           if (entry.kind === 'action') {
@@ -262,7 +252,7 @@ export default function PartnerSidebar({
             return (
               <p
                 key={entry.id}
-                className="partner-nav-section-label px-2.5 pb-1.5 pt-3 text-[9.5px] font-semibold uppercase tracking-[0.12em] text-[color:var(--partner-ink-faint,#8892a0)] first:pt-1"
+                className="partner-nav-section-label px-2.5 pb-1.5 pt-3.5 text-[10.5px] font-semibold uppercase tracking-[0.11em] first:pt-1"
               >
                 {entry.label}
               </p>
@@ -271,7 +261,7 @@ export default function PartnerSidebar({
 
           if (entry.kind === 'item') {
             return (
-              <div key={entry.id} className="mb-0.5">
+              <div key={entry.id}>
                 <NavButton
                   item={entry}
                   active={activeSection === entry.id}
@@ -290,7 +280,7 @@ export default function PartnerSidebar({
 
           if (collapsed) {
             return (
-              <div key={entry.id} className="mb-0.5">
+              <div key={entry.id}>
                 <NavButton
                   item={{ id: collapsedTarget, label: entry.label, icon: entry.icon }}
                   active={groupActive}
@@ -302,29 +292,27 @@ export default function PartnerSidebar({
           }
 
           return (
-            <div key={entry.id} className="mb-0.5 pt-1">
+            <div key={entry.id} className="pt-0.5">
               <button
                 type="button"
                 onClick={() => toggleGroup(entry)}
                 aria-expanded={isOpen}
                 aria-controls={`partner-nav-group-${entry.id}`}
                 id={`partner-nav-group-btn-${entry.id}`}
-                className={`partner-nav-item lux-flat group flex w-full items-center gap-2 rounded-lg px-2.5 py-[6px] text-left text-[13px] font-semibold ${
-                  groupActive
-                    ? 'text-slate-900 hover:bg-slate-900/[0.04]'
-                    : 'text-slate-700 hover:bg-slate-900/[0.045] hover:text-slate-900'
-                }`}
+                className="partner-nav-item lux-flat group flex w-full items-center text-left"
               >
                 <entry.icon
                   className={`partner-icon shrink-0 ${
-                    groupActive ? 'text-finland' : 'text-slate-400 group-hover:text-slate-600'
+                    groupActive
+                      ? 'text-[color:var(--partner-nav-active-ink,#0b3d88)]'
+                      : 'text-slate-500 group-hover:text-[color:var(--partner-nav-active-ink,#0b3d88)]'
                   }`}
-                  strokeWidth={groupActive ? 2.1 : 1.7}
+                  strokeWidth={groupActive ? 2.25 : 1.85}
                   aria-hidden
                 />
-                <span className="min-w-0 flex-1 truncate leading-snug tracking-tight">{entry.label}</span>
+                <span className="partner-nav-item__label">{entry.label}</span>
                 <ChevronDown
-                  className={`h-3.5 w-3.5 shrink-0 text-slate-400 transition-transform duration-150 motion-reduce:transition-none ${
+                  className={`h-4 w-4 shrink-0 text-slate-400 transition-transform duration-200 motion-reduce:transition-none ${
                     isOpen ? 'rotate-0' : '-rotate-90'
                   }`}
                   aria-hidden
@@ -345,8 +333,8 @@ export default function PartnerSidebar({
             <button
               type="button"
               onClick={onFinishSetup}
-              className={`partner-nav-item lux-flat w-full rounded-lg border border-amber-200/80 bg-amber-50/80 text-[12.5px] font-semibold text-amber-950 hover:bg-amber-50 ${
-                collapsed ? 'px-2 py-2' : 'px-2.5 py-2 text-left'
+              className={`partner-nav-item lux-flat w-full rounded-lg border border-amber-200/80 bg-amber-50/80 text-[13px] font-semibold text-amber-950 hover:bg-amber-50 ${
+                collapsed ? 'partner-nav-item--collapsed' : 'text-left'
               }`}
               title="Finish setup"
               aria-label="Finish setup"
@@ -357,7 +345,11 @@ export default function PartnerSidebar({
         ) : null}
       </nav>
 
-      <div className="shrink-0 border-t border-slate-100 px-2.5 pt-2.5 pb-1 space-y-0.5">
+      <div
+        className={`partner-nav-list shrink-0 border-t border-slate-100 pt-2.5 pb-1 ${
+          collapsed ? 'px-1.5' : 'px-2.5'
+        }`}
+      >
         {footer.map((item) => (
           <NavButton
             key={item.id}
@@ -370,18 +362,18 @@ export default function PartnerSidebar({
       </div>
 
       {onToggleCollapsed ? (
-        <div className="shrink-0 px-2.5 pb-2.5 pt-1">
+        <div className={`shrink-0 pb-3 pt-1 ${collapsed ? 'px-1.5' : 'px-2.5'}`}>
           <button
             type="button"
             onClick={onToggleCollapsed}
-            className="partner-nav-item lux-flat flex w-full items-center justify-center gap-2 rounded-lg px-2 py-2 text-[12px] font-medium text-slate-500 hover:bg-slate-900/[0.045] hover:text-slate-800"
+            className="partner-nav-item lux-flat flex w-full items-center justify-center gap-2 text-[13px] font-semibold text-[color:var(--partner-ink-muted,#5a6472)]"
             aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
             {collapsed ? (
               <PanelLeft className="h-4 w-4" aria-hidden />
             ) : (
               <>
-                <PanelLeftClose className="h-3.5 w-3.5" aria-hidden />
+                <PanelLeftClose className="h-4 w-4" aria-hidden />
                 <span>Collapse</span>
               </>
             )}
