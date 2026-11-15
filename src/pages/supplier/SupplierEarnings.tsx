@@ -111,6 +111,7 @@ function ledgerKindLabel(kind: string): string {
 
 function earningStatusClass(status: IncomeEarningStatus): string {
   if (status === 'eligible') return 'tv-income-status tv-income-status--available';
+  if (status === 'pending') return 'tv-income-status tv-income-status--pending';
   if (status === 'paid') return 'tv-income-status tv-income-status--paid';
   if (status === 'included') return 'tv-income-status tv-income-status--processing';
   if (status === 'reversed') return 'tv-income-status tv-income-status--reversed';
@@ -1043,7 +1044,7 @@ export default function SupplierEarnings() {
               <button type="button" role="menuitem" onClick={() => void runExportForWindow('all')}>All time</button>
             </div>
           ) : null}
-          <p className="tv-income-export__hint">Exports the selected window — not Earnings table filters.</p>
+          <p className="tv-income-export__hint">CSV for the selected window.</p>
         </div>
       </div>
       <div className="tv-income-tabs" role="tablist" aria-label="Income">
@@ -1422,16 +1423,20 @@ export default function SupplierEarnings() {
                           }
                         }}
                       >
-                        <td className="whitespace-nowrap px-3 py-2.5 font-semibold text-[#18181b]">{row.reference}</td>
-                        <td className="max-w-[18rem] truncate px-3 py-2.5 text-[#3f3f46]" title={row.experience}>{row.experience}</td>
-                        <td className="whitespace-nowrap px-3 py-2.5 text-[#52525b]">{incomeDate(row.activityDate)}</td>
-                        <td className="whitespace-nowrap px-3 py-2.5 text-[#52525b]">{incomeDate(row.purchaseDate)}</td>
-                        <td className="px-3 py-2.5 text-right tabular-nums text-[#52525b]">
+                        <td className="whitespace-nowrap px-3 py-2.5">
+                          <span className="tv-money-row__ref">{row.reference}</span>
+                        </td>
+                        <td className="max-w-[18rem] truncate px-3 py-2.5 text-[color:var(--tv-income-muted,#475569)]" title={row.experience}>{row.experience}</td>
+                        <td className="whitespace-nowrap px-3 py-2.5 text-[color:var(--tv-income-muted,#475569)]">{incomeDate(row.activityDate)}</td>
+                        <td className="whitespace-nowrap px-3 py-2.5 text-[color:var(--tv-income-muted,#475569)]">{incomeDate(row.purchaseDate)}</td>
+                        <td className="px-3 py-2.5 text-right tabular-nums text-[color:var(--tv-income-muted,#475569)]">
                           {row.commissionMinor != null
                             ? formatMoney(row.commissionMinor / 100, row.currency)
                             : '—'}
                         </td>
-                        <td className="px-3 py-2.5 text-right font-bold tabular-nums text-[#18181b]">{formatMoney(row.netMinor / 100, row.currency)}</td>
+                        <td className="px-3 py-2.5 text-right tabular-nums">
+                          <span className="tv-money-row__amount">{formatMoney(row.netMinor / 100, row.currency)}</span>
+                        </td>
                         <td className="px-3 py-2.5">
                           <span className={earningStatusClass(row.status)}>{earningStatusLabel(row.status)}</span>
                           {row.held ? (
@@ -1448,8 +1453,8 @@ export default function SupplierEarnings() {
                   <li key={row.bookingId}>
                     <button type="button" className="tv-money-row w-full text-left" onClick={() => setSelectedEarningId(row.bookingId)}>
                       <span className="min-w-0">
-                        <span className="block font-semibold text-[#18181b]">{row.reference}</span>
-                        <span className="mt-0.5 block truncate text-[12px] text-[#71717a]">{row.experience} · {incomeDate(row.activityDate)}</span>
+                        <span className="tv-money-row__ref block">{row.reference}</span>
+                        <span className="mt-0.5 block truncate text-[12px] text-[color:var(--tv-income-muted,#475569)]">{row.experience} · {incomeDate(row.activityDate)}</span>
                         <span className={`mt-1 ${earningStatusClass(row.status)}`}>{earningStatusLabel(row.status)}</span>
                       </span>
                       <span className="tv-money-row__amount">{formatMoney(row.netMinor / 100, row.currency)}</span>

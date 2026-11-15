@@ -548,9 +548,11 @@ export default function IncomeFinancialSettings({
                   checked={cycle === option.value}
                   onChange={() => setCycle(option.value)}
                 />
-                <span className="block text-[13px] font-semibold text-[#18181b]">{option.label}</span>
-                <span className="mt-0.5 block text-[12px] text-[#71717a]">{option.tip}</span>
-                <span className="mt-1 block text-[11px] font-semibold text-[#073b83]">{option.rate}</span>
+                <span className="min-w-0">
+                  <span className="tv-income-pref-card__title block">{option.label}</span>
+                  <span className="tv-income-pref-card__meta block">{option.rate}</span>
+                  <span className="tv-income-pref-card__hint block">{option.tip}</span>
+                </span>
               </label>
             ))}
           </div>
