@@ -59,7 +59,7 @@ describe('Native Traverion Custom Connect onboarding', () => {
     expect(wizard).toContain('ConnectEmbeddedPanel');
     expect(wizard).toContain('createBankAccountToken');
     expect(wizard).toContain('submit_business');
-    expect(wizard).toContain('Connected Account Agreement');
+    expect(wizard).toContain('Stripe Recipient Agreement');
     expect(journey).toContain('tv-verify-workspace');
     expect(journey).toContain('createBankAccountToken');
     expect(journey).toContain('submit_business');

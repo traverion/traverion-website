@@ -54,7 +54,7 @@ describe('P9.1 native payout onboarding (unit/source)', () => {
     expect(payoutWizardCollectorFor('representative', 'express')).toBe('stripe');
     expect(payoutWizardCollectorFor('bank', 'express')).toBe('stripe');
     expect(payoutWizardCollectorFor('identity', 'express')).toBe('stripe');
-    expect(PAYOUT_WIZARD_TOS_COPY).toMatch(/Connected Account Agreement/i);
+    expect(PAYOUT_WIZARD_TOS_COPY).toMatch(/Stripe Recipient Agreement/i);
     expect(
       validatePayoutWizardRepresentative(emptyPayoutWizardDraft({ rep_first_name: '' }))
     ).toMatch(/first name/i);

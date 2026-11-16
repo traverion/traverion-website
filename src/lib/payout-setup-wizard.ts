@@ -238,7 +238,7 @@ export function validatePayoutWizardRepresentative(draft: PayoutWizardDraft): st
 
 export function validatePayoutWizardIdentity(draft: PayoutWizardDraft): string | null {
   if (!draft.tos_accepted) {
-    return 'Accept the Connected Account Agreement to continue.';
+    return 'Accept the Stripe Recipient Agreement to continue.';
   }
   return null;
 }
@@ -292,6 +292,5 @@ export function validatePayoutWizardPreferences(draft: PayoutWizardDraft): strin
 export const PAYOUT_WIZARD_STRIPE_AUTH_COPY =
   'For security, you may need to confirm your email or phone before identity or bank details. Complete that step, then continue here. Traverion never sees your password or identity documents.';
 
-/** Partner-facing legal disclosure for Custom TOS step. */
-export const PAYOUT_WIZARD_TOS_COPY =
-  'By continuing, you agree to the Connected Account Agreement with our payment partner (Stripe) so Traverion can send you payouts. Traverion does not store your full bank account number or identity documents.';
+/** Partner-facing legal disclosure for the native identity step. */
+export { STRIPE_RECIPIENT_DISCLOSURE as PAYOUT_WIZARD_TOS_COPY } from './stripe-recipient-agreement';

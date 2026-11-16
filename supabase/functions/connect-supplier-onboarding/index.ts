@@ -32,6 +32,7 @@ import {
   v2StripeTransfersStatus,
   type V2AccountSnapshot,
 } from '../_shared/accounts-v2-config.ts';
+import { STRIPE_RECIPIENT_AGREEMENT } from '../_shared/stripe-recipient-agreement.ts';
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -109,6 +110,7 @@ type Body = {
     side?: 'front' | 'back';
   };
   tos_accepted?: boolean;
+  agreement_version?: string;
 };
 
 function allowlistedOrigin(raw: string | undefined, publicSite: string, extras: string[]): string {
@@ -1261,9 +1263,17 @@ serve(async (req) => {
     }
 
     if (action === 'accept_tos') {
-      if (!body.tos_accepted) {
-        return json({ success: false, error: 'You must accept the Connected Account Agreement to continue' }, 400);
+      if (body.tos_accepted !== true) {
+        return json({ success: false, error: 'You must accept the Stripe Recipient Agreement to continue' }, 400);
       }
+      if (body.agreement_version !== STRIPE_RECIPIENT_AGREEMENT.version) {
+        return json({ success: false, error: 'Accept the current Stripe Recipient Agreement to continue' }, 400);
+      }
+      if (!ip || ip === '0.0.0.0') {
+        return json({ success: false, error: 'A network address is required to record agreement acceptance.' }, 400);
+      }
+      const userAgent = (req.headers.get('user-agent') ?? '').trim().slice(0, 512);
+      const acceptedAt = new Date().toISOString();
       const { accountId, accountType } = await ensureConnectedAccount();
       if (accountType === 'express') {
         return json({
@@ -1272,13 +1282,35 @@ serve(async (req) => {
           account_type: 'express',
         }, 409);
       }
+      const { error: auditErr } = await admin.from('financial_audit_log').insert({
+        actor_id: supplierId,
+        action: 'supplier_recipient_agreement_accepted',
+        supplier_id: supplierId,
+        amount_minor: 0,
+        currency: 'EUR',
+        reason: 'Supplier accepted the Stripe Recipient Agreement before Stripe was updated.',
+        provider_ref: accountId,
+        after_state: {
+          agreement_version: STRIPE_RECIPIENT_AGREEMENT.version,
+          agreement_url: STRIPE_RECIPIENT_AGREEMENT.url,
+          privacy_url: STRIPE_RECIPIENT_AGREEMENT.privacyUrl,
+          accepted_at: acceptedAt,
+          ip,
+          user_agent: userAgent || null,
+        },
+      });
+      if (auditErr) return json({ success: false, error: auditErr.message }, 500);
       const tosV2 = await nativeV2Account(accountId);
       if (tosV2) {
           await stripeV2('POST', `/v2/core/accounts/${accountId}`, {
             identity: {
               attestations: {
                 terms_of_service: {
-                  account: { date: new Date().toISOString(), ip },
+                  account: {
+                    date: acceptedAt,
+                    ip,
+                    ...(userAgent ? { user_agent: userAgent } : {}),
+                  },
                 },
               },
             },
@@ -1291,6 +1323,7 @@ serve(async (req) => {
         tos_acceptance: {
           date: Math.floor(Date.now() / 1000),
           ip,
+          ...(userAgent ? { user_agent: userAgent } : {}),
         },
       });
       const { mirror } = await syncAccount(accountId);

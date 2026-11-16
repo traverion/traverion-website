@@ -91,6 +91,7 @@ export async function invokeConnectSupplierOnboarding(
     representative?: ConnectRepresentativePayload;
     bank_token?: string;
     tos_accepted?: boolean;
+    agreement_version?: string;
     identity?: { person_id?: string; file_id?: string; side?: 'front' | 'back' };
     confirm_archive_express?: boolean;
   }
@@ -106,6 +107,7 @@ export async function invokeConnectSupplierOnboarding(
         representative: opts?.representative,
         bank_token: opts?.bank_token,
         tos_accepted: opts?.tos_accepted,
+        agreement_version: opts?.agreement_version,
         identity: opts?.identity,
         confirm_archive_express: opts?.confirm_archive_express,
         returnOrigin:

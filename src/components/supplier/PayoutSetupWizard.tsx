@@ -35,6 +35,7 @@ import {
   type PayoutWizardDraft,
   type PayoutWizardStepId,
 } from '../../lib/payout-setup-wizard';
+import { STRIPE_RECIPIENT_AGREEMENT } from '../../lib/stripe-recipient-agreement';
 import { createBankAccountToken } from '../../lib/stripe-js-client';
 import { isSupplierBusinessIdentityLocked } from '../../lib/supplierVerificationLocks';
 import {
@@ -134,6 +135,7 @@ export default function PayoutSetupWizard({
     return emptyPayoutWizardDraft({
       ...prefillFromProfile(profile),
       ...(saved ?? {}),
+      tos_accepted: false,
       step: initialStep ?? saved?.step ?? 'business',
     });
   });
@@ -390,7 +392,10 @@ export default function PayoutSetupWizard({
     }
     setBusy(true);
     setError(null);
-    const result = await invokeConnectSupplierOnboarding('accept_tos', { tos_accepted: true });
+    const result = await invokeConnectSupplierOnboarding('accept_tos', {
+      tos_accepted: true,
+      agreement_version: STRIPE_RECIPIENT_AGREEMENT.version,
+    });
     if (!result.success) {
       setBusy(false);
       setError(userFacingError(result.error, USER_ERROR.generic));
@@ -997,6 +1002,30 @@ export default function PayoutSetupWizard({
               {draft.step === 'identity' && !isExpress ? (
                 <div className="mt-4 space-y-4">
                   <p className="text-[13px] leading-relaxed text-[#52525b]">{PAYOUT_WIZARD_TOS_COPY}</p>
+                  <p className="text-[13px] leading-relaxed text-[#18181b]">
+                    <a
+                      className="font-semibold text-[#073b83] underline"
+                      href={STRIPE_RECIPIENT_AGREEMENT.url}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Stripe Recipient Agreement
+                    </a>
+                    {' · '}
+                    <a
+                      className="font-semibold text-[#073b83] underline"
+                      href={STRIPE_RECIPIENT_AGREEMENT.privacyUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Stripe Privacy Policy
+                    </a>
+                  </p>
+                  {outstandingKeys.some((key) => /terms_of_service|tos_acceptance|agreement/i.test(key)) ? (
+                    <p className="text-[12px] leading-relaxed text-amber-950">
+                      Stripe is asking for this agreement again. Check the box to accept the current version.
+                    </p>
+                  ) : null}
                   <label className="flex items-start gap-2.5 text-[13px] text-[#18181b]">
                     <input
                       type="checkbox"
@@ -1005,8 +1034,8 @@ export default function PayoutSetupWizard({
                       onChange={(e) => patch({ tos_accepted: e.target.checked })}
                     />
                     <span>
-                      I accept the Connected Account Agreement and confirm the information provided is
-                      accurate.
+                      I agree to the Stripe Recipient Agreement and authorize Traverion to share my business
+                      and payout information with Stripe.
                     </span>
                   </label>
                   <p className="text-[12px] leading-relaxed text-[#71717a]">
