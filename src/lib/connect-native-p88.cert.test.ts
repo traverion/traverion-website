@@ -57,6 +57,12 @@ describe('P8.8 unified payout setup wizard (unit/source)', () => {
     expect(wizard).toContain('PAYOUT_WIZARD_STRIPE_AUTH_COPY');
     expect(wizard).toContain('account_onboarding');
     expect(wizard).toContain('account_management');
+    expect(wizard).toContain('Continue verification');
+    expect(wizard).toContain('expressVerificationMandatory');
+    expect(wizard).toMatch(/setShowStripeEmbed\(false\)/);
+    expect(wizard).not.toMatch(
+      /useStripeEmbed && \(draft\.stripeAuthAcknowledged \|\| !isExpress\)/
+    );
     expect(PAYOUT_WIZARD_STRIPE_AUTH_COPY).toMatch(/confirm your email or phone/i);
     expect(
       validatePayoutWizardBusiness(emptyPayoutWizardDraft({ company_legal_name: '' }))

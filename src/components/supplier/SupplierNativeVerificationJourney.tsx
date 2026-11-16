@@ -547,9 +547,13 @@ export default function SupplierNativeVerificationJourney({
           ? (ensured as { native_blocked_reason?: string }).native_blocked_reason!
           : null;
       setBlockedReason(blocked);
+      // Do not auto-mount ConnectAccountOnboarding for Express — that opens
+      // connect.stripe.com/embedded/loading. Verification starts only via Continue verification.
       if (ensured.account_type === 'express' && !blocked) {
-        setShowIdentityEmbed(true);
-        setNote('Complete verification inside Traverion. Stripe handles identity and bank collection securely.');
+        setShowIdentityEmbed(false);
+        setNote(
+          'Express verification is available when you choose Continue verification. Traverion will not open Stripe automatically.'
+        );
       }
       if (ensured.archived_legacy_account_id) {
         setNote('Verification is ready in Traverion.');

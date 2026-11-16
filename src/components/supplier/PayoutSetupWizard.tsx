@@ -106,7 +106,12 @@ export default function PayoutSetupWizard({
 }: Props) {
   const rates = catalogPayoutRates();
   const currency = (payoutCurrency || profile?.connect_default_currency || 'EUR').toUpperCase();
-  const isExpress = profile?.connect_account_type === 'express';
+  // DEV-only UI probe (?express_embed_probe=1): exercise Express embed gating without mutating Stripe.
+  const expressEmbedProbe =
+    import.meta.env.DEV &&
+    typeof window !== 'undefined' &&
+    new URLSearchParams(window.location.search).get('express_embed_probe') === '1';
+  const isExpress = expressEmbedProbe || profile?.connect_account_type === 'express';
   const isCustom = profile?.connect_account_type === 'custom' || !isExpress;
   const canReceive = connectCanReceiveTransfers(profile ?? {});
   const bankManaged = bankAlreadyManaged(profile);
@@ -157,6 +162,16 @@ export default function PayoutSetupWizard({
   const useStripeEmbed =
     isExpress &&
     (draft.step === 'representative' || draft.step === 'identity' || draft.step === 'bank');
+  const onboardingStatus = (profile?.connect_onboarding_status ?? '').toLowerCase();
+  /** Express still needs Stripe-collected KYC — never auto-mount; user must start it. */
+  const expressVerificationMandatory =
+    isExpress &&
+    (outstandingKeys.length > 0 ||
+      accountRestricted ||
+      onboardingStatus === 'not_started' ||
+      onboardingStatus === 'pending' ||
+      onboardingStatus === '' ||
+      !profile?.connect_details_submitted);
 
   useEffect(() => {
     savePayoutWizardDraft(userId, draft);
@@ -165,14 +180,13 @@ export default function PayoutSetupWizard({
     return () => window.clearTimeout(t);
   }, [userId, draft]);
 
+  // Never auto-mount Connect embeds on step entry — mounting Account Onboarding opens
+  // connect.stripe.com/embedded/loading (Express auth popup). Keep embeds user-initiated.
   useEffect(() => {
-    if (useStripeEmbed && (draft.stripeAuthAcknowledged || !isExpress)) {
-      setShowStripeEmbed(true);
-    } else if (!useStripeEmbed) {
-      setShowStripeEmbed(false);
-      setHostedFallbackUrl(null);
-    }
-  }, [draft.step, draft.stripeAuthAcknowledged, useStripeEmbed, isExpress]);
+    setShowStripeEmbed(false);
+    setHostedFallbackUrl(null);
+    setShowIdentityRemediation(false);
+  }, [draft.step]);
 
   useEffect(() => {
     if (!bankHolder && draft.company_legal_name) {
@@ -1129,21 +1143,48 @@ export default function PayoutSetupWizard({
 
               {useStripeEmbed ? (
                 <div className="mt-4 space-y-3">
-                  {isExpress && !draft.stripeAuthAcknowledged ? (
+                  {expressVerificationMandatory && !showStripeEmbed && !hostedFallbackUrl ? (
                     <div className="rounded-[10px] border border-[#dbe4f0] bg-[#f0f4fa] px-3 py-3 text-[12px] leading-relaxed text-[#1e3a5f]">
-                      <p className="font-semibold text-[#073b83]">Secure confirmation</p>
+                      <p className="font-semibold text-[#073b83]">Stripe verification required</p>
                       <p className="mt-1">{PAYOUT_WIZARD_STRIPE_AUTH_COPY}</p>
+                      <p className="mt-1 text-[11px] text-[#52525b]">
+                        This does not convert your Express account. Traverion will not open Stripe until
+                        you choose Continue verification.
+                      </p>
                       <button
                         type="button"
                         className="tv-btn-primary mt-3 h-10 w-full text-[13px]"
-                        onClick={() => patch({ stripeAuthAcknowledged: true })}
+                        onClick={() => {
+                          patch({ stripeAuthAcknowledged: true });
+                          setShowStripeEmbed(true);
+                        }}
                       >
-                        Continue
+                        Continue verification
                       </button>
                     </div>
                   ) : null}
 
-                  {(draft.stripeAuthAcknowledged || !isExpress) && showStripeEmbed ? (
+                  {!expressVerificationMandatory && !showStripeEmbed ? (
+                    <div className="rounded-[10px] border border-[#e5e7eb] bg-[#fafafa] px-3 py-3 text-[12px] leading-relaxed text-[#52525b]">
+                      <p className="font-semibold text-[#18181b]">Express account on file</p>
+                      <p className="mt-1">
+                        You can continue through payout setup without opening Stripe. Start verification
+                        only if you need to update identity or bank details.
+                      </p>
+                      <button
+                        type="button"
+                        className="tv-btn-secondary mt-3 h-10 w-full text-[13px]"
+                        onClick={() => {
+                          patch({ stripeAuthAcknowledged: true });
+                          setShowStripeEmbed(true);
+                        }}
+                      >
+                        Continue verification
+                      </button>
+                    </div>
+                  ) : null}
+
+                  {showStripeEmbed ? (
                     <Suspense
                       fallback={
                         <p className="text-[13px] text-[#52525b]" role="status">
@@ -1155,7 +1196,7 @@ export default function PayoutSetupWizard({
                         component={
                           draft.step === 'bank' ? 'account_management' : 'account_onboarding'
                         }
-                        expectStripeAuth={false}
+                        expectStripeAuth
                         onExit={() => void onEmbedExit()}
                         onHostedFallback={(url) => {
                           setHostedFallbackUrl(url);
@@ -1353,11 +1394,7 @@ export default function PayoutSetupWizard({
               type="button"
               className="tv-btn-primary stay-nav-btn stay-nav-btn--end h-11 justify-self-end px-4 text-[13px]"
               onClick={() => void onContinue()}
-              disabled={
-                busy ||
-                !canEdit ||
-                (useStripeEmbed && isExpress && !draft.stripeAuthAcknowledged)
-              }
+              disabled={busy || !canEdit}
             >
               {continueLabel}
             </button>
