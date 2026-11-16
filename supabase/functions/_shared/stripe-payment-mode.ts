@@ -131,6 +131,10 @@ export function webhookSigningSecrets(input: {
   webhookSecretConnectTest?: string | null | undefined;
   /** Optional second LIVE secret (Connect-listener endpoint). */
   webhookSecretConnectLive?: string | null | undefined;
+  /** Additional LIVE secrets, such as an Accounts v2 thin-event destination. */
+  extraLiveSecrets?: Array<string | null | undefined>;
+  /** Additional TEST secrets, such as an Accounts v2 thin-event destination. */
+  extraTestSecrets?: Array<string | null | undefined>;
 }): { ok: true; candidates: WebhookSecretCandidate[] } | { ok: false; error: string } {
   const primary = (input.webhookSecret ?? '').trim();
   const live = (input.webhookSecretLive ?? '').trim();
@@ -157,12 +161,18 @@ export function webhookSigningSecrets(input: {
     }
     push('live', liveSecret);
     if (connectLive && connectLive !== liveSecret) push('live', connectLive);
+    for (const extra of input.extraLiveSecrets ?? []) {
+      if (extra) push('live', extra);
+    }
     // Cutover: still accept TEST endpoint secrets while LIVE is enabled.
     for (const s of [testExplicit, connectTest, live && primary ? primary : '']) {
       if (s && s !== liveSecret) push('test', s);
     }
+    for (const extra of input.extraTestSecrets ?? []) {
+      if (extra) push('test', extra);
+    }
   } else {
-    const testSecrets = [testExplicit, primary, connectTest].filter(Boolean);
+    const testSecrets = [testExplicit, primary, connectTest, ...(input.extraTestSecrets ?? [])].filter(Boolean);
     if (testSecrets.length === 0) {
       return { ok: false, error: 'STRIPE_WEBHOOK_SECRET not configured' };
     }

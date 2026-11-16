@@ -9,7 +9,7 @@ import { invokeConnectSupplierOnboarding } from '../../data/supabase-connect-onb
 import type { SupplierCommercialTermsRow } from '../../data/supabase-earnings';
 import { formatBpsAsPercent } from '../../lib/commercial-money';
 import { humanizeConnectRequirements } from '../../lib/connect-requirement-labels';
-import { connectCanReceiveTransfers } from '../../lib/connect-payout-status';
+import { connectCanReceiveTransfers, connectOnboardingLabel } from '../../lib/connect-payout-status';
 import { bankAlreadyManaged } from '../../lib/verification-workspace-lifecycle';
 import {
   catalogPayoutRates,
@@ -119,7 +119,7 @@ export default function PayoutSetupWizard({
   ].map(String);
   const outstandingLabels = humanizeConnectRequirements(outstandingKeys);
   const identityDocumentDue = outstandingKeys.some((key) =>
-    /verification\.document|additional_document|documents\.|proof_of_liveness|ssn_last_4/i.test(key)
+    /verification\.document|additional_document|documents|proof_of_liveness|liveness|ssn_last_4/i.test(key)
   );
   const bankRequirementDue = outstandingKeys.some((key) =>
     /external_account|bank_account/i.test(key)
@@ -1217,6 +1217,12 @@ export default function PayoutSetupWizard({
 
               {draft.step === 'review' ? (
                 <div className="mt-4 space-y-3 text-[13px]">
+                  <p className="text-[12px] font-semibold text-[#18181b]">
+                    Verification status:{' '}
+                    {connectOnboardingLabel(profile?.connect_onboarding_status, {
+                      connect_account_livemode: profile?.connect_account_livemode,
+                    })}
+                  </p>
                   <ul className="space-y-2">
                     <li className="flex justify-between gap-3 border-b border-[#f1f5f9] py-2">
                       <span className="text-[#52525b]">Business information</span>

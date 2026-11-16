@@ -25,6 +25,17 @@ import {
 } from '../_shared/stripe-payment-mode.ts';
 import { mirrorConnectAccount } from '../_shared/connect-account-mirror.ts';
 import {
+  ACCOUNTS_V2_STRIPE_VERSION,
+  V2_RETRIEVE_INCLUDE,
+  type V2AccountSnapshot,
+} from '../_shared/accounts-v2-config.ts';
+import {
+  applyAuthoritativeV2Status,
+  connectAccountLinkDecision,
+  isAccountsV2LifecycleEvent,
+  v2AccountIdFromThinEvent,
+} from '../_shared/accounts-v2-webhook.ts';
+import {
   metadataProjectRef,
   resolveExpectedTraverionProjectRef,
   stripeEventOwnershipDecision,
@@ -64,6 +75,20 @@ serve(async (req) => {
     const stripeMoney = resolveStripeMoneySecretFromEnv(Deno.env);
     if (!stripeMoney.ok) return json({ success: false, error: stripeMoney.error }, stripeMoney.status);
     const stripeSecret = stripeMoney.secret;
+    const admin = createClient(supabaseUrl, serviceRoleKey);
+    const { data: v2SecretRows, error: v2SecretErr } = await admin
+      .from('stripe_webhook_signing_secrets')
+      .select('name, secret');
+    const extraLiveSecrets: string[] = [];
+    const extraTestSecrets: string[] = [];
+    if (!v2SecretErr) {
+      for (const row of v2SecretRows ?? []) {
+        const secret = typeof row.secret === 'string' ? row.secret.trim() : '';
+        if (!secret) continue;
+        if (row.name === 'accounts_v2_live') extraLiveSecrets.push(secret);
+        if (row.name === 'accounts_v2_test') extraTestSecrets.push(secret);
+      }
+    }
 
     const signing = webhookSigningSecrets({
       livePaymentsEnabled: stripeMoney.livePaymentsEnabled,
@@ -72,6 +97,8 @@ serve(async (req) => {
       webhookSecretTest: Deno.env.get('STRIPE_WEBHOOK_SECRET_TEST'),
       webhookSecretConnectTest: Deno.env.get('STRIPE_WEBHOOK_SECRET_CONNECT_TEST'),
       webhookSecretConnectLive: Deno.env.get('STRIPE_WEBHOOK_SECRET_CONNECT_LIVE'),
+      extraLiveSecrets,
+      extraTestSecrets,
     });
     if (!signing.ok) return json({ success: false, error: signing.error }, 500);
 
@@ -147,8 +174,6 @@ serve(async (req) => {
         }
       }
     }
-
-    const admin = createClient(supabaseUrl, serviceRoleKey);
 
     // Idempotency: first delivery inserts; retries must not 200-ack failed/stale rows
     // or Stripe stops retrying and paid/refund side-effects never finish.
@@ -1094,33 +1119,125 @@ serve(async (req) => {
         });
       }
 
-      // Connect account capability / requirement updates (onboarding).
-      if (event.type === 'account.updated') {
-        const account = event.data.object as Stripe.Account;
-        const mirror = mirrorConnectAccount(account as Parameters<typeof mirrorConnectAccount>[0]);
+      // Connect verification. v1 account.updated remains the Express snapshot path.
+      // Accounts v2 thin events only identify the account; status is retrieved.
+      if (event.type === 'account.updated' || isAccountsV2LifecycleEvent(event.type)) {
+        const snapshotAccount =
+          event.type === 'account.updated' ? (event.data.object as Stripe.Account) : null;
+        const accountId =
+          event.type === 'account.updated'
+            ? snapshotAccount?.id ?? ''
+            : v2AccountIdFromThinEvent(event as { related_object?: { id?: string; url?: string }; account?: string }) ?? '';
+        if (!accountId) {
+          await markProcessed('ignored', `${event.type} without a connected account id`);
+          return json({ success: true, ignored: true, eventId: event.id, status: 'unknown_connect_account' });
+        }
         const { data: supplier, error: supplierErr } = await admin
           .from('supplier_profiles')
-          .select('id')
-          .eq('stripe_connected_account_id', account.id)
+          .select('id, connect_account_livemode, connect_account_type')
+          .eq('stripe_connected_account_id', accountId)
           .maybeSingle();
         if (supplierErr) throw new Error(supplierErr.message);
-        if (!supplier?.id) {
-          await markProcessed('processed', 'account.updated with no linked supplier');
-          return json({ success: true, eventId: event.id, status: 'unlinked_connect_account' });
+
+        const expressSnapshot = snapshotAccount?.type === 'express';
+        let account = snapshotAccount;
+        if (!expressSnapshot) {
+          try {
+            account = await stripe.accounts.retrieve(accountId);
+          } catch (err) {
+            const message = err instanceof Error ? err.message : String(err);
+            if (/no such account|resource_missing|does not exist|does not have access to account/i.test(message)) {
+              await markProcessed('processed', 'unknown_connect_account');
+              return json({ success: true, eventId: event.id, status: 'unknown_connect_account' });
+            }
+            if (event.type === 'v2.core.account.closed' && supplier?.id) {
+              const { error: closedErr } = await admin
+                .from('supplier_profiles')
+                .update({
+                  connect_onboarding_status: 'rejected',
+                  connect_payouts_enabled: false,
+                  connect_charges_enabled: false,
+                  connect_disabled_reason: 'account_closed',
+                  payout_rail: 'manual_iban',
+                  updated_at: new Date().toISOString(),
+                })
+                .eq('id', supplier.id);
+              if (closedErr) throw new Error(closedErr.message);
+              await markProcessed('processed', 'v2 account closed');
+              return json({ success: true, eventId: event.id, supplierId: supplier.id, status: 'connect_account_closed' });
+            }
+            throw new Error(message);
+          }
+        }
+        if (!account) throw new Error('Connected account could not be retrieved');
+
+        const metadataSupplierId = (account.metadata?.traverion_supplier_id ?? '').trim() || null;
+        const link = connectAccountLinkDecision({
+          supplierId: supplier?.id ?? null,
+          supplierLivemode: supplier?.connect_account_livemode ?? null,
+          eventLivemode: event.livemode === true,
+          metadataSupplierId,
+          accountType: (account.type as string | null) ?? supplier?.connect_account_type ?? null,
+        });
+        if (link.action === 'ignore') {
+          await markProcessed('processed', link.reason);
+          return json({ success: true, eventId: event.id, status: link.reason });
+        }
+
+        let mirror = mirrorConnectAccount(account as Parameters<typeof mirrorConnectAccount>[0]);
+        let stripeTransfersStatus: string | null = null;
+        const v2Native =
+          account.metadata?.traverion_account_api === 'v2' || (account.type as string | null) === 'none';
+        if (v2Native) {
+          const include = V2_RETRIEVE_INCLUDE.map((item) => `include=${encodeURIComponent(item)}`).join('&');
+          const response = await fetch(`https://api.stripe.com/v2/core/accounts/${accountId}?${include}`, {
+            headers: {
+              Authorization: `Bearer ${stripeSecret}`,
+              'Stripe-Version': ACCOUNTS_V2_STRIPE_VERSION,
+            },
+          });
+          const payload = (await response.json()) as V2AccountSnapshot & { error?: { message?: string }; closed?: boolean };
+          if (!response.ok) {
+            throw new Error(payload.error?.message || 'Accounts v2 retrieve failed');
+          }
+          const v2Owner = (payload.metadata?.traverion_supplier_id ?? '').trim() || null;
+          const v2Link = connectAccountLinkDecision({
+            supplierId: supplier?.id ?? null,
+            supplierLivemode: supplier?.connect_account_livemode ?? null,
+            eventLivemode: event.livemode === true,
+            metadataSupplierId: v2Owner ?? metadataSupplierId,
+            accountType: 'custom',
+          });
+          if (v2Link.action === 'ignore') {
+            await markProcessed('processed', v2Link.reason);
+            return json({ success: true, eventId: event.id, status: v2Link.reason });
+          }
+          if (typeof payload.livemode === 'boolean' && payload.livemode !== (event.livemode === true)) {
+            await markProcessed('processed', 'retrieved_livemode_mismatch');
+            return json({ success: true, eventId: event.id, status: 'retrieved_livemode_mismatch' });
+          }
+          stripeTransfersStatus = payload.configuration?.recipient?.capabilities?.stripe_balance?.stripe_transfers?.status ?? 'missing';
+          mirror = applyAuthoritativeV2Status(mirror, payload);
+        }
+        if (mirror.connect_account_livemode == null && typeof supplier?.connect_account_livemode === 'boolean') {
+          mirror = { ...mirror, connect_account_livemode: supplier.connect_account_livemode };
         }
         const { error: updErr } = await admin
           .from('supplier_profiles')
           .update({ ...mirror, updated_at: new Date().toISOString() })
-          .eq('id', supplier.id);
+          .eq('id', supplier!.id);
         if (updErr) throw new Error(updErr.message);
         await admin.from('supplier_payout_reconciliation_events').insert({
-          supplier_id: supplier.id,
-          event_type: 'connect.account.updated',
+          supplier_id: supplier!.id,
+          event_type: event.type === 'account.updated' ? 'connect.account.updated' : event.type,
           severity: 'info',
           payload: {
-            account_id: account.id,
+            account_id: accountId,
             connect_onboarding_status: mirror.connect_onboarding_status,
             connect_payouts_enabled: mirror.connect_payouts_enabled,
+            stripe_transfers_status: stripeTransfersStatus,
+            requirement_count:
+              mirror.connect_requirements_currently_due.length + mirror.connect_requirements_past_due.length,
             stripe_event_id: event.id,
           },
         });
@@ -1128,7 +1245,7 @@ serve(async (req) => {
         return json({
           success: true,
           eventId: event.id,
-          supplierId: supplier.id,
+          supplierId: supplier!.id,
           status: 'connect_account_mirrored',
           onboarding_status: mirror.connect_onboarding_status,
         });
@@ -1319,7 +1436,10 @@ serve(async (req) => {
       await markProcessed('ignored', `Unhandled event type: ${event.type}`);
       return json({ success: true, ignored: true, eventType: event.type });
     } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Unknown processing error';
+      const msg = (e instanceof Error ? e.message : 'Unknown processing error').replace(
+        /sk_(?:test|live)_[A-Za-z0-9*]+/g,
+        '[redacted]'
+      );
       console.error(
         JSON.stringify({
           source: 'stripe-webhook',

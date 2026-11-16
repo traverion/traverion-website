@@ -248,7 +248,7 @@ export function payoutWizardStepForRequirement(requirement: string): PayoutWizar
   const key = requirement.toLowerCase();
   if (/external_account|bank_account|iban|payout_method/.test(key)) return 'bank';
   if (/terms_of_service|tos_acceptance|agreement/.test(key)) return 'identity';
-  if (/verification\.document|additional_document|documents\.|proof_of_liveness|ssn_last_4/.test(key)) {
+  if (/verification\.document|additional_document|documents|proof_of_liveness|liveness|ssn_last_4/.test(key)) {
     return 'identity';
   }
   if (/business_details|registered_name|business_url|fi_yt|id_numbers/.test(key)) return 'business';
