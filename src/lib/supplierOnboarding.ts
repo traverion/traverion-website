@@ -8,6 +8,7 @@ export type SupplierBusinessProfileDraft = {
   /** Customer-facing brand / trading name shown on listings. */
   display_name?: string | null;
   company_legal_name?: string | null;
+  contact_phone?: string | null;
   /** Legacy single-line address (optional if structured fields are set). */
   business_address?: string | null;
   address_street?: string | null;
@@ -44,8 +45,9 @@ export function getSupplierBusinessProfileMissingReasons(
   if (!d.display_name?.trim()) out.push('Business or brand name (visible to travelers)');
   if (!d.company_legal_name?.trim()) out.push('Registered legal business name');
   if (!d.business_type) out.push('Business type (company or individual trader)');
+  if (!d.contact_phone?.trim()) out.push('Contact phone');
   if (!supplierAddressCompleteFromDraft(d)) {
-    out.push('Full address: street, city, postal code, and country (as on registration)');
+    out.push('Full address: street, city, postal code, and country (select country explicitly)');
   }
   if (requireDoc && !d.company_registration_document_path?.trim()) {
     out.push('Business registration proof (upload a document)');
@@ -76,6 +78,7 @@ function profileDraftFromRow(profile: SupplierProfileRow): SupplierBusinessProfi
   return {
     display_name: profile.display_name,
     company_legal_name: profile.company_legal_name,
+    contact_phone: profile.contact_phone,
     business_address: profile.business_address,
     address_street: profile.address_street,
     address_city: profile.address_city,

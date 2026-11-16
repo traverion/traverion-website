@@ -326,6 +326,7 @@ export default function SupplierLayout() {
   /** Last server-backed business_type for verification lock (not in-progress dropdown edits). */
   const [businessTypeAtLastFetch, setBusinessTypeAtLastFetch] = useState<'company' | 'individual' | ''>('');
   const [companyLegalName, setCompanyLegalName] = useState('');
+  const [contactPhone, setContactPhone] = useState('');
   const [companyRegistrationNumber, setCompanyRegistrationNumber] = useState('');
   const [managingDirectors, setManagingDirectors] = useState('');
   const [addressStreet, setAddressStreet] = useState('');
@@ -598,6 +599,7 @@ export default function SupplierLayout() {
       setBusinessType('');
       setBusinessTypeAtLastFetch('');
       setCompanyLegalName('');
+      setContactPhone('');
       setCompanyRegistrationNumber('');
       setManagingDirectors('');
       setAddressStreet('');
@@ -657,6 +659,7 @@ export default function SupplierLayout() {
         setBusinessType(bt);
         setBusinessTypeAtLastFetch(bt);
         setCompanyLegalName(p.company_legal_name ?? '');
+        setContactPhone(p.contact_phone ?? '');
         setCompanyRegistrationNumber(p.company_registration_number ?? '');
         setManagingDirectors(p.managing_directors ?? '');
         const hasStructured =
@@ -1353,6 +1356,8 @@ export default function SupplierLayout() {
                         setProfileDisplayName={setProfileDisplayName}
                         companyLegalName={companyLegalName}
                         setCompanyLegalName={setCompanyLegalName}
+                        contactPhone={contactPhone}
+                        setContactPhone={setContactPhone}
                         companyRegistrationNumber={companyRegistrationNumber}
                         setCompanyRegistrationNumber={setCompanyRegistrationNumber}
                         managingDirectors={managingDirectors}

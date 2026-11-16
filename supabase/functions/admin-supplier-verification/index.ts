@@ -17,6 +17,7 @@ import {
   normalizePilotLegalName,
   type LivePilotProfileInput,
 } from '../_shared/live-accounts-v2-pilot-eligibility.ts';
+import { getBusinessApprovalBlockers } from '../_shared/supplier-business-approval.ts';
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -2015,7 +2016,7 @@ serve(async (req) => {
     const { data: profile, error: profileErr } = await admin
       .from('supplier_profiles')
       .select(
-        'id, display_name, company_legal_name, business_type, address_country, connect_country, contact_phone, verification_status, stripe_connected_account_id, connect_account_type, connect_account_livemode, connect_legacy_account_id, connect_create_claimed_at'
+        'id, display_name, company_legal_name, business_type, address_country, connect_country, contact_phone, verification_status, verification_submitted_at, company_registration_document_path, stripe_connected_account_id, connect_account_type, connect_account_livemode, connect_legacy_account_id, connect_create_claimed_at'
       )
       .eq('id', targetSupplierId)
       .maybeSingle();
@@ -2074,7 +2075,7 @@ serve(async (req) => {
     const { data: rows, error } = await admin
       .from('supplier_profiles')
       .select(
-        'id, display_name, company_legal_name, business_type, address_country, connect_country, contact_phone, verification_status, stripe_connected_account_id, connect_account_type, connect_account_livemode, connect_legacy_account_id, connect_create_claimed_at'
+        'id, display_name, company_legal_name, business_type, address_country, connect_country, contact_phone, verification_status, verification_submitted_at, company_registration_document_path, stripe_connected_account_id, connect_account_type, connect_account_livemode, connect_legacy_account_id, connect_create_claimed_at'
       )
       .order('updated_at', { ascending: false })
       .limit(200);
@@ -2268,7 +2269,7 @@ serve(async (req) => {
     const { data: before, error: beforeErr } = await admin
       .from('supplier_profiles')
       .select(
-        'id, display_name, company_legal_name, verification_status, business_verified_email_sent_at, business_rejected_email_sent_at'
+        'id, display_name, company_legal_name, business_type, address_street, address_city, address_postal_code, address_country, business_address, contact_phone, company_registration_number, tax_id, company_registration_document_path, verification_status, verification_submitted_at, business_verified_email_sent_at, business_rejected_email_sent_at'
       )
       .eq('id', supplierId)
       .maybeSingle();
@@ -2280,6 +2281,23 @@ serve(async (req) => {
       before.verification_status === 'verified' && Boolean(before.business_verified_email_sent_at);
     if (alreadyEmailed) {
       return json({ ok: true, email: { sent: false, skipped: true, reason: 'already_sent' } });
+    }
+
+    // Existing verified rows are not rewritten here. Incomplete historical approvals need a separate review.
+    if ((before.verification_status ?? '').trim().toLowerCase() === 'verified') {
+      return json({
+        ok: true,
+        email: { sent: false, skipped: true, reason: 'already_verified' },
+        note: 'Existing verification was left unchanged. Incomplete historical approvals require a separate review.',
+      });
+    }
+
+    const blockers = getBusinessApprovalBlockers(before);
+    if (blockers.length > 0) {
+      return json({
+        error: 'Supplier profile is incomplete for business approval.',
+        blockers,
+      }, 400);
     }
 
     const now = new Date().toISOString();

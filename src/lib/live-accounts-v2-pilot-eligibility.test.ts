@@ -33,6 +33,8 @@ const complete = {
   address_country: 'FI',
   contact_phone: '+358401234567',
   verification_status: 'verified',
+  verification_submitted_at: '2026-11-17T00:00:00.000Z',
+  company_registration_document_path: 'supplier-verification/x/doc.pdf',
   stripe_connected_account_id: null,
   connect_account_livemode: null,
   connect_legacy_account_id: null,
@@ -41,9 +43,11 @@ const complete = {
 
 describe('LIVE Accounts v2 pilot eligibility', () => {
   it('keeps the eligibility helpers identical between app and edge', () => {
-    expect(sharedClient.replace("from './accounts-v2-config'", "from './accounts-v2-config.ts'")).toBe(
-      sharedEdge
-    );
+    expect(
+      sharedClient
+        .replace("from './accounts-v2-config'", "from './accounts-v2-config.ts'")
+        .replace("from './supplier-business-approval'", "from './supplier-business-approval.ts'")
+    ).toBe(sharedEdge);
   });
 
   it('rejects a missing country and no longer treats blank as Finland', () => {

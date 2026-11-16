@@ -11,7 +11,7 @@ function profile(partial: Partial<SupplierProfileRow>): SupplierProfileRow {
   return {
     id: 'u1',
     display_name: 'Aurora',
-    contact_phone: null,
+    contact_phone: '+358401234567',
     payout_method: null,
     payout_iban: 'FI2112345600000785',
     payout_bic: 'NDEAFIHH',

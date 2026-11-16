@@ -1,4 +1,5 @@
 import { finlandSupplierCountry } from './accounts-v2-config';
+import { hasGenuineBusinessVerificationEvidence } from './supplier-business-approval';
 
 /**
  * LIVE Accounts v2 pilot eligibility.
@@ -14,6 +15,8 @@ export type LivePilotProfileInput = {
   connect_country?: string | null;
   contact_phone?: string | null;
   verification_status?: string | null;
+  verification_submitted_at?: string | null;
+  company_registration_document_path?: string | null;
   stripe_connected_account_id?: string | null;
   connect_account_type?: string | null;
   connect_account_livemode?: boolean | null;
@@ -93,6 +96,16 @@ export function assessLiveAccountsV2PilotEligibility(
   }
   if (!businessVerified) {
     problems.push('Traverion business verification must be approved before LIVE pilot allowlisting.');
+  } else if (
+    !hasGenuineBusinessVerificationEvidence({
+      verification_status: profile.verification_status,
+      verification_submitted_at: profile.verification_submitted_at,
+      company_registration_document_path: profile.company_registration_document_path,
+    })
+  ) {
+    problems.push(
+      'Business verification is marked verified without a submitted profile or registration document. Review separately before LIVE pilot use.'
+    );
   }
   if (opts.ownerConfirmed !== true) {
     problems.push('Admin must confirm the signed-in owner is authorized for this business.');

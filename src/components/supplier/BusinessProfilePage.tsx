@@ -78,6 +78,8 @@ export type BusinessProfilePageProps = {
   setProfileDisplayName: (v: string) => void;
   companyLegalName: string;
   setCompanyLegalName: (v: string) => void;
+  contactPhone: string;
+  setContactPhone: (v: string) => void;
   companyRegistrationNumber: string;
   setCompanyRegistrationNumber: (v: string) => void;
   managingDirectors: string;
@@ -176,9 +178,11 @@ export default function BusinessProfilePage(p: BusinessProfilePageProps) {
   const identityFieldsDisabled = businessLocked || !canEditProfile;
   const brandLocked = businessLocked;
 
+  const [ownerAuthorityConfirmed, setOwnerAuthorityConfirmed] = useState(false);
   const businessProfileMissingReasons = getSupplierBusinessProfileMissingReasons({
     display_name: p.profileDisplayName,
     company_legal_name: p.companyLegalName,
+    contact_phone: p.contactPhone,
     address_street: p.addressStreet,
     address_city: p.addressCity,
     address_postal_code: p.addressPostalCode,
@@ -189,6 +193,23 @@ export default function BusinessProfilePage(p: BusinessProfilePageProps) {
     company_registration_document_path: p.companyRegistrationPath,
   });
   const draftBusinessComplete = businessProfileMissingReasons.length === 0;
+  const profileChecklist = [
+    Boolean(p.profileDisplayName.trim()),
+    Boolean(p.companyLegalName.trim()),
+    Boolean(p.businessType),
+    Boolean(p.contactPhone.trim()),
+    Boolean(p.addressStreet.trim() && p.addressCity.trim() && p.addressPostalCode.trim() && p.addressCountry.trim()),
+    p.businessType === 'company'
+      ? Boolean(p.companyRegistrationNumber.trim())
+      : p.businessType === 'individual'
+        ? Boolean(p.taxId.trim())
+        : false,
+    Boolean(p.companyRegistrationPath?.trim()),
+    ownerAuthorityConfirmed,
+  ];
+  const profileProgressDone = profileChecklist.filter(Boolean).length;
+  const profileProgressTotal = profileChecklist.length;
+  const readyToSubmitForReview = draftBusinessComplete && ownerAuthorityConfirmed;
   const vBus = p.verificationStatus.trim().toLowerCase();
   const businessInReviewQueue =
     vBus !== 'verified' &&
@@ -461,6 +482,31 @@ export default function BusinessProfilePage(p: BusinessProfilePageProps) {
 
       {p.businessProfileTab === 'company' && (
         <div className={`${BUSINESS_SETTINGS_CONTENT_CLASS} space-y-4`}>
+          {!businessLocked ? (
+            <ProfileCard title="Profile progress">
+              <p className="text-[13px] text-ink">
+                {profileProgressDone} of {profileProgressTotal} required items complete
+              </p>
+              <div className="mt-2 h-2 overflow-hidden rounded-full bg-black/[0.06]" aria-hidden>
+                <div
+                  className="h-full rounded-full bg-[#073b83] transition-[width]"
+                  style={{ width: `${Math.round((profileProgressDone / profileProgressTotal) * 100)}%` }}
+                />
+              </div>
+              {businessProfileMissingReasons.length > 0 || !ownerAuthorityConfirmed ? (
+                <ul className="mt-3 list-inside list-disc space-y-1 text-[12px] text-ink-muted">
+                  {businessProfileMissingReasons.map((line) => (
+                    <li key={line}>{line}</li>
+                  ))}
+                  {!ownerAuthorityConfirmed ? (
+                    <li>Confirm you are the owner or an authorized representative</li>
+                  ) : null}
+                </ul>
+              ) : (
+                <p className="mt-3 text-[12px] text-ink-muted">Ready to save and submit for Traverion review.</p>
+              )}
+            </ProfileCard>
+          ) : null}
           <ProfileCard id="supplier-business-company" title="Brand identity">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
               <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-black/[0.04] ring-1 ring-black/[0.06]">
@@ -727,6 +773,17 @@ export default function BusinessProfilePage(p: BusinessProfilePageProps) {
                       className={profileInputClass(identityFieldsDisabled)}
                     />
                   </div>
+                  <div className="sm:col-span-2">
+                    <label className="mb-1 block text-[13px] font-medium text-ink">Contact phone</label>
+                    <input
+                      type="tel"
+                      value={p.contactPhone}
+                      disabled={identityFieldsDisabled}
+                      onChange={(e) => p.setContactPhone(e.target.value)}
+                      className={profileInputClass(identityFieldsDisabled)}
+                      autoComplete="tel"
+                    />
+                  </div>
                   {p.businessType === 'company' ? (
                     <>
                       <div>
@@ -758,6 +815,7 @@ export default function BusinessProfilePage(p: BusinessProfilePageProps) {
             <Subsection title="Registered address">
               {businessLocked ? (
                 <InfoGrid>
+                  <InfoRow label="Contact phone" value={p.contactPhone} />
                   <InfoRow label="Street" value={p.addressStreet} />
                   <InfoRow label="City" value={p.addressCity} />
                   <InfoRow label="Postal code" value={p.addressPostalCode} />
@@ -796,13 +854,20 @@ export default function BusinessProfilePage(p: BusinessProfilePageProps) {
                     />
                   </div>
                   <div className="sm:col-span-2">
-                    <label className="mb-1 block text-[13px] font-medium text-ink">Country</label>
-                    <input
-                      type="text"
+                    <span id="settings-address-country-label" className="mb-1 block text-[13px] font-medium text-ink">
+                      Country
+                    </span>
+                    <PartnerSelect
+                      aria-labelledby="settings-address-country-label"
                       value={p.addressCountry}
                       disabled={identityFieldsDisabled}
-                      onChange={(e) => p.setAddressCountry(e.target.value)}
-                      className={profileInputClass(identityFieldsDisabled)}
+                      onChange={(v) => p.setAddressCountry(v)}
+                      placeholder="Select country"
+                      options={[
+                        { value: '', label: 'Select country' },
+                        { value: 'FI', label: 'Finland (FI)' },
+                        { value: 'Finland', label: 'Finland' },
+                      ]}
                     />
                   </div>
                 </div>
@@ -1012,9 +1077,22 @@ export default function BusinessProfilePage(p: BusinessProfilePageProps) {
           </ProfileCard>
 
           {!businessLocked ? (
+            <>
+              <label className="flex items-start gap-2 rounded-[12px] border border-line bg-white px-3 py-3 text-[13px] text-ink">
+                <input
+                  type="checkbox"
+                  className="mt-1"
+                  checked={ownerAuthorityConfirmed}
+                  onChange={(e) => setOwnerAuthorityConfirmed(e.target.checked)}
+                />
+                <span>
+                  I confirm I am the owner or an authorized representative of this business and the information is
+                  accurate.
+                </span>
+              </label>
             <SaveBar
               saving={p.companySaving}
-              disabled={!canEditProfile}
+              disabled={!canEditProfile || !readyToSubmitForReview}
               label="Save & submit for review"
               savingLabel="Saving…"
               success={p.companyMessage === 'success'}
@@ -1028,6 +1106,10 @@ export default function BusinessProfilePage(p: BusinessProfilePageProps) {
                 }
                 setCompanySaveError(null);
                 p.setCompanyMessage(null);
+                if (!ownerAuthorityConfirmed) {
+                  setCompanySaveError('Confirm you are the owner or an authorized representative.');
+                  return;
+                }
                 if (!p.profileDisplayName.trim()) {
                   setCompanySaveError('Enter your brand name.');
                   return;
@@ -1038,6 +1120,10 @@ export default function BusinessProfilePage(p: BusinessProfilePageProps) {
                 }
                 if (!p.companyLegalName.trim()) {
                   setCompanySaveError('Enter your registered business name.');
+                  return;
+                }
+                if (!p.contactPhone.trim()) {
+                  setCompanySaveError('Enter a contact phone number.');
                   return;
                 }
                 if (
@@ -1073,6 +1159,7 @@ export default function BusinessProfilePage(p: BusinessProfilePageProps) {
                   business_type: p.businessType || null,
                   display_name: p.profileDisplayName.trim() || null,
                   company_legal_name: p.companyLegalName.trim() || null,
+                  contact_phone: p.contactPhone.trim() || null,
                   company_registration_number: p.companyRegistrationNumber.trim() || null,
                   managing_directors: p.managingDirectors.trim() || null,
                   address_street: p.addressStreet.trim() || null,
@@ -1107,6 +1194,7 @@ export default function BusinessProfilePage(p: BusinessProfilePageProps) {
                 }
               }}
             />
+            </>
           ) : null}
         </div>
       )}
