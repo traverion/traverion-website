@@ -301,9 +301,110 @@ export default function PayoutSetupWizard({
     direction === 'back' ? 'stay-stage-back' : 'stay-stage-forward',
   ].join(' ');
 
+  const railItems = PAYOUT_WIZARD_SCREENS.map((s, i) => {
+    let state: 'complete' | 'current' | 'upcoming' | 'locked' = 'upcoming';
+    if (i < stepIndex) state = 'complete';
+    else if (i === stepIndex) state = 'current';
+    else if (i > stepIndex + 1) state = 'locked';
+    return { id: s.id, label: s.title, state };
+  });
+
+  const selectRailStep = (index: number) => {
+    if (index > stepIndex + 1) return;
+    if (index > stepIndex) {
+      // Only allow one step ahead via Continue path for validation; rail jumps back freely.
+      return;
+    }
+    goTo(PAYOUT_WIZARD_SCREENS[index]!.id, index < stepIndex ? 'back' : 'forward');
+  };
+
   return (
-    <div className="payout-wizard listing-creation-workspace stay-creator fixed inset-0 z-[80] flex flex-col bg-white">
-      <header className="flex shrink-0 items-center justify-between gap-3 border-b border-[#E5E7EB] px-4 py-2.5 pt-[max(0.6rem,env(safe-area-inset-top))] sm:px-6">
+    <div className="payout-wizard listing-creation-workspace stay-creator fixed inset-0 z-[80] flex bg-white">
+      {/* Desktop left rail — tour-creation parity */}
+      <aside className="listing-creation-rail hidden h-full min-h-0 w-[15.75rem] shrink-0 flex-col overflow-hidden border-r border-[#E5E7EB] lg:flex xl:w-[16.5rem]">
+        <div className="px-4 pb-5 pt-[max(0.85rem,env(safe-area-inset-top))]">
+          <button
+            type="button"
+            disabled={busy}
+            onClick={onClose}
+            className="lux-flat inline-flex min-h-10 items-center text-[13px] font-semibold text-[#71717a] hover:text-[#18181b] disabled:opacity-50"
+          >
+            ← Exit
+          </button>
+          <p className="mt-7 font-display text-[1.45rem] font-bold leading-[1.12] tracking-tight text-[#18181b]">
+            Payout setup
+          </p>
+          <div className="mt-2.5 min-h-5">
+            {persistLabel ? (
+              <p className="text-[11.5px] tabular-nums text-[#71717a]" aria-live="polite">
+                {persistLabel}
+              </p>
+            ) : null}
+          </div>
+          <p className="mt-1 text-[11.5px] font-semibold tabular-nums tracking-wide text-[#71717a]">
+            {stepIndex + 1} of {PAYOUT_WIZARD_SCREENS.length} complete
+          </p>
+          <div
+            className="listing-creation-rail-progress mt-3"
+            role="progressbar"
+            aria-label="Payout setup progress"
+            aria-valuemin={0}
+            aria-valuemax={PAYOUT_WIZARD_SCREENS.length}
+            aria-valuenow={stepIndex}
+          >
+            <div
+              className="listing-creation-rail-progress__fill"
+              style={{ width: `${(stepIndex / PAYOUT_WIZARD_SCREENS.length) * 100}%` }}
+            />
+          </div>
+        </div>
+        <nav aria-label="Payout setup steps" className="min-h-0 flex-1 overflow-y-auto px-2 pb-6">
+          <ol className="space-y-1">
+            {railItems.map((item, index) => {
+              const current = item.state === 'current';
+              const complete = item.state === 'complete';
+              const locked = item.state === 'locked';
+              return (
+                <li key={item.id}>
+                  <button
+                    type="button"
+                    onClick={() => selectRailStep(index)}
+                    aria-current={current ? 'step' : undefined}
+                    aria-disabled={locked || undefined}
+                    className={[
+                      'lux-flat flex min-h-11 w-full items-center gap-2.5 rounded-lg px-2.5 text-left text-[13px] transition-colors',
+                      current
+                        ? 'bg-[rgba(7,59,131,0.08)] font-semibold text-[#073b83]'
+                        : complete
+                          ? 'font-medium text-[#18181b] hover:bg-[#f5f6f8]'
+                          : locked
+                            ? 'cursor-default font-medium text-[#a1a1aa]'
+                            : 'font-medium text-[#71717a] hover:bg-[#f5f6f8]',
+                    ].join(' ')}
+                  >
+                    <span
+                      className={[
+                        'grid h-6 w-6 shrink-0 place-items-center rounded-full text-[11px] font-bold',
+                        current
+                          ? 'bg-[#073b83] text-white'
+                          : complete
+                            ? 'bg-emerald-600 text-white'
+                            : 'bg-[#e5e7eb] text-[#71717a]',
+                      ].join(' ')}
+                    >
+                      {complete ? '✓' : index + 1}
+                    </span>
+                    <span className="min-w-0 truncate">{item.label}</span>
+                  </button>
+                </li>
+              );
+            })}
+          </ol>
+        </nav>
+      </aside>
+
+      <div className="relative flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+      <header className="flex shrink-0 items-center justify-between gap-3 border-b border-[#E5E7EB] px-4 py-2.5 pt-[max(0.6rem,env(safe-area-inset-top))] sm:px-6 lg:hidden">
         <button
           type="button"
           className="min-h-11 text-sm font-semibold text-[#18181b]"
@@ -321,8 +422,8 @@ export default function PayoutSetupWizard({
         </p>
       </header>
 
-      <div className="mx-auto flex min-h-0 w-full max-w-[28rem] flex-1 flex-col overflow-hidden px-4 sm:px-6">
-        <div className="shrink-0 py-3">
+      <div className="mx-auto flex min-h-0 w-full max-w-[28rem] flex-1 flex-col overflow-hidden px-4 sm:px-6 lg:max-w-[32rem] lg:px-8">
+        <div className="shrink-0 py-3 lg:hidden">
           <div
             className="h-[3px] overflow-hidden rounded-full bg-[#e5e7eb]"
             role="progressbar"
@@ -343,6 +444,9 @@ export default function PayoutSetupWizard({
 
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-4 [-webkit-overflow-scrolling:touch]">
           <div key={draft.step} className={stageClass}>
+            <p className="mb-1 hidden text-[11px] font-semibold uppercase tracking-[0.12em] text-[#073b83] lg:block">
+              Step {stepIndex + 1} of {PAYOUT_WIZARD_SCREENS.length}
+            </p>
             <h1 className="stay-title text-[1.45rem] font-bold tracking-tight text-[#18181b] sm:text-[1.6rem]">
               {screen.title}
             </h1>
@@ -656,8 +760,8 @@ export default function PayoutSetupWizard({
         </div>
       </div>
 
-      <footer className="listing-creation-footer shrink-0 px-4 py-2.5 sm:px-6">
-        <div className="mx-auto grid max-w-[28rem] grid-cols-3 items-center gap-2">
+      <footer className="listing-creation-footer shrink-0 px-4 py-2.5 sm:px-6 lg:px-8">
+        <div className="mx-auto grid max-w-[28rem] grid-cols-3 items-center gap-2 lg:max-w-[32rem]">
           <button
             type="button"
             className="tv-btn-ghost stay-nav-btn stay-nav-btn--start h-11 justify-self-start px-3 text-[13px]"
@@ -685,6 +789,7 @@ export default function PayoutSetupWizard({
           </button>
         </div>
       </footer>
+      </div>
     </div>
   );
 }
