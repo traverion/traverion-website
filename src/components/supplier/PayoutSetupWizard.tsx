@@ -5,7 +5,10 @@ import {
   updateSupplierPayout,
   type SupplierProfileRow,
 } from '../../data/supabase-supplier-profile';
-import { invokeConnectSupplierOnboarding } from '../../data/supabase-connect-onboarding';
+import {
+  connectOnboardingUserMessage,
+  invokeConnectSupplierOnboarding,
+} from '../../data/supabase-connect-onboarding';
 import type { SupplierCommercialTermsRow } from '../../data/supabase-earnings';
 import { formatBpsAsPercent } from '../../lib/commercial-money';
 import { humanizeConnectRequirements } from '../../lib/connect-requirement-labels';
@@ -149,6 +152,7 @@ export default function PayoutSetupWizard({
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
   const [showStripeEmbed, setShowStripeEmbed] = useState(false);
+  const [expressLaunchFailed, setExpressLaunchFailed] = useState(false);
   const [showIdentityRemediation, setShowIdentityRemediation] = useState(false);
   const [hostedFallbackUrl, setHostedFallbackUrl] = useState<string | null>(null);
   const [persistLabel, setPersistLabel] = useState<string | null>(null);
@@ -186,6 +190,7 @@ export default function PayoutSetupWizard({
     setShowStripeEmbed(false);
     setHostedFallbackUrl(null);
     setShowIdentityRemediation(false);
+    setExpressLaunchFailed(false);
   }, [draft.step]);
 
   useEffect(() => {
@@ -497,20 +502,27 @@ export default function PayoutSetupWizard({
     return true;
   };
 
-  const refreshConnect = async () => {
+  const refreshConnect = async (): Promise<boolean> => {
     setBusy(true);
     setError(null);
     const result = await invokeConnectSupplierOnboarding('refresh');
     setBusy(false);
     if (!result.success) {
-      setError(userFacingError(result.error, USER_ERROR.generic));
-      return;
+      setError(connectOnboardingUserMessage(result.error));
+      return false;
     }
     onProfile(await fetchSupplierProfile(userId));
     setNote('Status updated.');
+    return true;
   };
 
   const onContinue = async () => {
+    if (expressVerificationMandatory && expressLaunchFailed) {
+      setError(
+        'Stripe verification could not be started. Use Continue verification to try again before moving on.'
+      );
+      return;
+    }
     if (draft.step === 'business') {
       const ok = await saveBusiness();
       if (!ok) return;
@@ -519,7 +531,8 @@ export default function PayoutSetupWizard({
     }
     if (draft.step === 'representative') {
       if (isExpress) {
-        await refreshConnect();
+        const ok = await refreshConnect();
+        if (!ok) return;
         goTo('identity', 'forward');
         return;
       }
@@ -530,7 +543,8 @@ export default function PayoutSetupWizard({
     }
     if (draft.step === 'identity') {
       if (isExpress) {
-        await refreshConnect();
+        const ok = await refreshConnect();
+        if (!ok) return;
         goTo('bank', 'forward');
         return;
       }
@@ -541,7 +555,8 @@ export default function PayoutSetupWizard({
     }
     if (draft.step === 'bank') {
       if (isExpress) {
-        await refreshConnect();
+        const ok = await refreshConnect();
+        if (!ok) return;
         goTo('preferences', 'forward');
         return;
       }
@@ -1086,7 +1101,10 @@ export default function PayoutSetupWizard({
                                 setHostedFallbackUrl(url);
                                 setShowIdentityRemediation(false);
                               }}
-                              onError={(msg) => setError(msg)}
+                              onError={(msg) => {
+                                setShowIdentityRemediation(false);
+                                setError(connectOnboardingUserMessage(msg));
+                              }}
                             />
                           </Suspense>
                         </div>
@@ -1147,6 +1165,17 @@ export default function PayoutSetupWizard({
                     <div className="rounded-[10px] border border-[#dbe4f0] bg-[#f0f4fa] px-3 py-3 text-[12px] leading-relaxed text-[#1e3a5f]">
                       <p className="font-semibold text-[#073b83]">Stripe verification required</p>
                       <p className="mt-1">{PAYOUT_WIZARD_STRIPE_AUTH_COPY}</p>
+                      {outstandingLabels.length > 0 ? (
+                        <ul className="mt-2 list-disc space-y-1 pl-4 text-[12px] text-[#1e3a5f]">
+                          {outstandingLabels.slice(0, 6).map((label) => (
+                            <li key={label}>{label}</li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="mt-2 text-[12px] text-[#1e3a5f]">
+                          Stripe still needs identity or bank confirmation for this Express account.
+                        </p>
+                      )}
                       <p className="mt-1 text-[11px] text-[#52525b]">
                         This does not convert your Express account. Traverion will not open Stripe until
                         you choose Continue verification.
@@ -1155,6 +1184,8 @@ export default function PayoutSetupWizard({
                         type="button"
                         className="tv-btn-primary mt-3 h-10 w-full text-[13px]"
                         onClick={() => {
+                          setError(null);
+                          setExpressLaunchFailed(false);
                           patch({ stripeAuthAcknowledged: true });
                           setShowStripeEmbed(true);
                         }}
@@ -1175,6 +1206,8 @@ export default function PayoutSetupWizard({
                         type="button"
                         className="tv-btn-secondary mt-3 h-10 w-full text-[13px]"
                         onClick={() => {
+                          setError(null);
+                          setExpressLaunchFailed(false);
                           patch({ stripeAuthAcknowledged: true });
                           setShowStripeEmbed(true);
                         }}
@@ -1201,8 +1234,14 @@ export default function PayoutSetupWizard({
                         onHostedFallback={(url) => {
                           setHostedFallbackUrl(url);
                           setShowStripeEmbed(false);
+                          setExpressLaunchFailed(false);
                         }}
-                        onError={(msg) => setError(msg)}
+                        onError={(msg) => {
+                          // Single wizard alert — unmount embed so Continue verification returns for retry.
+                          setExpressLaunchFailed(true);
+                          setShowStripeEmbed(false);
+                          setError(connectOnboardingUserMessage(msg));
+                        }}
                       />
                     </Suspense>
                   ) : null}
@@ -1394,7 +1433,11 @@ export default function PayoutSetupWizard({
               type="button"
               className="tv-btn-primary stay-nav-btn stay-nav-btn--end h-11 justify-self-end px-4 text-[13px]"
               onClick={() => void onContinue()}
-              disabled={busy || !canEdit}
+              disabled={
+                busy ||
+                !canEdit ||
+                (Boolean(useStripeEmbed) && expressVerificationMandatory && expressLaunchFailed)
+              }
             >
               {continueLabel}
             </button>

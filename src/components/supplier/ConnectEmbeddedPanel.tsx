@@ -5,10 +5,13 @@ import {
   ConnectComponentsProvider,
 } from '@stripe/react-connect-js';
 import { loadConnectAndInitialize, type StripeConnectInstance } from '@stripe/connect-js';
-import { fetchConnectAccountSessionSecret, type ConnectEmbeddedComponent } from '../../data/supabase-connect-onboarding';
+import {
+  connectOnboardingUserMessage,
+  fetchConnectAccountSessionSecret,
+  type ConnectEmbeddedComponent,
+} from '../../data/supabase-connect-onboarding';
 import { EXPRESS_STRIPE_AUTH_LIMITATION } from '../../lib/connect-requirement-labels';
 import { resolveStripePublishableKey } from '../../lib/stripe-payment-mode';
-import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
 
 /** Force English for Traverion supplier UI regardless of browser language. */
 export const CONNECT_EMBEDDED_LOCALE = 'en-GB';
@@ -17,6 +20,7 @@ type Props = {
   component: ConnectEmbeddedComponent;
   onExit: () => void;
   onHostedFallback: (url: string) => void;
+  /** Called once when session init fails. Parent should show a single alert and restore Continue verification. */
   onError?: (message: string) => void;
   /** When true, show Express Stripe-auth explainer above the embedded component. */
   expectStripeAuth?: boolean;
@@ -37,6 +41,7 @@ export default function ConnectEmbeddedPanel({
   const [stripeConnectInstance, setStripeConnectInstance] = useState<StripeConnectInstance | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [retryNonce, setRetryNonce] = useState(0);
 
   // Keep parent callbacks out of the init effect deps — inline props remounted the session in a loop.
   const onHostedFallbackRef = useRef(onHostedFallback);
@@ -48,20 +53,38 @@ export default function ConnectEmbeddedPanel({
     onErrorRef.current = onError;
   }, [onError]);
 
-  const fetchClientSecret = useCallback(async () => {
-    const session = await fetchConnectAccountSessionSecret(component);
-    if (session.url) {
-      onHostedFallbackRef.current(session.url);
-      throw new Error('hosted_fallback');
-    }
-    if (!session.clientSecret) {
-      throw new Error(session.error || 'Could not start verification session');
-    }
-    return session.clientSecret;
-  }, [component]);
+  const reportedErrorRef = useRef<string | null>(null);
+
+  const reportError = useCallback((raw: string) => {
+    const msg = connectOnboardingUserMessage(raw);
+    setError(msg);
+    if (reportedErrorRef.current === msg) return;
+    reportedErrorRef.current = msg;
+    onErrorRef.current?.(msg);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
+    let cachedSecret: string | null = null;
+    reportedErrorRef.current = null;
+
+    const fetchClientSecret = async () => {
+      if (cachedSecret) {
+        const once = cachedSecret;
+        cachedSecret = null;
+        return once;
+      }
+      const session = await fetchConnectAccountSessionSecret(component);
+      if (session.url) {
+        onHostedFallbackRef.current(session.url);
+        throw new Error('hosted_fallback');
+      }
+      if (!session.clientSecret) {
+        throw new Error(session.error || 'Could not start verification session');
+      }
+      return session.clientSecret;
+    };
+
     void (async () => {
       setLoading(true);
       setError(null);
@@ -76,6 +99,7 @@ export default function ConnectEmbeddedPanel({
         if (!session.clientSecret) {
           throw new Error(session.error || 'Could not start verification session');
         }
+        cachedSecret = session.clientSecret;
         const pk =
           session.publishableKey ||
           (typeof import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY === 'string'
@@ -110,9 +134,7 @@ export default function ConnectEmbeddedPanel({
       } catch (e) {
         if (cancelled) return;
         if (e instanceof Error && e.message === 'hosted_fallback') return;
-        const msg = userFacingError(e instanceof Error ? e.message : null, USER_ERROR.generic);
-        setError(msg);
-        onErrorRef.current?.(msg);
+        reportError(e instanceof Error ? e.message : 'Could not start verification session');
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -120,7 +142,7 @@ export default function ConnectEmbeddedPanel({
     return () => {
       cancelled = true;
     };
-  }, [component, fetchClientSecret]);
+  }, [component, retryNonce, reportError]);
 
   if (loading) {
     return (
@@ -136,7 +158,18 @@ export default function ConnectEmbeddedPanel({
   if (error) {
     return (
       <div className="rounded-[10px] border border-red-200 bg-red-50 px-4 py-3 text-[13px] text-red-900" role="alert">
-        {error}
+        <p>{error}</p>
+        <button
+          type="button"
+          className="tv-btn-secondary mt-3 h-10 px-3 text-[13px]"
+          onClick={() => {
+            reportedErrorRef.current = null;
+            setError(null);
+            setRetryNonce((n) => n + 1);
+          }}
+        >
+          Try again
+        </button>
       </div>
     );
   }

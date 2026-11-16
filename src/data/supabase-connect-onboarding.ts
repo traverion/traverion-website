@@ -82,6 +82,60 @@ export type ConnectOnboardingResult = {
   archived_legacy_account_id?: string | null;
 };
 
+async function edgeFunctionErrorMessage(error: unknown): Promise<string> {
+  const fallback =
+    error instanceof Error && error.message.trim()
+      ? error.message.trim()
+      : 'Payout verification failed';
+  const ctx =
+    error &&
+    typeof error === 'object' &&
+    'context' in error &&
+    (error as { context: unknown }).context instanceof Response
+      ? (error as { context: Response }).context
+      : null;
+  if (!ctx) return fallback;
+  try {
+    const clone = ctx.clone();
+    const ct = clone.headers.get('content-type') ?? '';
+    if (ct.includes('application/json')) {
+      const body = (await clone.json()) as { error?: unknown; message?: unknown };
+      if (typeof body?.error === 'string' && body.error.trim()) return body.error.trim();
+      if (typeof body?.message === 'string' && body.message.trim()) return body.message.trim();
+    } else {
+      const text = (await clone.text()).trim();
+      if (text) return text.slice(0, 400);
+    }
+  } catch {
+    /* ignore parse failures */
+  }
+  if (ctx.status === 401) return 'Unauthorized';
+  if (ctx.status === 403) return 'Forbidden';
+  return fallback;
+}
+
+/** Partner-facing Connect onboarding errors (not raw Stripe/edge text). */
+export function connectOnboardingUserMessage(raw: string | null | undefined): string {
+  const msg = (raw ?? '').trim();
+  if (!msg) return 'Something went wrong starting payout verification. Try again.';
+  if (/unauthorized|session_not_found|invalid jwt|jwt expired|auth session missing/i.test(msg)) {
+    return 'Your partner session ended. Sign in again, then choose Continue verification.';
+  }
+  if (/forbidden|not allowed|role can view/i.test(msg)) {
+    return 'Your role can view payout setup but cannot start Stripe verification.';
+  }
+  if (/failed to fetch|networkerror|load failed|aborterror|timed?\s*out/i.test(msg)) {
+    return 'Could not reach payout verification. Check your connection and try again.';
+  }
+  if (/account_session|client secret|missing client secret|could not start verification/i.test(msg)) {
+    return 'Could not start Stripe verification for this account. Try again in a moment.';
+  }
+  if (/no connected account|missing connect|account not found/i.test(msg)) {
+    return 'No payout account is linked yet. Finish business details, then try verification again.';
+  }
+  return msg;
+}
+
 export async function invokeConnectSupplierOnboarding(
   action: ConnectOnboardingAction,
   opts?: {
@@ -116,7 +170,9 @@ export async function invokeConnectSupplierOnboarding(
       },
     }
   );
-  if (error) return { success: false, error: error.message };
+  if (error) {
+    return { success: false, error: await edgeFunctionErrorMessage(error) };
+  }
   if (!data?.success) {
     return { success: false, error: data?.error ?? 'Payout verification failed', ...data };
   }
@@ -137,7 +193,12 @@ export async function fetchConnectAccountSessionSecret(
 }> {
   const result = await invokeConnectSupplierOnboarding('account_session', { component });
   if (!result.success) {
-    return { clientSecret: '', publishableKey: null, accountId: null, error: result.error };
+    return {
+      clientSecret: '',
+      publishableKey: null,
+      accountId: null,
+      error: connectOnboardingUserMessage(result.error),
+    };
   }
   if (result.mode === 'hosted_fallback' || result.mode === 'hosted') {
     return {
