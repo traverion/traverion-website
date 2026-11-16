@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ConnectAccountOnboarding,
   ConnectAccountManagement,
@@ -38,28 +38,39 @@ export default function ConnectEmbeddedPanel({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Keep parent callbacks out of the init effect deps — inline props remounted the session in a loop.
+  const onHostedFallbackRef = useRef(onHostedFallback);
+  const onErrorRef = useRef(onError);
+  useEffect(() => {
+    onHostedFallbackRef.current = onHostedFallback;
+  }, [onHostedFallback]);
+  useEffect(() => {
+    onErrorRef.current = onError;
+  }, [onError]);
+
   const fetchClientSecret = useCallback(async () => {
     const session = await fetchConnectAccountSessionSecret(component);
     if (session.url) {
-      onHostedFallback(session.url);
+      onHostedFallbackRef.current(session.url);
       throw new Error('hosted_fallback');
     }
     if (!session.clientSecret) {
       throw new Error(session.error || 'Could not start verification session');
     }
     return session.clientSecret;
-  }, [component, onHostedFallback]);
+  }, [component]);
 
   useEffect(() => {
     let cancelled = false;
     void (async () => {
       setLoading(true);
       setError(null);
+      setStripeConnectInstance(null);
       try {
         const session = await fetchConnectAccountSessionSecret(component);
         if (cancelled) return;
         if (session.url) {
-          onHostedFallback(session.url);
+          onHostedFallbackRef.current(session.url);
           return;
         }
         if (!session.clientSecret) {
@@ -101,7 +112,7 @@ export default function ConnectEmbeddedPanel({
         if (e instanceof Error && e.message === 'hosted_fallback') return;
         const msg = userFacingError(e instanceof Error ? e.message : null, USER_ERROR.generic);
         setError(msg);
-        onError?.(msg);
+        onErrorRef.current?.(msg);
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -109,7 +120,7 @@ export default function ConnectEmbeddedPanel({
     return () => {
       cancelled = true;
     };
-  }, [component, fetchClientSecret, onError, onHostedFallback]);
+  }, [component, fetchClientSecret]);
 
   if (loading) {
     return (
@@ -133,7 +144,7 @@ export default function ConnectEmbeddedPanel({
   if (!stripeConnectInstance) return null;
 
   return (
-    <div className="tv-connect-embed w-full min-w-0 overflow-visible bg-white">
+    <div className="tv-connect-embed w-full min-w-0 min-h-[24rem] overflow-visible bg-white">
       {expectStripeAuth ? (
         <div
           className="mb-3 rounded-[10px] border border-[#dbe4f0] bg-[#f0f4fa] px-3 py-2.5 text-[12px] leading-relaxed text-[#1e3a5f]"
