@@ -1,7 +1,8 @@
 /**
- * P9.3 — LIVE Custom connected-account creation gate.
- * TEST creation is unchanged. LIVE creation requires the runtime flag AND an allowlist row.
- * Missing flag, unreadable flag, or an empty allowlist refuses creation.
+ * LIVE Accounts v2 creation gate.
+ * The stored flag remains `live_custom_onboarding_enabled`.
+ * TEST creation does not use this gate. LIVE creation requires the flag AND an allowlist row.
+ * Missing flag, unreadable flag, or an empty allowlist refuses creation before Stripe.
  */
 
 export function liveCustomCreateAllowed(input: {

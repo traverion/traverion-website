@@ -1,8 +1,10 @@
 /**
  * Stripe Connect onboarding for Traverion suppliers (TEST or LIVE).
  *
- * Preferred for new TEST suppliers: Accounts v2 recipient, dashboard none,
- * platform-collected requirements. LIVE creation stays on the gated v1 Custom path.
+ * New suppliers, TEST and LIVE: Accounts v2 recipient, dashboard none,
+ * platform-collected requirements. LIVE creation uses the same body and
+ * requires the disabled gate plus an allowlist row before any Stripe call.
+ * A rejected v2 create does not fall back to Express or legacy Custom.
  *
  * Legacy Express accounts: Account Session embedded components (or hosted
  * Account Link fallback). Never silently recreate Express → Custom.
@@ -27,6 +29,7 @@ import {
   buildV2RecipientCreateBody,
   finlandSupplierCountry,
   isAccountsV2Native,
+  v2StripeTransfersStatus,
   type V2AccountSnapshot,
 } from '../_shared/accounts-v2-config.ts';
 
@@ -202,6 +205,61 @@ serve(async (req) => {
       const include = V2_RETRIEVE_INCLUDE.map((item) => `include=${encodeURIComponent(item)}`).join('&');
       return `/v2/core/accounts/${accountId}?${include}`;
     }
+
+    /**
+     * The only account-creation call. LIVE checks the gate again immediately
+     * before the request. Failure releases nothing here; callers release the claim.
+     */
+    async function createAccountsV2Supplier(input: {
+      supplierId: string;
+      email?: string;
+      displayName: string;
+      entityType: 'individual' | 'company';
+      countryRaw: string;
+    }): Promise<{ id: string; mirror: ReturnType<typeof mirrorConnectAccount> }> {
+      if (platformMode === 'live') {
+        const createGate = await assertLiveCustomCreateAllowed(input.supplierId);
+        if (!createGate.allowed) throw new Error(createGate.reason);
+      }
+      if (platformMode !== 'live' && platformMode !== 'test') {
+        throw new Error('Accounts v2 creation is only available in TEST or LIVE.');
+      }
+      const country = finlandSupplierCountry(input.countryRaw);
+      if (!country) throw new Error('Accounts v2 onboarding is available for Finnish suppliers.');
+      const createBody = buildV2RecipientCreateBody({
+        email: input.email,
+        displayName: input.displayName,
+        supplierId: input.supplierId,
+        environment: platformMode,
+      });
+      (createBody.identity as { entity_type: string }).entity_type = input.entityType;
+      const created = await stripeV2(
+        'POST',
+        '/v2/core/accounts',
+        createBody,
+        `traverion-v2:${input.supplierId}:${platformMode}`
+      );
+      const check = assertV2RecipientConfig(created);
+      const modeMismatch =
+        (platformMode === 'test' && created.livemode === true) ||
+        (platformMode === 'live' && created.livemode === false);
+      const owner = (created.metadata?.traverion_supplier_id ?? '').trim();
+      if (!check.ok || modeMismatch || !created.id || (owner && owner !== input.supplierId)) {
+        throw new Error(
+          `Accounts v2 configuration was rejected (${check.ok ? 'livemode or ownership' : check.problems.join(', ')}). No legacy account was created.`
+        );
+      }
+      const retrieved = await stripe.accounts.retrieve(created.id);
+      const mirror = mirrorConnectAccount(retrieved as Parameters<typeof mirrorConnectAccount>[0]);
+      return {
+        id: created.id,
+        mirror: {
+          ...mirror,
+          connect_account_type: 'custom',
+          connect_account_livemode: platformMode === 'live',
+        },
+      };
+    }
     const body = (await req.json().catch(() => ({}))) as Body;
 
     async function assertLiveCustomCreateAllowed(targetSupplierId: string): Promise<
@@ -354,24 +412,7 @@ serve(async (req) => {
 
       const { data: userRow } = await admin.auth.admin.getUserById(targetSupplierId);
       const email = userRow?.user?.email ?? undefined;
-      const country = (targetProfile.address_country || targetProfile.connect_country || 'FI')
-        .toString()
-        .slice(0, 2)
-        .toUpperCase();
       const isIndividual = targetProfile.business_type === 'individual';
-      const commonMeta = {
-        traverion_supplier_id: targetSupplierId,
-        traverion_environment: 'live',
-        traverion_onboarding: 'p81_live_admin_ensure',
-      };
-      const businessProfile = {
-        name:
-          (targetProfile.display_name || targetProfile.company_legal_name || undefined) ?? undefined,
-        product_description: 'Travel experiences and stays sold on Traverion',
-        mcc: '4722',
-        support_email: email,
-        support_phone: targetProfile.contact_phone || undefined,
-      };
 
       const createGate = await assertLiveCustomCreateAllowed(targetSupplierId);
       if (!createGate.allowed) {
@@ -383,46 +424,31 @@ serve(async (req) => {
         }, 403);
       }
 
-      // Custom only. A failed Custom create must not mint an Express account.
-      let created: Stripe.Account;
-      const createPath = 'custom' as const;
+      // Same v2 body as supplier onboarding. A failed create must not mint Express or Custom.
+      let created: { id: string; mirror: ReturnType<typeof mirrorConnectAccount> };
       try {
-        created = await stripe.accounts.create({
-          type: 'custom',
-          country,
+        created = await createAccountsV2Supplier({
+          supplierId: targetSupplierId,
           email,
-          business_type: isIndividual ? 'individual' : 'company',
-          capabilities: { transfers: { requested: true } },
-          metadata: { ...commonMeta, traverion_account_type: 'custom' },
-          settings: { payouts: { schedule: { interval: 'daily' } } },
-          business_profile: businessProfile,
-          company: !isIndividual && targetProfile.company_legal_name
-            ? {
-                name: targetProfile.company_legal_name,
-                phone: targetProfile.contact_phone || undefined,
-                tax_id: targetProfile.tax_id || targetProfile.company_registration_number || undefined,
-                address: {
-                  line1: targetProfile.address_street || undefined,
-                  city: targetProfile.address_city || undefined,
-                  postal_code: targetProfile.address_postal_code || undefined,
-                  country,
-                },
-              }
-            : undefined,
-        }, { idempotencyKey: `traverion-admin-custom:${targetSupplierId}:live` });
-      } catch (customErr) {
-        const customMsg = customErr instanceof Error ? customErr.message : String(customErr);
+          displayName:
+            targetProfile.display_name ||
+            targetProfile.company_legal_name ||
+            email ||
+            'Traverion supplier',
+          entityType: isIndividual ? 'individual' : 'company',
+          countryRaw: targetProfile.address_country || 'FI',
+        });
+      } catch (v2Err) {
+        const detail = v2Err instanceof Error ? v2Err.message : String(v2Err);
         return json({
           success: false,
-          error: 'LIVE Custom account could not be created. No Express account was created.',
+          error: 'LIVE Accounts v2 account could not be created. No legacy account was created.',
           created: false,
-          detail: customMsg.slice(0, 120),
+          detail: detail.slice(0, 160),
         }, 502);
       }
 
-      const mirror = mirrorConnectAccount(created as Parameters<typeof mirrorConnectAccount>[0]);
-      // Force livemode true for LIVE platform creates (Stripe may omit on create response)
-      const mirrorLive = { ...mirror, connect_account_livemode: true as boolean };
+      const mirrorLive = created.mirror;
       const { error: updErr } = await admin
         .from('supplier_profiles')
         .update({
@@ -439,22 +465,15 @@ serve(async (req) => {
         supplier_id: targetSupplierId,
         amount_minor: 0,
         currency: 'EUR',
-        reason: `Created LIVE ${createPath} Connect account; onboarding incomplete until Stripe confirms`,
+        reason: 'Created LIVE Accounts v2 recipient; onboarding incomplete until Stripe confirms',
         provider_ref: created.id,
         after_state: {
           account_id: created.id,
-          account_type: createPath,
+          account_type: 'v2',
           archived_test_account_id: archivedTestId,
           connect_onboarding_status: mirrorLive.connect_onboarding_status,
           connect_account_livemode: true,
         },
-      });
-
-      const link = await stripe.accountLinks.create({
-        account: created.id,
-        refresh_url: `${publicSiteUrl}/partner/money?tab=settings&connect=refresh`,
-        return_url: `${publicSiteUrl}/partner/money?tab=settings&connect=return`,
-        type: 'account_onboarding',
       });
 
       return json({
@@ -463,16 +482,14 @@ serve(async (req) => {
         created: true,
         environment: 'live',
         account_id: created.id,
-        account_type: createPath,
+        account_type: 'custom',
         archived_test_account_id: archivedTestId,
         onboarding: mirrorLive,
-        account_link_url: link.url,
-        account_link_expires_at: link.expires_at,
         charges_enabled: mirrorLive.connect_charges_enabled,
         payouts_enabled: mirrorLive.connect_payouts_enabled,
         details_submitted: mirrorLive.connect_details_submitted,
         connect_onboarding_status: mirrorLive.connect_onboarding_status,
-        note: `LIVE ${createPath} account created. Not Verified until Stripe confirms capabilities after supplier completes onboarding.`,
+        note: 'LIVE Accounts v2 account created. Not Verified until stripe_transfers is active.',
       });
     }
 
@@ -536,6 +553,20 @@ serve(async (req) => {
     const refreshUrl = `${origin}/partner/money?tab=settings&connect=refresh`;
     const ip = clientIp(req);
 
+    let latestStripeTransfersStatus: string | undefined;
+
+    async function nativeV2Account(accountId: string): Promise<V2AccountSnapshot | null> {
+      const v2 = await stripeV2('GET', v2RetrievePath(accountId)).catch(() => null);
+      if (!isAccountsV2Native(v2)) return null;
+      if (platformMode === 'test' && v2.livemode === true) {
+        throw new Error('LIVE connected accounts cannot be used on TEST Traverion.');
+      }
+      if (platformMode === 'live' && v2.livemode === false) {
+        throw new Error('TEST connected accounts cannot be used on LIVE Traverion.');
+      }
+      return v2;
+    }
+
     async function persistMirror(mirror: ReturnType<typeof mirrorConnectAccount>) {
       const { error: updErr } = await admin
         .from('supplier_profiles')
@@ -545,6 +576,7 @@ serve(async (req) => {
     }
 
     async function syncAccount(accountId: string) {
+      latestStripeTransfersStatus = undefined;
       let account: Stripe.Account;
       try {
         account = await stripe.accounts.retrieve(accountId);
@@ -576,6 +608,20 @@ serve(async (req) => {
       if (platformMode === 'live' && (account as { livemode?: boolean }).livemode === false) {
         await archiveLinkedAccount(accountId);
         throw new Error('TEST connected accounts cannot be used on LIVE Traverion. Start LIVE onboarding again.');
+      }
+      if (platformMode === 'test' && (account as { livemode?: boolean }).livemode === true) {
+        throw new Error('LIVE connected accounts cannot be used on TEST Traverion.');
+      }
+      if (account.metadata?.traverion_account_api === 'v2') {
+        const v2 = await stripeV2('GET', v2RetrievePath(accountId)).catch(() => null);
+        if (platformMode === 'test' && v2?.livemode === true) {
+          throw new Error('LIVE connected accounts cannot be used on TEST Traverion.');
+        }
+        if (platformMode === 'live' && v2?.livemode === false) {
+          await archiveLinkedAccount(accountId);
+          throw new Error('TEST connected accounts cannot be used on LIVE Traverion. Start LIVE onboarding again.');
+        }
+        latestStripeTransfersStatus = v2StripeTransfersStatus(v2);
       }
       const mirror = mirrorConnectAccount(account as Parameters<typeof mirrorConnectAccount>[0]);
       const mirrorWithMode = {
@@ -671,7 +717,7 @@ serve(async (req) => {
                 'This organization already has payout activity on the previous verification path. Contact Traverion support to continue.',
             };
           }
-          // Safe TEST Express → archive, then create Custom below.
+          // Safe TEST Express → archive, then create Accounts v2 below.
           archivedFrom = accountId;
           await archiveLinkedAccount(accountId);
           accountId = null;
@@ -743,162 +789,34 @@ serve(async (req) => {
         throw new Error('LIVE payout account creation is turned off.');
       }
 
-      if (platformMode === 'test') {
-        const country = finlandSupplierCountry(
-          (profile.address_country || profile.connect_country || 'FI') as string
-        );
-        if (!country) {
-          await releaseConnectCreateClaim(supplierId!);
-          throw new Error('Accounts v2 onboarding is available for Finnish suppliers.');
-        }
-        const email = authData.user.email ?? undefined;
-        const entityType = profile.business_type === 'individual' ? 'individual' : 'company';
-        const createBody = buildV2RecipientCreateBody({
-          email,
-          displayName: (profile.display_name || profile.company_legal_name || 'Traverion supplier') as string,
-          supplierId: supplierId!,
-          environment: 'test',
-        });
-        (createBody.identity as { entity_type: string }).entity_type = entityType;
-        let created: V2AccountSnapshot;
-        try {
-          created = await stripeV2(
-            'POST',
-            '/v2/core/accounts',
-            createBody,
-            `traverion-v2:${supplierId}:test`
-          );
-        } catch (err) {
-          await releaseConnectCreateClaim(supplierId!);
-          throw err;
-        }
-        const check = assertV2RecipientConfig(created);
-        if (!check.ok || created.livemode === true || !created.id) {
-          await releaseConnectCreateClaim(supplierId!);
-          throw new Error(
-            `Accounts v2 configuration was rejected (${check.ok ? 'livemode' : check.problems.join(', ')}). No legacy account was created.`
-          );
-        }
-        const retrieved = await stripe.accounts.retrieve(created.id);
-        const mirror = mirrorConnectAccount(retrieved as Parameters<typeof mirrorConnectAccount>[0]);
-        const { error: insertErr } = await admin
-          .from('supplier_profiles')
-          .update({
-            ...mirror,
-            connect_account_type: 'custom',
-            connect_account_livemode: false,
-            payout_rail: 'manual_iban',
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', supplierId);
-        if (insertErr) throw new Error(insertErr.message);
-        profile.stripe_connected_account_id = created.id;
-        profile.connect_account_type = 'custom';
-        profile.connect_account_livemode = false;
-        return {
-          accountId: created.id,
-          accountType: 'custom',
-          archived_legacy_account_id:
-            archivedFrom || ((profile.connect_legacy_account_id as string | null) ?? null),
-        };
-      }
-
-      if (platformMode !== 'live') {
-        throw new Error('TEST account creation did not complete on Accounts v2.');
-      }
-
-      const country = (profile.address_country || profile.connect_country || 'FI')
-        .toString()
-        .slice(0, 2)
-        .toUpperCase();
-      const email = authData.user.email ?? undefined;
-      const isIndividual = profile.business_type === 'individual';
-      const createParams: Stripe.AccountCreateParams = {
-        type: 'custom',
-        country,
-        email,
-        business_type: isIndividual ? 'individual' : 'company',
-        capabilities: {
-          transfers: { requested: true },
-        },
-        metadata: {
-          traverion_supplier_id: supplierId!,
-          traverion_environment: platformMode,
-          traverion_onboarding: 'api_native',
-        },
-        settings: {
-          payouts: {
-            schedule: { interval: 'daily' },
-          },
-        },
-        business_profile: {
-          name: (profile.display_name || profile.company_legal_name || undefined) ?? undefined,
-          product_description: 'Travel experiences and stays sold on Traverion',
-          mcc: '4722',
-          support_email: email,
-          support_phone: profile.contact_phone || undefined,
-        },
-      };
-
-      if (!isIndividual && profile.company_legal_name) {
-        createParams.company = {
-          name: profile.company_legal_name,
-          phone: profile.contact_phone || undefined,
-          tax_id: profile.tax_id || profile.company_registration_number || undefined,
-          address: {
-            line1: profile.address_street || undefined,
-            city: profile.address_city || undefined,
-            postal_code: profile.address_postal_code || undefined,
-            country,
-          },
-        };
-      }
-
-      if (isIndividual) {
-        createParams.individual = {
-          email,
-          phone: profile.contact_phone || undefined,
-          address: {
-            line1: profile.address_street || undefined,
-            city: profile.address_city || undefined,
-            postal_code: profile.address_postal_code || undefined,
-            country,
-          },
-        };
-      }
-
-      let created: Stripe.Account;
-      const createdType = 'custom' as const;
+      let created: { id: string; mirror: ReturnType<typeof mirrorConnectAccount> };
       try {
-        created = await stripe.accounts.create(createParams, {
-          idempotencyKey: `traverion-custom:${supplierId}:${platformMode}`,
+        created = await createAccountsV2Supplier({
+          supplierId: supplierId!,
+          email: authData.user.email ?? undefined,
+          displayName: (profile.display_name || profile.company_legal_name || 'Traverion supplier') as string,
+          entityType: profile.business_type === 'individual' ? 'individual' : 'company',
+          countryRaw: (profile.address_country || profile.connect_country || 'FI') as string,
         });
-      } catch (customErr) {
+      } catch (err) {
         await releaseConnectCreateClaim(supplierId!);
-        throw customErr;
+        throw err;
       }
-      accountId = created.id;
-      const mirror = mirrorConnectAccount(created as Parameters<typeof mirrorConnectAccount>[0]);
-      const mirrorMode = {
-        ...mirror,
-        connect_account_livemode: platformMode === 'live',
-      };
       const { error: insertErr } = await admin
         .from('supplier_profiles')
         .update({
-          ...mirrorMode,
+          ...created.mirror,
           payout_rail: 'manual_iban',
           updated_at: new Date().toISOString(),
         })
         .eq('id', supplierId);
       if (insertErr) throw new Error(insertErr.message);
-      // Refresh local profile pointer for subsequent actions in this request.
-      profile.stripe_connected_account_id = accountId;
-      profile.connect_account_type = createdType;
+      profile.stripe_connected_account_id = created.id;
+      profile.connect_account_type = 'custom';
       profile.connect_account_livemode = platformMode === 'live';
       return {
-        accountId,
-        accountType: createdType,
+        accountId: created.id,
+        accountType: 'custom' as const,
         archived_legacy_account_id:
           archivedFrom || ((profile.connect_legacy_account_id as string | null) ?? null),
       };
@@ -923,10 +841,12 @@ serve(async (req) => {
         can_receive_transfers: connectCanReceiveTransfers({
           ...(mirror as Parameters<typeof connectCanReceiveTransfers>[0]),
           require_live: platformMode === 'live',
+          stripe_transfers_status: latestStripeTransfersStatus,
         }),
         verified: connectCanReceiveTransfers({
           ...(mirror as Parameters<typeof connectCanReceiveTransfers>[0]),
           require_live: platformMode === 'live',
+          stripe_transfers_status: latestStripeTransfersStatus,
         }) === true,
         account_id: accountId,
         account_type: accountType,
@@ -1103,9 +1023,9 @@ serve(async (req) => {
       const b = body.business ?? {};
       const country = (b.address?.country || profile.address_country || 'FI').toString().slice(0, 2).toUpperCase();
       const businessType = b.business_type || (profile.business_type === 'individual' ? 'individual' : 'company');
-      if (accountType === 'custom' && platformMode === 'test') {
-        const v2 = await stripeV2('GET', v2RetrievePath(accountId)).catch(() => null);
-        if (isAccountsV2Native(v2)) {
+      if (accountType === 'custom') {
+        const v2 = await nativeV2Account(accountId);
+        if (v2) {
           if (finlandSupplierCountry(country) !== 'FI') {
             return json({ success: false, error: 'Accounts v2 onboarding is available for Finnish suppliers.' }, 400);
           }
@@ -1308,9 +1228,8 @@ serve(async (req) => {
         const created = await stripe.accounts.createPerson(accountId, personParams as Stripe.PersonCreateParams);
         personId = created.id;
       }
-      if (platformMode === 'test') {
-        const v2 = await stripeV2('GET', v2RetrievePath(accountId)).catch(() => null);
-        if (isAccountsV2Native(v2)) {
+      const representativeV2 = await nativeV2Account(accountId);
+      if (representativeV2) {
           const ownerDeclared = Boolean(r.relationship?.owner) && ownership != null;
           await stripeV2('POST', `/v2/core/accounts/${accountId}`, {
             identity: {
@@ -1326,7 +1245,6 @@ serve(async (req) => {
           });
           const { mirror } = await syncAccount(accountId);
           return json({ action, person_id: personId, ...statusPayload(mirror, accountId) });
-        }
       }
       // Mark ownership/structure declarations when the representative covers those roles.
       const ownerDeclared = Boolean(r.relationship?.owner) && ownership != null;
@@ -1354,9 +1272,8 @@ serve(async (req) => {
           account_type: 'express',
         }, 409);
       }
-      if (platformMode === 'test') {
-        const v2 = await stripeV2('GET', v2RetrievePath(accountId)).catch(() => null);
-        if (isAccountsV2Native(v2)) {
+      const tosV2 = await nativeV2Account(accountId);
+      if (tosV2) {
           await stripeV2('POST', `/v2/core/accounts/${accountId}`, {
             identity: {
               attestations: {
@@ -1369,7 +1286,6 @@ serve(async (req) => {
           });
           const { mirror } = await syncAccount(accountId);
           return json({ action, ...statusPayload(mirror, accountId) });
-        }
       }
       await stripe.accounts.update(accountId, {
         tos_acceptance: {

@@ -1,6 +1,6 @@
 /**
- * Accounts v2 recipient configuration for new Finnish TEST suppliers.
- * LIVE onboarding does not use this create body.
+ * Accounts v2 recipient configuration for new Finnish suppliers.
+ * LIVE creation uses this same body and stays behind the disabled creation gate.
  */
 
 export const ACCOUNTS_V2_STRIPE_VERSION = '2026-10-28.preview';
@@ -57,7 +57,7 @@ export function buildV2RecipientCreateBody(input: {
   email?: string;
   displayName?: string;
   supplierId: string;
-  environment: 'test';
+  environment: 'test' | 'live';
 }): Record<string, unknown> {
   return {
     contact_email: input.email,
@@ -149,4 +149,12 @@ export function v2RequirementBuckets(account: V2AccountSnapshot): {
 
 export function isAccountsV2Native(account: V2AccountSnapshot | null | undefined): boolean {
   return account?.metadata?.traverion_account_api === 'v2';
+}
+
+/** Authoritative transfer capability for a v2 account. Missing means not verified. */
+export function v2StripeTransfersStatus(account: V2AccountSnapshot | null | undefined): string {
+  return (
+    account?.configuration?.recipient?.capabilities?.stripe_balance?.stripe_transfers?.status ??
+    'missing'
+  );
 }

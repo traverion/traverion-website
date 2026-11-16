@@ -54,7 +54,7 @@ describe('P9.3 LIVE Custom creation gate', () => {
     expect(edge).toContain('liveCustomCreateAllowed');
     expect(edge).toContain('idempotencyKey');
     expect(edge).not.toContain('api_native_express_fallback');
-    expect(edge).toContain('No Express account was created');
+    expect(edge).toContain('No legacy account was created');
   });
 
   it('does not mark an account verified from form submission alone', () => {
