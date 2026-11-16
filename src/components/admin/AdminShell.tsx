@@ -13,6 +13,7 @@ import {
   Percent,
   RefreshCw,
   Search,
+  ShieldCheck,
   ShieldOff,
   Store,
   UserCircle,
@@ -33,6 +34,7 @@ const AdminSupplierPortalMessagesPanel = lazy(() => import('./AdminSupplierPorta
 const AdminBookingsPanel = lazy(() => import('./AdminBookingsPanel'));
 const AdminFinancePanel = lazy(() => import('./AdminFinancePanel'));
 const AdminCommercialPanel = lazy(() => import('./AdminCommercialPanel'));
+const AdminLiveV2PilotPanel = lazy(() => import('./AdminLiveV2PilotPanel'));
 const AdminInquiriesPanel = lazy(() => import('./AdminInquiriesPanel'));
 const AdminListingsModerationPanel = lazy(() => import('./AdminListingsModerationPanel'));
 const AdminContentReportsPanel = lazy(() => import('./AdminContentReportsPanel'));
@@ -53,6 +55,7 @@ export type AdminTab =
   | 'bookings'
   | 'finance'
   | 'commercial'
+  | 'live_v2_pilot'
   | 'users'
   | 'suppliers_dir'
   | 'customers'
@@ -75,6 +78,7 @@ const NAV: NavItem[] = [
   { id: 'past_verifications', label: 'Past reviews', icon: History, group: 'Ops' },
   { id: 'finance', label: 'Finance', icon: Wallet, group: 'Money' },
   { id: 'commercial', label: 'Commercial & payouts', icon: Percent, group: 'Money' },
+  { id: 'live_v2_pilot', label: 'LIVE v2 pilot', icon: ShieldCheck, group: 'Money' },
   { id: 'suppliers_dir', label: 'All suppliers', icon: Store, group: 'People' },
   { id: 'customers', label: 'All customers', icon: UserCircle, group: 'People' },
   { id: 'users', label: 'Auth users', icon: Users, group: 'People' },
@@ -808,6 +812,14 @@ export default function AdminShell() {
           {activeTab === 'commercial' && (
             <PanelFrame title="Commercial & payouts" subtitle="Commission terms, periods, holds, refund instructions.">
               <AdminCommercialPanel />
+            </PanelFrame>
+          )}
+          {activeTab === 'live_v2_pilot' && (
+            <PanelFrame
+              title="LIVE Accounts v2 pilot"
+              subtitle="Eligibility and approval only — never enables the creation gate or allowlist."
+            >
+              <AdminLiveV2PilotPanel />
             </PanelFrame>
           )}
           {activeTab === 'users' && <UsersPanel />}

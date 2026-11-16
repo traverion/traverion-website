@@ -438,7 +438,7 @@ serve(async (req) => {
             email ||
             'Traverion supplier',
           entityType: isIndividual ? 'individual' : 'company',
-          countryRaw: targetProfile.address_country || 'FI',
+          countryRaw: (targetProfile.address_country as string | null) || '',
         });
       } catch (v2Err) {
         const detail = v2Err instanceof Error ? v2Err.message : String(v2Err);
@@ -798,7 +798,7 @@ serve(async (req) => {
           email: authData.user.email ?? undefined,
           displayName: (profile.display_name || profile.company_legal_name || 'Traverion supplier') as string,
           entityType: profile.business_type === 'individual' ? 'individual' : 'company',
-          countryRaw: (profile.address_country || profile.connect_country || 'FI') as string,
+          countryRaw: ((profile.address_country || profile.connect_country || '') as string),
         });
       } catch (err) {
         await releaseConnectCreateClaim(supplierId!);
@@ -1023,13 +1023,18 @@ serve(async (req) => {
         }, 409);
       }
       const b = body.business ?? {};
-      const country = (b.address?.country || profile.address_country || 'FI').toString().slice(0, 2).toUpperCase();
+      const country = (b.address?.country || profile.address_country || '').toString().trim().toUpperCase();
       const businessType = b.business_type || (profile.business_type === 'individual' ? 'individual' : 'company');
       if (accountType === 'custom') {
         const v2 = await nativeV2Account(accountId);
         if (v2) {
           if (finlandSupplierCountry(country) !== 'FI') {
-            return json({ success: false, error: 'Accounts v2 onboarding is available for Finnish suppliers.' }, 400);
+            return json({
+              success: false,
+              error: country
+                ? 'Accounts v2 onboarding is available for Finnish suppliers.'
+                : 'Enter the country code FI before continuing payout setup.',
+            }, 400);
           }
           const registeredName = b.legal_name || profile.company_legal_name || profile.display_name || undefined;
           const registration = (b.registration_number || b.tax_id || profile.company_registration_number || profile.tax_id || '').trim();

@@ -49,7 +49,8 @@ export const V2_RETRIEVE_INCLUDE = [
 
 export function finlandSupplierCountry(raw: string | null | undefined): 'FI' | null {
   const value = (raw ?? '').trim().toUpperCase();
-  if (!value || value === 'FI' || value === 'FINLAND') return 'FI';
+  // Missing country must not become Finland. LIVE and TEST both require an explicit FI value.
+  if (value === 'FI' || value === 'FINLAND') return 'FI';
   return null;
 }
 

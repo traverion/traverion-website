@@ -12,6 +12,11 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.4';
 import { authUserVerifiedEmail } from '../_shared/auth-verified-email.ts';
+import {
+  assessLiveAccountsV2PilotEligibility,
+  normalizePilotLegalName,
+  type LivePilotProfileInput,
+} from '../_shared/live-accounts-v2-pilot-eligibility.ts';
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -156,8 +161,16 @@ type Body = {
     | 'marketplace_reset'
     | 'users_list'
     | 'suppliers_directory'
-    | 'consumers_directory';
+    | 'consumers_directory'
+    | 'list_live_v2_pilot_candidates'
+    | 'assess_live_v2_pilot'
+    | 'approve_live_v2_pilot';
   supplierId?: string;
+  /** P9.12 LIVE Accounts v2 pilot approval — never enables the creation gate. */
+  ownerConfirmed?: boolean;
+  stripeVerificationAcknowledged?: boolean;
+  confirmLivePilot?: boolean;
+  livePilotNote?: string;
   feedback?: string | null;
   notificationTitle?: string;
   notificationBody?: string;
@@ -1996,6 +2009,256 @@ serve(async (req) => {
     const { error } = await admin.from('supplier_portal_notifications').delete().eq('id', id);
     if (error) return json({ error: error.message }, 500);
     return json({ ok: true });
+  }
+
+  async function loadLivePilotContext(targetSupplierId: string) {
+    const { data: profile, error: profileErr } = await admin
+      .from('supplier_profiles')
+      .select(
+        'id, display_name, company_legal_name, business_type, address_country, connect_country, contact_phone, verification_status, stripe_connected_account_id, connect_account_type, connect_account_livemode, connect_legacy_account_id, connect_create_claimed_at'
+      )
+      .eq('id', targetSupplierId)
+      .maybeSingle();
+    if (profileErr) throw new Error(profileErr.message);
+    if (!profile) return null;
+
+    const { data: flagRow } = await admin
+      .from('commercial_runtime_config')
+      .select('value_int')
+      .eq('key', 'live_custom_onboarding_enabled')
+      .maybeSingle();
+    const { data: allowRow } = await admin
+      .from('live_custom_onboarding_allowlist')
+      .select('supplier_id')
+      .eq('supplier_id', targetSupplierId)
+      .maybeSingle();
+    const { data: approvalRow } = await admin
+      .from('live_accounts_v2_pilot_approvals')
+      .select('supplier_id, approved_by, approved_at, owner_confirmed, stripe_verification_acknowledged, note')
+      .eq('supplier_id', targetSupplierId)
+      .maybeSingle();
+    const { data: ownerRow } = await admin
+      .from('supplier_team_members')
+      .select('user_id, role')
+      .eq('supplier_id', targetSupplierId)
+      .eq('role', 'owner')
+      .maybeSingle();
+
+    const legal = normalizePilotLegalName(profile.company_legal_name);
+    let duplicateSupplierIds: string[] = [];
+    if (legal) {
+      const { data: peers } = await admin
+        .from('supplier_profiles')
+        .select('id, company_legal_name, display_name')
+        .neq('id', targetSupplierId);
+      duplicateSupplierIds = (peers ?? [])
+        .filter((row) => {
+          const peerLegal = normalizePilotLegalName(row.company_legal_name);
+          const peerDisplay = normalizePilotLegalName(row.display_name);
+          return peerLegal === legal || peerDisplay === legal || (!!peerLegal && peerLegal === normalizePilotLegalName(profile.display_name));
+        })
+        .map((row) => row.id as string);
+    }
+
+    return {
+      profile: profile as LivePilotProfileInput,
+      gateEnabled: Number(flagRow?.value_int) === 1,
+      allowlisted: Boolean(allowRow?.supplier_id),
+      approval: approvalRow ?? null,
+      ownerMembership: ownerRow ?? null,
+      duplicateSupplierIds,
+    };
+  }
+
+  if (body.action === 'list_live_v2_pilot_candidates') {
+    const { data: rows, error } = await admin
+      .from('supplier_profiles')
+      .select(
+        'id, display_name, company_legal_name, business_type, address_country, connect_country, contact_phone, verification_status, stripe_connected_account_id, connect_account_type, connect_account_livemode, connect_legacy_account_id, connect_create_claimed_at'
+      )
+      .order('updated_at', { ascending: false })
+      .limit(200);
+    if (error) return json({ error: error.message }, 500);
+    const { data: flagRow } = await admin
+      .from('commercial_runtime_config')
+      .select('value_int')
+      .eq('key', 'live_custom_onboarding_enabled')
+      .maybeSingle();
+    const { data: allowRows } = await admin.from('live_custom_onboarding_allowlist').select('supplier_id');
+    const { data: approvalRows } = await admin
+      .from('live_accounts_v2_pilot_approvals')
+      .select('supplier_id, approved_at, approved_by');
+    const allowSet = new Set((allowRows ?? []).map((row) => row.supplier_id as string));
+    const approvalById = new Map(
+      (approvalRows ?? []).map((row) => [row.supplier_id as string, row] as const)
+    );
+    const { data: memberships } = await admin
+      .from('supplier_team_members')
+      .select('supplier_id')
+      .eq('role', 'owner');
+    const ownerSet = new Set((memberships ?? []).map((row) => row.supplier_id as string));
+    const { data: allProfiles } = await admin.from('supplier_profiles').select('id');
+    const profileIds = new Set((allProfiles ?? []).map((row) => row.id as string));
+    const { data: orphanMemberships } = await admin.from('supplier_team_members').select('supplier_id, user_id, role');
+    const orphans = (orphanMemberships ?? []).filter((row) => !profileIds.has(row.supplier_id as string));
+
+    const items = (rows ?? []).map((row) => {
+      const assessment = assessLiveAccountsV2PilotEligibility(row as LivePilotProfileInput, {
+        ownerConfirmed: ownerSet.has(row.id as string),
+        stripeVerificationAcknowledged: false,
+        gateEnabled: Number(flagRow?.value_int) === 1,
+        allowlisted: allowSet.has(row.id as string),
+      });
+      return {
+        ...assessment,
+        display_name: row.display_name,
+        incomplete: !row.company_legal_name || !row.business_type || !row.address_country,
+        pilot_approved_at: approvalById.get(row.id as string)?.approved_at ?? null,
+        reviewFlags: [
+          ...assessment.reviewFlags,
+          ...(!row.company_legal_name && row.display_name
+            ? ['Incomplete profile: display name without legal business name.']
+            : []),
+        ],
+      };
+    });
+
+    return json({
+      ok: true,
+      gate_enabled: Number(flagRow?.value_int) === 1,
+      allowlist_count: allowSet.size,
+      orphan_team_memberships: orphans.map((row) => ({
+        supplier_id: row.supplier_id,
+        user_id: row.user_id,
+        role: row.role,
+      })),
+      items,
+      note: 'Approval records eligibility only. It does not allowlist the supplier or enable LIVE account creation.',
+    });
+  }
+
+  if (body.action === 'assess_live_v2_pilot') {
+    const targetId = body.supplierId?.trim();
+    if (!targetId) return json({ error: 'supplierId required' }, 400);
+    let ctx;
+    try {
+      ctx = await loadLivePilotContext(targetId);
+    } catch (e) {
+      return json({ error: e instanceof Error ? e.message : 'Assessment failed' }, 500);
+    }
+    if (!ctx) return json({ error: 'Supplier not found' }, 404);
+    const assessment = assessLiveAccountsV2PilotEligibility(ctx.profile, {
+      ownerConfirmed: body.ownerConfirmed === true,
+      stripeVerificationAcknowledged: body.stripeVerificationAcknowledged === true,
+      duplicateSupplierIds: ctx.duplicateSupplierIds,
+      gateEnabled: ctx.gateEnabled,
+      allowlisted: ctx.allowlisted,
+    });
+    return json({
+      ok: true,
+      assessment,
+      owner_membership: ctx.ownerMembership,
+      existing_approval: ctx.approval,
+      gate_enabled: ctx.gateEnabled,
+      allowlisted: ctx.allowlisted,
+      note: 'Do not allowlist or enable the LIVE creation gate from this assessment.',
+    });
+  }
+
+  if (body.action === 'approve_live_v2_pilot') {
+    const targetId = body.supplierId?.trim();
+    if (!targetId) return json({ error: 'supplierId required' }, 400);
+    if (body.confirmLivePilot !== true) {
+      return json({ error: 'confirmLivePilot must be true to record pilot approval.' }, 400);
+    }
+    if (body.ownerConfirmed !== true) {
+      return json({ error: 'ownerConfirmed must be true.' }, 400);
+    }
+    if (body.stripeVerificationAcknowledged !== true) {
+      return json({ error: 'stripeVerificationAcknowledged must be true.' }, 400);
+    }
+    let ctx;
+    try {
+      ctx = await loadLivePilotContext(targetId);
+    } catch (e) {
+      return json({ error: e instanceof Error ? e.message : 'Approval failed' }, 500);
+    }
+    if (!ctx) return json({ error: 'Supplier not found' }, 404);
+    if (ctx.gateEnabled) {
+      return json({
+        error: 'LIVE creation gate is ON. Turn it off before recording a pilot approval.',
+        gate_enabled: true,
+      }, 409);
+    }
+    if (ctx.allowlisted) {
+      return json({
+        error: 'Supplier is already on the LIVE creation allowlist. Remove that row before using pilot approval.',
+        allowlisted: true,
+      }, 409);
+    }
+    const assessment = assessLiveAccountsV2PilotEligibility(ctx.profile, {
+      ownerConfirmed: true,
+      stripeVerificationAcknowledged: true,
+      duplicateSupplierIds: ctx.duplicateSupplierIds,
+      gateEnabled: false,
+      allowlisted: false,
+    });
+    if (!assessment.eligible) {
+      return json({ error: 'Supplier is not eligible for LIVE pilot approval.', assessment }, 400);
+    }
+    if (assessment.reviewFlags.some((flag) => /duplicate/i.test(flag))) {
+      return json({
+        error: 'Possible duplicate legal entity. Resolve the duplicate review flag before approving.',
+        assessment,
+      }, 409);
+    }
+
+    const now = new Date().toISOString();
+    const note =
+      typeof body.livePilotNote === 'string' && body.livePilotNote.trim()
+        ? body.livePilotNote.trim().slice(0, 500)
+        : null;
+    const { error: upsertErr } = await admin.from('live_accounts_v2_pilot_approvals').upsert(
+      {
+        supplier_id: targetId,
+        approved_by: adminUserId,
+        approved_at: now,
+        owner_confirmed: true,
+        stripe_verification_acknowledged: true,
+        eligibility_snapshot: assessment,
+        note,
+      },
+      { onConflict: 'supplier_id' }
+    );
+    if (upsertErr) return json({ error: upsertErr.message }, 500);
+
+    await admin.from('financial_audit_log').insert({
+      actor_id: adminUserId,
+      action: 'live_accounts_v2_pilot_approved',
+      supplier_id: targetId,
+      amount_minor: 0,
+      currency: 'EUR',
+      reason: 'Admin recorded LIVE Accounts v2 pilot eligibility. Gate and allowlist were not changed.',
+      after_state: {
+        approved_at: now,
+        gate_enabled: false,
+        allowlisted: false,
+        eligibility: assessment,
+        note,
+      },
+    });
+
+    return json({
+      ok: true,
+      approved: true,
+      supplier_id: targetId,
+      approved_by: adminUserId,
+      approved_at: now,
+      gate_enabled: false,
+      allowlisted: false,
+      assessment,
+      note: 'Pilot approval recorded. LIVE account creation remains blocked until a separate gate and allowlist authorization.',
+    });
   }
 
   const supplierId = body.supplierId?.trim();

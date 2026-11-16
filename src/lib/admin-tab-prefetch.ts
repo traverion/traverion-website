@@ -28,6 +28,9 @@ export function prefetchAdminTab(tab: string): void {
     case 'commercial':
       warm(tab, () => import('../components/admin/AdminCommercialPanel'));
       break;
+    case 'live_v2_pilot':
+      warm(tab, () => import('../components/admin/AdminLiveV2PilotPanel'));
+      break;
     case 'listings':
       warm(tab, () => import('../components/admin/AdminListingsModerationPanel'));
       break;

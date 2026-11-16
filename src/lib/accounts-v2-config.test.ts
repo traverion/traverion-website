@@ -29,7 +29,8 @@ describe('Accounts v2 TEST recipient configuration', () => {
     expect(JSON.stringify(body.configuration)).not.toContain('merchant');
     expect(JSON.stringify(body.configuration)).not.toContain('card_payments');
     expect(finlandSupplierCountry('SE')).toBeNull();
-    expect(finlandSupplierCountry('')).toBe('FI');
+    expect(finlandSupplierCountry('')).toBeNull();
+    expect(finlandSupplierCountry('FI')).toBe('FI');
   });
 
   it('accepts only the selected collectors', () => {
