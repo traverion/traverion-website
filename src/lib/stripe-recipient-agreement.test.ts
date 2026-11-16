@@ -42,12 +42,17 @@ describe('Stripe Recipient Agreement acceptance', () => {
     const versionAt = accept.indexOf('agreement_version');
     const auditAt = accept.indexOf('supplier_recipient_agreement_accepted');
     const stripeAt = accept.indexOf('stripeV2');
+    const failedAt = accept.indexOf('supplier_recipient_agreement_stripe_failed');
+    const recordedAt = accept.indexOf('supplier_recipient_agreement_stripe_recorded');
     expect(versionAt).toBeGreaterThan(-1);
     expect(auditAt).toBeGreaterThan(versionAt);
     expect(stripeAt).toBeGreaterThan(auditAt);
+    expect(failedAt).toBeGreaterThan(stripeAt);
+    expect(recordedAt).toBeGreaterThan(failedAt);
     expect(accept).toContain('user_agent');
     expect(accept).toContain("ip === '0.0.0.0'");
     expect(accept).toContain('account_type: \'express\'');
     expect(accept.indexOf("accountType === 'express'")).toBeLessThan(auditAt);
+    expect(accept).not.toContain('verified: true');
   });
 });

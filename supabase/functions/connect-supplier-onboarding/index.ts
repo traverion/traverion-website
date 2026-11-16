@@ -1300,32 +1300,65 @@ serve(async (req) => {
         },
       });
       if (auditErr) return json({ success: false, error: auditErr.message }, 500);
+      const acceptance = {
+        date: acceptedAt,
+        ip,
+        ...(userAgent ? { user_agent: userAgent } : {}),
+      };
       const tosV2 = await nativeV2Account(accountId);
-      if (tosV2) {
+      try {
+        if (tosV2) {
           await stripeV2('POST', `/v2/core/accounts/${accountId}`, {
             identity: {
               attestations: {
-                terms_of_service: {
-                  account: {
-                    date: acceptedAt,
-                    ip,
-                    ...(userAgent ? { user_agent: userAgent } : {}),
-                  },
-                },
+                terms_of_service: { account: acceptance },
               },
             },
             include: [...V2_RETRIEVE_INCLUDE],
           });
-          const { mirror } = await syncAccount(accountId);
-          return json({ action, ...statusPayload(mirror, accountId) });
+        } else {
+          await stripe.accounts.update(accountId, {
+            tos_acceptance: {
+              date: Math.floor(Date.parse(acceptedAt) / 1000),
+              ip,
+              ...(userAgent ? { user_agent: userAgent } : {}),
+            },
+          });
+        }
+      } catch (stripeErr) {
+        const message = stripeErr instanceof Error ? stripeErr.message : 'Stripe agreement update failed';
+        await admin.from('financial_audit_log').insert({
+          actor_id: supplierId,
+          action: 'supplier_recipient_agreement_stripe_failed',
+          supplier_id: supplierId,
+          amount_minor: 0,
+          currency: 'EUR',
+          reason: 'Stripe did not record the recipient agreement. The supplier can submit the same acceptance again.',
+          provider_ref: accountId,
+          after_state: {
+            agreement_version: STRIPE_RECIPIENT_AGREEMENT.version,
+            accepted_at: acceptedAt,
+            stripe_recorded: false,
+            error: message.slice(0, 180),
+          },
+        });
+        throw stripeErr;
       }
-      await stripe.accounts.update(accountId, {
-        tos_acceptance: {
-          date: Math.floor(Date.now() / 1000),
-          ip,
-          ...(userAgent ? { user_agent: userAgent } : {}),
+      const { error: recordedErr } = await admin.from('financial_audit_log').insert({
+        actor_id: supplierId,
+        action: 'supplier_recipient_agreement_stripe_recorded',
+        supplier_id: supplierId,
+        amount_minor: 0,
+        currency: 'EUR',
+        reason: 'Stripe accepted the recipient agreement update after the supplier consent was stored.',
+        provider_ref: accountId,
+        after_state: {
+          agreement_version: STRIPE_RECIPIENT_AGREEMENT.version,
+          accepted_at: acceptedAt,
+          stripe_recorded: true,
         },
       });
+      if (recordedErr) return json({ success: false, error: recordedErr.message }, 500);
       const { mirror } = await syncAccount(accountId);
       return json({ action, ...statusPayload(mirror, accountId) });
     }
