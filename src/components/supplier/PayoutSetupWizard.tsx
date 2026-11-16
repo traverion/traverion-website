@@ -29,6 +29,7 @@ import {
   type PayoutWizardDraft,
   type PayoutWizardStepId,
 } from '../../lib/payout-setup-wizard';
+import { isSupplierBusinessIdentityLocked } from '../../lib/supplierVerificationLocks';
 import {
   PARTNER_PAYOUT_FREQUENCY_MONTHLY_DETAIL,
   PARTNER_PAYOUT_FREQUENCY_MONTHLY_LABEL,
@@ -36,6 +37,15 @@ import {
   PARTNER_PAYOUT_FREQUENCY_TWICE_MONTHLY_LABEL,
 } from '../../lib/booking-confirmation-copy';
 import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
+
+function normalizeCountryCode(raw: string): string {
+  const t = raw.trim();
+  if (!t) return '';
+  if (/^[A-Za-z]{2}$/.test(t)) return t.toUpperCase();
+  const lower = t.toLowerCase();
+  if (lower === 'finland' || lower === 'suomi') return 'FI';
+  return t;
+}
 
 const ConnectEmbeddedPanel = lazy(() => import('./ConnectEmbeddedPanel'));
 
@@ -136,8 +146,16 @@ export default function PayoutSetupWizard({
     patch({ step });
   };
 
+  const businessLocked = isSupplierBusinessIdentityLocked(
+    profile?.verification_status,
+    profile?.verification_submitted_at,
+    profile?.business_type
+  );
+
   const saveBusiness = async (): Promise<boolean> => {
-    const invalid = validatePayoutWizardBusiness(draft);
+    const normalizedCountry = normalizeCountryCode(draft.address_country);
+    const draftForValidation = { ...draft, address_country: normalizedCountry };
+    const invalid = validatePayoutWizardBusiness(draftForValidation);
     if (invalid) {
       setError(invalid);
       return false;
@@ -148,10 +166,37 @@ export default function PayoutSetupWizard({
     }
     setBusy(true);
     setError(null);
+    if (normalizedCountry !== draft.address_country) {
+      patch({ address_country: normalizedCountry });
+    }
+
+    // When Traverion business identity is locked (pending/verified), skip locked columns
+    // so Continue still works — Stripe handles remaining KYC. Phone remains writable.
+    if (businessLocked) {
+      if (draft.contact_phone.trim() !== (profile?.contact_phone ?? '')) {
+        const phoneRes = await updateSupplierCompanyProfile(userId, {
+          contact_phone: draft.contact_phone.trim() || null,
+        });
+        if (!phoneRes.success) {
+          setBusy(false);
+          setError(userFacingError(phoneRes.error, USER_ERROR.generic));
+          return false;
+        }
+      }
+      if (profile?.stripe_connected_account_id) {
+        await invokeConnectSupplierOnboarding('ensure_account');
+      }
+      onProfile(await fetchSupplierProfile(userId));
+      patch({ businessSavedAt: new Date().toISOString() });
+      setNote('Business details are locked for review — continuing with the saved profile.');
+      setBusy(false);
+      return true;
+    }
+
     const composedAddress = [
       draft.address_street.trim(),
       [draft.address_postal_code.trim(), draft.address_city.trim()].filter(Boolean).join(' '),
-      draft.address_country.trim(),
+      normalizedCountry,
     ]
       .filter(Boolean)
       .join(', ');
@@ -162,12 +207,25 @@ export default function PayoutSetupWizard({
       address_street: draft.address_street.trim() || null,
       address_city: draft.address_city.trim() || null,
       address_postal_code: draft.address_postal_code.trim() || null,
-      address_country: draft.address_country.trim() || null,
+      address_country: normalizedCountry || null,
       business_address: composedAddress || null,
       contact_phone: draft.contact_phone.trim() || null,
       managing_directors: draft.managing_directors.trim() || null,
     });
     if (!res.success) {
+      // Soft-continue when lock race: profile already has usable business details.
+      if (
+        /cannot be changed while your business profile/i.test(res.error ?? '') &&
+        Boolean(profile?.company_legal_name)
+      ) {
+        setNote('Business details are locked for review — continuing with the saved profile.');
+        if (profile?.stripe_connected_account_id) {
+          await invokeConnectSupplierOnboarding('ensure_account');
+        }
+        patch({ businessSavedAt: new Date().toISOString() });
+        setBusy(false);
+        return true;
+      }
       setBusy(false);
       setError(userFacingError(res.error, USER_ERROR.generic));
       return false;
@@ -471,6 +529,12 @@ export default function PayoutSetupWizard({
                   void onContinue();
                 }}
               >
+                {businessLocked ? (
+                  <p className="rounded-[10px] border border-[#dbe4f0] bg-[#f0f4fa] px-3 py-2 text-[12px] leading-relaxed text-[#1e3a5f]">
+                    These company details are locked while your business profile is under review. You can continue —
+                    identity and bank steps are completed securely with Stripe.
+                  </p>
+                ) : null}
                 <label className="block text-[13px]">
                   <span className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.1em] text-[#71717a]">
                     Legal business name
@@ -481,6 +545,7 @@ export default function PayoutSetupWizard({
                     onChange={(e) => patch({ company_legal_name: e.target.value })}
                     autoComplete="organization"
                     required
+                    readOnly={businessLocked}
                   />
                 </label>
                 <label className="block text-[13px]">
