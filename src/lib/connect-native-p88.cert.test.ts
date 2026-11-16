@@ -25,22 +25,26 @@ const edge = readFileSync(
   'utf8'
 );
 describe('P8.8 unified payout setup wizard (unit/source)', () => {
-  it('defines five focused steps with Traverion vs Stripe collectors', () => {
+  it('defines six focused steps (P9.1) with Traverion-primary collectors', () => {
     expect(PAYOUT_WIZARD_SCREENS.map((s) => s.id)).toEqual([
       'business',
       'representative',
+      'identity',
       'bank',
       'preferences',
       'review',
     ]);
     expect(PAYOUT_WIZARD_SCREENS.find((s) => s.id === 'business')?.collector).toBe('traverion');
-    expect(PAYOUT_WIZARD_SCREENS.find((s) => s.id === 'representative')?.collector).toBe('stripe');
-    expect(PAYOUT_WIZARD_SCREENS.find((s) => s.id === 'bank')?.collector).toBe('stripe');
+    expect(PAYOUT_WIZARD_SCREENS.find((s) => s.id === 'representative')?.collector).toBe(
+      'traverion'
+    );
+    expect(PAYOUT_WIZARD_SCREENS.find((s) => s.id === 'bank')?.collector).toBe('traverion');
+    expect(PAYOUT_WIZARD_SCREENS.find((s) => s.id === 'identity')?.collector).toBe('mixed');
   });
 
   it('settings hub launches wizard and no longer stacks long-form sections', () => {
     expect(settings).toContain('PayoutSetupWizard');
-    expect(settings).toContain('Start payout setup');
+    expect(settings).toMatch(/Set up payouts|Start payout setup/);
     expect(settings).toContain('Continue payout setup');
     expect(settings).not.toContain('1. Business details');
     expect(settings).not.toContain('groupConnectRequirements');
@@ -53,7 +57,7 @@ describe('P8.8 unified payout setup wizard (unit/source)', () => {
     expect(wizard).toContain('PAYOUT_WIZARD_STRIPE_AUTH_COPY');
     expect(wizard).toContain('account_onboarding');
     expect(wizard).toContain('account_management');
-    expect(PAYOUT_WIZARD_STRIPE_AUTH_COPY).toMatch(/Stripe may ask/i);
+    expect(PAYOUT_WIZARD_STRIPE_AUTH_COPY).toMatch(/confirm your email or phone/i);
     expect(
       validatePayoutWizardBusiness(emptyPayoutWizardDraft({ company_legal_name: '' }))
     ).toMatch(/legal business name/i);

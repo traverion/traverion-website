@@ -1,26 +1,38 @@
-import { useCallback, useEffect, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import { useSupplierRole } from '../../hooks/useSupplierRole';
 import { canManageFinance } from '../../lib/supplierTeamRoles';
+import {
+  fetchSupplierActiveCommercialTerms,
+  type SupplierCommercialTermsRow,
+} from '../../data/supabase-earnings';
 import {
   fetchSupplierProfile,
   type SupplierProfileRow,
 } from '../../data/supabase-supplier-profile';
 import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
 import { navigateSupplierUrl } from '../../lib/supplierPortalNavigation';
-import SupplierNativeVerificationJourney from '../../components/supplier/SupplierNativeVerificationJourney';
+import type { PayoutWizardStepId } from '../../lib/payout-setup-wizard';
+
+const PayoutSetupWizard = lazy(() => import('../../components/supplier/PayoutSetupWizard'));
 
 /**
- * Dedicated full-screen payout verification workspace at /partner/verification.
- * Keeps Income & Payouts → Settings compact; all form steps live here.
+ * /partner/verification — opens the unified P9.1 payout setup wizard (same shell as
+ * Income → Settings). Legacy dual journey is retired as the primary entry.
  */
 export default function SupplierVerificationPage() {
   const { user } = useSupplierAuth();
   const { role } = useSupplierRole();
   const canEdit = canManageFinance(role);
   const [profile, setProfile] = useState<SupplierProfileRow | null>(null);
+  const [commercialTerms, setCommercialTerms] = useState<SupplierCommercialTermsRow | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+
+  const focusBank =
+    typeof window !== 'undefined' &&
+    new URLSearchParams(window.location.search).get('focus') === 'bank';
+  const initialStep: PayoutWizardStepId = focusBank ? 'bank' : 'business';
 
   const refreshProfile = useCallback(async () => {
     if (!user?.id) return null;
@@ -39,8 +51,14 @@ export default function SupplierVerificationPage() {
       setLoading(true);
       setLoadError(null);
       try {
-        const next = await fetchSupplierProfile(user.id);
-        if (!cancelled) setProfile(next);
+        const [next, terms] = await Promise.all([
+          fetchSupplierProfile(user.id),
+          fetchSupplierActiveCommercialTerms(user.id).catch(() => null),
+        ]);
+        if (!cancelled) {
+          setProfile(next);
+          setCommercialTerms(terms);
+        }
       } catch {
         if (!cancelled) setLoadError('Could not load your business profile. Try again.');
       } finally {
@@ -55,21 +73,15 @@ export default function SupplierVerificationPage() {
   if (!user?.id) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center px-4 text-[13px] text-[#52525b]">
-        Sign in to continue verification.
+        Sign in to continue payout setup.
       </div>
     );
   }
 
   if (loading) {
     return (
-      <div className="tv-verify-workspace" aria-busy="true" aria-label="Loading verification">
-        <header className="tv-verify-workspace__header">
-          <span className="text-[13px] font-semibold text-[#18181b]">Traverion</span>
-          <span className="text-[12px] text-[#71717a]">Verification</span>
-        </header>
-        <div className="tv-verify-workspace__main">
-          <p className="text-center text-[13px] text-[#52525b]">Preparing verification…</p>
-        </div>
+      <div className="fixed inset-0 z-[80] grid place-items-center bg-white text-[13px] text-[#52525b]">
+        Opening payout setup…
       </div>
     );
   }
@@ -77,7 +89,7 @@ export default function SupplierVerificationPage() {
   if (loadError) {
     return (
       <div className="mx-auto max-w-md px-4 py-16 text-center">
-        <h1 className="text-lg font-bold text-[#18181b]">Verification unavailable</h1>
+        <h1 className="text-lg font-bold text-[#18181b]">Payout setup unavailable</h1>
         <p className="mt-2 text-[13px] text-[#52525b]">{loadError}</p>
         <button
           type="button"
@@ -90,19 +102,24 @@ export default function SupplierVerificationPage() {
     );
   }
 
-  const focusBank =
-    typeof window !== 'undefined' &&
-    new URLSearchParams(window.location.search).get('focus') === 'bank';
-
   return (
-    <SupplierNativeVerificationJourney
-      userId={user.id}
-      profile={profile}
-      canEdit={canEdit}
-      onProfile={setProfile}
-      onClose={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/money?tab=settings`)}
-      initialFocus={focusBank ? 'bank' : 'full'}
-      fullScreen
-    />
+    <Suspense
+      fallback={
+        <div className="fixed inset-0 z-[80] grid place-items-center bg-white text-[13px] text-[#52525b]">
+          Opening payout setup…
+        </div>
+      }
+    >
+      <PayoutSetupWizard
+        userId={user.id}
+        profile={profile}
+        commercialTerms={commercialTerms}
+        payoutCurrency={profile?.connect_default_currency ?? 'EUR'}
+        canEdit={canEdit}
+        onProfile={setProfile}
+        initialStep={initialStep}
+        onClose={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/money?tab=settings`)}
+      />
+    </Suspense>
   );
 }

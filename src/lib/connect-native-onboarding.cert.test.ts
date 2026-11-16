@@ -51,21 +51,18 @@ describe('Native Traverion Custom Connect onboarding', () => {
   });
 
   it('does not force hosted Account Link for the primary native path', () => {
-    expect(settings).toContain('/verification');
-    expect(settings).toContain('ConnectEmbeddedPanel');
+    const wizard = readFileSync(
+      resolve(root, 'src/components/supplier/PayoutSetupWizard.tsx'),
+      'utf8'
+    );
+    expect(settings).toContain('PayoutSetupWizard');
+    expect(wizard).toContain('ConnectEmbeddedPanel');
+    expect(wizard).toContain('createBankAccountToken');
+    expect(wizard).toContain('submit_business');
+    expect(wizard).toContain('Connected Account Agreement');
     expect(journey).toContain('tv-verify-workspace');
-    expect(journey).toContain('SupplierVerificationStatusView');
-    expect(journey).toContain('resolveVerificationWorkspacePhase');
-    expect(journey).toMatch(/Save &(?:amp;)? exit/);
-    expect(journey).toContain('Connected Account Agreement');
     expect(journey).toContain('createBankAccountToken');
     expect(journey).toContain('submit_business');
-    expect(journey).toContain('biz_structure');
-    expect(journey).toContain('bank_details');
-    expect(journey).toContain('bank_replace');
-    expect(journey).not.toMatch(/id:\s*'bank_country'/);
-    expect(journey).toContain('markClientSubmitted');
-    expect(journey).toContain("get('replace') === '1'");
     expect(client).toContain('submit_business');
     expect(client).toContain('attach_bank_token');
     expect(stripeJs).toContain("createToken('bank_account'");
@@ -82,7 +79,7 @@ describe('Native Traverion Custom Connect onboarding', () => {
     expect(mig).toContain('connect_account_type');
   });
 
-  it('ships dedicated /partner/verification workspace', () => {
+  it('ships dedicated /partner/verification workspace via unified wizard', () => {
     const page = readFileSync(
       resolve(root, 'src/pages/supplier/SupplierVerificationPage.tsx'),
       'utf8'
@@ -91,8 +88,8 @@ describe('Native Traverion Custom Connect onboarding', () => {
       resolve(root, 'src/components/supplier/SupplierLayout.tsx'),
       'utf8'
     );
-    expect(page).toContain('SupplierNativeVerificationJourney');
-    expect(page).toContain('fullScreen');
+    expect(page).toContain('PayoutSetupWizard');
+    expect(page).not.toContain('SupplierNativeVerificationJourney');
     expect(layout).toContain("section === 'verification'");
     expect(layout).toContain('/verification');
   });

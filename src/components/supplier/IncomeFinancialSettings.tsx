@@ -55,6 +55,7 @@ function resolveResumeStep(profile: SupplierProfileRow | null): PayoutWizardStep
   const canReceive = connectCanReceiveTransfers(profile ?? {});
   if (!hasBusiness) return 'business';
   if (!profile?.connect_details_submitted && !canReceive) return 'representative';
+  if (!canReceive && profile?.connect_account_type === 'custom') return 'identity';
   if (!bank) return 'bank';
   if (!prefs) return 'preferences';
   return 'review';
@@ -158,7 +159,7 @@ export default function IncomeFinancialSettings({
 
   const primaryCta =
     experience === 'not_started'
-      ? 'Start payout setup'
+      ? 'Set up payouts'
       : canReceiveTransfers && bankOk && profile?.payment_cycle
         ? 'Review payout setup'
         : 'Continue payout setup';

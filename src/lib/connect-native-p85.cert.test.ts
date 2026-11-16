@@ -100,14 +100,14 @@ describe('P8.5 native onboarding experience', () => {
 
   it('Income settings launches unified payout wizard (P8.8)', () => {
     expect(settings).toContain('PayoutSetupWizard');
-    expect(settings).toContain('Start payout setup');
+    expect(settings).toMatch(/Set up payouts|Start payout setup/);
     expect(settings).toContain('Continue payout setup');
     const wizard = readFileSync(
       resolve(root, 'src/components/supplier/PayoutSetupWizard.tsx'),
       'utf8'
     );
-    expect(wizard).toContain('Business details');
-    expect(wizard).toContain('Representative verification');
+    expect(wizard).toContain('Business information');
+    expect(wizard).toContain('Representative details');
     expect(wizard).toContain('Bank account');
     expect(wizard).toContain('Payout preferences');
     expect(wizard).toContain('ConnectEmbeddedPanel');

@@ -70,8 +70,9 @@ describe('P8.7 native payout onboarding UX (unit/source)', () => {
       resolve(root, 'src/components/supplier/PayoutSetupWizard.tsx'),
       'utf8'
     );
-    expect(wizard).toContain('Business details');
-    expect(wizard).toContain('Representative verification');
+    expect(wizard).toContain('Business information');
+    expect(wizard).toContain('Representative details');
+    expect(wizard).toContain('Identity verification');
     expect(wizard).toContain('Bank account');
     expect(wizard).toContain('Payout preferences');
     expect(wizard).toContain("goTo('review'");
