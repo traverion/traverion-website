@@ -28,7 +28,7 @@ import {
   finlandSupplierCountry,
   isAccountsV2Native,
   type V2AccountSnapshot,
-} from '../../../src/lib/accounts-v2-config.ts';
+} from '../_shared/accounts-v2-config.ts';
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {

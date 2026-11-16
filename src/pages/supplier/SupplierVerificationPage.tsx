@@ -32,7 +32,7 @@ export default function SupplierVerificationPage() {
   const focusBank =
     typeof window !== 'undefined' &&
     new URLSearchParams(window.location.search).get('focus') === 'bank';
-  const initialStep: PayoutWizardStepId = focusBank ? 'bank' : 'business';
+  const initialStep: PayoutWizardStepId | undefined = focusBank ? 'bank' : undefined;
 
   const refreshProfile = useCallback(async () => {
     if (!user?.id) return null;

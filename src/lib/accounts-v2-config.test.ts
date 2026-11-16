@@ -106,6 +106,8 @@ describe('Accounts v2 TEST recipient configuration', () => {
   });
 
   it('keeps LIVE creation on v1 Custom and does not fall back after a v2 rejection', () => {
+    expect(edge).toContain("from '../_shared/accounts-v2-config.ts'");
+    expect(edge).not.toContain('src/lib/accounts-v2-config');
     expect(edge).toContain("if (platformMode === 'test')");
     expect(edge).toContain('buildV2RecipientCreateBody');
     expect(edge).toContain('No legacy account was created');
