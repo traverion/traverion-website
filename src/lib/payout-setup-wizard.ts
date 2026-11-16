@@ -246,10 +246,16 @@ export function validatePayoutWizardIdentity(draft: PayoutWizardDraft): string |
 /** Map a Stripe requirement key onto the six-step wizard so a supplier can resume the right screen. */
 export function payoutWizardStepForRequirement(requirement: string): PayoutWizardStepId {
   const key = requirement.toLowerCase();
-  if (/external_account|bank_account|iban/.test(key)) return 'bank';
-  if (/tos_acceptance|agreement/.test(key)) return 'identity';
-  if (/verification\.document|additional_document|id_number|ssn_last_4/.test(key)) return 'identity';
-  if (/owners|directors|executives|representative|individual\./.test(key)) return 'representative';
+  if (/external_account|bank_account|iban|payout_method/.test(key)) return 'bank';
+  if (/terms_of_service|tos_acceptance|agreement/.test(key)) return 'identity';
+  if (/verification\.document|additional_document|documents\.|proof_of_liveness|ssn_last_4/.test(key)) {
+    return 'identity';
+  }
+  if (/business_details|registered_name|business_url|fi_yt|id_numbers/.test(key)) return 'business';
+  if (/persons_provided|owners|directors|executives|representative|individual\./.test(key)) {
+    return 'representative';
+  }
+  if (/id_number/.test(key)) return 'identity';
   return 'business';
 }
 

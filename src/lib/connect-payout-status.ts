@@ -49,9 +49,13 @@ export function connectCanReceiveTransfers(input: {
   connect_requirements_past_due?: unknown;
   connect_account_livemode?: boolean | null;
   require_live?: boolean;
+  stripe_transfers_status?: string | null;
 }): boolean {
   if (input.require_live === true && input.connect_account_livemode !== true) return false;
   if (input.connect_account_livemode === false) return false;
+  if (typeof input.stripe_transfers_status === 'string' && input.stripe_transfers_status !== 'active') {
+    return false;
+  }
   if (!input.connect_payouts_enabled) return false;
   const status = (input.connect_onboarding_status ?? '').toLowerCase();
   if (status === 'restricted' || status === 'rejected') return false;

@@ -14,6 +14,10 @@ export type ConnectAccountLike = {
     past_due?: string[] | null;
     disabled_reason?: string | null;
   } | null;
+  capabilities?: {
+    transfers?: string | null;
+    card_payments?: string | null;
+  } | null;
   settings?: {
     payouts?: {
       debit_negative_balances?: boolean | null;
@@ -55,17 +59,29 @@ export function deriveConnectOnboardingStatus(account: ConnectAccountLike): Conn
 /** Never treat a browser return URL alone as verified — always sync from Stripe. */
 export function mirrorConnectAccount(account: ConnectAccountLike, nowIso = new Date().toISOString()): ConnectProfileMirror {
   const status = deriveConnectOnboardingStatus(account);
-  const payoutsEnabled = Boolean(account.payouts_enabled);
+  const transfers = account.capabilities?.transfers;
+  const payoutsEnabled =
+    typeof transfers === 'string'
+      ? transfers === 'active' && Boolean(account.payouts_enabled)
+      : Boolean(account.payouts_enabled);
   const rawType = (account.type ?? '').toLowerCase();
   const accountType =
-    rawType === 'express' || rawType === 'custom' || rawType === 'standard' ? rawType : null;
+    rawType === 'express' || rawType === 'custom' || rawType === 'standard'
+      ? rawType
+      : rawType === 'none'
+        ? 'custom'
+        : null;
+  const chargesEnabled =
+    rawType === 'none'
+      ? account.capabilities?.card_payments === 'active'
+      : Boolean(account.charges_enabled);
   const livemode =
     typeof account.livemode === 'boolean' ? account.livemode : null;
   return {
     stripe_connected_account_id: account.id,
     connect_account_type: accountType,
     connect_account_livemode: livemode,
-    connect_charges_enabled: Boolean(account.charges_enabled),
+    connect_charges_enabled: chargesEnabled,
     connect_payouts_enabled: payoutsEnabled,
     connect_details_submitted: Boolean(account.details_submitted),
     connect_disabled_reason: account.requirements?.disabled_reason ?? null,
@@ -91,11 +107,17 @@ export function connectCanReceiveTransfers(
     | 'connect_requirements_currently_due'
     | 'connect_requirements_past_due'
     | 'connect_account_livemode'
-  > & { require_live?: boolean }
+  > & { require_live?: boolean; stripe_transfers_status?: string | null }
 ): boolean {
   // Never treat a known TEST connected account as transfer-ready on LIVE platform.
   if (mirror.require_live === true && mirror.connect_account_livemode !== true) return false;
   if (mirror.connect_account_livemode === false) return false;
+  if (
+    typeof mirror.stripe_transfers_status === 'string' &&
+    mirror.stripe_transfers_status !== 'active'
+  ) {
+    return false;
+  }
   if (!mirror.connect_payouts_enabled) return false;
   if (mirror.connect_onboarding_status === 'restricted' || mirror.connect_onboarding_status === 'rejected') {
     return false;

@@ -1,8 +1,8 @@
 /**
  * Stripe Connect onboarding for Traverion suppliers (TEST or LIVE).
  *
- * Preferred (new accounts): Custom connected accounts + API updates from
- * Traverion-native forms (no Express login popup / hosted Account Link).
+ * Preferred for new TEST suppliers: Accounts v2 recipient, dashboard none,
+ * platform-collected requirements. LIVE creation stays on the gated v1 Custom path.
  *
  * Legacy Express accounts: Account Session embedded components (or hosted
  * Account Link fallback). Never silently recreate Express → Custom.
@@ -20,6 +20,15 @@ import { resolveStripeMoneySecretFromEnv } from '../_shared/resolve-stripe-money
 import { isStripeTestPublishableKey, isStripeLivePublishableKey } from '../_shared/stripe-payment-mode.ts';
 import { mirrorConnectAccount, connectCanReceiveTransfers } from '../_shared/connect-account-mirror.ts';
 import { liveCustomCreateAllowed } from '../_shared/live-custom-onboarding-gate.ts';
+import {
+  ACCOUNTS_V2_STRIPE_VERSION,
+  V2_RETRIEVE_INCLUDE,
+  assertV2RecipientConfig,
+  buildV2RecipientCreateBody,
+  finlandSupplierCountry,
+  isAccountsV2Native,
+  type V2AccountSnapshot,
+} from '../../../src/lib/accounts-v2-config.ts';
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -169,6 +178,30 @@ serve(async (req) => {
     const admin = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } });
     const stripe = new Stripe(stripeSecret);
     const platformMode = stripeMoney.mode; // 'test' | 'live'
+
+    async function stripeV2(method: string, path: string, body?: unknown, idempotencyKey?: string) {
+      const response = await fetch(`https://api.stripe.com${path}`, {
+        method,
+        headers: {
+          Authorization: `Bearer ${stripeSecret}`,
+          'Stripe-Version': ACCOUNTS_V2_STRIPE_VERSION,
+          ...(body ? { 'Content-Type': 'application/json' } : {}),
+          ...(idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {}),
+        },
+        body: body ? JSON.stringify(body) : undefined,
+      });
+      const payload = await response.json();
+      if (!response.ok) {
+        const message = payload?.error?.message || 'Accounts v2 request failed';
+        throw new Error(message);
+      }
+      return payload as V2AccountSnapshot;
+    }
+
+    function v2RetrievePath(accountId: string): string {
+      const include = V2_RETRIEVE_INCLUDE.map((item) => `include=${encodeURIComponent(item)}`).join('&');
+      return `/v2/core/accounts/${accountId}?${include}`;
+    }
     const body = (await req.json().catch(() => ({}))) as Body;
 
     async function assertLiveCustomCreateAllowed(targetSupplierId: string): Promise<
@@ -710,6 +743,70 @@ serve(async (req) => {
         throw new Error('LIVE payout account creation is turned off.');
       }
 
+      if (platformMode === 'test') {
+        const country = finlandSupplierCountry(
+          (profile.address_country || profile.connect_country || 'FI') as string
+        );
+        if (!country) {
+          await releaseConnectCreateClaim(supplierId!);
+          throw new Error('Accounts v2 onboarding is available for Finnish suppliers.');
+        }
+        const email = authData.user.email ?? undefined;
+        const entityType = profile.business_type === 'individual' ? 'individual' : 'company';
+        const createBody = buildV2RecipientCreateBody({
+          email,
+          displayName: (profile.display_name || profile.company_legal_name || 'Traverion supplier') as string,
+          supplierId: supplierId!,
+          environment: 'test',
+        });
+        (createBody.identity as { entity_type: string }).entity_type = entityType;
+        let created: V2AccountSnapshot;
+        try {
+          created = await stripeV2(
+            'POST',
+            '/v2/core/accounts',
+            createBody,
+            `traverion-v2:${supplierId}:test`
+          );
+        } catch (err) {
+          await releaseConnectCreateClaim(supplierId!);
+          throw err;
+        }
+        const check = assertV2RecipientConfig(created);
+        if (!check.ok || created.livemode === true || !created.id) {
+          await releaseConnectCreateClaim(supplierId!);
+          throw new Error(
+            `Accounts v2 configuration was rejected (${check.ok ? 'livemode' : check.problems.join(', ')}). No legacy account was created.`
+          );
+        }
+        const retrieved = await stripe.accounts.retrieve(created.id);
+        const mirror = mirrorConnectAccount(retrieved as Parameters<typeof mirrorConnectAccount>[0]);
+        const { error: insertErr } = await admin
+          .from('supplier_profiles')
+          .update({
+            ...mirror,
+            connect_account_type: 'custom',
+            connect_account_livemode: false,
+            payout_rail: 'manual_iban',
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', supplierId);
+        if (insertErr) throw new Error(insertErr.message);
+        profile.stripe_connected_account_id = created.id;
+        profile.connect_account_type = 'custom';
+        profile.connect_account_livemode = false;
+        return {
+          accountId: created.id,
+          accountType: 'custom',
+          archived_legacy_account_id:
+            archivedFrom || ((profile.connect_legacy_account_id as string | null) ?? null),
+        };
+      }
+
+      if (platformMode !== 'live') {
+        throw new Error('TEST account creation did not complete on Accounts v2.');
+      }
+
       const country = (profile.address_country || profile.connect_country || 'FI')
         .toString()
         .slice(0, 2)
@@ -1006,6 +1103,61 @@ serve(async (req) => {
       const b = body.business ?? {};
       const country = (b.address?.country || profile.address_country || 'FI').toString().slice(0, 2).toUpperCase();
       const businessType = b.business_type || (profile.business_type === 'individual' ? 'individual' : 'company');
+      if (accountType === 'custom' && platformMode === 'test') {
+        const v2 = await stripeV2('GET', v2RetrievePath(accountId)).catch(() => null);
+        if (isAccountsV2Native(v2)) {
+          if (finlandSupplierCountry(country) !== 'FI') {
+            return json({ success: false, error: 'Accounts v2 onboarding is available for Finnish suppliers.' }, 400);
+          }
+          const registeredName = b.legal_name || profile.company_legal_name || profile.display_name || undefined;
+          const registration = (b.registration_number || b.tax_id || profile.company_registration_number || profile.tax_id || '').trim();
+          await stripeV2('POST', `/v2/core/accounts/${accountId}`, {
+            display_name: registeredName,
+            contact_phone: b.phone || profile.contact_phone || undefined,
+            defaults: {
+              profile: {
+                business_url: b.url || 'https://traverion.com',
+                product_description: 'Travel experiences and stays sold on Traverion',
+              },
+            },
+            identity: {
+              country: 'fi',
+              entity_type: businessType === 'individual' ? 'individual' : 'company',
+              business_details: {
+                registered_name: registeredName,
+                phone: b.phone || profile.contact_phone || undefined,
+                address: {
+                  line1: b.address?.line1 || profile.address_street || undefined,
+                  city: b.address?.city || profile.address_city || undefined,
+                  postal_code: b.address?.postal_code || profile.address_postal_code || undefined,
+                  country: 'fi',
+                },
+                ...(businessType !== 'individual' && registration
+                  ? { id_numbers: [{ type: 'fi_yt', value: registration }] }
+                  : {}),
+              },
+            },
+            include: [...V2_RETRIEVE_INCLUDE],
+          });
+          await admin
+            .from('supplier_profiles')
+            .update({
+              company_legal_name: b.legal_name?.trim() || profile.company_legal_name,
+              business_type: businessType,
+              contact_phone: b.phone?.trim() || profile.contact_phone,
+              address_street: b.address?.line1?.trim() || profile.address_street,
+              address_city: b.address?.city?.trim() || profile.address_city,
+              address_postal_code: b.address?.postal_code?.trim() || profile.address_postal_code,
+              address_country: country,
+              company_registration_number: b.registration_number?.trim() || profile.company_registration_number,
+              tax_id: b.tax_id?.trim() || profile.tax_id,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', supplierId);
+          const { mirror } = await syncAccount(accountId);
+          return json({ action, ...statusPayload(mirror, accountId) });
+        }
+      }
       const update: Stripe.AccountUpdateParams = {
         business_type: businessType,
         business_profile: {
@@ -1156,6 +1308,26 @@ serve(async (req) => {
         const created = await stripe.accounts.createPerson(accountId, personParams as Stripe.PersonCreateParams);
         personId = created.id;
       }
+      if (platformMode === 'test') {
+        const v2 = await stripeV2('GET', v2RetrievePath(accountId)).catch(() => null);
+        if (isAccountsV2Native(v2)) {
+          const ownerDeclared = Boolean(r.relationship?.owner) && ownership != null;
+          await stripeV2('POST', `/v2/core/accounts/${accountId}`, {
+            identity: {
+              attestations: {
+                persons_provided: {
+                  directors: Boolean(r.relationship?.director),
+                  executives: r.relationship?.executive !== false,
+                  owners: ownerDeclared,
+                },
+              },
+            },
+            include: [...V2_RETRIEVE_INCLUDE],
+          });
+          const { mirror } = await syncAccount(accountId);
+          return json({ action, person_id: personId, ...statusPayload(mirror, accountId) });
+        }
+      }
       // Mark ownership/structure declarations when the representative covers those roles.
       const ownerDeclared = Boolean(r.relationship?.owner) && ownership != null;
       if (profile.business_type !== 'individual') {
@@ -1181,6 +1353,23 @@ serve(async (req) => {
           error: 'Agreement acceptance for this account is collected in the secure verification step.',
           account_type: 'express',
         }, 409);
+      }
+      if (platformMode === 'test') {
+        const v2 = await stripeV2('GET', v2RetrievePath(accountId)).catch(() => null);
+        if (isAccountsV2Native(v2)) {
+          await stripeV2('POST', `/v2/core/accounts/${accountId}`, {
+            identity: {
+              attestations: {
+                terms_of_service: {
+                  account: { date: new Date().toISOString(), ip },
+                },
+              },
+            },
+            include: [...V2_RETRIEVE_INCLUDE],
+          });
+          const { mirror } = await syncAccount(accountId);
+          return json({ action, ...statusPayload(mirror, accountId) });
+        }
       }
       await stripe.accounts.update(accountId, {
         tos_acceptance: {

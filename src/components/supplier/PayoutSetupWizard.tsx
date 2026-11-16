@@ -119,7 +119,7 @@ export default function PayoutSetupWizard({
   ].map(String);
   const outstandingLabels = humanizeConnectRequirements(outstandingKeys);
   const identityDocumentDue = outstandingKeys.some((key) =>
-    /verification\.document|additional_document|id_number|ssn_last_4/i.test(key)
+    /verification\.document|additional_document|documents\.|proof_of_liveness|ssn_last_4/i.test(key)
   );
   const bankRequirementDue = outstandingKeys.some((key) =>
     /external_account|bank_account/i.test(key)
