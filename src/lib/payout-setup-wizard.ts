@@ -243,6 +243,34 @@ export function validatePayoutWizardIdentity(draft: PayoutWizardDraft): string |
   return null;
 }
 
+/** Map a Stripe requirement key onto the six-step wizard so a supplier can resume the right screen. */
+export function payoutWizardStepForRequirement(requirement: string): PayoutWizardStepId {
+  const key = requirement.toLowerCase();
+  if (/external_account|bank_account|iban/.test(key)) return 'bank';
+  if (/tos_acceptance|agreement/.test(key)) return 'identity';
+  if (/verification\.document|additional_document|id_number|ssn_last_4/.test(key)) return 'identity';
+  if (/owners|directors|executives|representative|individual\./.test(key)) return 'representative';
+  return 'business';
+}
+
+const WIZARD_STEP_ORDER: PayoutWizardStepId[] = [
+  'business',
+  'representative',
+  'identity',
+  'bank',
+  'preferences',
+  'review',
+];
+
+/** Earliest wizard step that can clear one of the outstanding requirement keys. */
+export function firstOutstandingWizardStep(
+  requirements: readonly string[] | null | undefined
+): PayoutWizardStepId | null {
+  if (!requirements?.length) return null;
+  const needed = new Set(requirements.map((item) => payoutWizardStepForRequirement(item)));
+  return WIZARD_STEP_ORDER.find((step) => needed.has(step)) ?? null;
+}
+
 export function validatePayoutWizardPreferences(draft: PayoutWizardDraft): string | null {
   if (draft.payment_cycle !== 'monthly' && draft.payment_cycle !== 'biweekly') {
     return 'Choose monthly or twice monthly.';

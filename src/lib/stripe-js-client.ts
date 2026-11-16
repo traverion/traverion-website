@@ -1,16 +1,20 @@
 import { loadStripe, type Stripe } from '@stripe/stripe-js';
-import { isStripeTestPublishableKey } from './stripe-test-only';
+import { isStripeLivePublishableKey, isStripeTestPublishableKey } from './stripe-payment-mode';
 
 let stripePromise: Promise<Stripe | null> | null = null;
 
-/** TEST-only Stripe.js instance for tokenization (never LIVE). */
+/**
+ * Stripe.js for bank tokenization only.
+ * Accepts the configured pk_test_ or pk_live_ key. Does not create connected accounts
+ * and does not move money. A test token cannot be attached to a live account.
+ */
 export function getTraverionStripeJs(): Promise<Stripe | null> {
   if (!stripePromise) {
     const pk =
       typeof import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY === 'string'
         ? import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY.trim()
         : '';
-    if (!pk || !isStripeTestPublishableKey(pk)) {
+    if (!pk || !(isStripeTestPublishableKey(pk) || isStripeLivePublishableKey(pk))) {
       stripePromise = Promise.resolve(null);
     } else {
       stripePromise = loadStripe(pk);

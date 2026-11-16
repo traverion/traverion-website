@@ -19,7 +19,7 @@ import {
 } from '../../lib/connect-payout-progress';
 import { bankAlreadyManaged } from '../../lib/verification-workspace-lifecycle';
 import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
-import type { PayoutWizardStepId } from '../../lib/payout-setup-wizard';
+import { firstOutstandingWizardStep, type PayoutWizardStepId } from '../../lib/payout-setup-wizard';
 
 const PayoutSetupWizard = lazy(() => import('./PayoutSetupWizard'));
 
@@ -53,6 +53,16 @@ function resolveResumeStep(profile: SupplierProfileRow | null): PayoutWizardStep
   const bank = bankAlreadyManaged(profile);
   const prefs = Boolean(profile?.payment_cycle);
   const canReceive = connectCanReceiveTransfers(profile ?? {});
+  const outstanding = [
+    ...(Array.isArray(profile?.connect_requirements_currently_due)
+      ? profile.connect_requirements_currently_due
+      : []),
+    ...(Array.isArray(profile?.connect_requirements_past_due)
+      ? profile.connect_requirements_past_due
+      : []),
+  ].map(String);
+  const fromRequirements = firstOutstandingWizardStep(outstanding);
+  if (fromRequirements && !canReceive) return fromRequirements;
   if (!hasBusiness) return 'business';
   if (!profile?.connect_details_submitted && !canReceive) return 'representative';
   if (!canReceive && profile?.connect_account_type === 'custom') return 'identity';

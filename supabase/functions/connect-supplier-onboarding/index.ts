@@ -19,6 +19,7 @@ import Stripe from 'https://esm.sh/stripe@16.12.0?target=deno';
 import { resolveStripeMoneySecretFromEnv } from '../_shared/resolve-stripe-money-secret.ts';
 import { isStripeTestPublishableKey, isStripeLivePublishableKey } from '../_shared/stripe-payment-mode.ts';
 import { mirrorConnectAccount, connectCanReceiveTransfers } from '../_shared/connect-account-mirror.ts';
+import { liveCustomCreateAllowed } from '../_shared/live-custom-onboarding-gate.ts';
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -169,6 +170,56 @@ serve(async (req) => {
     const stripe = new Stripe(stripeSecret);
     const platformMode = stripeMoney.mode; // 'test' | 'live'
     const body = (await req.json().catch(() => ({}))) as Body;
+
+    async function assertLiveCustomCreateAllowed(targetSupplierId: string): Promise<
+      { allowed: true } | { allowed: false; reason: string }
+    > {
+      if (platformMode !== 'live') return { allowed: true };
+      const { data: flagRow, error: flagErr } = await admin
+        .from('commercial_runtime_config')
+        .select('value_int')
+        .eq('key', 'live_custom_onboarding_enabled')
+        .maybeSingle();
+      const flagValue = flagErr ? 0 : (flagRow?.value_int as number | undefined);
+      const { data: allowRow, error: allowErr } = await admin
+        .from('live_custom_onboarding_allowlist')
+        .select('supplier_id')
+        .eq('supplier_id', targetSupplierId)
+        .maybeSingle();
+      const decision = liveCustomCreateAllowed({
+        platformMode,
+        flagValue: flagErr ? 0 : flagValue,
+        supplierApproved: !allowErr && Boolean(allowRow?.supplier_id),
+      });
+      return decision.allowed
+        ? { allowed: true }
+        : { allowed: false, reason: decision.reason ?? 'LIVE payout account creation is turned off.' };
+    }
+
+    async function claimConnectCreate(targetSupplierId: string): Promise<{
+      action: 'create' | 'reuse' | 'in_progress' | 'refuse';
+      account_id?: string;
+    }> {
+      const { data, error } = await admin.rpc('claim_connect_account_create', {
+        p_supplier_id: targetSupplierId,
+      });
+      if (error || !data || typeof data !== 'object') {
+        return { action: 'refuse' };
+      }
+      const row = data as { action?: string; account_id?: string };
+      if (row.action === 'create' || row.action === 'reuse' || row.action === 'in_progress') {
+        return { action: row.action, account_id: row.account_id };
+      }
+      return { action: 'refuse' };
+    }
+
+    async function releaseConnectCreateClaim(targetSupplierId: string) {
+      await admin
+        .from('supplier_profiles')
+        .update({ connect_create_claimed_at: null })
+        .eq('id', targetSupplierId)
+        .is('stripe_connected_account_id', null);
+    }
     const action = (body.action ?? 'status') as NonNullable<Body['action']>;
 
     const bearer = authHeader.toLowerCase().startsWith('bearer ')
@@ -289,10 +340,19 @@ serve(async (req) => {
         support_phone: targetProfile.contact_phone || undefined,
       };
 
-      // Prefer Custom (native forms). If platform Connect profile responsibilities are
-      // incomplete, fall back to Express + hosted Account Link (still LIVE).
+      const createGate = await assertLiveCustomCreateAllowed(targetSupplierId);
+      if (!createGate.allowed) {
+        return json({
+          success: false,
+          error: createGate.reason,
+          created: false,
+          environment: 'live',
+        }, 403);
+      }
+
+      // Custom only. A failed Custom create must not mint an Express account.
       let created: Stripe.Account;
-      let createPath: 'custom' | 'express' = 'custom';
+      const createPath = 'custom' as const;
       try {
         created = await stripe.accounts.create({
           type: 'custom',
@@ -316,23 +376,15 @@ serve(async (req) => {
                 },
               }
             : undefined,
-        });
+        }, { idempotencyKey: `traverion-admin-custom:${targetSupplierId}:live` });
       } catch (customErr) {
         const customMsg = customErr instanceof Error ? customErr.message : String(customErr);
-        created = await stripe.accounts.create({
-          type: 'express',
-          country,
-          email,
-          capabilities: { transfers: { requested: true } },
-          metadata: {
-            ...commonMeta,
-            traverion_account_type: 'express',
-            traverion_custom_create_error: customMsg.slice(0, 180),
-          },
-          business_profile: businessProfile,
-          settings: { payouts: { schedule: { interval: 'daily' } } },
-        });
-        createPath = 'express';
+        return json({
+          success: false,
+          error: 'LIVE Custom account could not be created. No Express account was created.',
+          created: false,
+          detail: customMsg.slice(0, 120),
+        }, 502);
       }
 
       const mirror = mirrorConnectAccount(created as Parameters<typeof mirrorConnectAccount>[0]);
@@ -399,13 +451,27 @@ serve(async (req) => {
 
     const userId = authData.user.id;
 
-    const { data: membership } = await admin
+    const { data: membershipRowsRaw, error: membershipErr } = await admin
       .from('supplier_team_members')
       .select('supplier_id, role')
-      .eq('user_id', userId)
-      .maybeSingle();
+      .eq('user_id', userId);
+    if (membershipErr) {
+      return json({ success: false, error: 'Could not resolve supplier organization' }, 500);
+    }
 
-    let supplierId = membership?.supplier_id as string | undefined;
+    const membershipRows = membershipRowsRaw ?? [];
+    let supplierId: string | undefined;
+    if (membershipRows.length === 1) {
+      supplierId = membershipRows[0]?.supplier_id as string | undefined;
+    } else if (membershipRows.length > 1) {
+      const ownMembership = membershipRows.find((row) => row.supplier_id === userId);
+      const owners = membershipRows.filter((row) => row.role === 'owner');
+      if (ownMembership) supplierId = ownMembership.supplier_id as string;
+      else if (owners.length === 1) supplierId = owners[0]?.supplier_id as string;
+      else {
+        return json({ success: false, error: 'Multiple supplier organizations are linked to this login.' }, 409);
+      }
+    }
     if (!supplierId) {
       const { data: own } = await admin
         .from('supplier_profiles')
@@ -416,7 +482,7 @@ serve(async (req) => {
     }
     if (!supplierId) return json({ success: false, error: 'Supplier profile not found' }, 404);
 
-    const role = (membership?.role ?? 'owner') as string;
+    const role = (membershipRows.find((row) => row.supplier_id === supplierId)?.role ?? 'owner') as string;
     if (role === 'viewer') {
       return json({ success: false, error: 'Viewers cannot manage payout verification' }, 403);
     }
@@ -464,6 +530,15 @@ serve(async (req) => {
       const metaSupplier = (account.metadata?.traverion_supplier_id ?? '').trim();
       if (metaSupplier && metaSupplier !== supplierId) {
         throw new Error('Connected account does not belong to this supplier organization');
+      }
+      if (!metaSupplier && platformMode === 'live') {
+        const linkedHere = profile.stripe_connected_account_id === accountId;
+        const expressLegacy =
+          linkedHere &&
+          ((account.type as string) === 'express' || profile.connect_account_type === 'express');
+        if (!expressLegacy) {
+          throw new Error('Connected account is missing supplier ownership metadata');
+        }
       }
       if (platformMode === 'live' && (account as { livemode?: boolean }).livemode === false) {
         await archiveLinkedAccount(accountId);
@@ -612,6 +687,29 @@ serve(async (req) => {
         );
       }
 
+      if (platformMode === 'live') {
+        const createGate = await assertLiveCustomCreateAllowed(supplierId!);
+        if (!createGate.allowed) {
+          throw new Error(createGate.reason);
+        }
+      }
+
+      const claim = await claimConnectCreate(supplierId!);
+      if (claim.action === 'reuse' && claim.account_id) {
+        profile.stripe_connected_account_id = claim.account_id;
+        const reused = await syncAccount(claim.account_id);
+        return {
+          accountId: claim.account_id,
+          accountType: reused.mirror.connect_account_type || (reused.account.type as string) || 'custom',
+        };
+      }
+      if (claim.action === 'in_progress') {
+        throw new Error('Payout account creation is already in progress. Wait a moment and continue.');
+      }
+      if (claim.action === 'refuse' && platformMode === 'live') {
+        throw new Error('LIVE payout account creation is turned off.');
+      }
+
       const country = (profile.address_country || profile.connect_country || 'FI')
         .toString()
         .slice(0, 2)
@@ -673,30 +771,14 @@ serve(async (req) => {
       }
 
       let created: Stripe.Account;
-      let createdType: 'custom' | 'express' = 'custom';
+      const createdType = 'custom' as const;
       try {
-        created = await stripe.accounts.create(createParams);
-      } catch (customErr) {
-        if (platformMode !== 'live') throw customErr;
-        // LIVE platform profile may not allow Custom requirement collection yet.
-        created = await stripe.accounts.create({
-          type: 'express',
-          country,
-          email,
-          capabilities: { transfers: { requested: true } },
-          metadata: {
-            traverion_supplier_id: supplierId!,
-            traverion_environment: platformMode,
-            traverion_onboarding: 'api_native_express_fallback',
-            traverion_custom_create_error: (customErr instanceof Error
-              ? customErr.message
-              : String(customErr)
-            ).slice(0, 180),
-          },
-          business_profile: createParams.business_profile,
-          settings: createParams.settings,
+        created = await stripe.accounts.create(createParams, {
+          idempotencyKey: `traverion-custom:${supplierId}:${platformMode}`,
         });
-        createdType = 'express';
+      } catch (customErr) {
+        await releaseConnectCreateClaim(supplierId!);
+        throw customErr;
       }
       accountId = created.id;
       const mirror = mirrorConnectAccount(created as Parameters<typeof mirrorConnectAccount>[0]);
@@ -745,6 +827,10 @@ serve(async (req) => {
           ...(mirror as Parameters<typeof connectCanReceiveTransfers>[0]),
           require_live: platformMode === 'live',
         }),
+        verified: connectCanReceiveTransfers({
+          ...(mirror as Parameters<typeof connectCanReceiveTransfers>[0]),
+          require_live: platformMode === 'live',
+        }) === true,
         account_id: accountId,
         account_type: accountType,
         onboarding_mode: accountType === 'custom' ? 'api_native' : accountType === 'express' ? 'embedded' : 'unknown',
@@ -995,7 +1081,41 @@ serve(async (req) => {
       if (!r.dob?.day || !r.dob?.month || !r.dob?.year) {
         return json({ success: false, error: 'Date of birth is required' }, 400);
       }
+      const year = Number(r.dob.year);
+      const month = Number(r.dob.month);
+      const day = Number(r.dob.day);
+      const dobUtc = new Date(Date.UTC(year, month - 1, day));
+      const dobValid =
+        month >= 1 &&
+        month <= 12 &&
+        day >= 1 &&
+        day <= 31 &&
+        year >= 1900 &&
+        dobUtc.getUTCFullYear() === year &&
+        dobUtc.getUTCMonth() === month - 1 &&
+        dobUtc.getUTCDate() === day;
+      if (!dobValid) {
+        return json({ success: false, error: 'Enter a valid date of birth' }, 400);
+      }
+      const adultCutoff = new Date();
+      adultCutoff.setUTCFullYear(adultCutoff.getUTCFullYear() - 18);
+      if (dobUtc > adultCutoff) {
+        return json({ success: false, error: 'The representative must be at least 18' }, 400);
+      }
+      if (r.email?.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(r.email.trim())) {
+        return json({ success: false, error: 'Enter a valid email address' }, 400);
+      }
+      const ownership = r.relationship?.percent_ownership;
+      if (
+        ownership != null &&
+        (!Number.isFinite(Number(ownership)) || Number(ownership) < 0 || Number(ownership) > 100)
+      ) {
+        return json({ success: false, error: 'Ownership percent must be between 0 and 100' }, 400);
+      }
       const country = (r.address?.country || profile.address_country || 'FI').toString().slice(0, 2).toUpperCase();
+      if (!/^[A-Z]{2}$/.test(country)) {
+        return json({ success: false, error: 'Enter a two-letter country code' }, 400);
+      }
       const persons = await stripe.accounts.listPersons(accountId, { limit: 20 });
       const existingRep = persons.data.find((p) => p.relationship?.representative);
       const personParams: Stripe.PersonCreateParams | Stripe.PersonUpdateParams = {
@@ -1037,13 +1157,15 @@ serve(async (req) => {
         personId = created.id;
       }
       // Mark ownership/structure declarations when the representative covers those roles.
-      await stripe.accounts.update(accountId, {
-        company: {
-          directors_provided: true,
-          executives_provided: true,
-          owners_provided: true,
-        },
-      });
+      const ownerDeclared = Boolean(r.relationship?.owner) && ownership != null;
+      if (profile.business_type !== 'individual') {
+        const companyDeclarations: Stripe.AccountUpdateParams.Company = {
+          executives_provided: r.relationship?.executive !== false,
+        };
+        if (Boolean(r.relationship?.director)) companyDeclarations.directors_provided = true;
+        if (ownerDeclared) companyDeclarations.owners_provided = true;
+        await stripe.accounts.update(accountId, { company: companyDeclarations });
+      }
       const { mirror } = await syncAccount(accountId);
       return json({ action, person_id: personId, ...statusPayload(mirror, accountId) });
     }

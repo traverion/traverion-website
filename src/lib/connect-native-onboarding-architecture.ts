@@ -34,6 +34,8 @@
  * ## Safety
  * - Payout kill switches remain OFF.
  * - No READY periods, LIVE transfers, or new LIVE accounts without approval.
+ * - P9.3: LIVE Custom creation requires `live_custom_onboarding_enabled=1` and a row in
+ *   `live_custom_onboarding_allowlist`. Both default empty/off. Existing Express accounts are reused.
  */
 
 export const CONNECT_NATIVE_ONBOARDING = {

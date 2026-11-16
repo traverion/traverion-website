@@ -8,6 +8,7 @@ import {
 import { invokeConnectSupplierOnboarding } from '../../data/supabase-connect-onboarding';
 import type { SupplierCommercialTermsRow } from '../../data/supabase-earnings';
 import { formatBpsAsPercent } from '../../lib/commercial-money';
+import { humanizeConnectRequirements } from '../../lib/connect-requirement-labels';
 import { connectCanReceiveTransfers } from '../../lib/connect-payout-status';
 import { bankAlreadyManaged } from '../../lib/verification-workspace-lifecycle';
 import {
@@ -24,6 +25,7 @@ import {
   PAYOUT_WIZARD_SCREENS,
   PAYOUT_WIZARD_STRIPE_AUTH_COPY,
   PAYOUT_WIZARD_TOS_COPY,
+  firstOutstandingWizardStep,
   payoutWizardStepIndex,
   savePayoutWizardDraft,
   validatePayoutWizardBusiness,
@@ -107,6 +109,25 @@ export default function PayoutSetupWizard({
   const isCustom = profile?.connect_account_type === 'custom' || !isExpress;
   const canReceive = connectCanReceiveTransfers(profile ?? {});
   const bankManaged = bankAlreadyManaged(profile);
+  const outstandingKeys = [
+    ...(Array.isArray(profile?.connect_requirements_currently_due)
+      ? profile!.connect_requirements_currently_due!
+      : []),
+    ...(Array.isArray(profile?.connect_requirements_past_due)
+      ? profile!.connect_requirements_past_due!
+      : []),
+  ].map(String);
+  const outstandingLabels = humanizeConnectRequirements(outstandingKeys);
+  const identityDocumentDue = outstandingKeys.some((key) =>
+    /verification\.document|additional_document|id_number|ssn_last_4/i.test(key)
+  );
+  const bankRequirementDue = outstandingKeys.some((key) =>
+    /external_account|bank_account/i.test(key)
+  );
+  const accountRestricted = ['restricted', 'rejected'].includes(
+    (profile?.connect_onboarding_status ?? '').toLowerCase()
+  );
+  const resumeStep = firstOutstandingWizardStep(outstandingKeys);
 
   const [draft, setDraft] = useState<PayoutWizardDraft>(() => {
     const saved = loadPayoutWizardDraft(userId);
@@ -121,6 +142,7 @@ export default function PayoutSetupWizard({
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
   const [showStripeEmbed, setShowStripeEmbed] = useState(false);
+  const [showIdentityRemediation, setShowIdentityRemediation] = useState(false);
   const [hostedFallbackUrl, setHostedFallbackUrl] = useState<string | null>(null);
   const [persistLabel, setPersistLabel] = useState<string | null>(null);
   const [bankIban, setBankIban] = useState('');
@@ -203,9 +225,30 @@ export default function PayoutSetupWizard({
         }
       }
       await invokeConnectSupplierOnboarding('ensure_account');
+      if (isCustom && !isExpress) {
+        const submit = await invokeConnectSupplierOnboarding('submit_business', {
+          business: {
+            legal_name: draft.company_legal_name.trim() || profile?.company_legal_name || undefined,
+            business_type: draft.business_type || undefined,
+            registration_number: draft.company_registration_number.trim() || undefined,
+            phone: draft.contact_phone.trim() || undefined,
+            address: {
+              line1: draft.address_street.trim(),
+              city: draft.address_city.trim(),
+              postal_code: draft.address_postal_code.trim(),
+              country: normalizedCountry,
+            },
+          },
+        });
+        if (!submit.success && !/409|express|turned off|not approved/i.test(submit.error ?? '')) {
+          setBusy(false);
+          setError(userFacingError(submit.error, USER_ERROR.generic));
+          return false;
+        }
+      }
       onProfile(await fetchSupplierProfile(userId));
       patch({ businessSavedAt: new Date().toISOString() });
-      setNote('Business details are locked for review — continuing with the saved profile.');
+      setNote('Business details are locked for review — payout details were sent from the saved profile.');
       setBusy(false);
       return true;
     }
@@ -264,7 +307,7 @@ export default function PayoutSetupWizard({
           },
         },
       });
-      if (!submit.success && !/409|express/i.test(submit.error ?? '')) {
+      if (!submit.success && !/409|express|turned off|not approved/i.test(submit.error ?? '')) {
         setBusy(false);
         setError(userFacingError(submit.error, USER_ERROR.generic));
         return false;
@@ -365,7 +408,7 @@ export default function PayoutSetupWizard({
       setError('Your role can view setup but cannot change it.');
       return false;
     }
-    if (bankManaged && !bankIban.trim()) {
+    if (bankManaged && !bankRequirementDue && !bankIban.trim()) {
       patch({ bankSavedAt: new Date().toISOString() });
       return true;
     }
@@ -561,6 +604,7 @@ export default function PayoutSetupWizard({
 
   const reviewIdentityLabel = () => {
     if (canReceive) return 'Complete';
+    if (identityDocumentDue || accountRestricted) return 'Action required';
     if (draft.identitySavedAt || profile?.connect_details_submitted) {
       return 'Submitted — pending review';
     }
@@ -966,10 +1010,46 @@ export default function PayoutSetupWizard({
                     </span>
                   </label>
                   <p className="text-[12px] leading-relaxed text-[#71717a]">
-                    If extra identity checks are needed, Traverion will ask you to complete a secure
-                    verification step. Your information is being reviewed only after the provider confirms
+                    If extra identity checks are needed, complete them here. Traverion does not store
+                    identity documents. Your information is being reviewed only after the provider confirms
                     it.
                   </p>
+                  {identityDocumentDue || accountRestricted ? (
+                    <div className="rounded-[10px] border border-[#e5e7eb] bg-[#fafafa] px-3 py-3">
+                      <p className="text-[13px] font-semibold text-[#18181b]">Additional verification</p>
+                      <p className="mt-1 text-[12px] leading-relaxed text-[#52525b]">
+                        The provider still needs an identity document or a correction. Complete that secure
+                        step inside Traverion, then refresh status.
+                      </p>
+                      {!showIdentityRemediation ? (
+                        <button
+                          type="button"
+                          className="tv-btn-primary mt-3 h-10 px-3 text-[13px]"
+                          onClick={() => setShowIdentityRemediation(true)}
+                        >
+                          Continue verification
+                        </button>
+                      ) : (
+                        <div className="mt-3">
+                          <Suspense fallback={<p className="text-[12px] text-[#71717a]">Loading verification…</p>}>
+                            <ConnectEmbeddedPanel
+                              component="account_onboarding"
+                              expectStripeAuth={false}
+                              onExit={() => {
+                                setShowIdentityRemediation(false);
+                                void refreshConnect();
+                              }}
+                              onHostedFallback={(url) => {
+                                setHostedFallbackUrl(url);
+                                setShowIdentityRemediation(false);
+                              }}
+                              onError={(msg) => setError(msg)}
+                            />
+                          </Suspense>
+                        </div>
+                      )}
+                    </div>
+                  ) : null}
                 </div>
               ) : null}
 
@@ -1165,6 +1245,33 @@ export default function PayoutSetupWizard({
                       </span>
                     </li>
                   </ul>
+                  {accountRestricted ? (
+                    <p className="rounded-[10px] border border-amber-200 bg-amber-50 px-3 py-2 text-[12px] leading-relaxed text-amber-950">
+                      This payout account needs attention before it can be used.
+                      {profile?.connect_disabled_reason
+                        ? ' Update the items below and refresh status.'
+                        : ''}
+                    </p>
+                  ) : null}
+                  {outstandingLabels.length > 0 ? (
+                    <div>
+                      <p className="text-[12px] font-semibold text-[#18181b]">Still needed</p>
+                      <ul className="mt-1 list-disc space-y-1 pl-4 text-[12px] text-[#52525b]">
+                        {outstandingLabels.map((label) => (
+                          <li key={label}>{label}</li>
+                        ))}
+                      </ul>
+                      {resumeStep && resumeStep !== 'review' ? (
+                        <button
+                          type="button"
+                          className="mt-2 text-[13px] font-semibold text-[#073b83]"
+                          onClick={() => goTo(resumeStep, 'back')}
+                        >
+                          Update this information
+                        </button>
+                      ) : null}
+                    </div>
+                  ) : null}
                   <p className="text-[12px] leading-relaxed text-[#52525b]">
                     {canReceive
                       ? "You're ready to receive payouts once Traverion enables payout execution. Execution stays separately controlled and is currently off."
