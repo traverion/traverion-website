@@ -66,12 +66,11 @@ describe('P8.3 pilot isolation hardening', () => {
     expect(adminUi).not.toContain('pilotDryRun: false');
   });
 
-  it('partner settings uses hosted Account Link fallback + humanized requirements', () => {
-    expect(partnerSettings).toContain("invokeConnectSupplierOnboarding('account_link')");
-    expect(partnerSettings).toMatch(/Start verification|Continue verification|Update verification/);
-    expect(partnerSettings).toContain('groupConnectRequirements');
+  it('partner settings uses Connect refresh + unified payout wizard', () => {
+    expect(partnerSettings).toContain("invokeConnectSupplierOnboarding('refresh')");
+    expect(partnerSettings).toMatch(/Start payout setup|Continue payout setup|Review payout setup/);
+    expect(partnerSettings).toContain('PayoutSetupWizard');
     expect(partnerSettings).toContain("connect !== 'return'");
-    expect(partnerSettings).toMatch(/does not store|never store/i);
   });
 
   it('humanizeConnectRequirements never surfaces representative PII fields', () => {

@@ -64,15 +64,18 @@ describe('P8.7 native payout onboarding UX (unit/source)', () => {
     expect(labels).toContain('EXPRESS_STRIPE_AUTH_LIMITATION');
   });
 
-  it('guided Income settings sequence covers business → verification → bank → preferences → completion', () => {
-    expect(settings).toContain('1. Business details');
-    expect(settings).toContain('2. Representative verification');
-    expect(settings).toContain('3. Bank account');
-    expect(settings).toContain('4. Payout preferences');
-    expect(settings).toContain('5. Completion');
-    expect(settings).toContain('saveBusinessDetails');
-    expect(settings).toContain('groupConnectRequirements');
-    expect(settings).toContain('Edit business details');
+  it('guided payout sequence lives in unified wizard (P8.8 successor)', () => {
+    expect(settings).toContain('PayoutSetupWizard');
+    const wizard = readFileSync(
+      resolve(root, 'src/components/supplier/PayoutSetupWizard.tsx'),
+      'utf8'
+    );
+    expect(wizard).toContain('Business details');
+    expect(wizard).toContain('Representative verification');
+    expect(wizard).toContain('Bank account');
+    expect(wizard).toContain('Payout preferences');
+    expect(wizard).toContain("goTo('review'");
+    expect(wizard).toContain('saveBusiness');
   });
 
   it('preserves canonical LIVE Express account id in certification fixtures', () => {

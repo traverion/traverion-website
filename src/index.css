@@ -20463,6 +20463,15 @@ details:not([open]) > :not(summary) {
   max-width: 42rem;
 }
 
+/* P8.8 unified payout setup wizard — focused single-step chrome */
+.payout-wizard {
+  color: #18181b;
+}
+
+.payout-wizard__stage {
+  width: 100%;
+}
+
 .tv-verify-workspace__stage {
   width: 100%;
 }

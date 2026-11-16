@@ -54,12 +54,18 @@ describe('P8.6 embedded Connect production certification (unit/source)', () => {
     expect(CANONICAL).toMatch(/^acct_1UcAx/);
   });
 
-  it('partner settings keeps Traverion chrome around embedded Stripe components', () => {
-    expect(settings).toContain('Business details');
-    expect(settings).toContain('Representative verification');
-    expect(settings).toContain('Bank account');
-    expect(settings).toContain('Payout preferences');
-    expect(settings).toContain('ConnectEmbeddedPanel');
-    expect(settings).toContain('Continue on Stripe');
+  it('partner settings launches wizard that wraps embedded Stripe components', () => {
+    expect(settings).toContain('PayoutSetupWizard');
+    expect(settings).toContain('Start payout setup');
+    const wizard = readFileSync(
+      resolve(root, 'src/components/supplier/PayoutSetupWizard.tsx'),
+      'utf8'
+    );
+    expect(wizard).toContain('Business details');
+    expect(wizard).toContain('Representative verification');
+    expect(wizard).toContain('Bank account');
+    expect(wizard).toContain('Payout preferences');
+    expect(wizard).toContain('ConnectEmbeddedPanel');
+    expect(wizard).toContain('Open secure step');
   });
 });

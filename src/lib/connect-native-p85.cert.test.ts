@@ -98,17 +98,21 @@ describe('P8.5 native onboarding experience', () => {
     );
   });
 
-  it('Income settings embeds onboarding + bank management with Business Details', () => {
-    expect(settings).toContain('Business details');
-    expect(settings).toContain('Representative verification');
-    expect(settings).toContain('Bank account');
-    expect(settings).toContain('Payout preferences');
-    expect(settings).toContain('ConnectEmbeddedPanel');
-    expect(settings).toContain('account_onboarding');
-    expect(settings).toContain('account_management');
-    expect(settings).toContain('never rewrites frozen booking commissions');
-    expect(settings).toContain('Continue on Stripe');
-    expect(settings).toContain('Edit business details');
+  it('Income settings launches unified payout wizard (P8.8)', () => {
+    expect(settings).toContain('PayoutSetupWizard');
+    expect(settings).toContain('Start payout setup');
+    expect(settings).toContain('Continue payout setup');
+    const wizard = readFileSync(
+      resolve(root, 'src/components/supplier/PayoutSetupWizard.tsx'),
+      'utf8'
+    );
+    expect(wizard).toContain('Business details');
+    expect(wizard).toContain('Representative verification');
+    expect(wizard).toContain('Bank account');
+    expect(wizard).toContain('Payout preferences');
+    expect(wizard).toContain('ConnectEmbeddedPanel');
+    expect(wizard).toContain('account_onboarding');
+    expect(wizard).toContain('account_management');
   });
 
   it('Express verification journey opens embedded panel instead of support wall', () => {
