@@ -560,6 +560,7 @@ export default function PayoutSetupWizard({
                         business_type: e.target.value as '' | 'company' | 'individual',
                       })
                     }
+                    disabled={businessLocked}
                   >
                     <option value="">Select…</option>
                     <option value="company">Company</option>
@@ -574,6 +575,7 @@ export default function PayoutSetupWizard({
                     className="tv-input h-11 w-full"
                     value={draft.company_registration_number}
                     onChange={(e) => patch({ company_registration_number: e.target.value })}
+                    readOnly={businessLocked}
                   />
                 </label>
                 <label className="block text-[13px]">
@@ -585,6 +587,7 @@ export default function PayoutSetupWizard({
                     value={draft.address_street}
                     onChange={(e) => patch({ address_street: e.target.value })}
                     autoComplete="street-address"
+                    readOnly={businessLocked}
                   />
                 </label>
                 <div className="grid grid-cols-2 gap-3">
@@ -597,6 +600,7 @@ export default function PayoutSetupWizard({
                       value={draft.address_postal_code}
                       onChange={(e) => patch({ address_postal_code: e.target.value })}
                       autoComplete="postal-code"
+                      readOnly={businessLocked}
                     />
                   </label>
                   <label className="block text-[13px]">
@@ -608,6 +612,7 @@ export default function PayoutSetupWizard({
                       value={draft.address_city}
                       onChange={(e) => patch({ address_city: e.target.value })}
                       autoComplete="address-level2"
+                      readOnly={businessLocked}
                     />
                   </label>
                 </div>
@@ -622,6 +627,7 @@ export default function PayoutSetupWizard({
                       onChange={(e) => patch({ address_country: e.target.value })}
                       placeholder="FI"
                       autoComplete="country"
+                      readOnly={businessLocked}
                     />
                   </label>
                   <label className="block text-[13px]">
@@ -645,6 +651,7 @@ export default function PayoutSetupWizard({
                     value={draft.managing_directors}
                     onChange={(e) => patch({ managing_directors: e.target.value })}
                     placeholder="Full legal name"
+                    readOnly={businessLocked}
                   />
                 </label>
               </form>
