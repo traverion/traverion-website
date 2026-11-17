@@ -28,8 +28,7 @@ import { insertSupplierExportRun } from '../../data/supabase-supplier-campaigns-
 import { SUPPLIER_PAGE_CLASS, SupplierListSkeleton } from '../../components/supplier/supplierUi';
 import ErrorState from '../../components/ErrorState';
 import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
-import { navigateSupplierUrl, openSupplierBooking } from '../../lib/supplierPortalNavigation';
-import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
+import { openSupplierBooking } from '../../lib/supplierPortalNavigation';
 import { formatMoney, normalizeCurrency } from '../../lib/money';
 import { isCollectedBooking, isRefundDueBooking } from '../../lib/payment-states';
 import { bookingIsRental, bookingIsStayNight } from '../../lib/pickup-completeness';
@@ -38,14 +37,14 @@ import {
   isPlatformCommissionKind,
   ledgerRecoveryTotal,
 } from '../../lib/supplier-ledger-balance';
-import { formatBpsAsPercent, fromMinorUnits, planDefinition } from '../../lib/commercial-money';
+import { fromMinorUnits } from '../../lib/commercial-money';
 import {
   showAdminStripeTestDiagnostics,
   SUPPLIER_TEST_DATA_LABEL,
 } from '../../lib/traveler-env-presentation';
 import { fetchMyListings } from '../../data/supabase-listings';
 import { fetchSupplierLedger, type SupplierLedgerEntry } from '../../data/supabase-booking-ops';
-import { PARTNER_MONEY_PAYOUT_STATUS_NOTE, PARTNER_MONEY_EMPTY_TITLE, PARTNER_MONEY_EMPTY_BODY, PARTNER_MONEY_LOAD_ERROR_TITLE, PARTNER_MONEY_FILTER_EMPTY_BODY, PARTNER_MONEY_PERIOD_NOT_PAID_OUT_LABEL } from '../../lib/booking-confirmation-copy';
+import { PARTNER_MONEY_PAYOUT_STATUS_NOTE, PARTNER_MONEY_LOAD_ERROR_TITLE, PARTNER_MONEY_FILTER_EMPTY_BODY, PARTNER_MONEY_PERIOD_NOT_PAID_OUT_LABEL } from '../../lib/booking-confirmation-copy';
 import NoticeCallout from '../../components/NoticeCallout';
 import { localYmd } from '../../lib/local-ymd';
 import {
@@ -665,15 +664,6 @@ export default function SupplierEarnings() {
     primaryCurrency,
   ]);
 
-  const planSummary = useMemo(() => {
-    if (!commercialTerms) return null;
-    const def = planDefinition(commercialTerms.plan_code);
-    if (def) return def.supplierFacingSummary;
-    return `${formatBpsAsPercent(commercialTerms.commission_bps)} commission · ${
-      commercialTerms.payout_cadence === 'semimonthly' ? 'Twice-monthly' : 'Monthly'
-    } payouts`;
-  }, [commercialTerms]);
-
   /** Negative = supplier owes Traverion after post-payout refund/chargeback recovery. */
   const recoveryBalance = useMemo(() => ledgerRecoveryTotal(ledger), [ledger]);
 
@@ -1087,23 +1077,10 @@ export default function SupplierEarnings() {
         <SupplierListSkeleton rows={3} />
       ) : null}
 
-      {!loading && !hasMoney && !error && tab !== 'settings' ? (
-        <div className="tv-income-empty tv-income-empty--compact">
-          <div className="tv-income-empty__icon"><Wallet className="h-5 w-5" aria-hidden /></div>
-          <h3 className="text-sm font-bold text-[#18181b]">{PARTNER_MONEY_EMPTY_TITLE}</h3>
-          <p className="mt-1 max-w-md text-[13px] leading-relaxed text-[#71717a]">{PARTNER_MONEY_EMPTY_BODY}</p>
-          <div className="mt-4 flex flex-wrap justify-center gap-2">
-            <button type="button" className="tv-btn-primary h-9 px-3 text-[13px]" onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/bookings`)}>
-              Open bookings
-            </button>
-            <button type="button" className="tv-btn-secondary h-9 px-3 text-[13px]" onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/listings`)}>
-              Your listings
-            </button>
-          </div>
-        </div>
-      ) : null}
-
-      {hasMoney && tab === 'overview' ? (
+      {/* P9.24: Overview/Earnings/Payouts/Documents always render their layouts after a successful load —
+          including zero activity (€0 / empty tables). Never replace the dashboard with a page-level empty card.
+          Failed loads stay on ErrorState above — never painted as success-like zeros. */}
+      {!error && !loading && tab === 'overview' ? (
         <div className="mx-auto w-full max-w-[1180px] space-y-4">
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2" data-testid="income-overview-primary-cards">
             <div className="tv-income-metric tv-income-metric--hero">
@@ -1296,7 +1273,7 @@ export default function SupplierEarnings() {
         </div>
       ) : null}
 
-      {hasMoney && tab === 'earnings' ? (
+      {!error && !loading && tab === 'earnings' ? (
         <div className="mx-auto w-full max-w-[1180px] space-y-3">
           {recoveryBalance < 0 ? (
             <NoticeCallout title="Outstanding recovery balance" tone="warn">
@@ -1388,116 +1365,127 @@ export default function SupplierEarnings() {
               />
             </label>
           </div>
+          <div className="hidden overflow-x-auto rounded-[10px] border border-[#e5e7eb] bg-white md:block">
+            <table className="w-full min-w-[40rem] text-left text-[13px]">
+              <thead className="border-b border-[#e5e7eb] text-xs font-semibold text-[#3a4452]">
+                <tr>
+                  <th className="px-3 py-2.5">Booking</th>
+                  <th className="px-3 py-2.5">Experience</th>
+                  <th className="px-3 py-2.5">Service</th>
+                  <th className="px-3 py-2.5">Sold</th>
+                  <th className="px-3 py-2.5 text-right">Commission</th>
+                  <th className="px-3 py-2.5 text-right">Your earnings</th>
+                  <th className="px-3 py-2.5">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pageRows.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="px-3 py-10 text-center">
+                      <p className="text-sm font-semibold text-[#18181b]">
+                        {hasMoney ? 'No rows for this filter' : 'No earnings yet'}
+                      </p>
+                      <p className="mx-auto mt-1 max-w-md text-[13px] leading-relaxed text-[#71717a]">
+                        {hasMoney
+                          ? PARTNER_MONEY_FILTER_EMPTY_BODY
+                          : 'Your earnings will appear here when you receive your first eligible booking.'}
+                      </p>
+                    </td>
+                  </tr>
+                ) : (
+                  pageRows.map((row) => (
+                    <tr
+                      key={row.bookingId}
+                      className="cursor-pointer border-t border-[#e5e7eb]"
+                      tabIndex={0}
+                      onClick={() => setSelectedEarningId(row.bookingId)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault();
+                          setSelectedEarningId(row.bookingId);
+                        }
+                      }}
+                    >
+                      <td className="whitespace-nowrap px-3 py-2.5">
+                        <span className="tv-money-row__ref">{row.reference}</span>
+                      </td>
+                      <td className="max-w-[18rem] truncate px-3 py-2.5 text-[color:var(--tv-income-muted,#475569)]" title={row.experience}>{row.experience}</td>
+                      <td className="whitespace-nowrap px-3 py-2.5 text-[color:var(--tv-income-muted,#475569)]">{incomeDate(row.activityDate)}</td>
+                      <td className="whitespace-nowrap px-3 py-2.5 text-[color:var(--tv-income-muted,#475569)]">{incomeDate(row.purchaseDate)}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums text-[color:var(--tv-income-muted,#475569)]">
+                        {row.commissionMinor != null
+                          ? formatMoney(row.commissionMinor / 100, row.currency)
+                          : '—'}
+                      </td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">
+                        <span className="tv-money-row__amount">{formatMoney(row.netMinor / 100, row.currency)}</span>
+                      </td>
+                      <td className="px-3 py-2.5">
+                        <span className={earningStatusClass(row.status)}>{earningStatusLabel(row.status)}</span>
+                        {row.held ? (
+                          <span className="ml-1 tv-income-status tv-income-status--failed">Held</span>
+                        ) : null}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
           {pageRows.length === 0 ? (
-            <div className="tv-income-empty tv-income-empty--compact">
-              <div className="tv-income-empty__icon"><Wallet className="h-5 w-5" aria-hidden /></div>
-              <h3 className="text-sm font-bold text-[#18181b]">No rows for this filter</h3>
-              <p className="mt-1 max-w-sm text-[13px] text-[#71717a]">{PARTNER_MONEY_FILTER_EMPTY_BODY}</p>
+            <div className="rounded-[10px] border border-[#e5e7eb] bg-white px-4 py-10 text-center md:hidden">
+              <p className="text-sm font-semibold text-[#18181b]">
+                {hasMoney ? 'No rows for this filter' : 'No earnings yet'}
+              </p>
+              <p className="mx-auto mt-1 max-w-md text-[13px] leading-relaxed text-[#71717a]">
+                {hasMoney
+                  ? PARTNER_MONEY_FILTER_EMPTY_BODY
+                  : 'Your earnings will appear here when you receive your first eligible booking.'}
+              </p>
             </div>
           ) : (
-            <>
-              <div className="hidden overflow-x-auto rounded-[10px] border border-[#e5e7eb] bg-white md:block">
-                <table className="w-full min-w-[40rem] text-left text-[13px]">
-                  <thead className="border-b border-[#e5e7eb] text-xs font-semibold text-[#3a4452]">
-                    <tr>
-                      <th className="px-3 py-2.5">Booking</th>
-                      <th className="px-3 py-2.5">Experience</th>
-                      <th className="px-3 py-2.5">Service</th>
-                      <th className="px-3 py-2.5">Sold</th>
-                      <th className="px-3 py-2.5 text-right">Commission</th>
-                      <th className="px-3 py-2.5 text-right">Your earnings</th>
-                      <th className="px-3 py-2.5">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {pageRows.map((row) => (
-                      <tr
-                        key={row.bookingId}
-                        className="cursor-pointer border-t border-[#e5e7eb]"
-                        tabIndex={0}
-                        onClick={() => setSelectedEarningId(row.bookingId)}
-                        onKeyDown={(event) => {
-                          if (event.key === 'Enter' || event.key === ' ') {
-                            event.preventDefault();
-                            setSelectedEarningId(row.bookingId);
-                          }
-                        }}
-                      >
-                        <td className="whitespace-nowrap px-3 py-2.5">
-                          <span className="tv-money-row__ref">{row.reference}</span>
-                        </td>
-                        <td className="max-w-[18rem] truncate px-3 py-2.5 text-[color:var(--tv-income-muted,#475569)]" title={row.experience}>{row.experience}</td>
-                        <td className="whitespace-nowrap px-3 py-2.5 text-[color:var(--tv-income-muted,#475569)]">{incomeDate(row.activityDate)}</td>
-                        <td className="whitespace-nowrap px-3 py-2.5 text-[color:var(--tv-income-muted,#475569)]">{incomeDate(row.purchaseDate)}</td>
-                        <td className="px-3 py-2.5 text-right tabular-nums text-[color:var(--tv-income-muted,#475569)]">
-                          {row.commissionMinor != null
-                            ? formatMoney(row.commissionMinor / 100, row.currency)
-                            : '—'}
-                        </td>
-                        <td className="px-3 py-2.5 text-right tabular-nums">
-                          <span className="tv-money-row__amount">{formatMoney(row.netMinor / 100, row.currency)}</span>
-                        </td>
-                        <td className="px-3 py-2.5">
-                          <span className={earningStatusClass(row.status)}>{earningStatusLabel(row.status)}</span>
-                          {row.held ? (
-                            <span className="ml-1 tv-income-status tv-income-status--failed">Held</span>
-                          ) : null}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              <ul className="divide-y divide-[#e5e7eb] overflow-hidden rounded-[10px] border border-[#e5e7eb] bg-white md:hidden">
-                {pageRows.map((row) => (
-                  <li key={row.bookingId}>
-                    <button type="button" className="tv-money-row w-full text-left" onClick={() => setSelectedEarningId(row.bookingId)}>
-                      <span className="min-w-0">
-                        <span className="tv-money-row__ref block">{row.reference}</span>
-                        <span className="mt-0.5 block truncate text-[12px] text-[color:var(--tv-income-muted,#475569)]">{row.experience} · {incomeDate(row.activityDate)}</span>
-                        <span className={`mt-1 ${earningStatusClass(row.status)}`}>{earningStatusLabel(row.status)}</span>
-                      </span>
-                      <span className="tv-money-row__amount">{formatMoney(row.netMinor / 100, row.currency)}</span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-              <div className="flex items-center justify-between text-[13px]">
-                <button type="button" className="tv-btn-secondary h-9 px-3" disabled={earningPage === 0} onClick={() => setEarningPage((page) => Math.max(0, page - 1))}>Previous</button>
-                <span className="text-[#71717a]">{earningPage + 1} / {pageCount}</span>
-                <button type="button" className="tv-btn-secondary h-9 px-3" disabled={earningPage + 1 >= pageCount} onClick={() => setEarningPage((page) => page + 1)}>Next</button>
-              </div>
-            </>
+            <ul className="divide-y divide-[#e5e7eb] overflow-hidden rounded-[10px] border border-[#e5e7eb] bg-white md:hidden">
+              {pageRows.map((row) => (
+                <li key={row.bookingId}>
+                  <button type="button" className="tv-money-row w-full text-left" onClick={() => setSelectedEarningId(row.bookingId)}>
+                    <span className="min-w-0">
+                      <span className="tv-money-row__ref block">{row.reference}</span>
+                      <span className="mt-0.5 block truncate text-[12px] text-[color:var(--tv-income-muted,#475569)]">{row.experience} · {incomeDate(row.activityDate)}</span>
+                      <span className={`mt-1 ${earningStatusClass(row.status)}`}>{earningStatusLabel(row.status)}</span>
+                    </span>
+                    <span className="tv-money-row__amount">{formatMoney(row.netMinor / 100, row.currency)}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
           )}
+          {pageRows.length > 0 ? (
+            <div className="flex items-center justify-between text-[13px]">
+              <button type="button" className="tv-btn-secondary h-9 px-3" disabled={earningPage === 0} onClick={() => setEarningPage((page) => Math.max(0, page - 1))}>Previous</button>
+              <span className="text-[#71717a]">{earningPage + 1} / {pageCount}</span>
+              <button type="button" className="tv-btn-secondary h-9 px-3" disabled={earningPage + 1 >= pageCount} onClick={() => setEarningPage((page) => page + 1)}>Next</button>
+            </div>
+          ) : null}
         </div>
       ) : null}
 
-      {hasMoney && tab === 'payouts' ? (
+      {!error && !loading && tab === 'payouts' ? (
         <div className="mx-auto w-full max-w-[1180px] space-y-3">
           <NoticeCallout title="How payout statuses work" tone="info">
             Traverion prepares payout periods from cleared earnings. Funds sent to your payout account are not the same as
             money arriving in your bank — bank payout confirmation is tracked separately.
           </NoticeCallout>
-          {payoutPeriods.length === 0 && filteredEarningsInWindow.length === 0 ? (
-            <div className="tv-income-empty tv-income-empty--compact">
-              <div className="tv-income-empty__icon"><Wallet className="h-5 w-5" aria-hidden /></div>
-              <h3 className="text-sm font-bold text-[#18181b]">No payout periods yet</h3>
-              <p className="mt-1 max-w-sm text-[13px] leading-relaxed text-[#71717a]">
-                Eligible earnings appear here once Traverion prepares a payout period. Eligible balance is not a bank transfer.
-              </p>
-              <div className="mt-3 flex flex-wrap justify-center gap-2">
-                <button type="button" className="tv-btn-primary h-9 px-3 text-[13px]" onClick={() => setTabAndUrl('earnings')}>
-                  View earnings
-                </button>
-                <button type="button" className="tv-btn-secondary h-9 px-3 text-[13px]" onClick={() => setTabAndUrl('settings')}>
-                  Payout settings
-                </button>
-              </div>
-            </div>
-          ) : (
-            <>
-              <p className="text-[12px] text-[#71717a]">{nextPayoutLabel}</p>
-              <ul className="divide-y divide-[#e5e7eb] overflow-hidden rounded-[10px] border border-[#e5e7eb] bg-white">
+          <p className="text-[12px] text-[#71717a]">{nextPayoutLabel}</p>
+          <ul className="divide-y divide-[#e5e7eb] overflow-hidden rounded-[10px] border border-[#e5e7eb] bg-white">
+            {payoutPeriods.length === 0 && filteredEarningsInWindow.length === 0 ? (
+              <li className="px-4 py-10 text-center">
+                <p className="text-sm font-semibold text-[#18181b]">No payouts yet</p>
+                <p className="mx-auto mt-1 max-w-md text-[13px] leading-relaxed text-[#71717a]">
+                  Your payout history will appear here once payouts are processed.
+                </p>
+              </li>
+            ) : (
+              <>
                 {payoutPeriods.map((period) => (
                   <li key={period.id}>
                     <button type="button" className="tv-money-row w-full text-left" onClick={() => setSelectedPayoutId(period.id)}>
@@ -1529,13 +1517,13 @@ export default function SupplierEarnings() {
                     <span className="tv-money-row__amount">{formatMoney(Number(period.amount), period.currency)}</span>
                   </li>
                 ))}
-              </ul>
-            </>
-          )}
+              </>
+            )}
+          </ul>
         </div>
       ) : null}
 
-      {hasMoney && tab === 'documents' ? (
+      {!error && !loading && tab === 'documents' ? (
         <div className="mx-auto w-full max-w-[1180px] space-y-3">
           <div className="flex flex-wrap items-end gap-2">
             {(['all', 'payouts', 'confirmations'] as const).map((kind) => (
@@ -1576,11 +1564,10 @@ export default function SupplierEarnings() {
             );
             if (payoutStatementDocs.length === 0 && paymentConfirmationDocs.length === 0) {
               return (
-                <div className="tv-income-empty tv-income-empty--compact">
-                  <div className="tv-income-empty__icon"><FileText className="h-5 w-5" aria-hidden /></div>
-                  <h3 className="text-sm font-bold text-[#18181b]">No documents yet</h3>
-                  <p className="mt-1 max-w-sm text-[13px] text-[#52525b]">
-                    Payout statements and payment confirmations appear only after a payout period is confirmed. Booking-level splits stay on Earnings. Prepared periods are never listed as paid documents.
+                <div className="rounded-[10px] border border-[#e5e7eb] bg-white px-4 py-10 text-center">
+                  <p className="text-sm font-semibold text-[#18181b]">No documents yet</p>
+                  <p className="mx-auto mt-1 max-w-md text-[13px] leading-relaxed text-[#71717a]">
+                    Statements and payment confirmations appear here after a payout period is confirmed.
                   </p>
                 </div>
               );

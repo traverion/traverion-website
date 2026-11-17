@@ -21,8 +21,8 @@ import PartnerHelpTip from './PartnerHelpTip';
 
 const PayoutSetupWizard = lazy(() => import('./PayoutSetupWizard'));
 
-/** Align with Business Settings / Income tabs (~1000–1150px). */
-const CONTENT_MAX = 'max-w-[68rem]';
+/** Align with Income overview content width. */
+const CONTENT_MAX = 'max-w-[1180px]';
 
 type Props = {
   userId: string;
@@ -42,11 +42,15 @@ function preferenceFrequency(cycle: string | null | undefined): string {
   return 'Not set';
 }
 
-function preferenceMinimum(min: number | string | null | undefined): string {
+function preferenceMinimum(
+  min: number | string | null | undefined,
+  currency: string | null
+): string {
   if (min == null || min === '') return 'Not set';
   const n = typeof min === 'number' ? min : Number(min);
   if (!Number.isFinite(n)) return String(min);
-  return String(n);
+  const code = (currency || 'EUR').toUpperCase();
+  return `${n.toLocaleString('en-GB', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ${code}`;
 }
 
 function statusTone(label: string): PartnerStatusTone {
@@ -62,29 +66,6 @@ function statusTone(label: string): PartnerStatusTone {
     default:
       return 'neutral';
   }
-}
-
-function payoutAccountExplanation(input: {
-  label: string;
-  verified: boolean;
-  bankOk: boolean;
-}): string {
-  if (input.label === 'LIVE onboarding required') {
-    return 'Finish LIVE payout setup when Traverion invites you. Test accounts are not used for real payouts.';
-  }
-  if (input.verified) {
-    return 'Your payout account is verified. Traverion controls when payouts are sent.';
-  }
-  if (input.label === 'Under review') {
-    return 'Details are being checked. You can keep drafting listings while you wait.';
-  }
-  if (input.label === 'Action required' || input.label === 'Restricted') {
-    return 'Update the details that need attention, then continue setup.';
-  }
-  if (!input.bankOk) {
-    return 'Connect a bank account so Traverion can pay you when payouts are enabled.';
-  }
-  return 'Set up verification and bank details in a short guided flow.';
 }
 
 function bankStatusLabel(input: {
@@ -121,34 +102,27 @@ function resolveResumeStep(profile: SupplierProfileRow | null): PayoutWizardStep
   return 'review';
 }
 
-function SettingsSection({
+function SettingsCard({
   title,
   help,
-  description,
   action,
   children,
 }: {
   title: string;
   help?: string;
-  description?: string;
   action?: ReactNode;
   children: ReactNode;
 }) {
   return (
-    <section className="border-b border-[#E8EAED] py-6 first:pt-1 last:border-0 last:pb-1">
-      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0 max-w-2xl">
-          <h2 className="inline-flex items-center gap-1.5 text-[15px] font-semibold tracking-tight text-[#17191d]">
-            {title}
-            {help ? <PartnerHelpTip label={`About ${title}`}>{help}</PartnerHelpTip> : null}
-          </h2>
-          {description ? (
-            <p className="mt-1 text-[13px] leading-snug text-[#5c6570]">{description}</p>
-          ) : null}
-        </div>
-        {action ? <div className="flex w-full shrink-0 flex-col gap-2 sm:w-auto sm:flex-row">{action}</div> : null}
+    <section className="overflow-hidden rounded-[12px] border border-[#e5e7eb] bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#eef1f4] px-5 py-4 sm:px-6">
+        <h2 className="inline-flex items-center gap-1.5 text-[15px] font-semibold tracking-tight text-[#17191d]">
+          {title}
+          {help ? <PartnerHelpTip label={`About ${title}`}>{help}</PartnerHelpTip> : null}
+        </h2>
+        {action ? <div className="flex shrink-0 flex-wrap items-center gap-2">{action}</div> : null}
       </div>
-      {children}
+      <div className="px-5 py-5 sm:px-6">{children}</div>
     </section>
   );
 }
@@ -165,12 +139,12 @@ function Fact({
   const empty =
     value == null || (typeof value === 'string' && (!value.trim() || value === '—'));
   return (
-    <div>
-      <dt className="inline-flex items-center gap-1 text-[12px] text-[#5c6570]">
+    <div className="min-w-0">
+      <dt className="inline-flex items-center gap-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-[#71717a]">
         {label}
         {help ? <PartnerHelpTip label={`About ${label}`}>{help}</PartnerHelpTip> : null}
       </dt>
-      <dd className="mt-0.5 text-[14px] font-medium leading-snug tracking-tight text-[#17191d]">
+      <dd className="mt-1.5 text-[14px] font-medium leading-snug tracking-tight text-[#17191d]">
         {empty ? <span className="font-normal text-[#9aa3ad]">—</span> : value}
       </dd>
     </div>
@@ -180,7 +154,7 @@ function Fact({
 export default function IncomeFinancialSettings({
   userId,
   profile,
-  commercialTerms,
+  commercialTerms: _commercialTerms,
   payoutCurrency,
   canEdit,
   onProfile,
@@ -295,7 +269,7 @@ export default function IncomeFinancialSettings({
         <PayoutSetupWizard
           userId={userId}
           profile={profile}
-          commercialTerms={commercialTerms}
+          commercialTerms={_commercialTerms}
           payoutCurrency={payoutCurrency}
           canEdit={canEdit}
           onProfile={onProfile}
@@ -313,30 +287,37 @@ export default function IncomeFinancialSettings({
   }
 
   return (
-    <div id="income-payout-settings" className={`mx-auto w-full ${CONTENT_MAX}`}>
-      <div className="rounded-[12px] border border-[#E8EAED] bg-white px-4 sm:px-6 lg:px-8">
-        <SettingsSection
-          title="Payout account"
-          help={PARTNER_HELP.payoutStatus}
-          description={payoutAccountExplanation({
-            label: displayStatus,
-            verified,
-            bankOk,
-          })}
-          action={
-            showPrimarySetup ? (
-              <button
-                type="button"
-                className="tv-btn-primary h-11 w-full px-4 text-[13px] sm:w-auto"
-                disabled={!canEdit || busy}
-                onClick={() => openWizard()}
-              >
-                {busy ? 'Working…' : primarySetupLabel}
-              </button>
-            ) : null
-          }
-        >
+    <div id="income-payout-settings" className={`mx-auto w-full ${CONTENT_MAX} space-y-4`}>
+      <SettingsCard
+        title="Payout account"
+        help={PARTNER_HELP.payoutStatus}
+        action={
+          showPrimarySetup ? (
+            <button
+              type="button"
+              className="tv-btn-primary h-10 px-4 text-[13px]"
+              disabled={!canEdit || busy}
+              onClick={() => openWizard()}
+            >
+              {busy ? 'Working…' : primarySetupLabel}
+            </button>
+          ) : verified ? (
+            <button
+              type="button"
+              className="tv-btn-secondary h-10 px-4 text-[13px]"
+              disabled={!canEdit || busy}
+              onClick={() => openWizard('review')}
+            >
+              Review setup
+            </button>
+          ) : null
+        }
+      >
+        <div className="rounded-[10px] border border-[#eef1f4] bg-[#f8fafc] px-4 py-4 sm:px-5">
           <div className="mb-4 flex flex-wrap items-center gap-2">
+            <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#71717a]">
+              Status
+            </span>
             <StatusChip tone={statusTone(displayStatus)}>{displayStatus}</StatusChip>
             <PartnerHelpTip label="About verification status">
               {displayStatus === 'Verified'
@@ -348,82 +329,87 @@ export default function IncomeFinancialSettings({
                     : PARTNER_HELP.incomplete}
             </PartnerHelpTip>
           </div>
-          <dl className="grid grid-cols-1 gap-x-10 gap-y-3 sm:grid-cols-2">
+          <dl className="grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-3">
             <Fact label="Registered business" value={legalName} />
+            <Fact
+              label="Verification"
+              value={displayStatus}
+              help={PARTNER_HELP.payoutStatus}
+            />
             <Fact
               label="Bank connection"
               value={bankOk ? 'Connected' : 'Not connected'}
               help={PARTNER_HELP.bankAccount}
             />
           </dl>
-        </SettingsSection>
+        </div>
+      </SettingsCard>
 
-        <SettingsSection
-          title="Bank account"
-          help={PARTNER_HELP.bankAccount}
-          description={
-            bankOk
-              ? 'Account numbers stay with our payment partner. Only a masked summary is shown here.'
-              : 'No bank account is linked yet.'
-          }
-          action={
-            <button
-              type="button"
-              className="tv-btn-secondary h-11 w-full px-4 text-[13px] sm:w-auto"
-              disabled={!canEdit || busy}
-              onClick={() => openWizard('bank')}
-            >
-              {bankOk ? 'Manage bank account' : 'Add bank account'}
-            </button>
-          }
-        >
-          {bankOk ? (
-            <dl className="grid grid-cols-1 gap-x-10 gap-y-3 sm:grid-cols-2">
-              <Fact label="Account" value={bankIdentifier} />
-              <Fact
-                label="Status"
-                value={bankStatusLabel({ bankOk, verified, actionRequired })}
-              />
-            </dl>
-          ) : (
-            <p className="text-[14px] text-[#5c6570]">
-              Add a bank account during payout setup. Traverion never shows the full account number.
-            </p>
-          )}
-        </SettingsSection>
-
-        <SettingsSection
-          title="Payout preferences"
-          help={PARTNER_HELP.payoutSchedule}
-          description="Saved preferences for when Traverion enables payouts."
-          action={
-            <button
-              type="button"
-              className="tv-btn-secondary h-11 w-full px-4 text-[13px] sm:w-auto"
-              disabled={!canEdit || busy}
-              onClick={() => openWizard('preferences')}
-            >
-              Edit preferences
-            </button>
-          }
-        >
-          <dl className="grid grid-cols-1 gap-x-10 gap-y-3 sm:grid-cols-2">
+      <SettingsCard
+        title="Bank account"
+        help={PARTNER_HELP.bankAccount}
+        action={
+          <button
+            type="button"
+            className="tv-btn-secondary h-10 px-4 text-[13px]"
+            disabled={!canEdit || busy}
+            onClick={() => openWizard('bank')}
+          >
+            {bankOk ? 'Replace bank account' : 'Add bank account'}
+          </button>
+        }
+      >
+        {bankOk ? (
+          <dl className="grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-2">
+            <Fact label="Account" value={bankIdentifier} />
             <Fact
-              label="Frequency"
-              help={PARTNER_HELP.payoutSchedule}
-              value={preferenceFrequency(profile?.payment_cycle)}
-            />
-            <Fact
-              label="Minimum payout"
-              help={PARTNER_HELP.payoutThreshold}
-              value={preferenceMinimum(profile?.payout_threshold_min)}
+              label="Status"
+              value={bankStatusLabel({ bankOk, verified, actionRequired })}
             />
           </dl>
-        </SettingsSection>
-      </div>
+        ) : (
+          <div className="rounded-[10px] border border-dashed border-[#e5e7eb] bg-[#fafbfc] px-4 py-6 text-center">
+            <p className="text-sm font-semibold text-[#18181b]">No bank account linked</p>
+            <p className="mx-auto mt-1 max-w-sm text-[13px] leading-relaxed text-[#71717a]">
+              Add an account during payout setup. Traverion never shows the full account number.
+            </p>
+          </div>
+        )}
+      </SettingsCard>
+
+      <SettingsCard
+        title="Payout preferences"
+        help={PARTNER_HELP.payoutSchedule}
+        action={
+          <button
+            type="button"
+            className="tv-btn-secondary h-10 px-4 text-[13px]"
+            disabled={!canEdit || busy}
+            onClick={() => openWizard('preferences')}
+          >
+            Edit preferences
+          </button>
+        }
+      >
+        <dl className="grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-2">
+          <Fact
+            label="Payout frequency"
+            help={PARTNER_HELP.payoutSchedule}
+            value={preferenceFrequency(profile?.payment_cycle)}
+          />
+          <Fact
+            label="Minimum payout"
+            help={PARTNER_HELP.payoutThreshold}
+            value={preferenceMinimum(profile?.payout_threshold_min, payoutCurrency)}
+          />
+        </dl>
+        <p className="mt-4 text-[12px] leading-relaxed text-[#71717a]">
+          Preferences are saved for when Traverion runs payouts. They do not move money by themselves.
+        </p>
+      </SettingsCard>
 
       {profile?.stripe_connected_account_id ? (
-        <div className="mt-4 flex flex-wrap items-center gap-3 px-1">
+        <div className="flex flex-wrap items-center gap-3 px-1">
           <button
             type="button"
             className="lux-flat min-h-9 text-[13px] font-semibold text-[#073b83] hover:text-[#052d65] disabled:opacity-50"
@@ -441,7 +427,7 @@ export default function IncomeFinancialSettings({
       ) : null}
 
       {error ? (
-        <p className="mt-3 px-1 text-[13px] font-medium text-[#9f1239]" role="alert">
+        <p className="px-1 text-[13px] font-medium text-[#9f1239]" role="alert">
           {error}
         </p>
       ) : null}
