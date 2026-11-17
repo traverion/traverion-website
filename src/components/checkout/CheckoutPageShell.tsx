@@ -1,4 +1,4 @@
-import type { ReactNode, Ref } from 'react';
+import { useEffect, type ReactNode, type Ref } from 'react';
 import CheckoutSecureHeader from './CheckoutSecureHeader';
 import CheckoutMinimalFooter from './CheckoutMinimalFooter';
 import { CHECKOUT_CONTENT_MAX } from './checkoutLayout';
@@ -21,8 +21,8 @@ type Props = {
 };
 
 /**
- * Full-viewport checkout chrome: secure header, wide scroll body, minimal footer.
- * Callers own the two-column grid inside `children`.
+ * Full-viewport checkout chrome: secure header, single scroll body, footer dock outside content.
+ * P9.30: no nested scroll traps; html+body locked while open (parity with payout wizard).
  */
 export default function CheckoutPageShell({
   onBrandClick,
@@ -34,8 +34,23 @@ export default function CheckoutPageShell({
   className = '',
   scrollRef,
 }: Props) {
+  useEffect(() => {
+    const html = document.documentElement;
+    const body = document.body;
+    const prevHtml = html.style.overflow;
+    const prevBody = body.style.overflow;
+    html.style.overflow = 'hidden';
+    body.style.overflow = 'hidden';
+    return () => {
+      html.style.overflow = prevHtml;
+      body.style.overflow = prevBody;
+    };
+  }, []);
+
   return (
-    <div className={`fixed inset-0 z-[10000] flex flex-col bg-[#F7F8FA] ${className}`.trim()}>
+    <div
+      className={`tv-tour-checkout fixed inset-0 z-[10000] flex flex-col overflow-hidden bg-[#F7F8FA] ${className}`.trim()}
+    >
       <CheckoutSecureHeader
         onBrandClick={onBrandClick}
         srBackLabel={srBackLabel}
@@ -44,18 +59,22 @@ export default function CheckoutPageShell({
       />
       <div
         ref={scrollRef}
-        className={`min-h-0 flex-1 overflow-y-auto ${
-          mobileDock ? 'pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] lg:pb-0' : ''
-        }`}
+        className="tv-tour-checkout__scroll min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain"
       >
-        <div className={`tv-checkout-page mx-auto w-full ${CHECKOUT_CONTENT_MAX} px-4 py-4 sm:px-6 sm:py-5 lg:px-8`}>
+        <div
+          className={`tv-checkout-page mx-auto w-full ${CHECKOUT_CONTENT_MAX} px-4 py-4 sm:px-6 sm:py-5 lg:px-8 ${
+            mobileDock ? 'pb-6 lg:pb-8' : ''
+          }`}
+        >
           {children}
           {showFooter ? <CheckoutMinimalFooter /> : null}
         </div>
       </div>
       {mobileDock ? (
-        <div className="lg:hidden shrink-0 border-t border-black/[0.08] bg-white/96 px-4 py-2.5 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-md">
-          <div className={`mx-auto flex w-full ${CHECKOUT_CONTENT_MAX} flex-col gap-1.5`}>{mobileDock}</div>
+        <div className="tv-tour-checkout__dock lg:hidden shrink-0 border-t border-black/[0.08] bg-white/97 px-4 py-2.5 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-md">
+          <div className={`mx-auto flex w-full min-w-0 ${CHECKOUT_CONTENT_MAX} flex-col gap-2`}>
+            {mobileDock}
+          </div>
         </div>
       ) : null}
     </div>

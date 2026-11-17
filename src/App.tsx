@@ -207,7 +207,7 @@ function App() {
     setDestinationSlug(destinationSlug);
     const keepTourForDeepLink =
       !adminHost &&
-      ((page === 'tour-details' && tourParam && /^[0-9a-f-]{36}$/i.test(tourParam)) ||
+      ((page === 'tour-details' && Boolean(tourParam)) ||
         (page === 'stay-details' && stayParam && /^[0-9a-f-]{36}$/i.test(stayParam)));
     if (shouldClearSelectedTour(page) && !keepTourForDeepLink) {
       setSelectedTour(null);

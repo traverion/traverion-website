@@ -4907,7 +4907,7 @@ a:focus-visible,
   letter-spacing: -0.015em;
 }
 
-/* P9.27: unified booking field chrome (date + participants) */
+/* P9.27 / P9.30: unified booking field chrome (date + participants) */
 .tv-booking-field {
   border-radius: 0.75rem;
   border: 1px solid rgba(7, 88, 203, 0.12);
@@ -4926,6 +4926,40 @@ a:focus-visible,
 }
 .tv-booking-panel-kicker {
   margin: 0;
+}
+
+/* P9.30: denser tour sticky + safe participants popover */
+.tv-booking-sticky.tv-booking-sticky--tour {
+  padding: 0.95rem 1rem 1.05rem;
+}
+
+@media (min-width: 640px) {
+  .tv-booking-sticky.tv-booking-sticky--tour {
+    padding: 1.15rem 1.2rem 1.25rem;
+  }
+}
+
+.tv-booking-sticky.tv-booking-sticky--tour .tv-booking-sticky__section {
+  padding-top: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.tv-booking-sticky.tv-booking-sticky--tour .tv-booking-sticky__summary {
+  padding: 0.6rem 0.7rem;
+}
+
+.tv-booking-participants-popover {
+  max-height: min(22rem, calc(100dvh - 9rem - env(safe-area-inset-bottom, 0px)));
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+@media (max-width: 1023px) {
+  .tv-booking-participants-popover {
+    max-height: min(18rem, calc(100dvh - 11rem - env(safe-area-inset-bottom, 0px)));
+  }
 }
 
 @media (max-width: 1023px) {
@@ -5073,6 +5107,27 @@ a:focus-visible,
   line-height: 1.4;
   color: #57534e;
 }
+/* P9.30: tour PDP hierarchy polish */
+.tv-tour-pdp .tv-pdp-meta-row {
+  margin-top: 0.55rem;
+}
+
+.tv-tour-pdp .tv-pdp-section .tv-section-heading {
+  letter-spacing: -0.02em;
+}
+
+.tv-tour-pdp .tv-tour-option-card {
+  transition:
+    border-color 180ms var(--tv-ease, ease),
+    box-shadow 180ms var(--tv-ease, ease),
+    transform 180ms var(--tv-ease, ease);
+}
+
+.tv-tour-pdp .tv-tour-option-card:hover {
+  border-color: rgba(7, 88, 203, 0.28);
+  box-shadow: 0 10px 24px -18px rgba(7, 88, 203, 0.35);
+}
+
 .tv-pdp-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -10206,7 +10261,7 @@ details:not([open]) > :not(summary) {
 
 .tv-booking-progress__track {
   position: absolute;
-  top: 1rem;
+  top: 0.875rem;
   left: 16.666%;
   right: 16.666%;
   height: 2px;
@@ -13560,6 +13615,68 @@ details:not([open]) > :not(summary) {
   background: #ffffff;
   border: 1px solid rgba(28, 25, 23, 0.08);
   box-shadow: 0 10px 28px -18px rgba(15, 23, 42, 0.18);
+}
+
+/* P9.30 — tour checkout shell (single scroll + sticky dock, payout-wizard parity) */
+.tv-tour-checkout {
+  --tv-checkout-accent: #0758cb;
+  background:
+    radial-gradient(120% 80% at 100% 0%, rgba(7, 88, 203, 0.05), transparent 55%),
+    #f7f8fa;
+}
+
+.tv-tour-checkout__scroll {
+  -webkit-overflow-scrolling: touch;
+}
+
+.tv-tour-checkout__dock {
+  box-shadow: 0 -10px 28px -20px rgba(15, 23, 42, 0.22);
+}
+
+.tv-tour-checkout__nav-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  min-width: 0;
+}
+
+.tv-tour-checkout__nav-back {
+  width: max-content;
+  max-width: 100%;
+  white-space: nowrap;
+}
+
+.tv-tour-checkout__nav-next {
+  width: 100%;
+  min-width: 0;
+  justify-self: stretch;
+}
+
+.tv-tour-checkout .tv-booking-progress {
+  margin-bottom: 1.15rem;
+}
+
+.tv-tour-checkout .tv-card {
+  border-radius: 0.85rem;
+  border-color: rgba(28, 25, 23, 0.07);
+  box-shadow: 0 8px 24px -18px rgba(15, 23, 42, 0.16);
+}
+
+@media (max-width: 390px) {
+  .tv-tour-checkout__nav-row {
+    grid-template-columns: 1fr;
+  }
+
+  .tv-tour-checkout__nav-back {
+    width: 100%;
+    order: 2;
+  }
+
+  .tv-tour-checkout__nav-next {
+    order: 1;
+  }
 }
 
 .tv-checkout-panel--quiet {

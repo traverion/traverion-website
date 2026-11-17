@@ -1,15 +1,20 @@
+const LISTING_UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+/** Brochure / seed catalog ids (kebab-case), e.g. hanoi-food-street-tour. */
+const LISTING_SLUG_RE = /^[a-z][a-z0-9-]{2,80}$/i;
+
 /**
  * Resolve a tour listing id from traveler catalog query params.
- * Canonical: `tour=<uuid>`. Legacy alias: `uuid=<uuid>` (older sitemap / share links).
+ * Canonical: `tour=<uuid|slug>`. Legacy alias: `uuid=<uuid>` (older sitemap / share links).
+ * Slugs enable seed/brochure deep links when VITE_SHOW_SEED_LISTINGS is on.
  */
 export function resolveTourListingIdFromSearch(search: string): string | null {
   const params = new URLSearchParams(
     search.startsWith('?') ? search.slice(1) : search
   );
   const tour = (params.get('tour') ?? '').trim();
-  if (/^[0-9a-f-]{36}$/i.test(tour)) return tour;
+  if (LISTING_UUID_RE.test(tour) || LISTING_SLUG_RE.test(tour)) return tour;
   const legacy = (params.get('uuid') ?? '').trim();
-  if (/^[0-9a-f-]{36}$/i.test(legacy)) return legacy;
+  if (LISTING_UUID_RE.test(legacy)) return legacy;
   return null;
 }
 

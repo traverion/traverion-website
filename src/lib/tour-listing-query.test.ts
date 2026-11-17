@@ -15,8 +15,18 @@ describe('resolveTourListingIdFromSearch', () => {
     expect(resolveTourListingIdFromSearch(`uuid=${ID}&book=1`)).toBe(ID);
   });
 
-  it('rejects non-uuid values', () => {
-    expect(resolveTourListingIdFromSearch('?tour=not-a-listing')).toBeNull();
+  it('accepts brochure/seed kebab-case tour slugs', () => {
+    expect(resolveTourListingIdFromSearch('?tour=hanoi-food-street-tour')).toBe(
+      'hanoi-food-street-tour'
+    );
+    expect(resolveTourListingIdFromSearch('?tour=hanoi-food-street-tour&book=1')).toBe(
+      'hanoi-food-street-tour'
+    );
+  });
+
+  it('rejects invalid tour id values', () => {
+    expect(resolveTourListingIdFromSearch('?tour=not a listing')).toBeNull();
+    expect(resolveTourListingIdFromSearch('?tour=ab')).toBeNull();
     expect(resolveTourListingIdFromSearch('?uuid=abc')).toBeNull();
     expect(resolveTourListingIdFromSearch('')).toBeNull();
   });

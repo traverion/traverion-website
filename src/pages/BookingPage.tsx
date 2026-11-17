@@ -176,7 +176,7 @@ function BookingProgress({
     currentIndex <= 0 ? 0 : Math.round((currentIndex / (labels.length - 1)) * 100);
 
   return (
-    <nav className="tv-booking-progress mb-6" aria-label="Booking steps">
+    <nav className="tv-booking-progress mb-5" aria-label="Booking steps">
       <div className="tv-booking-progress__track" aria-hidden>
         <div className="tv-booking-progress__fill" style={{ width: `${progressPct}%` }} />
       </div>
@@ -185,10 +185,10 @@ function BookingProgress({
           const done = currentIndex >= 0 && i < currentIndex;
           const current = currentIndex >= 0 && i === currentIndex;
           return (
-            <li key={label} className="flex flex-col items-center text-center">
+            <li key={`${label}-${i}`} className="flex flex-col items-center text-center">
               <span
                 aria-current={current ? 'step' : undefined}
-                className={`inline-flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold transition-colors duration-200 motion-reduce:transition-none ${
+                className={`inline-flex h-7 w-7 items-center justify-center rounded-full text-[11px] font-bold transition-colors duration-200 motion-reduce:transition-none ${
                   done
                     ? 'bg-emerald-600 text-white shadow-sm'
                     : current
@@ -199,7 +199,7 @@ function BookingProgress({
                 {done ? <Check className="h-3.5 w-3.5" strokeWidth={2.75} aria-hidden /> : i + 1}
               </span>
               <span
-                className={`mt-1.5 text-[11px] font-semibold tracking-wide ${
+                className={`mt-1.5 text-[10px] font-semibold tracking-wide sm:text-[11px] ${
                   done ? 'text-emerald-800' : current ? 'text-finland' : 'text-ink-faint'
                 }`}
               >
@@ -662,12 +662,8 @@ export default function BookingPage({
   const checkoutScrollRef = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => {
     if (presentation === 'modal') return;
-    checkoutScrollRef.current?.scrollTo(0, 0);
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.body.style.overflow = prev;
-    };
+    checkoutScrollRef.current?.scrollTo({ top: 0, behavior: 'auto' });
+    // html+body overflow is owned by CheckoutPageShell (P9.30).
   }, [presentation, step]);
 
   useEffect(() => {
@@ -2113,15 +2109,8 @@ export default function BookingPage({
               </div>
             ) : null}
             {presentation !== 'modal' ? (
-            <div className="hidden flex-col-reverse gap-3 sm:flex-row sm:justify-between sm:items-center lg:flex">
-              <button
-                type="button"
-                onClick={() => setStep(flowMode === 'modal' || selectedVariant ? 'review' : 'date-guests')}
-                className="tv-btn-ghost w-full sm:w-auto"
-              >
-                Edit trip details
-              </button>
-              <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+            <div className="hidden flex-col gap-3 lg:flex">
+              <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <button
                   type="button"
                   onClick={() => setStep('pickup')}
@@ -2153,6 +2142,13 @@ export default function BookingPage({
                       : 'Continue to payment'}
                 </button>
               </div>
+              <button
+                type="button"
+                onClick={() => setStep(flowMode === 'modal' || selectedVariant ? 'review' : 'date-guests')}
+                className="lux-flat self-start text-[13px] font-semibold text-[#0758cb] hover:text-[#0546a3]"
+              >
+                Edit trip details
+              </button>
             </div>
             ) : null}
           </div>
@@ -2203,18 +2199,18 @@ export default function BookingPage({
         </div>
       ) : null}
       {step === 'contact' ? (
-        <div className="flex flex-col-reverse gap-2">
-          <button type="button" onClick={() => setStep(contactBackStep)} className="tv-btn-ghost w-full">
+        <div className="tv-tour-checkout__nav-row">
+          <button type="button" onClick={() => setStep(contactBackStep)} className="tv-btn-ghost tv-tour-checkout__nav-back">
             Back
           </button>
-          <button type="button" onClick={() => void handleContinueFromContact()} className="tv-btn-primary w-full">
+          <button type="button" onClick={() => void handleContinueFromContact()} className="tv-btn-primary tv-tour-checkout__nav-next">
             {contactContinueLabel}
           </button>
         </div>
       ) : null}
       {step === 'pickup' ? (
-        <div className="flex flex-col-reverse gap-2">
-          <button type="button" onClick={() => setStep('contact')} className="tv-btn-ghost w-full">
+        <div className="tv-tour-checkout__nav-row">
+          <button type="button" onClick={() => setStep('contact')} className="tv-btn-ghost tv-tour-checkout__nav-back">
             Back
           </button>
           <button
@@ -2222,46 +2218,48 @@ export default function BookingPage({
             onClick={handleContinueFromPickup}
             disabled={pickupContinueBlocked}
             aria-describedby={pickupContinueBlocked ? 'booking-pickup-eligibility' : undefined}
-            className="tv-btn-primary w-full"
+            className="tv-btn-primary tv-tour-checkout__nav-next"
           >
             Continue to payment
           </button>
         </div>
       ) : null}
       {step === 'confirm' ? (
-        <div className="flex min-w-0 flex-col-reverse gap-2">
+        <div className="flex min-w-0 flex-col gap-2">
+          <div className="tv-tour-checkout__nav-row">
+            <button type="button" onClick={() => setStep('pickup')} className="tv-btn-ghost tv-tour-checkout__nav-back">
+              Back
+            </button>
+            <button
+              type="button"
+              onClick={handleConfirmBooking}
+              disabled={
+                submitting ||
+                capacityBlocksPay
+              }
+              className="tv-btn-primary tv-tour-checkout__nav-next min-w-0 text-center text-sm leading-snug line-clamp-3 disabled:opacity-50"
+            >
+              {submitting
+                ? 'Processing…'
+                : capacityUnknown
+                  ? 'Capacity unavailable'
+                : capacitySoldOut
+                  ? departureTime
+                    ? `Sold out · ${departureTime}`
+                    : 'Sold out'
+                : checkoutPayBlockedByConsent(checkoutConsentAccepted)
+                  ? 'Accept terms to pay'
+                : isSupabaseConfigured()
+                  ? 'Continue to secure payment'
+                  : 'Continue to payment'}
+            </button>
+          </div>
           <button
             type="button"
             onClick={() => setStep(flowMode === 'modal' || selectedVariant ? 'review' : 'date-guests')}
-            className="tv-btn-ghost w-full"
+            className="lux-flat self-center text-[12px] font-semibold text-[#0758cb] hover:text-[#0546a3]"
           >
             Edit trip details
-          </button>
-          <button type="button" onClick={() => setStep('pickup')} className="tv-btn-ghost w-full">
-            Back
-          </button>
-          <button
-            type="button"
-            onClick={handleConfirmBooking}
-            disabled={
-              submitting ||
-              capacityBlocksPay
-            }
-            className="tv-btn-primary min-w-0 w-full max-w-full text-center text-sm leading-snug line-clamp-3 disabled:opacity-50"
-          >
-            {submitting
-              ? 'Processing…'
-              : capacityUnknown
-                ? 'Capacity unavailable'
-              : capacitySoldOut
-                ? departureTime
-                  ? `Sold out · ${departureTime}`
-                  : 'Sold out'
-              : checkoutPayBlockedByConsent(checkoutConsentAccepted)
-                ? 'Accept terms to pay'
-              : isSupabaseConfigured()
-                ? 'Continue to secure payment'
-                : 'Continue to payment'}
           </button>
         </div>
       ) : null}

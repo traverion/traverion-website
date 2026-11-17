@@ -1,0 +1,204 @@
+{
+  "mission": "P9.30",
+  "base": "http://127.0.0.1:5183",
+  "tour": "hanoi-food-street-tour",
+  "startedAt": "2026-11-17T23:21:08.928Z",
+  "checks": [
+    {
+      "check": "No overflow pdp desktop-1440",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Booking panel desktop-1440",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Date selected desktop-1440",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Participants adjusted desktop-1440",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Option selected desktop-1440",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Checkout CTA label desktop-1440",
+      "ok": true,
+      "detail": "Continue to checkout"
+    },
+    {
+      "check": "Checkout shell desktop-1440",
+      "ok": true,
+      "detail": "http://127.0.0.1:5183/packages?tour=hanoi-food-street-tour&book=1&date=2026-11-21&guests=2&option=__default__&step=review"
+    },
+    {
+      "check": "No overflow checkout review desktop-1440",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "No overflow checkout after Continue to contact desktop-1440",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Leave checkout returns to tour desktop-1440",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "No overflow pdp desktop-1280",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Booking panel desktop-1280",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "No overflow pdp tablet-768",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Booking panel tablet-768",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Date selected tablet-768",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Participants adjusted tablet-768",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Option selected tablet-768",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Checkout CTA label tablet-768",
+      "ok": true,
+      "detail": "Continue to checkout"
+    },
+    {
+      "check": "Checkout shell tablet-768",
+      "ok": true,
+      "detail": "http://127.0.0.1:5183/packages?tour=hanoi-food-street-tour&book=1&date=2026-11-21&guests=2&option=__default__&step=review"
+    },
+    {
+      "check": "No overflow checkout review tablet-768",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "No overflow checkout after Continue to contact tablet-768",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Leave checkout returns to tour tablet-768",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "No overflow pdp mobile-390",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Booking panel mobile-390",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Date selected mobile-390",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Participants adjusted mobile-390",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Option selected mobile-390",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Checkout CTA label mobile-390",
+      "ok": true,
+      "detail": "Continue to checkout"
+    },
+    {
+      "check": "Checkout shell mobile-390",
+      "ok": true,
+      "detail": "http://127.0.0.1:5183/packages?tour=hanoi-food-street-tour&book=1&date=2026-11-21&guests=2&option=__default__&step=review"
+    },
+    {
+      "check": "No overflow checkout review mobile-390",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "No overflow checkout after Continue to contact mobile-390",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Leave checkout returns to tour mobile-390",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "No overflow pdp mobile-375",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Booking panel mobile-375",
+      "ok": true,
+      "detail": ""
+    }
+  ],
+  "screenshots": [
+    "/Users/mirovesterinen/Documents/traverion.com/scripts/p930-screenshots/pdp-desktop-1440.png",
+    "/Users/mirovesterinen/Documents/traverion.com/scripts/p930-screenshots/pdp-ready-desktop-1440.png",
+    "/Users/mirovesterinen/Documents/traverion.com/scripts/p930-screenshots/pdp-option-desktop-1440.png",
+    "/Users/mirovesterinen/Documents/traverion.com/scripts/p930-screenshots/checkout-review-desktop-1440.png",
+    "/Users/mirovesterinen/Documents/traverion.com/scripts/p930-screenshots/checkout-after-Continue to contact-desktop-1440.png",
+    "/Users/mirovesterinen/Documents/traverion.com/scripts/p930-screenshots/after-leave-desktop-1440.png",
+    "/Users/mirovesterinen/Documents/traverion.com/scripts/p930-screenshots/pdp-desktop-1280.png",
+    "/Users/mirovesterinen/Documents/traverion.com/scripts/p930-screenshots/pdp-participants-desktop-1280.png",
+    "/Users/mirovesterinen/Documents/traverion.com/scripts/p930-screenshots/pdp-tablet-768.png",
+    "/Users/mirovesterinen/Documents/traverion.com/scripts/p930-screenshots/pdp-ready-tablet-768.png",
+    "/Users/mirovesterinen/Documents/traverion.com/scripts/p930-screenshots/pdp-option-tablet-768.png",
+    "/Users/mirovesterinen/Documents/traverion.com/scripts/p930-screenshots/checkout-review-tablet-768.png",
+    "/Users/mirovesterinen/Documents/traverion.com/scripts/p930-screenshots/checkout-after-Continue to contact-tablet-768.png",
+    "/Users/mirovesterinen/Documents/traverion.com/scripts/p930-screenshots/after-leave-tablet-768.png",
+    "/Users/mirovesterinen/Documents/traverion.com/scripts/p930-screenshots/pdp-mobile-390.png",
+    "/Users/mirovesterinen/Documents/traverion.com/scripts/p930-screenshots/pdp-ready-mobile-390.png",
+    "/Users/mirovesterinen/Documents/traverion.com/scripts/p930-screenshots/pdp-option-mobile-390.png",
+    "/Users/mirovesterinen/Documents/traverion.com/scripts/p930-screenshots/checkout-review-mobile-390.png",
+    "/Users/mirovesterinen/Documents/traverion.com/scripts/p930-screenshots/checkout-after-Continue to contact-mobile-390.png",
+    "/Users/mirovesterinen/Documents/traverion.com/scripts/p930-screenshots/after-leave-mobile-390.png",
+    "/Users/mirovesterinen/Documents/traverion.com/scripts/p930-screenshots/pdp-mobile-375.png",
+    "/Users/mirovesterinen/Documents/traverion.com/scripts/p930-screenshots/pdp-participants-mobile-375.png"
+  ],
+  "verdict": "PASS",
+  "finishedAt": "2026-11-17T23:21:39.821Z"
+}

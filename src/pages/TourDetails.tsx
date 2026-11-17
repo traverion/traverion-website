@@ -1185,7 +1185,10 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
 
   const checkoutUnlocked =
     Boolean(checkoutFromUrl && checkoutVariant && canBook) &&
-    (!isSupabaseConfigured() || Boolean(user));
+    (!isSupabaseConfigured() ||
+      Boolean(user) ||
+      // Seed / brochure listings can open checkout chrome without a session; pay still gated.
+      Boolean(tour?.id && !isSupabaseListingId(tour.id)));
 
   useEffect(() => {
     onCheckoutActive?.(checkoutUnlocked);
@@ -1193,7 +1196,15 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
   }, [checkoutUnlocked, onCheckoutActive]);
 
   useEffect(() => {
-    if (!checkoutFromUrl || !checkoutVariant || !canBook || !isSupabaseConfigured() || authLoading || user) {
+    if (
+      !checkoutFromUrl ||
+      !checkoutVariant ||
+      !canBook ||
+      !isSupabaseConfigured() ||
+      authLoading ||
+      user ||
+      (tour?.id && !isSupabaseListingId(tour.id))
+    ) {
       if (!checkoutFromUrl) checkoutAuthPromptedRef.current = false;
       return;
     }
@@ -1206,7 +1217,16 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
         closeBookingModal();
       },
     });
-  }, [checkoutFromUrl, checkoutVariant, canBook, authLoading, user, requestAuth, closeBookingModal]);
+  }, [
+    checkoutFromUrl,
+    checkoutVariant,
+    canBook,
+    authLoading,
+    user,
+    requestAuth,
+    closeBookingModal,
+    tour?.id,
+  ]);
 
   useEffect(() => {
     if (!checkoutFromUrl || !tour) return;
@@ -1445,24 +1465,27 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
       }
     }
     // Phase 1167: unknown remaining must not navigate to checkout (BookingPage 1103 parity).
-    if (
-      Boolean(dayCapacityError) ||
-      (Boolean(bookingDate.trim()) && selectedDaySpotsLeft == null)
-    ) {
-      setBookingCardError(
-        dayCapacityError ||
-          'We could not verify departure capacity. Check your connection and try again.'
-      );
-      return;
-    }
-    // Phase 1182: sold-out / undersized remaining must not navigate (BookingPage 1178 parity).
-    if (selectedDaySpotsLeft != null && selectedDaySpotsLeft < partySize) {
-      setBookingCardError(
-        selectedDaySpotsLeft === 0
-          ? 'This date is fully booked. Try another date or fewer guests.'
-          : 'Not enough capacity left for your party. Adjust guests or pick another date.'
-      );
-      return;
+    // Seed / brochure listings skip Supabase capacity — do not treat null remaining as a hard stop.
+    if (isSupabaseListingId(tour.id)) {
+      if (
+        Boolean(dayCapacityError) ||
+        (Boolean(bookingDate.trim()) && selectedDaySpotsLeft == null)
+      ) {
+        setBookingCardError(
+          dayCapacityError ||
+            'We could not verify departure capacity. Check your connection and try again.'
+        );
+        return;
+      }
+      // Phase 1182: sold-out / undersized remaining must not navigate (BookingPage 1178 parity).
+      if (selectedDaySpotsLeft != null && selectedDaySpotsLeft < partySize) {
+        setBookingCardError(
+          selectedDaySpotsLeft === 0
+            ? 'This date is fully booked. Try another date or fewer guests.'
+            : 'Not enough capacity left for your party. Adjust guests or pick another date.'
+        );
+        return;
+      }
     }
     // Phase 1164: mirror 1147 — block own/team listings before navigating to checkout.
     if (isSupabaseConfigured() && userRef.current?.id) {
@@ -1500,22 +1523,25 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
         }
         slotMaxSpots = slotCap;
       }
-      const avail = await checkAvailability(tour.id, bookingDate.trim(), partySize, {
-        startTimeHm: startHm || null,
-        slotMaxSpots,
-      });
-      if (!avail.available) {
-        // Phase 1191: load/check errors must not look like sold-out.
-        if (avail.error) {
-          setBookingCardError('Could not verify availability. Check your connection and try again.');
+      // Seed / brochure ids are not in Supabase inventory — skip capacity RPC (P9.27 / P9.30).
+      if (isSupabaseListingId(tour.id)) {
+        const avail = await checkAvailability(tour.id, bookingDate.trim(), partySize, {
+          startTimeHm: startHm || null,
+          slotMaxSpots,
+        });
+        if (!avail.available) {
+          // Phase 1191: load/check errors must not look like sold-out.
+          if (avail.error) {
+            setBookingCardError('Could not verify availability. Check your connection and try again.');
+            return;
+          }
+          setBookingCardError(
+            avail.remaining !== undefined && avail.remaining === 0
+              ? 'This date is fully booked. Try another date or fewer guests.'
+              : 'Not enough capacity left for your party. Adjust guests or pick another date.'
+          );
           return;
         }
-        setBookingCardError(
-          avail.remaining !== undefined && avail.remaining === 0
-            ? 'This date is fully booked. Try another date or fewer guests.'
-            : 'Not enough capacity left for your party. Adjust guests or pick another date.'
-        );
-        return;
       }
       if (isSupabaseConfigured() && !userRef.current && supabase) {
         try {
@@ -1532,7 +1558,7 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
           /* AuthContext already has no user; the sign-in modal opens below. */
         }
       }
-      if (isSupabaseConfigured() && !userRef.current) {
+      if (isSupabaseConfigured() && !userRef.current && isSupabaseListingId(tour.id)) {
         requestAuth({
           intent: 'checkout',
           onSuccess: () => {
@@ -1854,7 +1880,7 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
             <div className="tv-pdp-aside min-w-0">
               <div
                 id="tour-booking-panel"
-                className="tv-booking-sticky tv-booking-sticky--fit lg:sticky lg:top-[calc(4.75rem+env(safe-area-inset-top,0px))] h-fit scroll-mt-28"
+                className="tv-booking-sticky tv-booking-sticky--fit tv-booking-sticky--tour lg:sticky lg:top-[calc(4.75rem+env(safe-area-inset-top,0px))] h-fit scroll-mt-28"
               >
                 {!canBook ? (
                   <div>
@@ -1975,7 +2001,7 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
                           <div
                             role="dialog"
                             aria-label="Participants"
-                            className="absolute z-30 mt-2 w-full rounded-xl border border-black/10 bg-white p-3 shadow-lg"
+                            className="tv-booking-participants-popover absolute z-30 mt-2 w-full rounded-xl border border-black/10 bg-white p-3 shadow-lg"
                           >
                             {participantFieldOption ? (
                               <div className="space-y-2">
