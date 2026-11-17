@@ -241,9 +241,9 @@ function eventBody(payload: Payload): string {
     return [
       'Traverion received your business verification submission.',
       '',
-      'Our team will review your details and registration document. Status updates appear in partner Settings.',
+      'Our team will review your details and registration document. Status updates appear in Finish setup.',
       '',
-      `Open Settings: ${base}/partner/settings`,
+      `Open Finish setup: ${base}/partner/onboarding`,
       '',
       '— Traverion',
     ].join('\n');
@@ -1421,6 +1421,27 @@ const handler = async (req: Request): Promise<Response> => {
         .from('supplier_profiles')
         .update({ verification_submitted_email_sent_at: now, updated_at: now })
         .eq('id', payload.supplierId);
+      const { error: activityErr } = await admin.from('supplier_activity_notifications').insert({
+        supplier_id: payload.supplierId,
+        event_type: 'verification_submitted',
+        title: 'Application submitted',
+        body: 'Traverion received your business verification. It is now under review.',
+        href_path: '/partner/onboarding',
+      });
+      if (activityErr && !/duplicate|unique/i.test(activityErr.message ?? '')) {
+        console.error('supplier_activity_notifications insert failed', activityErr.message);
+      }
+      const { error: reviewErr } = await admin.from('supplier_verification_review_events').insert({
+        supplier_id: payload.supplierId,
+        actor_id: payload.supplierId,
+        decision: 'submitted',
+        feedback: null,
+        before_status: 'draft',
+        after_status: 'pending',
+      });
+      if (reviewErr) {
+        console.error('supplier_verification_review_events insert failed', reviewErr.message);
+      }
     }
 
     return json({

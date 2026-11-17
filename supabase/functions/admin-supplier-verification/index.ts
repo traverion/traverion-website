@@ -121,8 +121,10 @@ type Body = {
     | 'detail'
     | 'approve_business'
     | 'reject_business'
+    | 'request_changes_business'
     | 'approve_payout'
     | 'reject_payout'
+    | 'verification_review_history'
     | 'list_portal_notifications'
     | 'create_portal_notification'
     | 'delete_portal_notification'
@@ -340,10 +342,50 @@ serve(async (req) => {
   }
 
   const listSel =
-    'id, display_name, company_legal_name, verification_status, verification_submitted_at, business_verification_feedback, payout_verification_status, payout_verification_submitted_at, payout_verification_feedback, created_at, updated_at';
+    'id, display_name, company_legal_name, business_type, address_country, verification_status, verification_submitted_at, business_verification_feedback, payout_verification_status, payout_verification_submitted_at, payout_verification_feedback, created_at, updated_at';
 
   const detailSel =
     'id, display_name, contact_phone, company_legal_name, business_type, company_registration_number, managing_directors, business_address, address_street, address_country, address_city, address_postal_code, tax_id, vat_id, payout_iban, payout_bic, payout_method, payout_paypal_email, verification_status, verification_submitted_at, business_verification_feedback, payout_verification_status, payout_verification_submitted_at, payout_verification_feedback, identity_document_path, company_registration_document_path, business_logo_url, insurance_policy_number, insurance_coverage, insurance_start, insurance_end, insurance_provider, created_at, updated_at';
+
+  async function recordBusinessReviewEvent(opts: {
+    supplierId: string;
+    actorId: string | null;
+    decision: 'approve' | 'request_changes' | 'reject' | 'submitted';
+    feedback: string | null;
+    beforeStatus: string | null;
+    afterStatus: string | null;
+  }) {
+    const { error } = await admin.from('supplier_verification_review_events').insert({
+      supplier_id: opts.supplierId,
+      actor_id: opts.actorId,
+      decision: opts.decision,
+      feedback: opts.feedback,
+      before_status: opts.beforeStatus,
+      after_status: opts.afterStatus,
+    });
+    if (error) {
+      console.error('[verification_review_events] insert failed', opts.supplierId, error.message);
+    }
+  }
+
+  async function insertSupplierActivity(opts: {
+    supplierId: string;
+    eventType: string;
+    title: string;
+    body: string;
+    hrefPath: string;
+  }) {
+    const { error } = await admin.from('supplier_activity_notifications').insert({
+      supplier_id: opts.supplierId,
+      event_type: opts.eventType,
+      title: opts.title,
+      body: opts.body,
+      href_path: opts.hrefPath,
+    });
+    if (error) {
+      console.error('[supplier_activity_notifications] insert failed', opts.supplierId, error.message);
+    }
+  }
 
   if (body.action === 'stats') {
     const [
@@ -1935,9 +1977,15 @@ serve(async (req) => {
     if (error) return json({ error: error.message }, 500);
     if (!row) return json({ error: 'Supplier not found' }, 404);
 
-    const [identityUrl, companyRegUrl] = await Promise.all([
+    const [identityUrl, companyRegUrl, historyRes] = await Promise.all([
       signedUrlForPath(admin, row.identity_document_path),
       signedUrlForPath(admin, row.company_registration_document_path),
+      admin
+        .from('supplier_verification_review_events')
+        .select('id, decision, feedback, before_status, after_status, actor_id, created_at')
+        .eq('supplier_id', supplierId)
+        .order('created_at', { ascending: false })
+        .limit(40),
     ]);
 
     return json({
@@ -1950,8 +1998,22 @@ serve(async (req) => {
           ? { path: row.company_registration_document_path, signedUrl: companyRegUrl }
           : null,
       },
+      reviewHistory: historyRes.error ? [] : historyRes.data ?? [],
       signedUrlExpiresInSeconds: SIGNED_URL_TTL,
     });
+  }
+
+  if (body.action === 'verification_review_history') {
+    const supplierId = body.supplierId?.trim();
+    if (!supplierId) return json({ error: 'supplierId required' }, 400);
+    const { data, error } = await admin
+      .from('supplier_verification_review_events')
+      .select('id, decision, feedback, before_status, after_status, actor_id, created_at')
+      .eq('supplier_id', supplierId)
+      .order('created_at', { ascending: false })
+      .limit(40);
+    if (error) return json({ error: error.message }, 500);
+    return json({ items: data ?? [] });
   }
 
   if (body.action === 'list_portal_notifications') {
@@ -2312,6 +2374,22 @@ serve(async (req) => {
       .eq('id', supplierId);
     if (error) return json({ error: error.message }, 500);
 
+    await recordBusinessReviewEvent({
+      supplierId,
+      actorId: adminUserId,
+      decision: 'approve',
+      feedback: null,
+      beforeStatus: before.verification_status ?? null,
+      afterStatus: 'verified',
+    });
+    await insertSupplierActivity({
+      supplierId,
+      eventType: 'business_verified',
+      title: 'Business approved',
+      body: 'Traverion approved your business profile.',
+      hrefPath: '/partner/onboarding',
+    });
+
     const to = await resolveSupplierRecipientEmail(admin, supplierId);
     if (!to) {
       console.error('[approve_business] no supplier email', supplierId);
@@ -2366,8 +2444,12 @@ serve(async (req) => {
     });
   }
 
-  if (body.action === 'reject_business') {
+  if (body.action === 'reject_business' || body.action === 'request_changes_business') {
+    const isRequestChanges = body.action === 'request_changes_business';
     const fb = typeof body.feedback === 'string' ? body.feedback.trim() || null : null;
+    if (isRequestChanges && !fb) {
+      return json({ error: 'Feedback is required when requesting changes.' }, 400);
+    }
     const { data: before, error: beforeErr } = await admin
       .from('supplier_profiles')
       .select(
@@ -2381,7 +2463,7 @@ serve(async (req) => {
     // Phase 1862: skip DB write when decision email already sent (preserve staff feedback).
     const alreadyEmailed =
       before.verification_status === 'rejected' && Boolean(before.business_rejected_email_sent_at);
-    if (alreadyEmailed) {
+    if (alreadyEmailed && !isRequestChanges) {
       return json({ ok: true, email: { sent: false, skipped: true, reason: 'already_sent' } });
     }
 
@@ -2393,14 +2475,35 @@ serve(async (req) => {
         business_verification_feedback: fb,
         business_verified_email_sent_at: null,
         verification_submitted_email_sent_at: null,
+        business_rejected_email_sent_at: null,
         updated_at: now,
       })
       .eq('id', supplierId);
     if (error) return json({ error: error.message }, 500);
 
+    await recordBusinessReviewEvent({
+      supplierId,
+      actorId: adminUserId,
+      decision: isRequestChanges ? 'request_changes' : 'reject',
+      feedback: fb,
+      beforeStatus: before.verification_status ?? null,
+      afterStatus: 'rejected',
+    });
+    await insertSupplierActivity({
+      supplierId,
+      eventType: isRequestChanges ? 'business_changes_requested' : 'business_rejected',
+      title: isRequestChanges ? 'Changes requested' : 'Business verification rejected',
+      body: fb
+        ? fb
+        : isRequestChanges
+          ? 'Traverion asked you to update your business application.'
+          : 'Traverion could not verify your business yet.',
+      hrefPath: '/partner/business-setup',
+    });
+
     const to = await resolveSupplierRecipientEmail(admin, supplierId);
     if (!to) {
-      console.error('[reject_business] no supplier email', supplierId);
+      console.error(`[${body.action}] no supplier email`, supplierId);
       return json({
         ok: true,
         email: { sent: false, skipped: false, error: 'No supplier email on auth user' },
@@ -2413,28 +2516,32 @@ serve(async (req) => {
       'your business';
     const feedbackLine = fb
       ? `Traverion note: ${fb}`
-      : 'Please review your business details and registration document in Settings, then submit again.';
-    const subject = 'Update needed for your Traverion business verification';
+      : 'Please review your business details and registration document, then submit again.';
+    const subject = isRequestChanges
+      ? 'Changes requested for your Traverion business application'
+      : 'Update needed for your Traverion business verification';
     const text = [
-      `Traverion could not verify ${businessName} yet.`,
+      isRequestChanges
+        ? `Traverion reviewed ${businessName} and needs a few updates before approval.`
+        : `Traverion could not verify ${businessName} yet.`,
       '',
       feedbackLine,
       '',
-      `Update your profile: ${PARTNER_PORTAL}/partner/settings`,
+      `Update your application: ${PARTNER_PORTAL}/partner/business-setup`,
       '',
       '— Traverion',
     ].join('\n');
     const html = verificationDecisionHtml({
-      headline: 'Verification needs an update',
+      headline: isRequestChanges ? 'Changes requested' : 'Verification needs an update',
       sub: feedbackLine,
       businessName,
-      ctaLabel: 'Review business settings',
-      ctaHref: `${PARTNER_PORTAL}/partner/settings`,
+      ctaLabel: 'Open business setup',
+      ctaHref: `${PARTNER_PORTAL}/partner/business-setup`,
     });
 
     const sent = await sendResendEmail({ to, subject, text, html });
     if (!sent.ok) {
-      console.error('[reject_business] email failed', supplierId, sent.error);
+      console.error(`[${body.action}] email failed`, supplierId, sent.error);
       return json({
         ok: true,
         email: { sent: false, skipped: false, error: sent.error },
@@ -2446,7 +2553,7 @@ serve(async (req) => {
       .update({ business_rejected_email_sent_at: now, updated_at: now })
       .eq('id', supplierId);
     if (markErr) {
-      console.error('[reject_business] could not mark email sent', supplierId, markErr.message);
+      console.error(`[${body.action}] could not mark email sent`, supplierId, markErr.message);
     }
 
     return json({

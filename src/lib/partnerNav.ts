@@ -42,6 +42,7 @@ export type PartnerNavSectionId =
   | 'performance'
   | 'earnings'
   | 'verification'
+  | 'business-setup'
   | 'business-profile'
   | 'account-settings'
   | 'onboarding'
@@ -204,6 +205,7 @@ export const PARTNER_SECTION_TITLES: Record<PartnerNavSectionId, string> = {
   discounts: 'Offers',
   earnings: 'Income & Payouts',
   verification: 'Verification',
+  'business-setup': 'Business setup',
   performance: 'Analytics',
   support: 'Support',
   help: 'Support',

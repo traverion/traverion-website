@@ -105,6 +105,7 @@ const SupplierStayCalendar = lazy(() => import('../../pages/supplier/SupplierSta
 const SupplierRentalCalendar = lazy(() => import('../../pages/supplier/SupplierRentalCalendar'));
 const SupplierEarnings = lazy(() => import('../../pages/supplier/SupplierEarnings'));
 const SupplierVerificationPage = lazy(() => import('../../pages/supplier/SupplierVerificationPage'));
+const BusinessSetupPage = lazy(() => import('../../pages/supplier/BusinessSetupPage'));
 const SupplierPerformance = lazy(() => import('../../pages/supplier/SupplierPerformance'));
 const SupplierInbox = lazy(() => import('../../pages/supplier/SupplierInbox'));
 const SupplierReviews = lazy(() => import('../../pages/supplier/SupplierReviews'));
@@ -176,6 +177,7 @@ type SupplierSection =
   | 'inbox'
   | 'earnings'
   | 'verification'
+  | 'business-setup'
   | 'discounts'
   | 'reviews'
   | 'pickup'
@@ -217,6 +219,7 @@ const PATH_ALIASES: Record<string, SupplierSection> = {
   money: 'earnings',
   income: 'earnings',
   verification: 'verification',
+  'business-setup': 'business-setup',
   listings: 'listings',
   availability: 'availability',
   bookings: 'bookings',
@@ -250,6 +253,7 @@ function pathForSection(s: SupplierSection): string {
   if (s === 'availability') return `${PARTNER_APP_BASE}/availability`;
   if (s === 'earnings') return `${PARTNER_APP_BASE}/money`;
   if (s === 'verification') return `${PARTNER_APP_BASE}/verification`;
+  if (s === 'business-setup') return `${PARTNER_APP_BASE}/business-setup`;
   if (s === 'create') return PARTNER_CREATE_PATH;
   if (s === 'reservations') return PARTNER_RESERVATIONS_PATH;
   if (s === 'stay-calendar') return `${PARTNER_APP_BASE}/stay-calendar`;
@@ -1047,8 +1051,12 @@ export default function SupplierLayout() {
     <div className="partner-app-shell text-slate-900">
       <SkipLink />
 
-      <div className={`partner-workspace${section === 'verification' ? ' partner-workspace--focus' : ''}`}>
-        {section === 'verification' ? null : (
+      <div
+        className={`partner-workspace${
+          section === 'verification' || section === 'business-setup' ? ' partner-workspace--focus' : ''
+        }`}
+      >
+        {section === 'verification' || section === 'business-setup' ? null : (
           <PartnerSidebar
             primary={PARTNER_SIDEBAR_PRIMARY}
             footer={PARTNER_SIDEBAR_FOOTER}
@@ -1076,7 +1084,7 @@ export default function SupplierLayout() {
         )}
 
         <div className="partner-main-pane" ref={mainPaneRef}>
-          {section === 'verification' ? null : (
+          {section === 'verification' || section === 'business-setup' ? null : (
           <header className="partner-topbar sticky top-0 z-30 pt-[env(safe-area-inset-top)]">
             <div className="flex h-[var(--partner-topbar-h,2.75rem)] items-center gap-3 px-4 sm:px-6 lg:px-8">
               <button
@@ -1254,7 +1262,7 @@ export default function SupplierLayout() {
                     {section === 'onboarding' && (
                       <PartnerOnboarding
                         onSkip={() => handleNavigate('dashboard')}
-                        onBusiness={() => openSettingsFocus('company')}
+                        onBusiness={() => handleNavigate('business-setup')}
                         onPayout={() => openSettingsFocus('payout')}
                         onTours={() => {
                           if (onboardingHasListing) {
@@ -1301,6 +1309,7 @@ export default function SupplierLayout() {
                       </div>
                     )}
                     {section === 'verification' && <SupplierVerificationPage />}
+                    {section === 'business-setup' && <BusinessSetupPage />}
                     {section === 'discounts' && <SupplierDiscountsOffers />}
                     {section === 'reviews' && <SupplierReviews />}
                     {section === 'pickup' && <SupplierPickupPlanner />}
@@ -1430,7 +1439,9 @@ export default function SupplierLayout() {
       </div>
 
       <nav
-        className={`partner-bottom-nav md:hidden fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur-md pb-[env(safe-area-inset-bottom)] border-t border-slate-200/80${section === 'verification' ? ' hidden' : ''}`}
+        className={`partner-bottom-nav md:hidden fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur-md pb-[env(safe-area-inset-bottom)] border-t border-slate-200/80${
+          section === 'verification' || section === 'business-setup' ? ' hidden' : ''
+        }`}
         aria-label="Primary"
       >
         <div className="flex items-stretch justify-around max-w-lg mx-auto px-1">

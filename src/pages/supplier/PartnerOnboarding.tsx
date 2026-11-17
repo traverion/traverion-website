@@ -71,7 +71,14 @@ export default function PartnerOnboarding({
       body: 'Your company details so travelers know who they book with.',
       done: businessDone,
       action: onBusiness,
-      cta: businessDone ? 'Review' : 'Add details',
+      cta:
+        businessReview === 'pending'
+          ? 'View status'
+          : businessReview === 'rejected'
+            ? 'Fix and resubmit'
+            : businessDone
+              ? 'Review'
+              : 'Add details',
       statusChip: businessChip,
     },
     {

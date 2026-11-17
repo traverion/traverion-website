@@ -2,12 +2,23 @@ import { Loader2, FileText, ExternalLink } from 'lucide-react';
 
 export type DetailProfile = Record<string, unknown>;
 
+export type AdminReviewHistoryRow = {
+  id: string;
+  decision: string;
+  feedback: string | null;
+  before_status: string | null;
+  after_status: string | null;
+  actor_id: string | null;
+  created_at: string;
+};
+
 export type AdminSupplierDetailPayload = {
   profile: DetailProfile;
   documents: {
     identity: { path: string; signedUrl: string | null } | null;
     company_registration: { path: string; signedUrl: string | null } | null;
   };
+  reviewHistory?: AdminReviewHistoryRow[];
   signedUrlExpiresInSeconds?: number;
 };
 
@@ -103,6 +114,31 @@ export function AdminSupplierDetailSection({
             ))}
         </div>
       </div>
+      {(detail.reviewHistory?.length ?? 0) > 0 ? (
+        <div className="tv-card p-3 sm:p-3.5">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-finland mb-3">
+            Previous review history
+          </p>
+          <ul className="space-y-2 text-sm">
+            {detail.reviewHistory!.map((row) => (
+              <li key={row.id} className="border-b border-black/[0.04] pb-2 last:border-0">
+                <p className="font-medium text-ink">
+                  {row.decision.replace(/_/g, ' ')}
+                  <span className="ml-2 text-xs font-normal text-ink-faint">
+                    {row.created_at ? new Date(row.created_at).toLocaleString() : ''}
+                  </span>
+                </p>
+                <p className="text-xs text-ink-muted">
+                  {(row.before_status ?? '—') + ' → ' + (row.after_status ?? '—')}
+                </p>
+                {row.feedback?.trim() ? (
+                  <p className="mt-1 text-xs text-ink-muted">{row.feedback.trim()}</p>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -49,7 +49,7 @@ export function partnerBusinessStatusChip(state: PartnerReviewState): PartnerSta
     case 'rejected':
       return { label: 'Business rejected', tone: 'bad' };
     case 'pending':
-      return { label: 'Business pending review', tone: 'warn' };
+      return { label: 'Under review', tone: 'warn' };
     case 'ready':
       return { label: 'Business ready to submit', tone: 'info' };
     default:

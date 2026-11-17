@@ -14,6 +14,8 @@ type QueueRow = {
   id: string;
   display_name: string | null;
   company_legal_name: string | null;
+  business_type: string | null;
+  address_country: string | null;
   verification_status: string | null;
   verification_submitted_at: string | null;
   business_verification_feedback: string | null;
@@ -95,18 +97,28 @@ export default function AdminSupplierVerificationPanel() {
 
   const runAction = async (
     supplierId: string,
-    action: 'approve_business' | 'reject_business' | 'approve_payout' | 'reject_payout'
+    action:
+      | 'approve_business'
+      | 'reject_business'
+      | 'request_changes_business'
+      | 'approve_payout'
+      | 'reject_payout'
   ) => {
     setError(null);
     setActingId(supplierId);
     try {
       const drafts = feedbackDraft[supplierId];
       const feedback =
-        action === 'reject_business'
+        action === 'reject_business' || action === 'request_changes_business'
           ? (drafts?.business ?? '').trim() || null
           : action === 'reject_payout'
             ? (drafts?.payout ?? '').trim() || null
             : undefined;
+      if (action === 'request_changes_business' && !feedback) {
+        setError('Add a note before requesting changes.');
+        setActingId(null);
+        return;
+      }
       const result = await invokeAdminEdgeFunction<{
         ok?: boolean;
         email?: { sent?: boolean; skipped?: boolean; error?: string };
@@ -150,10 +162,9 @@ export default function AdminSupplierVerificationPanel() {
           <div className="flex-1 min-w-0">
             <h2 className="font-display text-lg text-ink tracking-tight">Supplier verification queue</h2>
             <p className="text-sm text-ink-muted mt-1 leading-relaxed">
-              Review submitted business and payout data. Open verification files in a new tab. Approve or reject
-              separately. Use the <strong className="text-ink font-semibold">business</strong> note when rejecting
-              company verification, and the <strong className="text-ink font-semibold">banking / payout</strong> note
-              when rejecting IBAN/BIC — suppliers see the matching message in Settings.
+              Review submitted business and payout applications. Open documents, then Approve, Request changes, or
+              Reject. Business decisions stay separate from Stripe payout verification. Notes are shown to suppliers
+              in Finish setup / business setup.
             </p>
           </div>
         </div>
@@ -213,7 +224,25 @@ export default function AdminSupplierVerificationPanel() {
             >
               <div className="flex flex-wrap items-baseline justify-between gap-2">
                 <div>
-                  <p className="font-semibold text-ink">{name}</p>
+                  <p className="font-semibold text-ink">
+                    {row.display_name?.trim() || name}
+                    {row.company_legal_name?.trim() &&
+                    row.display_name?.trim() &&
+                    row.company_legal_name.trim() !== row.display_name.trim()
+                      ? ` · ${row.company_legal_name.trim()}`
+                      : ''}
+                  </p>
+                  <p className="text-xs text-ink-muted mt-0.5">
+                    {[
+                      row.business_type ? `Type: ${row.business_type}` : null,
+                      row.address_country ? `Country: ${row.address_country}` : null,
+                      row.verification_submitted_at
+                        ? `Submitted ${new Date(row.verification_submitted_at).toLocaleString()}`
+                        : null,
+                    ]
+                      .filter(Boolean)
+                      .join(' · ') || 'Application details'}
+                  </p>
                   <p className="text-xs text-ink-faint font-mono mt-0.5">{row.id}</p>
                 </div>
                 <p className="text-xs text-ink-faint">
@@ -242,7 +271,7 @@ export default function AdminSupplierVerificationPanel() {
                   {bizPending && (
                     <>
                       <label className="block text-xs font-medium text-ink-muted pt-1">
-                        Note if rejecting (company / documents — shown under business verification)
+                        Note for Request changes / Reject (required for Request changes)
                       </label>
                       <textarea
                         value={feedbackDraft[row.id]?.business ?? ''}
@@ -264,6 +293,14 @@ export default function AdminSupplierVerificationPanel() {
                           className="tv-btn-primary text-xs h-8 px-3 disabled:opacity-50"
                         >
                           Approve
+                        </button>
+                        <button
+                          type="button"
+                          disabled={actingId === row.id}
+                          onClick={() => void runAction(row.id, 'request_changes_business')}
+                          className="tv-btn-secondary text-xs h-8 px-3 disabled:opacity-50"
+                        >
+                          Request changes
                         </button>
                         <button
                           type="button"

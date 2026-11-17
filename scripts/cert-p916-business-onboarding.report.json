@@ -1,0 +1,80 @@
+{
+  "mission": "P9.16",
+  "overall": "PASS",
+  "at": "2026-11-17T10:56:47.104Z",
+  "results": [
+    {
+      "id": "safety_flags_off",
+      "ok": true,
+      "detail": {
+        "stripe_connect_transfers_enabled": 0,
+        "payout_execution_enabled": 0,
+        "live_custom_onboarding_enabled": 0
+      }
+    },
+    {
+      "id": "create_user",
+      "ok": true,
+      "detail": {
+        "email": "p916-biz-mwkkuqrf@traverion.invalid",
+        "userId": "bd2393c6-67ed-4286-802f-aefb173bc39d"
+      }
+    },
+    {
+      "id": "ensure_profile",
+      "ok": true,
+      "detail": "ok"
+    },
+    {
+      "id": "submit_pending",
+      "ok": true,
+      "detail": {
+        "submittedAt": "2026-11-17T10:56:39.846Z"
+      }
+    },
+    {
+      "id": "no_duplicate_profile",
+      "ok": true,
+      "detail": {
+        "count": 1
+      }
+    },
+    {
+      "id": "admin_sign_in",
+      "ok": true,
+      "detail": "b6c7cc90-021c-4b6c-88df-2d6386afe305"
+    },
+    {
+      "id": "admin_queue_visible",
+      "ok": true,
+      "detail": {
+        "id": "bd2393c6-67ed-4286-802f-aefb173bc39d",
+        "business_type": "company",
+        "address_country": "FI",
+        "verification_submitted_at": "2026-11-17T10:56:39.846+00:00"
+      }
+    },
+    {
+      "id": "unauthorized_approve_blocked",
+      "ok": true,
+      "detail": {
+        "status": 403
+      }
+    },
+    {
+      "id": "request_changes",
+      "ok": true,
+      "detail": {
+        "sent": true,
+        "skipped": false,
+        "providerMessageId": "01a1e926-f359-7f0c-9fac-d1732d07afa9",
+        "to": "p916-biz-mwkkuqrf@traverion.invalid"
+      }
+    },
+    {
+      "id": "cleanup",
+      "ok": true,
+      "detail": "bd2393c6-67ed-4286-802f-aefb173bc39d"
+    }
+  ]
+}

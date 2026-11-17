@@ -454,6 +454,26 @@ export default function BusinessProfilePage(p: BusinessProfilePageProps) {
             Your role can view business profile details but cannot change company or legal settings.
           </NoticeCallout>
         ) : null}
+        {businessReview === 'incomplete' || businessReview === 'ready' || businessReview === 'rejected' ? (
+          <NoticeCallout title="Complete business setup" tone="info" className="mt-4">
+            <p className="mb-3">
+              Initial verification uses the full-screen business setup wizard. Business settings stay available to
+              maintain your profile after approval.
+            </p>
+            <button
+              type="button"
+              className="tv-btn-primary h-9 px-3 text-[13px]"
+              onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/business-setup`)}
+            >
+              {businessReview === 'rejected' ? 'Fix and resubmit' : 'Open business setup'}
+            </button>
+          </NoticeCallout>
+        ) : null}
+        {businessReview === 'pending' ? (
+          <NoticeCallout title="Under review" tone="warn" className="mt-4">
+            {PARTNER_BUSINESS_REVIEW_STATUS_NOTE}
+          </NoticeCallout>
+        ) : null}
         <nav className="mt-5 flex gap-x-1 border-b border-black/[0.06]" aria-label="Business settings sections">
           {(
             [
