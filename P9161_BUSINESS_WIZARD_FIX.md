@@ -29,18 +29,16 @@ That exception is caught by `ChunkLoadErrorBoundary` and shown as “This page c
 ## 2. Implementation commit
 
 - Primary fix + Settings summary: `ddb96a77` — *Fix business-setup wizard crash and convert Settings to a summary.*
-- Follow-up (rejected → documents step): see latest commit after this report update.
+- Cert + rejected → documents step: `c76c8ae1` — *Certify P9.16.1 wizard fix and route corrections to documents.*
 
 ## 3. Production frontend deployment
 
 | Item | Value |
 | --- | --- |
 | Host | `https://partner.traverion.com` |
-| Deployment ID (wizard fix live) | `7852595115` |
-| Git SHA | `ddb96a7` |
+| Deployment ID (wizard fix live) | `7852595115` (`ddb96a7`) |
+| Deployment ID (cert follow-up) | `7852832354` (`c76c8ae`) |
 | Environment | Production |
-
-(Follow-up Settings step routing deploys after push of this report’s companion commit.)
 
 ## 4. Unify onboarding / navigation
 
@@ -98,7 +96,7 @@ Disposable supplier: `p9161-b7c64f@traverion.invalid` / user `718ae3a5-ac82-4289
 | --- | --- |
 | Exact wizard crash root cause | **PASS** |
 | Implementation commit | **PASS** (`ddb96a77` + follow-up) |
-| Production frontend deployment ID | **PASS** (`7852595115`) |
+| Production frontend deployment ID | **PASS** (`7852595115` / `7852832354`) |
 | Updated onboarding navigation | **PASS** |
 | Business Settings read-only summary | **PASS** |
 | Admin queue certification | **PASS** |
