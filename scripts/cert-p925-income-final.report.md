@@ -10,7 +10,7 @@ Staging populated **Payouts** + **Documents** browser-certified with an authoriz
 | Item | Value |
 |------|--------|
 | Continues from | `8a28f2c4` / earlier P9.25 |
-| Implementation | _(filled after push)_ |
+| Implementation | `45b5ea6f` · Vercel **7864485085** |
 | Staging | Vite `127.0.0.1:5174` + `.env.partner-demo.local` (`gedktutbpfwnstcbffsc`) |
 | Fixture supplier | `aurora-ops@partner-demo.traverion.invalid` · `a11ce001-d000-4000-8000-000000000001` |
 | Seed script | `scripts/cert-p925-seed-demo-payout-fixture.mjs` (`ALLOW_PARTNER_DEMO_CERT_FIXTURE=1`) |
