@@ -8,7 +8,7 @@ Zero-data, Settings redesign, error distinction, and responsive layouts are cert
 
 | Item | Value |
 |------|--------|
-| Ship | _(filled after push)_ |
+| Ship | `b1ee570a` · Vercel deployment **7859961070** |
 | Host | https://partner.traverion.com/partner/money |
 | Local cert host | http://127.0.0.1:5173/partner/money |
 
