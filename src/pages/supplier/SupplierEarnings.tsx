@@ -29,7 +29,8 @@ import { SUPPLIER_PAGE_CLASS, SupplierListSkeleton } from '../../components/supp
 import ErrorState from '../../components/ErrorState';
 import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
 import { openSupplierBooking } from '../../lib/supplierPortalNavigation';
-import { formatMoney, normalizeCurrency } from '../../lib/money';
+import { connectOnboardingLabel } from '../../lib/connect-payout-status';
+import { formatIncomeMoney, normalizeCurrency } from '../../lib/money';
 import { isCollectedBooking, isRefundDueBooking } from '../../lib/payment-states';
 import { bookingIsRental, bookingIsStayNight } from '../../lib/pickup-completeness';
 import {
@@ -1086,7 +1087,7 @@ export default function SupplierEarnings() {
             <div className="tv-income-metric tv-income-metric--hero">
               <p className="tv-income-metric__label">Next payout — eligible</p>
               <p className="tv-income-metric__value">
-                {formatMoney(eligibleNextTotalMinor / 100, summaryCurrency)}
+                {formatIncomeMoney(eligibleNextTotalMinor / 100, summaryCurrency)}
               </p>
               <p className="tv-income-metric__hint">
                 {eligibleForNextPayout.length === 0
@@ -1107,7 +1108,7 @@ export default function SupplierEarnings() {
             <div className="tv-income-metric tv-income-metric--hero">
               <p className="tv-income-metric__label">Awaiting clearance</p>
               <p className="tv-income-metric__value">
-                {formatMoney(awaitingClearanceTotalMinor / 100, summaryCurrency)}
+                {formatIncomeMoney(awaitingClearanceTotalMinor / 100, summaryCurrency)}
               </p>
               <p className="tv-income-metric__hint">
                 {awaitingClearanceRows.length === 0
@@ -1122,7 +1123,7 @@ export default function SupplierEarnings() {
               <p>
                 Outstanding recovery balance:{' '}
                 <strong className="font-semibold tabular-nums text-red-800">
-                  −{formatMoney(Math.abs(recoveryBalance), summaryCurrency)}
+                  −{formatIncomeMoney(Math.abs(recoveryBalance), summaryCurrency)}
                 </strong>
                 . This debt reduces future prepared payouts and is never hidden as €0.00 without explanation.
               </p>
@@ -1165,13 +1166,11 @@ export default function SupplierEarnings() {
             <div>
               <span className="tv-income-info-strip__label">Payout account</span>
               <p className="tv-income-info-strip__value">
-                {profile?.payout_verification_status === 'verified'
-                  ? 'Verified'
-                  : profile?.payout_iban
-                    ? 'Saved, not verified'
-                    : 'Missing'}
+                {connectOnboardingLabel(profile?.connect_onboarding_status, {
+                  connect_account_livemode: profile?.connect_account_livemode,
+                })}
               </p>
-              <p className="tv-income-info-strip__hint">Required before bank payouts can run</p>
+              <p className="tv-income-info-strip__hint">Same status as Settings · bank payouts stay gated</p>
             </div>
           </section>
           <p className="text-[12px] text-[#52525b]">{nextPayoutLabel}</p>
@@ -1202,7 +1201,7 @@ export default function SupplierEarnings() {
                           Service {incomeDate(row.activityDate)}
                         </span>
                       </span>
-                      <span className="tv-money-row__amount">{formatMoney(row.netMinor / 100, row.currency)}</span>
+                      <span className="tv-money-row__amount">{formatIncomeMoney(row.netMinor / 100, row.currency)}</span>
                     </button>
                   </li>
                 ))}
@@ -1255,7 +1254,7 @@ export default function SupplierEarnings() {
                     </span>
                   </span>
                   <span className="tv-money-row__amount">
-                    {formatMoney(Number(lastCompletedPayout.amount_minor) / 100, lastCompletedPayout.currency)}
+                    {formatIncomeMoney(Number(lastCompletedPayout.amount_minor) / 100, lastCompletedPayout.currency)}
                   </span>
                 </button>
                 <div className="flex justify-end border-t border-[#e5e7eb] px-3 py-2">
@@ -1279,7 +1278,7 @@ export default function SupplierEarnings() {
             <NoticeCallout title="Outstanding recovery balance" tone="warn">
               Outstanding recovery balance:{' '}
               <strong className="font-semibold tabular-nums text-red-800">
-                −{formatMoney(Math.abs(recoveryBalance), summaryCurrency)}
+                −{formatIncomeMoney(Math.abs(recoveryBalance), summaryCurrency)}
               </strong>
               . Debt offsets reduce prepared payout nets; they are not silently erased.
             </NoticeCallout>
@@ -1414,11 +1413,11 @@ export default function SupplierEarnings() {
                       <td className="whitespace-nowrap px-3 py-2.5 text-[color:var(--tv-income-muted,#475569)]">{incomeDate(row.purchaseDate)}</td>
                       <td className="px-3 py-2.5 text-right tabular-nums text-[color:var(--tv-income-muted,#475569)]">
                         {row.commissionMinor != null
-                          ? formatMoney(row.commissionMinor / 100, row.currency)
+                          ? formatIncomeMoney(row.commissionMinor / 100, row.currency)
                           : '—'}
                       </td>
                       <td className="px-3 py-2.5 text-right tabular-nums">
-                        <span className="tv-money-row__amount">{formatMoney(row.netMinor / 100, row.currency)}</span>
+                        <span className="tv-money-row__amount">{formatIncomeMoney(row.netMinor / 100, row.currency)}</span>
                       </td>
                       <td className="px-3 py-2.5">
                         <span className={earningStatusClass(row.status)}>{earningStatusLabel(row.status)}</span>
@@ -1453,7 +1452,7 @@ export default function SupplierEarnings() {
                       <span className="mt-0.5 block truncate text-[12px] text-[color:var(--tv-income-muted,#475569)]">{row.experience} · {incomeDate(row.activityDate)}</span>
                       <span className={`mt-1 ${earningStatusClass(row.status)}`}>{earningStatusLabel(row.status)}</span>
                     </span>
-                    <span className="tv-money-row__amount">{formatMoney(row.netMinor / 100, row.currency)}</span>
+                    <span className="tv-money-row__amount">{formatIncomeMoney(row.netMinor / 100, row.currency)}</span>
                   </button>
                 </li>
               ))}
@@ -1499,7 +1498,7 @@ export default function SupplierEarnings() {
                           </span>
                         </span>
                       </span>
-                      <span className="tv-money-row__amount">{formatMoney(Number(period.amount_minor) / 100, period.currency)}</span>
+                      <span className="tv-money-row__amount">{formatIncomeMoney(Number(period.amount_minor) / 100, period.currency)}</span>
                     </button>
                   </li>
                 ))}
@@ -1514,7 +1513,7 @@ export default function SupplierEarnings() {
                           : PARTNER_MONEY_PERIOD_NOT_PAID_OUT_LABEL}
                       </span>
                     </span>
-                    <span className="tv-money-row__amount">{formatMoney(Number(period.amount), period.currency)}</span>
+                    <span className="tv-money-row__amount">{formatIncomeMoney(Number(period.amount), period.currency)}</span>
                   </li>
                 ))}
               </>
@@ -1584,7 +1583,7 @@ export default function SupplierEarnings() {
                         Payout statement · {period.period_key}
                       </span>
                       <span className="text-[12px] text-[#3f3f46]">
-                        {incomeDate(period.period_start)} – {incomeDate(period.period_end)} · {formatMoney(Number(period.amount_minor) / 100, period.currency)}
+                        {incomeDate(period.period_start)} – {incomeDate(period.period_end)} · {formatIncomeMoney(Number(period.amount_minor) / 100, period.currency)}
                       </span>
                     </span>
                     <span className="flex shrink-0 gap-3">
@@ -1603,7 +1602,7 @@ export default function SupplierEarnings() {
                         Payment confirmation · {period.period_key}
                       </span>
                       <span className="text-[12px] text-[#3f3f46]">
-                        Confirmed {incomeDate(period.paid_at)} · {formatMoney(Number(period.amount_minor) / 100, period.currency)}
+                        Confirmed {incomeDate(period.paid_at)} · {formatIncomeMoney(Number(period.amount_minor) / 100, period.currency)}
                         {period.paid_via ? ` · ${period.paid_via}` : ''}
                       </span>
                     </span>
@@ -1676,7 +1675,7 @@ export default function SupplierEarnings() {
               {selectedEarning.grossMinor != null ? (
                 <div className="flex items-baseline justify-between gap-3">
                   <dt className="text-[#71717a]">Gross booking</dt>
-                  <dd className="font-semibold tabular-nums text-[#18181b]">{formatMoney(selectedEarning.grossMinor / 100, selectedEarning.currency)}</dd>
+                  <dd className="font-semibold tabular-nums text-[#18181b]">{formatIncomeMoney(selectedEarning.grossMinor / 100, selectedEarning.currency)}</dd>
                 </div>
               ) : null}
               {selectedEarning.commissionMinor != null ? (
@@ -1684,20 +1683,20 @@ export default function SupplierEarnings() {
                   <dt className="text-[#71717a]">
                     Commission{commissionPercentLabel(selectedEarning.commissionBps) ? ` (${commissionPercentLabel(selectedEarning.commissionBps)})` : ''}
                   </dt>
-                  <dd className="font-semibold tabular-nums text-[#18181b]">{formatMoney(selectedEarning.commissionMinor / 100, selectedEarning.currency)}</dd>
+                  <dd className="font-semibold tabular-nums text-[#18181b]">{formatIncomeMoney(selectedEarning.commissionMinor / 100, selectedEarning.currency)}</dd>
                 </div>
               ) : null}
               <div className="flex items-baseline justify-between gap-3 border-t border-[#e5e7eb] pt-2.5">
                 <dt className="font-semibold text-[#18181b]">Your earnings</dt>
                 <dd className="font-sans text-xl font-bold tabular-nums text-[#18181b]">
-                  {formatMoney(selectedEarning.netMinor / 100, selectedEarning.currency)}
+                  {formatIncomeMoney(selectedEarning.netMinor / 100, selectedEarning.currency)}
                 </dd>
               </div>
               {bookingAdjustmentsFor(selectedEarning.bookingId).map((row) => (
                 <div key={row.id} className="flex items-baseline justify-between gap-3">
                   <dt className="text-[#71717a]">{ledgerKindLabel(row.kind)}</dt>
                   <dd className={`font-semibold tabular-nums ${Number(row.amount) < 0 ? 'text-red-800' : 'text-[#18181b]'}`}>
-                    {formatMoney(Number(row.amount), row.currency)}
+                    {formatIncomeMoney(Number(row.amount), row.currency)}
                   </dd>
                 </div>
               ))}
@@ -1759,7 +1758,7 @@ export default function SupplierEarnings() {
               <button type="button" className="tv-btn-ghost h-9" onClick={() => setSelectedPayoutId(null)}>Close</button>
             </div>
             <p className="mt-3 font-sans text-2xl font-bold tabular-nums text-[#18181b]">
-              {formatMoney(Number(selectedPayout.amount_minor) / 100, selectedPayout.currency)}
+              {formatIncomeMoney(Number(selectedPayout.amount_minor) / 100, selectedPayout.currency)}
             </p>
             <p className="mt-2">
               <span className={payoutStatusClass(selectedPayout.status, selectedPayout.paid_at, selectedPayout.connect_lifecycle)}>
@@ -1801,7 +1800,7 @@ export default function SupplierEarnings() {
                           <span className="mt-0.5 block truncate text-[12px] text-[#71717a]">{row?.experience ?? 'Booking'}</span>
                         </span>
                         <span className="shrink-0 font-semibold tabular-nums">
-                          {formatMoney((Number(item.amount_minor) || 0) / 100, selectedPayout.currency)}
+                          {formatIncomeMoney((Number(item.amount_minor) || 0) / 100, selectedPayout.currency)}
                         </span>
                       </li>
                     );

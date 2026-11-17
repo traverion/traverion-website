@@ -331,16 +331,8 @@ export default function IncomeFinancialSettings({
           </div>
           <dl className="grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-3">
             <Fact label="Registered business" value={legalName} />
-            <Fact
-              label="Verification"
-              value={displayStatus}
-              help={PARTNER_HELP.payoutStatus}
-            />
-            <Fact
-              label="Bank connection"
-              value={bankOk ? 'Connected' : 'Not connected'}
-              help={PARTNER_HELP.bankAccount}
-            />
+            <Fact label="Verification" value={displayStatus} />
+            <Fact label="Bank connection" value={bankOk ? 'Connected' : 'Not connected'} />
           </dl>
         </div>
       </SettingsCard>
@@ -392,14 +384,9 @@ export default function IncomeFinancialSettings({
         }
       >
         <dl className="grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-2">
-          <Fact
-            label="Payout frequency"
-            help={PARTNER_HELP.payoutSchedule}
-            value={preferenceFrequency(profile?.payment_cycle)}
-          />
+          <Fact label="Payout frequency" value={preferenceFrequency(profile?.payment_cycle)} />
           <Fact
             label="Minimum payout"
-            help={PARTNER_HELP.payoutThreshold}
             value={preferenceMinimum(profile?.payout_threshold_min, payoutCurrency)}
           />
         </dl>

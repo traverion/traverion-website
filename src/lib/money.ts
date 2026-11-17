@@ -52,6 +52,26 @@ export function formatMoney(amount: number | null | undefined, currency?: string
   }
 }
 
+/**
+ * Partner Income & Payouts amounts — always two fraction digits so €0 and €38.25
+ * share one ledger-style column rhythm. Never invent values; still coerces NaN → 0.
+ */
+export function formatIncomeMoney(amount: number | null | undefined, currency?: string | null): string {
+  const n = Number(amount);
+  const safe = Number.isFinite(n) ? n : 0;
+  const code = normalizeCurrency(currency);
+  try {
+    return new Intl.NumberFormat('en-GB', {
+      style: 'currency',
+      currency: code,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(safe);
+  } catch {
+    return `${code} ${safe.toFixed(2)}`;
+  }
+}
+
 export function isStripeTestCheckoutSession(sessionId: string | null | undefined): boolean {
   return (sessionId ?? '').trim().startsWith('cs_test_');
 }

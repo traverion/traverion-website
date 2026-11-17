@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_CURRENCY,
+  formatIncomeMoney,
   formatMoney,
   isStripeTestCheckoutSession,
   isStripeTestPublishableKey,
@@ -35,6 +36,12 @@ describe('money', () => {
     expect(formatMoney(Number.NaN, 'EUR')).toMatch(/0/);
     expect(formatMoney(Number.POSITIVE_INFINITY, 'EUR')).toMatch(/0/);
     expect(formatMoney(1_000_000_000, 'EUR')).toMatch(/1/);
+  });
+
+  it('formats Income & Payouts amounts with a fixed two-decimal ledger rhythm', () => {
+    expect(formatIncomeMoney(0, 'EUR')).toMatch(/0\.00/);
+    expect(formatIncomeMoney(38.25, 'EUR')).toMatch(/38\.25/);
+    expect(formatIncomeMoney(Number.NaN, 'EUR')).toMatch(/0\.00/);
   });
 
   it('detects Stripe TEST checkout sessions', () => {
