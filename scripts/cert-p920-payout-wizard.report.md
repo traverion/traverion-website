@@ -2,6 +2,11 @@
 
 **Verdict: PARTIAL PASS**
 
+| Ship | Value |
+|------|--------|
+| Commit | `99c89853` |
+| Vercel | **7857713937** |
+
 LIVE account creation remains OFF by design. Application-level fixes for premature create, ownership validation, prefill, and UI are shipped. Full Connect submission against an existing LIVE Custom account was not exercised (no such production fixture without altering financial records).
 
 ---
@@ -77,10 +82,12 @@ Commits: see git log for P9.20 (this report commit).
 | Test | Result |
 |------|--------|
 | Ownership unit tests (0, 100, letters, >100, non-owner) | PASS |
-| Hosted: supplier under review, no Connect (P918) — business prefill, empty rep, continue without LIVE error | PASS (cert after deploy) |
-| Existing Connect account / Express live path | **Not available** in DB without inventing accounts — BLOCKED for live screenshot |
-| Desktop / mobile layout | PASS after deploy |
-| No LIVE create / transfer / payout execution | PASS (flags remain 0; no acct created on continue) |
+| Hosted P918: empty rep (no director name invent), ownership inline error, Continue → Identity | **PASS** |
+| Friendly “connection not available yet” (no raw LIVE gate string) | **PASS** |
+| Directors unchanged (`Ada Lovelace\\nGrace Hopper`); `stripe_connected_account_id` still null | **PASS** |
+| Existing Connect / Express live path | **BLOCKED** — no Connect rows in Traverionapp without inventing accounts |
+| Desktop layout (~800px form, 2-col) | **PASS** |
+| No LIVE create / transfer / payout execution | **PASS** (flags 0; no acct created) |
 
 ---
 
