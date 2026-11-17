@@ -302,7 +302,10 @@ export default function IncomeFinancialSettings({
           initialStep={wizardStep}
           onClose={() => {
             setWizardOpen(false);
-            void refreshStatus();
+            // Refresh only when a Connect account already exists — never create one on open/close.
+            if (profile?.stripe_connected_account_id) {
+              void refreshStatus();
+            }
           }}
         />
       </Suspense>
