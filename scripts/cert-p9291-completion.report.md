@@ -4,7 +4,8 @@
 
 | Ship | Value |
 |------|--------|
-| Commit | *(pending)* |
+| Commit | `4acb75a7` |
+| Vercel deployment | **7869444557** |
 | Cert base | `http://127.0.0.1:5184` |
 | Screenshots | `scripts/p9291-screenshots/` |
 | Checks | **50/50 PASS** |
