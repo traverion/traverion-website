@@ -493,8 +493,10 @@ export function payoutWizardStepForRequirement(requirement: string): PayoutWizar
   if (/verification\.document|additional_document|documents|proof_of_liveness|liveness|ssn_last_4/.test(key)) {
     return 'identity';
   }
-  if (/business_details|registered_name|business_url|fi_yt|id_numbers/.test(key)) return 'business';
-  if (/persons_provided|owners|directors|executives|representative|individual\./.test(key)) {
+  if (/business_details|registered_name|business_url|fi_yt|id_numbers|directors_provided|directors\./.test(key)) {
+    return 'business';
+  }
+  if (/persons_provided|owners|executives|representative|individual\./.test(key)) {
     return 'representative';
   }
   if (/id_number/.test(key)) return 'identity';

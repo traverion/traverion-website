@@ -1,0 +1,235 @@
+{
+  "mission": "P9.22",
+  "createdAt": "2026-11-17T16:14:25.474Z",
+  "isolation": {
+    "supplier": {
+      "email": "p922-test-mwkw7hky@traverion.invalid",
+      "userId": "635efbf3-41c4-4a42-9039-4586f046c090",
+      "label": "P922 isolated Stripe TEST supplier — not for LIVE"
+    },
+    "production_edge": {
+      "url": "https://xcopqllkulxfkpunetbc.supabase.co/functions/v1/connect-supplier-onboarding",
+      "environment": "live",
+      "success": true,
+      "note": "Must remain LIVE — never send sk_test_ here"
+    },
+    "test_edge": {
+      "url": "http://127.0.0.1:8000",
+      "environment": "test",
+      "success": true,
+      "note": "Deno local serve with sk_test_ + production Supabase auth/DB"
+    }
+  },
+  "safety": {
+    "flags": {
+      "stripe_connect_transfers_enabled": 0,
+      "payout_execution_enabled": 0,
+      "live_custom_onboarding_enabled": 0
+    },
+    "live_ensure_blocked": {
+      "status": 500,
+      "error": "LIVE payout account creation is turned off.",
+      "ok": true
+    }
+  },
+  "journey": {
+    "ensure": {
+      "first": {
+        "success": true,
+        "account_id": "acct_1Ucp1kC3Bam0xr4h"
+      },
+      "second": {
+        "success": true,
+        "account_id": "acct_1Ucp1kC3Bam0xr4h"
+      },
+      "same_account": true
+    },
+    "business": {
+      "success": true,
+      "error": null,
+      "account_id": "acct_1Ucp1kC3Bam0xr4h",
+      "environment": "test",
+      "livemode": false
+    },
+    "representative": {
+      "success": true,
+      "person_id": "person_1Ucp22C3Bam0xr4h1Xb9dhLn",
+      "error": null
+    },
+    "owners": {
+      "success": true,
+      "person_ids": [
+        "person_1Ucp2AC3Bam0xr4hoj97maQG",
+        "person_1Ucp2CC3Bam0xr4hVRhCuS9i"
+      ],
+      "error": null
+    },
+    "identity": {
+      "success": true,
+      "file_id": "file_1Ucp2WC3BaJIHpM6HTYDHlCV",
+      "error": null
+    },
+    "requirements_after_identity": {
+      "currently_due": [
+        "company.directors_provided",
+        "directors.dob.day",
+        "directors.dob.month",
+        "directors.dob.year",
+        "directors.first_name",
+        "directors.last_name",
+        "external_account",
+        "tos_acceptance.date",
+        "tos_acceptance.ip"
+      ],
+      "onboarding_status": "restricted",
+      "can_receive": false
+    },
+    "bank": {
+      "success": true,
+      "bank_attached": true,
+      "error": null
+    },
+    "preferences": {
+      "success": true,
+      "data": {
+        "payment_cycle": "biweekly",
+        "payout_threshold_min": 75
+      }
+    },
+    "agreement": {
+      "success": true,
+      "error": null
+    },
+    "final_status": {
+      "success": true,
+      "environment": "test",
+      "account_id": "acct_1Ucp1kC3Bam0xr4h",
+      "account_type": "custom",
+      "can_receive_transfers": false,
+      "onboarding_status": "restricted",
+      "livemode": false,
+      "currently_due": [
+        "company.directors_provided",
+        "directors.dob.day",
+        "directors.dob.month",
+        "directors.dob.year",
+        "directors.first_name",
+        "directors.last_name"
+      ],
+      "charges_enabled": false,
+      "payouts_enabled": false,
+      "details_submitted": false
+    },
+    "stripe_account": {
+      "id": "acct_1Ucp1kC3Bam0xr4h",
+      "type": "none",
+      "charges_enabled": false,
+      "payouts_enabled": false,
+      "details_submitted": false,
+      "currently_due": [
+        "company.directors_provided",
+        "directors.dob.day",
+        "directors.dob.month",
+        "directors.dob.year",
+        "directors.first_name",
+        "directors.last_name"
+      ],
+      "disabled_reason": "requirements.past_due",
+      "capabilities": {
+        "transfers": "inactive"
+      }
+    },
+    "stripe_persons": [
+      {
+        "id": "person_1Ucp2CC3Bam0xr4hVRhCuS9i",
+        "name": "Alan Turing",
+        "representative": false,
+        "owner": true,
+        "director": false,
+        "percent_ownership": 25
+      },
+      {
+        "id": "person_1Ucp2AC3Bam0xr4hoj97maQG",
+        "name": "Grace Hopper",
+        "representative": false,
+        "owner": true,
+        "director": false,
+        "percent_ownership": 35
+      },
+      {
+        "id": "person_1Ucp22C3Bam0xr4h1Xb9dhLn",
+        "name": "Ada Lovelace",
+        "representative": true,
+        "owner": true,
+        "director": false,
+        "percent_ownership": 40
+      }
+    ],
+    "verified_claim_allowed": false,
+    "must_not_show_live_verified_for_test": true
+  },
+  "failures": {
+    "duplicate_owners_submit": {
+      "success": true,
+      "error": null
+    },
+    "invalid_bank": {
+      "success": false,
+      "error": "You must use a test bank account number. Try FI2112345600000785 or see more options at https://stripe.com/docs/connect/testing#account-numbers.",
+      "note": "token create rejected invalid IBAN (expected)"
+    },
+    "bank_replace_same_account": {
+      "success": true,
+      "account_id": "acct_1Ucp1kC3Bam0xr4h",
+      "same_as_ensure": true,
+      "error": null
+    },
+    "network_abort": {
+      "aborted": true,
+      "name": "AbortError"
+    },
+    "retry_after_abort": {
+      "success": true,
+      "same_account": true
+    }
+  },
+  "regression": {
+    "royal_nordic_before": null,
+    "royal_nordic_after": null,
+    "royal_nordic_unchanged": false,
+    "existing_account_path": {
+      "success": true,
+      "account_id": "acct_1Ucp1kC3Bam0xr4h",
+      "same_account": true
+    },
+    "royal_nordic_profile": {
+      "id": "eced0f8c-c2e4-469b-8bba-15170be68cc1",
+      "display_name": "Royal Nordic",
+      "company_legal_name": "EM Global Oy",
+      "stripe_connected_account_id": null,
+      "connect_legacy_account_id": null,
+      "connect_account_type": null,
+      "connect_account_livemode": null,
+      "connect_onboarding_status": "not_started",
+      "updated_at": "2026-11-17T14:52:13.19417+00:00"
+    },
+    "royal_nordic_express_account_id": "acct_1UcAxbCOlSVGqrHJ",
+    "royal_nordic_note": "RN profile currently has no linked Connect id in Traverion DB. P9.22 TEST cert used sk_test_ only against local Deno edge — LIVE Express acct_1UcAxbCOlSVGqrHJ cannot be modified by TEST API keys. No RN profile writes were performed.",
+    "royal_nordic_untouched": true
+  },
+  "cleanup": {
+    "profile_cleared": true,
+    "profile_error": null,
+    "stripe_account_deleted": true
+  },
+  "blockers": [],
+  "verdict": "PASS",
+  "remaining_stripe_requirements_after_happy_path": [
+    "company.directors_provided",
+    "directors.dob.day",
+    "directors.dob.month",
+    "directors.dob.year",
+    "directors.first_name",
+    "directors.last_name"
+  ]
+}

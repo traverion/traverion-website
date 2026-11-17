@@ -5,6 +5,7 @@ import {
   emptyPayoutWizardDraft,
   isLiveAccountCreationGateError,
   parseOwnershipPercent,
+  payoutWizardStepForRequirement,
   sanitizeOwnershipPercentInput,
   sumDeclaredOwnershipPercent,
   validateBeneficialOwners,
@@ -140,5 +141,12 @@ describe('ownership percent validation', () => {
     expect(
       canProvisionConnectAccount({ hasConnectedAccount: true, platformEnvironment: 'live' })
     ).toBe(true);
+  });
+
+  it('maps director requirements to business (SoT), owners to representative', () => {
+    expect(payoutWizardStepForRequirement('company.directors_provided')).toBe('business');
+    expect(payoutWizardStepForRequirement('directors.first_name')).toBe('business');
+    expect(payoutWizardStepForRequirement('owners.percent_ownership')).toBe('representative');
+    expect(payoutWizardStepForRequirement('representative.first_name')).toBe('representative');
   });
 });
