@@ -4,7 +4,8 @@
 
 | Ship | Value |
 |------|--------|
-| Commit | *(pending push)* |
+| Commit | `3aeaa501` |
+| Vercel deployment | **7869291739** |
 | Cert base | `http://127.0.0.1:5183` (`VITE_SHOW_SEED_LISTINGS=true`) |
 | Tour | `hanoi-food-street-tour` (seed brochure) |
 | Screenshots | `scripts/p930-screenshots/` |
