@@ -9,6 +9,6 @@ export function partnerTodayEmptyScheduleCopy(attentionCount: number): { title: 
   }
   return {
     title: 'Nothing on today’s schedule',
-    body: 'Tour departures and in-house stays appear here when guests book.',
+    body: 'Tour departures, stays, and rental handovers appear here when guests book.',
   };
 }

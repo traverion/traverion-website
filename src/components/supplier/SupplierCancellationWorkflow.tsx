@@ -71,10 +71,10 @@ const FAMILIES: { value: '' | CancellationFamily; label: string }[] = [
 ];
 
 function notificationLabel(status: CancellationWorkflowResultRow['notification']): string {
-  if (status === 'accepted') return 'Mail provider accepted the notice';
-  if (status === 'queued') return 'Notifications are being sent';
-  if (status === 'failed') return 'Notification was not queued';
-  if (status === 'unconfirmed') return 'Email was not confirmed';
+  if (status === 'accepted') return 'Guest email accepted';
+  if (status === 'queued') return 'Sending guest email…';
+  if (status === 'failed') return 'Guest email failed to send';
+  if (status === 'unconfirmed') return 'Guest email not confirmed';
   return 'No email sent';
 }
 

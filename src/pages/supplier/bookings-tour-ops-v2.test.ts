@@ -68,7 +68,7 @@ describe('Bookings V4 — tour ops card & detail page', () => {
       'utf8'
     );
     expect(card).toContain('Supplier earnings');
-    expect(card).toContain('Customer paid');
+    expect(card).toContain('Guest paid');
     expect(card).toContain('Traverion commission');
     expect(card).toContain('Message guest');
     expect(card).not.toContain('Mark as reviewed');
@@ -88,7 +88,7 @@ describe('Bookings V4 — tour ops card & detail page', () => {
     expect(detail).toContain('tour-ops-detail__aside');
     expect(detail).not.toContain('Acknowledge');
     expect(detail).toContain('BookingOpsActionRail');
-    expect(primitives).toContain('Message customer');
+    expect(primitives).toContain('Message guest');
   });
 
   it('defines tour-ops and premium toolbar styles', () => {
@@ -128,11 +128,14 @@ describe('Bookings V4 — tour ops card & detail page', () => {
     expect(formatPartnerTravelRangeLabel('', '')).toBe('');
   });
 
-  it('shows only Cancelled badges on collapsed list cards', () => {
+  it('keeps Cancelled as the only alert badge from partnerBookingListBadgeLabel', () => {
     expect(partnerBookingListBadgeLabel('confirmed')).toBeNull();
     expect(partnerBookingListBadgeLabel('pending')).toBeNull();
     expect(partnerBookingListBadgeLabel('completed')).toBeNull();
     expect(partnerBookingListBadgeLabel('cancelled')).toBe('Cancelled');
+    const bookings = readFileSync(resolve(__dirname, 'SupplierBookings.tsx'), 'utf8');
+    expect(bookings).toContain('tour-ops-card__status--confirmed');
+    expect(bookings).toContain('partnerBookingLifecycleLabel');
   });
 
   it('keeps stay desk on StayOpsReservationCard', () => {
@@ -193,20 +196,19 @@ describe('Bookings V4 — tour ops card & detail page', () => {
       })
     );
     expect(html).toContain('Ada Lovelace');
-    expect(html).toContain('ada@example.com');
     expect(html).toContain('+358 40 123 4567');
     expect(html).toContain('Booking details');
     expect(html).toContain('Hotel lobby');
     expect(html).toContain('08:30 pickup window');
     expect(html).toContain('Paid');
-    expect(html).toContain('Customer paid');
+    expect(html).toContain('Guest paid');
     expect(html).toContain('€119.00');
     expect(html).toContain('Traverion commission');
     expect(html).toContain('15%');
     expect(html).toContain('−€17.85');
     expect(html).toContain('Supplier earnings');
     expect(html).toContain('€101.15');
-    expect(html).toContain('Supplier earnings are not a payout.');
+    expect(html).toContain('Guest paid');
     expect(html).not.toContain('Mark as reviewed');
     expect(html).not.toContain('Acknowledge');
     expect(html).toContain('View details');

@@ -168,7 +168,7 @@ function recentBookingStatus(b: BookingRow): { label: string; tone: 'ok' | 'warn
   const st = (b.status ?? '').trim().toLowerCase();
   if (st === 'cancelled') return { label: 'Cancelled', tone: 'bad' };
   if (isRefundDueBooking(b)) return { label: 'Refund due', tone: 'bad' };
-  if (partnerBookingIsActiveUnpaidCheckout(b)) return { label: 'Pending payment', tone: 'warn' };
+  if (partnerBookingIsActiveUnpaidCheckout(b)) return { label: 'Payment pending', tone: 'warn' };
   if (bookingIsRental(b)) {
     const label = rentalBookingSimpleStatusLabel(b);
     if (label === 'Completed') return { label, tone: 'neutral' };
@@ -825,8 +825,8 @@ export default function SupplierDashboard() {
                 title={refundDueCount === 1 ? 'Refund due' : `${refundDueCount} refunds due`}
                 detail={
                   firstRefund
-                    ? `${bookingLabel(firstRefund, listingTitlesById)} · Manual Stripe refund required`
-                    : 'Manual Stripe refund required'
+                    ? `${bookingLabel(firstRefund, listingTitlesById)} · Refund needs Traverion action`
+                    : 'Refund needs Traverion action'
                 }
                 onClick={() =>
                   navigateSupplierUrl(
@@ -1129,7 +1129,7 @@ export default function SupplierDashboard() {
                   : isRental
                     ? (rentalSnap?.pickupAddress ?? '').trim()
                     : '';
-              const customer = b.guest_name?.trim() || 'Customer';
+              const customer = b.guest_name?.trim() || 'Guest';
               const extras = parseListingExtras(
                 listingsById[b.listing_id]?.listingExtras as unknown
               );
@@ -1209,7 +1209,7 @@ export default function SupplierDashboard() {
           />
           <div className="partner-home-section__body">
             <div className="partner-home__recent-cols" aria-hidden>
-              <span>Customer</span>
+              <span>Guest</span>
               <span>Listing</span>
               <span>Date</span>
               <span>Details</span>
@@ -1277,7 +1277,7 @@ export default function SupplierDashboard() {
                       className="partner-home__recent-row lux-flat"
                     >
                       <span className="partner-home__recent-guest">
-                        {b.guest_name?.trim() || 'Customer'}
+                        {b.guest_name?.trim() || 'Guest'}
                       </span>
                       <span className="partner-home__recent-product" title={listingTitle}>
                         <span className="partner-home__recent-family">

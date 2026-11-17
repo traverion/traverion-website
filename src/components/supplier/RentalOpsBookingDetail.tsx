@@ -205,9 +205,9 @@ export default function RentalOpsBookingDetail({
           </section>
 
           <section className="tour-ops-detail__section">
-            <h2 className="tour-ops-detail__heading">Customer</h2>
+            <h2 className="tour-ops-detail__heading">Guest</h2>
             <dl className="tour-ops-detail__facts">
-              <BookingOpsFact label="Customer" icon={User}>
+              <BookingOpsFact label="Guest" icon={User}>
                 {model.customerName}
               </BookingOpsFact>
               {model.customerPhone ? (
@@ -222,7 +222,7 @@ export default function RentalOpsBookingDetail({
               <div className="tour-ops-detail__notes">
                 <p className="tour-ops-detail__sublabel tour-ops-detail__sublabel--with-icon">
                   <FileText className="tour-ops-detail__sublabel-icon" strokeWidth={2} aria-hidden />
-                  Customer notes
+                  Guest notes
                 </p>
                 <p className="tour-ops-detail__body-text">{model.requestNotes}</p>
               </div>
@@ -232,18 +232,14 @@ export default function RentalOpsBookingDetail({
           {hasTerms ? (
             <section className="tour-ops-detail__section">
               <h2 className="tour-ops-detail__heading">Rental terms</h2>
-              <p className="text-[13px] leading-relaxed text-ink-muted">
-                Damage liability and deposits are agreed in these terms. Traverion does not charge
-                automatic damage fees from this screen.
-              </p>
-              <dl className="tour-ops-detail__facts mt-2">
+              <dl className="tour-ops-detail__facts">
                 {model.cancellationLabel?.trim() ? (
                   <BookingOpsFact label="Cancellation">
                     <span className="tour-ops-detail__body-text">{model.cancellationLabel.trim()}</span>
                   </BookingOpsFact>
                 ) : null}
                 {model.depositDisclosure?.trim() ? (
-                  <BookingOpsFact label="Deposit / damage">
+                  <BookingOpsFact label="Deposit">
                     <span className="tour-ops-detail__body-text">{model.depositDisclosure.trim()}</span>
                   </BookingOpsFact>
                 ) : null}

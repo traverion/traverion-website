@@ -245,7 +245,7 @@ export default function RentalOpsBookingCard({
               <>
                 <dl className="tour-ops-card__finance">
                   <div>
-                    <dt>Customer paid</dt>
+                    <dt>Guest paid</dt>
                     <dd className="tabular-nums">{moneyOrPlaceholder(model.guestPaidLabel)}</dd>
                   </div>
                   <div>
@@ -264,9 +264,6 @@ export default function RentalOpsBookingCard({
                     </dd>
                   </div>
                 </dl>
-                {model.earningsLabel ? (
-                  <p className="tour-ops-card__finance-note">Supplier earnings are not a payout.</p>
-                ) : null}
               </>
             )}
           </section>
@@ -283,7 +280,7 @@ export default function RentalOpsBookingCard({
             onClick={onMessageCustomer}
           >
             <Mail className="h-3.5 w-3.5" strokeWidth={2} aria-hidden />
-            Message customer
+            Message guest
           </button>
           <button
             type="button"

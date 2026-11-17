@@ -57,21 +57,22 @@ describe('Mission 04: rental booking ops UI (no handover)', () => {
     expect(bookings).toContain("tourDetailMode = Boolean(!isStayDesk && !isRentalDesk && highlightBookingId)");
 
     const card = readFileSync(join(root, 'components/supplier/RentalOpsBookingCard.tsx'), 'utf8');
-    expect(card).toContain('Message customer');
-    expect(card).toContain('Rental period');
-    expect(card).toContain('Collection ·');
-    expect(card).toContain('Customer');
+    expect(card).toContain('Message guest');
+    expect(card).toContain('summary-label">Collection');
+    expect(card).toContain('summary-label">Return');
+    expect(card).toContain('Guest paid');
     expect(card).not.toContain('handoverLabel');
     expect(card).not.toContain('Awaiting collection');
-    expect(card).not.toContain('Message guest');
 
     const detail = readFileSync(join(root, 'components/supplier/RentalOpsBookingDetail.tsx'), 'utf8');
     expect(detail).toContain('Rental booking');
     expect(detail).toContain('Rental details');
     expect(detail).toContain('Rental terms');
     expect(detail).toContain('Collection place');
+    expect(detail).toContain('>Guest</h2>');
     expect(detail).toContain('onMessageCustomer');
     expect(detail).toContain('BookingOpsActionRail');
+    expect(detail).not.toContain('automatic damage fees');
     expect(detail).not.toContain('Handover');
     expect(detail).not.toContain('Mark collected');
     expect(detail).not.toContain('Mark returned');
@@ -95,9 +96,9 @@ describe('Mission 04: rental booking ops UI (no handover)', () => {
     expect(html).toContain('Ada Lovelace');
     expect(html).toContain('1 camera');
     expect(html).toContain('Confirmed');
-    expect(html).toContain('Collection ·');
-    expect(html).toContain('Message customer');
-    expect(html).toContain('damage claims');
+    expect(html).toContain('Collection');
+    expect(html).toContain('Return');
+    expect(html).toContain('Message guest');
     expect(html).not.toContain('Awaiting collection');
     expect(html).not.toContain('Participants');
   });

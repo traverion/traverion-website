@@ -33,7 +33,7 @@ describe('Phase 1752: host booking chat requires editor roles', () => {
     expect(bookings).not.toContain('BookingMessageThread');
     expect(bookings).not.toContain('Open in Inbox');
     expect(detail).toContain('onMessageGuest');
-    expect(primitives).toContain('Message customer');
+    expect(primitives).toContain('Message guest');
     expect(primitives).toContain('onMessageGuest');
 
     const thread = readFileSync(resolve(__dirname, '../../components/BookingMessageThread.tsx'), 'utf8');

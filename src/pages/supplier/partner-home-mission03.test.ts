@@ -159,7 +159,7 @@ describe('Mission 03: Partner Home dashboard wiring', () => {
     expect(home).not.toContain('rentalHandoverStatusLabel');
     expect(home).not.toContain('rentalReturnsToday');
 
-    expect(home).toContain('>Customer<');
+    expect(home).toContain('>Guest<');
     expect(home).toContain('>Listing<');
     expect(home).toContain('>Details<');
     expect(home).toContain('>Paid<');

@@ -164,7 +164,7 @@ export function BookingOpsFinancePanel({
         <>
           <dl className="tour-ops-detail__finance">
             <div>
-              <dt>Customer paid</dt>
+              <dt>Guest paid</dt>
               <dd className="tabular-nums">{finance.customerPaid || '—'}</dd>
             </div>
             <div>
@@ -179,11 +179,11 @@ export function BookingOpsFinancePanel({
               <dd className="tabular-nums tour-ops-detail__earn">{finance.supplierEarnings || '—'}</dd>
             </div>
           </dl>
-          <p className="mt-2 text-[12px] leading-4 text-ink-faint">
-            {finance.commissionAdjusted
-              ? 'Amounts follow refunds on this booking. Earnings are not a payout.'
-              : 'Supplier earnings are not a payout.'}
-          </p>
+          {finance.commissionAdjusted ? (
+            <p className="mt-2 text-[12px] leading-4 text-ink-faint">
+              Amounts reflect refunds on this booking.
+            </p>
+          ) : null}
           {onOpenFinancialStatement ? (
             <button
               type="button"
@@ -242,7 +242,7 @@ export function BookingOpsActionRail({
         className="tv-btn-primary inline-flex h-9 w-full items-center justify-center gap-1.5 !px-3 text-[13px]"
       >
         <Mail className="h-3.5 w-3.5" aria-hidden />
-        Message customer
+        Message guest
       </button>
       {canEdit && showCancelRequest && onRequestCancel ? (
         <button

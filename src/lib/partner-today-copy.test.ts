@@ -13,7 +13,7 @@ describe('partnerTodayEmptyScheduleCopy', () => {
   it('keeps compact empty copy when attention is clear', () => {
     const copy = partnerTodayEmptyScheduleCopy(0);
     expect(copy.title.toLowerCase()).toContain('schedule');
-    expect(copy.body.toLowerCase()).toMatch(/tour|stay/);
+    expect(copy.body.toLowerCase()).toMatch(/tour|stay|rental/);
     expect(copy.body.toLowerCase()).not.toContain("you're set");
   });
 });

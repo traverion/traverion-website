@@ -9,7 +9,7 @@ describe('Premium booking detail redesign', () => {
     expect(primitives).toContain('BookingOpsFinancePanel');
     expect(primitives).toContain('BookingOpsActionRail');
     expect(primitives).toContain('BookingOpsRuleList');
-    expect(primitives).toContain('Message customer');
+    expect(primitives).toContain('Message guest');
     expect(primitives).toContain('tv-btn-danger');
     expect(primitives).toContain('Cancel booking');
     expect(primitives).toContain('XCircle');

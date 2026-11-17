@@ -252,12 +252,16 @@ function listStatusBadge(
     pickupDetailsMissing,
   });
   if (label === 'Cancelled') {
-    return { label, className: bookingStatusClass('cancelled', paymentStatus) };
+    return { label, className: 'tour-ops-card__status--cancelled' };
   }
   if (label === 'Pickup details missing') {
     return { label, className: 'tour-ops-card__status--pickup-missing' };
   }
-  return { label: null, className: bookingStatusClass(status ?? '', paymentStatus) };
+  const life = partnerBookingLifecycleLabel(status);
+  if (life === 'Confirmed') return { label: life, className: 'tour-ops-card__status--confirmed' };
+  if (life === 'Pending') return { label: life, className: 'tour-ops-card__status--pending' };
+  if (life === 'Completed') return { label: life, className: 'tour-ops-card__status--completed' };
+  return { label: null, className: '' };
 }
 
 function rentalListStatusBadge(
@@ -266,11 +270,15 @@ function rentalListStatusBadge(
 ): { label: string | null; className: string } {
   const pay = (booking.payment_status ?? '').trim().toLowerCase();
   if (pay === 'refunded' || rentalBookingSimpleStatusLabel(booking) === 'Cancelled') {
-    return { label: 'Cancelled', className: bookingStatusClass('cancelled', booking.payment_status) };
+    return { label: 'Cancelled', className: 'tour-ops-card__status--cancelled' };
   }
   if (pickupDetailsMissing) {
     return { label: 'Pickup details missing', className: 'tour-ops-card__status--pickup-missing' };
   }
+  const life = rentalBookingSimpleStatusLabel(booking);
+  if (life === 'Confirmed') return { label: life, className: 'tour-ops-card__status--confirmed' };
+  if (life === 'Completed') return { label: life, className: 'tour-ops-card__status--completed' };
+  if (life === 'Pending') return { label: life, className: 'tour-ops-card__status--pending' };
   return { label: null, className: '' };
 }
 
@@ -1484,12 +1492,12 @@ export default function SupplierBookings({
           }
           body={
             inventoryFamily === 'stay'
-              ? 'No traveler has reserved a stay night yet. That is normal until a stay is live and someone checks out. When they do, reservations appear here.'
+              ? 'When guests book a stay, arrival and departure details appear here.'
               : inventoryFamily === 'rental'
-                ? 'Rental checkout is not open to travelers yet. When certified bookings complete, they will appear here with pickup and return details.'
+                ? 'When guests book a rental, collection and return details appear here.'
                 : isUnifiedDesk
-                  ? 'No traveler has booked your listings yet. When they do, tours, stays, and rentals appear here together.'
-                  : 'No traveler has booked your tours yet. That is normal until a listing is live and someone checks out. When they do, bookings appear here.'
+                  ? 'When guests book, tours, stays, and rentals appear here together.'
+                  : 'When guests book a tour, departure details appear here.'
           }
           action={
             <div className="flex flex-wrap gap-2">
@@ -1691,11 +1699,35 @@ export default function SupplierBookings({
         {filteredBookings.length === 0 ? (
         <SupplierEmptyState
           icon={CalendarDays}
-          title="No bookings match your selected filters."
+          title={
+            opsFilter === 'unpaid'
+              ? 'No unpaid checkouts match these filters.'
+              : categoryFilter &&
+                  activeBookingFilterCount === 1 &&
+                  !filterQuery.trim() &&
+                  !filterListingId &&
+                  view === 'all'
+                ? categoryFilter === 'stay'
+                  ? 'No stay reservations yet'
+                  : categoryFilter === 'rental'
+                    ? 'No rental bookings yet'
+                    : 'No tour bookings yet'
+                : 'No bookings match your selected filters.'
+          }
           body={
             opsFilter === 'unpaid'
-              ? 'No unpaid checkouts match these filters. Live holds stay here until you clear them.'
-              : 'Try another day, category, or search — or reset filters to see all bookings again.'
+              ? 'Live holds stay here until payment completes or the hold expires.'
+              : categoryFilter &&
+                  activeBookingFilterCount === 1 &&
+                  !filterQuery.trim() &&
+                  !filterListingId &&
+                  view === 'all'
+                ? categoryFilter === 'stay'
+                  ? 'When guests book a stay, arrival and departure details appear here.'
+                  : categoryFilter === 'rental'
+                    ? 'When guests book a rental, collection and return details appear here.'
+                    : 'When guests book a tour, departure details appear here.'
+                : 'Try another day, category, or search — or reset filters to see all bookings again.'
           }
           action={
               <button
@@ -1948,7 +1980,7 @@ export default function SupplierBookings({
                       ),
                       variantLabel: rentalSnap?.variantName?.trim() || optionLabel || null,
                       imageUrl: meta?.imageUrl ?? null,
-                      customerName: booking.guest_name?.trim() || 'Customer',
+                      customerName: booking.guest_name?.trim() || 'Guest',
                       customerEmail: booking.guest_email?.trim() || null,
                       customerPhone: guestPhoneFromNotes(booking.special_requests),
                       customerNotes,
@@ -2482,7 +2514,7 @@ export default function SupplierBookings({
                   imageUrl: meta?.imageUrl ?? null,
                   periodLine,
                   quantityLabel,
-                  customerName: booking.guest_name?.trim() || 'Customer',
+                  customerName: booking.guest_name?.trim() || 'Guest',
                   customerEmail: booking.guest_email?.trim() || null,
                   customerPhone,
                   requestNotes: requestNotes || null,

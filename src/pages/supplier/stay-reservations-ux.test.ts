@@ -24,7 +24,7 @@ describe('Stay Reservations premium UX contracts', () => {
     expect(card).toContain('View details');
     expect(card).toContain('Message guest');
     expect(card).toContain('onToggleExpand');
-    expect(card).toContain('Arrival & departure');
+    expect(card).toContain('Check-in');
     expect(card).toContain('tour-ops-card__summary-grid');
     expect(detail).toContain('tour-ops-detail');
     expect(detail).toContain('Back to reservations');

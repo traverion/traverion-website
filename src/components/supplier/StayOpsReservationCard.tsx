@@ -227,7 +227,7 @@ export default function StayOpsReservationCard({
               <>
                 <dl className="tour-ops-card__finance">
                   <div>
-                    <dt>Customer paid</dt>
+                    <dt>Guest paid</dt>
                     <dd className="tabular-nums">{moneyOrPlaceholder(model.guestPaidLabel)}</dd>
                   </div>
                   <div>
@@ -246,9 +246,6 @@ export default function StayOpsReservationCard({
                     </dd>
                   </div>
                 </dl>
-                {model.earningsLabel ? (
-                  <p className="tour-ops-card__finance-note">Supplier earnings are not a payout.</p>
-                ) : null}
               </>
             )}
           </section>
