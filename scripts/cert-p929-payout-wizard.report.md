@@ -4,7 +4,8 @@
 
 | Ship | Value |
 |------|--------|
-| Commit | *(pending push)* |
+| Commit | `ac550215` |
+| Vercel deployment | **7867528560** |
 | Cert base | `http://127.0.0.1:5182` (local Vite with production Supabase) |
 | Supplier | `p921-payout-mwkvnn8d@traverion.invalid` (isolated; no Connect account) |
 | LIVE Connect create | **OFF** (unchanged) |
