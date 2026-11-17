@@ -133,6 +133,12 @@ export function connectOnboardingUserMessage(raw: string | null | undefined): st
   if (/no connected account|missing connect|account not found/i.test(msg)) {
     return 'No payout account is linked yet. Finish business details, then try verification again.';
   }
+  if (/LIVE payout account creation is turned off/i.test(msg)) {
+    return 'Payout account connection is not available yet. Your details stay saved — Traverion will enable connection when ready.';
+  }
+  if (/not approved for LIVE payout account creation/i.test(msg)) {
+    return 'This partner account is not approved for payout connection yet. Contact Traverion if you need help.';
+  }
   return msg;
 }
 

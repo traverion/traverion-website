@@ -23,21 +23,29 @@ import {
 import {
   clearPayoutWizardDraft,
   emptyPayoutWizardDraft,
+  isLiveAccountCreationGateError,
   loadPayoutWizardDraft,
+  parseOwnershipPercent,
   parsePayoutWizardDob,
+  PAYOUT_LIVE_SETUP_UNAVAILABLE_COPY,
   PAYOUT_WIZARD_SCREENS,
   PAYOUT_WIZARD_STRIPE_AUTH_COPY,
   PAYOUT_WIZARD_TOS_COPY,
   firstOutstandingWizardStep,
   payoutWizardStepIndex,
+  sanitizeOwnershipPercentInput,
   savePayoutWizardDraft,
+  validateOwnershipPercent,
   validatePayoutWizardBusiness,
   validatePayoutWizardIdentity,
   validatePayoutWizardPreferences,
   validatePayoutWizardRepresentative,
+  validatePayoutWizardRepresentativeFields,
   type PayoutWizardDraft,
+  type PayoutWizardFieldErrors,
   type PayoutWizardStepId,
 } from '../../lib/payout-setup-wizard';
+import { parseDirectors, serializeDirectors } from '../../lib/business-identity-validation';
 import { STRIPE_RECIPIENT_AGREEMENT } from '../../lib/stripe-recipient-agreement';
 import { createBankAccountToken } from '../../lib/stripe-js-client';
 import { isSupplierBusinessIdentityLocked } from '../../lib/supplierVerificationLocks';
@@ -50,6 +58,9 @@ import {
 import { PARTNER_HELP } from '../../lib/partnerHelpCopy';
 import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
 import PartnerHelpTip from './PartnerHelpTip';
+
+/** ~800px content — matches P9.20 brief without feeling sparse. */
+const CONTENT_MAX = 'max-w-[50rem]';
 
 function normalizeCountryCode(raw: string): string {
   const t = raw.trim();
@@ -73,9 +84,13 @@ type Props = {
   initialStep?: PayoutWizardStepId;
 };
 
+/**
+ * Prefill company fields from the business profile (SoT).
+ * Never invent DOB, ownership, or a representative from directors —
+ * a director is not automatically the legal representative.
+ */
 function prefillFromProfile(profile: SupplierProfileRow | null): Partial<PayoutWizardDraft> {
-  const directors = profile?.managing_directors?.trim() ?? '';
-  const nameParts = directors.split(/\s+/).filter(Boolean);
+  const directors = serializeDirectors(parseDirectors(profile?.managing_directors));
   return {
     company_legal_name: profile?.company_legal_name ?? profile?.display_name ?? '',
     business_type:
@@ -89,14 +104,41 @@ function prefillFromProfile(profile: SupplierProfileRow | null): Partial<PayoutW
     address_country: profile?.address_country ?? '',
     contact_phone: profile?.contact_phone ?? '',
     managing_directors: directors,
-    rep_first_name: nameParts[0] ?? '',
-    rep_last_name: nameParts.length > 1 ? nameParts.slice(1).join(' ') : '',
-    payment_cycle: profile?.payment_cycle === 'monthly' || profile?.payment_cycle === 'biweekly'
-      ? profile.payment_cycle
-      : '',
+    // Representative identity is collected separately — leave blank unless a draft already has it.
+    payment_cycle:
+      profile?.payment_cycle === 'monthly' || profile?.payment_cycle === 'biweekly'
+        ? profile.payment_cycle
+        : '',
     payout_threshold_min:
       profile?.payout_threshold_min != null ? String(profile.payout_threshold_min) : '',
   };
+}
+
+function FieldLabel({
+  children,
+  help,
+  optional,
+}: {
+  children: string;
+  help?: string;
+  optional?: boolean;
+}) {
+  return (
+    <span className="mb-1.5 inline-flex items-center gap-1.5 text-[13px] font-medium text-[#17191d]">
+      {children}
+      {optional ? <span className="font-normal text-[#5c6570]">(optional)</span> : null}
+      {help ? <PartnerHelpTip label={`About ${children}`}>{help}</PartnerHelpTip> : null}
+    </span>
+  );
+}
+
+function FieldError({ message }: { message?: string }) {
+  if (!message) return null;
+  return (
+    <p className="mt-1 text-[12px] font-medium text-[#9f1239]" role="alert">
+      {message}
+    </p>
+  );
 }
 
 export default function PayoutSetupWizard({
@@ -153,6 +195,8 @@ export default function PayoutSetupWizard({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<PayoutWizardFieldErrors>({});
+  const [connectSetupUnavailable, setConnectSetupUnavailable] = useState(false);
   const [showStripeEmbed, setShowStripeEmbed] = useState(false);
   const [expressLaunchFailed, setExpressLaunchFailed] = useState(false);
   const [showIdentityRemediation, setShowIdentityRemediation] = useState(false);
@@ -161,6 +205,7 @@ export default function PayoutSetupWizard({
   const [bankIban, setBankIban] = useState('');
   const [bankHolder, setBankHolder] = useState('');
   const [bankMasked, setBankMasked] = useState<string | null>(null);
+  const hasConnectedAccount = Boolean(profile?.stripe_connected_account_id?.trim());
 
   const stepIndex = payoutWizardStepIndex(draft.step);
   const screen = PAYOUT_WIZARD_SCREENS[stepIndex]!;
@@ -209,7 +254,56 @@ export default function PayoutSetupWizard({
     setDirection(dir);
     setError(null);
     setNote(null);
+    setFieldErrors({});
     patch({ step });
+  };
+
+  /**
+   * Sync company fields to Traverion profile without creating a Connect account.
+   * Provider submit runs only when an account already exists.
+   */
+  const persistBusinessProfile = async (
+    normalizedCountry: string
+  ): Promise<{ ok: boolean; error?: string }> => {
+    if (businessLocked) {
+      if (draft.contact_phone.trim() !== (profile?.contact_phone ?? '')) {
+        const phoneRes = await updateSupplierCompanyProfile(userId, {
+          contact_phone: draft.contact_phone.trim() || null,
+        });
+        if (!phoneRes.success) return { ok: false, error: phoneRes.error };
+      }
+      return { ok: true };
+    }
+    const composedAddress = [
+      draft.address_street.trim(),
+      [draft.address_postal_code.trim(), draft.address_city.trim()].filter(Boolean).join(' '),
+      normalizedCountry,
+    ]
+      .filter(Boolean)
+      .join(', ');
+    const res = await updateSupplierCompanyProfile(userId, {
+      company_legal_name: draft.company_legal_name.trim(),
+      business_type: draft.business_type || null,
+      company_registration_number: draft.company_registration_number.trim() || null,
+      address_street: draft.address_street.trim() || null,
+      address_city: draft.address_city.trim() || null,
+      address_postal_code: draft.address_postal_code.trim() || null,
+      address_country: normalizedCountry || null,
+      business_address: composedAddress || null,
+      contact_phone: draft.contact_phone.trim() || null,
+      // Keep directors from business onboarding — do not invent from representative.
+      managing_directors: draft.managing_directors.trim() || profile?.managing_directors || null,
+    });
+    if (!res.success) {
+      if (
+        /cannot be changed while your business profile/i.test(res.error ?? '') &&
+        Boolean(profile?.company_legal_name)
+      ) {
+        return { ok: true };
+      }
+      return { ok: false, error: res.error };
+    }
+    return { ok: true };
   };
 
   const businessLocked = isSupplierBusinessIdentityLocked(
@@ -236,89 +330,19 @@ export default function PayoutSetupWizard({
       patch({ address_country: normalizedCountry });
     }
 
-    if (businessLocked) {
-      if (draft.contact_phone.trim() !== (profile?.contact_phone ?? '')) {
-        const phoneRes = await updateSupplierCompanyProfile(userId, {
-          contact_phone: draft.contact_phone.trim() || null,
-        });
-        if (!phoneRes.success) {
-          setBusy(false);
-          setError(userFacingError(phoneRes.error, USER_ERROR.generic));
-          return false;
-        }
-      }
-      await invokeConnectSupplierOnboarding('ensure_account');
-      if (isCustom && !isExpress) {
-        const submit = await invokeConnectSupplierOnboarding('submit_business', {
-          business: {
-            legal_name: draft.company_legal_name.trim() || profile?.company_legal_name || undefined,
-            business_type: draft.business_type || undefined,
-            registration_number: draft.company_registration_number.trim() || undefined,
-            phone: draft.contact_phone.trim() || undefined,
-            address: {
-              line1: draft.address_street.trim(),
-              city: draft.address_city.trim(),
-              postal_code: draft.address_postal_code.trim(),
-              country: normalizedCountry,
-            },
-          },
-        });
-        if (!submit.success && !/409|express|turned off|not approved/i.test(submit.error ?? '')) {
-          setBusy(false);
-          setError(userFacingError(submit.error, USER_ERROR.generic));
-          return false;
-        }
-      }
-      onProfile(await fetchSupplierProfile(userId));
-      patch({ businessSavedAt: new Date().toISOString() });
-      setNote('Business details are locked for review — payout details were sent from the saved profile.');
+    const persisted = await persistBusinessProfile(normalizedCountry);
+    if (!persisted.ok) {
       setBusy(false);
-      return true;
-    }
-
-    const composedAddress = [
-      draft.address_street.trim(),
-      [draft.address_postal_code.trim(), draft.address_city.trim()].filter(Boolean).join(' '),
-      normalizedCountry,
-    ]
-      .filter(Boolean)
-      .join(', ');
-    const res = await updateSupplierCompanyProfile(userId, {
-      company_legal_name: draft.company_legal_name.trim(),
-      business_type: draft.business_type || null,
-      company_registration_number: draft.company_registration_number.trim() || null,
-      address_street: draft.address_street.trim() || null,
-      address_city: draft.address_city.trim() || null,
-      address_postal_code: draft.address_postal_code.trim() || null,
-      address_country: normalizedCountry || null,
-      business_address: composedAddress || null,
-      contact_phone: draft.contact_phone.trim() || null,
-      managing_directors:
-        draft.managing_directors.trim() ||
-        `${draft.rep_first_name} ${draft.rep_last_name}`.trim() ||
-        null,
-    });
-    if (!res.success) {
-      if (
-        /cannot be changed while your business profile/i.test(res.error ?? '') &&
-        Boolean(profile?.company_legal_name)
-      ) {
-        setNote('Business details are locked for review — continuing with the saved profile.');
-        await invokeConnectSupplierOnboarding('ensure_account');
-        patch({ businessSavedAt: new Date().toISOString() });
-        setBusy(false);
-        return true;
-      }
-      setBusy(false);
-      setError(userFacingError(res.error, USER_ERROR.generic));
+      setError(userFacingError(persisted.error, USER_ERROR.generic));
       return false;
     }
 
-    await invokeConnectSupplierOnboarding('ensure_account');
-    if (isCustom && !isExpress) {
+    // Only sync to the payment provider when a connected account already exists.
+    // Never call ensure_account here — that creates accounts and hits the LIVE gate.
+    if (hasConnectedAccount && isCustom && !isExpress) {
       const submit = await invokeConnectSupplierOnboarding('submit_business', {
         business: {
-          legal_name: draft.company_legal_name.trim(),
+          legal_name: draft.company_legal_name.trim() || profile?.company_legal_name || undefined,
           business_type: draft.business_type || undefined,
           registration_number: draft.company_registration_number.trim() || undefined,
           phone: draft.contact_phone.trim() || undefined,
@@ -330,23 +354,35 @@ export default function PayoutSetupWizard({
           },
         },
       });
-      if (!submit.success && !/409|express|turned off|not approved/i.test(submit.error ?? '')) {
-        setBusy(false);
-        setError(userFacingError(submit.error, USER_ERROR.generic));
-        return false;
+      if (!submit.success) {
+        if (isLiveAccountCreationGateError(submit.error)) {
+          setConnectSetupUnavailable(true);
+          setNote(PAYOUT_LIVE_SETUP_UNAVAILABLE_COPY);
+        } else if (!/409|express/i.test(submit.error ?? '')) {
+          setBusy(false);
+          setError(connectOnboardingUserMessage(submit.error));
+          return false;
+        }
       }
+    } else if (!hasConnectedAccount) {
+      setConnectSetupUnavailable(true);
+      setNote(PAYOUT_LIVE_SETUP_UNAVAILABLE_COPY);
     }
 
     onProfile(await fetchSupplierProfile(userId));
     patch({ businessSavedAt: new Date().toISOString() });
+    if (businessLocked && !connectSetupUnavailable) {
+      setNote('Business details are locked while under review. Continuing with the saved company profile.');
+    }
     setBusy(false);
     return true;
   };
 
   const saveRepresentativeNative = async (): Promise<boolean> => {
-    const invalid = validatePayoutWizardRepresentative(draft);
-    if (invalid) {
-      setError(invalid);
+    const fields = validatePayoutWizardRepresentativeFields(draft);
+    if (Object.keys(fields).length) {
+      setFieldErrors(fields);
+      setError(validatePayoutWizardRepresentative(draft));
       return false;
     }
     if (!canEdit) {
@@ -355,11 +391,34 @@ export default function PayoutSetupWizard({
     }
     const dob = parsePayoutWizardDob(draft.rep_dob);
     if (!dob) {
+      setFieldErrors({ rep_dob: 'Enter a valid date of birth.' });
       setError('Enter a valid date of birth.');
       return false;
     }
+    const ownership = draft.rep_is_owner
+      ? parseOwnershipPercent(draft.rep_percent_ownership)
+      : null;
+    if (draft.rep_is_owner && ownership == null) {
+      const ownershipErr = validateOwnershipPercent(draft.rep_percent_ownership, { required: true });
+      setFieldErrors({ rep_percent_ownership: ownershipErr ?? 'Enter a valid ownership percentage.' });
+      setError(ownershipErr);
+      return false;
+    }
+
     setBusy(true);
     setError(null);
+    setFieldErrors({});
+
+    // Draft-first: always persist representative in the wizard draft (session).
+    // Submit to Connect only when an account already exists — never create one here.
+    if (!hasConnectedAccount) {
+      patch({ representativeSavedAt: new Date().toISOString() });
+      setConnectSetupUnavailable(true);
+      setNote(PAYOUT_LIVE_SETUP_UNAVAILABLE_COPY);
+      setBusy(false);
+      return true;
+    }
+
     const country = normalizeCountryCode(draft.address_country) || 'FI';
     const result = await invokeConnectSupplierOnboarding('submit_representative', {
       representative: {
@@ -378,25 +437,26 @@ export default function PayoutSetupWizard({
         relationship: {
           owner: draft.rep_is_owner,
           executive: true,
-          director: draft.business_type === 'company',
-          percent_ownership: draft.rep_is_owner
-            ? Number(draft.rep_percent_ownership) || null
-            : null,
+          // Do not mark every representative as a company director automatically.
+          director: false,
+          percent_ownership: draft.rep_is_owner ? ownership : null,
         },
       },
     });
     if (!result.success) {
       setBusy(false);
-      setError(userFacingError(result.error, USER_ERROR.generic));
+      if (isLiveAccountCreationGateError(result.error)) {
+        setConnectSetupUnavailable(true);
+        patch({ representativeSavedAt: new Date().toISOString() });
+        setNote(PAYOUT_LIVE_SETUP_UNAVAILABLE_COPY);
+        return true;
+      }
+      setError(connectOnboardingUserMessage(result.error));
       return false;
     }
-    const fullName = `${draft.rep_first_name.trim()} ${draft.rep_last_name.trim()}`.trim();
-    await updateSupplierCompanyProfile(userId, { managing_directors: fullName || null });
+    // Do not overwrite managing_directors — business onboarding remains SoT for directors.
     onProfile(await fetchSupplierProfile(userId));
-    patch({
-      representativeSavedAt: new Date().toISOString(),
-      managing_directors: fullName,
-    });
+    patch({ representativeSavedAt: new Date().toISOString() });
     setBusy(false);
     return true;
   };
@@ -411,6 +471,12 @@ export default function PayoutSetupWizard({
       setError('Your role can view setup but cannot change it.');
       return false;
     }
+    if (!hasConnectedAccount) {
+      patch({ identitySavedAt: new Date().toISOString() });
+      setConnectSetupUnavailable(true);
+      setNote(PAYOUT_LIVE_SETUP_UNAVAILABLE_COPY);
+      return true;
+    }
     setBusy(true);
     setError(null);
     const result = await invokeConnectSupplierOnboarding('accept_tos', {
@@ -419,7 +485,13 @@ export default function PayoutSetupWizard({
     });
     if (!result.success) {
       setBusy(false);
-      setError(userFacingError(result.error, USER_ERROR.generic));
+      if (isLiveAccountCreationGateError(result.error)) {
+        setConnectSetupUnavailable(true);
+        patch({ identitySavedAt: new Date().toISOString() });
+        setNote(PAYOUT_LIVE_SETUP_UNAVAILABLE_COPY);
+        return true;
+      }
+      setError(connectOnboardingUserMessage(result.error));
       return false;
     }
     onProfile(await fetchSupplierProfile(userId));
@@ -433,6 +505,12 @@ export default function PayoutSetupWizard({
     if (!canEdit) {
       setError('Your role can view setup but cannot change it.');
       return false;
+    }
+    if (!hasConnectedAccount) {
+      setConnectSetupUnavailable(true);
+      setNote(PAYOUT_LIVE_SETUP_UNAVAILABLE_COPY);
+      patch({ bankSavedAt: new Date().toISOString() });
+      return true;
     }
     if (bankManaged && !bankRequirementDue && !bankIban.trim()) {
       patch({ bankSavedAt: new Date().toISOString() });
@@ -461,7 +539,12 @@ export default function PayoutSetupWizard({
     });
     if (!result.success) {
       setBusy(false);
-      setError(userFacingError(result.error, USER_ERROR.generic));
+      if (isLiveAccountCreationGateError(result.error)) {
+        setConnectSetupUnavailable(true);
+        setNote(PAYOUT_LIVE_SETUP_UNAVAILABLE_COPY);
+        return true;
+      }
+      setError(connectOnboardingUserMessage(result.error));
       return false;
     }
     setBankMasked(`•••• ${bankIban.replace(/\s+/g, '').slice(-4)}`);
@@ -756,7 +839,7 @@ export default function PayoutSetupWizard({
           </p>
         </header>
 
-        <div className="mx-auto flex min-h-0 w-full max-w-[28rem] flex-1 flex-col overflow-hidden px-4 sm:px-6 lg:max-w-[32rem] lg:px-8">
+        <div className={`mx-auto flex min-h-0 w-full ${CONTENT_MAX} flex-1 flex-col overflow-hidden px-4 sm:px-6 lg:px-8`}>
           <div className="shrink-0 py-3 lg:hidden">
             <div
               className="h-[3px] overflow-hidden rounded-full bg-[#e5e7eb]"
@@ -798,70 +881,73 @@ export default function PayoutSetupWizard({
               </h1>
               <p className="stay-lede mt-1.5 text-[13px] leading-relaxed text-[#52525b]">{screen.lede}</p>
 
-              {error ? (
+              {connectSetupUnavailable ? (
                 <p
-                  className="mt-3 rounded-[10px] border border-red-200 bg-red-50 px-3 py-2 text-[13px] text-red-900"
-                  role="alert"
+                  className="mt-3 border-l-2 border-[#073b83] pl-3 text-[13px] leading-snug text-[#1e3a5f]"
+                  role="status"
                 >
+                  {PAYOUT_LIVE_SETUP_UNAVAILABLE_COPY}
+                </p>
+              ) : null}
+              {error ? (
+                <p className="mt-3 text-[13px] font-medium text-[#9f1239]" role="alert">
                   {error}
                 </p>
               ) : null}
-              {note ? (
-                <p className="mt-3 text-[12px] text-[#18181b]" role="status">
+              {note && !connectSetupUnavailable ? (
+                <p className="mt-3 text-[12px] text-[#5c6570]" role="status">
                   {note}
                 </p>
               ) : null}
 
               {draft.step === 'business' ? (
                 <form
-                  className="mt-4 grid gap-3"
+                  className="mt-5 grid gap-4"
                   onSubmit={(e) => {
                     e.preventDefault();
                     void onContinue();
                   }}
                 >
                   {businessLocked ? (
-                    <p className="rounded-[10px] border border-[#dbe4f0] bg-[#f0f4fa] px-3 py-2 text-[12px] leading-relaxed text-[#1e3a5f]">
-                      These company details are locked while your business profile is under review. You can
-                      continue — identity and bank steps are completed securely.
+                    <p className="border-l-2 border-[#073b83]/40 pl-3 text-[13px] leading-snug text-[#5c6570]">
+                      Company details come from your business profile and stay read-only while under review
+                      or after approval. Contact Traverion to amend them.
                     </p>
                   ) : null}
-                  <label className="block text-[13px]">
-                    <span className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.1em] text-[#71717a]">
-                      Legal business name
-                    </span>
-                    <input
-                      className="tv-input h-11 w-full"
-                      value={draft.company_legal_name}
-                      onChange={(e) => patch({ company_legal_name: e.target.value })}
-                      autoComplete="organization"
-                      required
-                      readOnly={businessLocked}
-                    />
-                  </label>
-                  <label className="block text-[13px]">
-                    <span className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.1em] text-[#71717a]">
-                      Business type
-                    </span>
-                    <select
-                      className="tv-input h-11 w-full"
-                      value={draft.business_type}
-                      onChange={(e) =>
-                        patch({
-                          business_type: e.target.value as '' | 'company' | 'individual',
-                        })
-                      }
-                      disabled={businessLocked}
-                    >
-                      <option value="">Select…</option>
-                      <option value="company">Company</option>
-                      <option value="individual">Individual</option>
-                    </select>
-                  </label>
-                  <label className="block text-[13px]">
-                    <span className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.1em] text-[#71717a]">
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <label className="block">
+                      <FieldLabel help={PARTNER_HELP.legalName}>Legal business name</FieldLabel>
+                      <input
+                        className="tv-input h-11 w-full"
+                        value={draft.company_legal_name}
+                        onChange={(e) => patch({ company_legal_name: e.target.value })}
+                        autoComplete="organization"
+                        required
+                        readOnly={businessLocked}
+                      />
+                    </label>
+                    <label className="block">
+                      <FieldLabel help={PARTNER_HELP.businessType}>Business type</FieldLabel>
+                      <select
+                        className="tv-input h-11 w-full"
+                        value={draft.business_type}
+                        onChange={(e) =>
+                          patch({
+                            business_type: e.target.value as '' | 'company' | 'individual',
+                          })
+                        }
+                        disabled={businessLocked}
+                      >
+                        <option value="">Select…</option>
+                        <option value="company">Registered company</option>
+                        <option value="individual">Individual trader</option>
+                      </select>
+                    </label>
+                  </div>
+                  <label className="block">
+                    <FieldLabel help={PARTNER_HELP.registrationNumber} optional>
                       Registration number
-                    </span>
+                    </FieldLabel>
                     <input
                       className="tv-input h-11 w-full"
                       value={draft.company_registration_number}
@@ -869,10 +955,8 @@ export default function PayoutSetupWizard({
                       readOnly={businessLocked}
                     />
                   </label>
-                  <label className="block text-[13px]">
-                    <span className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.1em] text-[#71717a]">
-                      Street address
-                    </span>
+                  <label className="block">
+                    <FieldLabel help={PARTNER_HELP.registeredAddress}>Street address</FieldLabel>
                     <input
                       className="tv-input h-11 w-full"
                       value={draft.address_street}
@@ -881,11 +965,9 @@ export default function PayoutSetupWizard({
                       readOnly={businessLocked}
                     />
                   </label>
-                  <div className="grid grid-cols-2 gap-3">
-                    <label className="block text-[13px]">
-                      <span className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.1em] text-[#71717a]">
-                        Postal code
-                      </span>
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <label className="block">
+                      <FieldLabel>Postal code</FieldLabel>
                       <input
                         className="tv-input h-11 w-full"
                         value={draft.address_postal_code}
@@ -894,10 +976,8 @@ export default function PayoutSetupWizard({
                         readOnly={businessLocked}
                       />
                     </label>
-                    <label className="block text-[13px]">
-                      <span className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.1em] text-[#71717a]">
-                        City
-                      </span>
+                    <label className="block">
+                      <FieldLabel>City</FieldLabel>
                       <input
                         className="tv-input h-11 w-full"
                         value={draft.address_city}
@@ -907,11 +987,9 @@ export default function PayoutSetupWizard({
                       />
                     </label>
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <label className="block text-[13px]">
-                      <span className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.1em] text-[#71717a]">
-                        Country
-                      </span>
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <label className="block">
+                      <FieldLabel>Country</FieldLabel>
                       <input
                         className="tv-input h-11 w-full"
                         value={draft.address_country}
@@ -921,10 +999,8 @@ export default function PayoutSetupWizard({
                         readOnly={businessLocked}
                       />
                     </label>
-                    <label className="block text-[13px]">
-                      <span className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.1em] text-[#71717a]">
-                        Phone
-                      </span>
+                    <label className="block">
+                      <FieldLabel help={PARTNER_HELP.contactPhone}>Phone</FieldLabel>
                       <input
                         className="tv-input h-11 w-full"
                         value={draft.contact_phone}
@@ -938,54 +1014,64 @@ export default function PayoutSetupWizard({
 
               {draft.step === 'representative' && !isExpress ? (
                 <form
-                  className="mt-4 grid gap-3"
+                  className="mt-5 grid gap-4"
                   onSubmit={(e) => {
                     e.preventDefault();
                     void onContinue();
                   }}
                 >
-                  <div className="grid grid-cols-2 gap-3">
-                    <label className="block text-[13px]">
-                      <span className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.1em] text-[#71717a]">
-                        First name
-                      </span>
+                  <p className="text-[13px] leading-snug text-[#5c6570]">
+                    Enter the person authorized to manage payouts. Do not assume a company director is
+                    automatically this representative.
+                  </p>
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <label className="block">
+                      <FieldLabel>First name</FieldLabel>
                       <input
                         className="tv-input h-11 w-full"
                         value={draft.rep_first_name}
-                        onChange={(e) => patch({ rep_first_name: e.target.value })}
+                        onChange={(e) => {
+                          patch({ rep_first_name: e.target.value });
+                          setFieldErrors((f) => ({ ...f, rep_first_name: undefined }));
+                        }}
                         autoComplete="given-name"
                         required
                       />
+                      <FieldError message={fieldErrors.rep_first_name} />
                     </label>
-                    <label className="block text-[13px]">
-                      <span className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.1em] text-[#71717a]">
-                        Last name
-                      </span>
+                    <label className="block">
+                      <FieldLabel>Last name</FieldLabel>
                       <input
                         className="tv-input h-11 w-full"
                         value={draft.rep_last_name}
-                        onChange={(e) => patch({ rep_last_name: e.target.value })}
+                        onChange={(e) => {
+                          patch({ rep_last_name: e.target.value });
+                          setFieldErrors((f) => ({ ...f, rep_last_name: undefined }));
+                        }}
                         autoComplete="family-name"
                         required
                       />
+                      <FieldError message={fieldErrors.rep_last_name} />
                     </label>
                   </div>
-                  <label className="block text-[13px]">
-                    <span className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.1em] text-[#71717a]">
+                  <label className="block">
+                    <FieldLabel help="Required for identity verification. Never inferred from company records.">
                       Date of birth
-                    </span>
+                    </FieldLabel>
                     <input
-                      className="tv-input h-11 w-full"
+                      className="tv-input h-11 w-full sm:max-w-xs"
                       type="date"
                       value={draft.rep_dob}
-                      onChange={(e) => patch({ rep_dob: e.target.value })}
+                      onChange={(e) => {
+                        patch({ rep_dob: e.target.value });
+                        setFieldErrors((f) => ({ ...f, rep_dob: undefined }));
+                      }}
                       required
                     />
+                    <FieldError message={fieldErrors.rep_dob} />
                   </label>
-                  <label className="block text-[13px]">
-                    <span className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.1em] text-[#71717a]">
-                      Title / role
-                    </span>
+                  <label className="block">
+                    <FieldLabel optional>Title / role</FieldLabel>
                     <input
                       className="tv-input h-11 w-full"
                       value={draft.rep_title}
@@ -993,11 +1079,9 @@ export default function PayoutSetupWizard({
                       placeholder="Managing director"
                     />
                   </label>
-                  <div className="grid grid-cols-2 gap-3">
-                    <label className="block text-[13px]">
-                      <span className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.1em] text-[#71717a]">
-                        Email
-                      </span>
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <label className="block">
+                      <FieldLabel optional>Email</FieldLabel>
                       <input
                         className="tv-input h-11 w-full"
                         type="email"
@@ -1006,10 +1090,8 @@ export default function PayoutSetupWizard({
                         autoComplete="email"
                       />
                     </label>
-                    <label className="block text-[13px]">
-                      <span className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.1em] text-[#71717a]">
-                        Phone
-                      </span>
+                    <label className="block">
+                      <FieldLabel optional>Phone</FieldLabel>
                       <input
                         className="tv-input h-11 w-full"
                         value={draft.rep_phone}
@@ -1018,27 +1100,61 @@ export default function PayoutSetupWizard({
                       />
                     </label>
                   </div>
-                  <label className="flex items-center gap-2 text-[13px] text-[#18181b]">
-                    <input
-                      type="checkbox"
-                      checked={draft.rep_is_owner}
-                      onChange={(e) => patch({ rep_is_owner: e.target.checked })}
-                    />
-                    This person is an owner of the business
-                  </label>
-                  {draft.rep_is_owner ? (
-                    <label className="block text-[13px]">
-                      <span className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.1em] text-[#71717a]">
-                        Ownership %
-                      </span>
+                  <div className="border-t border-[#E8EAED] pt-4">
+                    <label className="flex items-start gap-2.5 text-[13px] text-[#17191d]">
                       <input
-                        className="tv-input h-11 w-28"
-                        value={draft.rep_percent_ownership}
-                        onChange={(e) => patch({ rep_percent_ownership: e.target.value })}
-                        inputMode="decimal"
+                        type="checkbox"
+                        className="mt-0.5"
+                        checked={draft.rep_is_owner}
+                        onChange={(e) => {
+                          const checked = e.target.checked;
+                          patch({
+                            rep_is_owner: checked,
+                            rep_percent_ownership: checked ? draft.rep_percent_ownership : '',
+                          });
+                          setFieldErrors((f) => ({ ...f, rep_percent_ownership: undefined }));
+                        }}
                       />
+                      <span>
+                        This person owns shares in the business
+                        <PartnerHelpTip label="About ownership">
+                          An authorized representative does not need to own shares. Only tick this when
+                          they are a beneficial owner.
+                        </PartnerHelpTip>
+                      </span>
                     </label>
-                  ) : null}
+                    {draft.rep_is_owner ? (
+                      <label className="mt-3 block max-w-[12rem]">
+                        <FieldLabel>Ownership %</FieldLabel>
+                        <input
+                          className="tv-input h-11 w-full"
+                          value={draft.rep_percent_ownership}
+                          onChange={(e) => {
+                            const next = sanitizeOwnershipPercentInput(e.target.value);
+                            patch({ rep_percent_ownership: next });
+                            const err = validateOwnershipPercent(next, { required: true });
+                            setFieldErrors((f) => ({
+                              ...f,
+                              rep_percent_ownership: err ?? undefined,
+                            }));
+                          }}
+                          onBlur={() => {
+                            const err = validateOwnershipPercent(draft.rep_percent_ownership, {
+                              required: true,
+                            });
+                            setFieldErrors((f) => ({
+                              ...f,
+                              rep_percent_ownership: err ?? undefined,
+                            }));
+                          }}
+                          inputMode="decimal"
+                          placeholder="0–100"
+                          aria-invalid={Boolean(fieldErrors.rep_percent_ownership)}
+                        />
+                        <FieldError message={fieldErrors.rep_percent_ownership} />
+                      </label>
+                    ) : null}
+                  </div>
                 </form>
               ) : null}
 
@@ -1422,7 +1538,7 @@ export default function PayoutSetupWizard({
         </div>
 
         <footer className="listing-creation-footer shrink-0 px-4 py-2.5 sm:px-6 lg:px-8">
-          <div className="mx-auto grid max-w-[28rem] grid-cols-3 items-center gap-2 lg:max-w-[32rem]">
+          <div className={`mx-auto grid w-full ${CONTENT_MAX} grid-cols-3 items-center gap-2`}>
             <button
               type="button"
               className="tv-btn-ghost stay-nav-btn stay-nav-btn--start h-11 justify-self-start px-3 text-[13px]"

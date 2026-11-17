@@ -123,8 +123,9 @@ export function emptyPayoutWizardDraft(
     rep_phone: '',
     rep_title: '',
     rep_dob: '',
-    rep_is_owner: true,
-    rep_percent_ownership: '100',
+    // Never assume the representative owns shares — collect ownership explicitly.
+    rep_is_owner: false,
+    rep_percent_ownership: '',
     tos_accepted: false,
     payment_cycle: '',
     payout_threshold_min: '',
@@ -227,14 +228,107 @@ export function parsePayoutWizardDob(
   return { year: Number(m[1]), month: Number(m[2]), day: Number(m[3]) };
 }
 
+export type PayoutWizardFieldErrors = Partial<
+  Record<
+    | 'company_legal_name'
+    | 'business_type'
+    | 'address_street'
+    | 'address_city'
+    | 'address_postal_code'
+    | 'address_country'
+    | 'rep_first_name'
+    | 'rep_last_name'
+    | 'rep_dob'
+    | 'rep_percent_ownership'
+    | 'payment_cycle'
+    | 'payout_threshold_min'
+    | 'tos_accepted',
+    string
+  >
+>;
+
+/** Normalize ownership input: digits + optional single decimal separator. */
+export function sanitizeOwnershipPercentInput(raw: string): string {
+  const cleaned = raw.replace(/[^\d.,]/g, '').replace(/,/g, '.');
+  const firstDot = cleaned.indexOf('.');
+  if (firstDot === -1) return cleaned.slice(0, 6);
+  const head = cleaned.slice(0, firstDot + 1);
+  const tail = cleaned.slice(firstDot + 1).replace(/\./g, '');
+  return `${head}${tail.slice(0, 2)}`.slice(0, 8);
+}
+
+/**
+ * Parse ownership percent. Returns null when empty/invalid.
+ * Accepts 0–100 inclusive with up to 2 decimal places.
+ */
+export function parseOwnershipPercent(raw: string | null | undefined): number | null {
+  const t = (raw ?? '').trim().replace(/,/g, '.');
+  if (!t) return null;
+  if (!/^\d+(\.\d{1,2})?$/.test(t)) return null;
+  const n = Number(t);
+  if (!Number.isFinite(n)) return null;
+  if (n < 0 || n > 100) return null;
+  return n;
+}
+
+export function validateOwnershipPercent(
+  raw: string | null | undefined,
+  opts?: { required?: boolean }
+): string | null {
+  const t = (raw ?? '').trim();
+  if (!t) {
+    return opts?.required ? 'Enter an ownership percentage from 0 to 100.' : null;
+  }
+  if (/[^\d.,]/.test(t)) {
+    return 'Use numbers only (for example 25 or 25.5).';
+  }
+  const n = parseOwnershipPercent(t);
+  if (n == null) {
+    if (Number(t.replace(',', '.')) < 0) return 'Ownership cannot be negative.';
+    if (Number(t.replace(',', '.')) > 100) return 'Ownership cannot be more than 100%.';
+    return 'Enter a valid ownership percentage from 0 to 100.';
+  }
+  return null;
+}
+
 export function validatePayoutWizardRepresentative(draft: PayoutWizardDraft): string | null {
   if (!draft.rep_first_name.trim()) return 'Enter the representative’s first name.';
   if (!draft.rep_last_name.trim()) return 'Enter the representative’s last name.';
   if (!parsePayoutWizardDob(draft.rep_dob)) {
     return 'Enter a valid date of birth.';
   }
+  if (draft.rep_is_owner) {
+    const ownershipErr = validateOwnershipPercent(draft.rep_percent_ownership, { required: true });
+    if (ownershipErr) return ownershipErr;
+  }
   return null;
 }
+
+export function validatePayoutWizardRepresentativeFields(
+  draft: PayoutWizardDraft
+): PayoutWizardFieldErrors {
+  const errors: PayoutWizardFieldErrors = {};
+  if (!draft.rep_first_name.trim()) errors.rep_first_name = 'Enter the first name.';
+  if (!draft.rep_last_name.trim()) errors.rep_last_name = 'Enter the last name.';
+  if (!parsePayoutWizardDob(draft.rep_dob)) {
+    errors.rep_dob = 'Enter a valid date of birth.';
+  }
+  if (draft.rep_is_owner) {
+    const ownershipErr = validateOwnershipPercent(draft.rep_percent_ownership, { required: true });
+    if (ownershipErr) errors.rep_percent_ownership = ownershipErr;
+  }
+  return errors;
+}
+
+/** True when edge/gate refused LIVE Custom account creation (expected while production gate is OFF). */
+export function isLiveAccountCreationGateError(message: string | null | undefined): boolean {
+  return /LIVE payout account creation is turned off|not approved for LIVE payout account creation/i.test(
+    message ?? ''
+  );
+}
+
+export const PAYOUT_LIVE_SETUP_UNAVAILABLE_COPY =
+  'Payout account connection is not available yet. Your details are saved here — Traverion will enable connection when your account is ready. This is not a verification failure.';
 
 export function validatePayoutWizardIdentity(draft: PayoutWizardDraft): string | null {
   if (!draft.tos_accepted) {
