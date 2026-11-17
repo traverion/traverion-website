@@ -218,6 +218,7 @@ export default function PayoutSetupWizard({
   const [identityUploadNote, setIdentityUploadNote] = useState<string | null>(null);
   const scrollRef = useRef<HTMLElement | null>(null);
   const headingRef = useRef<HTMLHeadingElement | null>(null);
+  const completePrimaryRef = useRef<HTMLButtonElement | null>(null);
   const hasConnectedAccount = Boolean(profile?.stripe_connected_account_id?.trim());
   const canProvisionConnect = canProvisionConnectAccount({
     hasConnectedAccount,
@@ -295,13 +296,19 @@ export default function PayoutSetupWizard({
   useEffect(() => {
     const node = scrollRef.current;
     if (node) node.scrollTo({ top: 0, behavior: 'auto' });
-    const heading = headingRef.current;
-    if (heading) {
-      try {
-        heading.focus({ preventScroll: true });
-      } catch {
-        heading.focus();
-      }
+    // Prefer the primary action on completion — focusing the heading left a visible blue ring.
+    const focusTarget =
+      phase === 'complete' ? completePrimaryRef.current : headingRef.current;
+    if (!focusTarget) return;
+    try {
+      focusTarget.focus({ preventScroll: true });
+    } catch {
+      focusTarget.focus();
+    }
+    // Ensure completion title never retains a stray programmatic focus ring.
+    if (phase === 'complete' && headingRef.current && document.activeElement === headingRef.current) {
+      headingRef.current.blur();
+      focusTarget.focus({ preventScroll: true });
     }
   }, [draft.step, phase]);
 
@@ -836,20 +843,58 @@ export default function PayoutSetupWizard({
     connect_account_livemode: profile?.connect_account_livemode,
   });
 
-  const payoutConnectionLabel = (() => {
+  /** Completion-screen copy — plain language, never implies verified/paid out. */
+  const completionVerificationLabel = (() => {
+    switch (verificationStatusLabel) {
+      case 'Verified':
+        return 'Confirmed';
+      case 'Under review':
+        return 'In review';
+      case 'Action required':
+        return 'Needs attention';
+      case 'Restricted':
+        return 'Restricted';
+      case 'LIVE onboarding required':
+        return 'Not confirmed yet';
+      default:
+        return 'Not started';
+    }
+  })();
+
+  const completionConnectionLabel = (() => {
     if (canReceive && profile?.connect_account_livemode === true) {
-      return 'Ready when Traverion enables payout execution';
+      return 'Ready when payouts are enabled';
     }
     if (connectSetupUnavailable || (!hasConnectedAccount && platformEnvironment !== 'test')) {
-      return 'Not available yet — details saved locally';
+      return 'Not available yet';
     }
     if (hasConnectedAccount && !canReceive) {
-      return 'Pending provider confirmation';
+      return 'Waiting for confirmation';
     }
     return 'Not connected';
   })();
 
   const localProgress = summarizePayoutWizardLocalProgress(draft);
+
+  const completionSavedLabel = (() => {
+    const n = localProgress.savedStepCount;
+    if (n <= 0) return 'Saved';
+    if (n >= 5) return 'All details saved';
+    return n === 1 ? 'Partially saved' : 'Saved';
+  })();
+
+  const completionBankLabel = (() => {
+    if (bankManaged || bankMasked) {
+      return bankMasked ? `On file ${bankMasked}` : 'On file';
+    }
+    if (localProgress.bankSavedLocally) {
+      return 'Saved — not connected';
+    }
+    return 'Not added';
+  })();
+
+  const showConnectionPendingNote =
+    connectSetupUnavailable || (!hasConnectedAccount && platformEnvironment !== 'test');
 
   const onBack = () => {
     if (stepIndex <= 0) {
@@ -943,8 +988,8 @@ export default function PayoutSetupWizard({
 
   if (phase === 'complete') {
     return (
-      <div className="payout-wizard fixed inset-0 z-[80] flex flex-col bg-white">
-        <header className="flex shrink-0 items-center justify-between gap-3 border-b border-[#e8ebf0] px-4 py-3 pt-[max(0.75rem,env(safe-area-inset-top))] sm:px-6">
+      <div className="payout-wizard payout-wizard--complete fixed inset-0 z-[80] flex flex-col bg-white">
+        <header className="payout-wizard__complete-chrome flex shrink-0 items-center justify-between gap-3 border-b border-[#e8ebf0] px-4 py-3 pt-[max(0.75rem,env(safe-area-inset-top))] sm:px-8">
           <button
             type="button"
             className="lux-flat min-h-10 text-[13px] font-semibold text-[#5c6570] hover:text-[#17191d]"
@@ -952,74 +997,89 @@ export default function PayoutSetupWizard({
           >
             ← Income &amp; Payouts
           </button>
-          <p className="text-[13px] font-semibold text-[#17191d]">Payout setup</p>
+          <p className="text-[13px] font-semibold tracking-tight text-[#17191d]">Payout setup</p>
           <span className="min-w-16" aria-hidden="true" />
         </header>
         <div className="payout-wizard__complete" ref={scrollRef}>
           <div className="payout-wizard__complete-card">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#073b83]">
-              Setup saved
-            </p>
-            <h1
-              ref={headingRef}
-              tabIndex={-1}
-              className="payout-wizard__title mt-2 outline-none"
-            >
-              You’re all set for now
-            </h1>
-            <p className="payout-wizard__lede">
-              Your information is saved. Verification and payout connection only update when the
-              provider confirms them — Traverion never marks those as done early.
-            </p>
-            <dl className="payout-wizard__status-grid">
+            <div className="payout-wizard__complete-hero">
+              <p className="payout-wizard__complete-kicker">Saved</p>
+              <h1 className="payout-wizard__complete-title">You’re ready to continue</h1>
+              <p className="payout-wizard__complete-lede">
+                Your details are saved. Statuses below update only after confirmation.
+              </p>
+            </div>
+
+            <dl className="payout-wizard__status-grid" aria-label="Setup status">
               <div className="payout-wizard__status-row">
-                <dt>Saved information</dt>
+                <dt>Your details</dt>
                 <dd>
-                  {localProgress.savedStepCount > 0
-                    ? `${localProgress.savedStepCount} step${localProgress.savedStepCount === 1 ? '' : 's'} saved`
-                    : 'Review completed'}
+                  <span className="payout-wizard__status-pill payout-wizard__status-pill--saved">
+                    {completionSavedLabel}
+                  </span>
                 </dd>
               </div>
               <div className="payout-wizard__status-row">
                 <dt>Verification</dt>
-                <dd>{verificationStatusLabel}</dd>
+                <dd>
+                  <span
+                    className={[
+                      'payout-wizard__status-pill',
+                      completionVerificationLabel === 'Confirmed'
+                        ? 'payout-wizard__status-pill--ok'
+                        : 'payout-wizard__status-pill--pending',
+                    ].join(' ')}
+                  >
+                    {completionVerificationLabel}
+                  </span>
+                </dd>
               </div>
               <div className="payout-wizard__status-row">
                 <dt>Payout connection</dt>
-                <dd>{payoutConnectionLabel}</dd>
+                <dd>
+                  <span className="payout-wizard__status-pill payout-wizard__status-pill--pending">
+                    {completionConnectionLabel}
+                  </span>
+                </dd>
               </div>
               <div className="payout-wizard__status-row">
-                <dt>Bank</dt>
+                <dt>Bank account</dt>
                 <dd>
-                  {bankManaged || bankMasked
-                    ? bankMasked
-                      ? `On file ${bankMasked}`
-                      : 'On file'
-                    : localProgress.bankSavedLocally
-                      ? 'Saved locally — not connected'
-                      : 'Not connected'}
+                  <span
+                    className={[
+                      'payout-wizard__status-pill',
+                      bankManaged || bankMasked
+                        ? 'payout-wizard__status-pill--ok'
+                        : 'payout-wizard__status-pill--pending',
+                    ].join(' ')}
+                  >
+                    {completionBankLabel}
+                  </span>
                 </dd>
               </div>
             </dl>
-            {connectSetupUnavailable || (!hasConnectedAccount && platformEnvironment !== 'test') ? (
-              <p className="mt-4 text-[13px] leading-relaxed text-[#5c6570]" role="status">
-                {PAYOUT_LIVE_SETUP_UNAVAILABLE_COPY}
+
+            {showConnectionPendingNote ? (
+              <p className="payout-wizard__complete-note" role="status">
+                Payout connection will open when your account is ready.
               </p>
             ) : null}
-            <div className="mt-8 flex flex-col gap-3">
+
+            <div className="payout-wizard__complete-actions">
               <button
+                ref={completePrimaryRef}
                 type="button"
-                className="tv-btn-primary h-11 w-full px-4 text-[13px]"
+                className="tv-btn-primary payout-wizard__complete-primary h-11 w-full px-4 text-[13px]"
                 onClick={returnToIncomePayouts}
               >
                 Return to Income &amp; Payouts
               </button>
               <button
                 type="button"
-                className="tv-btn-secondary h-11 w-full px-4 text-[13px]"
+                className="lux-flat payout-wizard__complete-secondary min-h-10 text-[13px] font-semibold text-[#073b83] hover:text-[#052d65]"
                 onClick={editSubmittedDetails}
               >
-                Edit submitted details
+                Edit details
               </button>
             </div>
           </div>

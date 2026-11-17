@@ -1,0 +1,266 @@
+{
+  "mission": "P9.29.1",
+  "base": "http://127.0.0.1:5184",
+  "startedAt": "2026-11-17T23:36:29.202Z",
+  "checks": [
+    {
+      "check": "Completion heading desktop-1440",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "No heading focus ring desktop-1440",
+      "ok": true,
+      "detail": "{\"ok\":true,\"focusTag\":\"BUTTON\",\"focusClass\":\"tv-btn-primary payout-wizard__complete-primary h-11 w-full px-4 text-[13px]\",\"headingOutline\":null}"
+    },
+    {
+      "check": "Friendly saved copy desktop-1440",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "No technical provider jargon desktop-1440",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Statuses present desktop-1440",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "No fake Verified desktop-1440",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "No overflow desktop-1440",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Edit action desktop-1440",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Return action desktop-1440",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Edit returns to steps desktop-1440",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Completion heading desktop-1280",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "No heading focus ring desktop-1280",
+      "ok": true,
+      "detail": "{\"ok\":true,\"focusTag\":\"BUTTON\",\"focusClass\":\"tv-btn-primary payout-wizard__complete-primary h-11 w-full px-4 text-[13px]\",\"headingOutline\":null}"
+    },
+    {
+      "check": "Friendly saved copy desktop-1280",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "No technical provider jargon desktop-1280",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Statuses present desktop-1280",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "No fake Verified desktop-1280",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "No overflow desktop-1280",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Edit action desktop-1280",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Return action desktop-1280",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Edit returns to steps desktop-1280",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Completion heading tablet-768",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "No heading focus ring tablet-768",
+      "ok": true,
+      "detail": "{\"ok\":true,\"focusTag\":\"BUTTON\",\"focusClass\":\"tv-btn-primary payout-wizard__complete-primary h-11 w-full px-4 text-[13px]\",\"headingOutline\":null}"
+    },
+    {
+      "check": "Friendly saved copy tablet-768",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "No technical provider jargon tablet-768",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Statuses present tablet-768",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "No fake Verified tablet-768",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "No overflow tablet-768",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Edit action tablet-768",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Return action tablet-768",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Edit returns to steps tablet-768",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Completion heading mobile-390",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "No heading focus ring mobile-390",
+      "ok": true,
+      "detail": "{\"ok\":true,\"focusTag\":\"BUTTON\",\"focusClass\":\"tv-btn-primary payout-wizard__complete-primary h-11 w-full px-4 text-[13px]\",\"headingOutline\":null}"
+    },
+    {
+      "check": "Friendly saved copy mobile-390",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "No technical provider jargon mobile-390",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Statuses present mobile-390",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "No fake Verified mobile-390",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "No overflow mobile-390",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Edit action mobile-390",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Return action mobile-390",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Edit returns to steps mobile-390",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Completion heading mobile-375",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "No heading focus ring mobile-375",
+      "ok": true,
+      "detail": "{\"ok\":true,\"focusTag\":\"BUTTON\",\"focusClass\":\"tv-btn-primary payout-wizard__complete-primary h-11 w-full px-4 text-[13px]\",\"headingOutline\":null}"
+    },
+    {
+      "check": "Friendly saved copy mobile-375",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "No technical provider jargon mobile-375",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Statuses present mobile-375",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "No fake Verified mobile-375",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "No overflow mobile-375",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Edit action mobile-375",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Return action mobile-375",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Edit returns to steps mobile-375",
+      "ok": true,
+      "detail": ""
+    }
+  ],
+  "screenshots": [
+    "/Users/mirovesterinen/Documents/traverion.com/scripts/p9291-screenshots/complete-desktop-1440.png",
+    "/Users/mirovesterinen/Documents/traverion.com/scripts/p9291-screenshots/complete-desktop-1280.png",
+    "/Users/mirovesterinen/Documents/traverion.com/scripts/p9291-screenshots/complete-tablet-768.png",
+    "/Users/mirovesterinen/Documents/traverion.com/scripts/p9291-screenshots/complete-mobile-390.png",
+    "/Users/mirovesterinen/Documents/traverion.com/scripts/p9291-screenshots/complete-mobile-375.png"
+  ],
+  "verdict": "PASS",
+  "finishedAt": "2026-11-17T23:36:59.006Z"
+}
