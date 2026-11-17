@@ -107,7 +107,17 @@ export type PayoutWizardDraft = {
   businessSavedAt: string | null;
   representativeSavedAt: string | null;
   identitySavedAt: string | null;
+  /**
+   * Set only after a bank token was attached to Stripe, or bank is already managed on the
+   * connected account. Never set for draft-first LIVE continue-without-IBAN.
+   */
   bankSavedAt: string | null;
+  /**
+   * Partner continued past bank while Connect create is unavailable — no IBAN was stored or sent.
+   */
+  bankDeferredAt: string | null;
+  /** Last 4 of IBAN after successful tokenize/attach only — never the full account number. */
+  bankLast4: string | null;
   preferencesSavedAt: string | null;
   /** Set when the supplier finishes the Review step (local completion, not provider verification). */
   wizardCompletedAt: string | null;
@@ -121,12 +131,16 @@ export type PayoutWizardLocalProgress = {
   hasSavedProgress: boolean;
   savedStepCount: number;
   wizardCompleted: boolean;
+  /** True only when a bank was actually attached / managed — not deferred draft continue. */
   bankSavedLocally: boolean;
+  /** True when bank step was deferred because Connect create is unavailable. */
+  bankDeferred: boolean;
+  bankLast4: string | null;
   preferencesSaved: boolean;
   lastStep: PayoutWizardStepId;
 };
 
-/** Summarize session draft for Settings sync — never implies provider Verified. */
+/** Summarize durable device draft for Settings sync — never implies provider Verified. */
 export function summarizePayoutWizardLocalProgress(
   draft: PayoutWizardDraft | null | undefined
 ): PayoutWizardLocalProgress {
@@ -136,6 +150,8 @@ export function summarizePayoutWizardLocalProgress(
       savedStepCount: 0,
       wizardCompleted: false,
       bankSavedLocally: false,
+      bankDeferred: false,
+      bankLast4: null,
       preferencesSaved: false,
       lastStep: 'business',
     };
@@ -145,6 +161,7 @@ export function summarizePayoutWizardLocalProgress(
     draft.representativeSavedAt,
     draft.identitySavedAt,
     draft.bankSavedAt,
+    draft.bankDeferredAt,
     draft.preferencesSavedAt,
   ];
   const savedStepCount = markers.filter(Boolean).length;
@@ -153,16 +170,90 @@ export function summarizePayoutWizardLocalProgress(
     savedStepCount,
     wizardCompleted: Boolean(draft.wizardCompletedAt),
     bankSavedLocally: Boolean(draft.bankSavedAt),
+    bankDeferred: Boolean(draft.bankDeferredAt) && !draft.bankSavedAt,
+    bankLast4: draft.bankLast4?.trim() || null,
     preferencesSaved: Boolean(draft.preferencesSavedAt),
     lastStep: isWizardStep(draft.step) ? draft.step : 'business',
   };
 }
 
-const DRAFT_PREFIX = 'tv-payout-wizard:v3:';
-const LEGACY_DRAFT_PREFIXES = ['tv-payout-wizard:v2:', 'tv-payout-wizard:v1:'] as const;
+/**
+ * Supplier-facing verification chip when Connect is still not_started.
+ * Never upgrades to Verified from local draft markers alone.
+ */
+export function payoutVerificationPresentation(opts: {
+  connectLabel: string;
+  hasConnectedAccount: boolean;
+  localProgress: PayoutWizardLocalProgress;
+}): string {
+  if (opts.connectLabel !== 'Not started') return opts.connectLabel;
+  if (opts.hasConnectedAccount) return opts.connectLabel;
+  if (opts.localProgress.wizardCompleted || opts.localProgress.hasSavedProgress) {
+    return 'Details saved — connection not enabled';
+  }
+  return 'Not started';
+}
+
+/** Bank status for Settings / completion — honest about deferred vs attached. */
+export function payoutBankPresentation(opts: {
+  bankManaged: boolean;
+  bankMasked?: string | null;
+  localProgress: PayoutWizardLocalProgress;
+}): string {
+  if (opts.bankManaged || opts.bankMasked) {
+    return opts.bankMasked?.trim() || 'On file';
+  }
+  if (opts.localProgress.bankSavedLocally) {
+    return opts.localProgress.bankLast4
+      ? `•••• ${opts.localProgress.bankLast4} — awaiting connection`
+      : 'Sent to provider — awaiting connection';
+  }
+  if (opts.localProgress.bankDeferred) return 'Not sent to provider';
+  return 'Not added';
+}
+
+const DRAFT_PREFIX = 'tv-payout-wizard:v4:';
+const LEGACY_DRAFT_PREFIXES = [
+  'tv-payout-wizard:v3:',
+  'tv-payout-wizard:v2:',
+  'tv-payout-wizard:v1:',
+] as const;
 
 export function payoutWizardDraftKey(userId: string): string {
   return `${DRAFT_PREFIX}${userId}`;
+}
+
+function readDraftRaw(userId: string): string | null {
+  if (typeof window === 'undefined') return null;
+  const key = payoutWizardDraftKey(userId);
+  try {
+    const fromLocal = window.localStorage?.getItem(key);
+    if (fromLocal) return fromLocal;
+  } catch {
+    // ignore
+  }
+  try {
+    const fromSession = window.sessionStorage?.getItem(key);
+    if (fromSession) return fromSession;
+  } catch {
+    // ignore
+  }
+  for (const prefix of LEGACY_DRAFT_PREFIXES) {
+    const legacyKey = `${prefix}${userId}`;
+    try {
+      const fromLocal = window.localStorage?.getItem(legacyKey);
+      if (fromLocal) return fromLocal;
+    } catch {
+      // ignore
+    }
+    try {
+      const fromSession = window.sessionStorage?.getItem(legacyKey);
+      if (fromSession) return fromSession;
+    } catch {
+      // ignore
+    }
+  }
+  return null;
 }
 
 export function emptyBeneficialOwner(
@@ -219,6 +310,8 @@ export function emptyPayoutWizardDraft(
     representativeSavedAt: null,
     identitySavedAt: null,
     bankSavedAt: null,
+    bankDeferredAt: null,
+    bankLast4: null,
     preferencesSavedAt: null,
     wizardCompletedAt: null,
     updatedAt: new Date().toISOString(),
@@ -238,46 +331,51 @@ function migrateLegacyStep(step: unknown): PayoutWizardStepId {
 }
 
 export function loadPayoutWizardDraft(userId: string): PayoutWizardDraft | null {
-  if (typeof sessionStorage === 'undefined') return null;
   try {
-    let raw = sessionStorage.getItem(payoutWizardDraftKey(userId));
-    if (!raw) {
-      for (const prefix of LEGACY_DRAFT_PREFIXES) {
-        raw = sessionStorage.getItem(`${prefix}${userId}`);
-        if (raw) break;
-      }
-    }
+    const raw = readDraftRaw(userId);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<PayoutWizardDraft>;
     if (!parsed || typeof parsed !== 'object') return null;
     const step = migrateLegacyStep(parsed.step);
-    return emptyPayoutWizardDraft({ ...parsed, step });
+    const draft = emptyPayoutWizardDraft({ ...parsed, step });
+    // Migrate legacy session drafts onto durable localStorage once.
+    savePayoutWizardDraft(userId, draft);
+    return draft;
   } catch {
     return null;
   }
 }
 
 export function savePayoutWizardDraft(userId: string, draft: PayoutWizardDraft): void {
-  if (typeof sessionStorage === 'undefined') return;
+  if (typeof window === 'undefined') return;
+  const payload = JSON.stringify({ ...draft, updatedAt: new Date().toISOString() });
+  const key = payoutWizardDraftKey(userId);
   try {
-    sessionStorage.setItem(
-      payoutWizardDraftKey(userId),
-      JSON.stringify({ ...draft, updatedAt: new Date().toISOString() })
-    );
+    window.localStorage?.setItem(key, payload);
   } catch {
-    // Ignore quota / private mode.
+    // Fall back to session when localStorage is blocked.
+    try {
+      window.sessionStorage?.setItem(key, payload);
+    } catch {
+      // Ignore quota / private mode.
+    }
   }
 }
 
 export function clearPayoutWizardDraft(userId: string): void {
-  if (typeof sessionStorage === 'undefined') return;
-  try {
-    sessionStorage.removeItem(payoutWizardDraftKey(userId));
-    for (const prefix of LEGACY_DRAFT_PREFIXES) {
-      sessionStorage.removeItem(`${prefix}${userId}`);
+  if (typeof window === 'undefined') return;
+  const keys = [payoutWizardDraftKey(userId), ...LEGACY_DRAFT_PREFIXES.map((p) => `${p}${userId}`)];
+  for (const key of keys) {
+    try {
+      window.localStorage?.removeItem(key);
+    } catch {
+      // ignore
     }
-  } catch {
-    // ignore
+    try {
+      window.sessionStorage?.removeItem(key);
+    } catch {
+      // ignore
+    }
   }
 }
 
@@ -523,7 +621,7 @@ export function isLiveAccountCreationGateError(message: string | null | undefine
 }
 
 export const PAYOUT_LIVE_SETUP_UNAVAILABLE_COPY =
-  'Payout account connection is not available yet. Your details are saved here — Traverion will enable connection when your account is ready. This is not a verification failure.';
+  'Payout account connection is not available yet. Details stay on this device until Traverion enables connection. This is not a verification failure, and your bank account has not been sent to the payment provider.';
 
 export function validatePayoutWizardIdentity(draft: PayoutWizardDraft): string | null {
   if (!draft.tos_accepted) {

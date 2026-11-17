@@ -39,6 +39,8 @@ import {
   sanitizeOwnershipPercentInput,
   savePayoutWizardDraft,
   sumDeclaredOwnershipPercent,
+  payoutBankPresentation,
+  payoutVerificationPresentation,
   summarizePayoutWizardLocalProgress,
   validateOwnershipPercent,
   validatePayoutBusinessFromProfile,
@@ -661,10 +663,16 @@ export default function PayoutSetupWizard({
       setError('Your role can view setup but cannot change it.');
       return false;
     }
+    // Draft-first LIVE: do not pretend an IBAN was saved — only mark deferred.
     if (!canProvisionConnect) {
       setConnectSetupUnavailable(true);
       setNote(PAYOUT_LIVE_SETUP_UNAVAILABLE_COPY);
-      patch({ bankSavedAt: new Date().toISOString() });
+      setBankIban('');
+      patch({
+        bankDeferredAt: new Date().toISOString(),
+        bankSavedAt: null,
+        bankLast4: null,
+      });
       return true;
     }
     const ensured = await ensureConnectWhenAllowed();
@@ -673,11 +681,19 @@ export default function PayoutSetupWizard({
       return false;
     }
     if (!ensured.provisioned) {
-      patch({ bankSavedAt: new Date().toISOString() });
+      setBankIban('');
+      patch({
+        bankDeferredAt: new Date().toISOString(),
+        bankSavedAt: null,
+        bankLast4: null,
+      });
       return true;
     }
     if (bankManaged && !bankRequirementDue && !bankIban.trim()) {
-      patch({ bankSavedAt: new Date().toISOString() });
+      patch({
+        bankSavedAt: new Date().toISOString(),
+        bankDeferredAt: null,
+      });
       return true;
     }
     if (!bankIban.trim() || !bankHolder.trim()) {
@@ -686,6 +702,7 @@ export default function PayoutSetupWizard({
     }
     setBusy(true);
     setError(null);
+    const last4 = bankIban.replace(/\s+/g, '').slice(-4);
     const tokenized = await createBankAccountToken({
       country: normalizeCountryCode(draft.address_country) || 'FI',
       currency,
@@ -706,15 +723,25 @@ export default function PayoutSetupWizard({
       if (isLiveAccountCreationGateError(result.error)) {
         setConnectSetupUnavailable(true);
         setNote(PAYOUT_LIVE_SETUP_UNAVAILABLE_COPY);
+        setBankIban('');
+        patch({
+          bankDeferredAt: new Date().toISOString(),
+          bankSavedAt: null,
+          bankLast4: null,
+        });
         return true;
       }
       setError(connectOnboardingUserMessage(result.error));
       return false;
     }
-    setBankMasked(`•••• ${bankIban.replace(/\s+/g, '').slice(-4)}`);
+    setBankMasked(`•••• ${last4}`);
     setBankIban('');
     onProfile(await fetchSupplierProfile(userId));
-    patch({ bankSavedAt: new Date().toISOString() });
+    patch({
+      bankSavedAt: new Date().toISOString(),
+      bankDeferredAt: null,
+      bankLast4: last4 || null,
+    });
     setBusy(false);
     return true;
   };
@@ -843,9 +870,17 @@ export default function PayoutSetupWizard({
     connect_account_livemode: profile?.connect_account_livemode,
   });
 
+  const localProgress = summarizePayoutWizardLocalProgress(draft);
+
+  const verificationPresentation = payoutVerificationPresentation({
+    connectLabel: verificationStatusLabel,
+    hasConnectedAccount,
+    localProgress,
+  });
+
   /** Completion-screen copy — plain language, never implies verified/paid out. */
   const completionVerificationLabel = (() => {
-    switch (verificationStatusLabel) {
+    switch (verificationPresentation) {
       case 'Verified':
         return 'Confirmed';
       case 'Under review':
@@ -856,6 +891,8 @@ export default function PayoutSetupWizard({
         return 'Restricted';
       case 'LIVE onboarding required':
         return 'Not confirmed yet';
+      case 'Details saved — connection not enabled':
+        return 'Connection not enabled';
       default:
         return 'Not started';
     }
@@ -874,24 +911,18 @@ export default function PayoutSetupWizard({
     return 'Not connected';
   })();
 
-  const localProgress = summarizePayoutWizardLocalProgress(draft);
-
   const completionSavedLabel = (() => {
     const n = localProgress.savedStepCount;
-    if (n <= 0) return 'Saved';
-    if (n >= 5) return 'All details saved';
-    return n === 1 ? 'Partially saved' : 'Saved';
+    if (n <= 0) return 'Saved on this device';
+    if (n >= 5) return 'All details saved on this device';
+    return n === 1 ? 'Partially saved on this device' : 'Saved on this device';
   })();
 
-  const completionBankLabel = (() => {
-    if (bankManaged || bankMasked) {
-      return bankMasked ? `On file ${bankMasked}` : 'On file';
-    }
-    if (localProgress.bankSavedLocally) {
-      return 'Saved — not connected';
-    }
-    return 'Not added';
-  })();
+  const completionBankLabel = payoutBankPresentation({
+    bankManaged,
+    bankMasked,
+    localProgress,
+  });
 
   const showConnectionPendingNote =
     connectSetupUnavailable || (!hasConnectedAccount && platformEnvironment !== 'test');
@@ -969,7 +1000,7 @@ export default function PayoutSetupWizard({
     if (identityDocumentDue || accountRestricted) return 'Action required';
     // Draft-first LIVE (no connected account yet) — do not imply Stripe is reviewing.
     if (connectSetupUnavailable && !hasConnectedAccount) {
-      return draft.identitySavedAt ? 'Saved locally' : 'Incomplete';
+      return draft.identitySavedAt ? 'Saved on this device' : 'Incomplete';
     }
     if (draft.identitySavedAt || profile?.connect_details_submitted) {
       return 'Under review';
@@ -1003,10 +1034,16 @@ export default function PayoutSetupWizard({
         <div className="payout-wizard__complete" ref={scrollRef}>
           <div className="payout-wizard__complete-card">
             <div className="payout-wizard__complete-hero">
-              <p className="payout-wizard__complete-kicker">Saved</p>
-              <h1 className="payout-wizard__complete-title">You’re ready to continue</h1>
+              <p className="payout-wizard__complete-kicker">
+                {showConnectionPendingNote ? 'Saved on this device' : 'Saved'}
+              </p>
+              <h1 className="payout-wizard__complete-title">
+                {showConnectionPendingNote ? 'Setup saved' : 'You’re ready to continue'}
+              </h1>
               <p className="payout-wizard__complete-lede">
-                Your details are saved. Statuses below update only after confirmation.
+                {showConnectionPendingNote
+                  ? 'Your details are kept on this device. Verification and payout connection have not started yet.'
+                  : 'Your details are saved. Statuses below update only after the payment provider confirms them.'}
               </p>
             </div>
 
@@ -1061,7 +1098,8 @@ export default function PayoutSetupWizard({
 
             {showConnectionPendingNote ? (
               <p className="payout-wizard__complete-note" role="status">
-                Payout connection will open when your account is ready.
+                Payout connection opens when Traverion enables it for your account. Bank details are
+                not sent to the payment provider until then.
               </p>
             ) : null}
 
@@ -1983,10 +2021,7 @@ export default function PayoutSetupWizard({
                 <div className="mt-4 space-y-4 text-[13px]">
                   <div className="space-y-1">
                     <p className="text-[12px] font-semibold text-[#18181b]">
-                      Verification status:{' '}
-                      {connectOnboardingLabel(profile?.connect_onboarding_status, {
-                        connect_account_livemode: profile?.connect_account_livemode,
-                      })}
+                      Verification status: {verificationPresentation}
                     </p>
                     {profile?.connect_account_livemode === false || platformEnvironment === 'test' ? (
                       <p className="text-[12px] text-[#5c6570]">
@@ -1996,8 +2031,8 @@ export default function PayoutSetupWizard({
                     ) : null}
                     {connectSetupUnavailable && platformEnvironment !== 'test' ? (
                       <p className="text-[12px] text-[#5c6570]">
-                        Details are saved in this wizard. LIVE payout account connection is not enabled
-                        yet.
+                        Details stay on this device. LIVE payout account connection is not enabled yet —
+                        verification has not started with the payment provider.
                       </p>
                     ) : null}
                   </div>
@@ -2057,15 +2092,11 @@ export default function PayoutSetupWizard({
                     <li className="flex justify-between gap-3 border-b border-[#f1f5f9] py-2">
                       <span className="text-[#52525b]">Bank account</span>
                       <span className="font-semibold text-[#18181b]">
-                        {bankManaged || bankMasked
-                          ? bankMasked
-                            ? `On file ${bankMasked}`
-                            : 'On file'
-                          : connectSetupUnavailable && !hasConnectedAccount && draft.bankSavedAt
-                            ? 'Saved locally'
-                            : draft.bankSavedAt
-                              ? 'On file'
-                              : 'Needed'}
+                        {payoutBankPresentation({
+                          bankManaged,
+                          bankMasked,
+                          localProgress,
+                        })}
                       </span>
                     </li>
                     <li className="flex justify-between gap-3 border-b border-[#f1f5f9] py-2">
@@ -2114,7 +2145,9 @@ export default function PayoutSetupWizard({
                   <p className="text-[12px] leading-relaxed text-[#52525b]">
                     {canReceive
                       ? "You're ready to receive payouts once Traverion enables payout execution. Execution stays separately controlled and is currently off."
-                      : 'Finish any remaining steps above. Traverion never marks verification complete until the provider confirms it. Your information is being reviewed when status shows pending.'}
+                      : showConnectionPendingNote
+                        ? 'Finish the steps above to keep details ready on this device. Traverion does not start provider verification until payout connection is enabled for your account.'
+                        : 'Finish any remaining steps above. Traverion never marks verification complete until the provider confirms it.'}
                   </p>
                   <button
                     type="button"

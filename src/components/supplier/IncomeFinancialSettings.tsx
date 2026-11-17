@@ -18,6 +18,8 @@ import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
 import {
   firstOutstandingWizardStep,
   loadPayoutWizardDraft,
+  payoutBankPresentation,
+  payoutVerificationPresentation,
   summarizePayoutWizardLocalProgress,
   type PayoutWizardStepId,
 } from '../../lib/payout-setup-wizard';
@@ -68,6 +70,8 @@ function statusTone(label: string): PartnerStatusTone {
     case 'Restricted':
     case 'LIVE onboarding required':
       return 'bad';
+    case 'Details saved — connection not enabled':
+      return 'neutral';
     default:
       return 'neutral';
   }
@@ -172,9 +176,20 @@ export default function IncomeFinancialSettings({
   const [draftTick, setDraftTick] = useState(0);
 
   const experience = deriveConnectExperienceState(profile);
-  /** Supplier-facing verification label — never “Payouts enabled” while execution may be off. */
-  const displayStatus = connectOnboardingLabel(profile?.connect_onboarding_status, {
+  /** Provider mirror label — never “Payouts enabled” while execution may be off. */
+  const connectStatus = connectOnboardingLabel(profile?.connect_onboarding_status, {
     connect_account_livemode: profile?.connect_account_livemode,
+  });
+  const localProgress = useMemo(
+    () => summarizePayoutWizardLocalProgress(loadPayoutWizardDraft(userId)),
+    [userId, draftTick, wizardOpen]
+  );
+  const hasConnectedAccount = Boolean(profile?.stripe_connected_account_id);
+  /** Supplier-facing verification chip — honest when only device draft exists. */
+  const displayStatus = payoutVerificationPresentation({
+    connectLabel: connectStatus,
+    hasConnectedAccount,
+    localProgress,
   });
   const verified = displayStatus === 'Verified';
   const bankOk = bankAlreadyManaged(profile);
@@ -182,10 +197,6 @@ export default function IncomeFinancialSettings({
     displayStatus === 'Action required' ||
     displayStatus === 'Restricted' ||
     displayStatus === 'LIVE onboarding required';
-  const localProgress = useMemo(
-    () => summarizePayoutWizardLocalProgress(loadPayoutWizardDraft(userId)),
-    [userId, draftTick, wizardOpen]
-  );
   const maskedIban = maskIban(profile?.payout_iban);
   const bankIdentifier = maskedIban
     ? maskedIban
@@ -194,9 +205,13 @@ export default function IncomeFinancialSettings({
       : null;
   const bankDisplayValue = bankOk
     ? bankIdentifier
-    : localProgress.bankSavedLocally
-      ? 'Saved locally — not connected'
-      : null;
+    : payoutBankPresentation({
+        bankManaged: false,
+        bankMasked: null,
+        localProgress,
+      });
+  const showBankCard =
+    bankOk || localProgress.bankSavedLocally || localProgress.bankDeferred;
   const legalName =
     profile?.company_legal_name?.trim() ||
     profile?.display_name?.trim() ||
@@ -278,7 +293,7 @@ export default function IncomeFinancialSettings({
     ? 'Review setup'
     : localProgress.hasSavedProgress
       ? 'Continue setup'
-      : displayStatus === 'Not started' || experience === 'not_started'
+      : connectStatus === 'Not started' || experience === 'not_started'
         ? 'Set up payouts'
         : 'Continue setup';
   const showPrimarySetup = !verified || actionRequired || localProgress.hasSavedProgress;
@@ -358,7 +373,9 @@ export default function IncomeFinancialSettings({
                   ? PARTNER_HELP.underReview
                   : displayStatus === 'Action required' || displayStatus === 'Restricted'
                     ? PARTNER_HELP.actionRequired
-                    : PARTNER_HELP.incomplete}
+                    : displayStatus === 'Details saved — connection not enabled'
+                      ? 'Your details are saved on this device. Provider verification starts only after Traverion enables payout connection.'
+                      : PARTNER_HELP.incomplete}
             </PartnerHelpTip>
           </div>
           <dl className="grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-3">
@@ -370,14 +387,15 @@ export default function IncomeFinancialSettings({
                 localProgress.wizardCompleted
                   ? 'Setup completed on this device'
                   : localProgress.hasSavedProgress
-                    ? `${localProgress.savedStepCount} step${localProgress.savedStepCount === 1 ? '' : 's'} saved`
+                    ? `${localProgress.savedStepCount} step${localProgress.savedStepCount === 1 ? '' : 's'} saved on this device`
                     : 'Not started'
               }
             />
           </dl>
           <p className="mt-3 text-[12px] leading-relaxed text-[#71717a]">
             Saved information is not the same as verified. Bank connection and payouts stay pending
-            until the provider confirms them.
+            until the payment provider confirms them — Traverion never marks those complete from a
+            local draft alone.
           </p>
         </div>
       </SettingsCard>
@@ -396,15 +414,30 @@ export default function IncomeFinancialSettings({
           </button>
         }
       >
-        {bankOk || localProgress.bankSavedLocally ? (
+        {showBankCard ? (
           <dl className="grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-2">
-            <Fact label="Account" value={bankDisplayValue ?? 'Saved locally'} />
+            <Fact
+              label="Account"
+              value={
+                bankOk
+                  ? bankDisplayValue
+                  : localProgress.bankLast4
+                    ? `•••• ${localProgress.bankLast4}`
+                    : localProgress.bankDeferred
+                      ? 'Not sent yet'
+                      : bankDisplayValue
+              }
+            />
             <Fact
               label="Status"
               value={
                 bankOk
                   ? bankStatusLabel({ bankOk, verified, actionRequired })
-                  : 'Saved locally — not connected'
+                  : payoutBankPresentation({
+                      bankManaged: false,
+                      bankMasked: null,
+                      localProgress,
+                    })
               }
             />
           </dl>
@@ -412,7 +445,8 @@ export default function IncomeFinancialSettings({
           <div className="rounded-[10px] border border-dashed border-[#e5e7eb] bg-[#fafbfc] px-4 py-6 text-center">
             <p className="text-sm font-semibold text-[#18181b]">No bank account linked</p>
             <p className="mx-auto mt-1 max-w-sm text-[13px] leading-relaxed text-[#71717a]">
-              Add an account during payout setup. Traverion never shows the full account number.
+              Add an account during payout setup once connection is available. Traverion never shows
+              the full account number.
             </p>
           </div>
         )}

@@ -1,0 +1,103 @@
+{
+  "mission": "Payout Integration Readiness",
+  "base": "http://127.0.0.1:5185",
+  "startedAt": "2026-11-17T23:44:47.544Z",
+  "production": {
+    "gates": [
+      {
+        "key": "live_custom_onboarding_enabled",
+        "value_int": 0
+      },
+      {
+        "key": "payout_execution_enabled",
+        "value_int": 0
+      },
+      {
+        "key": "stripe_connect_transfers_enabled",
+        "value_int": 0
+      }
+    ],
+    "allowlist": {
+      "allowlist_count": 0
+    },
+    "accounts": {
+      "live_connect": 0,
+      "test_connect": 0,
+      "with_connect": 0
+    }
+  },
+  "checks": [
+    {
+      "check": "live_custom_onboarding_enabled is OFF",
+      "ok": true,
+      "detail": "0"
+    },
+    {
+      "check": "payout_execution_enabled is OFF",
+      "ok": true,
+      "detail": "0"
+    },
+    {
+      "check": "stripe_connect_transfers_enabled is OFF",
+      "ok": true,
+      "detail": "0"
+    },
+    {
+      "check": "live allowlist empty",
+      "ok": true,
+      "detail": "{\"allowlist_count\":0}"
+    },
+    {
+      "check": "no production Connect accounts (honest baseline)",
+      "ok": true,
+      "detail": "{\"live_connect\":0,\"test_connect\":0,\"with_connect\":0}"
+    },
+    {
+      "check": "settings shows connection-not-enabled verification (not Verified)",
+      "ok": true,
+      "detail": "found honest chip"
+    },
+    {
+      "check": "settings does not claim bank Saved locally without attach",
+      "ok": true,
+      "detail": "no fake bank-saved copy"
+    },
+    {
+      "check": "settings shows bank not sent to provider when deferred",
+      "ok": true,
+      "detail": "deferred bank honesty"
+    },
+    {
+      "check": "draft persists in localStorage after reload",
+      "ok": true,
+      "detail": "completed=true deferred=true saved=false"
+    },
+    {
+      "check": "completion does not show Verified / Confirmed without Connect",
+      "ok": true,
+      "detail": "no fake verification"
+    },
+    {
+      "check": "completion shows connection not enabled / not available",
+      "ok": true,
+      "detail": "honest connection status"
+    },
+    {
+      "check": "completion bank is not sent / not added (not Saved locally)",
+      "ok": true,
+      "detail": "honest bank status"
+    },
+    {
+      "check": "completion fits mobile width",
+      "ok": true,
+      "detail": "390px"
+    }
+  ],
+  "screenshots": [
+    "/Users/mirovesterinen/Documents/traverion.com/scripts/payout-integration-screenshots/settings-honest-status.png",
+    "/Users/mirovesterinen/Documents/traverion.com/scripts/payout-integration-screenshots/completion-honest-status.png",
+    "/Users/mirovesterinen/Documents/traverion.com/scripts/payout-integration-screenshots/completion-mobile-390.png"
+  ],
+  "verdict": "PARTIAL",
+  "finishedAt": "2026-11-17T23:45:04.407Z"
+}

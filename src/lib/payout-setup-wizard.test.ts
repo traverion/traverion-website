@@ -5,6 +5,8 @@ import {
   emptyPayoutWizardDraft,
   isLiveAccountCreationGateError,
   parseOwnershipPercent,
+  payoutBankPresentation,
+  payoutVerificationPresentation,
   payoutWizardStepForRequirement,
   sanitizeOwnershipPercentInput,
   sumDeclaredOwnershipPercent,
@@ -28,8 +30,36 @@ describe('payout wizard local progress summary', () => {
     const summary = summarizePayoutWizardLocalProgress(draft);
     expect(summary.wizardCompleted).toBe(true);
     expect(summary.bankSavedLocally).toBe(true);
+    expect(summary.bankDeferred).toBe(false);
     expect(summary.savedStepCount).toBe(2);
     expect(summary.lastStep).toBe('review');
+  });
+
+  it('treats deferred bank continue as not saved to provider', () => {
+    const draft = emptyPayoutWizardDraft({
+      bankDeferredAt: '2026-01-01T00:00:00.000Z',
+      wizardCompletedAt: '2026-01-02T00:00:00.000Z',
+    });
+    const summary = summarizePayoutWizardLocalProgress(draft);
+    expect(summary.bankSavedLocally).toBe(false);
+    expect(summary.bankDeferred).toBe(true);
+    expect(
+      payoutBankPresentation({ bankManaged: false, localProgress: summary })
+    ).toBe('Not sent to provider');
+    expect(
+      payoutVerificationPresentation({
+        connectLabel: 'Not started',
+        hasConnectedAccount: false,
+        localProgress: summary,
+      })
+    ).toBe('Details saved — connection not enabled');
+    expect(
+      payoutVerificationPresentation({
+        connectLabel: 'Verified',
+        hasConnectedAccount: true,
+        localProgress: summary,
+      })
+    ).toBe('Verified');
   });
 });
 
