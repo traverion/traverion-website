@@ -60,7 +60,12 @@ export default function BusinessOnboardingWizard({
   onClose,
   onSubmitted,
 }: Props) {
-  const locked = isSupplierBusinessIdentityLocked(profile);
+  // P9.16.1: lock helper takes status strings — never pass the profile object (runtime .trim crash).
+  const locked = isSupplierBusinessIdentityLocked(
+    profile?.verification_status,
+    profile?.verification_submitted_at,
+    profile?.business_type
+  );
   const reviewState = partnerBusinessReviewState({
     verificationStatus: profile?.verification_status,
     submittedAt: profile?.verification_submitted_at,
@@ -70,10 +75,21 @@ export default function BusinessOnboardingWizard({
 
   const [draft, setDraft] = useState<BusinessOnboardingDraft>(() => {
     const saved = loadBusinessOnboardingDraft(userId);
+    const initialFromQuery =
+      typeof window !== 'undefined'
+        ? (new URLSearchParams(window.location.search).get('step') as BusinessOnboardingStepId | null)
+        : null;
+    const validInitial =
+      initialFromQuery && BUSINESS_ONBOARDING_SCREENS.some((s) => s.id === initialFromQuery)
+        ? initialFromQuery
+        : null;
     return emptyBusinessOnboardingDraft({
       ...prefillFromProfile(profile),
       ...(saved ?? {}),
-      step: underReview || verified ? 'review' : saved?.step ?? 'identity',
+      step:
+        underReview || verified
+          ? 'review'
+          : validInitial ?? saved?.step ?? 'identity',
       owner_authority_confirmed: saved?.owner_authority_confirmed ?? false,
     });
   });
