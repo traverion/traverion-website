@@ -28,37 +28,37 @@ export const PAYOUT_WIZARD_SCREENS: PayoutWizardScreen[] = [
   {
     id: 'business',
     title: 'Business details',
-    lede: 'Confirm the company profile used for payouts.',
+    lede: 'Confirm the registered company used for payouts. Changes to approved identity go through business setup.',
     collector: 'traverion',
   },
   {
     id: 'representative',
     title: 'Representative',
-    lede: 'Authorized person and beneficial owners.',
+    lede: 'Add the authorized representative and any beneficial owners. Ownership must total at most 100%.',
     collector: 'traverion',
   },
   {
     id: 'identity',
     title: 'Identity',
-    lede: 'Confirm identity and accept the agreement.',
+    lede: 'Accept the recipient agreement and provide identity details when requested. Verification stays with the provider.',
     collector: 'mixed',
   },
   {
     id: 'bank',
     title: 'Bank account',
-    lede: 'Where payouts should be sent.',
+    lede: 'Enter where payouts should be sent. Traverion never stores the full account number.',
     collector: 'traverion',
   },
   {
     id: 'preferences',
     title: 'Preferences',
-    lede: 'Schedule and minimum payout amount.',
+    lede: 'Choose payout frequency and a minimum threshold. Preferences do not move money by themselves.',
     collector: 'traverion',
   },
   {
     id: 'review',
     title: 'Review',
-    lede: 'Confirm what’s done.',
+    lede: 'Check what is saved locally versus what the provider has verified. Finish when you are ready.',
     collector: 'mixed',
   },
 ];
@@ -109,8 +109,54 @@ export type PayoutWizardDraft = {
   identitySavedAt: string | null;
   bankSavedAt: string | null;
   preferencesSavedAt: string | null;
+  /** Set when the supplier finishes the Review step (local completion, not provider verification). */
+  wizardCompletedAt: string | null;
   updatedAt: string;
 };
+
+/** Partner Income settings deep-link after wizard completion. */
+export const PAYOUT_WIZARD_RETURN_HREF = '/partner/money?tab=settings#income-payout-settings';
+
+export type PayoutWizardLocalProgress = {
+  hasSavedProgress: boolean;
+  savedStepCount: number;
+  wizardCompleted: boolean;
+  bankSavedLocally: boolean;
+  preferencesSaved: boolean;
+  lastStep: PayoutWizardStepId;
+};
+
+/** Summarize session draft for Settings sync — never implies provider Verified. */
+export function summarizePayoutWizardLocalProgress(
+  draft: PayoutWizardDraft | null | undefined
+): PayoutWizardLocalProgress {
+  if (!draft) {
+    return {
+      hasSavedProgress: false,
+      savedStepCount: 0,
+      wizardCompleted: false,
+      bankSavedLocally: false,
+      preferencesSaved: false,
+      lastStep: 'business',
+    };
+  }
+  const markers = [
+    draft.businessSavedAt,
+    draft.representativeSavedAt,
+    draft.identitySavedAt,
+    draft.bankSavedAt,
+    draft.preferencesSavedAt,
+  ];
+  const savedStepCount = markers.filter(Boolean).length;
+  return {
+    hasSavedProgress: savedStepCount > 0 || Boolean(draft.wizardCompletedAt),
+    savedStepCount,
+    wizardCompleted: Boolean(draft.wizardCompletedAt),
+    bankSavedLocally: Boolean(draft.bankSavedAt),
+    preferencesSaved: Boolean(draft.preferencesSavedAt),
+    lastStep: isWizardStep(draft.step) ? draft.step : 'business',
+  };
+}
 
 const DRAFT_PREFIX = 'tv-payout-wizard:v3:';
 const LEGACY_DRAFT_PREFIXES = ['tv-payout-wizard:v2:', 'tv-payout-wizard:v1:'] as const;
@@ -174,6 +220,7 @@ export function emptyPayoutWizardDraft(
     identitySavedAt: null,
     bankSavedAt: null,
     preferencesSavedAt: null,
+    wizardCompletedAt: null,
     updatedAt: new Date().toISOString(),
     ...rest,
     beneficial_owners: owners,

@@ -8,12 +8,30 @@ import {
   payoutWizardStepForRequirement,
   sanitizeOwnershipPercentInput,
   sumDeclaredOwnershipPercent,
+  summarizePayoutWizardLocalProgress,
   validateBeneficialOwners,
   validateOwnershipPercent,
   validatePayoutBusinessFromProfile,
   validatePayoutWizardRepresentative,
   validatePayoutWizardRepresentativeFields,
 } from './payout-setup-wizard';
+
+describe('payout wizard local progress summary', () => {
+  it('never treats completion as provider verification', () => {
+    expect(summarizePayoutWizardLocalProgress(null).hasSavedProgress).toBe(false);
+    const draft = emptyPayoutWizardDraft({
+      businessSavedAt: '2026-01-01T00:00:00.000Z',
+      bankSavedAt: '2026-01-01T00:00:00.000Z',
+      wizardCompletedAt: '2026-01-02T00:00:00.000Z',
+      step: 'review',
+    });
+    const summary = summarizePayoutWizardLocalProgress(draft);
+    expect(summary.wizardCompleted).toBe(true);
+    expect(summary.bankSavedLocally).toBe(true);
+    expect(summary.savedStepCount).toBe(2);
+    expect(summary.lastStep).toBe('review');
+  });
+});
 
 describe('ownership percent validation', () => {
   it('accepts 0–100 including decimals and rejects junk', () => {

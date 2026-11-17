@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState, type ReactNode } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
   fetchSupplierProfile,
   type SupplierProfileRow,
@@ -15,7 +15,12 @@ import { maskIban } from '../../lib/supplier-income';
 import { PARTNER_HELP } from '../../lib/partnerHelpCopy';
 import type { PartnerStatusTone } from '../../lib/partnerVerificationStatus';
 import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
-import { firstOutstandingWizardStep, type PayoutWizardStepId } from '../../lib/payout-setup-wizard';
+import {
+  firstOutstandingWizardStep,
+  loadPayoutWizardDraft,
+  summarizePayoutWizardLocalProgress,
+  type PayoutWizardStepId,
+} from '../../lib/payout-setup-wizard';
 import StatusChip from '../StatusChip';
 import PartnerHelpTip from './PartnerHelpTip';
 
@@ -164,6 +169,7 @@ export default function IncomeFinancialSettings({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
+  const [draftTick, setDraftTick] = useState(0);
 
   const experience = deriveConnectExperienceState(profile);
   /** Supplier-facing verification label — never “Payouts enabled” while execution may be off. */
@@ -176,11 +182,20 @@ export default function IncomeFinancialSettings({
     displayStatus === 'Action required' ||
     displayStatus === 'Restricted' ||
     displayStatus === 'LIVE onboarding required';
+  const localProgress = useMemo(
+    () => summarizePayoutWizardLocalProgress(loadPayoutWizardDraft(userId)),
+    [userId, draftTick, wizardOpen]
+  );
   const maskedIban = maskIban(profile?.payout_iban);
   const bankIdentifier = maskedIban
     ? maskedIban
     : bankOk
       ? '•••• linked'
+      : null;
+  const bankDisplayValue = bankOk
+    ? bankIdentifier
+    : localProgress.bankSavedLocally
+      ? 'Saved locally — not connected'
       : null;
   const legalName =
     profile?.company_legal_name?.trim() ||
@@ -234,7 +249,15 @@ export default function IncomeFinancialSettings({
       setError('Your role can view payout setup but cannot change it.');
       return;
     }
-    setWizardStep(step ?? resolveResumeStep(profile));
+    if (step) {
+      setWizardStep(step);
+    } else {
+      const draft = loadPayoutWizardDraft(userId);
+      const progress = summarizePayoutWizardLocalProgress(draft);
+      if (progress.wizardCompleted) setWizardStep('review');
+      else if (draft?.step) setWizardStep(draft.step);
+      else setWizardStep(resolveResumeStep(profile));
+    }
     setWizardOpen(true);
   };
 
@@ -251,11 +274,14 @@ export default function IncomeFinancialSettings({
     onProfile(await fetchSupplierProfile(userId));
   };
 
-  const primarySetupLabel =
-    displayStatus === 'Not started' || experience === 'not_started'
-      ? 'Set up payouts'
-      : 'Continue setup';
-  const showPrimarySetup = !verified || actionRequired;
+  const primarySetupLabel = localProgress.wizardCompleted
+    ? 'Review setup'
+    : localProgress.hasSavedProgress
+      ? 'Continue setup'
+      : displayStatus === 'Not started' || experience === 'not_started'
+        ? 'Set up payouts'
+        : 'Continue setup';
+  const showPrimarySetup = !verified || actionRequired || localProgress.hasSavedProgress;
 
   if (wizardOpen) {
     return (
@@ -276,6 +302,7 @@ export default function IncomeFinancialSettings({
           initialStep={wizardStep}
           onClose={() => {
             setWizardOpen(false);
+            setDraftTick((n) => n + 1);
             // Refresh only when a Connect account already exists — never create one on open/close.
             if (profile?.stripe_connected_account_id) {
               void refreshStatus();
@@ -316,9 +343,14 @@ export default function IncomeFinancialSettings({
         <div className="rounded-[10px] border border-[#eef1f4] bg-[#f8fafc] px-4 py-4 sm:px-5">
           <div className="mb-4 flex flex-wrap items-center gap-2">
             <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#71717a]">
-              Status
+              Verification
             </span>
             <StatusChip tone={statusTone(displayStatus)}>{displayStatus}</StatusChip>
+            {localProgress.hasSavedProgress ? (
+              <StatusChip tone="neutral">
+                {localProgress.wizardCompleted ? 'Setup saved' : 'Details saved'}
+              </StatusChip>
+            ) : null}
             <PartnerHelpTip label="About verification status">
               {displayStatus === 'Verified'
                 ? PARTNER_HELP.verified
@@ -332,8 +364,21 @@ export default function IncomeFinancialSettings({
           <dl className="grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-3">
             <Fact label="Registered business" value={legalName} />
             <Fact label="Verification" value={displayStatus} />
-            <Fact label="Bank connection" value={bankOk ? 'Connected' : 'Not connected'} />
+            <Fact
+              label="Onboarding"
+              value={
+                localProgress.wizardCompleted
+                  ? 'Setup completed on this device'
+                  : localProgress.hasSavedProgress
+                    ? `${localProgress.savedStepCount} step${localProgress.savedStepCount === 1 ? '' : 's'} saved`
+                    : 'Not started'
+              }
+            />
           </dl>
+          <p className="mt-3 text-[12px] leading-relaxed text-[#71717a]">
+            Saved information is not the same as verified. Bank connection and payouts stay pending
+            until the provider confirms them.
+          </p>
         </div>
       </SettingsCard>
 
@@ -351,12 +396,16 @@ export default function IncomeFinancialSettings({
           </button>
         }
       >
-        {bankOk ? (
+        {bankOk || localProgress.bankSavedLocally ? (
           <dl className="grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-2">
-            <Fact label="Account" value={bankIdentifier} />
+            <Fact label="Account" value={bankDisplayValue ?? 'Saved locally'} />
             <Fact
               label="Status"
-              value={bankStatusLabel({ bankOk, verified, actionRequired })}
+              value={
+                bankOk
+                  ? bankStatusLabel({ bankOk, verified, actionRequired })
+                  : 'Saved locally — not connected'
+              }
             />
           </dl>
         ) : (

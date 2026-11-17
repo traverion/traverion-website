@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import {
   fetchSupplierProfile,
   updateSupplierPayout,
@@ -30,6 +30,7 @@ import {
   parseOwnershipPercent,
   parsePayoutWizardDob,
   PAYOUT_LIVE_SETUP_UNAVAILABLE_COPY,
+  PAYOUT_WIZARD_RETURN_HREF,
   PAYOUT_WIZARD_SCREENS,
   PAYOUT_WIZARD_STRIPE_AUTH_COPY,
   PAYOUT_WIZARD_TOS_COPY,
@@ -38,6 +39,7 @@ import {
   sanitizeOwnershipPercentInput,
   savePayoutWizardDraft,
   sumDeclaredOwnershipPercent,
+  summarizePayoutWizardLocalProgress,
   validateOwnershipPercent,
   validatePayoutBusinessFromProfile,
   validatePayoutWizardIdentity,
@@ -64,8 +66,8 @@ import { PARTNER_HELP } from '../../lib/partnerHelpCopy';
 import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
 import PartnerHelpTip from './PartnerHelpTip';
 
-/** ~800px content — matches P9.20 brief without feeling sparse. */
-const CONTENT_MAX = 'max-w-[50rem]';
+/** Centered content width — P9.29 calm financial onboarding. */
+const CONTENT_MAX = 'max-w-[36rem]';
 
 function normalizeCountryCode(raw: string): string {
   const t = raw.trim();
@@ -197,6 +199,7 @@ export default function PayoutSetupWizard({
     });
   });
   const [direction, setDirection] = useState<'forward' | 'back'>('forward');
+  const [phase, setPhase] = useState<'steps' | 'complete'>('steps');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
@@ -213,6 +216,8 @@ export default function PayoutSetupWizard({
   const [platformEnvironment, setPlatformEnvironment] = useState<'test' | 'live' | null>(null);
   const [identityDocSide, setIdentityDocSide] = useState<'front' | 'back'>('front');
   const [identityUploadNote, setIdentityUploadNote] = useState<string | null>(null);
+  const scrollRef = useRef<HTMLElement | null>(null);
+  const headingRef = useRef<HTMLHeadingElement | null>(null);
   const hasConnectedAccount = Boolean(profile?.stripe_connected_account_id?.trim());
   const canProvisionConnect = canProvisionConnectAccount({
     hasConnectedAccount,
@@ -279,12 +284,26 @@ export default function PayoutSetupWizard({
   };
 
   const goTo = (step: PayoutWizardStepId, dir: 'forward' | 'back') => {
+    setPhase('steps');
     setDirection(dir);
     setError(null);
     setNote(null);
     setFieldErrors({});
     patch({ step });
   };
+
+  useEffect(() => {
+    const node = scrollRef.current;
+    if (node) node.scrollTo({ top: 0, behavior: 'auto' });
+    const heading = headingRef.current;
+    if (heading) {
+      try {
+        heading.focus({ preventScroll: true });
+      } catch {
+        heading.focus();
+      }
+    }
+  }, [draft.step, phase]);
 
   const businessLocked = isSupplierBusinessIdentityLocked(
     profile?.verification_status,
@@ -794,8 +813,43 @@ export default function PayoutSetupWizard({
       goTo('review', 'forward');
       return;
     }
+    if (draft.step === 'review') {
+      patch({ wizardCompletedAt: new Date().toISOString() });
+      setError(null);
+      setNote(null);
+      setPhase('complete');
+      return;
+    }
     onClose();
   };
+
+  const returnToIncomePayouts = () => {
+    onClose();
+    navigateSupplierUrl(PAYOUT_WIZARD_RETURN_HREF);
+  };
+
+  const editSubmittedDetails = () => {
+    goTo('review', 'back');
+  };
+
+  const verificationStatusLabel = connectOnboardingLabel(profile?.connect_onboarding_status, {
+    connect_account_livemode: profile?.connect_account_livemode,
+  });
+
+  const payoutConnectionLabel = (() => {
+    if (canReceive && profile?.connect_account_livemode === true) {
+      return 'Ready when Traverion enables payout execution';
+    }
+    if (connectSetupUnavailable || (!hasConnectedAccount && platformEnvironment !== 'test')) {
+      return 'Not available yet — details saved locally';
+    }
+    if (hasConnectedAccount && !canReceive) {
+      return 'Pending provider confirmation';
+    }
+    return 'Not connected';
+  })();
+
+  const localProgress = summarizePayoutWizardLocalProgress(draft);
 
   const onBack = () => {
     if (stepIndex <= 0) {
@@ -887,10 +941,98 @@ export default function PayoutSetupWizard({
     return isExpress ? 'In progress' : 'Needed';
   };
 
+  if (phase === 'complete') {
+    return (
+      <div className="payout-wizard fixed inset-0 z-[80] flex flex-col bg-white">
+        <header className="flex shrink-0 items-center justify-between gap-3 border-b border-[#e8ebf0] px-4 py-3 pt-[max(0.75rem,env(safe-area-inset-top))] sm:px-6">
+          <button
+            type="button"
+            className="lux-flat min-h-10 text-[13px] font-semibold text-[#5c6570] hover:text-[#17191d]"
+            onClick={returnToIncomePayouts}
+          >
+            ← Income &amp; Payouts
+          </button>
+          <p className="text-[13px] font-semibold text-[#17191d]">Payout setup</p>
+          <span className="min-w-16" aria-hidden="true" />
+        </header>
+        <div className="payout-wizard__complete" ref={scrollRef}>
+          <div className="payout-wizard__complete-card">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#073b83]">
+              Setup saved
+            </p>
+            <h1
+              ref={headingRef}
+              tabIndex={-1}
+              className="payout-wizard__title mt-2 outline-none"
+            >
+              You’re all set for now
+            </h1>
+            <p className="payout-wizard__lede">
+              Your information is saved. Verification and payout connection only update when the
+              provider confirms them — Traverion never marks those as done early.
+            </p>
+            <dl className="payout-wizard__status-grid">
+              <div className="payout-wizard__status-row">
+                <dt>Saved information</dt>
+                <dd>
+                  {localProgress.savedStepCount > 0
+                    ? `${localProgress.savedStepCount} step${localProgress.savedStepCount === 1 ? '' : 's'} saved`
+                    : 'Review completed'}
+                </dd>
+              </div>
+              <div className="payout-wizard__status-row">
+                <dt>Verification</dt>
+                <dd>{verificationStatusLabel}</dd>
+              </div>
+              <div className="payout-wizard__status-row">
+                <dt>Payout connection</dt>
+                <dd>{payoutConnectionLabel}</dd>
+              </div>
+              <div className="payout-wizard__status-row">
+                <dt>Bank</dt>
+                <dd>
+                  {bankManaged || bankMasked
+                    ? bankMasked
+                      ? `On file ${bankMasked}`
+                      : 'On file'
+                    : localProgress.bankSavedLocally
+                      ? 'Saved locally — not connected'
+                      : 'Not connected'}
+                </dd>
+              </div>
+            </dl>
+            {connectSetupUnavailable || (!hasConnectedAccount && platformEnvironment !== 'test') ? (
+              <p className="mt-4 text-[13px] leading-relaxed text-[#5c6570]" role="status">
+                {PAYOUT_LIVE_SETUP_UNAVAILABLE_COPY}
+              </p>
+            ) : null}
+            <div className="mt-8 flex flex-col gap-3">
+              <button
+                type="button"
+                className="tv-btn-primary h-11 w-full px-4 text-[13px]"
+                onClick={returnToIncomePayouts}
+              >
+                Return to Income &amp; Payouts
+              </button>
+              <button
+                type="button"
+                className="tv-btn-secondary h-11 w-full px-4 text-[13px]"
+                onClick={editSubmittedDetails}
+              >
+                Edit submitted details
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="payout-wizard listing-creation-workspace stay-creator fixed inset-0 z-[80] flex bg-white">
-      <aside className="listing-creation-rail hidden h-full min-h-0 w-[15.75rem] shrink-0 flex-col overflow-hidden border-r border-[#E5E7EB] lg:flex xl:w-[16.5rem]">
-        <div className="px-4 pb-5 pt-[max(0.85rem,env(safe-area-inset-top))]">
+    <div className="payout-wizard listing-creation-workspace stay-creator fixed inset-0 z-[80] flex flex-col bg-white">
+      <div className="payout-wizard__body">
+      <aside className="payout-wizard__rail listing-creation-rail">
+        <div className="payout-wizard__rail-head">
           <button
             type="button"
             disabled={busy}
@@ -899,7 +1041,7 @@ export default function PayoutSetupWizard({
           >
             ← Exit
           </button>
-          <p className="mt-7 font-display text-[1.45rem] font-bold leading-[1.12] tracking-tight text-[#18181b]">
+          <p className="mt-7 font-display text-[1.4rem] font-bold leading-[1.12] tracking-tight text-[#18181b]">
             Set up payouts
           </p>
           <div className="mt-2.5 min-h-5">
@@ -910,7 +1052,7 @@ export default function PayoutSetupWizard({
             ) : null}
           </div>
           <p className="mt-1 text-[11.5px] font-semibold tabular-nums tracking-wide text-[#71717a]">
-            {stepIndex + 1} of {PAYOUT_WIZARD_SCREENS.length} complete
+            Step {stepIndex + 1} of {PAYOUT_WIZARD_SCREENS.length}
           </p>
           <div
             className="listing-creation-rail-progress mt-3"
@@ -918,15 +1060,15 @@ export default function PayoutSetupWizard({
             aria-label="Payout setup progress"
             aria-valuemin={0}
             aria-valuemax={PAYOUT_WIZARD_SCREENS.length}
-            aria-valuenow={stepIndex}
+            aria-valuenow={stepIndex + 1}
           >
             <div
               className="listing-creation-rail-progress__fill"
-              style={{ width: `${(stepIndex / PAYOUT_WIZARD_SCREENS.length) * 100}%` }}
+              style={{ width: `${progressPct}%` }}
             />
           </div>
         </div>
-        <nav aria-label="Payout setup steps" className="min-h-0 flex-1 overflow-y-auto px-2 pb-6">
+        <nav aria-label="Payout setup steps" className="payout-wizard__rail-nav">
           <ol className="space-y-1">
             {railItems.map((item, index) => {
               const current = item.state === 'current';
@@ -940,28 +1082,18 @@ export default function PayoutSetupWizard({
                     aria-current={current ? 'step' : undefined}
                     aria-disabled={locked || undefined}
                     className={[
-                      'lux-flat flex min-h-11 w-full items-center gap-2.5 rounded-lg px-2.5 text-left text-[13px] transition-colors',
-                      current
-                        ? 'bg-[rgba(7,59,131,0.08)] font-semibold text-[#073b83]'
-                        : complete
-                          ? 'font-medium text-[#18181b] hover:bg-[#f5f6f8]'
-                          : locked
-                            ? 'cursor-default font-medium text-[#a1a1aa]'
-                            : 'font-medium text-[#71717a] hover:bg-[#f5f6f8]',
-                    ].join(' ')}
+                      'lux-flat payout-wizard__rail-step',
+                      complete ? 'payout-wizard__rail-step--complete' : '',
+                      !current && !complete && !locked
+                        ? 'font-medium text-[#71717a] hover:bg-[#eef1f5]'
+                        : '',
+                      complete && !current ? 'font-medium text-[#18181b] hover:bg-[#eef1f5]' : '',
+                      locked ? 'cursor-default font-medium text-[#a1a1aa]' : '',
+                    ]
+                      .filter(Boolean)
+                      .join(' ')}
                   >
-                    <span
-                      className={[
-                        'grid h-6 w-6 shrink-0 place-items-center rounded-full text-[11px] font-bold',
-                        current
-                          ? 'bg-[#073b83] text-white'
-                          : complete
-                            ? 'bg-emerald-600 text-white'
-                            : 'bg-[#e5e7eb] text-[#71717a]',
-                      ].join(' ')}
-                    >
-                      {complete ? '✓' : index + 1}
-                    </span>
+                    <span className="payout-wizard__rail-dot">{complete ? '✓' : index + 1}</span>
                     <span className="min-w-0 truncate">{item.label}</span>
                   </button>
                 </li>
@@ -971,8 +1103,8 @@ export default function PayoutSetupWizard({
         </nav>
       </aside>
 
-      <div className="relative flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-        <header className="flex shrink-0 items-center justify-between gap-3 border-b border-[#E5E7EB] px-4 py-2.5 pt-[max(0.6rem,env(safe-area-inset-top))] sm:px-6 lg:hidden">
+      <div className="payout-wizard__panel">
+        <header className="payout-wizard__mobile-bar flex items-center justify-between gap-3">
           <button
             type="button"
             className="min-h-11 text-sm font-semibold text-[#18181b]"
@@ -983,36 +1115,40 @@ export default function PayoutSetupWizard({
           </button>
           <p className="truncate text-sm font-semibold text-[#18181b]">Set up payouts</p>
           <p className="min-w-16 text-right text-xs text-[#71717a]" aria-live="polite">
-            {persistLabel ?? ''}
+            {persistLabel ?? `${stepIndex + 1}/${PAYOUT_WIZARD_SCREENS.length}`}
           </p>
         </header>
 
-        <div className={`mx-auto flex min-h-0 w-full ${CONTENT_MAX} flex-1 flex-col overflow-hidden px-4 sm:px-6 lg:px-8`}>
-          <div className="shrink-0 py-3 lg:hidden">
-            <div
-              className="h-[3px] overflow-hidden rounded-full bg-[#e5e7eb]"
-              role="progressbar"
-              aria-valuemin={1}
-              aria-valuemax={PAYOUT_WIZARD_SCREENS.length}
-              aria-valuenow={stepIndex + 1}
-              aria-label={`Step ${stepIndex + 1} of ${PAYOUT_WIZARD_SCREENS.length}`}
-            >
-              <span
-                className="block h-full rounded-full bg-[#073b83] transition-[width] duration-200"
-                style={{ width: `${progressPct}%` }}
-              />
-            </div>
-            <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-[#073b83]">
-              Step {stepIndex + 1} of {PAYOUT_WIZARD_SCREENS.length}
-            </p>
+        <div className="payout-wizard__mobile-bar lg:hidden" style={{ borderTop: 'none', paddingTop: 0 }}>
+          <div
+            className="h-[3px] overflow-hidden rounded-full bg-[#e5e7eb]"
+            role="progressbar"
+            aria-valuemin={1}
+            aria-valuemax={PAYOUT_WIZARD_SCREENS.length}
+            aria-valuenow={stepIndex + 1}
+            aria-label={`Step ${stepIndex + 1} of ${PAYOUT_WIZARD_SCREENS.length}`}
+          >
+            <span
+              className="block h-full rounded-full bg-[#073b83] transition-[width] duration-200"
+              style={{ width: `${progressPct}%` }}
+            />
           </div>
+          <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-[#073b83]">
+            Step {stepIndex + 1} of {PAYOUT_WIZARD_SCREENS.length}
+          </p>
+        </div>
 
-          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-4 [-webkit-overflow-scrolling:touch]">
+        <main ref={scrollRef} className="payout-wizard__scroll">
+          <div className="payout-wizard__canvas">
             <div key={draft.step} className={stageClass}>
               <p className="mb-1 hidden text-[11px] font-semibold uppercase tracking-[0.12em] text-[#073b83] lg:block">
                 Step {stepIndex + 1} of {PAYOUT_WIZARD_SCREENS.length}
               </p>
-              <h1 className="stay-title inline-flex flex-wrap items-center gap-1.5 text-[1.45rem] font-bold tracking-tight text-[#18181b] sm:text-[1.6rem]">
+              <h1
+                ref={headingRef}
+                tabIndex={-1}
+                className="payout-wizard__title inline-flex flex-wrap items-center gap-1.5 outline-none"
+              >
                 {screen.title}
                 {draft.step === 'representative' ? (
                   <PartnerHelpTip label="About representative">{PARTNER_HELP.representative}</PartnerHelpTip>
@@ -1027,7 +1163,7 @@ export default function PayoutSetupWizard({
                   <PartnerHelpTip label="About preferences">{PARTNER_HELP.payoutSchedule}</PartnerHelpTip>
                 ) : null}
               </h1>
-              <p className="stay-lede mt-1.5 text-[13px] leading-relaxed text-[#52525b]">{screen.lede}</p>
+              <p className="payout-wizard__lede">{screen.lede}</p>
 
               {connectSetupUnavailable ? (
                 <p
@@ -1933,6 +2069,7 @@ export default function PayoutSetupWizard({
                     className="ml-4 text-[13px] font-semibold text-[#71717a]"
                     onClick={() => {
                       clearPayoutWizardDraft(userId);
+                      patch({ wizardCompletedAt: null });
                       setNote('Saved progress cleared for this device.');
                     }}
                   >
@@ -1942,13 +2079,13 @@ export default function PayoutSetupWizard({
               ) : null}
             </div>
           </div>
-        </div>
+        </main>
 
-        <footer className="listing-creation-footer shrink-0 px-4 py-2.5 sm:px-6 lg:px-8">
-          <div className={`mx-auto grid w-full ${CONTENT_MAX} grid-cols-3 items-center gap-2`}>
+        <footer className="payout-wizard__footer listing-creation-footer">
+          <div className="payout-wizard__footer-inner">
             <button
               type="button"
-              className="tv-btn-ghost stay-nav-btn stay-nav-btn--start h-11 justify-self-start px-3 text-[13px]"
+              className="tv-btn-ghost payout-wizard__footer-back h-11 px-3 text-[13px]"
               onClick={onBack}
               disabled={busy}
             >
@@ -1959,7 +2096,7 @@ export default function PayoutSetupWizard({
             </span>
             <button
               type="button"
-              className="tv-btn-primary stay-nav-btn stay-nav-btn--end h-11 justify-self-end px-4 text-[13px]"
+              className="tv-btn-primary payout-wizard__footer-next h-11 px-4 text-[13px]"
               onClick={() => void onContinue()}
               disabled={
                 busy ||
@@ -1971,6 +2108,7 @@ export default function PayoutSetupWizard({
             </button>
           </div>
         </footer>
+      </div>
       </div>
     </div>
   );

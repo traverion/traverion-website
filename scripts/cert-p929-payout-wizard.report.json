@@ -1,0 +1,169 @@
+{
+  "mission": "P9.29",
+  "base": "http://127.0.0.1:5182",
+  "startedAt": "2026-11-17T22:00:02.483Z",
+  "checks": [
+    {
+      "check": "Login disposable supplier",
+      "ok": true,
+      "detail": "p921-payout-mwkvnn8d@traverion.invalid"
+    },
+    {
+      "check": "Wizard opens",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Reached review",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Completion screen after Done",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "No fake Verified without provider",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Return lands on Income settings",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Settings shows saved onboarding state",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "No horizontal page overflow (settings)",
+      "ok": true,
+      "detail": "{\"doc\":1440,\"client\":1440}"
+    },
+    {
+      "check": "No wizard overflow business desktop-1280",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "No wizard overflow representative desktop-1280",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "No wizard overflow identity desktop-1280",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "No wizard overflow bank desktop-1280",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "No wizard overflow preferences desktop-1280",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "No wizard overflow review desktop-1280",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Completion desktop-1280",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "No overflow desktop-1280",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "No overflow tablet-768",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "No wizard overflow business mobile-390",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "No wizard overflow representative mobile-390",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "No wizard overflow identity mobile-390",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "No wizard overflow bank mobile-390",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "No wizard overflow preferences mobile-390",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "No wizard overflow review mobile-390",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Completion mobile-390",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "No overflow mobile-390",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "No overflow mobile-375",
+      "ok": true,
+      "detail": ""
+    }
+  ],
+  "screenshots": [
+    "/Users/mirovesterinen/Documents/traverion.com/scripts/p929-screenshots/step-business-desktop-1440.png",
+    "/Users/mirovesterinen/Documents/traverion.com/scripts/p929-screenshots/step-representative-desktop-1440.png",
+    "/Users/mirovesterinen/Documents/traverion.com/scripts/p929-screenshots/step-identity-desktop-1440.png",
+    "/Users/mirovesterinen/Documents/traverion.com/scripts/p929-screenshots/step-bank-desktop-1440.png",
+    "/Users/mirovesterinen/Documents/traverion.com/scripts/p929-screenshots/step-preferences-desktop-1440.png",
+    "/Users/mirovesterinen/Documents/traverion.com/scripts/p929-screenshots/step-review-desktop-1440.png",
+    "/Users/mirovesterinen/Documents/traverion.com/scripts/p929-screenshots/step-complete-desktop-1440.png",
+    "/Users/mirovesterinen/Documents/traverion.com/scripts/p929-screenshots/settings-after-complete-desktop-1440.png",
+    "/Users/mirovesterinen/Documents/traverion.com/scripts/p929-screenshots/step-business-desktop-1280.png",
+    "/Users/mirovesterinen/Documents/traverion.com/scripts/p929-screenshots/step-representative-desktop-1280.png",
+    "/Users/mirovesterinen/Documents/traverion.com/scripts/p929-screenshots/step-identity-desktop-1280.png",
+    "/Users/mirovesterinen/Documents/traverion.com/scripts/p929-screenshots/step-bank-desktop-1280.png",
+    "/Users/mirovesterinen/Documents/traverion.com/scripts/p929-screenshots/step-preferences-desktop-1280.png",
+    "/Users/mirovesterinen/Documents/traverion.com/scripts/p929-screenshots/step-review-desktop-1280.png",
+    "/Users/mirovesterinen/Documents/traverion.com/scripts/p929-screenshots/step-complete-desktop-1280.png",
+    "/Users/mirovesterinen/Documents/traverion.com/scripts/p929-screenshots/settings-desktop-1280.png",
+    "/Users/mirovesterinen/Documents/traverion.com/scripts/p929-screenshots/step-business-tablet-768.png",
+    "/Users/mirovesterinen/Documents/traverion.com/scripts/p929-screenshots/settings-tablet-768.png",
+    "/Users/mirovesterinen/Documents/traverion.com/scripts/p929-screenshots/step-business-mobile-390.png",
+    "/Users/mirovesterinen/Documents/traverion.com/scripts/p929-screenshots/step-representative-mobile-390.png",
+    "/Users/mirovesterinen/Documents/traverion.com/scripts/p929-screenshots/step-identity-mobile-390.png",
+    "/Users/mirovesterinen/Documents/traverion.com/scripts/p929-screenshots/step-bank-mobile-390.png",
+    "/Users/mirovesterinen/Documents/traverion.com/scripts/p929-screenshots/step-preferences-mobile-390.png",
+    "/Users/mirovesterinen/Documents/traverion.com/scripts/p929-screenshots/step-review-mobile-390.png",
+    "/Users/mirovesterinen/Documents/traverion.com/scripts/p929-screenshots/step-complete-mobile-390.png",
+    "/Users/mirovesterinen/Documents/traverion.com/scripts/p929-screenshots/settings-mobile-390.png",
+    "/Users/mirovesterinen/Documents/traverion.com/scripts/p929-screenshots/step-business-mobile-375.png",
+    "/Users/mirovesterinen/Documents/traverion.com/scripts/p929-screenshots/settings-mobile-375.png"
+  ],
+  "verdict": "PASS",
+  "finishedAt": "2026-11-17T22:00:54.767Z"
+}
