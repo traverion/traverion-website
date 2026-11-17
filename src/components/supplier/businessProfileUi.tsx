@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import PartnerHelpTip from './PartnerHelpTip';
 
 /** Desktop content width for Business Settings (~1000px). */
 export const BUSINESS_SETTINGS_CONTENT_CLASS = 'mx-auto w-full max-w-[1000px]';
@@ -11,6 +12,7 @@ export function ProfileCard({
   id,
   title,
   description,
+  help,
   children,
   actions,
   className = '',
@@ -18,6 +20,7 @@ export function ProfileCard({
   id?: string;
   title: string;
   description?: string;
+  help?: string;
   children: ReactNode;
   actions?: ReactNode;
   className?: string;
@@ -29,7 +32,10 @@ export function ProfileCard({
     >
       <div className="mb-3 flex flex-wrap items-start justify-between gap-2 sm:gap-3">
         <div className="min-w-0">
-          <h2 className="text-[15px] font-semibold tracking-tight text-ink">{title}</h2>
+          <h2 className="inline-flex items-center gap-1.5 text-[15px] font-semibold tracking-tight text-ink">
+            {title}
+            {help ? <PartnerHelpTip label={`About ${title}`}>{help}</PartnerHelpTip> : null}
+          </h2>
           {description ? (
             <p className="mt-0.5 text-[13px] leading-snug text-ink-muted">{description}</p>
           ) : null}
@@ -50,12 +56,23 @@ export function Subsection({ title, children }: { title: string; children: React
   );
 }
 
-export function InfoRow({ label, value }: { label: string; value: ReactNode }) {
+export function InfoRow({
+  label,
+  value,
+  help,
+}: {
+  label: string;
+  value: ReactNode;
+  help?: string;
+}) {
   const empty =
     value == null || (typeof value === 'string' && !value.trim()) || value === false;
   return (
     <div className="grid grid-cols-1 gap-0.5 border-b border-black/[0.04] py-2 last:border-0 sm:grid-cols-[9.5rem_1fr] sm:gap-3 sm:py-2">
-      <dt className="text-[12px] font-medium text-ink-muted">{label}</dt>
+      <dt className="inline-flex items-center gap-1 text-[12px] font-medium text-ink-muted">
+        {label}
+        {help ? <PartnerHelpTip label={`About ${label}`}>{help}</PartnerHelpTip> : null}
+      </dt>
       <dd className="break-words text-[14px] leading-snug text-ink">
         {empty ? <span className="text-ink-faint">—</span> : value}
       </dd>

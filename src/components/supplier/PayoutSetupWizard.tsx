@@ -47,7 +47,9 @@ import {
   PARTNER_PAYOUT_FREQUENCY_TWICE_MONTHLY_DETAIL,
   PARTNER_PAYOUT_FREQUENCY_TWICE_MONTHLY_LABEL,
 } from '../../lib/booking-confirmation-copy';
+import { PARTNER_HELP } from '../../lib/partnerHelpCopy';
 import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
+import PartnerHelpTip from './PartnerHelpTip';
 
 function normalizeCountryCode(raw: string): string {
   const t = raw.trim();
@@ -519,7 +521,7 @@ export default function PayoutSetupWizard({
   const onContinue = async () => {
     if (expressVerificationMandatory && expressLaunchFailed) {
       setError(
-        'Stripe verification could not be started. Use Continue verification to try again before moving on.'
+        'Verification could not be started. Use Continue verification to try again.'
       );
       return;
     }
@@ -637,12 +639,12 @@ export default function PayoutSetupWizard({
   };
 
   const reviewIdentityLabel = () => {
-    if (canReceive) return 'Complete';
+    if (canReceive) return 'Verified';
     if (identityDocumentDue || accountRestricted) return 'Action required';
     if (draft.identitySavedAt || profile?.connect_details_submitted) {
-      return 'Submitted — pending review';
+      return 'Under review';
     }
-    return 'Needed';
+    return 'Incomplete';
   };
 
   const reviewRepLabel = () => {
@@ -779,8 +781,20 @@ export default function PayoutSetupWizard({
               <p className="mb-1 hidden text-[11px] font-semibold uppercase tracking-[0.12em] text-[#073b83] lg:block">
                 Step {stepIndex + 1} of {PAYOUT_WIZARD_SCREENS.length}
               </p>
-              <h1 className="stay-title text-[1.45rem] font-bold tracking-tight text-[#18181b] sm:text-[1.6rem]">
+              <h1 className="stay-title inline-flex flex-wrap items-center gap-1.5 text-[1.45rem] font-bold tracking-tight text-[#18181b] sm:text-[1.6rem]">
                 {screen.title}
+                {draft.step === 'representative' ? (
+                  <PartnerHelpTip label="About representative">{PARTNER_HELP.representative}</PartnerHelpTip>
+                ) : null}
+                {draft.step === 'identity' ? (
+                  <PartnerHelpTip label="About identity">{PARTNER_HELP.identityCheck}</PartnerHelpTip>
+                ) : null}
+                {draft.step === 'bank' ? (
+                  <PartnerHelpTip label="About bank account">{PARTNER_HELP.bankAccount}</PartnerHelpTip>
+                ) : null}
+                {draft.step === 'preferences' ? (
+                  <PartnerHelpTip label="About preferences">{PARTNER_HELP.payoutSchedule}</PartnerHelpTip>
+                ) : null}
               </h1>
               <p className="stay-lede mt-1.5 text-[13px] leading-relaxed text-[#52525b]">{screen.lede}</p>
 
@@ -1052,7 +1066,7 @@ export default function PayoutSetupWizard({
                   </p>
                   {outstandingKeys.some((key) => /terms_of_service|tos_acceptance|agreement/i.test(key)) ? (
                     <p className="text-[12px] leading-relaxed text-amber-950">
-                      Stripe is asking for this agreement again. Check the box to accept the current version.
+                      Please accept the current agreement again to continue.
                     </p>
                   ) : null}
                   <label className="flex items-start gap-2.5 text-[13px] text-[#18181b]">
@@ -1067,16 +1081,11 @@ export default function PayoutSetupWizard({
                       and payout information with Stripe.
                     </span>
                   </label>
-                  <p className="text-[12px] leading-relaxed text-[#71717a]">
-                    If extra identity checks are needed, complete them here. Traverion does not store
-                    identity documents. Your information is being reviewed only after the provider confirms
-                    it.
-                  </p>
                   {identityDocumentDue || accountRestricted ? (
                     <div className="rounded-[10px] border border-[#e5e7eb] bg-[#fafafa] px-3 py-3">
-                      <p className="text-[13px] font-semibold text-[#18181b]">Additional verification</p>
+                      <p className="text-[13px] font-semibold text-[#18181b]">Action required</p>
                       <p className="mt-1 text-[12px] leading-relaxed text-[#52525b]">
-                        The provider still needs an identity document or a correction. Complete that secure
+                        An identity document or a correction is still needed. Complete that secure
                         step inside Traverion, then refresh status.
                       </p>
                       {!showIdentityRemediation ? (
@@ -1163,7 +1172,7 @@ export default function PayoutSetupWizard({
                 <div className="mt-4 space-y-3">
                   {expressVerificationMandatory && !showStripeEmbed && !hostedFallbackUrl ? (
                     <div className="rounded-[10px] border border-[#dbe4f0] bg-[#f0f4fa] px-3 py-3 text-[12px] leading-relaxed text-[#1e3a5f]">
-                      <p className="font-semibold text-[#073b83]">Stripe verification required</p>
+                      <p className="font-semibold text-[#073b83]">Verification needed</p>
                       <p className="mt-1">{PAYOUT_WIZARD_STRIPE_AUTH_COPY}</p>
                       {outstandingLabels.length > 0 ? (
                         <ul className="mt-2 list-disc space-y-1 pl-4 text-[12px] text-[#1e3a5f]">
@@ -1173,13 +1182,9 @@ export default function PayoutSetupWizard({
                         </ul>
                       ) : (
                         <p className="mt-2 text-[12px] text-[#1e3a5f]">
-                          Stripe still needs identity or bank confirmation for this Express account.
+                          Identity or bank confirmation is still needed.
                         </p>
                       )}
-                      <p className="mt-1 text-[11px] text-[#52525b]">
-                        This does not convert your Express account. Traverion will not open Stripe until
-                        you choose Continue verification.
-                      </p>
                       <button
                         type="button"
                         className="tv-btn-primary mt-3 h-10 w-full text-[13px]"
@@ -1197,10 +1202,10 @@ export default function PayoutSetupWizard({
 
                   {!expressVerificationMandatory && !showStripeEmbed ? (
                     <div className="rounded-[10px] border border-[#e5e7eb] bg-[#fafafa] px-3 py-3 text-[12px] leading-relaxed text-[#52525b]">
-                      <p className="font-semibold text-[#18181b]">Express account on file</p>
+                      <p className="font-semibold text-[#18181b]">Already set up</p>
                       <p className="mt-1">
-                        You can continue through payout setup without opening Stripe. Start verification
-                        only if you need to update identity or bank details.
+                        Continue setup as usual. Open verification only if you need to update identity or bank
+                        details.
                       </p>
                       <button
                         type="button"

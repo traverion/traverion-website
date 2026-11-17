@@ -10,12 +10,14 @@ import {
 } from '../../lib/booking-confirmation-copy';
 import StatusChip from '../../components/StatusChip';
 import NoticeCallout from '../../components/NoticeCallout';
+import { PARTNER_HELP } from '../../lib/partnerHelpCopy';
 import {
   partnerBusinessReviewState,
   partnerBusinessStatusChip,
   partnerPayoutReviewState,
   partnerPayoutStatusChip,
 } from '../../lib/partnerVerificationStatus';
+import PartnerHelpTip from '../../components/supplier/PartnerHelpTip';
 
 type PartnerOnboardingProps = {
   onSkip: () => void;
@@ -102,7 +104,7 @@ export default function PartnerOnboarding({
     {
       n: '04',
       title: 'Add departures',
-      body: 'Open the calendar so travelers can book real dates. Tours need schedules or daily availability before they can sell.',
+      body: 'Add dates so travelers can book.',
       done: false,
       action: onDepartures ?? onTours,
       cta: 'Open calendar',
@@ -121,7 +123,10 @@ export default function PartnerOnboarding({
   return (
     <div className="max-w-2xl mx-auto px-1 sm:px-0 py-5 sm:py-8">
       <header className="mb-4 rounded-lg border border-black/[0.06] bg-paper px-3.5 py-3">
-        <h1 className="font-display text-xl sm:text-2xl text-ink tracking-tight">Set up your operation</h1>
+        <h1 className="inline-flex flex-wrap items-center gap-1.5 font-display text-xl sm:text-2xl text-ink tracking-tight">
+          Finish setup
+          <PartnerHelpTip label="About setup">{PARTNER_HELP.publishGate}</PartnerHelpTip>
+        </h1>
         <p className="mt-1 text-xs text-ink-muted leading-snug max-w-lg">{PARTNER_ONBOARDING_INTRO_NOTE}</p>
       </header>
 
@@ -130,12 +135,12 @@ export default function PartnerOnboarding({
           <p className="text-sm font-semibold text-ink">
             {checklistComplete
               ? publishReady
-                ? 'Checklist complete — publish unlocked'
-                : 'Checklist complete — verification pending'
+                ? 'Ready to publish'
+                : 'Under review'
               : `${completed} of ${requiredSteps.length} steps done`}
           </p>
           <StatusChip tone={checklistComplete && publishReady ? 'good' : checklistComplete ? 'warn' : 'neutral'}>
-            {checklistComplete && publishReady ? 'Can publish' : checklistComplete ? 'Awaiting review' : 'In progress'}
+            {checklistComplete && publishReady ? 'Verified' : checklistComplete ? 'Under review' : 'Incomplete'}
           </StatusChip>
         </div>
         <div
@@ -160,10 +165,10 @@ export default function PartnerOnboarding({
           <NoticeCallout
             title={
               publishReady
-                ? 'Publish is unlocked'
+                ? 'Verified'
                 : businessReview === 'rejected' || payoutReview === 'rejected'
-                  ? 'Verification needs updates before you can publish'
-                  : 'Still waiting on Traverion verification'
+                  ? 'Action required'
+                  : 'Under review'
             }
             tone={
               publishReady
@@ -198,8 +203,8 @@ export default function PartnerOnboarding({
                 className="tv-btn-secondary inline-flex items-center gap-1.5"
               >
                 {businessReview === 'rejected' || payoutReview === 'rejected'
-                  ? 'Fix rejected details'
-                  : 'Open Settings for status'}
+                  ? 'Fix and resubmit'
+                  : 'View status'}
               </button>
             ) : null}
           </div>

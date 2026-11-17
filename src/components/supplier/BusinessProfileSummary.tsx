@@ -1,17 +1,20 @@
 import { Building2, Lock } from 'lucide-react';
 import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
 import { navigateSupplierUrl } from '../../lib/supplierPortalNavigation';
+import { PARTNER_HELP } from '../../lib/partnerHelpCopy';
 import {
   partnerBusinessReviewState,
   partnerBusinessStatusChip,
   partnerPayoutReviewState,
   partnerPayoutStatusChip,
+  partnerReviewStatusHelp,
   type PartnerReviewState,
 } from '../../lib/partnerVerificationStatus';
 import { getSupplierBusinessProfileMissingReasons } from '../../lib/supplierOnboarding';
 import { verificationDocumentBasename } from '../../data/supabase-supplier-profile';
 import NoticeCallout from '../NoticeCallout';
 import StatusChip from '../StatusChip';
+import PartnerHelpTip from './PartnerHelpTip';
 import { BUSINESS_SETTINGS_CONTENT_CLASS, InfoGrid, InfoRow, ProfileCard } from './businessProfileUi';
 
 function maskIban(iban: string): string {
@@ -116,25 +119,21 @@ export default function BusinessProfileSummary(p: BusinessProfileSummaryProps) {
   return (
     <div className={`${BUSINESS_SETTINGS_CONTENT_CLASS} space-y-4`}>
       {needsContinue ? (
-        <NoticeCallout title={businessReview === 'rejected' ? 'Updates required' : 'Continue setup'} tone="info">
-          <p className="mb-3">
-            {businessReview === 'rejected'
-              ? 'Traverion asked for corrections. Open business setup to update and resubmit.'
-              : 'Initial business verification uses the full-screen setup wizard. This page is a summary after you submit.'}
-          </p>
-          {missing.length > 0 ? (
+        <NoticeCallout
+          title={businessReview === 'rejected' ? 'Action required' : 'Continue setup'}
+          tone={businessReview === 'rejected' ? 'warn' : 'info'}
+        >
+          {p.businessVerificationFeedback.trim() ? (
+            <p className="mb-3 text-[13px] text-ink">{p.businessVerificationFeedback.trim()}</p>
+          ) : missing.length > 0 ? (
             <ul className="mb-3 list-inside list-disc text-[12px] text-ink-muted">
               {missing.slice(0, 5).map((line) => (
                 <li key={line}>{line}</li>
               ))}
             </ul>
-          ) : null}
-          {p.businessVerificationFeedback.trim() ? (
-            <p className="mb-3 text-[13px] text-ink">
-              <span className="font-semibold">Traverion note: </span>
-              {p.businessVerificationFeedback.trim()}
-            </p>
-          ) : null}
+          ) : (
+            <p className="mb-3">Finish business setup to submit for review.</p>
+          )}
           {p.canEdit ? (
             <button
               type="button"
@@ -149,13 +148,15 @@ export default function BusinessProfileSummary(p: BusinessProfileSummaryProps) {
 
       {businessReview === 'pending' ? (
         <NoticeCallout title="Under review" tone="warn">
-          Traverion is reviewing your business application. You can keep drafting listings while you wait.
+          <span className="inline-flex items-center gap-1.5">
+            You can draft listings while you wait.
+            <PartnerHelpTip label="About under review">{PARTNER_HELP.underReview}</PartnerHelpTip>
+          </span>
         </NoticeCallout>
       ) : null}
 
       <ProfileCard
-        title="Business information"
-        description="Read-only summary of your submitted company profile."
+        title="Business"
         actions={
           p.canEdit && (businessReview === 'verified' || businessReview === 'pending') ? (
             <button
@@ -186,6 +187,7 @@ export default function BusinessProfileSummary(p: BusinessProfileSummaryProps) {
         <InfoGrid>
           <InfoRow
             label="Business type"
+            help={PARTNER_HELP.businessType}
             value={
               p.businessType === 'company'
                 ? 'Registered company'
@@ -196,25 +198,37 @@ export default function BusinessProfileSummary(p: BusinessProfileSummaryProps) {
           />
           <InfoRow label="Country" value={p.addressCountry} />
           <InfoRow
-            label={p.businessType === 'individual' ? 'Tax / business ID' : 'Registration number'}
+            label={p.businessType === 'individual' ? 'Tax ID' : 'Registration number'}
+            help={p.businessType === 'individual' ? PARTNER_HELP.taxId : PARTNER_HELP.registrationNumber}
             value={
               p.businessType === 'individual' ? p.taxId : p.companyRegistrationNumber
             }
           />
-          <InfoRow label="VAT ID" value={p.vatId} />
-          <InfoRow label="Contact phone" value={p.contactPhone} />
-          <InfoRow label="Registered address" value={addressLine || null} />
-          <InfoRow label="Managing directors" value={p.managingDirectors} />
+          <InfoRow label="VAT ID" help={PARTNER_HELP.vatId} value={p.vatId} />
+          <InfoRow label="Phone" help={PARTNER_HELP.contactPhone} value={p.contactPhone} />
+          <InfoRow
+            label="Address"
+            help={PARTNER_HELP.registeredAddress}
+            value={addressLine || null}
+          />
+          <InfoRow
+            label="Directors"
+            help={PARTNER_HELP.managingDirectors}
+            value={p.managingDirectors}
+          />
         </InfoGrid>
       </ProfileCard>
 
-      <ProfileCard title="Verification">
+      <ProfileCard title="Verification" help={PARTNER_HELP.businessStatus}>
         <div className="mb-3 flex flex-wrap items-center gap-2">
           <StatusChip tone={busChip.tone}>{busChip.label}</StatusChip>
+          <PartnerHelpTip label="About business status">
+            {partnerReviewStatusHelp(businessReview)}
+          </PartnerHelpTip>
           {businessReview === 'verified' ? (
             <span className="inline-flex items-center gap-1 text-[11px] font-medium text-ink-muted">
               <Lock className="h-3 w-3" aria-hidden />
-              Locked after approval
+              Locked
             </span>
           ) : null}
         </div>
@@ -228,7 +242,8 @@ export default function BusinessProfileSummary(p: BusinessProfileSummaryProps) {
             }
           />
           <InfoRow
-            label="Registration document"
+            label="Document"
+            help={PARTNER_HELP.registrationDocument}
             value={
               p.companyRegistrationPath
                 ? verificationDocumentBasename(p.companyRegistrationPath)
@@ -243,14 +258,13 @@ export default function BusinessProfileSummary(p: BusinessProfileSummaryProps) {
                 : missing.length
                   ? missing.join('; ')
                   : businessReview === 'pending'
-                    ? 'Awaiting Traverion review'
+                    ? 'Awaiting review'
                     : null
             }
           />
         </InfoGrid>
         {p.businessVerificationFeedback.trim() ? (
           <p className="mt-3 rounded-[10px] border border-amber-200 bg-amber-50 px-3 py-2 text-[13px] text-amber-950">
-            <span className="font-semibold">Review note: </span>
             {p.businessVerificationFeedback.trim()}
           </p>
         ) : null}
@@ -258,7 +272,7 @@ export default function BusinessProfileSummary(p: BusinessProfileSummaryProps) {
 
       <ProfileCard
         title="Payouts"
-        description="Banking and payout verification stay separate from business approval."
+        help={PARTNER_HELP.payoutStatus}
         actions={
           p.canEdit ? (
             <button
@@ -271,15 +285,19 @@ export default function BusinessProfileSummary(p: BusinessProfileSummaryProps) {
           ) : null
         }
       >
-        <div className="mb-3">
+        <div className="mb-3 flex flex-wrap items-center gap-2">
           <StatusChip tone={payChip.tone}>{payChip.label}</StatusChip>
+          <PartnerHelpTip label="About payout status">
+            {partnerReviewStatusHelp(payoutReview)}
+          </PartnerHelpTip>
         </div>
         <InfoGrid>
-          <InfoRow label="Bank account" value={maskIban(p.payoutIban)} />
+          <InfoRow label="Bank account" help={PARTNER_HELP.bankAccount} value={maskIban(p.payoutIban)} />
           <InfoRow label="BIC" value={p.payoutBic.trim() ? '••••' : '—'} />
-          <InfoRow label="Payout schedule" value={payoutSchedule} />
+          <InfoRow label="Schedule" help={PARTNER_HELP.payoutSchedule} value={payoutSchedule} />
           <InfoRow
-            label="Minimum threshold"
+            label="Minimum"
+            help={PARTNER_HELP.payoutThreshold}
             value={p.payoutThreshold?.trim() ? p.payoutThreshold : '—'}
           />
         </InfoGrid>

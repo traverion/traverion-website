@@ -23,23 +23,23 @@ export type BusinessOnboardingScreen = {
 export const BUSINESS_ONBOARDING_SCREENS: BusinessOnboardingScreen[] = [
   {
     id: 'identity',
-    title: 'Business identity',
-    lede: 'Tell travelers who you are and how your company is registered.',
+    title: 'Business details',
+    lede: 'Who you are and how you’re registered.',
   },
   {
     id: 'contact',
-    title: 'Contact and address',
-    lede: 'Add the phone and registered business address Traverion will verify.',
+    title: 'Contact & address',
+    lede: 'Phone and registered business address.',
   },
   {
     id: 'documents',
-    title: 'Verification documents',
-    lede: 'Upload official registration proof. Traverion reviews this before you can publish.',
+    title: 'Documents',
+    lede: 'Upload registration proof.',
   },
   {
     id: 'review',
-    title: 'Review and submit',
-    lede: 'Confirm everything looks right. Submitting places your application in the admin review queue.',
+    title: 'Review',
+    lede: 'Check your details, then submit.',
   },
 ];
 

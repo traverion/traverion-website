@@ -199,19 +199,19 @@ export const PARTNER_LISTINGS_PAYOUT_REVIEW_NOTE =
 
 /** Partner Money page — payouts are manual; status here, not mail. */
 export const PARTNER_MONEY_PAYOUT_STATUS_NOTE =
-  'Payouts are reviewed by Traverion. There is no automatic transfer date until payouts are enabled for your account. Status appears on this page and in Settings — Traverion does not treat email as proof of transfer.';
+  'Payout status appears here and in Settings. Transfers run only after Traverion enables payouts.';
 
 /** Partner onboarding — bank details are for future payouts, not an automatic post-booking transfer. */
 export const PARTNER_ONBOARDING_PAYOUT_STEP_NOTE =
-  'Bank details for when Traverion enables payouts. Saving them does not mean Traverion sends money after each booking — payouts stay manual until enabled.';
+  'Bank details for when payouts are enabled.';
 
 /** Partner onboarding intro — verification gates publish; filling steps alone is not “live”. */
 export const PARTNER_ONBOARDING_INTRO_NOTE =
-  'Complete business details, payout details, and a first listing. Traverion must verify business and payout before you can publish. Nothing goes live until you publish and both verifications pass.';
+  'Complete business, payouts, and a first listing. Both verifications must pass before you can publish.';
 
 /** Partner onboarding step 03 / Listings empty — draft anytime; publish needs verification. */
 export const PARTNER_FIRST_LISTING_STEP_NOTE =
-  'A tour or a stay. Photos, price, and guest details first. You can draft anytime; publishing needs Traverion business and payout verification.';
+  'A tour or stay with photos and price. Draft anytime; publishing needs verification.';
 
 /** Partner marketing landing — List step; same verification gate as onboarding. */
 export const PARTNER_LANDING_LIST_NOTE =
@@ -230,7 +230,7 @@ export const SUPPLIER_WELCOME_LISTING_STEP_NOTE =
 
 /** Partner Settings — threshold gates preparation; never implies a bank transfer by itself. */
 export const PARTNER_PAYOUT_THRESHOLD_HINT =
-  'Minimum balance required before Traverion prepares a payout period (e.g. 50). Changing it does not alter periods already prepared, and never sends money by itself.';
+  'Minimum balance before a payout is prepared (preference only).';
 
 /** Traveler My bookings / confirmation — unpaid checkout CTA while Stripe session opens. */
 export const TRAVELER_OPENING_CHECKOUT_CTA = 'Opening checkout…';
@@ -647,11 +647,11 @@ export const PARTNER_PAYOUT_FREQUENCY_TWICE_MONTHLY_DETAIL =
 
 /** Partner onboarding — checklist fields filled; publish still needs verification. */
 export const PARTNER_ONBOARDING_CHECKLIST_DONE_NOTE =
-  'Business, payout, and a first listing are on file. Traverion must still verify business and payout before you can publish.';
+  'Setup details are on file. Publishing waits until business and payout are verified.';
 
 /** Partner onboarding — verified and can publish. */
 export const PARTNER_ONBOARDING_PUBLISH_READY_NOTE =
-  'Business and payout are verified. Publish a listing that meets quality checks when you are ready.';
+  'Business and payout are verified. You can publish when your listing is ready.';
 
 /** Booking thread empty body — post, not email send (maps RPC “before sending”). */
 export const BOOKING_MESSAGE_EMPTY_BODY_ERROR = 'Write a message before posting.';

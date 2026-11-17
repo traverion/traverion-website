@@ -39,6 +39,7 @@ import {
   PARTNER_BUSINESS_READY_TO_SUBMIT_NOTE,
   PARTNER_BUSINESS_REVIEW_STATUS_NOTE,
 } from '../../lib/booking-confirmation-copy';
+import { PARTNER_HELP } from '../../lib/partnerHelpCopy';
 import {
   partnerBusinessReviewState,
   partnerBusinessStatusChip,
@@ -46,6 +47,7 @@ import {
   partnerPayoutStatusChip,
 } from '../../lib/partnerVerificationStatus';
 import BusinessProfileSummary from './BusinessProfileSummary';
+import PartnerHelpTip from './PartnerHelpTip';
 import {
   BUSINESS_SETTINGS_CONTENT_CLASS,
   InfoGrid,
@@ -446,11 +448,13 @@ export default function BusinessProfilePage(p: BusinessProfilePageProps) {
       <SupplierPageHero
         sansTitle
         title="Business settings"
-        description="Summary of your verified business profile, documents, and payout status."
+        description="Your business profile and verification status."
       >
         <div className="mt-3 flex flex-wrap items-center gap-2" aria-label="Verification status">
           <StatusChip tone={busChip.tone}>{busChip.label}</StatusChip>
+          <PartnerHelpTip label="About business status">{PARTNER_HELP.businessStatus}</PartnerHelpTip>
           <StatusChip tone={payChip.tone}>{payChip.label}</StatusChip>
+          <PartnerHelpTip label="About payout status">{PARTNER_HELP.payoutStatus}</PartnerHelpTip>
         </div>
         {!canEditProfile ? (
           <NoticeCallout title="View only" tone="info" className="mt-4">

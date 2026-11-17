@@ -244,16 +244,17 @@ describe('booking confirmation copy', () => {
     expect(bookingConfirmationPromisesEmailSent(PARTNER_MONEY_PAYOUT_STATUS_NOTE)).toBe(false);
     expect(PARTNER_LISTINGS_BUSINESS_REVIEW_NOTE.toLowerCase()).toContain('status updates appear in settings');
     expect(PARTNER_LISTINGS_PAYOUT_REVIEW_NOTE.toLowerCase()).toContain('status updates appear in settings');
-    expect(PARTNER_MONEY_PAYOUT_STATUS_NOTE.toLowerCase()).toContain('status appears on this page');
-    expect(PARTNER_MONEY_PAYOUT_STATUS_NOTE.toLowerCase()).toContain('does not treat email as proof of transfer');
+    expect(PARTNER_MONEY_PAYOUT_STATUS_NOTE.toLowerCase()).toContain('payout status appears here');
+    expect(PARTNER_MONEY_PAYOUT_STATUS_NOTE.toLowerCase()).toContain('settings');
+    expect(PARTNER_MONEY_PAYOUT_STATUS_NOTE.toLowerCase()).toContain('enables payouts');
   });
 
   it('partner onboarding and payout-threshold copy does not imply automatic payouts or instant live', () => {
-    expect(PARTNER_ONBOARDING_PAYOUT_STEP_NOTE.toLowerCase()).toContain('payouts stay manual');
+    expect(PARTNER_ONBOARDING_PAYOUT_STEP_NOTE.toLowerCase()).toContain('payouts are enabled');
     expect(PARTNER_ONBOARDING_PAYOUT_STEP_NOTE.toLowerCase()).not.toContain('sends money after a booking');
-    expect(PARTNER_ONBOARDING_INTRO_NOTE.toLowerCase()).toContain('verify business and payout');
+    expect(PARTNER_ONBOARDING_INTRO_NOTE.toLowerCase()).toContain('verifications must pass');
     expect(PARTNER_ONBOARDING_INTRO_NOTE.toLowerCase()).not.toContain('then you are live');
-    expect(PARTNER_FIRST_LISTING_STEP_NOTE.toLowerCase()).toContain('business and payout verification');
+    expect(PARTNER_FIRST_LISTING_STEP_NOTE.toLowerCase()).toContain('publishing needs verification');
     expect(PARTNER_FIRST_LISTING_STEP_NOTE.toLowerCase()).not.toContain('publish when you are ready');
     expect(PARTNER_LANDING_LIST_NOTE.toLowerCase()).toContain('business and payout verification');
     expect(PARTNER_LANDING_LIST_NOTE.toLowerCase()).not.toContain('publish when it is ready');
@@ -264,10 +265,10 @@ describe('booking confirmation copy', () => {
     expect(LISTING_QUALITY_PUBLISH_TIP.toLowerCase()).not.toContain('publish when ready');
     expect(SUPPLIER_WELCOME_LISTING_STEP_NOTE.toLowerCase()).toContain('business and payout verification');
     expect(SUPPLIER_WELCOME_LISTING_STEP_NOTE.toLowerCase()).not.toContain('publish when you are ready');
-    expect(PARTNER_PAYOUT_THRESHOLD_HINT.toLowerCase()).toContain('once payouts are enabled');
     expect(PARTNER_PAYOUT_THRESHOLD_HINT.toLowerCase()).toContain('preference');
+    expect(PARTNER_PAYOUT_THRESHOLD_HINT.toLowerCase()).toContain('minimum balance');
     expect(PARTNER_PAYOUT_THRESHOLD_HINT.toLowerCase()).not.toContain('before a payout is sent');
-    expect(PARTNER_PAYOUT_THRESHOLD_HINT.toLowerCase()).toContain('not an active payout queue');
+    expect(PARTNER_PAYOUT_THRESHOLD_HINT.toLowerCase()).not.toContain('rpc');
   });
 
   it('partner cancellation request copy does not promise the traveler was emailed', () => {
@@ -481,7 +482,7 @@ describe('booking confirmation copy', () => {
     expect(PARTNER_PAYOUT_FREQUENCY_TWICE_MONTHLY_DETAIL.toLowerCase()).toContain('15th');
     expect(PARTNER_PAYOUT_FREQUENCY_TWICE_MONTHLY_DETAIL.toLowerCase()).toContain('3%');
     expect(PARTNER_PAYOUT_FREQUENCY_TWICE_MONTHLY_DETAIL.toLowerCase()).toContain('18%');
-    expect(PARTNER_ONBOARDING_CHECKLIST_DONE_NOTE.toLowerCase()).toContain('before you can publish');
+    expect(PARTNER_ONBOARDING_CHECKLIST_DONE_NOTE.toLowerCase()).toContain('publishing waits');
     expect(PARTNER_ONBOARDING_CHECKLIST_DONE_NOTE.toLowerCase()).not.toContain('ready to run');
     expect(PARTNER_ONBOARDING_PUBLISH_READY_NOTE.toLowerCase()).toContain('verified');
     expect(PARTNER_ONBOARDING_PUBLISH_READY_NOTE.toLowerCase()).toContain('publish');

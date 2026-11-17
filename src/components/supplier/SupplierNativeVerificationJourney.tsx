@@ -239,18 +239,17 @@ function parseDob(value: string): { day: number; month: number; year: number } |
 }
 
 function statusHeadline(status: string | null | undefined, payoutsEnabled: boolean): string {
-  if (payoutsEnabled) return 'Payouts enabled';
+  if (payoutsEnabled) return 'Verified';
   switch ((status ?? '').toLowerCase()) {
     case 'complete':
       return 'Verified';
     case 'pending':
       return 'Under review';
     case 'restricted':
-      return 'Additional information required';
     case 'rejected':
-      return 'Restricted';
+      return 'Action required';
     default:
-      return 'Not started';
+      return 'Incomplete';
   }
 }
 

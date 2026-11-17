@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
   fetchSupplierProfile,
   patchSupplierProfile,
@@ -17,10 +17,21 @@ import {
   type BusinessOnboardingDraft,
   type BusinessOnboardingStepId,
 } from '../../lib/business-onboarding-wizard';
+import { PARTNER_HELP } from '../../lib/partnerHelpCopy';
 import { submitSupplierBusinessForReview } from '../../lib/submitSupplierBusinessForReview';
 import { isSupplierBusinessIdentityLocked } from '../../lib/supplierVerificationLocks';
 import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
 import { partnerBusinessReviewState } from '../../lib/partnerVerificationStatus';
+import PartnerHelpTip from './PartnerHelpTip';
+
+function FieldLabel({ children, help }: { children: ReactNode; help?: string }) {
+  return (
+    <span className="mb-1 flex items-center gap-1 text-[11px] font-semibold uppercase tracking-[0.1em] text-[#71717a]">
+      {children}
+      {help ? <PartnerHelpTip label={`About ${String(children)}`}>{help}</PartnerHelpTip> : null}
+    </span>
+  );
+}
 
 type Props = {
   userId: string;
@@ -341,20 +352,24 @@ export default function BusinessOnboardingWizard({
               <p className="mb-1 hidden text-[11px] font-semibold uppercase tracking-[0.12em] text-[#073b83] lg:block">
                 Step {stepIndex + 1} of {BUSINESS_ONBOARDING_SCREENS.length}
               </p>
-              <h1 className="stay-title text-[1.45rem] font-bold tracking-tight text-[#18181b] sm:text-[1.6rem]">
-                {underReview ? 'Under review' : verified ? 'Business verified' : screen.title}
+              <h1 className="stay-title inline-flex flex-wrap items-center gap-1.5 text-[1.45rem] font-bold tracking-tight text-[#18181b] sm:text-[1.6rem]">
+                {underReview ? 'Under review' : verified ? 'Verified' : screen.title}
+                {underReview || verified ? (
+                  <PartnerHelpTip label="About this status">
+                    {underReview ? PARTNER_HELP.underReview : PARTNER_HELP.verified}
+                  </PartnerHelpTip>
+                ) : null}
               </h1>
               <p className="stay-lede mt-1.5 text-[13px] leading-relaxed text-[#52525b]">
                 {underReview
-                  ? 'Traverion is reviewing your application. You will be notified when a decision is ready.'
+                  ? 'You’ll be notified when a decision is ready.'
                   : verified
-                    ? 'Your business profile is approved. Use Business settings to maintain details.'
+                    ? 'Manage details from Business settings.'
                     : screen.lede}
               </p>
 
               {profile?.business_verification_feedback?.trim() && reviewState === 'rejected' ? (
                 <p className="mt-3 rounded-[10px] border border-amber-200 bg-amber-50 px-3 py-2 text-[13px] text-amber-950">
-                  <span className="font-semibold">Traverion note: </span>
                   {profile.business_verification_feedback.trim()}
                 </p>
               ) : null}
@@ -377,9 +392,7 @@ export default function BusinessOnboardingWizard({
                   }}
                 >
                   <label className="block text-[13px]">
-                    <span className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.1em] text-[#71717a]">
-                      Brand / trading name
-                    </span>
+                    <FieldLabel help={PARTNER_HELP.brandName}>Brand name</FieldLabel>
                     <input
                       className="tv-input h-11 w-full"
                       value={draft.display_name}
@@ -389,9 +402,7 @@ export default function BusinessOnboardingWizard({
                     />
                   </label>
                   <label className="block text-[13px]">
-                    <span className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.1em] text-[#71717a]">
-                      Legal business name
-                    </span>
+                    <FieldLabel help={PARTNER_HELP.legalName}>Legal name</FieldLabel>
                     <input
                       className="tv-input h-11 w-full"
                       value={draft.company_legal_name}
@@ -402,9 +413,7 @@ export default function BusinessOnboardingWizard({
                     />
                   </label>
                   <label className="block text-[13px]">
-                    <span className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.1em] text-[#71717a]">
-                      Business type
-                    </span>
+                    <FieldLabel help={PARTNER_HELP.businessType}>Business type</FieldLabel>
                     <select
                       className="tv-input h-11 w-full"
                       value={draft.business_type}
@@ -420,9 +429,7 @@ export default function BusinessOnboardingWizard({
                   </label>
                   {draft.business_type === 'company' ? (
                     <label className="block text-[13px]">
-                      <span className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.1em] text-[#71717a]">
-                        Company registration number
-                      </span>
+                      <FieldLabel help={PARTNER_HELP.registrationNumber}>Registration number</FieldLabel>
                       <input
                         className="tv-input h-11 w-full"
                         value={draft.company_registration_number}
@@ -433,9 +440,7 @@ export default function BusinessOnboardingWizard({
                   ) : null}
                   {draft.business_type === 'individual' ? (
                     <label className="block text-[13px]">
-                      <span className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.1em] text-[#71717a]">
-                        Tax / business ID
-                      </span>
+                      <FieldLabel help={PARTNER_HELP.taxId}>Tax ID</FieldLabel>
                       <input
                         className="tv-input h-11 w-full"
                         value={draft.tax_id}
@@ -445,9 +450,7 @@ export default function BusinessOnboardingWizard({
                     </label>
                   ) : null}
                   <label className="block text-[13px]">
-                    <span className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.1em] text-[#71717a]">
-                      Managing directors (optional)
-                    </span>
+                    <FieldLabel help={PARTNER_HELP.managingDirectors}>Directors (optional)</FieldLabel>
                     <input
                       className="tv-input h-11 w-full"
                       value={draft.managing_directors}
@@ -457,9 +460,7 @@ export default function BusinessOnboardingWizard({
                   </label>
                   {draft.business_type === 'company' ? (
                     <label className="block text-[13px]">
-                      <span className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.1em] text-[#71717a]">
-                        VAT ID (optional)
-                      </span>
+                      <FieldLabel help={PARTNER_HELP.vatId}>VAT ID (optional)</FieldLabel>
                       <input
                         className="tv-input h-11 w-full"
                         value={draft.vat_id}
@@ -480,9 +481,7 @@ export default function BusinessOnboardingWizard({
                   }}
                 >
                   <label className="block text-[13px]">
-                    <span className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.1em] text-[#71717a]">
-                      Contact phone
-                    </span>
+                    <FieldLabel help={PARTNER_HELP.contactPhone}>Phone</FieldLabel>
                     <input
                       className="tv-input h-11 w-full"
                       value={draft.contact_phone}
@@ -493,9 +492,7 @@ export default function BusinessOnboardingWizard({
                     />
                   </label>
                   <label className="block text-[13px]">
-                    <span className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.1em] text-[#71717a]">
-                      Street address
-                    </span>
+                    <FieldLabel help={PARTNER_HELP.registeredAddress}>Street address</FieldLabel>
                     <input
                       className="tv-input h-11 w-full"
                       value={draft.address_street}
@@ -507,9 +504,7 @@ export default function BusinessOnboardingWizard({
                   </label>
                   <div className="grid grid-cols-2 gap-3">
                     <label className="block text-[13px]">
-                      <span className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.1em] text-[#71717a]">
-                        Postal code
-                      </span>
+                      <FieldLabel>Postal code</FieldLabel>
                       <input
                         className="tv-input h-11 w-full"
                         value={draft.address_postal_code}
@@ -520,9 +515,7 @@ export default function BusinessOnboardingWizard({
                       />
                     </label>
                     <label className="block text-[13px]">
-                      <span className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.1em] text-[#71717a]">
-                        City
-                      </span>
+                      <FieldLabel>City</FieldLabel>
                       <input
                         className="tv-input h-11 w-full"
                         value={draft.address_city}
@@ -534,9 +527,7 @@ export default function BusinessOnboardingWizard({
                     </label>
                   </div>
                   <label className="block text-[13px]">
-                    <span className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.1em] text-[#71717a]">
-                      Country
-                    </span>
+                    <FieldLabel>Country</FieldLabel>
                     <select
                       className="tv-input h-11 w-full"
                       value={draft.address_country}
@@ -559,19 +550,13 @@ export default function BusinessOnboardingWizard({
 
               {!underReview && !verified && draft.step === 'documents' ? (
                 <div className="mt-4 grid gap-3">
-                  <p className="text-[13px] leading-relaxed text-[#52525b]">
-                    Upload a clear PDF or image of your official business registration (for example a Finnish
-                    YTJ extract). Max 5 MB.
-                  </p>
                   {draft.company_registration_document_path ? (
                     <p className="rounded-[10px] border border-[#dbe4f0] bg-[#f0f4fa] px-3 py-2 text-[13px] text-[#1e3a5f]">
                       On file: {verificationDocumentBasename(draft.company_registration_document_path)}
                     </p>
                   ) : null}
                   <label className="block text-[13px]">
-                    <span className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.1em] text-[#71717a]">
-                      Registration document
-                    </span>
+                    <FieldLabel help={PARTNER_HELP.registrationDocument}>Registration document</FieldLabel>
                     <input
                       type="file"
                       accept=".pdf,image/jpeg,image/png,image/webp,application/pdf"
@@ -627,9 +612,11 @@ export default function BusinessOnboardingWizard({
                     onChange={(e) => patch({ owner_authority_confirmed: e.target.checked })}
                     disabled={fieldsLocked}
                   />
-                  <span>
-                    I confirm I am the owner or an authorized representative of this business and the information is
-                    accurate.
+                  <span className="min-w-0">
+                    <span className="inline-flex flex-wrap items-center gap-1">
+                      I confirm I am the owner or an authorized representative, and that this information is accurate.
+                      <PartnerHelpTip label="About this confirmation">{PARTNER_HELP.ownerConfirm}</PartnerHelpTip>
+                    </span>
                   </span>
                 </label>
               ) : null}

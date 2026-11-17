@@ -1,7 +1,11 @@
 /**
  * Partner business + payout review status for badges and home notifications.
  * Statuses are independent: both must be verified before publish.
+ *
+ * Supplier-facing chip labels (only): Incomplete | Under review | Action required | Verified
  */
+
+import { PARTNER_HELP } from './partnerHelpCopy';
 
 export type PartnerReviewState = 'incomplete' | 'ready' | 'pending' | 'verified' | 'rejected';
 
@@ -42,33 +46,41 @@ export function partnerPayoutReviewState(input: {
   return 'incomplete';
 }
 
-export function partnerBusinessStatusChip(state: PartnerReviewState): PartnerStatusChip {
+/** Shared supplier-facing status labels — never show Verified unless genuinely complete. */
+export function partnerReviewStatusChip(state: PartnerReviewState): PartnerStatusChip {
   switch (state) {
     case 'verified':
-      return { label: 'Business approved', tone: 'good' };
+      return { label: 'Verified', tone: 'good' };
     case 'rejected':
-      return { label: 'Business rejected', tone: 'bad' };
+      return { label: 'Action required', tone: 'bad' };
     case 'pending':
       return { label: 'Under review', tone: 'warn' };
     case 'ready':
-      return { label: 'Business ready to submit', tone: 'info' };
+    case 'incomplete':
     default:
-      return { label: 'Business incomplete', tone: 'neutral' };
+      return { label: 'Incomplete', tone: 'neutral' };
   }
 }
 
+export function partnerBusinessStatusChip(state: PartnerReviewState): PartnerStatusChip {
+  return partnerReviewStatusChip(state);
+}
+
 export function partnerPayoutStatusChip(state: PartnerReviewState): PartnerStatusChip {
+  return partnerReviewStatusChip(state);
+}
+
+/** Optional ? tip body for a review status (shown only on request). */
+export function partnerReviewStatusHelp(state: PartnerReviewState): string {
   switch (state) {
     case 'verified':
-      return { label: 'Payout approved', tone: 'good' };
+      return PARTNER_HELP.verified;
     case 'rejected':
-      return { label: 'Payout rejected', tone: 'bad' };
+      return PARTNER_HELP.actionRequired;
     case 'pending':
-      return { label: 'Payout pending review', tone: 'warn' };
-    case 'ready':
-      return { label: 'Payout ready to submit', tone: 'info' };
+      return PARTNER_HELP.underReview;
     default:
-      return { label: 'Payout incomplete', tone: 'neutral' };
+      return PARTNER_HELP.incomplete;
   }
 }
 
@@ -91,10 +103,10 @@ export function partnerAccountStatus(input: {
   if (business === 'verified' && payout === 'verified') {
     return {
       kind: 'operational',
-      title: 'Account operational',
-      detail: 'Business and payout are approved. You can publish listings that meet quality checks.',
+      title: 'Ready to publish',
+      detail: 'Business and payout are verified.',
       tone: 'good',
-      chipLabel: 'Approved',
+      chipLabel: 'Verified',
     };
   }
   if (business === 'rejected' || payout === 'rejected') {
@@ -103,30 +115,26 @@ export function partnerAccountStatus(input: {
     if (payout === 'rejected') parts.push('payout');
     return {
       kind: 'rejected',
-      title: 'Verification needs updates',
-      detail: `Update your ${parts.join(' and ')} details, then save again for Traverion to review.`,
+      title: 'Action required',
+      detail: `Update your ${parts.join(' and ')} details, then submit again.`,
       tone: 'bad',
-      chipLabel: 'Rejected',
+      chipLabel: 'Action required',
     };
   }
   if (business === 'pending' || payout === 'pending') {
-    const parts: string[] = [];
-    if (business === 'pending') parts.push('business');
-    if (payout === 'pending') parts.push('payout');
-    const waiting = parts.length === 2 ? 'Business and payout' : parts[0] === 'business' ? 'Business' : 'Payout';
     return {
       kind: 'pending',
-      title: 'Verification pending',
-      detail: `${waiting} details are under Traverion review. Status updates appear here and in Settings.`,
+      title: 'Under review',
+      detail: 'You can draft listings while you wait.',
       tone: 'warn',
-      chipLabel: 'Pending review',
+      chipLabel: 'Under review',
     };
   }
   return {
     kind: 'setup',
-    title: 'Finish account setup',
-    detail: 'Complete business and payout details so Traverion can verify your account.',
+    title: 'Finish setup',
+    detail: 'Complete business and payout details.',
     tone: 'warn',
-    chipLabel: 'Setup needed',
+    chipLabel: 'Incomplete',
   };
 }
