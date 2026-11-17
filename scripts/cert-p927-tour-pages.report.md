@@ -2,8 +2,9 @@
 
 | Field | Value |
 | --- | --- |
-| Result | **PASS** (presentation) · **PARTIAL** live production catalog |
+| Result | **PARTIAL** |
 | Continues from | `b9eb82b3` |
+| Implementation | `7300a537` · Vercel **7866044208** |
 | Cert environment | Local seed (`VITE_SHOW_SEED_LISTINGS=true` :5181) + production empty-catalog check |
 
 ## Shipped
