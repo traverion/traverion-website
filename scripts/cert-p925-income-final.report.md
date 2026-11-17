@@ -9,7 +9,7 @@ Populated Earnings + Overview clearance math certified on authorized **partner-d
 | Item | Value |
 |------|--------|
 | Continues from | `b1ee570a` |
-| Implementation | _(filled after push)_ |
+| Implementation | `8a28f2c4` · Vercel **7864214499** |
 | Host (prod) | https://partner.traverion.com/partner/money |
 | Staging cert | Vite `127.0.0.1:5174` + `.env.partner-demo.local` |
 
