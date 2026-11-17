@@ -3,8 +3,8 @@
 | | |
 |---|---|
 | Verdict | **PARTIAL** |
-| Commit | *(pending)* |
-| Vercel deployment | *(pending)* |
+| Commit | `fa0aae04` |
+| Vercel deployment | **7869600758** |
 | Cert base | `http://127.0.0.1:5185` |
 | Checks | **13/13** (honesty + safety) |
 | Screenshots | `scripts/payout-integration-screenshots/` |
