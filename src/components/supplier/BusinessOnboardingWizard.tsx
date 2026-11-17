@@ -214,7 +214,8 @@ export default function BusinessOnboardingWizard({
     const key = focusPending.current;
     focusPending.current = null;
     const root = document.querySelector(`[data-field="${key}"]`);
-    const focusable = root?.querySelector('input, select, textarea, button') as HTMLElement | null;
+    const focusable = (root?.querySelector('input, select, textarea') ??
+      root?.querySelector('button')) as HTMLElement | null;
     focusable?.focus();
     root?.scrollIntoView({ block: 'center', behavior: 'smooth' });
   }, [fieldErrors, draft.step]);

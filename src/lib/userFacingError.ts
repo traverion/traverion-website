@@ -62,6 +62,10 @@ const KNOWN_HUMAN: Array<{ test: RegExp; copy: string }> = [
     copy: 'Use a PDF or image (JPEG, PNG, or WebP) up to 5 MB.',
   },
   {
+    test: /supplier_profiles_contact_phone_norm_unique|contact_phone.*unique|duplicate key.*contact_phone/i,
+    copy: 'That phone number is already used on another partner account. Use a different number.',
+  },
+  {
     test: /not enough capacity|no capacity left/i,
     copy: 'That departure just filled up. Choose another time or date.',
   },
