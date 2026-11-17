@@ -868,6 +868,10 @@ export default function PayoutSetupWizard({
     }
     if (canReceive && profile?.connect_account_livemode === true) return 'Verified';
     if (identityDocumentDue || accountRestricted) return 'Action required';
+    // Draft-first LIVE (no connected account yet) — do not imply Stripe is reviewing.
+    if (connectSetupUnavailable && !hasConnectedAccount) {
+      return draft.identitySavedAt ? 'Saved locally' : 'Incomplete';
+    }
     if (draft.identitySavedAt || profile?.connect_details_submitted) {
       return 'Under review';
     }
@@ -1857,11 +1861,15 @@ export default function PayoutSetupWizard({
                     <li className="flex justify-between gap-3 border-b border-[#f1f5f9] py-2">
                       <span className="text-[#52525b]">Bank account</span>
                       <span className="font-semibold text-[#18181b]">
-                        {bankManaged || bankMasked || draft.bankSavedAt
+                        {bankManaged || bankMasked
                           ? bankMasked
                             ? `On file ${bankMasked}`
                             : 'On file'
-                          : 'Needed'}
+                          : connectSetupUnavailable && !hasConnectedAccount && draft.bankSavedAt
+                            ? 'Saved locally'
+                            : draft.bankSavedAt
+                              ? 'On file'
+                              : 'Needed'}
                       </span>
                     </li>
                     <li className="flex justify-between gap-3 border-b border-[#f1f5f9] py-2">

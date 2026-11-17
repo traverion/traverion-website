@@ -1,0 +1,45 @@
+{
+  "account_id": "acct_1Ucon02E6fyfUSgG",
+  "person_count": 3,
+  "representative_id": "person_1Ucon42E6fyfUSgGh1WbuxH1",
+  "owner_ids": [
+    "person_1Ucon62E6fyfUSgGNLeYJ3AE",
+    "person_1Ucon82E6fyfUSgGZ3ilVTaQ"
+  ],
+  "ownership_declared": [
+    40,
+    35,
+    25
+  ],
+  "currently_due": [
+    "business_profile.mcc",
+    "business_profile.url",
+    "company.owners_provided",
+    "company.phone",
+    "external_account",
+    "owners.address.city",
+    "owners.address.line1",
+    "owners.address.postal_code",
+    "owners.dob.day",
+    "owners.dob.month",
+    "owners.dob.year",
+    "owners.email",
+    "owners.first_name",
+    "owners.last_name",
+    "representative.address.city",
+    "representative.address.line1",
+    "representative.address.postal_code",
+    "representative.dob.day",
+    "representative.dob.month",
+    "representative.dob.year",
+    "representative.email",
+    "representative.first_name",
+    "representative.last_name",
+    "representative.nationality",
+    "representative.phone",
+    "representative.relationship.title",
+    "tos_acceptance.date",
+    "tos_acceptance.ip"
+  ],
+  "deleted": true
+}
