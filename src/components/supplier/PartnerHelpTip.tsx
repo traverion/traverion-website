@@ -59,14 +59,14 @@ export default function PartnerHelpTip({ label, children, className = '' }: Part
 
   useEffect(() => {
     if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
+    const onKey = (e: globalThis.KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.preventDefault();
         close();
         btnRef.current?.focus();
       }
     };
-    const onPointer = (e: MouseEvent | TouchEvent) => {
+    const onPointer = (e: globalThis.MouseEvent | globalThis.TouchEvent) => {
       const t = e.target as Node | null;
       if (!t) return;
       if (btnRef.current?.contains(t) || panelRef.current?.contains(t)) return;

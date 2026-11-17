@@ -14,6 +14,8 @@ export type BusinessApprovalProfile = {
   contact_phone?: string | null;
   company_registration_number?: string | null;
   tax_id?: string | null;
+  vat_id?: string | null;
+  managing_directors?: string | null;
   company_registration_document_path?: string | null;
   verification_status?: string | null;
   verification_submitted_at?: string | null;
@@ -47,13 +49,21 @@ export function getBusinessApprovalBlockers(profile: BusinessApprovalProfile): s
   if (!addressComplete(profile)) {
     out.push('Full business address is required.');
   }
-  if (type === 'company' && !(profile.company_registration_number ?? '').trim()) {
-    out.push('Company registration number is required.');
+  if (type === 'company') {
+    if (!(profile.company_registration_number ?? '').trim()) {
+      out.push('Company registration number is required.');
+    }
+    if (!(profile.managing_directors ?? '').trim()) {
+      out.push('At least one director is required.');
+    }
+    if (!(profile.vat_id ?? '').trim()) {
+      out.push('VAT ID is required.');
+    }
+    if (!document) out.push('Business registration document is required.');
   }
   if (type === 'individual' && !(profile.tax_id ?? '').trim()) {
     out.push('Tax or registration ID is required for individuals.');
   }
-  if (!document) out.push('Business registration document is required.');
   if (!submittedAt) {
     out.push('Supplier must submit the business profile for review before approval.');
   }

@@ -18,6 +18,8 @@ export type SupplierBusinessProfileDraft = {
   business_type?: 'company' | 'individual' | null | '';
   company_registration_number?: string | null;
   tax_id?: string | null;
+  vat_id?: string | null;
+  managing_directors?: string | null;
   company_registration_document_path?: string | null;
 };
 
@@ -49,11 +51,23 @@ export function getSupplierBusinessProfileMissingReasons(
   if (!supplierAddressCompleteFromDraft(d)) {
     out.push('Full address: street, city, postal code, and country (select country explicitly)');
   }
-  if (requireDoc && !d.company_registration_document_path?.trim()) {
-    out.push('Business registration proof (upload a document)');
-  }
-  if (d.business_type === 'company' && !d.company_registration_number?.trim()) {
-    out.push('Company registration number (as on your certificate)');
+  if (d.business_type === 'company') {
+    if (requireDoc && !d.company_registration_document_path?.trim()) {
+      out.push('Business registration proof (upload a document)');
+    }
+    if (!d.company_registration_number?.trim()) {
+      out.push('Company registration number (as on your certificate)');
+    }
+    // Directors + VAT are required for new submissions; skip on post-verify publish
+    // so legacy verified rows without those fields stay publishable.
+    if (requireDoc) {
+      if (!d.managing_directors?.trim()) {
+        out.push('At least one director');
+      }
+      if (!d.vat_id?.trim()) {
+        out.push('VAT ID');
+      }
+    }
   }
   if (d.business_type === 'individual' && !d.tax_id?.trim()) {
     out.push('Business or tax ID (as on your registration)');
@@ -87,6 +101,8 @@ function profileDraftFromRow(profile: SupplierProfileRow): SupplierBusinessProfi
     business_type: profile.business_type,
     company_registration_number: profile.company_registration_number,
     tax_id: profile.tax_id,
+    vat_id: profile.vat_id,
+    managing_directors: profile.managing_directors,
     company_registration_document_path: profile.company_registration_document_path,
   };
 }
