@@ -88,12 +88,14 @@ export default function BusinessProfileSummary(p: BusinessProfileSummaryProps) {
 
   const needsContinue =
     businessReview === 'incomplete' || businessReview === 'ready' || businessReview === 'rejected';
+  // After request-changes, land on documents when a file already exists so corrections
+  // can re-upload without hunting; otherwise resume at the first incomplete step.
   const continueStep =
     !p.profileDisplayName.trim() || !p.companyLegalName.trim() || !p.businessType
       ? 'identity'
       : !p.contactPhone.trim() || !p.addressStreet.trim() || !p.addressCountry.trim()
         ? 'contact'
-        : !p.companyRegistrationPath.trim()
+        : !p.companyRegistrationPath.trim() || businessReview === 'rejected'
           ? 'documents'
           : 'review';
 
