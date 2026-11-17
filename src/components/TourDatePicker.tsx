@@ -150,7 +150,7 @@ export default function TourDatePicker({
   if (presentation === 'field') {
     return (
       <div ref={rootRef} className="relative">
-        <label htmlFor={id} className="mb-1.5 block text-sm font-medium tracking-tight text-ink">
+        <label htmlFor={id} className="tv-booking-label mb-1.5 block text-sm tracking-tight">
           {label}
         </label>
         <button
@@ -159,7 +159,7 @@ export default function TourDatePicker({
           aria-expanded={open}
           aria-haspopup="dialog"
           onClick={() => setOpen((next) => !next)}
-          className="tv-checkout-input tv-checkout-input--plain relative flex items-center justify-between gap-3 pr-3 text-left"
+          className="tv-booking-field relative flex w-full min-h-11 items-center justify-between gap-3 px-3.5 text-left"
         >
           <span className={value.trim() ? 'font-medium text-ink' : 'text-ink-faint'}>
             {value.trim() ? formatBookingDateDisplay(value) : 'Select a date'}

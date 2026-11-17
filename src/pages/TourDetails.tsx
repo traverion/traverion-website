@@ -9,7 +9,6 @@ import {
   CheckCircle,
   Heart,
   Users,
-  X,
 } from 'lucide-react';
 import ErrorState from '../components/ErrorState';
 import { useAuth } from '../contexts/AuthContext';
@@ -526,6 +525,14 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
       setDayCapacityError(null);
       return () => {};
     }
+    // Seed / brochure listings are not in Supabase inventory — skip capacity RPCs.
+    if (!isSupabaseListingId(tour.id)) {
+      setSoldOutDates(new Set());
+      setDayCapacitySnap(null);
+      setDayCapacityError(null);
+      setConfirmedDepartureKeys(new Set());
+      return () => {};
+    }
     const reloadGen = ++dayCapacityReloadGenRef.current;
     const optionsSnapshot = calendarOptionsRef.current;
     let cancelled = false;
@@ -743,10 +750,13 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
 
   // Phase 1167: mirror BookingPage 1103 — unknown remaining must not open checkout.
   // Phase 1230: unknown party bounds (1229) also block Continue.
+  // Seed / brochure listings have no inventory RPCs — do not treat missing snap as unknown.
   const capacityUnknown =
     Boolean(dayCapacityError) ||
     partyBounds.max < 1 ||
-    (Boolean(bookingDate.trim()) && selectedDaySpotsLeft == null);
+    (Boolean(tour?.id && isSupabaseListingId(tour.id)) &&
+      Boolean(bookingDate.trim()) &&
+      selectedDaySpotsLeft == null);
 
   useEffect(() => {
     if (!selectedDepartureTime.trim() || selectedDaySpotsLeft == null) return;
@@ -957,7 +967,12 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
   }, [tourId, user?.id]);
 
   useEffect(() => {
-    if (!tour?.id || !isSupabaseListingId(tour.id)) return;
+    if (!tour?.id) return;
+    if (!isSupabaseListingId(tour.id)) {
+      // Seed / brochure: catalog price only — never invent offers or hang on “Checking…”.
+      setDiscountsByListing(new Map());
+      return;
+    }
     let cancelled = false;
     fetchDiscountsByListingIds([tour.id])
       .then((map) => {
@@ -1850,6 +1865,9 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
                   </div>
                 ) : (
                   <>
+                    <p className="tv-booking-panel-kicker mb-3 text-[11px] font-semibold uppercase tracking-[0.06em] text-[#0758CB]">
+                      Book this tour
+                    </p>
                     {(() => {
                       // Phase 1560: failed quote beats “Checking offers…” (sticky parity).
                       if (selectedBookingVariant && panelQuote && !panelQuote.ok) {
@@ -1934,7 +1952,7 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
                         <p className="tv-booking-label mb-1.5 text-sm tracking-tight">Participants</p>
                         <button
                           type="button"
-                          className="relative flex w-full min-h-11 items-center justify-between gap-3 rounded-xl border border-[rgba(7,88,203,0.12)] bg-white px-3.5 text-left transition-[border-color,box-shadow] duration-200 motion-reduce:transition-none hover:border-[#0758CB]/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0758CB]/25"
+                          className="tv-booking-field relative flex w-full min-h-11 items-center justify-between gap-3 px-3.5 text-left"
                           aria-expanded={participantsOpen}
                           aria-haspopup="dialog"
                           onClick={() => setParticipantsOpen((open) => !open)}

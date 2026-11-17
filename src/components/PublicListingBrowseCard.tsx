@@ -57,6 +57,8 @@ export type PublicListingBrowseCardProps = {
     /** Development fixture. Never a public rating or a live hold. */
     preview?: boolean;
   } | null;
+  /** Hide the generic “Tour” chip on tour catalog pages (family already clear). */
+  hideFamilyChip?: boolean;
 };
 
 /**
@@ -78,6 +80,7 @@ export const PublicListingBrowseCard = memo(function PublicListingBrowseCard({
   browseDateIso = '',
   partySize,
   rentalBrowse = null,
+  hideFamilyChip = false,
 }: PublicListingBrowseCardProps) {
   // Defense in depth: unpublished listings must not appear on traveler browse surfaces.
   if (!isListingVisibleToTravelers(tour.status)) return null;
@@ -196,7 +199,7 @@ export const PublicListingBrowseCard = memo(function PublicListingBrowseCard({
         aria-label={`View ${tour.title}. ${priceAria}`}
       >
         <div
-          className={`tv-browse-card__media relative overflow-hidden bg-black/[0.04] ${
+          className={`tv-browse-card__media relative overflow-hidden bg-[linear-gradient(145deg,#e8eef6_0%,#f4f6f9_48%,#dde6f1_100%)] ${
             size === 'compact' ? 'aspect-[5/4]' : 'aspect-[4/3]'
           }`}
         >
@@ -210,16 +213,19 @@ export const PublicListingBrowseCard = memo(function PublicListingBrowseCard({
               width={size === 'compact' ? 640 : 800}
               height={size === 'compact' ? 512 : 600}
               className="h-full w-full object-cover"
+              onError={(e) => {
+                e.currentTarget.style.display = 'none';
+              }}
             />
           ) : null}
           <div className="absolute top-2.5 left-2.5 flex flex-wrap gap-1.5 pr-12">
             {isRental ? (
               <span className="tv-browse-chip">{rentalBrowse.badge}</span>
-            ) : !isStay ? (
+            ) : isStay ? (
+              propertyType ? <span className="tv-browse-chip">{propertyType}</span> : null
+            ) : hideFamilyChip ? null : (
               <span className="tv-browse-chip">Tour</span>
-            ) : propertyType ? (
-              <span className="tv-browse-chip">{propertyType}</span>
-            ) : null}
+            )}
             {isRental && rentalBrowse.preview ? (
               <span className="tv-browse-chip tv-browse-chip--accent">Preview</span>
             ) : null}

@@ -41,6 +41,7 @@ export const activities: TourPackage[] = [
     region: 'Northern Vietnam',
     country: 'Vietnam',
     tags: ['free-cancellation', 'small-group', 'mobile-ticket', 'bestseller'],
+    status: 'published',
     isSeedData: true,
   },
   {
@@ -82,6 +83,7 @@ export const activities: TourPackage[] = [
     region: 'Northern Vietnam',
     country: 'Vietnam',
     tags: ['free-cancellation', 'pickup-available', 'mobile-ticket', 'bestseller'],
+    status: 'published',
     isSeedData: true,
   },
   {
@@ -123,6 +125,7 @@ export const activities: TourPackage[] = [
     region: 'Central Vietnam',
     country: 'Vietnam',
     tags: ['small-group', 'mobile-ticket', 'bestseller'],
+    status: 'published',
     isSeedData: true,
   },
   {
@@ -164,6 +167,7 @@ export const activities: TourPackage[] = [
     region: 'Southern Vietnam',
     country: 'Vietnam',
     tags: ['free-cancellation', 'pickup-available', 'mobile-ticket'],
+    status: 'published',
     isSeedData: true,
   },
   {
@@ -205,6 +209,7 @@ export const activities: TourPackage[] = [
     region: 'Southern Vietnam',
     country: 'Vietnam',
     tags: ['free-cancellation', 'pickup-available', 'small-group'],
+    status: 'published',
     isSeedData: true,
   },
   {
@@ -246,6 +251,7 @@ export const activities: TourPackage[] = [
     region: 'Thailand',
     country: 'Thailand',
     tags: ['free-cancellation', 'small-group', 'mobile-ticket', 'bestseller'],
+    status: 'published',
     isSeedData: true,
   },
   {
@@ -287,6 +293,7 @@ export const activities: TourPackage[] = [
     region: 'Cambodia',
     country: 'Cambodia',
     tags: ['free-cancellation', 'small-group', 'pickup-available', 'mobile-ticket', 'bestseller'],
+    status: 'published',
     isSeedData: true,
   },
   {
@@ -328,6 +335,7 @@ export const activities: TourPackage[] = [
     region: 'Thailand',
     country: 'Thailand',
     tags: ['free-cancellation', 'pickup-available', 'mobile-ticket'],
+    status: 'published',
     isSeedData: true,
   },
 ];

@@ -970,9 +970,11 @@ function App() {
         return <Blog onNavigate={handleNavigate} />;
       case 'tour-details':
       case 'booking': {
-        const tourId =
-          selectedTour?.id ?? resolveTourListingIdFromSearch(window.location.search) ?? '';
-        if (/^[0-9a-f-]{36}$/i.test(tourId)) {
+        const tourId = (
+          selectedTour?.id ?? resolveTourListingIdFromSearch(window.location.search) ?? ''
+        ).trim();
+        // Seed / brochure ids are non-UUID; TourDetails resolves missing listings itself.
+        if (tourId) {
           return (
             <TourDetails
               tourId={tourId}

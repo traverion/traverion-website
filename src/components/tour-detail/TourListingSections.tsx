@@ -19,6 +19,8 @@ import {
 } from '../../lib/listing-information-catalogs';
 import { listingShowsFreeCancellation } from '../../lib/listingTruth';
 import ListingPdpCheckList from '../ListingPdpCheckList';
+import ListingPdpCollapsible from '../ListingPdpCollapsible';
+import ListingPdpFaq, { type ListingPdpFaqItem } from '../ListingPdpFaq';
 import ListingPdpPolicyBlock from '../ListingPdpPolicyBlock';
 import ListingPdpSupplierBlock from '../ListingPdpSupplierBlock';
 
@@ -122,6 +124,42 @@ export default function TourListingSections({
   const cutoffLabel = bookingCutoffTravelerLabel(
     tour.listingExtras?.bookingCutoffHoursBeforeStart ?? 0
   );
+  const cancellationBody =
+    tour.cancellationPolicy?.trim() || TRAVERION_STANDARD_CANCELLATION_POLICY;
+  const faqItems: ListingPdpFaqItem[] = [];
+  if (cancellationBody) {
+    faqItems.push({
+      question: 'What is the cancellation policy?',
+      answer: cancellationBody,
+    });
+  }
+  if (includes.length > 0) {
+    faqItems.push({
+      question: 'What is included?',
+      answer: includes.join('\n'),
+    });
+  }
+  if (pickup.visible && (pickup.place || pickup.modeIntro || pickup.instructions)) {
+    faqItems.push({
+      question: 'Where do we meet or get picked up?',
+      answer: [pickup.modeIntro, pickup.place, pickup.instructions]
+        .map((s) => (s ?? '').trim())
+        .filter(Boolean)
+        .join('\n\n'),
+    });
+  }
+  if (cutoffLabel) {
+    faqItems.push({
+      question: 'When does booking close?',
+      answer: cutoffLabel,
+    });
+  }
+  if (extras?.knowBeforeYouGo?.trim()) {
+    faqItems.push({
+      question: 'What should I know before I go?',
+      answer: extras.knowBeforeYouGo.trim(),
+    });
+  }
 
   return (
     <div>
@@ -275,45 +313,67 @@ export default function TourListingSections({
       {showImportant ? (
         <section className={sectionClass}>
           <h2 className={headingClass}>Good to know</h2>
-          <dl className="max-w-xl divide-y divide-[#E8EBF0]">
-            {tour.difficulty ? <Fact label="Difficulty">{tour.difficulty}</Fact> : null}
-            {extras?.knowBeforeYouGo?.trim() ? (
-              <Fact label="Before you go">{extras.knowBeforeYouGo.trim()}</Fact>
-            ) : null}
-            {whatToBringLabels.length > 0 ? (
-              <Fact label="What to bring">{whatToBringLabels.join(', ')}</Fact>
-            ) : null}
-            {extras?.whatToBring?.trim() ? (
-              <Fact label="What to bring">{extras.whatToBring.trim()}</Fact>
-            ) : null}
-            {notSuitableLabels.length > 0 ? (
-              <Fact label="Not suitable">{notSuitableLabels.join(', ')}</Fact>
-            ) : null}
-            {extras?.requirementsNotes?.trim() ? (
-              <Fact label="Requirements">{extras.requirementsNotes.trim()}</Fact>
-            ) : null}
-            {extras?.minGuestAge?.trim() ? (
-              <Fact label="Minimum age">{extras.minGuestAge.trim()}</Fact>
-            ) : null}
-            {accessibilityLabels.length > 0 ? (
-              <Fact label="Accessibility">{accessibilityLabels.join(', ')}</Fact>
-            ) : null}
-            {extras?.accessibilitySummary?.trim() ? (
-              <Fact label="Accessibility">{extras.accessibilitySummary.trim()}</Fact>
-            ) : null}
-            {spokenLabels.length > 0 ? (
-              <Fact label="Languages">{spokenLabels.join(', ')}</Fact>
-            ) : null}
-            {extras?.additionalInfo?.trim() ? (
-              <Fact label="Also note">{extras.additionalInfo.trim()}</Fact>
-            ) : null}
-            {cutoffLabel ? <Fact label="Booking cutoff">{cutoffLabel}</Fact> : null}
-            {notes.map((n) => (
-              <Fact key={n} label="Note">
-                {n}
-              </Fact>
-            ))}
-          </dl>
+          <ListingPdpCollapsible
+            textForLength={[
+              tour.difficulty,
+              extras?.knowBeforeYouGo,
+              whatToBringLabels.join(' '),
+              extras?.whatToBring,
+              notSuitableLabels.join(' '),
+              extras?.requirementsNotes,
+              extras?.minGuestAge,
+              accessibilityLabels.join(' '),
+              extras?.accessibilitySummary,
+              spokenLabels.join(' '),
+              extras?.additionalInfo,
+              cutoffLabel,
+              ...notes,
+            ]
+              .filter(Boolean)
+              .join(' ')}
+            collapseAtChars={520}
+            collapsedMaxHeightClass="max-h-[18rem]"
+          >
+            <dl className="max-w-xl divide-y divide-[#E8EBF0]">
+              {tour.difficulty ? <Fact label="Difficulty">{tour.difficulty}</Fact> : null}
+              {extras?.knowBeforeYouGo?.trim() ? (
+                <Fact label="Before you go">{extras.knowBeforeYouGo.trim()}</Fact>
+              ) : null}
+              {whatToBringLabels.length > 0 ? (
+                <Fact label="What to bring">{whatToBringLabels.join(', ')}</Fact>
+              ) : null}
+              {extras?.whatToBring?.trim() ? (
+                <Fact label="What to bring">{extras.whatToBring.trim()}</Fact>
+              ) : null}
+              {notSuitableLabels.length > 0 ? (
+                <Fact label="Not suitable">{notSuitableLabels.join(', ')}</Fact>
+              ) : null}
+              {extras?.requirementsNotes?.trim() ? (
+                <Fact label="Requirements">{extras.requirementsNotes.trim()}</Fact>
+              ) : null}
+              {extras?.minGuestAge?.trim() ? (
+                <Fact label="Minimum age">{extras.minGuestAge.trim()}</Fact>
+              ) : null}
+              {accessibilityLabels.length > 0 ? (
+                <Fact label="Accessibility">{accessibilityLabels.join(', ')}</Fact>
+              ) : null}
+              {extras?.accessibilitySummary?.trim() ? (
+                <Fact label="Accessibility">{extras.accessibilitySummary.trim()}</Fact>
+              ) : null}
+              {spokenLabels.length > 0 ? (
+                <Fact label="Languages">{spokenLabels.join(', ')}</Fact>
+              ) : null}
+              {extras?.additionalInfo?.trim() ? (
+                <Fact label="Also note">{extras.additionalInfo.trim()}</Fact>
+              ) : null}
+              {cutoffLabel ? <Fact label="Booking cutoff">{cutoffLabel}</Fact> : null}
+              {notes.map((n) => (
+                <Fact key={n} label="Note">
+                  {n}
+                </Fact>
+              ))}
+            </dl>
+          </ListingPdpCollapsible>
         </section>
       ) : null}
 
@@ -324,8 +384,10 @@ export default function TourListingSections({
             ? 'Free cancellation up to 24 hours before departure'
             : null
         }
-        body={tour.cancellationPolicy?.trim() || TRAVERION_STANDARD_CANCELLATION_POLICY}
+        body={cancellationBody}
       />
+
+      <ListingPdpFaq items={faqItems} className={sectionClass} />
 
       {showOperator && supplierLegal ? (
         <TourOperatorBlock supplierLegal={supplierLegal} onOpenLegal={onOpenLegal} />

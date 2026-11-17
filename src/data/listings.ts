@@ -107,20 +107,25 @@ export function getListingById(id: string): TourPackage | undefined {
   return getSupplierListings().find((t) => t.id === id);
 }
 
+const LISTING_UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 /** Async: resolve listing by id (Supabase when configured, then local, then seed only if enabled). */
 export async function getListingByIdAsync(id: string): Promise<TourPackage | undefined> {
-  if (isSupabaseConfigured()) {
-    const fromDb = await fetchListingById(id);
+  const listingId = id.trim();
+  if (!listingId) return undefined;
+  // Seed / brochure ids are not UUIDs — skip the uuid listings PK query (avoids PostgREST errors).
+  if (isSupabaseConfigured() && LISTING_UUID_RE.test(listingId)) {
+    const fromDb = await fetchListingById(listingId);
     if (fromDb) return fromDb;
   }
-  const local = getListingById(id);
+  const local = getListingById(listingId);
   if (local) return local;
   if (!SHOW_SEED_LISTINGS) return undefined;
   const { activities } = await import('./activities');
-  const activity = activities.find((t) => t.id === id);
+  const activity = activities.find((t) => t.id === listingId);
   if (activity) return activity;
   const { getTourById } = await import('./tours');
-  return getTourById(id);
+  return getTourById(listingId);
 }
 
 /** Parse duration string to sortable minutes: "3 hours" -> 180, "9 Days - 8 Nights" -> 9*24*60. */

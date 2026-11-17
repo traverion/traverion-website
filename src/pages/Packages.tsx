@@ -1200,7 +1200,7 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
                   reviewAggregate={reviewAggregates.get(tour.id)}
                   tagLabels={TAG_LABELS}
                   size="compact"
-                  showTagPills
+                  hideFamilyChip
                   browseDateIso={filterDate || undefined}
                   partySize={
                     (() => {
@@ -1268,7 +1268,7 @@ export default function Packages({ onTourSelect, onNavigate }: PackagesProps) {
                 className="py-8 sm:py-10 max-w-lg"
                 icon={Compass}
                 title="No tours published yet"
-                body="Operators have not published live tours. That is expected — Traverion does not show a demo catalog. If you run tours, you can list yours today."
+                body="Live tours from independent operators will appear here. If you run tours, you can list yours today."
                 action={
                   <div className="flex flex-wrap gap-2">
                     <a href={supplierPortalLandingHref()} className="tv-btn-primary inline-flex">

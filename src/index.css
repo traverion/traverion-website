@@ -4907,6 +4907,35 @@ a:focus-visible,
   letter-spacing: -0.015em;
 }
 
+/* P9.27: unified booking field chrome (date + participants) */
+.tv-booking-field {
+  border-radius: 0.75rem;
+  border: 1px solid rgba(7, 88, 203, 0.12);
+  background: #ffffff;
+  transition:
+    border-color 180ms var(--tv-ease, ease),
+    box-shadow 180ms var(--tv-ease, ease);
+}
+.tv-booking-field:hover {
+  border-color: rgba(7, 88, 203, 0.4);
+}
+.tv-booking-field:focus-visible {
+  outline: none;
+  border-color: rgba(7, 88, 203, 0.55);
+  box-shadow: 0 0 0 3px rgba(7, 88, 203, 0.2);
+}
+.tv-booking-panel-kicker {
+  margin: 0;
+}
+
+@media (max-width: 1023px) {
+  .tv-booking-mobile-bar .tv-btn-primary {
+    min-height: 2.75rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+}
+
 .tv-booking-sticky .tv-booking-label.uppercase {
   letter-spacing: 0.1em;
   color: var(--tv-pdp-secondary);
