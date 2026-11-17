@@ -1,62 +1,64 @@
-# P9.25 — Income & Payouts Final Certification
+# P9.25 — Income & Payouts Final Certification (completed blockers)
 
 **Verdict: PARTIAL PASS**
 
-Populated Earnings + Overview clearance math certified on authorized **partner-demo staging** (`aurora-ops@partner-demo.traverion.invalid`). Confirmed payout history / Documents statements still have **no authorized period fixtures** on staging or production — covered by unit/fixture tests only. **Production populated history is not certified.**
+Staging populated **Payouts** + **Documents** browser-certified with an authorized isolated partner-demo fixture.  
+**Production populated-history certification: BLOCKED — NO DATA** (0 payout periods / 0 earnings; no production ledger rows invented).
 
 ## Ship
 
 | Item | Value |
 |------|--------|
-| Continues from | `b1ee570a` |
-| Implementation | `8a28f2c4` · Vercel **7864214499** |
-| Host (prod) | https://partner.traverion.com/partner/money |
-| Staging cert | Vite `127.0.0.1:5174` + `.env.partner-demo.local` |
+| Continues from | `8a28f2c4` / earlier P9.25 |
+| Implementation | _(filled after push)_ |
+| Staging | Vite `127.0.0.1:5174` + `.env.partner-demo.local` (`gedktutbpfwnstcbffsc`) |
+| Fixture supplier | `aurora-ops@partner-demo.traverion.invalid` · `a11ce001-d000-4000-8000-000000000001` |
+| Seed script | `scripts/cert-p925-seed-demo-payout-fixture.mjs` (`ALLOW_PARTNER_DEMO_CERT_FIXTURE=1`) |
 
 ## Safety
 
 | Control | Status |
 |---------|--------|
-| LIVE Accounts v2 create | Untouched / OFF |
-| `payout_execution_enabled` | Untouched |
-| Production ledger writes | **None** |
-| Financial calc / commission / refund logic | Untouched |
+| Production ledger / payout periods | **Untouched** (count remains 0) |
+| Stripe payout / transfer execution | **Not run** |
+| `supplier_earning_items` balances/statuses | **Unchanged** (still 2× pending 3825 + 1 reversed) |
+| Fixture scope | partner-demo project only; period_keys `p925-cert-*` |
 
-## Changes in this mission
+## Fixture (authorized, isolated, presentation-only)
 
-1. **`formatIncomeMoney`** — Income & Payouts always shows two fraction digits (`€0.00`, `€38.25`) without changing traveler `formatMoney`.
-2. **Overview payout account** — uses `connectOnboardingLabel` (same as Settings). Stops legacy `payout_verification_status === 'verified'` from showing **Verified** when Connect is `not_started`.
-3. **Settings** — remove redundant per-field help tips; keep section-level help.
-4. **`supplier-income-p925.cert.test.ts`** — Aurora-shaped fixtures for statuses, sums, documents gates, formatting.
+| period_key | status | amount | paid_at | connect_lifecycle |
+|------------|--------|--------|---------|-------------------|
+| `p925-cert-2026-10` | paid | €101.15 | 2026-11-05 | `bank_payout_paid` |
+| `p925-cert-2026-11-ready` | ready | €38.25 | null | `internal_only` |
 
-## Certification matrix
+Note on rows: `P9.25 cert fixture — presentation only; no Stripe payout executed`.
 
-| Surface | Result | Evidence |
-|---------|--------|----------|
-| Overview (staging, pending earnings) | **PASS** | €0.00 eligible · €76.50 awaiting (2 bookings) · Payout account **Not started** |
-| Earnings table (staging) | **PASS** | 3 rows: Reversed €0.00 + 2× Pending €38.25; filters + pagination chrome |
-| Earnings mobile 390 | **PASS** | Card list + statuses readable |
-| Payouts list | **PASS (empty)** | Compact empty — staging has 0 payout periods |
-| Documents | **PASS (empty)** | Compact empty — no confirmed periods |
-| Settings | **PASS** | Not started · bank empty · Monthly / 100 EUR |
-| Populated payout/Documents rows | **PARTIAL** | Unit/fixture only (`payoutMaySayPaid`, statement gates) |
-| Production populated history | **Not certified** | Prod still 0 earnings/payout rows; no artificial ledger writes |
+## Browser certification (staging)
+
+| Check | Result | Evidence |
+|-------|--------|----------|
+| Payouts desktop | **PASS** | Upcoming €38.25 + Paid to bank €101.15 |
+| Payouts mobile 390 | **PASS** | Same two rows, amounts/status readable |
+| Documents desktop | **PASS** | Statement + confirmation for paid period only; READY excluded |
+| Documents filter | **PASS** | Statements-only / Confirmations-only |
+| Document View | **PASS** | Opens statement blob PDF tab |
+| Overview last completed | **PASS** | `p925-cert-2026-10 · cert_fixture` · Paid to bank €101.15 |
+| Partner isolation | **PASS** | `p925-cert-*` rows only on aurora supplier id |
+| Production populated history | **BLOCKED — NO DATA** | Prod `supplier_payout_periods` / earnings = 0 |
+
+Screenshots: `scripts/p925-screenshots/B-payouts-populated-*.png`, `B-documents-populated-*.png`, `B-overview-last-completed.png`.
 
 ## Tests / build
 
-- `supplier-income-p925.cert.test.ts`, `money.test.ts`, overview/phase6/empty/settings certs — PASS  
-- `tsc` target clean  
-- `npm run build` — PASS  
-
-## Screenshots
-
-`scripts/p925-screenshots/`
+- `supplier-income-p925.cert.test.ts` (+ fixture shape asserts)  
+- Related income/money certs  
+- `tsc` target + `npm run build`
 
 ## Remaining blockers
 
-1. No authorized **confirmed payout period** fixture on staging/production → cannot browser-cert Documents/Payouts populated rows without inventing ledger data.
-2. Production populated history remains uncertified until real supplier activity exists.
+1. **Production populated-history: BLOCKED — NO DATA** — wait for real supplier activity; do not invent production periods.
+2. Pagination of many payout periods not exercised (only 2 fixture rows).
 
 ## Next
 
-Stop after deploy ID is recorded. Do not invent production payout periods.
+Stop. Do not seed production.

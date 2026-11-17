@@ -136,9 +136,31 @@ describe('P9.25 Income & Payouts populated-branch certification', () => {
       ])?.paid_at
     ).toBe('2026-10-15T00:00:00Z');
 
+    // Authorized partner-demo cert fixture shape (scripts/cert-p925-seed-demo-payout-fixture.mjs)
+    const fixturePaid = {
+      period_key: 'p925-cert-2026-10',
+      status: 'paid',
+      amount_minor: 10115,
+      paid_at: '2026-11-05T12:00:00Z',
+      connect_lifecycle: 'bank_payout_paid',
+    };
+    const fixtureReady = {
+      period_key: 'p925-cert-2026-11-ready',
+      status: 'ready',
+      amount_minor: 3825,
+      paid_at: null as string | null,
+      connect_lifecycle: 'internal_only',
+    };
+    expect(payoutMaySayPaid(fixturePaid.status, fixturePaid.paid_at, fixturePaid.connect_lifecycle)).toBe(true);
+    expect(payoutMaySayPaid(fixtureReady.status, fixtureReady.paid_at, fixtureReady.connect_lifecycle)).toBe(false);
+    expect(formatIncomeMoney(fixturePaid.amount_minor / 100, 'EUR')).toMatch(/101\.15/);
+    expect(selectLastCompletedPayout([fixtureReady, fixturePaid])?.period_key).toBe('p925-cert-2026-10');
+
     expect(page).toContain('pageRows.map');
     expect(page).toContain('payoutPeriods.map');
     expect(page).toContain('payoutMaySayPaid(period.status, period.paid_at, period.connect_lifecycle)');
+    expect(page).toContain('Payout statement ·');
+    expect(page).toContain('Payment confirmation ·');
     expect(page).toContain('setEarningPage');
     expect(page).toContain('earningQuery');
     expect(page).toContain('SupplierListSkeleton');
