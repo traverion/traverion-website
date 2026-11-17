@@ -11,9 +11,11 @@ export type ConnectOnboardingAction =
   | 'start_native_custom'
   | 'submit_business'
   | 'submit_representative'
+  | 'submit_beneficial_owners'
   | 'accept_tos'
   | 'attach_bank_token'
-  | 'submit_identity_file';
+  | 'submit_identity_file'
+  | 'upload_identity_document';
 
 export type ConnectEmbeddedComponent = 'account_onboarding' | 'account_management';
 
@@ -57,6 +59,22 @@ export type ConnectRepresentativePayload = {
   };
 };
 
+export type ConnectBeneficialOwnerPayload = {
+  first_name?: string;
+  last_name?: string;
+  email?: string;
+  dob?: { day?: number; month?: number; year?: number };
+  percent_ownership?: number | null;
+  address?: {
+    line1?: string;
+    line2?: string;
+    city?: string;
+    postal_code?: string;
+    country?: string;
+    state?: string;
+  };
+};
+
 export type ConnectOnboardingResult = {
   success: boolean;
   error?: string;
@@ -77,6 +95,8 @@ export type ConnectOnboardingResult = {
   fallback_reason?: string;
   note?: string;
   person_id?: string;
+  person_ids?: string[];
+  file_id?: string;
   bank_attached?: boolean;
   native_blocked_reason?: string | null;
   archived_legacy_account_id?: string | null;
@@ -149,10 +169,18 @@ export async function invokeConnectSupplierOnboarding(
     component?: ConnectEmbeddedComponent;
     business?: ConnectBusinessPayload;
     representative?: ConnectRepresentativePayload;
+    owners?: ConnectBeneficialOwnerPayload[];
     bank_token?: string;
     tos_accepted?: boolean;
     agreement_version?: string;
     identity?: { person_id?: string; file_id?: string; side?: 'front' | 'back' };
+    identity_upload?: {
+      person_id?: string;
+      side?: 'front' | 'back';
+      filename?: string;
+      content_type?: string;
+      content_base64?: string;
+    };
     confirm_archive_express?: boolean;
   }
 ): Promise<ConnectOnboardingResult> {
@@ -165,10 +193,12 @@ export async function invokeConnectSupplierOnboarding(
         component: opts?.component,
         business: opts?.business,
         representative: opts?.representative,
+        owners: opts?.owners,
         bank_token: opts?.bank_token,
         tos_accepted: opts?.tos_accepted,
         agreement_version: opts?.agreement_version,
         identity: opts?.identity,
+        identity_upload: opts?.identity_upload,
         confirm_archive_express: opts?.confirm_archive_express,
         returnOrigin:
           opts?.returnOrigin ??

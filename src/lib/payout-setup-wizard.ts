@@ -28,13 +28,13 @@ export const PAYOUT_WIZARD_SCREENS: PayoutWizardScreen[] = [
   {
     id: 'business',
     title: 'Business details',
-    lede: 'Confirm company info used for payouts.',
+    lede: 'Confirm the company profile used for payouts.',
     collector: 'traverion',
   },
   {
     id: 'representative',
     title: 'Representative',
-    lede: 'Who is authorized to manage payouts.',
+    lede: 'Authorized person and beneficial owners.',
     collector: 'traverion',
   },
   {
@@ -63,6 +63,17 @@ export const PAYOUT_WIZARD_SCREENS: PayoutWizardScreen[] = [
   },
 ];
 
+/** Additional beneficial owner (never auto-created from directors). */
+export type PayoutBeneficialOwnerDraft = {
+  id: string;
+  first_name: string;
+  last_name: string;
+  /** ISO date YYYY-MM-DD when required */
+  dob: string;
+  email: string;
+  percent_ownership: string;
+};
+
 export type PayoutWizardDraft = {
   step: PayoutWizardStepId;
   company_legal_name: string;
@@ -84,6 +95,10 @@ export type PayoutWizardDraft = {
   rep_dob: string;
   rep_is_owner: boolean;
   rep_percent_ownership: string;
+  /** Stripe Person id after native submit (session only). */
+  rep_person_id: string;
+  /** Extra beneficial owners — separate from company directors and from the representative. */
+  beneficial_owners: PayoutBeneficialOwnerDraft[];
   tos_accepted: boolean;
   payment_cycle: '' | 'monthly' | 'biweekly';
   payout_threshold_min: string;
@@ -97,15 +112,38 @@ export type PayoutWizardDraft = {
   updatedAt: string;
 };
 
-const DRAFT_PREFIX = 'tv-payout-wizard:v2:';
+const DRAFT_PREFIX = 'tv-payout-wizard:v3:';
+const LEGACY_DRAFT_PREFIXES = ['tv-payout-wizard:v2:', 'tv-payout-wizard:v1:'] as const;
 
 export function payoutWizardDraftKey(userId: string): string {
   return `${DRAFT_PREFIX}${userId}`;
 }
 
+export function emptyBeneficialOwner(
+  partial?: Partial<PayoutBeneficialOwnerDraft>
+): PayoutBeneficialOwnerDraft {
+  return {
+    id:
+      partial?.id ??
+      (typeof crypto !== 'undefined' && 'randomUUID' in crypto
+        ? crypto.randomUUID()
+        : `owner-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`),
+    first_name: '',
+    last_name: '',
+    dob: '',
+    email: '',
+    percent_ownership: '',
+    ...partial,
+  };
+}
+
 export function emptyPayoutWizardDraft(
   partial?: Partial<PayoutWizardDraft>
 ): PayoutWizardDraft {
+  const { beneficial_owners: rawOwners, ...rest } = partial ?? {};
+  const owners = Array.isArray(rawOwners)
+    ? rawOwners.map((o) => emptyBeneficialOwner(o))
+    : [];
   return {
     step: 'business',
     company_legal_name: '',
@@ -126,6 +164,7 @@ export function emptyPayoutWizardDraft(
     // Never assume the representative owns shares — collect ownership explicitly.
     rep_is_owner: false,
     rep_percent_ownership: '',
+    rep_person_id: '',
     tos_accepted: false,
     payment_cycle: '',
     payout_threshold_min: '',
@@ -136,7 +175,8 @@ export function emptyPayoutWizardDraft(
     bankSavedAt: null,
     preferencesSavedAt: null,
     updatedAt: new Date().toISOString(),
-    ...partial,
+    ...rest,
+    beneficial_owners: owners,
   };
 }
 
@@ -153,9 +193,13 @@ function migrateLegacyStep(step: unknown): PayoutWizardStepId {
 export function loadPayoutWizardDraft(userId: string): PayoutWizardDraft | null {
   if (typeof sessionStorage === 'undefined') return null;
   try {
-    const raw =
-      sessionStorage.getItem(payoutWizardDraftKey(userId)) ??
-      sessionStorage.getItem(`tv-payout-wizard:v1:${userId}`);
+    let raw = sessionStorage.getItem(payoutWizardDraftKey(userId));
+    if (!raw) {
+      for (const prefix of LEGACY_DRAFT_PREFIXES) {
+        raw = sessionStorage.getItem(`${prefix}${userId}`);
+        if (raw) break;
+      }
+    }
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<PayoutWizardDraft>;
     if (!parsed || typeof parsed !== 'object') return null;
@@ -182,7 +226,9 @@ export function clearPayoutWizardDraft(userId: string): void {
   if (typeof sessionStorage === 'undefined') return;
   try {
     sessionStorage.removeItem(payoutWizardDraftKey(userId));
-    sessionStorage.removeItem(`tv-payout-wizard:v1:${userId}`);
+    for (const prefix of LEGACY_DRAFT_PREFIXES) {
+      sessionStorage.removeItem(`${prefix}${userId}`);
+    }
   } catch {
     // ignore
   }
@@ -220,6 +266,66 @@ export function validatePayoutWizardBusiness(draft: PayoutWizardDraft): string |
   return null;
 }
 
+/** Business step uses supplier_profiles as SoT — never invent company fields here. */
+export type PayoutBusinessProfileSnapshot = {
+  company_legal_name?: string | null;
+  business_type?: string | null;
+  company_registration_number?: string | null;
+  vat_id?: string | null;
+  tax_id?: string | null;
+  address_street?: string | null;
+  address_city?: string | null;
+  address_postal_code?: string | null;
+  address_country?: string | null;
+};
+
+export function formatPayoutBusinessAddress(
+  profile: PayoutBusinessProfileSnapshot | null | undefined
+): string {
+  if (!profile) return '';
+  const line = [
+    profile.address_street?.trim(),
+    [profile.address_postal_code?.trim(), profile.address_city?.trim()].filter(Boolean).join(' '),
+    profile.address_country?.trim()?.toUpperCase(),
+  ]
+    .filter(Boolean)
+    .join(', ');
+  return line;
+}
+
+export function validatePayoutBusinessFromProfile(
+  profile: PayoutBusinessProfileSnapshot | null | undefined
+): string | null {
+  if (!profile?.company_legal_name?.trim()) {
+    return 'Add your legal company name in business details before continuing.';
+  }
+  if (profile.business_type !== 'company' && profile.business_type !== 'individual') {
+    return 'Set your business type in business details before continuing.';
+  }
+  if (!profile.address_street?.trim()) {
+    return 'Add your registered street address in business details before continuing.';
+  }
+  if (!profile.address_city?.trim()) {
+    return 'Add your city in business details before continuing.';
+  }
+  if (!profile.address_postal_code?.trim()) {
+    return 'Add your postal code in business details before continuing.';
+  }
+  if (!profile.address_country?.trim()) {
+    return 'Add your country in business details before continuing.';
+  }
+  return null;
+}
+
+/** Stripe TEST may create accounts; LIVE stays draft-first until an account already exists. */
+export function canProvisionConnectAccount(opts: {
+  hasConnectedAccount: boolean;
+  platformEnvironment: 'test' | 'live' | null;
+}): boolean {
+  if (opts.hasConnectedAccount) return true;
+  return opts.platformEnvironment === 'test';
+}
+
 export function parsePayoutWizardDob(
   value: string
 ): { day: number; month: number; year: number } | null {
@@ -240,6 +346,7 @@ export type PayoutWizardFieldErrors = Partial<
     | 'rep_last_name'
     | 'rep_dob'
     | 'rep_percent_ownership'
+    | 'beneficial_owners'
     | 'payment_cycle'
     | 'payout_threshold_min'
     | 'tos_accepted',
@@ -291,6 +398,43 @@ export function validateOwnershipPercent(
   return null;
 }
 
+/** Sum declared ownership (rep + beneficial owners). Returns null if any declared % is invalid. */
+export function sumDeclaredOwnershipPercent(draft: PayoutWizardDraft): number | null {
+  let total = 0;
+  if (draft.rep_is_owner) {
+    const n = parseOwnershipPercent(draft.rep_percent_ownership);
+    if (n == null) return null;
+    total += n;
+  }
+  for (const owner of draft.beneficial_owners) {
+    const n = parseOwnershipPercent(owner.percent_ownership);
+    if (n == null) return null;
+    total += n;
+  }
+  return Math.round(total * 100) / 100;
+}
+
+export function validateBeneficialOwners(draft: PayoutWizardDraft): string | null {
+  for (let i = 0; i < draft.beneficial_owners.length; i++) {
+    const owner = draft.beneficial_owners[i]!;
+    const label = `Owner ${i + 1}`;
+    if (!owner.first_name.trim()) return `${label}: enter a first name.`;
+    if (!owner.last_name.trim()) return `${label}: enter a last name.`;
+    if (!parsePayoutWizardDob(owner.dob)) return `${label}: enter a valid date of birth.`;
+    const ownershipErr = validateOwnershipPercent(owner.percent_ownership, { required: true });
+    if (ownershipErr) return `${label}: ${ownershipErr}`;
+  }
+  if (draft.beneficial_owners.length === 0 && !draft.rep_is_owner) {
+    return null;
+  }
+  const total = sumDeclaredOwnershipPercent(draft);
+  if (total == null) return 'Check ownership percentages (0–100 each).';
+  if (total > 100) {
+    return `Ownership adds up to ${total}%. Total declared ownership cannot exceed 100%.`;
+  }
+  return null;
+}
+
 export function validatePayoutWizardRepresentative(draft: PayoutWizardDraft): string | null {
   if (!draft.rep_first_name.trim()) return 'Enter the representative’s first name.';
   if (!draft.rep_last_name.trim()) return 'Enter the representative’s last name.';
@@ -301,6 +445,8 @@ export function validatePayoutWizardRepresentative(draft: PayoutWizardDraft): st
     const ownershipErr = validateOwnershipPercent(draft.rep_percent_ownership, { required: true });
     if (ownershipErr) return ownershipErr;
   }
+  const ownersErr = validateBeneficialOwners(draft);
+  if (ownersErr) return ownersErr;
   return null;
 }
 
@@ -317,6 +463,8 @@ export function validatePayoutWizardRepresentativeFields(
     const ownershipErr = validateOwnershipPercent(draft.rep_percent_ownership, { required: true });
     if (ownershipErr) errors.rep_percent_ownership = ownershipErr;
   }
+  const ownersErr = validateBeneficialOwners(draft);
+  if (ownersErr) errors.beneficial_owners = ownersErr;
   return errors;
 }
 

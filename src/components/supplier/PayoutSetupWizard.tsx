@@ -1,7 +1,6 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import {
   fetchSupplierProfile,
-  updateSupplierCompanyProfile,
   updateSupplierPayout,
   type SupplierProfileRow,
 } from '../../data/supabase-supplier-profile';
@@ -21,8 +20,11 @@ import {
   type PayoutCyclePreference,
 } from '../../lib/payout-preference';
 import {
+  canProvisionConnectAccount,
   clearPayoutWizardDraft,
+  emptyBeneficialOwner,
   emptyPayoutWizardDraft,
+  formatPayoutBusinessAddress,
   isLiveAccountCreationGateError,
   loadPayoutWizardDraft,
   parseOwnershipPercent,
@@ -35,8 +37,9 @@ import {
   payoutWizardStepIndex,
   sanitizeOwnershipPercentInput,
   savePayoutWizardDraft,
+  sumDeclaredOwnershipPercent,
   validateOwnershipPercent,
-  validatePayoutWizardBusiness,
+  validatePayoutBusinessFromProfile,
   validatePayoutWizardIdentity,
   validatePayoutWizardPreferences,
   validatePayoutWizardRepresentative,
@@ -55,6 +58,8 @@ import {
   PARTNER_PAYOUT_FREQUENCY_TWICE_MONTHLY_DETAIL,
   PARTNER_PAYOUT_FREQUENCY_TWICE_MONTHLY_LABEL,
 } from '../../lib/booking-confirmation-copy';
+import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
+import { navigateSupplierUrl } from '../../lib/supplierPortalNavigation';
 import { PARTNER_HELP } from '../../lib/partnerHelpCopy';
 import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
 import PartnerHelpTip from './PartnerHelpTip';
@@ -205,7 +210,14 @@ export default function PayoutSetupWizard({
   const [bankIban, setBankIban] = useState('');
   const [bankHolder, setBankHolder] = useState('');
   const [bankMasked, setBankMasked] = useState<string | null>(null);
+  const [platformEnvironment, setPlatformEnvironment] = useState<'test' | 'live' | null>(null);
+  const [identityDocSide, setIdentityDocSide] = useState<'front' | 'back'>('front');
+  const [identityUploadNote, setIdentityUploadNote] = useState<string | null>(null);
   const hasConnectedAccount = Boolean(profile?.stripe_connected_account_id?.trim());
+  const canProvisionConnect = canProvisionConnectAccount({
+    hasConnectedAccount,
+    platformEnvironment,
+  });
 
   const stepIndex = payoutWizardStepIndex(draft.step);
   const screen = PAYOUT_WIZARD_SCREENS[stepIndex]!;
@@ -231,6 +243,19 @@ export default function PayoutSetupWizard({
     return () => window.clearTimeout(t);
   }, [userId, draft]);
 
+  useEffect(() => {
+    let cancelled = false;
+    void invokeConnectSupplierOnboarding('status').then((result) => {
+      if (cancelled) return;
+      if (result.environment === 'test' || result.environment === 'live') {
+        setPlatformEnvironment(result.environment);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   // Never auto-mount Connect embeds on step entry — mounting Account Onboarding opens
   // connect.stripe.com/embedded/loading (Express auth popup). Keep embeds user-initiated.
   useEffect(() => {
@@ -238,13 +263,16 @@ export default function PayoutSetupWizard({
     setHostedFallbackUrl(null);
     setShowIdentityRemediation(false);
     setExpressLaunchFailed(false);
+    setIdentityUploadNote(null);
   }, [draft.step]);
 
   useEffect(() => {
-    if (!bankHolder && draft.company_legal_name) {
-      setBankHolder(draft.company_legal_name);
+    const holder =
+      profile?.company_legal_name?.trim() || draft.company_legal_name.trim() || '';
+    if (!bankHolder && holder) {
+      setBankHolder(holder);
     }
-  }, [draft.company_legal_name, bankHolder]);
+  }, [profile?.company_legal_name, draft.company_legal_name, bankHolder]);
 
   const patch = (partial: Partial<PayoutWizardDraft>) => {
     setDraft((d) => ({ ...d, ...partial }));
@@ -258,64 +286,44 @@ export default function PayoutSetupWizard({
     patch({ step });
   };
 
-  /**
-   * Sync company fields to Traverion profile without creating a Connect account.
-   * Provider submit runs only when an account already exists.
-   */
-  const persistBusinessProfile = async (
-    normalizedCountry: string
-  ): Promise<{ ok: boolean; error?: string }> => {
-    if (businessLocked) {
-      if (draft.contact_phone.trim() !== (profile?.contact_phone ?? '')) {
-        const phoneRes = await updateSupplierCompanyProfile(userId, {
-          contact_phone: draft.contact_phone.trim() || null,
-        });
-        if (!phoneRes.success) return { ok: false, error: phoneRes.error };
-      }
-      return { ok: true };
-    }
-    const composedAddress = [
-      draft.address_street.trim(),
-      [draft.address_postal_code.trim(), draft.address_city.trim()].filter(Boolean).join(' '),
-      normalizedCountry,
-    ]
-      .filter(Boolean)
-      .join(', ');
-    const res = await updateSupplierCompanyProfile(userId, {
-      company_legal_name: draft.company_legal_name.trim(),
-      business_type: draft.business_type || null,
-      company_registration_number: draft.company_registration_number.trim() || null,
-      address_street: draft.address_street.trim() || null,
-      address_city: draft.address_city.trim() || null,
-      address_postal_code: draft.address_postal_code.trim() || null,
-      address_country: normalizedCountry || null,
-      business_address: composedAddress || null,
-      contact_phone: draft.contact_phone.trim() || null,
-      // Keep directors from business onboarding — do not invent from representative.
-      managing_directors: draft.managing_directors.trim() || profile?.managing_directors || null,
-    });
-    if (!res.success) {
-      if (
-        /cannot be changed while your business profile/i.test(res.error ?? '') &&
-        Boolean(profile?.company_legal_name)
-      ) {
-        return { ok: true };
-      }
-      return { ok: false, error: res.error };
-    }
-    return { ok: true };
-  };
-
   const businessLocked = isSupplierBusinessIdentityLocked(
     profile?.verification_status,
     profile?.verification_submitted_at,
     profile?.business_type
   );
 
+  const openBusinessAmendment = () => {
+    navigateSupplierUrl(`${PARTNER_APP_BASE}/business-setup`);
+  };
+
+  /** Stripe TEST may create; LIVE without an existing account stays draft-first. */
+  const ensureConnectWhenAllowed = async (): Promise<{
+    ok: boolean;
+    provisioned: boolean;
+    error?: string;
+  }> => {
+    if (hasConnectedAccount) return { ok: true, provisioned: true };
+    if (platformEnvironment !== 'test') {
+      setConnectSetupUnavailable(true);
+      setNote(PAYOUT_LIVE_SETUP_UNAVAILABLE_COPY);
+      return { ok: true, provisioned: false };
+    }
+    const ensured = await invokeConnectSupplierOnboarding('ensure_account');
+    if (!ensured.success) {
+      if (isLiveAccountCreationGateError(ensured.error)) {
+        setConnectSetupUnavailable(true);
+        setNote(PAYOUT_LIVE_SETUP_UNAVAILABLE_COPY);
+        return { ok: true, provisioned: false };
+      }
+      return { ok: false, provisioned: false, error: ensured.error };
+    }
+    onProfile(await fetchSupplierProfile(userId));
+    setConnectSetupUnavailable(false);
+    return { ok: true, provisioned: true };
+  };
+
   const saveBusiness = async (): Promise<boolean> => {
-    const normalizedCountry = normalizeCountryCode(draft.address_country);
-    const draftForValidation = { ...draft, address_country: normalizedCountry };
-    const invalid = validatePayoutWizardBusiness(draftForValidation);
+    const invalid = validatePayoutBusinessFromProfile(profile);
     if (invalid) {
       setError(invalid);
       return false;
@@ -326,42 +334,58 @@ export default function PayoutSetupWizard({
     }
     setBusy(true);
     setError(null);
-    if (normalizedCountry !== draft.address_country) {
-      patch({ address_country: normalizedCountry });
-    }
 
-    const persisted = await persistBusinessProfile(normalizedCountry);
-    if (!persisted.ok) {
-      setBusy(false);
-      setError(userFacingError(persisted.error, USER_ERROR.generic));
-      return false;
-    }
+    const legalName = (profile?.company_legal_name ?? '').trim();
+    const businessType =
+      profile?.business_type === 'company' || profile?.business_type === 'individual'
+        ? profile.business_type
+        : '';
+    const normalizedCountry = normalizeCountryCode(profile?.address_country ?? '');
+    // Keep draft mirrors for later Stripe submit / bank holder — do not write back to profile.
+    patch({
+      company_legal_name: legalName,
+      business_type: businessType,
+      company_registration_number: profile?.company_registration_number ?? '',
+      address_street: profile?.address_street ?? '',
+      address_city: profile?.address_city ?? '',
+      address_postal_code: profile?.address_postal_code ?? '',
+      address_country: normalizedCountry,
+      contact_phone: profile?.contact_phone ?? '',
+      managing_directors: serializeDirectors(parseDirectors(profile?.managing_directors)),
+    });
 
-    // Only sync to the payment provider when a connected account already exists.
-    // Never call ensure_account here — that creates accounts and hits the LIVE gate.
-    if (hasConnectedAccount && isCustom && !isExpress) {
-      const submit = await invokeConnectSupplierOnboarding('submit_business', {
-        business: {
-          legal_name: draft.company_legal_name.trim() || profile?.company_legal_name || undefined,
-          business_type: draft.business_type || undefined,
-          registration_number: draft.company_registration_number.trim() || undefined,
-          phone: draft.contact_phone.trim() || undefined,
-          address: {
-            line1: draft.address_street.trim(),
-            city: draft.address_city.trim(),
-            postal_code: draft.address_postal_code.trim(),
-            country: normalizedCountry,
+    if (canProvisionConnect && isCustom && !isExpress) {
+      const ensured = await ensureConnectWhenAllowed();
+      if (!ensured.ok) {
+        setBusy(false);
+        setError(connectOnboardingUserMessage(ensured.error));
+        return false;
+      }
+      if (ensured.provisioned) {
+        const submit = await invokeConnectSupplierOnboarding('submit_business', {
+          business: {
+            legal_name: legalName || undefined,
+            business_type: businessType || undefined,
+            registration_number: profile?.company_registration_number?.trim() || undefined,
+            tax_id: profile?.tax_id?.trim() || profile?.vat_id?.trim() || undefined,
+            phone: profile?.contact_phone?.trim() || undefined,
+            address: {
+              line1: (profile?.address_street ?? '').trim(),
+              city: (profile?.address_city ?? '').trim(),
+              postal_code: (profile?.address_postal_code ?? '').trim(),
+              country: normalizedCountry,
+            },
           },
-        },
-      });
-      if (!submit.success) {
-        if (isLiveAccountCreationGateError(submit.error)) {
-          setConnectSetupUnavailable(true);
-          setNote(PAYOUT_LIVE_SETUP_UNAVAILABLE_COPY);
-        } else if (!/409|express/i.test(submit.error ?? '')) {
-          setBusy(false);
-          setError(connectOnboardingUserMessage(submit.error));
-          return false;
+        });
+        if (!submit.success) {
+          if (isLiveAccountCreationGateError(submit.error)) {
+            setConnectSetupUnavailable(true);
+            setNote(PAYOUT_LIVE_SETUP_UNAVAILABLE_COPY);
+          } else if (!/409|express/i.test(submit.error ?? '')) {
+            setBusy(false);
+            setError(connectOnboardingUserMessage(submit.error));
+            return false;
+          }
         }
       }
     } else if (!hasConnectedAccount) {
@@ -372,7 +396,7 @@ export default function PayoutSetupWizard({
     onProfile(await fetchSupplierProfile(userId));
     patch({ businessSavedAt: new Date().toISOString() });
     if (businessLocked && !connectSetupUnavailable) {
-      setNote('Business details are locked while under review. Continuing with the saved company profile.');
+      setNote('Using your saved business profile. Edit business details to request changes.');
     }
     setBusy(false);
     return true;
@@ -409,9 +433,8 @@ export default function PayoutSetupWizard({
     setError(null);
     setFieldErrors({});
 
-    // Draft-first: always persist representative in the wizard draft (session).
-    // Submit to Connect only when an account already exists — never create one here.
-    if (!hasConnectedAccount) {
+    // Draft-first on LIVE without an account; Stripe TEST may provision.
+    if (!canProvisionConnect) {
       patch({ representativeSavedAt: new Date().toISOString() });
       setConnectSetupUnavailable(true);
       setNote(PAYOUT_LIVE_SETUP_UNAVAILABLE_COPY);
@@ -419,19 +442,32 @@ export default function PayoutSetupWizard({
       return true;
     }
 
-    const country = normalizeCountryCode(draft.address_country) || 'FI';
+    const ensured = await ensureConnectWhenAllowed();
+    if (!ensured.ok) {
+      setBusy(false);
+      setError(connectOnboardingUserMessage(ensured.error));
+      return false;
+    }
+    if (!ensured.provisioned) {
+      patch({ representativeSavedAt: new Date().toISOString() });
+      setBusy(false);
+      return true;
+    }
+
+    const country =
+      normalizeCountryCode(draft.address_country || profile?.address_country || '') || 'FI';
     const result = await invokeConnectSupplierOnboarding('submit_representative', {
       representative: {
         first_name: draft.rep_first_name.trim(),
         last_name: draft.rep_last_name.trim(),
         email: draft.rep_email.trim() || undefined,
-        phone: draft.rep_phone.trim() || draft.contact_phone.trim() || undefined,
+        phone: draft.rep_phone.trim() || draft.contact_phone.trim() || profile?.contact_phone || undefined,
         title: draft.rep_title.trim() || undefined,
         dob,
         address: {
-          line1: draft.address_street.trim(),
-          city: draft.address_city.trim(),
-          postal_code: draft.address_postal_code.trim(),
+          line1: (draft.address_street || profile?.address_street || '').trim(),
+          city: (draft.address_city || profile?.address_city || '').trim(),
+          postal_code: (draft.address_postal_code || profile?.address_postal_code || '').trim(),
           country,
         },
         relationship: {
@@ -454,9 +490,40 @@ export default function PayoutSetupWizard({
       setError(connectOnboardingUserMessage(result.error));
       return false;
     }
+
+    if (draft.beneficial_owners.length > 0) {
+      const ownersPayload = draft.beneficial_owners.map((owner) => {
+        const ownerDob = parsePayoutWizardDob(owner.dob)!;
+        return {
+          first_name: owner.first_name.trim(),
+          last_name: owner.last_name.trim(),
+          email: owner.email.trim() || undefined,
+          dob: ownerDob,
+          percent_ownership: parseOwnershipPercent(owner.percent_ownership),
+          address: {
+            line1: (draft.address_street || profile?.address_street || '').trim(),
+            city: (draft.address_city || profile?.address_city || '').trim(),
+            postal_code: (draft.address_postal_code || profile?.address_postal_code || '').trim(),
+            country,
+          },
+        };
+      });
+      const ownersResult = await invokeConnectSupplierOnboarding('submit_beneficial_owners', {
+        owners: ownersPayload,
+      });
+      if (!ownersResult.success) {
+        setBusy(false);
+        setError(connectOnboardingUserMessage(ownersResult.error));
+        return false;
+      }
+    }
+
     // Do not overwrite managing_directors — business onboarding remains SoT for directors.
     onProfile(await fetchSupplierProfile(userId));
-    patch({ representativeSavedAt: new Date().toISOString() });
+    patch({
+      representativeSavedAt: new Date().toISOString(),
+      rep_person_id: result.person_id?.trim() || draft.rep_person_id,
+    });
     setBusy(false);
     return true;
   };
@@ -471,7 +538,7 @@ export default function PayoutSetupWizard({
       setError('Your role can view setup but cannot change it.');
       return false;
     }
-    if (!hasConnectedAccount) {
+    if (!canProvisionConnect) {
       patch({ identitySavedAt: new Date().toISOString() });
       setConnectSetupUnavailable(true);
       setNote(PAYOUT_LIVE_SETUP_UNAVAILABLE_COPY);
@@ -479,6 +546,17 @@ export default function PayoutSetupWizard({
     }
     setBusy(true);
     setError(null);
+    const ensured = await ensureConnectWhenAllowed();
+    if (!ensured.ok) {
+      setBusy(false);
+      setError(connectOnboardingUserMessage(ensured.error));
+      return false;
+    }
+    if (!ensured.provisioned) {
+      patch({ identitySavedAt: new Date().toISOString() });
+      setBusy(false);
+      return true;
+    }
     const result = await invokeConnectSupplierOnboarding('accept_tos', {
       tos_accepted: true,
       agreement_version: STRIPE_RECIPIENT_AGREEMENT.version,
@@ -496,9 +574,60 @@ export default function PayoutSetupWizard({
     }
     onProfile(await fetchSupplierProfile(userId));
     patch({ identitySavedAt: new Date().toISOString() });
-    setNote('Agreement recorded. Additional identity checks may still be required.');
+    setNote(
+      identityDocumentDue
+        ? 'Agreement recorded. Complete the identity document step below before finishing.'
+        : 'Agreement recorded. Additional identity checks may still be required.'
+    );
     setBusy(false);
     return true;
+  };
+
+  const uploadIdentityDocument = async (file: File): Promise<void> => {
+    if (!canEdit) {
+      setError('Your role can view setup but cannot change it.');
+      return;
+    }
+    const personId = draft.rep_person_id.trim();
+    if (!personId) {
+      setError('Save the representative first, then upload an identity document.');
+      return;
+    }
+    if (!canProvisionConnect) {
+      setError('Identity document upload needs a connected payout account.');
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    setIdentityUploadNote(null);
+    try {
+      const buffer = await file.arrayBuffer();
+      const bytes = new Uint8Array(buffer);
+      let binary = '';
+      for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]!);
+      const content_base64 = btoa(binary);
+      const result = await invokeConnectSupplierOnboarding('upload_identity_document', {
+        identity_upload: {
+          person_id: personId,
+          side: identityDocSide,
+          filename: file.name,
+          content_type: file.type || 'image/jpeg',
+          content_base64,
+        },
+      });
+      if (!result.success) {
+        setError(connectOnboardingUserMessage(result.error));
+        setBusy(false);
+        return;
+      }
+      onProfile(await fetchSupplierProfile(userId));
+      setIdentityUploadNote(
+        `Document (${identityDocSide}) sent securely to Stripe. Traverion does not keep a copy.`
+      );
+    } catch {
+      setError('Could not read that file. Try a JPEG, PNG, or PDF under 8 MB.');
+    }
+    setBusy(false);
   };
 
   const saveBankNative = async (): Promise<boolean> => {
@@ -506,9 +635,18 @@ export default function PayoutSetupWizard({
       setError('Your role can view setup but cannot change it.');
       return false;
     }
-    if (!hasConnectedAccount) {
+    if (!canProvisionConnect) {
       setConnectSetupUnavailable(true);
       setNote(PAYOUT_LIVE_SETUP_UNAVAILABLE_COPY);
+      patch({ bankSavedAt: new Date().toISOString() });
+      return true;
+    }
+    const ensured = await ensureConnectWhenAllowed();
+    if (!ensured.ok) {
+      setError(connectOnboardingUserMessage(ensured.error));
+      return false;
+    }
+    if (!ensured.provisioned) {
       patch({ bankSavedAt: new Date().toISOString() });
       return true;
     }
@@ -722,7 +860,13 @@ export default function PayoutSetupWizard({
   };
 
   const reviewIdentityLabel = () => {
-    if (canReceive) return 'Verified';
+    // Never present TEST suppliers as LIVE Verified.
+    if (profile?.connect_account_livemode === false || platformEnvironment === 'test') {
+      if (identityDocumentDue || accountRestricted) return 'Action required (TEST)';
+      if (draft.identitySavedAt || profile?.connect_details_submitted) return 'Submitted (TEST)';
+      return 'Incomplete';
+    }
+    if (canReceive && profile?.connect_account_livemode === true) return 'Verified';
     if (identityDocumentDue || accountRestricted) return 'Action required';
     if (draft.identitySavedAt || profile?.connect_details_submitted) {
       return 'Under review';
@@ -731,11 +875,11 @@ export default function PayoutSetupWizard({
   };
 
   const reviewRepLabel = () => {
-    if (draft.representativeSavedAt || profile?.connect_details_submitted || canReceive) {
-      return draft.representativeSavedAt || profile?.connect_details_submitted
-        ? 'Saved'
-        : 'Complete';
+    if (draft.representativeSavedAt) {
+      const ownerCount = (draft.rep_is_owner ? 1 : 0) + draft.beneficial_owners.length;
+      return ownerCount > 0 ? `Saved · ${ownerCount} owner${ownerCount === 1 ? '' : 's'}` : 'Saved';
     }
+    if (profile?.connect_details_submitted || canReceive) return 'Saved';
     return isExpress ? 'In progress' : 'Needed';
   };
 
@@ -901,115 +1045,81 @@ export default function PayoutSetupWizard({
               ) : null}
 
               {draft.step === 'business' ? (
-                <form
-                  className="mt-5 grid gap-4"
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    void onContinue();
-                  }}
-                >
-                  {businessLocked ? (
-                    <p className="border-l-2 border-[#073b83]/40 pl-3 text-[13px] leading-snug text-[#5c6570]">
-                      Company details come from your business profile and stay read-only while under review
-                      or after approval. Contact Traverion to amend them.
+                <div className="mt-5 space-y-4">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <p className="max-w-xl text-[13px] leading-snug text-[#5c6570]">
+                      {PARTNER_HELP.payoutBusinessSummary}
+                    </p>
+                    {canEdit ? (
+                      <button
+                        type="button"
+                        className="tv-btn-secondary h-10 shrink-0 px-3 text-[13px]"
+                        onClick={openBusinessAmendment}
+                      >
+                        Edit business details
+                      </button>
+                    ) : null}
+                  </div>
+                  {validatePayoutBusinessFromProfile(profile) ? (
+                    <p
+                      className="border-l-2 border-amber-400 bg-amber-50/60 px-3 py-2 text-[13px] leading-snug text-amber-950"
+                      role="status"
+                    >
+                      Business details are incomplete. Use Edit business details to finish them, then return
+                      here.
                     </p>
                   ) : null}
-                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    <label className="block">
-                      <FieldLabel help={PARTNER_HELP.legalName}>Legal business name</FieldLabel>
-                      <input
-                        className="tv-input h-11 w-full"
-                        value={draft.company_legal_name}
-                        onChange={(e) => patch({ company_legal_name: e.target.value })}
-                        autoComplete="organization"
-                        required
-                        readOnly={businessLocked}
-                      />
-                    </label>
-                    <label className="block">
-                      <FieldLabel help={PARTNER_HELP.businessType}>Business type</FieldLabel>
-                      <select
-                        className="tv-input h-11 w-full"
-                        value={draft.business_type}
-                        onChange={(e) =>
-                          patch({
-                            business_type: e.target.value as '' | 'company' | 'individual',
-                          })
-                        }
-                        disabled={businessLocked}
+                  <dl className="grid gap-3 sm:grid-cols-2">
+                    {[
+                      {
+                        label: 'Legal company name',
+                        value: profile?.company_legal_name?.trim() || '—',
+                        help: PARTNER_HELP.legalName,
+                      },
+                      {
+                        label: 'Country',
+                        value: (profile?.address_country ?? '').trim().toUpperCase() || '—',
+                      },
+                      {
+                        label: 'Registration number',
+                        value: profile?.company_registration_number?.trim() || '—',
+                        help: PARTNER_HELP.registrationNumber,
+                      },
+                      {
+                        label: 'VAT ID',
+                        value: profile?.vat_id?.trim() || '—',
+                        help: PARTNER_HELP.vatId,
+                      },
+                      {
+                        label: 'Registered address',
+                        value: formatPayoutBusinessAddress(profile) || '—',
+                        help: PARTNER_HELP.registeredAddress,
+                        wide: true,
+                      },
+                    ].map((row) => (
+                      <div
+                        key={row.label}
+                        className={row.wide ? 'sm:col-span-2' : undefined}
                       >
-                        <option value="">Select…</option>
-                        <option value="company">Registered company</option>
-                        <option value="individual">Individual trader</option>
-                      </select>
-                    </label>
-                  </div>
-                  <label className="block">
-                    <FieldLabel help={PARTNER_HELP.registrationNumber} optional>
-                      Registration number
-                    </FieldLabel>
-                    <input
-                      className="tv-input h-11 w-full"
-                      value={draft.company_registration_number}
-                      onChange={(e) => patch({ company_registration_number: e.target.value })}
-                      readOnly={businessLocked}
-                    />
-                  </label>
-                  <label className="block">
-                    <FieldLabel help={PARTNER_HELP.registeredAddress}>Street address</FieldLabel>
-                    <input
-                      className="tv-input h-11 w-full"
-                      value={draft.address_street}
-                      onChange={(e) => patch({ address_street: e.target.value })}
-                      autoComplete="street-address"
-                      readOnly={businessLocked}
-                    />
-                  </label>
-                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    <label className="block">
-                      <FieldLabel>Postal code</FieldLabel>
-                      <input
-                        className="tv-input h-11 w-full"
-                        value={draft.address_postal_code}
-                        onChange={(e) => patch({ address_postal_code: e.target.value })}
-                        autoComplete="postal-code"
-                        readOnly={businessLocked}
-                      />
-                    </label>
-                    <label className="block">
-                      <FieldLabel>City</FieldLabel>
-                      <input
-                        className="tv-input h-11 w-full"
-                        value={draft.address_city}
-                        onChange={(e) => patch({ address_city: e.target.value })}
-                        autoComplete="address-level2"
-                        readOnly={businessLocked}
-                      />
-                    </label>
-                  </div>
-                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    <label className="block">
-                      <FieldLabel>Country</FieldLabel>
-                      <input
-                        className="tv-input h-11 w-full"
-                        value={draft.address_country}
-                        onChange={(e) => patch({ address_country: e.target.value })}
-                        placeholder="FI"
-                        autoComplete="country"
-                        readOnly={businessLocked}
-                      />
-                    </label>
-                    <label className="block">
-                      <FieldLabel help={PARTNER_HELP.contactPhone}>Phone</FieldLabel>
-                      <input
-                        className="tv-input h-11 w-full"
-                        value={draft.contact_phone}
-                        onChange={(e) => patch({ contact_phone: e.target.value })}
-                        autoComplete="tel"
-                      />
-                    </label>
-                  </div>
-                </form>
+                        <dt className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.1em] text-[#71717a]">
+                          {row.label}
+                          {row.help ? (
+                            <PartnerHelpTip label={`About ${row.label}`}>{row.help}</PartnerHelpTip>
+                          ) : null}
+                        </dt>
+                        <dd className="mt-1 text-[14px] font-medium leading-snug text-[#18181b]">
+                          {row.value}
+                        </dd>
+                      </div>
+                    ))}
+                  </dl>
+                  {businessLocked ? (
+                    <p className="border-l-2 border-[#073b83]/40 pl-3 text-[13px] leading-snug text-[#5c6570]">
+                      Approved business records stay unchanged here. Use Edit business details for the
+                      controlled amendment flow.
+                    </p>
+                  ) : null}
+                </div>
               ) : null}
 
               {draft.step === 'representative' && !isExpress ? (
@@ -1112,14 +1222,19 @@ export default function PayoutSetupWizard({
                             rep_is_owner: checked,
                             rep_percent_ownership: checked ? draft.rep_percent_ownership : '',
                           });
-                          setFieldErrors((f) => ({ ...f, rep_percent_ownership: undefined }));
+                          setFieldErrors((f) => ({
+                            ...f,
+                            rep_percent_ownership: undefined,
+                            beneficial_owners: undefined,
+                          }));
                         }}
                       />
                       <span>
                         This person owns shares in the business
                         <PartnerHelpTip label="About ownership">
                           An authorized representative does not need to own shares. Only tick this when
-                          they are a beneficial owner.
+                          they are a beneficial owner. Directors are listed separately in business
+                          details.
                         </PartnerHelpTip>
                       </span>
                     </label>
@@ -1136,6 +1251,7 @@ export default function PayoutSetupWizard({
                             setFieldErrors((f) => ({
                               ...f,
                               rep_percent_ownership: err ?? undefined,
+                              beneficial_owners: undefined,
                             }));
                           }}
                           onBlur={() => {
@@ -1154,6 +1270,166 @@ export default function PayoutSetupWizard({
                         <FieldError message={fieldErrors.rep_percent_ownership} />
                       </label>
                     ) : null}
+                  </div>
+
+                  <div className="border-t border-[#E8EAED] pt-4">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <h2 className="inline-flex items-center gap-1.5 text-[14px] font-semibold text-[#18181b]">
+                        Beneficial owners
+                        <PartnerHelpTip label="About beneficial owners">
+                          {PARTNER_HELP.beneficialOwners}
+                        </PartnerHelpTip>
+                      </h2>
+                      {canEdit ? (
+                        <button
+                          type="button"
+                          className="tv-btn-secondary h-9 px-3 text-[12px]"
+                          disabled={busy}
+                          onClick={() => {
+                            patch({
+                              beneficial_owners: [
+                                ...draft.beneficial_owners,
+                                emptyBeneficialOwner(),
+                              ],
+                            });
+                            setFieldErrors((f) => ({ ...f, beneficial_owners: undefined }));
+                          }}
+                        >
+                          Add owner
+                        </button>
+                      ) : null}
+                    </div>
+                    <p className="mt-1 text-[12px] leading-snug text-[#5c6570]">
+                      Add other owners when required. Ownership must be numeric from 0 to 100, and
+                      declared totals cannot exceed 100%.
+                    </p>
+                    {draft.beneficial_owners.length === 0 ? (
+                      <p className="mt-3 text-[13px] text-[#71717a]">No additional owners added.</p>
+                    ) : (
+                      <ul className="mt-3 space-y-4">
+                        {draft.beneficial_owners.map((owner, index) => (
+                          <li
+                            key={owner.id}
+                            className="space-y-3 border-b border-[#f1f5f9] pb-4 last:border-b-0 last:pb-0"
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <p className="text-[12px] font-semibold uppercase tracking-[0.08em] text-[#71717a]">
+                                Owner {index + 1}
+                              </p>
+                              <button
+                                type="button"
+                                className="text-[12px] font-semibold text-[#9f1239] disabled:opacity-50"
+                                disabled={!canEdit || busy}
+                                onClick={() => {
+                                  patch({
+                                    beneficial_owners: draft.beneficial_owners.filter(
+                                      (o) => o.id !== owner.id
+                                    ),
+                                  });
+                                  setFieldErrors((f) => ({ ...f, beneficial_owners: undefined }));
+                                }}
+                              >
+                                Remove
+                              </button>
+                            </div>
+                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                              <label className="block">
+                                <FieldLabel>First name</FieldLabel>
+                                <input
+                                  className="tv-input h-11 w-full"
+                                  value={owner.first_name}
+                                  disabled={!canEdit || busy}
+                                  onChange={(e) => {
+                                    const next = draft.beneficial_owners.map((o) =>
+                                      o.id === owner.id ? { ...o, first_name: e.target.value } : o
+                                    );
+                                    patch({ beneficial_owners: next });
+                                  }}
+                                />
+                              </label>
+                              <label className="block">
+                                <FieldLabel>Last name</FieldLabel>
+                                <input
+                                  className="tv-input h-11 w-full"
+                                  value={owner.last_name}
+                                  disabled={!canEdit || busy}
+                                  onChange={(e) => {
+                                    const next = draft.beneficial_owners.map((o) =>
+                                      o.id === owner.id ? { ...o, last_name: e.target.value } : o
+                                    );
+                                    patch({ beneficial_owners: next });
+                                  }}
+                                />
+                              </label>
+                            </div>
+                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                              <label className="block">
+                                <FieldLabel>Date of birth</FieldLabel>
+                                <input
+                                  className="tv-input h-11 w-full"
+                                  type="date"
+                                  value={owner.dob}
+                                  disabled={!canEdit || busy}
+                                  onChange={(e) => {
+                                    const next = draft.beneficial_owners.map((o) =>
+                                      o.id === owner.id ? { ...o, dob: e.target.value } : o
+                                    );
+                                    patch({ beneficial_owners: next });
+                                  }}
+                                />
+                              </label>
+                              <label className="block">
+                                <FieldLabel>Ownership %</FieldLabel>
+                                <input
+                                  className="tv-input h-11 w-full"
+                                  value={owner.percent_ownership}
+                                  inputMode="decimal"
+                                  placeholder="0–100"
+                                  disabled={!canEdit || busy}
+                                  onChange={(e) => {
+                                    const pct = sanitizeOwnershipPercentInput(e.target.value);
+                                    const next = draft.beneficial_owners.map((o) =>
+                                      o.id === owner.id ? { ...o, percent_ownership: pct } : o
+                                    );
+                                    patch({ beneficial_owners: next });
+                                  }}
+                                />
+                              </label>
+                              <label className="block">
+                                <FieldLabel optional>Email</FieldLabel>
+                                <input
+                                  className="tv-input h-11 w-full"
+                                  type="email"
+                                  value={owner.email}
+                                  disabled={!canEdit || busy}
+                                  onChange={(e) => {
+                                    const next = draft.beneficial_owners.map((o) =>
+                                      o.id === owner.id ? { ...o, email: e.target.value } : o
+                                    );
+                                    patch({ beneficial_owners: next });
+                                  }}
+                                />
+                              </label>
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                    {(() => {
+                      const total = sumDeclaredOwnershipPercent(draft);
+                      if (total == null && !draft.rep_is_owner && draft.beneficial_owners.length === 0) {
+                        return null;
+                      }
+                      return (
+                        <p className="mt-3 text-[12px] text-[#52525b]">
+                          Declared ownership total:{' '}
+                          <span className="font-semibold text-[#18181b]">
+                            {total == null ? '—' : `${total}%`}
+                          </span>
+                        </p>
+                      );
+                    })()}
+                    <FieldError message={fieldErrors.beneficial_owners} />
                   </div>
                 </form>
               ) : null}
@@ -1197,43 +1473,101 @@ export default function PayoutSetupWizard({
                       and payout information with Stripe.
                     </span>
                   </label>
-                  {identityDocumentDue || accountRestricted ? (
-                    <div className="rounded-[10px] border border-[#e5e7eb] bg-[#fafafa] px-3 py-3">
-                      <p className="text-[13px] font-semibold text-[#18181b]">Action required</p>
-                      <p className="mt-1 text-[12px] leading-relaxed text-[#52525b]">
-                        An identity document or a correction is still needed. Complete that secure
-                        step inside Traverion, then refresh status.
+                  {identityDocumentDue || accountRestricted || draft.rep_person_id ? (
+                    <div className="space-y-3 rounded-[10px] border border-[#e5e7eb] bg-[#fafafa] px-3 py-3">
+                      <p className="text-[13px] font-semibold text-[#18181b]">Identity document</p>
+                      <p className="text-[12px] leading-relaxed text-[#52525b]">
+                        When Stripe asks for an ID, upload a passport or national ID here. The file goes
+                        straight to Stripe — Traverion does not store a copy.
                       </p>
-                      {!showIdentityRemediation ? (
-                        <button
-                          type="button"
-                          className="tv-btn-primary mt-3 h-10 px-3 text-[13px]"
-                          onClick={() => setShowIdentityRemediation(true)}
-                        >
-                          Continue verification
-                        </button>
-                      ) : (
-                        <div className="mt-3">
-                          <Suspense fallback={<p className="text-[12px] text-[#71717a]">Loading verification…</p>}>
-                            <ConnectEmbeddedPanel
-                              component="account_onboarding"
-                              expectStripeAuth={false}
-                              onExit={() => {
-                                setShowIdentityRemediation(false);
-                                void refreshConnect();
-                              }}
-                              onHostedFallback={(url) => {
-                                setHostedFallbackUrl(url);
-                                setShowIdentityRemediation(false);
-                              }}
-                              onError={(msg) => {
-                                setShowIdentityRemediation(false);
-                                setError(connectOnboardingUserMessage(msg));
+                      {draft.rep_person_id && canProvisionConnect ? (
+                        <div className="space-y-2">
+                          <div className="flex flex-wrap gap-2">
+                            {(['front', 'back'] as const).map((side) => (
+                              <button
+                                key={side}
+                                type="button"
+                                className={[
+                                  'h-9 rounded-md px-3 text-[12px] font-semibold',
+                                  identityDocSide === side
+                                    ? 'bg-[#073b83] text-white'
+                                    : 'bg-white text-[#18181b] ring-1 ring-[#e5e7eb]',
+                                ].join(' ')}
+                                onClick={() => setIdentityDocSide(side)}
+                              >
+                                {side === 'front' ? 'Front' : 'Back'}
+                              </button>
+                            ))}
+                          </div>
+                          <label className="block">
+                            <span className="sr-only">Upload identity document</span>
+                            <input
+                              type="file"
+                              accept="image/jpeg,image/png,application/pdf"
+                              className="block w-full text-[12px] text-[#52525b] file:mr-3 file:h-9 file:rounded-md file:border-0 file:bg-[#073b83] file:px-3 file:text-[12px] file:font-semibold file:text-white"
+                              disabled={!canEdit || busy}
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                e.target.value = '';
+                                if (file) void uploadIdentityDocument(file);
                               }}
                             />
-                          </Suspense>
+                          </label>
+                          {identityUploadNote ? (
+                            <p className="text-[12px] text-emerald-800" role="status">
+                              {identityUploadNote}
+                            </p>
+                          ) : null}
                         </div>
+                      ) : (
+                        <p className="text-[12px] leading-relaxed text-[#52525b]">
+                          Save the representative first so the document can be attached to the right
+                          person. If Stripe opens a secure page instead, use the handoff below — never
+                          skip document checks.
+                        </p>
                       )}
+                      {identityDocumentDue || accountRestricted ? (
+                        <div className="border-t border-[#e5e7eb] pt-3">
+                          <p className="text-[12px] leading-relaxed text-[#52525b]">
+                            Prefer Stripe’s secure step? Continue verification to complete any remaining
+                            checks (including liveness when required).
+                          </p>
+                          {!showIdentityRemediation ? (
+                            <button
+                              type="button"
+                              className="tv-btn-primary mt-3 h-10 px-3 text-[13px]"
+                              onClick={() => setShowIdentityRemediation(true)}
+                            >
+                              Continue secure verification
+                            </button>
+                          ) : (
+                            <div className="mt-3">
+                              <Suspense
+                                fallback={
+                                  <p className="text-[12px] text-[#71717a]">Loading verification…</p>
+                                }
+                              >
+                                <ConnectEmbeddedPanel
+                                  component="account_onboarding"
+                                  expectStripeAuth={false}
+                                  onExit={() => {
+                                    setShowIdentityRemediation(false);
+                                    void refreshConnect();
+                                  }}
+                                  onHostedFallback={(url) => {
+                                    setHostedFallbackUrl(url);
+                                    setShowIdentityRemediation(false);
+                                  }}
+                                  onError={(msg) => {
+                                    setShowIdentityRemediation(false);
+                                    setError(connectOnboardingUserMessage(msg));
+                                  }}
+                                />
+                              </Suspense>
+                            </div>
+                          )}
+                        </div>
+                      ) : null}
                     </div>
                   ) : null}
                 </div>
@@ -1446,22 +1780,68 @@ export default function PayoutSetupWizard({
               ) : null}
 
               {draft.step === 'review' ? (
-                <div className="mt-4 space-y-3 text-[13px]">
-                  <p className="text-[12px] font-semibold text-[#18181b]">
-                    Verification status:{' '}
-                    {connectOnboardingLabel(profile?.connect_onboarding_status, {
-                      connect_account_livemode: profile?.connect_account_livemode,
-                    })}
-                  </p>
+                <div className="mt-4 space-y-4 text-[13px]">
+                  <div className="space-y-1">
+                    <p className="text-[12px] font-semibold text-[#18181b]">
+                      Verification status:{' '}
+                      {connectOnboardingLabel(profile?.connect_onboarding_status, {
+                        connect_account_livemode: profile?.connect_account_livemode,
+                      })}
+                    </p>
+                    {profile?.connect_account_livemode === false || platformEnvironment === 'test' ? (
+                      <p className="text-[12px] text-[#5c6570]">
+                        Stripe TEST setup — not LIVE Verified. Payouts stay disabled until a separate LIVE
+                        mission.
+                      </p>
+                    ) : null}
+                    {connectSetupUnavailable && platformEnvironment !== 'test' ? (
+                      <p className="text-[12px] text-[#5c6570]">
+                        Details are saved in this wizard. LIVE payout account connection is not enabled
+                        yet.
+                      </p>
+                    ) : null}
+                  </div>
+                  <dl className="space-y-2 rounded-[10px] border border-[#eef2f7] bg-[#fafbfc] px-3 py-3 text-[12px]">
+                    <div className="flex justify-between gap-3 border-b border-[#f1f5f9] pb-2">
+                      <dt className="text-[#52525b]">Business</dt>
+                      <dd className="max-w-[60%] text-right font-semibold text-[#18181b]">
+                        {profile?.company_legal_name?.trim() || '—'}
+                      </dd>
+                    </div>
+                    <div className="flex justify-between gap-3 border-b border-[#f1f5f9] py-2">
+                      <dt className="text-[#52525b]">Country / VAT</dt>
+                      <dd className="text-right font-semibold text-[#18181b]">
+                        {(profile?.address_country ?? '').toUpperCase() || '—'}
+                        {profile?.vat_id?.trim() ? ` · ${profile.vat_id.trim()}` : ''}
+                      </dd>
+                    </div>
+                    <div className="flex justify-between gap-3 border-b border-[#f1f5f9] py-2">
+                      <dt className="text-[#52525b]">Registered address</dt>
+                      <dd className="max-w-[60%] text-right font-medium text-[#18181b]">
+                        {formatPayoutBusinessAddress(profile) || '—'}
+                      </dd>
+                    </div>
+                    <div className="flex justify-between gap-3 pt-2">
+                      <dt className="text-[#52525b]">Owners declared</dt>
+                      <dd className="text-right font-semibold text-[#18181b]">
+                        {(draft.rep_is_owner ? 1 : 0) + draft.beneficial_owners.length}
+                        {sumDeclaredOwnershipPercent(draft) != null
+                          ? ` · ${sumDeclaredOwnershipPercent(draft)}%`
+                          : ''}
+                      </dd>
+                    </div>
+                  </dl>
                   <ul className="space-y-2">
                     <li className="flex justify-between gap-3 border-b border-[#f1f5f9] py-2">
                       <span className="text-[#52525b]">Business information</span>
                       <span className="font-semibold text-[#18181b]">
-                        {draft.businessSavedAt || profile?.company_legal_name ? 'Saved' : 'Needed'}
+                        {draft.businessSavedAt || !validatePayoutBusinessFromProfile(profile)
+                          ? 'Confirmed'
+                          : 'Needed'}
                       </span>
                     </li>
                     <li className="flex justify-between gap-3 border-b border-[#f1f5f9] py-2">
-                      <span className="text-[#52525b]">Representative details</span>
+                      <span className="text-[#52525b]">Representative &amp; owners</span>
                       <span className="font-semibold text-[#18181b]">{reviewRepLabel()}</span>
                     </li>
                     <li className="flex justify-between gap-3 border-b border-[#f1f5f9] py-2">
@@ -1469,15 +1849,34 @@ export default function PayoutSetupWizard({
                       <span className="font-semibold text-[#18181b]">{reviewIdentityLabel()}</span>
                     </li>
                     <li className="flex justify-between gap-3 border-b border-[#f1f5f9] py-2">
+                      <span className="text-[#52525b]">Agreement</span>
+                      <span className="font-semibold text-[#18181b]">
+                        {draft.identitySavedAt || draft.tos_accepted ? 'Accepted' : 'Needed'}
+                      </span>
+                    </li>
+                    <li className="flex justify-between gap-3 border-b border-[#f1f5f9] py-2">
                       <span className="text-[#52525b]">Bank account</span>
                       <span className="font-semibold text-[#18181b]">
-                        {bankManaged || draft.bankSavedAt ? 'On file' : 'Needed'}
+                        {bankManaged || bankMasked || draft.bankSavedAt
+                          ? bankMasked
+                            ? `On file ${bankMasked}`
+                            : 'On file'
+                          : 'Needed'}
                       </span>
                     </li>
                     <li className="flex justify-between gap-3 border-b border-[#f1f5f9] py-2">
                       <span className="text-[#52525b]">Payout preferences</span>
                       <span className="font-semibold text-[#18181b]">
-                        {draft.preferencesSavedAt || profile?.payment_cycle ? 'Saved' : 'Needed'}
+                        {draft.preferencesSavedAt ||
+                        (draft.payment_cycle && draft.payout_threshold_min)
+                          ? `${
+                              draft.payment_cycle === 'biweekly'
+                                ? 'Twice monthly'
+                                : draft.payment_cycle === 'monthly'
+                                  ? 'Monthly'
+                                  : 'Saved'
+                            } · min ${draft.payout_threshold_min || profile?.payout_threshold_min || '—'}`
+                          : 'Needed'}
                       </span>
                     </li>
                   </ul>

@@ -55,9 +55,11 @@ type Body = {
     | 'start_native_custom'
     | 'submit_business'
     | 'submit_representative'
+    | 'submit_beneficial_owners'
     | 'accept_tos'
     | 'attach_bank_token'
     | 'submit_identity_file'
+    | 'upload_identity_document'
     /** Service-role only: archive TEST link + create LIVE Custom account + Account Link. */
     | 'admin_ensure_live_connect';
   supplier_id?: string;
@@ -103,11 +105,34 @@ type Body = {
       director?: boolean;
     };
   };
+  owners?: Array<{
+    first_name?: string;
+    last_name?: string;
+    email?: string;
+    dob?: { day?: number; month?: number; year?: number };
+    percent_ownership?: number | null;
+    address?: {
+      line1?: string;
+      line2?: string;
+      city?: string;
+      postal_code?: string;
+      country?: string;
+      state?: string;
+    };
+  }>;
   bank_token?: string;
   identity?: {
     person_id?: string;
     file_id?: string;
     side?: 'front' | 'back';
+  };
+  /** Ephemeral identity upload — never persisted in Traverion storage. */
+  identity_upload?: {
+    person_id?: string;
+    side?: 'front' | 'back';
+    filename?: string;
+    content_type?: string;
+    content_base64?: string;
   };
   tos_accepted?: boolean;
   agreement_version?: string;
@@ -1267,6 +1292,101 @@ serve(async (req) => {
       return json({ action, person_id: personId, ...statusPayload(mirror, accountId) });
     }
 
+    if (action === 'submit_beneficial_owners') {
+      const owners = Array.isArray(body.owners) ? body.owners : [];
+      if (owners.length === 0) {
+        return json({ success: false, error: 'Add at least one beneficial owner, or skip this step.' }, 400);
+      }
+      const { accountId, accountType } = await ensureConnectedAccount();
+      if (accountType === 'express') {
+        return json({
+          success: false,
+          error: 'Beneficial owners for this account are collected in the secure verification step.',
+          account_type: 'express',
+        }, 409);
+      }
+      const country =
+        (profile.address_country || profile.connect_country || 'FI').toString().slice(0, 2).toUpperCase();
+      const existing = await stripe.accounts.listPersons(accountId, { limit: 100 });
+      const personIds: string[] = [];
+      for (const o of owners) {
+        const first = (o.first_name ?? '').trim();
+        const last = (o.last_name ?? '').trim();
+        if (!first || !last) {
+          return json({ success: false, error: 'Each beneficial owner needs a first and last name.' }, 400);
+        }
+        const ownership =
+          o.percent_ownership != null && Number.isFinite(Number(o.percent_ownership))
+            ? Number(o.percent_ownership)
+            : null;
+        if (ownership == null || ownership < 0 || ownership > 100) {
+          return json({
+            success: false,
+            error: 'Each beneficial owner needs an ownership percentage from 0 to 100.',
+          }, 400);
+        }
+        const dob = o.dob;
+        if (!dob?.day || !dob?.month || !dob?.year) {
+          return json({ success: false, error: 'Each beneficial owner needs a date of birth.' }, 400);
+        }
+        const personParams: Stripe.PersonUpdateParams = {
+          first_name: first,
+          last_name: last,
+          email: o.email?.trim() || undefined,
+          dob: { day: dob.day, month: dob.month, year: dob.year },
+          address: {
+            line1: o.address?.line1 || profile.address_street || undefined,
+            line2: o.address?.line2 || undefined,
+            city: o.address?.city || profile.address_city || undefined,
+            postal_code: o.address?.postal_code || profile.address_postal_code || undefined,
+            state: o.address?.state || undefined,
+            country: o.address?.country || country,
+          },
+          relationship: {
+            owner: true,
+            percent_ownership: ownership,
+            representative: false,
+            executive: false,
+            director: false,
+          },
+        };
+        const match = existing.data.find(
+          (p) =>
+            (p.first_name || '').trim().toLowerCase() === first.toLowerCase() &&
+            (p.last_name || '').trim().toLowerCase() === last.toLowerCase() &&
+            p.relationship?.owner === true &&
+            p.relationship?.representative !== true
+        );
+        if (match) {
+          const updated = await stripe.accounts.updatePerson(accountId, match.id, personParams);
+          personIds.push(updated.id);
+        } else {
+          const created = await stripe.accounts.createPerson(
+            accountId,
+            personParams as Stripe.PersonCreateParams
+          );
+          personIds.push(created.id);
+        }
+      }
+      const ownersV2 = await nativeV2Account(accountId);
+      if (ownersV2) {
+        await stripeV2('POST', `/v2/core/accounts/${accountId}`, {
+          identity: {
+            attestations: {
+              persons_provided: {
+                owners: true,
+              },
+            },
+          },
+          include: [...V2_RETRIEVE_INCLUDE],
+        });
+      } else if (profile.business_type !== 'individual') {
+        await stripe.accounts.update(accountId, { company: { owners_provided: true } });
+      }
+      const { mirror } = await syncAccount(accountId);
+      return json({ action, person_ids: personIds, ...statusPayload(mirror, accountId) });
+    }
+
     if (action === 'accept_tos') {
       if (body.tos_accepted !== true) {
         return json({ success: false, error: 'You must accept the Stripe Recipient Agreement to continue' }, 400);
@@ -1417,6 +1537,64 @@ serve(async (req) => {
       });
       const { mirror } = await syncAccount(accountId);
       return json({ action, ...statusPayload(mirror, accountId) });
+    }
+
+    if (action === 'upload_identity_document') {
+      const upload = body.identity_upload ?? {};
+      const personId = (upload.person_id ?? '').trim();
+      const side = upload.side === 'back' ? 'back' : 'front';
+      const filename = (upload.filename ?? 'identity.jpg').trim().slice(0, 120) || 'identity.jpg';
+      const contentType = (upload.content_type ?? '').trim().toLowerCase();
+      const contentBase64 = (upload.content_base64 ?? '').replace(/\s+/g, '');
+      if (!personId || !contentBase64) {
+        return json({ success: false, error: 'Identity document and person are required' }, 400);
+      }
+      if (!['image/jpeg', 'image/jpg', 'image/png', 'application/pdf'].includes(contentType)) {
+        return json({
+          success: false,
+          error: 'Upload a JPEG, PNG, or PDF identity document.',
+        }, 400);
+      }
+      // ~8MB decoded ceiling — refuse oversized payloads without writing to Traverion storage.
+      if (contentBase64.length > 11_000_000) {
+        return json({ success: false, error: 'Identity document is too large (max about 8 MB).' }, 400);
+      }
+      let bytes: Uint8Array;
+      try {
+        const bin = atob(contentBase64);
+        bytes = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      } catch {
+        return json({ success: false, error: 'Identity document could not be read.' }, 400);
+      }
+      const { accountId, accountType } = await ensureConnectedAccount();
+      if (accountType === 'express') {
+        return json({
+          success: false,
+          error: 'Identity documents for this account are collected in the secure verification step.',
+          account_type: 'express',
+        }, 409);
+      }
+      const stripeFile = await stripe.files.create({
+        purpose: 'identity_document',
+        file: {
+          data: bytes,
+          name: filename,
+          type: contentType === 'image/jpg' ? 'image/jpeg' : contentType,
+        },
+      });
+      await stripe.accounts.updatePerson(accountId, personId, {
+        verification: {
+          document: side === 'back' ? { back: stripeFile.id } : { front: stripeFile.id },
+        },
+      });
+      const { mirror } = await syncAccount(accountId);
+      return json({
+        action,
+        file_id: stripeFile.id,
+        person_id: personId,
+        ...statusPayload(mirror, accountId),
+      });
     }
 
     // Embedded Account Session — Express LIVE primary path (P8.5) + Custom remediation.

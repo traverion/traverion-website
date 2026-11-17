@@ -25,6 +25,10 @@ export const PARTNER_HELP = {
   bankAccount: 'Account numbers stay with our payment partner. Traverion only shows a masked summary.',
   identityCheck: 'Confirms you are authorized for this business. Documents stay with our payment partner.',
   representative: 'The person authorized to manage payouts for this business.',
+  beneficialOwners:
+    'People who own 25% or more (or who Stripe asks you to declare). Company directors are listed separately in business details — do not treat them as owners automatically.',
+  payoutBusinessSummary:
+    'These details come from your approved business profile. Edit them only through business details so payouts stay consistent with verification.',
   ownerConfirm: 'Required confirmation that you may submit this business for review.',
   publishGate: 'Publishing needs both business and payout verification.',
 } as const;
