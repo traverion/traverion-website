@@ -5,9 +5,15 @@
 /* Reduce rubber-band overscroll on traveler chrome without locking nested scrollers */
 html {
   overscroll-behavior-y: none;
+  /* P9.37 Phase 03 — kill accidental horizontal overflow at the root */
+  overflow-x: clip;
+  max-width: 100%;
 }
 body {
   overscroll-behavior-y: contain;
+  overflow-x: clip;
+  max-width: 100%;
+  min-width: 0;
 }
 
 @layer utilities {
@@ -586,7 +592,7 @@ body {
     min-height: 0;
     flex: 1 1 auto;
     flex-direction: column;
-    overflow-x: hidden;
+    overflow-x: clip;
     overflow-y: auto;
     overscroll-behavior: contain;
     background-color: var(--partner-bg);
@@ -645,12 +651,6 @@ body {
     .partner-app-shell {
       --partner-gutter-x: 1.75rem;
       --partner-gutter-y: 1.25rem;
-    }
-  }
-
-  @media (min-width: 1440px) {
-    .partner-app-shell {
-      --partner-gutter-x: 2rem;
     }
   }
 
@@ -4337,13 +4337,15 @@ a:focus-visible,
   --tv-space-12: 3rem;
 }
 
-/* Shared consumer measure: header, catalogs, detail, account. */
+/* Shared consumer measure: header, catalogs, detail, account.
+   Horizontal padding stays on call sites (`px-4 sm:px-6 lg:px-8`) to avoid double gutters. */
 .tv-shell {
   width: 100%;
   max-width: var(--tv-pdp-max);
   margin-left: auto;
   margin-right: auto;
   min-width: 0;
+  box-sizing: border-box;
 }
 
 @media (min-width: 640px) {
