@@ -197,7 +197,12 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY');
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-    const publishableKey = (Deno.env.get('STRIPE_PUBLISHABLE_KEY') ?? '').trim();
+    // Prefer STRIPE_PUBLISHABLE_KEY; fall back to VITE_STRIPE_PUBLISHABLE_KEY (already set in LIVE secrets).
+    const publishableKey = (
+      Deno.env.get('STRIPE_PUBLISHABLE_KEY') ??
+      Deno.env.get('VITE_STRIPE_PUBLISHABLE_KEY') ??
+      ''
+    ).trim();
     // Prefer explicit partner portal URL for Connect returns; PUBLIC_SITE_URL may be www.
     const publicSiteUrl = (
       Deno.env.get('PARTNER_SITE_URL') ??
@@ -1867,12 +1872,21 @@ serve(async (req) => {
       const component =
         body.component === 'account_management' ? 'account_management' : 'account_onboarding';
 
-      // Prefill non-sensitive Traverion profile fields into Stripe where still writable.
+      // Prefill non-sensitive Traverion profile / wizard fields into Stripe where still writable (P9.49).
+      // Never send ID documents or full bank numbers through this path — those stay in Stripe components.
       try {
         const country = (profile.address_country || profile.connect_country || 'FI')
           .toString()
           .slice(0, 2)
           .toUpperCase();
+        const draftRaw = (profile as { payout_wizard_draft?: Record<string, unknown> | null })
+          .payout_wizard_draft;
+        const draft =
+          draftRaw && typeof draftRaw === 'object' && !Array.isArray(draftRaw) ? draftRaw : {};
+        const draftStr = (key: string) => {
+          const v = draft[key];
+          return typeof v === 'string' && v.trim() ? v.trim() : undefined;
+        };
         const prefill: Stripe.AccountUpdateParams = {
           business_profile: {
             name: (profile.display_name || profile.company_legal_name || undefined) ?? undefined,
@@ -1884,13 +1898,15 @@ serve(async (req) => {
           metadata: {
             traverion_supplier_id: supplierId!,
             traverion_environment: platformMode,
-            traverion_onboarding: 'p85_embedded',
+            traverion_onboarding: 'p949_embedded',
           },
         };
         if (profile.business_type === 'company' && profile.company_legal_name) {
           prefill.company = {
             name: profile.company_legal_name,
             phone: profile.contact_phone || undefined,
+            tax_id: profile.tax_id || undefined,
+            registration_number: profile.company_registration_number || undefined,
             address: {
               line1: profile.address_street || undefined,
               city: profile.address_city || undefined,
@@ -1898,6 +1914,24 @@ serve(async (req) => {
               country,
             },
           };
+        }
+        if (profile.business_type === 'individual') {
+          const first = draftStr('rep_first_name');
+          const last = draftStr('rep_last_name');
+          if (first || last) {
+            prefill.individual = {
+              first_name: first,
+              last_name: last,
+              email: draftStr('rep_email') || authData.user.email || undefined,
+              phone: draftStr('rep_phone') || profile.contact_phone || undefined,
+              address: {
+                line1: profile.address_street || undefined,
+                city: profile.address_city || undefined,
+                postal_code: profile.address_postal_code || undefined,
+                country,
+              },
+            };
+          }
         }
         await stripe.accounts.update(accountId, prefill);
       } catch {

@@ -194,9 +194,18 @@ export default function ConnectEmbeddedPanel({
       ) : null}
       <ConnectComponentsProvider connectInstance={stripeConnectInstance}>
         {component === 'account_management' ? (
-          <ConnectAccountManagement />
+          <ConnectAccountManagement
+            collectionOptions={{
+              fields: 'eventually_due',
+              futureRequirements: 'include',
+            }}
+          />
         ) : (
           <ConnectAccountOnboarding
+            collectionOptions={{
+              fields: 'eventually_due',
+              futureRequirements: 'include',
+            }}
             onExit={() => {
               onExit();
             }}

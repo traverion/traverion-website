@@ -41,7 +41,7 @@ export type UnifiedSetupScreen = {
 export const UNIFIED_SETUP_SCREENS: UnifiedSetupScreen[] = [
   {
     id: 'business',
-    title: 'Company',
+    title: 'Business verification',
     lede: 'Your registered business and how travelers see your brand.',
   },
   {
@@ -51,17 +51,17 @@ export const UNIFIED_SETUP_SCREENS: UnifiedSetupScreen[] = [
   },
   {
     id: 'representative',
-    title: 'Representative',
-    lede: 'Who is authorized to act for the business for payouts.',
+    title: 'Identity',
+    lede: 'Confirm who is authorized to act for the business — identity checks run securely in Traverion.',
   },
   {
     id: 'payout',
-    title: 'Payouts',
-    lede: 'Where payouts should go, and how often you prefer them.',
+    title: 'Bank account',
+    lede: 'Where payouts should go. Bank details are collected securely when verification is open.',
   },
   {
     id: 'status',
-    title: 'Status',
+    title: 'Ready to receive',
     lede: 'What is saved, what Traverion approved, and what payout verification still needs.',
   },
 ];

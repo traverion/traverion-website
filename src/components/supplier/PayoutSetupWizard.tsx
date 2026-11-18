@@ -285,11 +285,13 @@ export default function PayoutSetupWizard({
   const stepIndex = payoutWizardStepIndex(displayStep);
   const screen = PAYOUT_WIZARD_SCREENS[stepIndex]!;
   const progressPct = Math.round(((stepIndex + 1) / PAYOUT_WIZARD_SCREENS.length) * 100);
-  const useStripeEmbed =
-    isExpress &&
-    (displayStep === 'representative' || displayStep === 'identity' || displayStep === 'bank');
   const onboardingStatus = (profile?.connect_onboarding_status ?? '').toLowerCase();
-  /** Express still needs Stripe-collected KYC — never auto-mount; user must start it. */
+  /** P9.49: Custom Accounts v2 (dashboard:none) uses embedded Account Onboarding when a Connect account already exists — no hosted redirect. */
+  const customUsesEmbeddedVerification = isCustom && hasConnectedAccount;
+  const useStripeEmbed =
+    (isExpress || customUsesEmbeddedVerification) &&
+    (displayStep === 'representative' || displayStep === 'identity' || displayStep === 'bank');
+  /** Express still needs Stripe-collected KYC — never auto-mount; user must start it. Custom auto-mounts (no Stripe login). */
   const expressVerificationMandatory =
     isExpress &&
     (outstandingKeys.length > 0 ||
@@ -297,6 +299,16 @@ export default function PayoutSetupWizard({
       onboardingStatus === 'not_started' ||
       onboardingStatus === 'pending' ||
       onboardingStatus === '' ||
+      !profile?.connect_details_submitted);
+  const customVerificationMandatory =
+    customUsesEmbeddedVerification &&
+    (outstandingKeys.length > 0 ||
+      accountRestricted ||
+      onboardingStatus === 'not_started' ||
+      onboardingStatus === 'pending' ||
+      onboardingStatus === 'restricted' ||
+      onboardingStatus === '' ||
+      !canReceive ||
       !profile?.connect_details_submitted);
 
   // Parent shell owns phase/URL. Sync draft step DOWN before paint — never fight back upward.
@@ -312,6 +324,20 @@ export default function PayoutSetupWizard({
       return { ...d, step: initialStep };
     });
   }, [embedded, initialStep]);
+
+  // P9.49: Custom + connected → mount official embedded onboarding automatically (no Account Link redirect).
+  useEffect(() => {
+    if (!customUsesEmbeddedVerification || !useStripeEmbed || !canEdit) return;
+    if (!customVerificationMandatory || showStripeEmbed || hostedFallbackUrl) return;
+    setShowStripeEmbed(true);
+  }, [
+    customUsesEmbeddedVerification,
+    useStripeEmbed,
+    canEdit,
+    customVerificationMandatory,
+    showStripeEmbed,
+    hostedFallbackUrl,
+  ]);
 
   useEffect(() => {
     if (embedded) return;
@@ -977,7 +1003,7 @@ export default function PayoutSetupWizard({
       return;
     }
     if (draft.step === 'representative') {
-      if (isExpress) {
+      if (isExpress || customUsesEmbeddedVerification) {
         const ok = await refreshConnect();
         if (!ok) return;
         goTo('identity', 'forward');
@@ -989,7 +1015,7 @@ export default function PayoutSetupWizard({
       return;
     }
     if (draft.step === 'identity') {
-      if (isExpress) {
+      if (isExpress || customUsesEmbeddedVerification) {
         const ok = await refreshConnect();
         if (!ok) return;
         goTo('bank', 'forward');
@@ -1001,7 +1027,7 @@ export default function PayoutSetupWizard({
       return;
     }
     if (draft.step === 'bank') {
-      if (isExpress) {
+      if (isExpress || customUsesEmbeddedVerification) {
         const ok = await refreshConnect();
         if (!ok) return;
         goTo('preferences', 'forward');
@@ -1135,9 +1161,18 @@ export default function PayoutSetupWizard({
     canProvisionConnect &&
     (hasConnectedAccount || liveCreateAllowed || platformEnvironment === 'test');
 
+  /** Prefer in-app embedded Account Onboarding for Custom; hosted Account Link only as fallback / create path. */
   const launchHostedStripe = async () => {
-    setBusy(true);
     setError(null);
+    if (customUsesEmbeddedVerification) {
+      setHostedFallbackUrl(null);
+      setShowStripeEmbed(true);
+      if (displayStep !== 'representative' && displayStep !== 'identity' && displayStep !== 'bank') {
+        goTo('identity', 'forward');
+      }
+      return;
+    }
+    setBusy(true);
     setHostedLinkBusy(true);
     try {
       const ensured = await ensureConnectWhenAllowed();
@@ -1147,6 +1182,11 @@ export default function PayoutSetupWizard({
       }
       if (!ensured.provisioned && !hasConnectedAccount) {
         setNote(supplierFacingLiveCreateBlockReason(liveCreateBlockedReason || PAYOUT_LIVE_SETUP_UNAVAILABLE_COPY));
+        return;
+      }
+      // After create, Custom accounts stay in Traverion via embed; Express may still need hosted.
+      if (isCustom || isExpress) {
+        setShowStripeEmbed(true);
         return;
       }
       const link = await fetchConnectAccountLink();
@@ -1673,7 +1713,7 @@ export default function PayoutSetupWizard({
                 </div>
               ) : null}
 
-              {draft.step === 'representative' && !isExpress ? (
+              {draft.step === 'representative' && !isExpress && !customUsesEmbeddedVerification ? (
                 <form
                   className="mt-5 grid gap-4"
                   onSubmit={(e) => {
@@ -1987,7 +2027,7 @@ export default function PayoutSetupWizard({
                 </form>
               ) : null}
 
-              {draft.step === 'identity' && !isExpress ? (
+              {draft.step === 'identity' && !isExpress && !customUsesEmbeddedVerification ? (
                 <div className="mt-4 space-y-4">
                   {hasConnectedAccount &&
                   (outstandingKeys.length > 0 ||
@@ -1997,8 +2037,8 @@ export default function PayoutSetupWizard({
                     <div className="rounded-[10px] border border-[#dbe4f0] bg-[#f0f4fa] px-3 py-3 text-[12px] leading-relaxed text-[#1e3a5f]">
                       <p className="font-semibold text-[#073b83]">Secure verification</p>
                       <p className="mt-1">
-                        Complete remaining identity checks on the secure verification page. Traverion
-                        only updates status after confirmation — never from this button alone.
+                        Complete remaining identity checks in Traverion. Traverion only updates status
+                        after confirmation — never from this button alone.
                       </p>
                       {outstandingLabels.length > 0 ? (
                         <ul className="mt-2 list-disc space-y-1 pl-4">
@@ -2011,19 +2051,7 @@ export default function PayoutSetupWizard({
                         type="button"
                         className="tv-btn-primary mt-3 h-10 w-full text-[13px] disabled:opacity-50"
                         disabled={!canEdit || busy || hostedLinkBusy}
-                        onClick={() => {
-                          void (async () => {
-                            setHostedLinkBusy(true);
-                            setError(null);
-                            const link = await fetchConnectAccountLink();
-                            setHostedLinkBusy(false);
-                            if (!link.url) {
-                              setError(link.error ?? 'Could not open secure verification.');
-                              return;
-                            }
-                            window.location.assign(link.url);
-                          })();
-                        }}
+                        onClick={() => void launchHostedStripe()}
                       >
                         {hostedLinkBusy ? 'Opening…' : 'Continue verification'}
                       </button>
@@ -2166,7 +2194,7 @@ export default function PayoutSetupWizard({
                 </div>
               ) : null}
 
-              {draft.step === 'bank' && !isExpress ? (
+              {draft.step === 'bank' && !isExpress && !customUsesEmbeddedVerification ? (
                 <form
                   className="mt-4 grid gap-3 sm:gap-4"
                   onSubmit={(e) => {
@@ -2217,6 +2245,13 @@ export default function PayoutSetupWizard({
 
               {useStripeEmbed ? (
                 <div className="mt-4 space-y-3">
+                  {customUsesEmbeddedVerification ? (
+                    <p className="text-[13px] leading-relaxed text-[#5c6570]">
+                      Complete identity and bank details below. Information already on your Traverion
+                      account is reused where Stripe allows — documents and bank numbers stay in
+                      Stripe’s secure component.
+                    </p>
+                  ) : null}
                   {expressVerificationMandatory && !showStripeEmbed && !hostedFallbackUrl ? (
                     <div className="rounded-[10px] border border-[#dbe4f0] bg-[#f0f4fa] px-3 py-3 text-[12px] leading-relaxed text-[#1e3a5f]">
                       <p className="font-semibold text-[#073b83]">Verification needed</p>
@@ -2247,7 +2282,9 @@ export default function PayoutSetupWizard({
                     </div>
                   ) : null}
 
-                  {!expressVerificationMandatory && !showStripeEmbed ? (
+                  {!expressVerificationMandatory &&
+                  !customVerificationMandatory &&
+                  !showStripeEmbed ? (
                     <div className="rounded-[10px] border border-[#e5e7eb] bg-[#fafafa] px-3 py-3 text-[12px] leading-relaxed text-[#52525b]">
                       <p className="font-semibold text-[#18181b]">Already set up</p>
                       <p className="mt-1">
@@ -2278,10 +2315,8 @@ export default function PayoutSetupWizard({
                       }
                     >
                       <ConnectEmbeddedPanel
-                        component={
-                          draft.step === 'bank' ? 'account_management' : 'account_onboarding'
-                        }
-                        expectStripeAuth
+                        component="account_onboarding"
+                        expectStripeAuth={isExpress}
                         onExit={() => void onEmbedExit()}
                         onHostedFallback={(url) => {
                           setHostedFallbackUrl(url);
@@ -2610,7 +2645,9 @@ export default function PayoutSetupWizard({
               disabled={
                 busy ||
                 !canEdit ||
-                (Boolean(useStripeEmbed) && expressVerificationMandatory && expressLaunchFailed)
+                (Boolean(useStripeEmbed) &&
+                  ((expressVerificationMandatory && expressLaunchFailed) ||
+                    (customVerificationMandatory && expressLaunchFailed && !showStripeEmbed)))
               }
             >
               {continueLabel}

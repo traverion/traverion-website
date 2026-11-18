@@ -1,0 +1,111 @@
+{
+  "at": "2026-11-18T23:27:12.485Z",
+  "mission": "P9.49",
+  "supplierId": "eced0f8c-c2e4-469b-8bba-15170be68cc1",
+  "expectedAccount": "acct_1UdHT6C7oDQnLYSF",
+  "platform_account": "acct_1TFXp1CJawbWge6X",
+  "audit": {
+    "accounts_v2_dashboard_none": true,
+    "embedded_account_onboarding": "supported",
+    "limitation": null
+  },
+  "steps": [
+    {
+      "id": "profile_before",
+      "at": "2026-11-18T23:27:13.197Z",
+      "ok": true,
+      "account": "acct_1UdHT6C7oDQnLYSF",
+      "type": "custom",
+      "livemode": true,
+      "status": "restricted"
+    },
+    {
+      "id": "money_gates_before",
+      "at": "2026-11-18T23:27:13.503Z",
+      "flags": [
+        {
+          "key": "stripe_connect_transfers_enabled",
+          "value_int": 0
+        },
+        {
+          "key": "payout_execution_enabled",
+          "value_int": 0
+        },
+        {
+          "key": "payout_auto_prepare_enabled",
+          "value_int": 0
+        },
+        {
+          "key": "payout_pilot_prepare_enabled",
+          "value_int": 0
+        },
+        {
+          "key": "live_custom_onboarding_enabled",
+          "value_int": 0
+        }
+      ]
+    },
+    {
+      "id": "supplier_session",
+      "at": "2026-11-18T23:27:14.017Z",
+      "user": "eced0f8c-c2e4-469b-8bba-15170be68cc1",
+      "email": "contact@royalnordic.fi"
+    },
+    {
+      "id": "account_session",
+      "at": "2026-11-18T23:27:20.900Z",
+      "ok": true,
+      "status": 200,
+      "mode": "embedded",
+      "account_id": "acct_1UdHT6C7oDQnLYSF",
+      "account_type": "custom",
+      "hasSecret": true,
+      "hasUrl": false,
+      "sameAccount": true,
+      "publishableKeyPrefix": "pk_live_51TF",
+      "error": null
+    },
+    {
+      "id": "refresh",
+      "at": "2026-11-18T23:27:23.900Z",
+      "ok": true,
+      "status": 200,
+      "account_id": "acct_1UdHT6C7oDQnLYSF"
+    },
+    {
+      "id": "account_preservation",
+      "at": "2026-11-18T23:27:24.070Z",
+      "ok": true,
+      "account": "acct_1UdHT6C7oDQnLYSF",
+      "profilesWithSameAccount": 1
+    },
+    {
+      "id": "money_gates_after",
+      "at": "2026-11-18T23:27:24.176Z",
+      "ok": true,
+      "flags": [
+        {
+          "key": "stripe_connect_transfers_enabled",
+          "value_int": 0
+        },
+        {
+          "key": "payout_execution_enabled",
+          "value_int": 0
+        },
+        {
+          "key": "payout_auto_prepare_enabled",
+          "value_int": 0
+        },
+        {
+          "key": "payout_pilot_prepare_enabled",
+          "value_int": 0
+        },
+        {
+          "key": "live_custom_onboarding_enabled",
+          "value_int": 0
+        }
+      ]
+    }
+  ],
+  "verdict": "PASS"
+}

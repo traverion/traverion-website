@@ -26,7 +26,7 @@ import {
   type SupplierProfileRow,
 } from '../../data/supabase-supplier-profile';
 import {
-  fetchConnectAccountLink,
+  connectOnboardingUserMessage,
   invokeConnectSupplierOnboarding,
 } from '../../data/supabase-connect-onboarding';
 import {
@@ -44,6 +44,7 @@ import NoticeCallout from '../../components/NoticeCallout';
 import PartnerHelpTip from '../../components/supplier/PartnerHelpTip';
 import BusinessOnboardingWizard from '../../components/supplier/BusinessOnboardingWizard';
 import PayoutSetupWizard from '../../components/supplier/PayoutSetupWizard';
+import ConnectEmbeddedPanel from '../../components/supplier/ConnectEmbeddedPanel';
 
 type PartnerOnboardingProps = {
   profile: SupplierProfileRow | null;
@@ -76,6 +77,9 @@ export default function PartnerOnboarding({
   });
   const [bootstrapped, setBootstrapped] = useState(false);
   const [stripeBusy, setStripeBusy] = useState(false);
+  const [showStatusEmbed, setShowStatusEmbed] = useState(false);
+  const [hostedFallbackUrl, setHostedFallbackUrl] = useState<string | null>(null);
+  const [embedError, setEmbedError] = useState<string | null>(null);
 
   useEffect(() => {
     setProfile(profileProp);
@@ -189,18 +193,24 @@ export default function PartnerOnboarding({
       (Array.isArray(profile?.connect_requirements_past_due) &&
         profile!.connect_requirements_past_due!.length > 0));
 
-  const launchStripeFromStatus = useCallback(async () => {
-    if (!canEditFinance) return;
+  const refreshProfileAfterEmbed = useCallback(async () => {
+    if (!userId) return;
     setStripeBusy(true);
     try {
-      const link = await fetchConnectAccountLink();
-      if (link.url) {
-        window.location.assign(link.url);
-        return;
-      }
+      await invokeConnectSupplierOnboarding('refresh');
+      const next = await fetchSupplierProfile(userId);
+      setProfile(next);
+      onProfileRefresh?.(next);
     } finally {
       setStripeBusy(false);
     }
+  }, [userId, onProfileRefresh]);
+
+  const openStatusEmbed = useCallback(() => {
+    if (!canEditFinance) return;
+    setEmbedError(null);
+    setHostedFallbackUrl(null);
+    setShowStatusEmbed(true);
   }, [canEditFinance]);
 
   const businessChip = partnerBusinessStatusChip(progress.businessReview);
@@ -217,6 +227,16 @@ export default function PartnerOnboarding({
   const showBusiness = phase === 'business' || phase === 'documents';
   const showPayout = phase === 'representative' || phase === 'payout';
   const showStatus = phase === 'status';
+
+  // P9.49: when verification is still due, mount Stripe embedded Account Onboarding in-shell.
+  useEffect(() => {
+    if (!showStatus || !needsStripeContinue || !canEditFinance) {
+      if (!needsStripeContinue) setShowStatusEmbed(false);
+      return;
+    }
+    setShowStatusEmbed(true);
+    setEmbedError(null);
+  }, [showStatus, needsStripeContinue, canEditFinance]);
 
   const phaseMet = (id: UnifiedSetupPhaseId): boolean => {
     if (id === 'status') return progress.publishReady || completionState === 'ready_to_receive';
@@ -414,42 +434,101 @@ export default function PartnerOnboarding({
                     : statusHeadline}
                   <PartnerHelpTip label="About setup status">{PARTNER_HELP.publishGate}</PartnerHelpTip>
                 </h1>
-                <p className="mt-2 max-w-md text-[14px] leading-relaxed text-[#5c6570]">
+                <p className="mt-2 max-w-xl text-[14px] leading-relaxed text-[#5c6570]">
                   {progress.businessReview === 'rejected'
                     ? progress.nextHint
-                    : completionCopy.lede}
+                    : needsStripeContinue
+                      ? 'Finish identity and bank details below. Traverion reuses what you already provided wherever Stripe allows.'
+                      : completionCopy.lede}
                 </p>
 
-                <button
-                  type="button"
-                  className="tv-btn-primary mt-6 h-11 min-w-[12rem] px-5 text-[13px]"
-                  disabled={stripeBusy}
-                  onClick={() => {
-                    if (needsStripeContinue) {
-                      void launchStripeFromStatus();
-                      return;
-                    }
-                    if (progress.nextCta.toLowerCase().includes('listing')) {
-                      onTours();
-                      return;
-                    }
-                    if (progress.nextPhase === 'status') {
-                      onTours();
-                      return;
-                    }
-                    setPhaseAndUrl(progress.nextPhase);
-                  }}
-                >
-                  {stripeBusy ? 'Opening secure verification…' : statusPrimaryLabel}
-                  <ArrowRight className="ml-1.5 inline-block h-4 w-4" aria-hidden />
-                </button>
+                {needsStripeContinue && showStatusEmbed && !hostedFallbackUrl ? (
+                  <div className="mt-6">
+                    <ConnectEmbeddedPanel
+                      component="account_onboarding"
+                      expectStripeAuth={profile?.connect_account_type === 'express'}
+                      onExit={() => {
+                        void refreshProfileAfterEmbed().then(() => {
+                          setShowStatusEmbed(false);
+                        });
+                      }}
+                      onHostedFallback={(url) => {
+                        setHostedFallbackUrl(url);
+                        setShowStatusEmbed(false);
+                      }}
+                      onError={(msg) => {
+                        setEmbedError(connectOnboardingUserMessage(msg));
+                        setShowStatusEmbed(false);
+                      }}
+                    />
+                  </div>
+                ) : null}
+
+                {hostedFallbackUrl ? (
+                  <div className="mt-6 rounded-[10px] border border-amber-200 bg-amber-50 px-4 py-3 text-[13px] text-amber-950">
+                    <p className="font-semibold">Continue securely</p>
+                    <p className="mt-1">
+                      A secure Stripe page is required for this remaining step. You’ll return here afterward.
+                    </p>
+                    <button
+                      type="button"
+                      className="tv-btn-primary mt-3 h-10 px-4 text-[13px]"
+                      onClick={() => window.location.assign(hostedFallbackUrl)}
+                    >
+                      Open secure step
+                    </button>
+                  </div>
+                ) : null}
+
+                {embedError ? (
+                  <div className="mt-4 rounded-[10px] border border-red-200 bg-red-50 px-4 py-3 text-[13px] text-red-900" role="alert">
+                    <p>{embedError}</p>
+                    <button
+                      type="button"
+                      className="tv-btn-secondary mt-2 h-10 px-3 text-[13px]"
+                      onClick={openStatusEmbed}
+                    >
+                      Try again
+                    </button>
+                  </div>
+                ) : null}
+
+                {!needsStripeContinue || !showStatusEmbed || hostedFallbackUrl || embedError ? (
+                  <button
+                    type="button"
+                    className="tv-btn-primary mt-6 h-11 min-w-[12rem] px-5 text-[13px]"
+                    disabled={stripeBusy}
+                    onClick={() => {
+                      if (needsStripeContinue) {
+                        openStatusEmbed();
+                        return;
+                      }
+                      if (progress.nextCta.toLowerCase().includes('listing')) {
+                        onTours();
+                        return;
+                      }
+                      if (progress.nextPhase === 'status') {
+                        onTours();
+                        return;
+                      }
+                      setPhaseAndUrl(progress.nextPhase);
+                    }}
+                  >
+                    {stripeBusy
+                      ? 'Updating status…'
+                      : needsStripeContinue
+                        ? 'Continue verification'
+                        : statusPrimaryLabel}
+                    <ArrowRight className="ml-1.5 inline-block h-4 w-4" aria-hidden />
+                  </button>
+                ) : null}
 
                 {lanes ? (
                   <ul className="mt-8 space-y-0 divide-y divide-[#eef1f4] border-y border-[#eef1f4]">
                     {[
-                      ['Company review', lanes.businessVerification],
-                      ['Your details', lanes.formProgress],
-                      ['Payout verification', lanes.stripeVerification],
+                      ['Business verification', lanes.businessVerification],
+                      ['Identity', lanes.formProgress],
+                      ['Bank account', lanes.stripeVerification],
                       ['Ready to receive', lanes.payoutReadiness],
                     ].map(([label, value]) => (
                       <li

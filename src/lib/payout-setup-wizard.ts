@@ -1,9 +1,11 @@
 /**
  * P9.1 / P8.8 Unified payout setup wizard — 6-step model + draft resume.
  *
- * Custom (api_native): Traverion collects business, representative, identity/TOS, bank.
- * Express (legacy embedded): Traverion owns business/preferences; Stripe embeds for
- * representative / identity / bank (auth popup may appear — cannot be disabled).
+ * Custom without Connect yet: Traverion draft forms for business / preferences.
+ * Custom with Connect (Accounts v2 dashboard:none): embedded Account Onboarding for
+ * identity / bank (P9.49) — no redundant Traverion KYC or hosted redirect.
+ * Express: Traverion owns business/preferences; Stripe embeds for representative /
+ * identity / bank (auth popup may appear — cannot be disabled).
  */
 
 export type PayoutWizardStepId =
@@ -33,20 +35,20 @@ export const PAYOUT_WIZARD_SCREENS: PayoutWizardScreen[] = [
   },
   {
     id: 'representative',
-    title: 'Representative',
+    title: 'Identity',
     lede: 'Add the person authorized to act for the business, plus any owners of 25% or more. Ownership cannot exceed 100%.',
     collector: 'traverion',
   },
   {
     id: 'identity',
     title: 'Identity',
-    lede: 'Accept the recipient agreement. Identity checks run securely when payout connection is available — Traverion does not keep copies of ID documents.',
+    lede: 'Identity checks run securely inside Traverion when payout connection is available — Traverion does not keep copies of ID documents.',
     collector: 'mixed',
   },
   {
     id: 'bank',
     title: 'Bank account',
-    lede: 'Tell us where payouts should go. Full account numbers are sent only when payout connection is allowed — Traverion never keeps the full number.',
+    lede: 'Where payouts should go. Full account numbers are collected only in Stripe’s secure component — Traverion never keeps the full number.',
     collector: 'traverion',
   },
   {
