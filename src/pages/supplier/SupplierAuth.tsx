@@ -481,12 +481,12 @@ export default function SupplierAuth({
           <div className="w-12 h-12 rounded-xl bg-finland/10 flex items-center justify-center">
             <Globe className="w-6 h-6" />
           </div>
-          <span className="font-semibold text-ink">Traverion for suppliers</span>
+          <span className="font-semibold tracking-tight text-ink">Traverion for suppliers</span>
         </div>
-        <h1 className="font-display text-3xl sm:text-4xl xl:text-[2.5rem] text-ink tracking-tight mb-4">
+        <h1 className="tv-display-title !text-3xl sm:!text-4xl xl:!text-[2.5rem] mb-4">
           List once. Reach travelers everywhere.
         </h1>
-        <p className="text-base sm:text-lg text-ink-muted mb-8 max-w-prose leading-relaxed">
+        <p className="tv-lede !text-base sm:!text-lg mb-8 !max-w-prose">
           Add your tours and stays to Traverion. Travelers find them, book them, and you run the day.
         </p>
         <ul className="space-y-3">
