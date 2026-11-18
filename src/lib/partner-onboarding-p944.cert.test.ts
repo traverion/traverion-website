@@ -17,6 +17,7 @@ describe('P9.44 one-form onboarding + LIVE Connect readiness', () => {
     );
     expect(edge).toContain('/partner/onboarding?phase=status&connect=return');
     expect(edge).toContain('/partner/onboarding?phase=status&connect=refresh');
+    expect(edge).toContain("PARTNER_PORTAL_ORIGIN = 'https://partner.traverion.com'");
     expect(edge).not.toMatch(
       /return_url: `\$\{origin\}\/partner\/money\?tab=settings&connect=return`/
     );

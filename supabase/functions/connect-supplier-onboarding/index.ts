@@ -160,13 +160,18 @@ type Body = {
   agreement_version?: string;
 };
 
+const PARTNER_PORTAL_ORIGIN = 'https://partner.traverion.com';
+
+/** Connect Account Link returns must land on the partner portal, never the marketing site alone. */
 function allowlistedOrigin(raw: string | undefined, publicSite: string, extras: string[]): string {
-  const candidates = [publicSite, ...extras]
+  const candidates = [PARTNER_PORTAL_ORIGIN, publicSite, ...extras]
     .map((s) => s.replace(/\/$/, ''))
     .filter(Boolean);
+  const unique = [...new Set(candidates)];
   const origin = (raw ?? '').trim().replace(/\/$/, '');
-  if (origin && candidates.some((c) => c === origin)) return origin;
-  return candidates[0] || 'https://partner.traverion.com';
+  if (origin && unique.some((c) => c === origin)) return origin;
+  if (unique.includes(PARTNER_PORTAL_ORIGIN)) return PARTNER_PORTAL_ORIGIN;
+  return unique[0] || PARTNER_PORTAL_ORIGIN;
 }
 
 function clientIp(req: Request): string {
@@ -193,15 +198,19 @@ serve(async (req) => {
     const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY');
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
     const publishableKey = (Deno.env.get('STRIPE_PUBLISHABLE_KEY') ?? '').trim();
+    // Prefer explicit partner portal URL for Connect returns; PUBLIC_SITE_URL may be www.
     const publicSiteUrl = (
       Deno.env.get('PARTNER_SITE_URL') ??
-      Deno.env.get('PUBLIC_SITE_URL') ??
-      'https://partner.traverion.com'
+      PARTNER_PORTAL_ORIGIN
     ).replace(/\/$/, '');
-    const extraOrigins = (Deno.env.get('CHECKOUT_RETURN_ORIGINS') ?? '')
-      .split(',')
-      .map((s) => s.trim())
-      .filter(Boolean);
+    const extraOrigins = [
+      ...(Deno.env.get('CHECKOUT_RETURN_ORIGINS') ?? '')
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean),
+      Deno.env.get('PUBLIC_SITE_URL')?.replace(/\/$/, '') ?? '',
+      PARTNER_PORTAL_ORIGIN,
+    ].filter(Boolean);
 
     if (!supabaseUrl || !supabaseAnonKey || !serviceRoleKey) {
       return json({ success: false, error: 'Supabase env missing' }, 500);
