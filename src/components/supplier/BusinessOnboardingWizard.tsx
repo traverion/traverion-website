@@ -1095,13 +1095,13 @@ export default function BusinessOnboardingWizard({
                   >
                     <ReviewFact
                       label="Registration proof"
-                      value={
-                        draft.company_registration_document_path
-                          ? `Uploaded · ${verificationDocumentBasename(draft.company_registration_document_path)}`
-                          : draft.business_type === 'company'
-                            ? 'Missing'
-                            : 'Not uploaded'
-                      }
+                      value={(() => {
+                        const path =
+                          draft.company_registration_document_path.trim() ||
+                          (profile?.company_registration_document_path ?? '').trim();
+                        if (path) return `Uploaded · ${verificationDocumentBasename(path)}`;
+                        return draft.business_type === 'company' ? 'Missing' : 'Not uploaded';
+                      })()}
                     />
                   </ReviewSection>
                 </div>

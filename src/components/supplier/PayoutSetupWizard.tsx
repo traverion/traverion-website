@@ -35,6 +35,7 @@ import {
   parseOwnershipPercent,
   parsePayoutWizardDob,
   PAYOUT_LIVE_SETUP_UNAVAILABLE_COPY,
+  PAYOUT_LIVE_SETUP_UNAVAILABLE_SHORT,
   PAYOUT_WIZARD_RETURN_HREF,
   PAYOUT_WIZARD_SCREENS,
   PAYOUT_WIZARD_STRIPE_AUTH_COPY,
@@ -1506,12 +1507,23 @@ export default function PayoutSetupWizard({
               </h1>
               <p className="payout-wizard__lede">{screen.lede}</p>
 
-              {connectSetupUnavailable ? (
+              {/* P9.42: show LIVE gate notice once per flow (representative), not on every step. */}
+              {connectSetupUnavailable &&
+              (!embedded || draft.step === 'representative') ? (
                 <p
-                  className="mt-3 border-l-2 border-[#073b83] pl-3 text-[13px] leading-snug text-[#1e3a5f]"
+                  className="mt-3 inline-flex max-w-xl items-start gap-1.5 border-l-2 border-[#073b83] pl-3 text-[13px] leading-snug text-[#1e3a5f]"
                   role="status"
                 >
-                  {PAYOUT_LIVE_SETUP_UNAVAILABLE_COPY}
+                  <span>
+                    {embedded
+                      ? PAYOUT_LIVE_SETUP_UNAVAILABLE_SHORT
+                      : PAYOUT_LIVE_SETUP_UNAVAILABLE_COPY}
+                  </span>
+                  {embedded ? (
+                    <PartnerHelpTip label="About payout connection">
+                      {PAYOUT_LIVE_SETUP_UNAVAILABLE_COPY}
+                    </PartnerHelpTip>
+                  ) : null}
                 </p>
               ) : null}
               {error ? (
@@ -1519,7 +1531,8 @@ export default function PayoutSetupWizard({
                   {error}
                 </p>
               ) : null}
-              {note && !connectSetupUnavailable ? (
+              {note &&
+              !(connectSetupUnavailable && note === PAYOUT_LIVE_SETUP_UNAVAILABLE_COPY) ? (
                 <p className="mt-3 text-[12px] text-[#5c6570]" role="status">
                   {note}
                 </p>

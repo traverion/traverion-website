@@ -82,6 +82,10 @@ export type PartnerSetupProgress = {
   businessHref: string;
   payoutHref: string;
   listingsHref: string;
+  /** Requirement met (not merely visited). Status is never counted as a requirement. */
+  phaseComplete: Record<Exclude<UnifiedSetupPhaseId, 'status'>, boolean>;
+  requirementsDone: number;
+  requirementsTotal: number;
 };
 
 /** Map unified phase → business wizard step. */
@@ -265,6 +269,32 @@ export function derivePartnerSetupProgress(
         ? 'Company details saved'
         : 'Not started';
 
+  const hasRegDoc = Boolean(
+    (profile?.company_registration_document_path ?? '').trim() ||
+      (opts.userId ? loadBusinessOnboardingDraft(opts.userId)?.company_registration_document_path : '')
+  );
+
+  const phaseComplete = {
+    business:
+      businessDraftComplete && businessReview !== 'rejected',
+    documents:
+      businessReview === 'pending' ||
+      businessReview === 'verified' ||
+      (businessDraftComplete && hasRegDoc && businessReview !== 'rejected'),
+    representative:
+      bankingReady || localPayout.representativeSaved || localPayout.wizardCompleted,
+    payout:
+      bankingReady ||
+      localPayout.bankSavedLocally ||
+      localPayout.preferencesSaved ||
+      localPayout.bankDeferred ||
+      localPayout.wizardCompleted,
+  } as const;
+  const requirementsTotal = 4;
+  const requirementsDone = (
+    ['business', 'documents', 'representative', 'payout'] as const
+  ).filter((id) => phaseComplete[id]).length;
+
   return {
     phase,
     businessDraftComplete,
@@ -281,6 +311,9 @@ export function derivePartnerSetupProgress(
     businessHref: '/partner/onboarding?phase=business',
     payoutHref: '/partner/onboarding?phase=representative',
     listingsHref: '/partner/listings',
+    phaseComplete,
+    requirementsDone,
+    requirementsTotal,
   };
 }
 

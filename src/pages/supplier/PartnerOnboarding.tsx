@@ -4,7 +4,6 @@ import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import { useSupplierRole } from '../../hooks/useSupplierRole';
 import {
   PARTNER_FIRST_LISTING_STEP_NOTE,
-  PARTNER_ONBOARDING_CHECKLIST_DONE_NOTE,
   PARTNER_ONBOARDING_PUBLISH_READY_NOTE,
 } from '../../lib/booking-confirmation-copy';
 import {
@@ -49,29 +48,6 @@ type PartnerOnboardingProps = {
   onDepartures?: () => void;
   onProfileRefresh?: (profile: SupplierProfileRow | null) => void;
 };
-
-function phaseDone(
-  id: UnifiedSetupPhaseId,
-  progress: ReturnType<typeof derivePartnerSetupProgress>
-): boolean {
-  if (id === 'business') {
-    return (
-      progress.businessReview === 'pending' ||
-      progress.businessReview === 'verified' ||
-      (progress.businessDraftComplete && progress.businessReview !== 'rejected')
-    );
-  }
-  if (id === 'documents') {
-    return (
-      progress.businessReview === 'verified' ||
-      (progress.businessDraftComplete && progress.businessReview === 'pending')
-    );
-  }
-  if (id === 'representative' || id === 'payout') {
-    return progress.bankingReady || progress.payoutConfigured;
-  }
-  return progress.publishReady;
-}
 
 export default function PartnerOnboarding({
   profile: profileProp,
@@ -148,12 +124,6 @@ export default function PartnerOnboarding({
     [onProfileRefresh]
   );
 
-  const refreshProfile = useCallback(async () => {
-    if (!userId) return;
-    const next = await fetchSupplierProfile(userId);
-    handleProfile(next);
-  }, [userId, handleProfile]);
-
   const businessChip = partnerBusinessStatusChip(progress.businessReview);
   const payoutChip = partnerPayoutStatusChip(progress.payoutReview);
   const phaseIndex = Math.max(
@@ -161,29 +131,36 @@ export default function PartnerOnboarding({
     UNIFIED_SETUP_SCREENS.findIndex((s) => s.id === phase)
   );
   const screen = UNIFIED_SETUP_SCREENS[phaseIndex] ?? UNIFIED_SETUP_SCREENS[0]!;
-  const progressPct = Math.round(((phaseIndex + 1) / UNIFIED_SETUP_SCREENS.length) * 100);
+  const progressPct = Math.round(
+    (progress.requirementsDone / Math.max(1, progress.requirementsTotal)) * 100
+  );
 
   const showBusiness = phase === 'business' || phase === 'documents';
   const showPayout = phase === 'representative' || phase === 'payout';
   const showStatus = phase === 'status';
 
+  const phaseMet = (id: UnifiedSetupPhaseId): boolean => {
+    if (id === 'status') return progress.publishReady;
+    return progress.phaseComplete[id];
+  };
+
   return (
     <div className="partner-unified-setup-shell payout-wizard flex h-full min-h-0 w-full flex-1 overflow-hidden bg-white">
-      <aside className="partner-unified-setup-shell__rail hidden h-full min-h-0 w-[15.25rem] shrink-0 flex-col overflow-hidden border-r border-[#e8ebf0] bg-[#f7f8fa] lg:flex">
+      <aside className="partner-unified-setup-shell__rail hidden h-full min-h-0 w-[14.75rem] shrink-0 flex-col overflow-hidden border-r border-[#e8ebf0] bg-[#f7f8fa] lg:flex">
         <div className="shrink-0 px-4 pb-3 pt-[max(0.85rem,env(safe-area-inset-top))]">
           <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#073b83]">
             Partner setup
           </p>
-          <p className="mt-1 font-display text-[1.25rem] font-bold tracking-tight text-[#17191d]">
+          <p className="mt-1 font-display text-[1.2rem] font-bold tracking-tight text-[#17191d]">
             Get ready to host
           </p>
           <div
             className="mt-3 h-1.5 overflow-hidden rounded-full bg-[#e8ebf0]"
             role="progressbar"
-            aria-valuenow={phaseIndex + 1}
-            aria-valuemin={1}
-            aria-valuemax={UNIFIED_SETUP_SCREENS.length}
-            aria-label="Setup progress"
+            aria-valuenow={progress.requirementsDone}
+            aria-valuemin={0}
+            aria-valuemax={progress.requirementsTotal}
+            aria-label="Requirements completed"
           >
             <div
               className="h-full rounded-full bg-[#073b83] transition-[width] duration-300 ease-out"
@@ -191,16 +168,16 @@ export default function PartnerOnboarding({
             />
           </div>
           <p className="mt-2 text-[11px] tabular-nums text-[#71717a]">
-            Step {phaseIndex + 1} of {UNIFIED_SETUP_SCREENS.length}
+            {progress.requirementsDone} of {progress.requirementsTotal} complete
           </p>
         </div>
         <nav className="min-h-0 flex-1 overflow-y-auto px-2 pb-4" aria-label="Setup steps">
           <ol className="space-y-1">
             {UNIFIED_SETUP_SCREENS.map((item, index) => {
               const current = item.id === phase;
-              const done = phaseDone(item.id, progress);
+              const done = phaseMet(item.id);
               const chip =
-                item.id === 'business' || item.id === 'documents'
+                item.id === 'documents'
                   ? businessChip
                   : item.id === 'payout'
                     ? payoutChip
@@ -212,7 +189,7 @@ export default function PartnerOnboarding({
                     onClick={() => setPhaseAndUrl(item.id)}
                     aria-current={current ? 'step' : undefined}
                     className={[
-                      'lux-flat flex min-h-11 w-full items-center gap-2.5 rounded-lg px-2.5 text-left text-[13px] transition-colors',
+                      'lux-flat flex min-h-10 w-full items-center gap-2.5 rounded-lg px-2.5 text-left text-[13px] transition-colors',
                       current
                         ? 'bg-[rgba(7,59,131,0.08)] font-semibold text-[#073b83]'
                         : done
@@ -223,17 +200,23 @@ export default function PartnerOnboarding({
                     <span
                       className={[
                         'grid h-6 w-6 shrink-0 place-items-center rounded-full text-[11px] font-bold',
-                        current
+                        current || done
                           ? 'bg-[#073b83] text-white'
-                          : done
-                            ? 'bg-[#073b83] text-white'
-                            : 'border border-[#d0d5dd] bg-white text-[#71717a]',
+                          : 'border border-[#d0d5dd] bg-white text-[#71717a]',
                       ].join(' ')}
                     >
-                      {done && !current ? <Check className="h-3.5 w-3.5" strokeWidth={3} /> : index + 1}
+                      {done && !current ? (
+                        <Check className="h-3.5 w-3.5" strokeWidth={3} />
+                      ) : (
+                        index + 1
+                      )}
                     </span>
                     <span className="min-w-0 flex-1 truncate">{item.title}</span>
-                    {chip && (item.id === 'documents' || item.id === 'payout') ? (
+                    {item.id === 'documents' && progress.businessReview === 'pending' ? (
+                      <StatusChip tone="warn">In review</StatusChip>
+                    ) : item.id === 'documents' && progress.businessReview === 'rejected' ? (
+                      <StatusChip tone="bad">Action required</StatusChip>
+                    ) : item.id === 'payout' && chip && !progress.bankingReady ? (
                       <StatusChip tone={chip.tone}>{chip.label}</StatusChip>
                     ) : null}
                   </button>
@@ -245,7 +228,7 @@ export default function PartnerOnboarding({
         <div className="shrink-0 border-t border-[#e8ebf0] p-3">
           <button
             type="button"
-            className="lux-flat min-h-11 w-full rounded-lg px-3 text-left text-[13px] font-semibold text-[#5c6570] hover:bg-[#eef1f5] hover:text-[#17191d]"
+            className="lux-flat min-h-10 w-full rounded-lg px-3 text-left text-[13px] font-semibold text-[#5c6570] hover:bg-[#eef1f5] hover:text-[#17191d]"
             onClick={onSkip}
           >
             Save &amp; exit
@@ -257,35 +240,22 @@ export default function PartnerOnboarding({
         <header className="flex shrink-0 items-center justify-between gap-3 border-b border-[#e8ebf0] bg-white px-4 py-2.5 pt-[max(0.6rem,env(safe-area-inset-top))] sm:px-5 lg:hidden">
           <button
             type="button"
-            className="min-h-11 text-[13px] font-semibold text-[#17191d]"
+            className="min-h-10 text-[13px] font-semibold text-[#17191d]"
             onClick={onSkip}
           >
             Exit
           </button>
           <p className="truncate text-[13px] font-semibold text-[#17191d]">{screen.title}</p>
           <p className="min-w-[3.5rem] text-right text-[11px] tabular-nums text-[#71717a]">
-            {phaseIndex + 1}/{UNIFIED_SETUP_SCREENS.length}
+            {progress.requirementsDone}/{progress.requirementsTotal}
           </p>
         </header>
 
-        <div className="shrink-0 border-b border-[#e8ebf0] bg-white px-4 py-2.5 sm:px-5 lg:hidden">
-          <div
-            className="h-[3px] overflow-hidden rounded-full bg-[#e8ebf0]"
-            role="progressbar"
-            aria-valuenow={phaseIndex + 1}
-            aria-valuemin={1}
-            aria-valuemax={UNIFIED_SETUP_SCREENS.length}
-            aria-label="Setup progress"
-          >
-            <div
-              className="h-full rounded-full bg-[#073b83] transition-[width] duration-300"
-              style={{ width: `${progressPct}%` }}
-            />
-          </div>
-          <div className="mt-2 flex gap-1.5 overflow-x-auto pb-0.5">
+        <div className="shrink-0 border-b border-[#e8ebf0] bg-white px-4 py-2 sm:px-5 lg:hidden">
+          <div className="flex gap-1.5 overflow-x-auto pb-0.5">
             {UNIFIED_SETUP_SCREENS.map((item) => {
               const current = item.id === phase;
-              const done = phaseDone(item.id, progress);
+              const done = phaseMet(item.id);
               return (
                 <button
                   key={item.id}
@@ -363,52 +333,36 @@ export default function PartnerOnboarding({
           ) : null}
 
           {showStatus ? (
-            <div className="partner-unified-setup-status min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-5 sm:px-6 [-webkit-overflow-scrolling:touch]">
+            <div className="partner-unified-setup-status min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-6 sm:px-8 [-webkit-overflow-scrolling:touch]">
               <div className="w-full max-w-[40rem]">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#073b83]">
-                  Status
+                  Next step
                 </p>
-                <h1 className="mt-1 inline-flex flex-wrap items-center gap-1.5 font-display text-[1.45rem] font-bold tracking-tight text-[#17191d]">
-                  Where things stand
+                <h1 className="mt-1 inline-flex flex-wrap items-center gap-1.5 font-display text-[1.5rem] font-bold tracking-tight text-[#17191d]">
+                  {progress.publishReady
+                    ? 'You’re ready'
+                    : progress.businessReview === 'rejected'
+                      ? 'Action required'
+                      : progress.businessReview === 'pending'
+                        ? 'Almost there'
+                        : 'Finish setup'}
                   <PartnerHelpTip label="About setup status">{PARTNER_HELP.publishGate}</PartnerHelpTip>
                 </h1>
-                <p className="mt-1.5 text-[13px] leading-relaxed text-[#5c6570]">
+                <p className="mt-2 max-w-md text-[14px] leading-relaxed text-[#5c6570]">
                   {progress.nextHint}
                 </p>
 
-                {lanes ? (
-                  <dl className="mt-5 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                    {[
-                      ['Form progress', lanes.formProgress],
-                      ['Traverion business', lanes.businessVerification],
-                      ['Stripe verification', lanes.stripeVerification],
-                      ['Payout readiness', lanes.payoutReadiness],
-                    ].map(([label, value]) => (
-                      <div
-                        key={label}
-                        className="flex items-center justify-between gap-3 rounded-[12px] border border-[#eef1f4] bg-white px-3.5 py-3"
-                      >
-                        <dt className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#71717a]">
-                          {label}
-                        </dt>
-                        <dd className="text-right text-[12px] font-semibold text-[#17191d]">
-                          {value}
-                        </dd>
-                      </div>
-                    ))}
-                  </dl>
-                ) : null}
-
                 <button
                   type="button"
-                  className="tv-btn-primary mt-5 h-11 w-full px-4 text-[13px] sm:w-auto"
+                  className="tv-btn-primary mt-6 h-11 min-w-[12rem] px-5 text-[13px]"
                   onClick={() => {
                     if (progress.nextCta.toLowerCase().includes('listing')) {
                       onTours();
                       return;
                     }
                     if (progress.nextPhase === 'status') {
-                      void refreshProfile();
+                      if (!hasListing) onTours();
+                      else onTours();
                       return;
                     }
                     setPhaseAndUrl(progress.nextPhase);
@@ -418,46 +372,44 @@ export default function PartnerOnboarding({
                   <ArrowRight className="ml-1.5 inline-block h-4 w-4" aria-hidden />
                 </button>
 
+                {lanes ? (
+                  <ul className="mt-8 space-y-0 divide-y divide-[#eef1f4] border-y border-[#eef1f4]">
+                    {[
+                      ['Company', lanes.businessVerification],
+                      ['Payout details', lanes.formProgress],
+                      ['Stripe', lanes.stripeVerification],
+                      ['Payouts', lanes.payoutReadiness],
+                    ].map(([label, value]) => (
+                      <li
+                        key={label}
+                        className="flex items-center justify-between gap-4 py-3.5 text-[13px]"
+                      >
+                        <span className="font-medium text-[#5c6570]">{label}</span>
+                        <span className="text-right font-semibold text-[#17191d]">{value}</span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+
                 {progress.publishReady ? (
-                  <NoticeCallout className="mt-5" title="Ready to publish" tone="success">
+                  <NoticeCallout className="mt-6" title="Ready to publish" tone="success">
                     {PARTNER_ONBOARDING_PUBLISH_READY_NOTE}
-                  </NoticeCallout>
-                ) : progress.businessDraftComplete && progress.payoutConfigured ? (
-                  <NoticeCallout className="mt-5" title="Details on file" tone="info">
-                    {PARTNER_ONBOARDING_CHECKLIST_DONE_NOTE}
                   </NoticeCallout>
                 ) : null}
 
                 {!hasListing ? (
-                  <p className="mt-4 text-[12px] leading-relaxed text-[#5c6570]">
+                  <p className="mt-5 text-[12px] leading-relaxed text-[#5c6570]">
                     {PARTNER_FIRST_LISTING_STEP_NOTE}
                   </p>
                 ) : (
                   <button
                     type="button"
-                    className="lux-flat mt-4 min-h-10 text-[13px] font-semibold text-[#5c6570] hover:text-[#17191d]"
+                    className="lux-flat mt-5 min-h-10 text-[13px] font-semibold text-[#5c6570] hover:text-[#17191d]"
                     onClick={() => onDepartures?.() ?? onTours()}
                   >
-                    Open calendar for departures
+                    Open calendar
                   </button>
                 )}
-
-                <div className="mt-8 flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    className="tv-btn-secondary h-10 px-3 text-[13px]"
-                    onClick={() => setPhaseAndUrl('documents')}
-                  >
-                    Review company
-                  </button>
-                  <button
-                    type="button"
-                    className="tv-btn-secondary h-10 px-3 text-[13px]"
-                    onClick={() => setPhaseAndUrl('payout')}
-                  >
-                    Review payouts
-                  </button>
-                </div>
               </div>
             </div>
           ) : null}

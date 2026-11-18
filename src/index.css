@@ -392,8 +392,22 @@ body {
     height: 100%;
   }
 
+  .partner-unified-setup-shell .stay-title {
+    font-size: 1.35rem !important;
+    line-height: 1.2 !important;
+  }
+
+  .partner-unified-setup-shell .stay-lede,
+  .partner-unified-setup-shell .payout-wizard__lede {
+    margin-top: 0.35rem;
+    max-width: 36rem;
+    font-size: 0.8125rem;
+    line-height: 1.45;
+    color: #5c6570;
+  }
+
   .partner-setup-embed.payout-wizard {
-    --pw-content-max: 36rem;
+    --pw-content-max: 40rem;
     background: transparent;
     overflow: hidden;
   }
@@ -406,6 +420,13 @@ body {
     background: rgba(252, 252, 253, 0.96);
     backdrop-filter: blur(8px);
     border-top: 1px solid #e8ebf0;
+  }
+
+  .partner-setup-embed .listing-creation-footer {
+    margin-left: 0;
+    margin-right: 0;
+    padding-left: 1rem;
+    padding-right: 1rem;
   }
 
   @keyframes partner-unified-setup-in {

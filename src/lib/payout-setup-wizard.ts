@@ -131,6 +131,8 @@ export type PayoutWizardLocalProgress = {
   hasSavedProgress: boolean;
   savedStepCount: number;
   wizardCompleted: boolean;
+  representativeSaved: boolean;
+  identitySaved: boolean;
   /** True only when a bank was actually attached / managed — not deferred draft continue. */
   bankSavedLocally: boolean;
   /** True when bank step was deferred because Connect create is unavailable. */
@@ -149,6 +151,8 @@ export function summarizePayoutWizardLocalProgress(
       hasSavedProgress: false,
       savedStepCount: 0,
       wizardCompleted: false,
+      representativeSaved: false,
+      identitySaved: false,
       bankSavedLocally: false,
       bankDeferred: false,
       bankLast4: null,
@@ -169,6 +173,8 @@ export function summarizePayoutWizardLocalProgress(
     hasSavedProgress: savedStepCount > 0 || Boolean(draft.wizardCompletedAt),
     savedStepCount,
     wizardCompleted: Boolean(draft.wizardCompletedAt),
+    representativeSaved: Boolean(draft.representativeSavedAt),
+    identitySaved: Boolean(draft.identitySavedAt),
     bankSavedLocally: Boolean(draft.bankSavedAt),
     bankDeferred: Boolean(draft.bankDeferredAt) && !draft.bankSavedAt,
     bankLast4: draft.bankLast4?.trim() || null,
@@ -954,6 +960,10 @@ export function isLiveAccountCreationGateError(message: string | null | undefine
 
 export const PAYOUT_LIVE_SETUP_UNAVAILABLE_COPY =
   'Payout account connection is not available yet. Your details stay saved on your Traverion account until connection is enabled for you. This is not a verification failure, and your bank account has not been sent to Stripe.';
+
+/** Shorter in-flow notice — full copy stays in help / status. */
+export const PAYOUT_LIVE_SETUP_UNAVAILABLE_SHORT =
+  'Payout connection is not enabled for you yet. You can still save these details.';
 
 /** Empty server draft payload used when clearing progress across devices. */
 export function emptyServerPayoutWizardDraft(): Record<string, unknown> {
