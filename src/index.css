@@ -21094,13 +21094,14 @@ details:not([open]) > :not(summary) {
 .payout-wizard__complete-card {
   width: 100%;
   max-width: 36rem;
-  margin: auto;
-  padding: 2.25rem 1.35rem 2.75rem;
+  /* Top-align on short and tall viewports — avoid vertically floating mid-screen review. */
+  margin: 0 auto;
+  padding: clamp(1.5rem, 8vh, 3.25rem) 1.35rem 2.75rem;
 }
 
 @media (min-width: 640px) {
   .payout-wizard__complete-card {
-    padding: 2.85rem 2.25rem 3.1rem;
+    padding: clamp(1.75rem, 9vh, 3.5rem) 2.25rem 3.1rem;
   }
 }
 
@@ -21108,6 +21109,11 @@ details:not([open]) > :not(summary) {
   .payout-wizard__complete-card {
     max-width: 38rem;
   }
+}
+
+.payout-wizard__review {
+  width: 100%;
+  max-width: var(--pw-content-max, 36rem);
 }
 
 .payout-wizard__complete-hero {

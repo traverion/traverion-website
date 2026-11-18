@@ -16,11 +16,15 @@ import { PARTNER_HELP } from '../../lib/partnerHelpCopy';
 import type { PartnerStatusTone } from '../../lib/partnerVerificationStatus';
 import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
 import {
+  buildPayoutReadinessLanes,
   firstOutstandingWizardStep,
   loadPayoutWizardDraft,
+  mergeServerPayoutWizardDraft,
   payoutBankPresentation,
   payoutVerificationPresentation,
+  savePayoutWizardDraft,
   summarizePayoutWizardLocalProgress,
+  emptyPayoutWizardDraft,
   type PayoutWizardStepId,
 } from '../../lib/payout-setup-wizard';
 import StatusChip from '../StatusChip';
@@ -70,7 +74,7 @@ function statusTone(label: string): PartnerStatusTone {
     case 'Restricted':
     case 'LIVE onboarding required':
       return 'bad';
-    case 'Details saved — connection not enabled':
+    case 'Details saved — Stripe not started':
       return 'neutral';
     default:
       return 'neutral';
@@ -174,6 +178,9 @@ export default function IncomeFinancialSettings({
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
   const [draftTick, setDraftTick] = useState(0);
+  const [liveCreateAllowed, setLiveCreateAllowed] = useState(false);
+  const [platformEnvironment, setPlatformEnvironment] = useState<'test' | 'live' | null>(null);
+  const [connectSetupUnavailable, setConnectSetupUnavailable] = useState(false);
 
   const experience = deriveConnectExperienceState(profile);
   /** Provider mirror label — never “Payouts enabled” while execution may be off. */
@@ -185,12 +192,38 @@ export default function IncomeFinancialSettings({
     [userId, draftTick, wizardOpen]
   );
   const hasConnectedAccount = Boolean(profile?.stripe_connected_account_id);
-  /** Supplier-facing verification chip — honest when only device draft exists. */
+  /** Supplier-facing Stripe chip — never upgrades from form markers alone. */
   const displayStatus = payoutVerificationPresentation({
     connectLabel: connectStatus,
     hasConnectedAccount,
     localProgress,
   });
+  const canReceive = connectCanReceiveTransfers(profile);
+  const readinessLanes = useMemo(
+    () =>
+      buildPayoutReadinessLanes({
+        localProgress,
+        verificationStatus: profile?.verification_status,
+        connectLabel: connectStatus,
+        hasConnectedAccount,
+        canReceiveTransfers: canReceive,
+        connectLivemode: profile?.connect_account_livemode,
+        connectSetupUnavailable,
+        liveCreateAllowed,
+        platformEnvironment,
+      }),
+    [
+      localProgress,
+      profile?.verification_status,
+      profile?.connect_account_livemode,
+      connectStatus,
+      hasConnectedAccount,
+      canReceive,
+      connectSetupUnavailable,
+      liveCreateAllowed,
+      platformEnvironment,
+    ]
+  );
   const verified = displayStatus === 'Verified';
   const bankOk = bankAlreadyManaged(profile);
   const actionRequired =
@@ -216,6 +249,33 @@ export default function IncomeFinancialSettings({
     profile?.company_legal_name?.trim() ||
     profile?.display_name?.trim() ||
     null;
+
+  useEffect(() => {
+    let cancelled = false;
+    void invokeConnectSupplierOnboarding('status').then((result) => {
+      if (cancelled) return;
+      if (result.environment === 'test' || result.environment === 'live') {
+        setPlatformEnvironment(result.environment);
+      }
+      setLiveCreateAllowed(Boolean(result.live_create_allowed) || result.environment === 'test');
+      if (result.environment === 'live' && !result.live_create_allowed && !hasConnectedAccount) {
+        setConnectSetupUnavailable(true);
+      } else {
+        setConnectSetupUnavailable(false);
+      }
+      if (result.wizard_draft && typeof result.wizard_draft === 'object') {
+        const local = loadPayoutWizardDraft(userId) ?? emptyPayoutWizardDraft();
+        const merged = mergeServerPayoutWizardDraft(local, result.wizard_draft, {
+          serverUpdatedAt: result.wizard_draft_updated_at,
+        });
+        savePayoutWizardDraft(userId, merged);
+        setDraftTick((n) => n + 1);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [userId, hasConnectedAccount]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -358,7 +418,7 @@ export default function IncomeFinancialSettings({
         <div className="rounded-[10px] border border-[#eef1f4] bg-[#f8fafc] px-4 py-4 sm:px-5">
           <div className="mb-4 flex flex-wrap items-center gap-2">
             <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#71717a]">
-              Verification
+              Status
             </span>
             <StatusChip tone={statusTone(displayStatus)}>{displayStatus}</StatusChip>
             {localProgress.hasSavedProgress ? (
@@ -366,36 +426,27 @@ export default function IncomeFinancialSettings({
                 {localProgress.wizardCompleted ? 'Setup saved' : 'Details saved'}
               </StatusChip>
             ) : null}
-            <PartnerHelpTip label="About verification status">
+            <PartnerHelpTip label="About payout status">
               {displayStatus === 'Verified'
                 ? PARTNER_HELP.verified
                 : displayStatus === 'Under review'
                   ? PARTNER_HELP.underReview
                   : displayStatus === 'Action required' || displayStatus === 'Restricted'
                     ? PARTNER_HELP.actionRequired
-                    : displayStatus === 'Details saved — connection not enabled'
-                      ? 'Your details are saved on this device. Provider verification starts only after Traverion enables payout connection.'
+                    : displayStatus === 'Details saved — Stripe not started'
+                      ? 'Your details are saved on your Traverion account. Stripe verification starts only after payout connection is enabled for you.'
                       : PARTNER_HELP.incomplete}
             </PartnerHelpTip>
           </div>
-          <dl className="grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-3">
+          <dl className="grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-2 lg:grid-cols-4">
             <Fact label="Registered business" value={legalName} />
-            <Fact label="Verification" value={displayStatus} />
-            <Fact
-              label="Onboarding"
-              value={
-                localProgress.wizardCompleted
-                  ? 'Setup completed on this device'
-                  : localProgress.hasSavedProgress
-                    ? `${localProgress.savedStepCount} step${localProgress.savedStepCount === 1 ? '' : 's'} saved on this device`
-                    : 'Not started'
-              }
-            />
+            <Fact label="Traverion business" value={readinessLanes.businessVerification} />
+            <Fact label="Stripe verification" value={readinessLanes.stripeVerification} />
+            <Fact label="Payout readiness" value={readinessLanes.payoutReadiness} />
           </dl>
           <p className="mt-3 text-[12px] leading-relaxed text-[#71717a]">
-            Saved information is not the same as verified. Bank connection and payouts stay pending
-            until the payment provider confirms them — Traverion never marks those complete from a
-            local draft alone.
+            {readinessLanes.nextStep} Form progress restores across devices from your Traverion
+            account. Traverion never marks Stripe verification or payouts complete from a draft alone.
           </p>
         </div>
       </SettingsCard>

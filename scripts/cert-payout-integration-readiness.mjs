@@ -168,8 +168,8 @@ try {
   const bodyText = await page.locator('body').innerText();
   note(
     'settings shows connection-not-enabled verification (not Verified)',
-    /Details saved — connection not enabled/i.test(bodyText) && !/\bVerified\b/.test(bodyText),
-    bodyText.includes('Details saved — connection not enabled')
+    /Details saved — Stripe not started/i.test(bodyText) && !/\bVerified\b/.test(bodyText),
+    bodyText.includes('Details saved — Stripe not started')
       ? 'found honest chip'
       : 'missing honest chip'
   );

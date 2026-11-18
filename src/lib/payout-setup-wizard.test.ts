@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
+  buildPayoutReadinessLanes,
   canProvisionConnectAccount,
   emptyBeneficialOwner,
   emptyPayoutWizardDraft,
   isLiveAccountCreationGateError,
+  mergeServerPayoutWizardDraft,
   parseOwnershipPercent,
   payoutBankPresentation,
   payoutVerificationPresentation,
@@ -13,6 +15,7 @@ import {
   sumDeclaredOwnershipPercent,
   summarizePayoutWizardLocalProgress,
   toServerPayoutWizardDraft,
+  traverionBusinessVerificationLabel,
   validateBeneficialOwners,
   validateOwnershipPercent,
   validatePayoutBusinessFromProfile,
@@ -54,7 +57,7 @@ describe('payout wizard local progress summary', () => {
         hasConnectedAccount: false,
         localProgress: summary,
       })
-    ).toBe('Details saved — connection not enabled');
+    ).toBe('Details saved — Stripe not started');
     expect(
       payoutVerificationPresentation({
         connectLabel: 'Verified',
@@ -226,5 +229,54 @@ describe('ownership percent validation', () => {
     expect(payoutWizardStepForRequirement('directors.first_name')).toBe('business');
     expect(payoutWizardStepForRequirement('owners.percent_ownership')).toBe('representative');
     expect(payoutWizardStepForRequirement('representative.first_name')).toBe('representative');
+  });
+
+  it('keeps Traverion business verification separate from Stripe and form progress', () => {
+    expect(traverionBusinessVerificationLabel('verified')).toBe('Approved');
+    expect(traverionBusinessVerificationLabel('pending')).toBe('In review');
+    const localProgress = summarizePayoutWizardLocalProgress(
+      emptyPayoutWizardDraft({
+        businessSavedAt: '2026-01-01T00:00:00.000Z',
+        wizardCompletedAt: '2026-01-02T00:00:00.000Z',
+      })
+    );
+    const lanes = buildPayoutReadinessLanes({
+      localProgress,
+      verificationStatus: 'verified',
+      connectLabel: 'Not started',
+      hasConnectedAccount: false,
+      canReceiveTransfers: false,
+      connectLivemode: null,
+      connectSetupUnavailable: true,
+      liveCreateAllowed: false,
+      platformEnvironment: 'live',
+    });
+    expect(lanes.formProgress).toBe('Setup finished');
+    expect(lanes.businessVerification).toBe('Approved');
+    expect(lanes.stripeVerification).toBe('Details saved — Stripe not started');
+    expect(lanes.payoutReadiness).toBe('Waiting for connection access');
+    expect(lanes.nextStep).toMatch(/Traverion account/i);
+  });
+
+  it('prefers richer server draft when merging across devices', () => {
+    const local = emptyPayoutWizardDraft({
+      step: 'business',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    });
+    const server = toServerPayoutWizardDraft(
+      emptyPayoutWizardDraft({
+        step: 'preferences',
+        rep_first_name: 'Ada',
+        businessSavedAt: '2026-01-02T00:00:00.000Z',
+        representativeSavedAt: '2026-01-02T00:00:00.000Z',
+        preferencesSavedAt: '2026-01-02T00:00:00.000Z',
+      })
+    );
+    const merged = mergeServerPayoutWizardDraft(local, server, {
+      serverUpdatedAt: '2026-01-03T00:00:00.000Z',
+    });
+    expect(merged.step).toBe('preferences');
+    expect(merged.rep_first_name).toBe('Ada');
+    expect(merged.businessSavedAt).toBe('2026-01-02T00:00:00.000Z');
   });
 });

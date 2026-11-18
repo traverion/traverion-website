@@ -21,10 +21,12 @@ import {
   type PayoutCyclePreference,
 } from '../../lib/payout-preference';
 import {
+  buildPayoutReadinessLanes,
   canProvisionConnectAccount,
   clearPayoutWizardDraft,
   emptyBeneficialOwner,
   emptyPayoutWizardDraft,
+  emptyServerPayoutWizardDraft,
   formatPayoutBusinessAddress,
   isLiveAccountCreationGateError,
   loadPayoutWizardDraft,
@@ -213,6 +215,7 @@ export default function PayoutSetupWizard({
   const [hostedFallbackUrl, setHostedFallbackUrl] = useState<string | null>(null);
   const [hostedLinkBusy, setHostedLinkBusy] = useState(false);
   const [persistLabel, setPersistLabel] = useState<string | null>(null);
+  const [serverHydrated, setServerHydrated] = useState(false);
   const [bankIban, setBankIban] = useState('');
   const [bankHolder, setBankHolder] = useState('');
   const [bankMasked, setBankMasked] = useState<string | null>(null);
@@ -250,48 +253,66 @@ export default function PayoutSetupWizard({
       !profile?.connect_details_submitted);
 
   useEffect(() => {
+    // Local cache is a UX resume aid only — never the cross-device source of truth.
     savePayoutWizardDraft(userId, draft);
-    setPersistLabel('Progress saved');
-    const t = window.setTimeout(() => setPersistLabel(null), 1600);
+    if (!serverHydrated) return;
+    setPersistLabel('Saving…');
+    const t = window.setTimeout(() => setPersistLabel(null), 1800);
     if (serverDraftTimer.current) window.clearTimeout(serverDraftTimer.current);
     serverDraftTimer.current = window.setTimeout(() => {
       void invokeConnectSupplierOnboarding('save_wizard_draft', {
         wizard_draft: toServerPayoutWizardDraft(draft),
+      }).then((result) => {
+        if (result.success) setPersistLabel('Saved to your account');
+        else setPersistLabel('Could not sync — retrying on next change');
+        window.setTimeout(() => setPersistLabel(null), 1800);
       });
     }, 900);
     return () => {
       window.clearTimeout(t);
       if (serverDraftTimer.current) window.clearTimeout(serverDraftTimer.current);
     };
-  }, [userId, draft]);
+  }, [userId, draft, serverHydrated]);
 
   useEffect(() => {
     let cancelled = false;
-    void invokeConnectSupplierOnboarding('status').then((result) => {
-      if (cancelled) return;
-      if (result.environment === 'test' || result.environment === 'live') {
-        setPlatformEnvironment(result.environment);
-      }
-      const allowed = result.live_create_allowed === true || result.environment === 'test';
-      setLiveCreateAllowed(Boolean(result.live_create_allowed) || result.environment === 'test');
-      setLiveCreateBlockedReason(
-        result.environment === 'live' && !result.live_create_allowed
-          ? result.live_create_blocked_reason ?? PAYOUT_LIVE_SETUP_UNAVAILABLE_COPY
-          : null
-      );
-      if (!allowed && result.environment === 'live' && !hasConnectedAccount) {
-        setConnectSetupUnavailable(true);
-      }
-      if (result.wizard_draft && typeof result.wizard_draft === 'object') {
-        setDraft((current) => mergeServerPayoutWizardDraft(current, result.wizard_draft));
-      }
-      if (result.onboarding && typeof result.onboarding === 'object') {
-        // Status sync from Stripe mirror — never invent Verified from local markers.
-        void fetchSupplierProfile(userId).then((next) => {
-          if (!cancelled) onProfile(next);
-        });
-      }
-    });
+    void invokeConnectSupplierOnboarding('status')
+      .then((result) => {
+        if (cancelled) return;
+        if (result.environment === 'test' || result.environment === 'live') {
+          setPlatformEnvironment(result.environment);
+        }
+        const allowed = result.live_create_allowed === true || result.environment === 'test';
+        setLiveCreateAllowed(Boolean(result.live_create_allowed) || result.environment === 'test');
+        setLiveCreateBlockedReason(
+          result.environment === 'live' && !result.live_create_allowed
+            ? result.live_create_blocked_reason ?? PAYOUT_LIVE_SETUP_UNAVAILABLE_COPY
+            : null
+        );
+        if (!allowed && result.environment === 'live' && !hasConnectedAccount) {
+          setConnectSetupUnavailable(true);
+        } else if (allowed || hasConnectedAccount) {
+          setConnectSetupUnavailable(false);
+        }
+        if (result.wizard_draft && typeof result.wizard_draft === 'object') {
+          setDraft((current) => {
+            const merged = mergeServerPayoutWizardDraft(current, result.wizard_draft, {
+              serverUpdatedAt: result.wizard_draft_updated_at,
+            });
+            savePayoutWizardDraft(userId, merged);
+            return merged;
+          });
+        }
+        if (result.onboarding && typeof result.onboarding === 'object') {
+          // Status sync from Stripe mirror — never invent Verified from local markers.
+          void fetchSupplierProfile(userId).then((next) => {
+            if (!cancelled) onProfile(next);
+          });
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setServerHydrated(true);
+      });
     return () => {
       cancelled = true;
     };
@@ -908,25 +929,45 @@ export default function PayoutSetupWizard({
         setError('Could not save setup progress. Check your connection and try again.');
         return;
       }
-      // When LIVE create is approved for this supplier, ensure Connect then sync Stripe mirror.
-      if (
-        canProvisionConnectAccount({
-          hasConnectedAccount,
-          platformEnvironment,
-          liveCreateAllowed,
-        })
-      ) {
+      const provisionNow = canProvisionConnectAccount({
+        hasConnectedAccount,
+        platformEnvironment,
+        liveCreateAllowed,
+      });
+      // When LIVE create is approved (or TEST / existing account), ensure Connect then sync.
+      if (provisionNow) {
         const ensured = await ensureConnectWhenAllowed();
         if (!ensured.ok) {
           setBusy(false);
           setError(connectOnboardingUserMessage(ensured.error));
           return;
         }
+        const needsHosted =
+          ensured.provisioned &&
+          (!hasConnectedAccount ||
+            identityDocumentDue ||
+            accountRestricted ||
+            outstandingKeys.length > 0 ||
+            !canReceive);
+        if (needsHosted) {
+          setHostedLinkBusy(true);
+          const link = await fetchConnectAccountLink();
+          setHostedLinkBusy(false);
+          if (link.success && link.url) {
+            window.location.assign(link.url);
+            return;
+          }
+          // Fall through to completion with honest next-step copy if Account Link fails.
+          setNote(
+            connectOnboardingUserMessage(link.error) ||
+              'Setup is saved. Open Continue on Stripe when you are ready.'
+          );
+        }
       }
       await refreshConnect();
       onProfile(await fetchSupplierProfile(userId));
       setBusy(false);
-      // Completion UI reads Stripe-mirrored profile + honest local markers — never simulates Verified.
+      // Completion UI reads Stripe-mirrored profile + honest markers — never simulates Verified.
       setPhase('complete');
       return;
     }
@@ -954,45 +995,17 @@ export default function PayoutSetupWizard({
     localProgress,
   });
 
-  /** Completion-screen copy — plain language, never implies verified/paid out. */
-  const completionVerificationLabel = (() => {
-    switch (verificationPresentation) {
-      case 'Verified':
-        return 'Confirmed';
-      case 'Under review':
-        return 'In review';
-      case 'Action required':
-        return 'Needs attention';
-      case 'Restricted':
-        return 'Restricted';
-      case 'LIVE onboarding required':
-        return 'Not confirmed yet';
-      case 'Details saved — connection not enabled':
-        return 'Connection not enabled';
-      default:
-        return 'Not started';
-    }
-  })();
-
-  const completionConnectionLabel = (() => {
-    if (canReceive && profile?.connect_account_livemode === true) {
-      return 'Ready when payouts are enabled';
-    }
-    if (connectSetupUnavailable || (!hasConnectedAccount && platformEnvironment !== 'test')) {
-      return 'Not available yet';
-    }
-    if (hasConnectedAccount && !canReceive) {
-      return 'Waiting for confirmation';
-    }
-    return 'Not connected';
-  })();
-
-  const completionSavedLabel = (() => {
-    const n = localProgress.savedStepCount;
-    if (n <= 0) return 'Saved on this device';
-    if (n >= 5) return 'All details saved on this device';
-    return n === 1 ? 'Partially saved on this device' : 'Saved on this device';
-  })();
+  const readinessLanes = buildPayoutReadinessLanes({
+    localProgress,
+    verificationStatus: profile?.verification_status,
+    connectLabel: verificationStatusLabel,
+    hasConnectedAccount,
+    canReceiveTransfers: canReceive,
+    connectLivemode: profile?.connect_account_livemode,
+    connectSetupUnavailable,
+    liveCreateAllowed,
+    platformEnvironment,
+  });
 
   const completionBankLabel = payoutBankPresentation({
     bankManaged,
@@ -1001,7 +1014,38 @@ export default function PayoutSetupWizard({
   });
 
   const showConnectionPendingNote =
-    connectSetupUnavailable || (!hasConnectedAccount && platformEnvironment !== 'test');
+    connectSetupUnavailable ||
+    (!hasConnectedAccount && platformEnvironment === 'live' && !liveCreateAllowed);
+
+  const canLaunchHostedStripe =
+    canProvisionConnect &&
+    (hasConnectedAccount || liveCreateAllowed || platformEnvironment === 'test');
+
+  const launchHostedStripe = async () => {
+    setBusy(true);
+    setError(null);
+    setHostedLinkBusy(true);
+    try {
+      const ensured = await ensureConnectWhenAllowed();
+      if (!ensured.ok) {
+        setError(connectOnboardingUserMessage(ensured.error));
+        return;
+      }
+      if (!ensured.provisioned && !hasConnectedAccount) {
+        setNote(liveCreateBlockedReason || PAYOUT_LIVE_SETUP_UNAVAILABLE_COPY);
+        return;
+      }
+      const link = await fetchConnectAccountLink();
+      if (!link.success || !link.url) {
+        setError(connectOnboardingUserMessage(link.error) || 'Could not open Stripe.');
+        return;
+      }
+      window.location.assign(link.url);
+    } finally {
+      setBusy(false);
+      setHostedLinkBusy(false);
+    }
+  };
 
   const onBack = () => {
     if (stepIndex <= 0) {
@@ -1041,7 +1085,17 @@ export default function PayoutSetupWizard({
 
   const continueLabel =
     draft.step === 'review'
-      ? 'Done'
+      ? canLaunchHostedStripe && !hasConnectedAccount
+        ? busy
+          ? 'Connecting…'
+          : 'Connect with Stripe'
+        : canLaunchHostedStripe && (identityDocumentDue || accountRestricted || outstandingKeys.length > 0)
+          ? busy
+            ? 'Opening Stripe…'
+            : 'Continue on Stripe'
+          : busy
+            ? 'Saving…'
+            : 'Save & finish'
       : busy
         ? 'Saving…'
         : 'Continue';
@@ -1076,7 +1130,7 @@ export default function PayoutSetupWizard({
     if (identityDocumentDue || accountRestricted) return 'Action required';
     // Draft-first LIVE (no connected account yet) — do not imply Stripe is reviewing.
     if (connectSetupUnavailable && !hasConnectedAccount) {
-      return draft.identitySavedAt ? 'Saved on this device' : 'Incomplete';
+      return draft.identitySavedAt ? 'Saved to your account' : 'Incomplete';
     }
     if (draft.identitySavedAt || profile?.connect_details_submitted) {
       return 'Under review';
@@ -1110,48 +1164,61 @@ export default function PayoutSetupWizard({
         <div className="payout-wizard__complete" ref={scrollRef}>
           <div className="payout-wizard__complete-card">
             <div className="payout-wizard__complete-hero">
-              <p className="payout-wizard__complete-kicker">
-                {showConnectionPendingNote ? 'Saved on this device' : 'Saved'}
-              </p>
+              <p className="payout-wizard__complete-kicker">Saved to your account</p>
               <h1 className="payout-wizard__complete-title">
-                {showConnectionPendingNote ? 'Setup saved' : 'You’re ready to continue'}
-              </h1>
-              <p className="payout-wizard__complete-lede">
                 {showConnectionPendingNote
-                  ? 'Your details are kept on this device. Verification and payout connection have not started yet.'
-                  : 'Your details are saved. Statuses below update only after the payment provider confirms them.'}
-              </p>
+                  ? 'Setup saved'
+                  : canLaunchHostedStripe && !canReceive
+                    ? 'Continue with Stripe'
+                    : 'You’re ready for the next step'}
+              </h1>
+              <p className="payout-wizard__complete-lede">{readinessLanes.nextStep}</p>
             </div>
 
             <dl className="payout-wizard__status-grid" aria-label="Setup status">
               <div className="payout-wizard__status-row">
-                <dt>Your details</dt>
+                <dt>Form progress</dt>
                 <dd>
                   <span className="payout-wizard__status-pill payout-wizard__status-pill--saved">
-                    {completionSavedLabel}
+                    {readinessLanes.formProgress}
                   </span>
                 </dd>
               </div>
               <div className="payout-wizard__status-row">
-                <dt>Verification</dt>
+                <dt>Traverion business</dt>
                 <dd>
                   <span
                     className={[
                       'payout-wizard__status-pill',
-                      completionVerificationLabel === 'Confirmed'
+                      readinessLanes.businessVerification === 'Approved'
                         ? 'payout-wizard__status-pill--ok'
                         : 'payout-wizard__status-pill--pending',
                     ].join(' ')}
                   >
-                    {completionVerificationLabel}
+                    {readinessLanes.businessVerification}
                   </span>
                 </dd>
               </div>
               <div className="payout-wizard__status-row">
-                <dt>Payout connection</dt>
+                <dt>Stripe verification</dt>
+                <dd>
+                  <span
+                    className={[
+                      'payout-wizard__status-pill',
+                      readinessLanes.stripeVerification === 'Verified'
+                        ? 'payout-wizard__status-pill--ok'
+                        : 'payout-wizard__status-pill--pending',
+                    ].join(' ')}
+                  >
+                    {readinessLanes.stripeVerification}
+                  </span>
+                </dd>
+              </div>
+              <div className="payout-wizard__status-row">
+                <dt>Payout readiness</dt>
                 <dd>
                   <span className="payout-wizard__status-pill payout-wizard__status-pill--pending">
-                    {completionConnectionLabel}
+                    {readinessLanes.payoutReadiness}
                   </span>
                 </dd>
               </div>
@@ -1172,22 +1239,33 @@ export default function PayoutSetupWizard({
               </div>
             </dl>
 
-            {showConnectionPendingNote ? (
-              <p className="payout-wizard__complete-note" role="status">
-                Payout connection opens when Traverion enables it for your account. Bank details are
-                not sent to the payment provider until then.
-              </p>
-            ) : null}
+            <p className="payout-wizard__complete-note" role="status">
+              {showConnectionPendingNote
+                ? 'Bank details are not sent to Stripe until Traverion enables payout connection for your account.'
+                : 'Statuses update only from Traverion business review and Stripe confirmation — never from finishing this form alone.'}
+            </p>
 
             <div className="payout-wizard__complete-actions">
-              <button
-                ref={completePrimaryRef}
-                type="button"
-                className="tv-btn-primary payout-wizard__complete-primary h-11 w-full px-4 text-[13px]"
-                onClick={returnToIncomePayouts}
-              >
-                Return to Income &amp; Payouts
-              </button>
+              {canLaunchHostedStripe && (!canReceive || identityDocumentDue || accountRestricted) ? (
+                <button
+                  ref={completePrimaryRef}
+                  type="button"
+                  className="tv-btn-primary payout-wizard__complete-primary h-11 w-full px-4 text-[13px]"
+                  disabled={busy || hostedLinkBusy || !canEdit}
+                  onClick={() => void launchHostedStripe()}
+                >
+                  {hostedLinkBusy ? 'Opening Stripe…' : hasConnectedAccount ? 'Continue on Stripe' : 'Connect with Stripe'}
+                </button>
+              ) : (
+                <button
+                  ref={completePrimaryRef}
+                  type="button"
+                  className="tv-btn-primary payout-wizard__complete-primary h-11 w-full px-4 text-[13px]"
+                  onClick={returnToIncomePayouts}
+                >
+                  Return to Income &amp; Payouts
+                </button>
+              )}
               <button
                 type="button"
                 className="lux-flat payout-wizard__complete-secondary min-h-10 text-[13px] font-semibold text-[#073b83] hover:text-[#052d65]"
@@ -1195,6 +1273,15 @@ export default function PayoutSetupWizard({
               >
                 Edit details
               </button>
+              {canLaunchHostedStripe && (!canReceive || identityDocumentDue || accountRestricted) ? (
+                <button
+                  type="button"
+                  className="lux-flat payout-wizard__complete-secondary min-h-10 text-[13px] font-semibold text-[#5c6570]"
+                  onClick={returnToIncomePayouts}
+                >
+                  Return to Income &amp; Payouts
+                </button>
+              ) : null}
             </div>
           </div>
         </div>
@@ -2134,45 +2221,79 @@ export default function PayoutSetupWizard({
               ) : null}
 
               {draft.step === 'review' ? (
-                <div className="mt-4 space-y-4 text-[13px]">
-                  <div className="space-y-1">
-                    <p className="text-[12px] font-semibold text-[#18181b]">
-                      Verification status: {verificationPresentation}
+                <div className="payout-wizard__review mt-5 space-y-5 text-[13px]">
+                  <dl className="payout-wizard__status-grid" aria-label="Readiness status">
+                    <div className="payout-wizard__status-row">
+                      <dt>Form progress</dt>
+                      <dd>
+                        <span className="payout-wizard__status-pill payout-wizard__status-pill--saved">
+                          {readinessLanes.formProgress}
+                        </span>
+                      </dd>
+                    </div>
+                    <div className="payout-wizard__status-row">
+                      <dt>Traverion business</dt>
+                      <dd>
+                        <span
+                          className={[
+                            'payout-wizard__status-pill',
+                            readinessLanes.businessVerification === 'Approved'
+                              ? 'payout-wizard__status-pill--ok'
+                              : 'payout-wizard__status-pill--pending',
+                          ].join(' ')}
+                        >
+                          {readinessLanes.businessVerification}
+                        </span>
+                      </dd>
+                    </div>
+                    <div className="payout-wizard__status-row">
+                      <dt>Stripe verification</dt>
+                      <dd>
+                        <span className="payout-wizard__status-pill payout-wizard__status-pill--pending">
+                          {verificationPresentation}
+                        </span>
+                      </dd>
+                    </div>
+                    <div className="payout-wizard__status-row">
+                      <dt>Payout readiness</dt>
+                      <dd>
+                        <span className="payout-wizard__status-pill payout-wizard__status-pill--pending">
+                          {readinessLanes.payoutReadiness}
+                        </span>
+                      </dd>
+                    </div>
+                  </dl>
+
+                  <p className="text-[12px] leading-relaxed text-[#5c6570]">{readinessLanes.nextStep}</p>
+
+                  {profile?.connect_account_livemode === false || platformEnvironment === 'test' ? (
+                    <p className="rounded-[10px] border border-[#e8ebf0] bg-[#fafbfc] px-3 py-2 text-[12px] text-[#5c6570]">
+                      This is Stripe TEST setup — not LIVE verification. LIVE payouts stay off until a
+                      separate authorization.
                     </p>
-                    {profile?.connect_account_livemode === false || platformEnvironment === 'test' ? (
-                      <p className="text-[12px] text-[#5c6570]">
-                        Stripe TEST setup — not LIVE Verified. Payouts stay disabled until a separate LIVE
-                        mission.
-                      </p>
-                    ) : null}
-                    {connectSetupUnavailable && platformEnvironment !== 'test' ? (
-                      <p className="text-[12px] text-[#5c6570]">
-                        Details stay on this device. LIVE payout account connection is not enabled yet —
-                        verification has not started with the payment provider.
-                      </p>
-                    ) : null}
-                  </div>
-                  <dl className="space-y-2 rounded-[10px] border border-[#eef2f7] bg-[#fafbfc] px-3 py-3 text-[12px]">
-                    <div className="flex justify-between gap-3 border-b border-[#f1f5f9] pb-2">
+                  ) : null}
+
+                  <dl className="space-y-0 rounded-[12px] border border-[#eef2f7] bg-white px-3.5 py-1 text-[12px]">
+                    <div className="flex justify-between gap-3 border-b border-[#f1f5f9] py-2.5">
                       <dt className="text-[#52525b]">Business</dt>
                       <dd className="max-w-[60%] text-right font-semibold text-[#18181b]">
                         {profile?.company_legal_name?.trim() || '—'}
                       </dd>
                     </div>
-                    <div className="flex justify-between gap-3 border-b border-[#f1f5f9] py-2">
+                    <div className="flex justify-between gap-3 border-b border-[#f1f5f9] py-2.5">
                       <dt className="text-[#52525b]">Country / VAT</dt>
                       <dd className="text-right font-semibold text-[#18181b]">
                         {(profile?.address_country ?? '').toUpperCase() || '—'}
                         {profile?.vat_id?.trim() ? ` · ${profile.vat_id.trim()}` : ''}
                       </dd>
                     </div>
-                    <div className="flex justify-between gap-3 border-b border-[#f1f5f9] py-2">
+                    <div className="flex justify-between gap-3 border-b border-[#f1f5f9] py-2.5">
                       <dt className="text-[#52525b]">Registered address</dt>
                       <dd className="max-w-[60%] text-right font-medium text-[#18181b]">
                         {formatPayoutBusinessAddress(profile) || '—'}
                       </dd>
                     </div>
-                    <div className="flex justify-between gap-3 pt-2">
+                    <div className="flex justify-between gap-3 py-2.5">
                       <dt className="text-[#52525b]">Owners declared</dt>
                       <dd className="text-right font-semibold text-[#18181b]">
                         {(draft.rep_is_owner ? 1 : 0) + draft.beneficial_owners.length}
@@ -2182,8 +2303,9 @@ export default function PayoutSetupWizard({
                       </dd>
                     </div>
                   </dl>
-                  <ul className="space-y-2">
-                    <li className="flex justify-between gap-3 border-b border-[#f1f5f9] py-2">
+
+                  <ul className="space-y-0 rounded-[12px] border border-[#eef2f7] bg-[#fafbfc] px-3.5 py-1">
+                    <li className="flex justify-between gap-3 border-b border-[#f1f5f9] py-2.5">
                       <span className="text-[#52525b]">Business information</span>
                       <span className="font-semibold text-[#18181b]">
                         {draft.businessSavedAt || !validatePayoutBusinessFromProfile(profile)
@@ -2191,21 +2313,21 @@ export default function PayoutSetupWizard({
                           : 'Needed'}
                       </span>
                     </li>
-                    <li className="flex justify-between gap-3 border-b border-[#f1f5f9] py-2">
+                    <li className="flex justify-between gap-3 border-b border-[#f1f5f9] py-2.5">
                       <span className="text-[#52525b]">Representative &amp; owners</span>
                       <span className="font-semibold text-[#18181b]">{reviewRepLabel()}</span>
                     </li>
-                    <li className="flex justify-between gap-3 border-b border-[#f1f5f9] py-2">
-                      <span className="text-[#52525b]">Identity verification</span>
+                    <li className="flex justify-between gap-3 border-b border-[#f1f5f9] py-2.5">
+                      <span className="text-[#52525b]">Identity</span>
                       <span className="font-semibold text-[#18181b]">{reviewIdentityLabel()}</span>
                     </li>
-                    <li className="flex justify-between gap-3 border-b border-[#f1f5f9] py-2">
+                    <li className="flex justify-between gap-3 border-b border-[#f1f5f9] py-2.5">
                       <span className="text-[#52525b]">Agreement</span>
                       <span className="font-semibold text-[#18181b]">
                         {draft.identitySavedAt || draft.tos_accepted ? 'Accepted' : 'Needed'}
                       </span>
                     </li>
-                    <li className="flex justify-between gap-3 border-b border-[#f1f5f9] py-2">
+                    <li className="flex justify-between gap-3 border-b border-[#f1f5f9] py-2.5">
                       <span className="text-[#52525b]">Bank account</span>
                       <span className="font-semibold text-[#18181b]">
                         {payoutBankPresentation({
@@ -2215,7 +2337,7 @@ export default function PayoutSetupWizard({
                         })}
                       </span>
                     </li>
-                    <li className="flex justify-between gap-3 border-b border-[#f1f5f9] py-2">
+                    <li className="flex justify-between gap-3 py-2.5">
                       <span className="text-[#52525b]">Payout preferences</span>
                       <span className="font-semibold text-[#18181b]">
                         {draft.preferencesSavedAt ||
@@ -2231,11 +2353,12 @@ export default function PayoutSetupWizard({
                       </span>
                     </li>
                   </ul>
+
                   {accountRestricted ? (
                     <p className="rounded-[10px] border border-amber-200 bg-amber-50 px-3 py-2 text-[12px] leading-relaxed text-amber-950">
                       This payout account needs attention before it can be used.
                       {profile?.connect_disabled_reason
-                        ? ' Update the items below and refresh status.'
+                        ? ' Update the items below, then continue on Stripe.'
                         : ''}
                     </p>
                   ) : null}
@@ -2258,32 +2381,47 @@ export default function PayoutSetupWizard({
                       ) : null}
                     </div>
                   ) : null}
-                  <p className="text-[12px] leading-relaxed text-[#52525b]">
-                    {canReceive
-                      ? "You're ready to receive payouts once Traverion enables payout execution. Execution stays separately controlled and is currently off."
-                      : showConnectionPendingNote
-                        ? 'Finish the steps above to keep details ready on this device. Traverion does not start provider verification until payout connection is enabled for your account.'
-                        : 'Finish any remaining steps above. Traverion never marks verification complete until the provider confirms it.'}
-                  </p>
-                  <button
-                    type="button"
-                    className="text-[13px] font-semibold text-[#073b83]"
-                    disabled={busy}
-                    onClick={() => void refreshConnect()}
-                  >
-                    Refresh status
-                  </button>
-                  <button
-                    type="button"
-                    className="ml-4 text-[13px] font-semibold text-[#71717a]"
-                    onClick={() => {
-                      clearPayoutWizardDraft(userId);
-                      patch({ wizardCompletedAt: null });
-                      setNote('Saved progress cleared for this device.');
-                    }}
-                  >
-                    Clear saved progress
-                  </button>
+
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                    <button
+                      type="button"
+                      className="text-[13px] font-semibold text-[#073b83]"
+                      disabled={busy}
+                      onClick={() => void refreshConnect()}
+                    >
+                      Refresh status
+                    </button>
+                    {canLaunchHostedStripe && hasConnectedAccount ? (
+                      <button
+                        type="button"
+                        className="text-[13px] font-semibold text-[#073b83]"
+                        disabled={busy || hostedLinkBusy || !canEdit}
+                        onClick={() => void launchHostedStripe()}
+                      >
+                        {hostedLinkBusy ? 'Opening Stripe…' : 'Open Stripe'}
+                      </button>
+                    ) : null}
+                    <button
+                      type="button"
+                      className="text-[13px] font-semibold text-[#71717a]"
+                      disabled={busy}
+                      onClick={() => {
+                        clearPayoutWizardDraft(userId);
+                        const cleared = emptyPayoutWizardDraft({
+                          ...prefillFromProfile(profile),
+                          step: 'business',
+                        });
+                        setDraft(cleared);
+                        void invokeConnectSupplierOnboarding('save_wizard_draft', {
+                          wizard_draft: emptyServerPayoutWizardDraft(),
+                        });
+                        setNote('Saved progress cleared on this device and your Traverion account.');
+                        setPhase('steps');
+                      }}
+                    >
+                      Clear saved progress
+                    </button>
+                  </div>
                 </div>
               ) : null}
             </div>

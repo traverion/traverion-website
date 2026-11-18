@@ -28,37 +28,37 @@ export const PAYOUT_WIZARD_SCREENS: PayoutWizardScreen[] = [
   {
     id: 'business',
     title: 'Business details',
-    lede: 'Confirm the registered company used for payouts. Changes to approved identity go through business setup.',
+    lede: 'Confirm the registered company used for payouts. Changes to an approved business go through business setup.',
     collector: 'traverion',
   },
   {
     id: 'representative',
     title: 'Representative',
-    lede: 'Add the authorized representative and any beneficial owners. Ownership must total at most 100%.',
+    lede: 'Add the person authorized to act for the business, plus any owners of 25% or more. Ownership cannot exceed 100%.',
     collector: 'traverion',
   },
   {
     id: 'identity',
     title: 'Identity',
-    lede: 'Accept the recipient agreement and provide identity details when requested. Verification stays with the provider.',
+    lede: 'Accept the recipient agreement. Identity checks happen with Stripe when connection is available — Traverion does not keep copies of ID documents.',
     collector: 'mixed',
   },
   {
     id: 'bank',
     title: 'Bank account',
-    lede: 'Enter where payouts should be sent. Traverion never stores the full account number.',
+    lede: 'Tell us where payouts should go. Full account numbers are sent only to Stripe when connection is allowed — Traverion never keeps the full number.',
     collector: 'traverion',
   },
   {
     id: 'preferences',
     title: 'Preferences',
-    lede: 'Choose payout frequency and a minimum threshold. Preferences do not move money by themselves.',
+    lede: 'Choose how often you prefer payouts and a minimum amount. Preferences alone never move money.',
     collector: 'traverion',
   },
   {
     id: 'review',
     title: 'Review',
-    lede: 'Check what is saved locally versus what the provider has verified. Finish when you are ready.',
+    lede: 'See what is saved on your Traverion account versus business approval, Stripe checks, and payout readiness.',
     collector: 'mixed',
   },
 ];
@@ -178,8 +178,8 @@ export function summarizePayoutWizardLocalProgress(
 }
 
 /**
- * Supplier-facing verification chip when Connect is still not_started.
- * Never upgrades to Verified from local draft markers alone.
+ * Supplier-facing Stripe verification chip when Connect is still not_started.
+ * Never upgrades to Verified from draft markers alone.
  */
 export function payoutVerificationPresentation(opts: {
   connectLabel: string;
@@ -189,9 +189,119 @@ export function payoutVerificationPresentation(opts: {
   if (opts.connectLabel !== 'Not started') return opts.connectLabel;
   if (opts.hasConnectedAccount) return opts.connectLabel;
   if (opts.localProgress.wizardCompleted || opts.localProgress.hasSavedProgress) {
-    return 'Details saved — connection not enabled';
+    return 'Details saved — Stripe not started';
   }
   return 'Not started';
+}
+
+/** Traverion business verification — independent from Stripe Connect. */
+export function traverionBusinessVerificationLabel(
+  verificationStatus: string | null | undefined
+): string {
+  switch ((verificationStatus ?? '').trim().toLowerCase()) {
+    case 'verified':
+      return 'Approved';
+    case 'pending':
+      return 'In review';
+    case 'rejected':
+      return 'Needs changes';
+    default:
+      return 'Not submitted';
+  }
+}
+
+export type PayoutReadinessLane = {
+  formProgress: string;
+  businessVerification: string;
+  stripeVerification: string;
+  payoutReadiness: string;
+  nextStep: string;
+};
+
+/**
+ * Four honest lanes for review / completion / settings.
+ * Never maps form completion → Stripe Verified or payouts enabled.
+ */
+export function buildPayoutReadinessLanes(opts: {
+  localProgress: PayoutWizardLocalProgress;
+  verificationStatus: string | null | undefined;
+  connectLabel: string;
+  hasConnectedAccount: boolean;
+  canReceiveTransfers: boolean;
+  connectLivemode: boolean | null | undefined;
+  connectSetupUnavailable: boolean;
+  liveCreateAllowed: boolean;
+  platformEnvironment: 'test' | 'live' | null;
+}): PayoutReadinessLane {
+  const formProgress = opts.localProgress.wizardCompleted
+    ? 'Setup finished'
+    : opts.localProgress.hasSavedProgress
+      ? 'In progress'
+      : 'Not started';
+
+  const businessVerification = traverionBusinessVerificationLabel(opts.verificationStatus);
+
+  let stripeVerification = opts.connectLabel;
+  if (opts.connectLabel === 'Not started') {
+    stripeVerification = payoutVerificationPresentation({
+      connectLabel: opts.connectLabel,
+      hasConnectedAccount: opts.hasConnectedAccount,
+      localProgress: opts.localProgress,
+    });
+  }
+
+  let payoutReadiness: string;
+  if (opts.canReceiveTransfers && opts.connectLivemode === true) {
+    payoutReadiness = 'Ready when payouts are enabled';
+  } else if (opts.platformEnvironment === 'test' && opts.canReceiveTransfers) {
+    payoutReadiness = 'TEST only — not LIVE payouts';
+  } else if (!opts.hasConnectedAccount) {
+    if (opts.liveCreateAllowed || opts.platformEnvironment === 'test') {
+      payoutReadiness = 'Ready to connect with Stripe';
+    } else if (opts.connectSetupUnavailable) {
+      payoutReadiness = 'Waiting for connection access';
+    } else {
+      payoutReadiness = 'Not connected';
+    }
+  } else if (
+    opts.connectLabel === 'Action required' ||
+    opts.connectLabel === 'Restricted' ||
+    opts.connectLabel === 'LIVE onboarding required'
+  ) {
+    payoutReadiness = 'Needs attention on Stripe';
+  } else {
+    payoutReadiness = 'Waiting for Stripe confirmation';
+  }
+
+  let nextStep: string;
+  if (businessVerification !== 'Approved') {
+    nextStep = 'Finish Traverion business verification first.';
+  } else if (!opts.hasConnectedAccount) {
+    if (opts.liveCreateAllowed || opts.platformEnvironment === 'test') {
+      nextStep = 'Connect your payout account with Stripe to continue verification.';
+    } else {
+      nextStep =
+        'Your details stay saved on your Traverion account until connection is enabled for you.';
+    }
+  } else if (
+    opts.connectLabel === 'Action required' ||
+    opts.connectLabel === 'Restricted' ||
+    opts.connectLabel === 'LIVE onboarding required'
+  ) {
+    nextStep = 'Continue on Stripe to finish the items still needed.';
+  } else if (opts.canReceiveTransfers && opts.connectLivemode === true) {
+    nextStep = 'Stripe confirmed your account. Payouts start only after Traverion enables them.';
+  } else {
+    nextStep = 'Wait for Stripe to confirm your details, or refresh status.';
+  }
+
+  return {
+    formProgress,
+    businessVerification,
+    stripeVerification,
+    payoutReadiness,
+    nextStep,
+  };
 }
 
 /** Bank status for Settings / completion — honest about deferred vs attached. */
@@ -529,10 +639,35 @@ export function toServerPayoutWizardDraft(draft: PayoutWizardDraft): Record<stri
   };
 }
 
-/** Merge a sanitized server draft into a local draft without inventing full DOB/IBAN. */
+function countDraftMarkers(draft: Pick<
+  PayoutWizardDraft,
+  | 'businessSavedAt'
+  | 'representativeSavedAt'
+  | 'identitySavedAt'
+  | 'bankSavedAt'
+  | 'bankDeferredAt'
+  | 'preferencesSavedAt'
+  | 'wizardCompletedAt'
+>): number {
+  return [
+    draft.businessSavedAt,
+    draft.representativeSavedAt,
+    draft.identitySavedAt,
+    draft.bankSavedAt,
+    draft.bankDeferredAt,
+    draft.preferencesSavedAt,
+    draft.wizardCompletedAt,
+  ].filter(Boolean).length;
+}
+
+/**
+ * Merge a sanitized server draft into a local draft without inventing full DOB/IBAN.
+ * Server is preferred when it carries equal or richer progress (cross-device SoT).
+ */
 export function mergeServerPayoutWizardDraft(
   local: PayoutWizardDraft,
-  server: Record<string, unknown> | null | undefined
+  server: Record<string, unknown> | null | undefined,
+  opts?: { serverUpdatedAt?: string | null }
 ): PayoutWizardDraft {
   if (!server || typeof server !== 'object') return local;
   const markers =
@@ -544,9 +679,32 @@ export function mergeServerPayoutWizardDraft(
       ? (server.rep as Record<string, unknown>)
       : {};
   const ownersRaw = Array.isArray(server.owners) ? server.owners : [];
+  const serverMarkerCount = [
+    markers.businessSavedAt,
+    markers.representativeSavedAt,
+    markers.identitySavedAt,
+    markers.bankSavedAt,
+    markers.bankDeferredAt,
+    markers.preferencesSavedAt,
+    markers.wizardCompletedAt,
+  ].filter((v) => typeof v === 'string' && v).length;
+  const localMarkerCount = countDraftMarkers(local);
+  const serverUpdatedMs = opts?.serverUpdatedAt ? Date.parse(opts.serverUpdatedAt) : NaN;
+  const localUpdatedMs = Date.parse(local.updatedAt);
+  const preferServerStep =
+    serverMarkerCount > localMarkerCount ||
+    (serverMarkerCount === localMarkerCount &&
+      Number.isFinite(serverUpdatedMs) &&
+      (!Number.isFinite(localUpdatedMs) || serverUpdatedMs >= localUpdatedMs));
+
   return emptyPayoutWizardDraft({
     ...local,
-    step: isWizardStep(server.step) ? server.step : local.step,
+    step:
+      preferServerStep && isWizardStep(server.step)
+        ? server.step
+        : isWizardStep(server.step) && localMarkerCount === 0
+          ? server.step
+          : local.step,
     rep_first_name:
       typeof rep.first_name === 'string' && rep.first_name ? rep.first_name : local.rep_first_name,
     rep_last_name:
@@ -786,7 +944,12 @@ export function isLiveAccountCreationGateError(message: string | null | undefine
 }
 
 export const PAYOUT_LIVE_SETUP_UNAVAILABLE_COPY =
-  'Payout account connection is not available yet. Details stay on this device until Traverion enables connection. This is not a verification failure, and your bank account has not been sent to the payment provider.';
+  'Payout account connection is not available yet. Your details stay saved on your Traverion account until connection is enabled for you. This is not a verification failure, and your bank account has not been sent to Stripe.';
+
+/** Empty server draft payload used when clearing progress across devices. */
+export function emptyServerPayoutWizardDraft(): Record<string, unknown> {
+  return toServerPayoutWizardDraft(emptyPayoutWizardDraft({ step: 'business' }));
+}
 
 export function validatePayoutWizardIdentity(draft: PayoutWizardDraft): string | null {
   if (!draft.tos_accepted) {
