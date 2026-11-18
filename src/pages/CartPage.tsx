@@ -105,10 +105,11 @@ export default function CartPage({ onNavigate }: Props) {
     <div className="min-h-screen bg-paper tv-page">
       <div className="tv-shell px-4 sm:px-6 lg:px-8 py-8 pb-16">
         <header className="mb-6 border-b border-black/[0.06] pb-5">
-          <p className="mb-1.5 text-[12px] font-semibold tracking-wide text-finland">Your travel</p>
-          <h1 className="text-[1.75rem] font-semibold tracking-tight text-ink sm:text-[2rem]">Cart</h1>
-          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-ink-muted">
-            Open Instant Book checkouts stay here while checkout is open. Nights are not reserved until payment succeeds.
+          <p className="tv-eyebrow">Your travel</p>
+          <h1 className="tv-page-title !text-[1.75rem] sm:!text-[2rem]">Cart</h1>
+          <p className="tv-lede mt-2">
+            Open Instant Book checkouts stay here while checkout is open. Nights are not reserved until payment
+            succeeds.
           </p>
         </header>
 
