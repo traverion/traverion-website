@@ -1715,6 +1715,9 @@ body[data-partner-overlay='1'] .partner-bottom-nav {
 }
 
 .listing-creation-footer {
+  position: sticky;
+  bottom: 0;
+  z-index: 20;
   background-color: rgba(255, 255, 255, 0.96);
   -webkit-backdrop-filter: blur(14px);
   backdrop-filter: blur(14px);
@@ -1722,6 +1725,17 @@ body[data-partner-overlay='1'] .partner-bottom-nav {
     0 -1px 0 var(--lc-line),
     0 -12px 28px -20px rgba(23, 25, 29, 0.12);
   padding-bottom: max(0.75rem, env(safe-area-inset-bottom, 0px));
+}
+
+/* P9.37 Phase 06 — wizard steps: one primary action row, calm field rhythm */
+.listing-creation-workspace [data-field],
+.stay-creator [data-field],
+.business-onboarding-wizard [data-field] {
+  scroll-margin-top: 5.5rem;
+}
+.listing-creation-workspace .tv-input + .tv-input,
+.stay-creator .tv-input + .tv-input {
+  margin-top: 0;
 }
 
 .listing-creation-footer .stay-nav-btn {
@@ -15606,17 +15620,19 @@ details:not([open]) > :not(summary) {
 
 .stay-creator .stay-title {
   margin-top: 0.35rem;
-  font-size: 1.65rem;
+  font-family: var(--tv-font-sans, 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif);
+  font-size: clamp(1.35rem, 2.4vw, 1.65rem);
   line-height: 1.15;
   letter-spacing: -0.025em;
-  color: #17191d;
+  color: var(--tv-brand-ink, #0c1118);
 }
 
 .stay-creator .stay-lede,
 .stay-creator .stay-help {
   font-size: 0.8125rem;
   line-height: 1.5;
-  color: #5c6570;
+  color: var(--tv-brand-muted, #5a6472);
+  max-width: 40rem;
 }
 
 .stay-creator .stay-field > span {
