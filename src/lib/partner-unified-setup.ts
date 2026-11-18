@@ -246,7 +246,7 @@ export function derivePartnerSetupProgress(
     nextPhase = phase === 'payout' ? 'payout' : 'representative';
     nextCta = nextPhase === 'payout' ? 'Set up payouts' : 'Add representative';
     nextHint =
-      'Add the authorized representative, then payout preferences. Stripe opens only when connection is enabled for you.';
+      'Confirm the authorized representative, then payout preferences. Continue with Stripe when connection opens.';
   } else if (!opts.hasListing) {
     nextPhase = 'status';
     nextCta = 'Create your first listing';

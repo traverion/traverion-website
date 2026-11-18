@@ -28,6 +28,8 @@ import {
   clearPayoutWizardDraft,
   emptyBeneficialOwner,
   emptyPayoutWizardDraft,
+  suggestRepresentativeNameFromDirectors,
+  supplierFacingLiveCreateBlockReason,
   emptyServerPayoutWizardDraft,
   formatPayoutBusinessAddress,
   isLiveAccountCreationGateError,
@@ -109,6 +111,8 @@ type Props = {
  */
 function prefillFromProfile(profile: SupplierProfileRow | null): Partial<PayoutWizardDraft> {
   const directors = serializeDirectors(parseDirectors(profile?.managing_directors));
+  // Soft-suggest name only when a single director is known — never DOB / ownership.
+  const suggested = suggestRepresentativeNameFromDirectors(profile?.managing_directors);
   return {
     company_legal_name: profile?.company_legal_name ?? profile?.display_name ?? '',
     business_type:
@@ -122,7 +126,9 @@ function prefillFromProfile(profile: SupplierProfileRow | null): Partial<PayoutW
     address_country: profile?.address_country ?? '',
     contact_phone: profile?.contact_phone ?? '',
     managing_directors: directors,
-    // Representative identity is collected separately — leave blank unless a draft already has it.
+    ...(suggested
+      ? { rep_first_name: suggested.first_name, rep_last_name: suggested.last_name }
+      : {}),
     payment_cycle:
       profile?.payment_cycle === 'monthly' || profile?.payment_cycle === 'biweekly'
         ? profile.payment_cycle
@@ -206,12 +212,21 @@ export default function PayoutSetupWizard({
 
   const [draft, setDraft] = useState<PayoutWizardDraft>(() => {
     const saved = loadPayoutWizardDraft(userId);
-    return emptyPayoutWizardDraft({
-      ...prefillFromProfile(profile),
+    const prefill = prefillFromProfile(profile);
+    const merged = emptyPayoutWizardDraft({
+      ...prefill,
       ...(saved ?? {}),
       tos_accepted: false,
-      step: initialStep ?? saved?.step ?? 'business',
+      step: initialStep ?? saved?.step ?? (embedded ? 'representative' : 'business'),
     });
+    // Keep soft-suggested names when a prior draft left them blank.
+    if (!merged.rep_first_name.trim() && prefill.rep_first_name) {
+      merged.rep_first_name = prefill.rep_first_name;
+    }
+    if (!merged.rep_last_name.trim() && prefill.rep_last_name) {
+      merged.rep_last_name = prefill.rep_last_name;
+    }
+    return merged;
   });
   const [direction, setDirection] = useState<'forward' | 'back'>('forward');
   const [phase, setPhase] = useState<'steps' | 'complete'>('steps');
@@ -337,7 +352,9 @@ export default function PayoutSetupWizard({
         setLiveCreateAllowed(Boolean(result.live_create_allowed) || result.environment === 'test');
         setLiveCreateBlockedReason(
           result.environment === 'live' && !result.live_create_allowed
-            ? result.live_create_blocked_reason ?? PAYOUT_LIVE_SETUP_UNAVAILABLE_COPY
+            ? supplierFacingLiveCreateBlockReason(
+                result.live_create_blocked_reason ?? PAYOUT_LIVE_SETUP_UNAVAILABLE_COPY
+              )
             : null
         );
         if (!allowed && result.environment === 'live' && !hasConnectedAccount) {
@@ -448,7 +465,11 @@ export default function PayoutSetupWizard({
       liveCreateAllowed,
     })) {
       setConnectSetupUnavailable(true);
-      setNote(liveCreateBlockedReason || PAYOUT_LIVE_SETUP_UNAVAILABLE_COPY);
+      setNote(
+        supplierFacingLiveCreateBlockReason(
+          liveCreateBlockedReason || PAYOUT_LIVE_SETUP_UNAVAILABLE_COPY
+        )
+      );
       return { ok: true, provisioned: false };
     }
     const ensured = await invokeConnectSupplierOnboarding('ensure_account');
@@ -456,7 +477,7 @@ export default function PayoutSetupWizard({
       if (isLiveAccountCreationGateError(ensured.error)) {
         setConnectSetupUnavailable(true);
         setLiveCreateAllowed(false);
-        setNote(PAYOUT_LIVE_SETUP_UNAVAILABLE_COPY);
+        setNote(supplierFacingLiveCreateBlockReason(ensured.error));
         return { ok: true, provisioned: false };
       }
       return { ok: false, provisioned: false, error: ensured.error };
@@ -531,7 +552,7 @@ export default function PayoutSetupWizard({
         if (!submit.success) {
           if (isLiveAccountCreationGateError(submit.error)) {
             setConnectSetupUnavailable(true);
-            setNote(PAYOUT_LIVE_SETUP_UNAVAILABLE_COPY);
+            setNote(supplierFacingLiveCreateBlockReason(PAYOUT_LIVE_SETUP_UNAVAILABLE_COPY));
           } else if (!/409|express/i.test(submit.error ?? '')) {
             setBusy(false);
             setError(connectOnboardingUserMessage(submit.error));
@@ -541,7 +562,7 @@ export default function PayoutSetupWizard({
       }
     } else if (!hasConnectedAccount) {
       setConnectSetupUnavailable(true);
-      setNote(PAYOUT_LIVE_SETUP_UNAVAILABLE_COPY);
+      setNote(supplierFacingLiveCreateBlockReason(PAYOUT_LIVE_SETUP_UNAVAILABLE_COPY));
     }
 
     onProfile(await fetchSupplierProfile(userId));
@@ -588,7 +609,7 @@ export default function PayoutSetupWizard({
     if (!canProvisionConnect) {
       patch({ representativeSavedAt: new Date().toISOString() });
       setConnectSetupUnavailable(true);
-      setNote(PAYOUT_LIVE_SETUP_UNAVAILABLE_COPY);
+      setNote(supplierFacingLiveCreateBlockReason(PAYOUT_LIVE_SETUP_UNAVAILABLE_COPY));
       setBusy(false);
       return true;
     }
@@ -635,7 +656,7 @@ export default function PayoutSetupWizard({
       if (isLiveAccountCreationGateError(result.error)) {
         setConnectSetupUnavailable(true);
         patch({ representativeSavedAt: new Date().toISOString() });
-        setNote(PAYOUT_LIVE_SETUP_UNAVAILABLE_COPY);
+        setNote(supplierFacingLiveCreateBlockReason(PAYOUT_LIVE_SETUP_UNAVAILABLE_COPY));
         return true;
       }
       setError(connectOnboardingUserMessage(result.error));
@@ -692,7 +713,7 @@ export default function PayoutSetupWizard({
     if (!canProvisionConnect) {
       patch({ identitySavedAt: new Date().toISOString() });
       setConnectSetupUnavailable(true);
-      setNote(PAYOUT_LIVE_SETUP_UNAVAILABLE_COPY);
+      setNote(supplierFacingLiveCreateBlockReason(PAYOUT_LIVE_SETUP_UNAVAILABLE_COPY));
       return true;
     }
     setBusy(true);
@@ -717,7 +738,7 @@ export default function PayoutSetupWizard({
       if (isLiveAccountCreationGateError(result.error)) {
         setConnectSetupUnavailable(true);
         patch({ identitySavedAt: new Date().toISOString() });
-        setNote(PAYOUT_LIVE_SETUP_UNAVAILABLE_COPY);
+        setNote(supplierFacingLiveCreateBlockReason(PAYOUT_LIVE_SETUP_UNAVAILABLE_COPY));
         return true;
       }
       setError(connectOnboardingUserMessage(result.error));
@@ -789,7 +810,7 @@ export default function PayoutSetupWizard({
     // Draft-first LIVE: do not pretend an IBAN was saved — only mark deferred.
     if (!canProvisionConnect) {
       setConnectSetupUnavailable(true);
-      setNote(PAYOUT_LIVE_SETUP_UNAVAILABLE_COPY);
+      setNote(supplierFacingLiveCreateBlockReason(PAYOUT_LIVE_SETUP_UNAVAILABLE_COPY));
       setBankIban('');
       patch({
         bankDeferredAt: new Date().toISOString(),
@@ -845,7 +866,7 @@ export default function PayoutSetupWizard({
       setBusy(false);
       if (isLiveAccountCreationGateError(result.error)) {
         setConnectSetupUnavailable(true);
-        setNote(PAYOUT_LIVE_SETUP_UNAVAILABLE_COPY);
+        setNote(supplierFacingLiveCreateBlockReason(PAYOUT_LIVE_SETUP_UNAVAILABLE_COPY));
         setBankIban('');
         patch({
           bankDeferredAt: new Date().toISOString(),
@@ -1093,7 +1114,7 @@ export default function PayoutSetupWizard({
         return;
       }
       if (!ensured.provisioned && !hasConnectedAccount) {
-        setNote(liveCreateBlockedReason || PAYOUT_LIVE_SETUP_UNAVAILABLE_COPY);
+        setNote(supplierFacingLiveCreateBlockReason(liveCreateBlockedReason || PAYOUT_LIVE_SETUP_UNAVAILABLE_COPY));
         return;
       }
       const link = await fetchConnectAccountLink();

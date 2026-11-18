@@ -27,9 +27,9 @@ describe('P9.42 production onboarding UX cert', () => {
     expect(business).toContain('profile?.company_registration_document_path');
   });
 
-  it('ships a next-step status screen without duplicate review clutter', () => {
+  it('ships a completion status screen without duplicate review clutter', () => {
     const hub = read('pages/supplier/PartnerOnboarding.tsx');
-    expect(hub).toContain('Next step');
+    expect(hub).toContain('completionCopy');
     expect(hub).toContain('requirementsDone');
     expect(hub).not.toContain('Review company');
     expect(hub).not.toContain('PARTNER_ONBOARDING_CHECKLIST_DONE_NOTE');

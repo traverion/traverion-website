@@ -162,11 +162,23 @@ export function connectOnboardingUserMessage(raw: string | null | undefined): st
   if (/no connected account|missing connect|account not found/i.test(msg)) {
     return 'No payout account is linked yet. Finish business details, then try verification again.';
   }
-  if (/LIVE payout account creation is turned off/i.test(msg)) {
-    return 'Payout account connection is not available yet. Your details stay saved — Traverion will enable connection when ready.';
+  if (/LIVE payout account creation is turned off|Payout connection is not open/i.test(msg)) {
+    return 'Payout connection is not open yet. Your details stay saved here.';
   }
-  if (/not approved for LIVE payout account creation/i.test(msg)) {
-    return 'This partner account is not approved for payout connection yet. Contact Traverion if you need help.';
+  if (/not approved for LIVE|being prepared for your account/i.test(msg)) {
+    return 'Payout connection is being prepared for your account. Your details stay saved.';
+  }
+  if (/business verification must be approved|Finish Traverion business verification/i.test(msg)) {
+    return 'Finish business verification first. You can keep saving payout details meanwhile.';
+  }
+  if (/pilot approval has not been recorded|pilot checklist/i.test(msg)) {
+    return 'Payout connection is being prepared for your account. Your details stay saved.';
+  }
+  if (/already in progress/i.test(msg)) {
+    return 'Payout account setup is already in progress. Wait a moment, then continue.';
+  }
+  if (/responsibilities of collecting requirements|platform-profile|platform profile/i.test(msg)) {
+    return 'Payout connection is almost ready. Traverion is finishing Stripe platform setup — try again shortly.';
   }
   return msg;
 }

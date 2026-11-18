@@ -124,8 +124,28 @@ export type PayoutWizardDraft = {
   updatedAt: string;
 };
 
-/** Partner Income settings deep-link after wizard completion. */
-export const PAYOUT_WIZARD_RETURN_HREF = '/partner/money?tab=settings#income-payout-settings';
+/** Unified onboarding status after Stripe return / wizard completion. */
+export const PAYOUT_WIZARD_RETURN_HREF = '/partner/onboarding?phase=status';
+
+/**
+ * Soft-suggest representative name from a single known director.
+ * Never invents DOB, ownership, email, or phone — Stripe still collects those.
+ */
+export function suggestRepresentativeNameFromDirectors(
+  managingDirectors: string | null | undefined
+): { first_name: string; last_name: string } | null {
+  const lines = (managingDirectors ?? '')
+    .split(/\n|,/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (lines.length !== 1) return null;
+  const parts = lines[0]!.split(/\s+/).filter(Boolean);
+  if (parts.length < 2) return null;
+  return {
+    first_name: parts[0]!,
+    last_name: parts.slice(1).join(' '),
+  };
+}
 
 export type PayoutWizardLocalProgress = {
   hasSavedProgress: boolean;
@@ -265,7 +285,7 @@ export function buildPayoutReadinessLanes(opts: {
     if (opts.liveCreateAllowed || opts.platformEnvironment === 'test') {
       payoutReadiness = 'Ready to connect with Stripe';
     } else if (opts.connectSetupUnavailable) {
-      payoutReadiness = 'Waiting for connection access';
+      payoutReadiness = 'Waiting to connect';
     } else {
       payoutReadiness = 'Not connected';
     }
@@ -284,10 +304,9 @@ export function buildPayoutReadinessLanes(opts: {
     nextStep = 'Finish Traverion business verification first.';
   } else if (!opts.hasConnectedAccount) {
     if (opts.liveCreateAllowed || opts.platformEnvironment === 'test') {
-      nextStep = 'Connect your payout account with Stripe to continue verification.';
+      nextStep = 'Continue with Stripe to verify identity and bank details.';
     } else {
-      nextStep =
-        'Your details stay saved on your Traverion account until connection is enabled for you.';
+      nextStep = 'Your details stay saved. Continue when payout connection opens for you.';
     }
   } else if (
     opts.connectLabel === 'Action required' ||
@@ -953,17 +972,89 @@ export function validatePayoutWizardRepresentativeFields(
 
 /** True when edge/gate refused LIVE Custom account creation (expected while production gate is OFF). */
 export function isLiveAccountCreationGateError(message: string | null | undefined): boolean {
-  return /LIVE payout account creation is turned off|not approved for LIVE payout account creation/i.test(
+  return /LIVE payout account creation is turned off|not approved for LIVE payout account creation|Payout connection is not open|Payout connection is being prepared|Finish Traverion business verification|pilot approval/i.test(
     message ?? ''
   );
 }
 
 export const PAYOUT_LIVE_SETUP_UNAVAILABLE_COPY =
-  'Payout account connection is not available yet. Your details stay saved on your Traverion account until connection is enabled for you. This is not a verification failure, and your bank account has not been sent to Stripe.';
+  'Payout connection is not open yet. Your details stay saved here — bank numbers are not sent to Stripe until you continue.';
 
 /** Shorter in-flow notice — full copy stays in help / status. */
 export const PAYOUT_LIVE_SETUP_UNAVAILABLE_SHORT =
-  'Payout connection is not enabled for you yet. You can still save these details.';
+  'Payout connection opens next. You can save these details now.';
+
+/** Map edge / gate errors to short supplier instructions. */
+export function supplierFacingLiveCreateBlockReason(
+  raw: string | null | undefined
+): string {
+  const msg = (raw ?? '').trim();
+  if (!msg) return PAYOUT_LIVE_SETUP_UNAVAILABLE_COPY;
+  if (/turned off|not open|not available|not enabled/i.test(msg)) {
+    return PAYOUT_LIVE_SETUP_UNAVAILABLE_COPY;
+  }
+  if (/not approved|pilot|being prepared/i.test(msg)) {
+    return 'Payout connection is being prepared for your account. Your details stay saved.';
+  }
+  if (/business verification/i.test(msg)) {
+    return 'Finish business verification first. You can keep saving payout details meanwhile.';
+  }
+  if (/already in progress/i.test(msg)) {
+    return 'Payout account setup is already in progress. Wait a moment, then continue.';
+  }
+  return msg;
+}
+
+export type OnboardingCompletionState =
+  | 'setup_submitted'
+  | 'verification_pending'
+  | 'ready_to_receive';
+
+/** Honest completion headline for Status / finish screens. */
+export function resolveOnboardingCompletionState(opts: {
+  hasConnectedAccount: boolean;
+  canReceiveTransfers: boolean;
+  connectLivemode?: boolean | null;
+  wizardCompleted?: boolean;
+  payoutConfigured?: boolean;
+}): OnboardingCompletionState {
+  if (opts.canReceiveTransfers && opts.connectLivemode === true) {
+    return 'ready_to_receive';
+  }
+  if (opts.hasConnectedAccount) {
+    return 'verification_pending';
+  }
+  if (opts.wizardCompleted || opts.payoutConfigured) {
+    return 'setup_submitted';
+  }
+  return 'setup_submitted';
+}
+
+export function onboardingCompletionCopy(state: OnboardingCompletionState): {
+  kicker: string;
+  title: string;
+  lede: string;
+} {
+  if (state === 'ready_to_receive') {
+    return {
+      kicker: 'Stripe confirmed',
+      title: 'Ready to receive payouts',
+      lede: 'Your payout account is verified with Stripe. Traverion enables payouts separately when your bookings are ready.',
+    };
+  }
+  if (state === 'verification_pending') {
+    return {
+      kicker: 'With Stripe',
+      title: 'Verification pending',
+      lede: 'Finish any remaining checks on Stripe. You will return here automatically.',
+    };
+  }
+  return {
+    kicker: 'Saved',
+    title: 'Setup submitted',
+    lede: 'Your details are on file. Continue when payout connection is available, or create a listing meanwhile.',
+  };
+}
 
 /** Empty server draft payload used when clearing progress across devices. */
 export function emptyServerPayoutWizardDraft(): Record<string, unknown> {

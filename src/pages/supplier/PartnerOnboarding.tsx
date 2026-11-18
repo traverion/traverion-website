@@ -26,10 +26,19 @@ import {
   type SupplierProfileRow,
 } from '../../data/supabase-supplier-profile';
 import {
+  fetchConnectAccountLink,
+  invokeConnectSupplierOnboarding,
+} from '../../data/supabase-connect-onboarding';
+import {
   fetchSupplierActiveCommercialTerms,
   type SupplierCommercialTermsRow,
 } from '../../data/supabase-earnings';
 import { canManageBookings, canManageFinance } from '../../lib/supplierTeamRoles';
+import {
+  onboardingCompletionCopy,
+  resolveOnboardingCompletionState,
+} from '../../lib/payout-setup-wizard';
+import { connectCanReceiveTransfers } from '../../lib/connect-payout-status';
 import StatusChip from '../../components/StatusChip';
 import NoticeCallout from '../../components/NoticeCallout';
 import PartnerHelpTip from '../../components/supplier/PartnerHelpTip';
@@ -69,6 +78,7 @@ export default function PartnerOnboarding({
     return readOnboardingPhaseFromUrl() ?? 'business';
   });
   const [bootstrapped, setBootstrapped] = useState(false);
+  const [stripeBusy, setStripeBusy] = useState(false);
 
   useEffect(() => {
     setProfile(profileProp);
@@ -88,6 +98,35 @@ export default function PartnerOnboarding({
       cancelled = true;
     };
   }, [userId]);
+
+  const setPhaseAndUrl = useCallback((next: UnifiedSetupPhaseId) => {
+    setPhase(next);
+    writeOnboardingPhaseToUrl(next);
+  }, []);
+
+  // Stripe Account Link return/refresh → sync status into the same onboarding shell.
+  useEffect(() => {
+    if (!userId || typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const connect = params.get('connect');
+    if (connect !== 'return' && connect !== 'refresh') return;
+    let cancelled = false;
+    void (async () => {
+      await invokeConnectSupplierOnboarding('status');
+      const next = await fetchSupplierProfile(userId);
+      if (cancelled) return;
+      setProfile(next);
+      onProfileRefresh?.(next);
+      setPhaseAndUrl('status');
+      params.delete('connect');
+      const qs = params.toString();
+      const nextUrl = `${window.location.pathname}${qs ? `?${qs}` : ''}${window.location.hash}`;
+      window.history.replaceState({}, '', nextUrl);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [userId, onProfileRefresh, setPhaseAndUrl]);
 
   const progress = useMemo(
     () =>
@@ -111,11 +150,6 @@ export default function PartnerOnboarding({
     setBootstrapped(true);
   }, [bootstrapped, progress.nextPhase]);
 
-  const setPhaseAndUrl = useCallback((next: UnifiedSetupPhaseId) => {
-    setPhase(next);
-    writeOnboardingPhaseToUrl(next);
-  }, []);
-
   const handleProfile = useCallback(
     (next: SupplierProfileRow | null) => {
       setProfile(next);
@@ -123,6 +157,38 @@ export default function PartnerOnboarding({
     },
     [onProfileRefresh]
   );
+
+  const hasConnectedAccount = Boolean(profile?.stripe_connected_account_id);
+  const canReceive = connectCanReceiveTransfers(profile ?? {});
+  const completionState = resolveOnboardingCompletionState({
+    hasConnectedAccount,
+    canReceiveTransfers: canReceive,
+    connectLivemode: profile?.connect_account_livemode,
+    wizardCompleted: progress.payoutConfigured,
+    payoutConfigured: progress.payoutConfigured,
+  });
+  const completionCopy = onboardingCompletionCopy(completionState);
+  const needsStripeContinue =
+    hasConnectedAccount &&
+    (!canReceive ||
+      (Array.isArray(profile?.connect_requirements_currently_due) &&
+        profile!.connect_requirements_currently_due!.length > 0) ||
+      (Array.isArray(profile?.connect_requirements_past_due) &&
+        profile!.connect_requirements_past_due!.length > 0));
+
+  const launchStripeFromStatus = useCallback(async () => {
+    if (!canEditFinance) return;
+    setStripeBusy(true);
+    try {
+      const link = await fetchConnectAccountLink();
+      if (link.url) {
+        window.location.assign(link.url);
+        return;
+      }
+    } finally {
+      setStripeBusy(false);
+    }
+  }, [canEditFinance]);
 
   const businessChip = partnerBusinessStatusChip(progress.businessReview);
   const payoutChip = partnerPayoutStatusChip(progress.payoutReview);
@@ -140,9 +206,19 @@ export default function PartnerOnboarding({
   const showStatus = phase === 'status';
 
   const phaseMet = (id: UnifiedSetupPhaseId): boolean => {
-    if (id === 'status') return progress.publishReady;
+    if (id === 'status') return progress.publishReady || completionState === 'ready_to_receive';
     return progress.phaseComplete[id];
   };
+
+  const statusPrimaryLabel = needsStripeContinue
+    ? 'Continue with Stripe'
+    : progress.nextCta;
+  const statusHeadline =
+    progress.businessReview === 'rejected'
+      ? 'Action required'
+      : showStatus
+        ? completionCopy.title
+        : progress.nextHint;
 
   return (
     <div className="partner-unified-setup-shell payout-wizard flex h-full min-h-0 w-full flex-1 overflow-hidden bg-white">
@@ -336,39 +412,43 @@ export default function PartnerOnboarding({
             <div className="partner-unified-setup-status min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-6 sm:px-8 [-webkit-overflow-scrolling:touch]">
               <div className="w-full max-w-[40rem]">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#073b83]">
-                  Next step
+                  {progress.businessReview === 'rejected'
+                    ? 'Action required'
+                    : completionCopy.kicker}
                 </p>
                 <h1 className="mt-1 inline-flex flex-wrap items-center gap-1.5 font-display text-[1.5rem] font-bold tracking-tight text-[#17191d]">
-                  {progress.publishReady
-                    ? 'You’re ready'
-                    : progress.businessReview === 'rejected'
-                      ? 'Action required'
-                      : progress.businessReview === 'pending'
-                        ? 'Almost there'
-                        : 'Finish setup'}
+                  {progress.businessReview === 'rejected'
+                    ? 'Update your documents'
+                    : statusHeadline}
                   <PartnerHelpTip label="About setup status">{PARTNER_HELP.publishGate}</PartnerHelpTip>
                 </h1>
                 <p className="mt-2 max-w-md text-[14px] leading-relaxed text-[#5c6570]">
-                  {progress.nextHint}
+                  {progress.businessReview === 'rejected'
+                    ? progress.nextHint
+                    : completionCopy.lede}
                 </p>
 
                 <button
                   type="button"
                   className="tv-btn-primary mt-6 h-11 min-w-[12rem] px-5 text-[13px]"
+                  disabled={stripeBusy}
                   onClick={() => {
+                    if (needsStripeContinue) {
+                      void launchStripeFromStatus();
+                      return;
+                    }
                     if (progress.nextCta.toLowerCase().includes('listing')) {
                       onTours();
                       return;
                     }
                     if (progress.nextPhase === 'status') {
-                      if (!hasListing) onTours();
-                      else onTours();
+                      onTours();
                       return;
                     }
                     setPhaseAndUrl(progress.nextPhase);
                   }}
                 >
-                  {progress.nextCta}
+                  {stripeBusy ? 'Opening Stripe…' : statusPrimaryLabel}
                   <ArrowRight className="ml-1.5 inline-block h-4 w-4" aria-hidden />
                 </button>
 
@@ -391,9 +471,11 @@ export default function PartnerOnboarding({
                   </ul>
                 ) : null}
 
-                {progress.publishReady ? (
-                  <NoticeCallout className="mt-6" title="Ready to publish" tone="success">
-                    {PARTNER_ONBOARDING_PUBLISH_READY_NOTE}
+                {completionState === 'ready_to_receive' || progress.publishReady ? (
+                  <NoticeCallout className="mt-6" title="Ready to host" tone="success">
+                    {progress.publishReady
+                      ? PARTNER_ONBOARDING_PUBLISH_READY_NOTE
+                      : 'Stripe verified your payout account. Create a listing when you are ready — Traverion enables payouts separately.'}
                   </NoticeCallout>
                 ) : null}
 

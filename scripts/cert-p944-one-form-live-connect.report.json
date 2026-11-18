@@ -1,0 +1,60 @@
+{
+  "at": "2026-11-18T20:36:22.122Z",
+  "supplierId": "eced0f8c-c2e4-469b-8bba-15170be68cc1",
+  "authorization": "P9.44 temporary allowlist + create gate for EM Global; closed after ensure; transfers/payouts untouched.",
+  "steps": [
+    {
+      "id": "revalidate",
+      "at": "2026-11-18T20:36:23.113Z",
+      "verified": true,
+      "pilotOk": true,
+      "noAccount": true,
+      "flagMap": {
+        "stripe_connect_transfers_enabled": 0,
+        "payout_execution_enabled": 0,
+        "live_custom_onboarding_enabled": 0
+      }
+    },
+    {
+      "id": "open_window",
+      "at": "2026-11-18T20:36:23.691Z",
+      "ok": true
+    },
+    {
+      "id": "supplier_session",
+      "at": "2026-11-18T20:36:24.678Z",
+      "ok": true,
+      "user": "eced0f8c-c2e4-469b-8bba-15170be68cc1"
+    },
+    {
+      "id": "ensure_account",
+      "at": "2026-11-18T20:36:28.519Z",
+      "status": 500,
+      "json": {
+        "success": false,
+        "error": "Please review the responsibilities of collecting requirements for connected accounts at https://dashboard.stripe.com/settings/connect/platform-profile."
+      }
+    },
+    {
+      "id": "close_window",
+      "at": "2026-11-18T20:36:28.691Z",
+      "reason": "ensure_failed"
+    },
+    {
+      "id": "close_window",
+      "at": "2026-11-18T20:36:28.824Z",
+      "reason": "exception"
+    }
+  ],
+  "overall": "BLOCKED_STRIPE_PLATFORM_PROFILE",
+  "error": "ensure failed: {\"success\":false,\"error\":\"Please review the responsibilities of collecting requirements for connected accounts at https://dashboard.stripe.com/settings/connect/platform-profile.\"}",
+  "blocker": "Stripe Dashboard platform-profile: acknowledge collecting requirements responsibilities",
+  "blocker_url": "https://dashboard.stripe.com/settings/connect/platform-profile",
+  "safety": {
+    "live_custom_onboarding_enabled": 0,
+    "allowlist": 0,
+    "transfers": 0,
+    "payouts": 0,
+    "account": null
+  }
+}

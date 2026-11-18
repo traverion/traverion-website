@@ -44,6 +44,24 @@ function json(body: unknown, status = 200): Response {
   });
 }
 
+/** Supplier-facing copy for LIVE create blocks (no internal gate jargon). */
+function supplierFacingLiveCreateBlock(raw: string | null | undefined): string {
+  const msg = (raw ?? '').trim();
+  if (/turned off|not enabled/i.test(msg)) {
+    return 'Payout connection is not open for your account yet. Your details stay saved.';
+  }
+  if (/not approved for LIVE/i.test(msg)) {
+    return 'Payout connection is being prepared for your account. Your details stay saved.';
+  }
+  if (/business verification/i.test(msg)) {
+    return 'Finish Traverion business verification first. You can keep saving your payout details meanwhile.';
+  }
+  if (/pilot approval/i.test(msg)) {
+    return 'Payout connection is being prepared for your account. Your details stay saved.';
+  }
+  return msg || 'Payout connection is not open for your account yet. Your details stay saved.';
+}
+
 type Body = {
   action?:
     | 'start'
@@ -341,14 +359,16 @@ serve(async (req) => {
       const pilotApproved = Boolean(pilotRow?.supplier_id);
       let blocked: string | null = decision.allowed
         ? null
-        : (decision.reason ?? 'LIVE payout account creation is turned off.');
+        : supplierFacingLiveCreateBlock(
+            decision.reason ?? 'LIVE payout account creation is turned off.'
+          );
       if (!blocked && !businessVerified) {
         blocked =
-          'Traverion business verification must be approved before LIVE payout account creation.';
+          'Finish Traverion business verification first. You can keep saving your payout details meanwhile.';
       }
       if (!blocked && !pilotApproved) {
         blocked =
-          'LIVE pilot approval has not been recorded for this supplier. Ask Traverion to complete the pilot checklist first.';
+          'Payout connection is being prepared for your account. Your details stay saved until it opens.';
       }
       return {
         live_gate_enabled: liveGateEnabled,
@@ -368,8 +388,9 @@ serve(async (req) => {
         ? { allowed: true }
         : {
             allowed: false,
-            reason:
-              eligibility.live_create_blocked_reason ?? 'LIVE payout account creation is turned off.',
+            reason: supplierFacingLiveCreateBlock(
+              eligibility.live_create_blocked_reason ?? 'LIVE payout account creation is turned off.'
+            ),
           };
     }
 
@@ -540,8 +561,8 @@ serve(async (req) => {
               .eq('id', targetSupplierId);
             const link = await stripe.accountLinks.create({
               account: existingId,
-              refresh_url: `${publicSiteUrl}/partner/money?tab=settings&connect=refresh`,
-              return_url: `${publicSiteUrl}/partner/money?tab=settings&connect=return`,
+              refresh_url: `${publicSiteUrl}/partner/onboarding?phase=status&connect=refresh`,
+              return_url: `${publicSiteUrl}/partner/onboarding?phase=status&connect=return`,
               type: 'account_onboarding',
             });
             return json({
@@ -723,8 +744,9 @@ serve(async (req) => {
     }
 
     const origin = allowlistedOrigin(body.returnOrigin, publicSiteUrl, extraOrigins);
-    const returnUrl = `${origin}/partner/money?tab=settings&connect=return`;
-    const refreshUrl = `${origin}/partner/money?tab=settings&connect=refresh`;
+    // P9.44: return suppliers to the unified onboarding shell (not a separate money settings hop).
+    const returnUrl = `${origin}/partner/onboarding?phase=status&connect=return`;
+    const refreshUrl = `${origin}/partner/onboarding?phase=status&connect=refresh`;
     const ip = clientIp(req);
 
     let latestStripeTransfersStatus: string | undefined;
