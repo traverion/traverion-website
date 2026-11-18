@@ -1,0 +1,124 @@
+{
+  "at": "2026-11-18T22:23:48.688Z",
+  "mission": "P9.45",
+  "supplierId": "eced0f8c-c2e4-469b-8bba-15170be68cc1",
+  "authorization": "User authorized temporary live_custom_onboarding_enabled + EM Global-only allowlist; close immediately after; transfers/payouts stay off.",
+  "steps": [
+    {
+      "id": "revalidate",
+      "at": "2026-11-18T22:23:52.990Z",
+      "prereqs": {
+        "verified": true,
+        "hasDoc": true,
+        "pilotOk": true,
+        "noAccount": true,
+        "noLegacy": true,
+        "noClaim": true,
+        "transfersOff": true,
+        "payoutsOff": true,
+        "gateOff": true,
+        "fi": true
+      },
+      "before": {
+        "verification_status": "verified",
+        "company_registration_document_path": "eced0f8c-c2e4-469b-8bba-15170be68cc1/company-registration.pdf",
+        "stripe_connected_account_id": null,
+        "connect_legacy_account_id": null,
+        "connect_create_claimed_at": null,
+        "company_legal_name": "EM Global Oy",
+        "business_type": "company",
+        "address_country": "FI"
+      },
+      "pilot": {
+        "owner_confirmed": true,
+        "stripe_verification_acknowledged": true
+      },
+      "flagMap": {
+        "stripe_connect_transfers_enabled": 0,
+        "payout_execution_enabled": 0,
+        "live_custom_onboarding_enabled": 0
+      }
+    },
+    {
+      "id": "open_window",
+      "at": "2026-11-18T22:23:53.398Z",
+      "ok": true
+    },
+    {
+      "id": "supplier_session",
+      "at": "2026-11-18T22:23:54.085Z",
+      "ok": true,
+      "user": "eced0f8c-c2e4-469b-8bba-15170be68cc1"
+    },
+    {
+      "id": "status_window_open",
+      "at": "2026-11-18T22:23:56.643Z",
+      "status": 200,
+      "live_create_allowed": true,
+      "live_create_blocked_reason": null,
+      "account_id": null
+    },
+    {
+      "id": "ensure_account_1",
+      "at": "2026-11-18T22:23:58.654Z",
+      "status": 500,
+      "success": false,
+      "account_id": null,
+      "error": "Please review the responsibilities of collecting requirements for connected accounts at https://dashboard.stripe.com/settings/connect/platform-profile.",
+      "note": null
+    },
+    {
+      "id": "close_window",
+      "at": "2026-11-18T22:23:58.994Z",
+      "reason": "ensure_failed",
+      "flags": [
+        {
+          "key": "stripe_connect_transfers_enabled",
+          "value_int": 0
+        },
+        {
+          "key": "payout_execution_enabled",
+          "value_int": 0
+        },
+        {
+          "key": "live_custom_onboarding_enabled",
+          "value_int": 0
+        }
+      ],
+      "allowlistCount": 0
+    },
+    {
+      "id": "close_window",
+      "at": "2026-11-18T22:23:59.330Z",
+      "reason": "exception",
+      "flags": [
+        {
+          "key": "stripe_connect_transfers_enabled",
+          "value_int": 0
+        },
+        {
+          "key": "payout_execution_enabled",
+          "value_int": 0
+        },
+        {
+          "key": "live_custom_onboarding_enabled",
+          "value_int": 0
+        }
+      ],
+      "allowlistCount": 0
+    }
+  ],
+  "overall": "FAIL_STRIPE_PLATFORM_PROFILE",
+  "error": "ensure_account failed: {\"success\":false,\"error\":\"Please review the responsibilities of collecting requirements for connected accounts at https://dashboard.stripe.com/settings/connect/platform-profile.\"}",
+  "final_gates": {
+    "live_custom_onboarding_enabled": 0,
+    "allowlist": 0,
+    "transfers": 0,
+    "payouts": 0
+  },
+  "stripe_result": {
+    "account_id": null,
+    "error": "platform-profile collecting requirements not accepted by Stripe API"
+  },
+  "platform_account": "acct_1TFXp1CJawbWge6X"
+}
