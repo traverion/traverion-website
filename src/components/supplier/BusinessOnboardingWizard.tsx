@@ -153,14 +153,18 @@ export default function BusinessOnboardingWizard({
   const locked = isSupplierBusinessIdentityLocked(
     profile?.verification_status,
     profile?.verification_submitted_at,
-    profile?.business_type
+    profile?.business_type,
+    profile?.business_verification_feedback
   );
   const reviewState = partnerBusinessReviewState({
     verificationStatus: profile?.verification_status,
     submittedAt: profile?.verification_submitted_at,
+    feedback: profile?.business_verification_feedback,
   });
   const underReview = reviewState === 'pending';
   const verified = reviewState === 'verified';
+  const actionRequired = reviewState === 'rejected';
+  const staffFeedback = (profile?.business_verification_feedback ?? '').trim();
 
   const [draft, setDraft] = useState<BusinessOnboardingDraft>(() => {
     const saved = loadBusinessOnboardingDraft(userId);
@@ -178,7 +182,9 @@ export default function BusinessOnboardingWizard({
       step:
         underReview || verified
           ? 'review'
-          : validInitial ?? saved?.step ?? 'identity',
+          : actionRequired
+            ? (validInitial ?? 'documents')
+            : validInitial ?? saved?.step ?? 'identity',
       owner_authority_confirmed: saved?.owner_authority_confirmed ?? false,
     });
   });
@@ -546,10 +552,20 @@ export default function BusinessOnboardingWizard({
                 Step {stepIndex + 1} of {BUSINESS_ONBOARDING_SCREENS.length}
               </p>
               <h1 className="stay-title !mt-0 inline-flex flex-wrap items-center gap-1.5 !text-[1.45rem] sm:!text-[1.55rem]">
-                {underReview ? 'Under review' : verified ? 'Verified' : screen.title}
-                {underReview || verified ? (
+                {underReview
+                  ? 'Under review'
+                  : verified
+                    ? 'Verified'
+                    : actionRequired
+                      ? 'Action required'
+                      : screen.title}
+                {underReview || verified || actionRequired ? (
                   <PartnerHelpTip label="About this status">
-                    {underReview ? PARTNER_HELP.underReview : PARTNER_HELP.verified}
+                    {underReview
+                      ? PARTNER_HELP.underReview
+                      : verified
+                        ? PARTNER_HELP.verified
+                        : PARTNER_HELP.actionRequired}
                   </PartnerHelpTip>
                 ) : null}
               </h1>
@@ -558,12 +574,15 @@ export default function BusinessOnboardingWizard({
                   ? 'You’ll be notified when a decision is ready.'
                   : verified
                     ? 'Manage details from Business settings.'
-                    : screen.lede}
+                    : actionRequired
+                      ? 'Update what Traverion asked for, replace the registration document if needed, then submit again.'
+                      : screen.lede}
               </p>
 
-              {profile?.business_verification_feedback?.trim() && reviewState === 'rejected' ? (
-                <p className="stay-alert mt-4 !border-amber-200 !bg-amber-50 !text-amber-950">
-                  {profile.business_verification_feedback.trim()}
+              {staffFeedback && actionRequired ? (
+                <p className="stay-alert mt-4 !border-amber-200 !bg-amber-50 !text-amber-950" role="status">
+                  <span className="font-semibold">What to fix: </span>
+                  {staffFeedback}
                 </p>
               ) : null}
 
@@ -1061,7 +1080,9 @@ export default function BusinessOnboardingWizard({
                   : underReview || verified
                     ? 'Done'
                     : draft.step === 'review'
-                      ? 'Submit for review'
+                      ? actionRequired
+                        ? 'Resubmit for review'
+                        : 'Submit for review'
                       : 'Continue'}
               </button>
             </div>

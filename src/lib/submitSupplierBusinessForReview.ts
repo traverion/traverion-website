@@ -38,7 +38,9 @@ export async function submitSupplierBusinessForReview(
   const existing = await fetchSupplierProfile(userId);
   const status = (existing?.verification_status ?? '').trim().toLowerCase();
   const submittedAtExisting = (existing?.verification_submitted_at ?? '').trim();
-  if (status === 'pending' && submittedAtExisting) {
+  const staffFeedback = (existing?.business_verification_feedback ?? '').trim();
+  // Soft request-changes / reject unlock: pending + staff feedback must allow resubmit.
+  if (status === 'pending' && submittedAtExisting && !staffFeedback) {
     return {
       ok: true,
       submittedAt: submittedAtExisting,

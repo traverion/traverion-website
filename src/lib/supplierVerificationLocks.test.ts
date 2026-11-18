@@ -9,6 +9,20 @@ describe('isSupplierBusinessIdentityLocked', () => {
     expect(isSupplierBusinessIdentityLocked('rejected', '2026-11-17T00:00:00Z', 'company')).toBe(false);
   });
 
+  it('unlocks pending when staff left verification feedback (P9.35)', () => {
+    expect(
+      isSupplierBusinessIdentityLocked(
+        'pending',
+        '2026-11-17T00:00:00Z',
+        'company',
+        'Upload a PRH Trade Register extract.'
+      )
+    ).toBe(false);
+    expect(
+      isSupplierBusinessIdentityLocked('pending', '2026-11-17T00:00:00Z', 'company', '   ')
+    ).toBe(true);
+  });
+
   it('must not receive a profile object (P9.16.1 crash regression)', () => {
     expect(() =>
       // @ts-expect-error intentional misuse — objects are not status strings

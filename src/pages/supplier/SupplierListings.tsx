@@ -210,6 +210,8 @@ export default function SupplierListings() {
   /** Business verified and complete, but payout missing, rejected, or not yet verified by Traverion. */
   const [missingPayoutForPublish, setMissingPayoutForPublish] = useState(false);
   const [verificationStatus, setVerificationStatus] = useState<string | null>(null);
+  const [verificationSubmittedAt, setVerificationSubmittedAt] = useState<string | null>(null);
+  const [businessVerificationFeedback, setBusinessVerificationFeedback] = useState('');
   const [payoutVerificationStatus, setPayoutVerificationStatus] = useState<string | null>(null);
   const [payoutOnFile, setPayoutOnFile] = useState(false);
   const [publishGate, setPublishGate] = useState<{ listingId: string; title: string; blockers: string[] } | null>(null);
@@ -712,6 +714,8 @@ export default function SupplierListings() {
       setMissingBusinessDetails(false);
       setMissingPayoutForPublish(false);
       setVerificationStatus(null);
+      setVerificationSubmittedAt(null);
+      setBusinessVerificationFeedback('');
       setPayoutVerificationStatus(null);
       setPayoutOnFile(false);
     };
@@ -821,6 +825,8 @@ export default function SupplierListings() {
         setMissingBusinessDetails(false);
         setMissingPayoutForPublish(false);
         setVerificationStatus(null);
+        setVerificationSubmittedAt(null);
+        setBusinessVerificationFeedback('');
         setPayoutVerificationStatus(null);
         setPayoutOnFile(false);
         return;
@@ -839,6 +845,8 @@ export default function SupplierListings() {
         setMissingBusinessDetails(false);
         setMissingPayoutForPublish(false);
         setVerificationStatus(null);
+        setVerificationSubmittedAt(null);
+        setBusinessVerificationFeedback('');
         setPayoutVerificationStatus(null);
         setPayoutOnFile(false);
         return;
@@ -848,11 +856,17 @@ export default function SupplierListings() {
       const payoutConfigured = isSupplierPayoutConfigured(profile);
       const v = profile?.verification_status ?? null;
       const pv = profile?.payout_verification_status ?? null;
+      const feedback = (profile?.business_verification_feedback ?? '').trim();
       setVerificationStatus(v);
+      setVerificationSubmittedAt(profile?.verification_submitted_at ?? null);
+      setBusinessVerificationFeedback(feedback);
       setPayoutVerificationStatus(pv);
       setMissingBusinessDetails(!businessCompleteForPublish);
       const businessVerified = v === 'verified';
       const payoutVerified = (pv ?? '').trim().toLowerCase() === 'verified';
+      const businessNeedsAction =
+        (v ?? '').trim().toLowerCase() === 'rejected' ||
+        ((v ?? '').trim().toLowerCase() === 'pending' && feedback !== '');
       setPayoutOnFile(payoutConfigured);
       setMissingPayoutForPublish(
         Boolean(businessCompleteForPublish && businessVerified && (!payoutConfigured || !payoutVerified))
@@ -862,9 +876,10 @@ export default function SupplierListings() {
         setProfileGateMessage(
           'Complete your business profile in Settings: registered name, address, registration proof, and tax or company identifiers as required. Payout bank details (IBAN and BIC) are verified separately; you can add them anytime. Publishing requires Traverion to approve both business and payout.'
         );
-      } else if (v === 'rejected') {
+      } else if (businessNeedsAction) {
         setProfileGateMessage(
-          'Business verification was not approved. Update your business details in Settings and save again. Your payout section is separate—fix bank details there if needed.'
+          feedback ||
+            'Business verification needs updates. Replace the registration document if asked, then resubmit from Business settings. Payout is separate.'
         );
       } else if (!businessVerified) {
         setProfileGateMessage(PARTNER_LISTINGS_BUSINESS_REVIEW_NOTE);
@@ -1344,7 +1359,9 @@ export default function SupplierListings() {
       {canEditListings && !canPostNewListing && (() => {
         const businessReview = partnerBusinessReviewState({
           verificationStatus,
+          submittedAt: verificationSubmittedAt,
           draftComplete: !missingBusinessDetails,
+          feedback: businessVerificationFeedback,
         });
         const payoutReview = partnerPayoutReviewState({
           verificationStatus: payoutVerificationStatus,

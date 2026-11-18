@@ -19,6 +19,13 @@ describe('partnerVerificationStatus', () => {
     ).toBe('pending');
     expect(partnerBusinessReviewState({ verificationStatus: 'rejected' })).toBe('rejected');
     expect(
+      partnerBusinessReviewState({
+        verificationStatus: 'pending',
+        submittedAt: '2026-01-01',
+        feedback: 'Replace marketing poster with PRH extract.',
+      })
+    ).toBe('rejected');
+    expect(
       partnerBusinessReviewState({ verificationStatus: '', draftComplete: true })
     ).toBe('ready');
     expect(partnerPayoutReviewState({ verificationStatus: '', hasBankDetails: true })).toBe(

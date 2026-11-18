@@ -1284,6 +1284,7 @@ export default function SupplierLayout() {
                         publishReady={onboardingBusinessVerified && onboardingPayoutVerified}
                         businessVerificationStatus={verificationStatus}
                         businessVerificationSubmittedAt={verificationSubmittedAt}
+                        businessVerificationFeedback={businessVerificationFeedback}
                         payoutVerificationStatus={payoutVerificationStatus}
                         payoutVerificationSubmittedAt={payoutVerificationSubmittedAt}
                       />

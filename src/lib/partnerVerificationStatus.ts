@@ -24,10 +24,14 @@ export function partnerBusinessReviewState(input: {
   verificationStatus: string | null | undefined;
   submittedAt?: string | null | undefined;
   draftComplete?: boolean;
+  /** Staff note — pending + feedback means action required (soft request-changes). */
+  feedback?: string | null | undefined;
 }): PartnerReviewState {
   const v = norm(input.verificationStatus);
   if (v === 'verified') return 'verified';
   if (v === 'rejected') return 'rejected';
+  // Soft request-changes: staff wrote feedback while status stayed pending.
+  if (v === 'pending' && (input.feedback ?? '').trim()) return 'rejected';
   if ((input.submittedAt ?? '').trim()) return 'pending';
   if (input.draftComplete) return 'ready';
   return 'incomplete';

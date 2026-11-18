@@ -261,8 +261,7 @@ export default function AdminSupplierVerificationPanel() {
                     </StatusChip>
                     {bizPending ? <StatusChip tone="warn">In queue</StatusChip> : null}
                   </div>
-                  {row.verification_status === 'rejected' &&
-                    (row.business_verification_feedback ?? '').trim() !== '' && (
+                  {(row.business_verification_feedback ?? '').trim() !== '' && (
                       <p className="text-xs text-ink-muted bg-paper-raised ring-1 ring-black/[0.06] rounded-lg px-2.5 py-1.5">
                         <span className="font-medium text-ink">Saved note: </span>
                         {row.business_verification_feedback}

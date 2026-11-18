@@ -34,6 +34,7 @@ type PartnerOnboardingProps = {
   publishReady: boolean;
   businessVerificationStatus?: string;
   businessVerificationSubmittedAt?: string;
+  businessVerificationFeedback?: string;
   payoutVerificationStatus?: string;
   payoutVerificationSubmittedAt?: string;
 };
@@ -50,6 +51,7 @@ export default function PartnerOnboarding({
   publishReady,
   businessVerificationStatus = '',
   businessVerificationSubmittedAt = '',
+  businessVerificationFeedback = '',
   payoutVerificationStatus = '',
   payoutVerificationSubmittedAt = '',
 }: PartnerOnboardingProps) {
@@ -57,6 +59,7 @@ export default function PartnerOnboarding({
     verificationStatus: businessVerificationStatus,
     submittedAt: businessVerificationSubmittedAt,
     draftComplete: businessDone,
+    feedback: businessVerificationFeedback,
   });
   const payoutReview = partnerPayoutReviewState({
     verificationStatus: payoutVerificationStatus,
@@ -65,13 +68,30 @@ export default function PartnerOnboarding({
   });
   const businessChip = partnerBusinessStatusChip(businessReview);
   const payoutChip = partnerPayoutStatusChip(payoutReview);
+  const businessVerified = businessReview === 'verified';
+  const payoutVerified = payoutReview === 'verified';
+  const detailsOnFile = businessDone && payoutDone && hasListing;
+  const needsVerificationAction =
+    businessReview === 'rejected' || payoutReview === 'rejected';
+  const awaitingVerification =
+    !publishReady &&
+    (businessReview === 'pending' ||
+      payoutReview === 'pending' ||
+      (detailsOnFile && !needsVerificationAction));
 
   const steps = [
     {
       n: '01',
       title: 'Business',
-      body: 'Your company details so travelers know who they book with.',
-      done: businessDone,
+      body:
+        businessReview === 'rejected'
+          ? 'Traverion asked for updates. Replace documents if needed, then resubmit.'
+          : businessReview === 'pending'
+            ? 'Details are submitted and waiting for Traverion review — not verified yet.'
+            : businessDone
+              ? 'Company details are saved. Submit for review if you have not already.'
+              : 'Your company details so travelers know who they book with.',
+      done: businessVerified,
       action: onBusiness,
       cta:
         businessReview === 'pending'
@@ -87,9 +107,16 @@ export default function PartnerOnboarding({
       n: '02',
       title: 'Payout',
       body: PARTNER_ONBOARDING_PAYOUT_STEP_NOTE,
-      done: payoutDone,
+      done: payoutVerified,
       action: onPayout,
-      cta: payoutDone ? 'Review' : 'Add payout',
+      cta:
+        payoutReview === 'rejected'
+          ? 'Fix and resubmit'
+          : payoutReview === 'pending'
+            ? 'View status'
+            : payoutDone
+              ? 'Review'
+              : 'Add payout',
       statusChip: payoutChip,
     },
     {
@@ -119,6 +146,7 @@ export default function PartnerOnboarding({
   const completed = requiredSteps.filter((s) => s.done).length;
   const nextIncomplete = visibleSteps.find((s) => !s.done && !('optionalUntilListing' in s && s.optionalUntilListing));
   const checklistComplete = completed === requiredSteps.length && requiredSteps.length > 0;
+  const showSetupBanner = checklistComplete || detailsOnFile || needsVerificationAction || awaitingVerification;
 
   return (
     <div className="max-w-2xl mx-auto px-1 sm:px-0 py-5 sm:py-8">
@@ -133,14 +161,26 @@ export default function PartnerOnboarding({
       <div className="mb-4 rounded-lg border border-finland/15 bg-finland/[0.04] px-3.5 py-2.5">
         <div className="flex items-center justify-between gap-3 mb-1.5">
           <p className="text-sm font-semibold text-ink">
-            {checklistComplete
-              ? publishReady
-                ? 'Ready to publish'
-                : 'Under review'
-              : `${completed} of ${requiredSteps.length} steps done`}
+            {publishReady
+              ? 'Ready to publish'
+              : needsVerificationAction
+                ? 'Action required'
+                : awaitingVerification
+                  ? 'Details saved — verification pending'
+                  : `${completed} of ${requiredSteps.length} verified`}
           </p>
-          <StatusChip tone={checklistComplete && publishReady ? 'good' : checklistComplete ? 'warn' : 'neutral'}>
-            {checklistComplete && publishReady ? 'Verified' : checklistComplete ? 'Under review' : 'Incomplete'}
+          <StatusChip
+            tone={
+              publishReady ? 'good' : needsVerificationAction ? 'bad' : awaitingVerification ? 'warn' : 'neutral'
+            }
+          >
+            {publishReady
+              ? 'Verified'
+              : needsVerificationAction
+                ? 'Action required'
+                : awaitingVerification
+                  ? 'Under review'
+                  : 'Incomplete'}
           </StatusChip>
         </div>
         <div
@@ -149,7 +189,7 @@ export default function PartnerOnboarding({
           aria-valuenow={completed}
           aria-valuemin={0}
           aria-valuemax={requiredSteps.length}
-          aria-label="Onboarding progress"
+          aria-label="Onboarding verification progress"
         >
           <div
             className="h-full rounded-full bg-finland transition-[width] duration-300 ease-out"
@@ -160,25 +200,29 @@ export default function PartnerOnboarding({
         </div>
       </div>
 
-      {checklistComplete ? (
+      {showSetupBanner ? (
         <div className="mb-6 space-y-3">
           <NoticeCallout
             title={
               publishReady
                 ? 'Verified'
-                : businessReview === 'rejected' || payoutReview === 'rejected'
+                : needsVerificationAction
                   ? 'Action required'
-                  : 'Under review'
+                  : awaitingVerification
+                    ? 'Saved — not verified yet'
+                    : 'Finish setup'
             }
             tone={
-              publishReady
-                ? 'success'
-                : businessReview === 'rejected' || payoutReview === 'rejected'
-                  ? 'warn'
-                  : 'info'
+              publishReady ? 'success' : needsVerificationAction ? 'warn' : awaitingVerification ? 'info' : 'info'
             }
           >
-            {publishReady ? PARTNER_ONBOARDING_PUBLISH_READY_NOTE : PARTNER_ONBOARDING_CHECKLIST_DONE_NOTE}
+            {publishReady
+              ? PARTNER_ONBOARDING_PUBLISH_READY_NOTE
+              : needsVerificationAction
+                ? businessVerificationFeedback.trim()
+                  ? businessVerificationFeedback.trim()
+                  : 'Update the items Traverion flagged, then submit again. Saved details are not the same as verified status.'
+                : PARTNER_ONBOARDING_CHECKLIST_DONE_NOTE}
             {!publishReady ? (
               <div className="mt-2 flex flex-wrap gap-1.5">
                 <StatusChip tone={businessChip.tone}>{businessChip.label}</StatusChip>
@@ -202,9 +246,7 @@ export default function PartnerOnboarding({
                 }
                 className="tv-btn-secondary inline-flex items-center gap-1.5"
               >
-                {businessReview === 'rejected' || payoutReview === 'rejected'
-                  ? 'Fix and resubmit'
-                  : 'View status'}
+                {needsVerificationAction ? 'Fix and resubmit' : 'View status'}
               </button>
             ) : null}
           </div>

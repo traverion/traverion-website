@@ -178,7 +178,8 @@ export default function BusinessProfilePage(p: BusinessProfilePageProps) {
   const businessLocked = isSupplierBusinessIdentityLocked(
     p.verificationStatus,
     p.verificationSubmittedAt,
-    p.businessTypeAtLastFetch
+    p.businessTypeAtLastFetch,
+    p.businessVerificationFeedback
   );
   const identityFieldsDisabled = businessLocked || !canEditProfile;
   const brandLocked = businessLocked;
@@ -307,6 +308,7 @@ export default function BusinessProfilePage(p: BusinessProfilePageProps) {
     verificationStatus: p.verificationStatus,
     submittedAt: p.verificationSubmittedAt,
     draftComplete: draftBusinessComplete,
+    feedback: p.businessVerificationFeedback,
   });
   const payoutReview = partnerPayoutReviewState({
     verificationStatus: p.payoutVerificationStatus,

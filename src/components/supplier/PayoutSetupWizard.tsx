@@ -352,7 +352,8 @@ export default function PayoutSetupWizard({
   const businessLocked = isSupplierBusinessIdentityLocked(
     profile?.verification_status,
     profile?.verification_submitted_at,
-    profile?.business_type
+    profile?.business_type,
+    profile?.business_verification_feedback
   );
 
   const openBusinessAmendment = () => {

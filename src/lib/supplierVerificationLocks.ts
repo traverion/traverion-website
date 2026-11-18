@@ -6,22 +6,25 @@ export const SUPPLIER_SENSITIVE_CHANGES_SUPPORT_EMAIL = 'info@traverion.com';
  * Matches DB trigger rules for business columns only (not payout).
  *
  * - Verified: always locked.
- * - Pending after a real company submit: `verification_submitted_at` set **and** `business_type` was saved
- *   (avoids locking drafts where DB default is `pending` and a migration backfilled the timestamp only).
- * - Rejected or draft: unlocked so they can fix and resubmit.
+ * - Pending after a real company submit with no staff feedback: locked.
+ * - Rejected, or pending with non-empty `business_verification_feedback`: unlocked so they can fix and resubmit.
+ * - Draft: unlocked.
  *
  * `businessTypeAtLastFetch` must reflect the last **server** value (or the value just saved), not in-progress dropdown edits.
  */
 export function isSupplierBusinessIdentityLocked(
   verificationStatus: string | null | undefined,
   verificationSubmittedAt: string | null | undefined,
-  businessTypeAtLastFetch: string | null | undefined
+  businessTypeAtLastFetch: string | null | undefined,
+  businessVerificationFeedback?: string | null | undefined
 ): boolean {
   const v = (verificationStatus ?? '').trim().toLowerCase();
   const submitted = (verificationSubmittedAt ?? '').trim() !== '';
   const typeSaved = (businessTypeAtLastFetch ?? '').trim() !== '';
+  const feedback = (businessVerificationFeedback ?? '').trim();
+  const needsChanges = v === 'rejected' || (v === 'pending' && feedback !== '');
   if (v === 'verified') return true;
-  if (v === 'pending' && submitted && typeSaved) return true;
+  if (v === 'pending' && submitted && typeSaved && !needsChanges) return true;
   return false;
 }
 

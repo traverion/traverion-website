@@ -455,6 +455,7 @@ export default function SupplierDashboard() {
       verificationStatus: profile.verification_status,
       submittedAt: profile.verification_submitted_at,
       draftComplete: isSupplierBusinessProfileComplete(profile),
+      feedback: profile.business_verification_feedback,
     });
     const payout = partnerPayoutReviewState({
       verificationStatus: profile.payout_verification_status,
@@ -939,12 +940,22 @@ export default function SupplierDashboard() {
               <AttentionItem
                 tone="danger"
                 title={accountStatus.title}
-                detail={accountStatus.detail}
+                detail={
+                  (profile?.business_verification_feedback ?? '').trim() ||
+                  (profile?.payout_verification_feedback ?? '').trim() ||
+                  accountStatus.detail
+                }
                 onClick={() => {
                   const businessOk = (profile?.verification_status || '').trim().toLowerCase() === 'verified';
                   const payoutOk = (profile?.payout_verification_status || '').trim().toLowerCase() === 'verified';
+                  const businessNeedsFix =
+                    partnerBusinessReviewState({
+                      verificationStatus: profile?.verification_status,
+                      submittedAt: profile?.verification_submitted_at,
+                      feedback: profile?.business_verification_feedback,
+                    }) === 'rejected';
                   navigateSupplierUrl(
-                    businessOk && !payoutOk
+                    businessOk && !payoutOk && !businessNeedsFix
                       ? `${PARTNER_APP_BASE}/money?tab=settings#income-payout-account`
                       : `${PARTNER_APP_BASE}/business-profile#company`
                   );

@@ -80,6 +80,7 @@ export default function BusinessProfileSummary(p: BusinessProfileSummaryProps) {
     verificationStatus: p.verificationStatus,
     submittedAt: p.verificationSubmittedAt,
     draftComplete,
+    feedback: p.businessVerificationFeedback,
   });
   const payoutReview = partnerPayoutReviewState({
     verificationStatus: p.payoutVerificationStatus,
@@ -149,7 +150,7 @@ export default function BusinessProfileSummary(p: BusinessProfileSummaryProps) {
       {businessReview === 'pending' ? (
         <NoticeCallout title="Under review" tone="warn">
           <span className="inline-flex items-center gap-1.5">
-            You can draft listings while you wait.
+            Details are submitted — not yet verified. You can draft listings while you wait.
             <PartnerHelpTip label="About under review">{PARTNER_HELP.underReview}</PartnerHelpTip>
           </span>
         </NoticeCallout>
