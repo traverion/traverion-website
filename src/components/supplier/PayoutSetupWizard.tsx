@@ -2,8 +2,10 @@ import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import {
   fetchSupplierProfile,
   updateSupplierPayout,
+  updateSupplierSetupProgress,
   type SupplierProfileRow,
 } from '../../data/supabase-supplier-profile';
+import { phaseFromPayoutStep, toServerSetupProgress } from '../../lib/partner-unified-setup';
 import {
   connectOnboardingUserMessage,
   fetchConnectAccountLink,
@@ -253,6 +255,15 @@ export default function PayoutSetupWizard({
       !profile?.connect_details_submitted);
 
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const url = new URL(window.location.href);
+    if (url.searchParams.get('step') === draft.step) return;
+    url.searchParams.set('step', draft.step);
+    url.searchParams.delete('focus');
+    window.history.replaceState(null, '', `${url.pathname}${url.search}`);
+  }, [draft.step]);
+
+  useEffect(() => {
     // Local cache is a UX resume aid only — never the cross-device source of truth.
     savePayoutWizardDraft(userId, draft);
     if (!serverHydrated) return;
@@ -260,9 +271,18 @@ export default function PayoutSetupWizard({
     const t = window.setTimeout(() => setPersistLabel(null), 1800);
     if (serverDraftTimer.current) window.clearTimeout(serverDraftTimer.current);
     serverDraftTimer.current = window.setTimeout(() => {
-      void invokeConnectSupplierOnboarding('save_wizard_draft', {
-        wizard_draft: toServerPayoutWizardDraft(draft),
-      }).then((result) => {
+      void Promise.all([
+        invokeConnectSupplierOnboarding('save_wizard_draft', {
+          wizard_draft: toServerPayoutWizardDraft(draft),
+        }),
+        updateSupplierSetupProgress(
+          userId,
+          toServerSetupProgress({
+            phase: phaseFromPayoutStep(draft.step),
+            payout_step: draft.step,
+          })
+        ),
+      ]).then(([result]) => {
         if (result.success) setPersistLabel('Saved to your account');
         else setPersistLabel('Could not sync — retrying on next change');
         window.setTimeout(() => setPersistLabel(null), 1800);
@@ -953,7 +973,7 @@ export default function PayoutSetupWizard({
           setHostedLinkBusy(true);
           const link = await fetchConnectAccountLink();
           setHostedLinkBusy(false);
-          if (link.success && link.url) {
+          if (link.url) {
             window.location.assign(link.url);
             return;
           }
@@ -1038,7 +1058,7 @@ export default function PayoutSetupWizard({
         return;
       }
       const link = await fetchConnectAccountLink();
-      if (!link.success || !link.url) {
+      if (!link.url) {
         setError(connectOnboardingUserMessage(link.error) || 'Could not open Stripe.');
         return;
       }

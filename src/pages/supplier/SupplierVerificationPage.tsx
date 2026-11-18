@@ -12,13 +12,22 @@ import {
 } from '../../data/supabase-supplier-profile';
 import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
 import { navigateSupplierUrl } from '../../lib/supplierPortalNavigation';
-import type { PayoutWizardStepId } from '../../lib/payout-setup-wizard';
+import { PAYOUT_WIZARD_SCREENS, type PayoutWizardStepId } from '../../lib/payout-setup-wizard';
 
 const PayoutSetupWizard = lazy(() => import('../../components/supplier/PayoutSetupWizard'));
 
+function resolveInitialStep(): PayoutWizardStepId | undefined {
+  if (typeof window === 'undefined') return undefined;
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('focus') === 'bank') return 'bank';
+  const step = (params.get('step') ?? '').trim() as PayoutWizardStepId;
+  if (PAYOUT_WIZARD_SCREENS.some((s) => s.id === step)) return step;
+  return undefined;
+}
+
 /**
- * /partner/verification — opens the unified P9.1 payout setup wizard (same shell as
- * Income → Settings). Legacy dual journey is retired as the primary entry.
+ * /partner/verification — payout / representative steps of the unified supplier
+ * onboarding journey (P9.40). Deep links: ?step=representative|bank|… or ?focus=bank.
  */
 export default function SupplierVerificationPage() {
   const { user } = useSupplierAuth();
@@ -28,11 +37,7 @@ export default function SupplierVerificationPage() {
   const [commercialTerms, setCommercialTerms] = useState<SupplierCommercialTermsRow | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
-
-  const focusBank =
-    typeof window !== 'undefined' &&
-    new URLSearchParams(window.location.search).get('focus') === 'bank';
-  const initialStep: PayoutWizardStepId | undefined = focusBank ? 'bank' : undefined;
+  const [initialStep] = useState<PayoutWizardStepId | undefined>(() => resolveInitialStep());
 
   const refreshProfile = useCallback(async () => {
     if (!user?.id) return null;
@@ -118,7 +123,7 @@ export default function SupplierVerificationPage() {
         canEdit={canEdit}
         onProfile={setProfile}
         initialStep={initialStep}
-        onClose={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/money?tab=settings`)}
+        onClose={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/onboarding`)}
       />
     </Suspense>
   );

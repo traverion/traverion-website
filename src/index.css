@@ -376,6 +376,33 @@ body {
     flex-direction: column;
   }
 
+  /* P9.40 — unified supplier onboarding hub */
+  .partner-unified-setup {
+    animation: partner-unified-setup-in 280ms ease-out;
+  }
+
+  .partner-unified-setup button:focus-visible {
+    outline: 2px solid #073b83;
+    outline-offset: 2px;
+  }
+
+  @keyframes partner-unified-setup-in {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .partner-unified-setup {
+      animation: none;
+    }
+  }
+
   .partner-sidebar {
     align-self: stretch;
     min-height: 0;

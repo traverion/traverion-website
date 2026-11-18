@@ -75,6 +75,12 @@ export type SupplierProfileRow = {
   identity_document_path: string | null;
   /** Private bucket path for company registration extract (company suppliers) */
   company_registration_document_path: string | null;
+  /** P9.40 unified onboarding progress (non-sensitive phase + redacted business draft). */
+  setup_progress?: Record<string, unknown> | null;
+  setup_progress_updated_at?: string | null;
+  /** P9.32 payout wizard resume draft (non-sensitive; managed via connect-supplier-onboarding). */
+  payout_wizard_draft?: Record<string, unknown> | null;
+  payout_wizard_draft_updated_at?: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -538,6 +544,33 @@ export async function updateSupplierCompanyProfile(
   if (!data) return { success: false, error: 'Supplier profile not found' };
   invalidateSupplierProfileCache(userId);
   return { success: true, supplierId: ownerSupplierId };
+}
+
+/**
+ * P9.40 — Persist canonical non-sensitive setup progress for cross-device resume.
+ * Never include IBAN, bank tokens, identity bytes, or full DOB.
+ */
+export async function updateSupplierSetupProgress(
+  userId: string,
+  setupProgress: Record<string, unknown>
+): Promise<{ success: boolean; error?: string }> {
+  if (!supabase) return { success: false, error: 'Supabase not configured' };
+  const ownerSupplierId = await resolveSupplierId(userId);
+  const now = new Date().toISOString();
+  const { data, error } = await supabase
+    .from('supplier_profiles')
+    .update({
+      setup_progress: setupProgress,
+      setup_progress_updated_at: now,
+      updated_at: now,
+    })
+    .eq('id', ownerSupplierId)
+    .select('id')
+    .maybeSingle();
+  if (error) return { success: false, error: error.message };
+  if (!data) return { success: false, error: 'Supplier profile not found' };
+  invalidateSupplierProfileCache(userId);
+  return { success: true };
 }
 
 /** Public operator name/legal text for listing pages. Does not expose payout or KYC fields. */

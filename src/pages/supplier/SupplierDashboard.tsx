@@ -184,8 +184,9 @@ function accountNavHref(profile: NonNullable<Awaited<ReturnType<typeof fetchSupp
   const businessOk = (profile.verification_status || '').trim().toLowerCase() === 'verified';
   const payoutOk = (profile.payout_verification_status || '').trim().toLowerCase() === 'verified';
   if (kind === 'setup') return `${PARTNER_APP_BASE}/onboarding`;
-  if (businessOk && !payoutOk) return `${PARTNER_APP_BASE}/money?tab=settings#income-payout-account`;
-  return `${PARTNER_APP_BASE}/business-profile#company`;
+  // P9.40: unfinished or partial verification always resumes the unified setup hub.
+  if (businessOk && !payoutOk) return `${PARTNER_APP_BASE}/verification?step=representative`;
+  return `${PARTNER_APP_BASE}/onboarding`;
 }
 
 function bookingLabel(b: BookingRow | undefined, titles: Record<string, string>): string {
@@ -946,8 +947,6 @@ export default function SupplierDashboard() {
                   accountStatus.detail
                 }
                 onClick={() => {
-                  const businessOk = (profile?.verification_status || '').trim().toLowerCase() === 'verified';
-                  const payoutOk = (profile?.payout_verification_status || '').trim().toLowerCase() === 'verified';
                   const businessNeedsFix =
                     partnerBusinessReviewState({
                       verificationStatus: profile?.verification_status,
@@ -955,9 +954,9 @@ export default function SupplierDashboard() {
                       feedback: profile?.business_verification_feedback,
                     }) === 'rejected';
                   navigateSupplierUrl(
-                    businessOk && !payoutOk && !businessNeedsFix
-                      ? `${PARTNER_APP_BASE}/money?tab=settings#income-payout-account`
-                      : `${PARTNER_APP_BASE}/business-profile#company`
+                    businessNeedsFix
+                      ? `${PARTNER_APP_BASE}/business-setup?step=documents`
+                      : `${PARTNER_APP_BASE}/onboarding`
                   );
                 }}
               />

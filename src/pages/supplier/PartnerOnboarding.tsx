@@ -1,328 +1,310 @@
 import { ArrowRight, Check } from 'lucide-react';
-import { navigateSupplierUrl } from '../../lib/supplierPortalNavigation';
-import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
+import { useMemo } from 'react';
+import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import {
-  PARTNER_ONBOARDING_INTRO_NOTE,
-  PARTNER_ONBOARDING_PAYOUT_STEP_NOTE,
   PARTNER_FIRST_LISTING_STEP_NOTE,
   PARTNER_ONBOARDING_CHECKLIST_DONE_NOTE,
+  PARTNER_ONBOARDING_INTRO_NOTE,
   PARTNER_ONBOARDING_PUBLISH_READY_NOTE,
 } from '../../lib/booking-confirmation-copy';
-import StatusChip from '../../components/StatusChip';
-import NoticeCallout from '../../components/NoticeCallout';
+import {
+  derivePartnerSetupProgress,
+  readinessCopyFromProfile,
+  UNIFIED_SETUP_SCREENS,
+  type UnifiedSetupPhaseId,
+} from '../../lib/partner-unified-setup';
 import { PARTNER_HELP } from '../../lib/partnerHelpCopy';
 import {
-  partnerBusinessReviewState,
   partnerBusinessStatusChip,
-  partnerPayoutReviewState,
   partnerPayoutStatusChip,
 } from '../../lib/partnerVerificationStatus';
+import type { SupplierProfileRow } from '../../data/supabase-supplier-profile';
+import StatusChip from '../../components/StatusChip';
+import NoticeCallout from '../../components/NoticeCallout';
 import PartnerHelpTip from '../../components/supplier/PartnerHelpTip';
 
 type PartnerOnboardingProps = {
+  profile: SupplierProfileRow | null;
   onSkip: () => void;
-  onBusiness: () => void;
-  onPayout: () => void;
+  onContinuePhase: (phase: UnifiedSetupPhaseId) => void;
   onTours: () => void;
-  businessDone: boolean;
-  payoutDone: boolean;
-  /** True when the partner already has at least one tour or stay draft/listing. */
   hasListing: boolean;
-  /** Open Calendar for the first tour listing (departures / capacity). */
   onDepartures?: () => void;
-  /** True when Traverion has verified both business and payout (publish gate). */
-  publishReady: boolean;
-  businessVerificationStatus?: string;
-  businessVerificationSubmittedAt?: string;
-  businessVerificationFeedback?: string;
-  payoutVerificationStatus?: string;
-  payoutVerificationSubmittedAt?: string;
 };
 
 export default function PartnerOnboarding({
+  profile,
   onSkip,
-  onBusiness,
-  onPayout,
+  onContinuePhase,
   onTours,
-  businessDone,
-  payoutDone,
   hasListing,
   onDepartures,
-  publishReady,
-  businessVerificationStatus = '',
-  businessVerificationSubmittedAt = '',
-  businessVerificationFeedback = '',
-  payoutVerificationStatus = '',
-  payoutVerificationSubmittedAt = '',
 }: PartnerOnboardingProps) {
-  const businessReview = partnerBusinessReviewState({
-    verificationStatus: businessVerificationStatus,
-    submittedAt: businessVerificationSubmittedAt,
-    draftComplete: businessDone,
-    feedback: businessVerificationFeedback,
+  const { user } = useSupplierAuth();
+  const userId = user?.id ?? '';
+  const progress = useMemo(
+    () =>
+      derivePartnerSetupProgress(profile, {
+        userId,
+        hasListing,
+      }),
+    [profile, userId, hasListing]
+  );
+  const lanes = useMemo(
+    () => (userId ? readinessCopyFromProfile(profile, userId) : null),
+    [profile, userId]
+  );
+
+  const businessChip = partnerBusinessStatusChip(progress.businessReview);
+  const payoutChip = partnerPayoutStatusChip(progress.payoutReview);
+
+  const phases = UNIFIED_SETUP_SCREENS.map((screen, index) => {
+    let done = false;
+    let cta = 'Continue';
+    let body = screen.lede;
+    let chip: ReturnType<typeof partnerBusinessStatusChip> | null = null;
+
+    if (screen.id === 'business') {
+      done = progress.businessDraftComplete && progress.businessReview !== 'rejected';
+      chip = businessChip;
+      cta =
+        progress.businessReview === 'rejected'
+          ? 'Fix details'
+          : progress.businessDraftComplete
+            ? 'Review company'
+            : 'Add company details';
+      body =
+        progress.businessReview === 'rejected'
+          ? 'Traverion asked for updates to your company details.'
+          : progress.businessDraftComplete
+            ? 'Company details are saved and reused for payouts.'
+            : screen.lede;
+    } else if (screen.id === 'documents') {
+      done =
+        progress.businessReview === 'verified' ||
+        (progress.businessDraftComplete && progress.businessReview === 'pending');
+      chip = businessChip;
+      cta =
+        progress.businessReview === 'rejected'
+          ? 'Replace document'
+          : progress.businessReview === 'pending'
+            ? 'View submission'
+            : progress.businessDraftComplete
+              ? 'Review documents'
+              : 'Upload documents';
+      body =
+        progress.businessReview === 'pending'
+          ? 'Registration proof is with Traverion for review.'
+          : progress.businessReview === 'rejected'
+            ? 'Upload an official registration extract, then resubmit.'
+            : screen.lede;
+    } else if (screen.id === 'representative') {
+      done = progress.payoutConfigured || progress.bankingReady;
+      cta = done ? 'Review representative' : 'Add representative';
+      body = done
+        ? 'Representative details are saved for payout setup.'
+        : screen.lede;
+    } else if (screen.id === 'payout') {
+      done = progress.bankingReady || progress.payoutConfigured;
+      chip = payoutChip;
+      cta = done ? 'Review payouts' : 'Set up payouts';
+      body = done
+        ? 'Payout preferences are on file. Stripe verification is separate.'
+        : screen.lede;
+    } else {
+      done = progress.publishReady;
+      cta = hasListing ? 'Open listings' : 'Create listing';
+      body = hasListing ? PARTNER_FIRST_LISTING_STEP_NOTE : screen.lede;
+    }
+
+    return {
+      ...screen,
+      n: String(index + 1).padStart(2, '0'),
+      done,
+      cta,
+      body,
+      chip,
+      action: () => {
+        if (screen.id === 'status') {
+          if (hasListing) onTours();
+          else onTours();
+          return;
+        }
+        onContinuePhase(screen.id);
+      },
+    };
   });
-  const payoutReview = partnerPayoutReviewState({
-    verificationStatus: payoutVerificationStatus,
-    submittedAt: payoutVerificationSubmittedAt,
-    hasBankDetails: payoutDone,
-  });
-  const businessChip = partnerBusinessStatusChip(businessReview);
-  const payoutChip = partnerPayoutStatusChip(payoutReview);
-  const businessVerified = businessReview === 'verified';
-  const payoutVerified = payoutReview === 'verified';
-  const detailsOnFile = businessDone && payoutDone && hasListing;
-  const needsVerificationAction =
-    businessReview === 'rejected' || payoutReview === 'rejected';
-  const awaitingVerification =
-    !publishReady &&
-    (businessReview === 'pending' ||
-      payoutReview === 'pending' ||
-      (detailsOnFile && !needsVerificationAction));
 
-  const steps = [
-    {
-      n: '01',
-      title: 'Business',
-      body:
-        businessReview === 'rejected'
-          ? 'Traverion asked for updates. Replace documents if needed, then resubmit.'
-          : businessReview === 'pending'
-            ? 'Details are submitted and waiting for Traverion review — not verified yet.'
-            : businessDone
-              ? 'Company details are saved. Submit for review if you have not already.'
-              : 'Your company details so travelers know who they book with.',
-      done: businessVerified,
-      action: onBusiness,
-      cta:
-        businessReview === 'pending'
-          ? 'View status'
-          : businessReview === 'rejected'
-            ? 'Fix and resubmit'
-            : businessDone
-              ? 'Review'
-              : 'Add details',
-      statusChip: businessChip,
-    },
-    {
-      n: '02',
-      title: 'Payout',
-      body: PARTNER_ONBOARDING_PAYOUT_STEP_NOTE,
-      done: payoutVerified,
-      action: onPayout,
-      cta:
-        payoutReview === 'rejected'
-          ? 'Fix and resubmit'
-          : payoutReview === 'pending'
-            ? 'View status'
-            : payoutDone
-              ? 'Review'
-              : 'Add payout',
-      statusChip: payoutChip,
-    },
-    {
-      n: '03',
-      title: 'First listing',
-      body: PARTNER_FIRST_LISTING_STEP_NOTE,
-      done: hasListing,
-      action: onTours,
-      cta: hasListing ? 'Open listings' : 'Create listing',
-      statusChip: null as null | typeof businessChip,
-    },
-    {
-      n: '04',
-      title: 'Add departures',
-      body: 'Add dates so travelers can book.',
-      done: false,
-      action: onDepartures ?? onTours,
-      cta: 'Open calendar',
-      statusChip: null as null | typeof businessChip,
-      optionalUntilListing: true,
-    },
-  ];
-
-  const visibleSteps = steps.filter((s) => !('optionalUntilListing' in s && s.optionalUntilListing) || hasListing);
-
-  const requiredSteps = visibleSteps.filter((s) => !('optionalUntilListing' in s && s.optionalUntilListing));
-  const completed = requiredSteps.filter((s) => s.done).length;
-  const nextIncomplete = visibleSteps.find((s) => !s.done && !('optionalUntilListing' in s && s.optionalUntilListing));
-  const checklistComplete = completed === requiredSteps.length && requiredSteps.length > 0;
-  const showSetupBanner = checklistComplete || detailsOnFile || needsVerificationAction || awaitingVerification;
+  const required = phases.filter((p) => p.id !== 'status');
+  const completed = required.filter((p) => p.done).length;
+  const needsAction =
+    progress.businessReview === 'rejected' || progress.payoutReview === 'rejected';
 
   return (
-    <div className="max-w-2xl mx-auto px-1 sm:px-0 py-5 sm:py-8">
-      <header className="mb-4 rounded-lg border border-black/[0.06] bg-paper px-3.5 py-3">
-        <h1 className="inline-flex flex-wrap items-center gap-1.5 font-display text-xl sm:text-2xl text-ink tracking-tight">
-          Finish setup
+    <div className="partner-unified-setup mx-auto w-full max-w-[40rem] px-1 py-5 sm:px-0 sm:py-8">
+      <header className="mb-5">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#073b83]">
+          Partner setup
+        </p>
+        <h1 className="mt-1 inline-flex flex-wrap items-center gap-1.5 font-display text-[1.65rem] font-bold tracking-tight text-[#17191d] sm:text-[1.85rem]">
+          Get ready to host
           <PartnerHelpTip label="About setup">{PARTNER_HELP.publishGate}</PartnerHelpTip>
         </h1>
-        <p className="mt-1 text-xs text-ink-muted leading-snug max-w-lg">{PARTNER_ONBOARDING_INTRO_NOTE}</p>
+        <p className="mt-2 max-w-lg text-[13px] leading-relaxed text-[#5c6570]">
+          {PARTNER_ONBOARDING_INTRO_NOTE}
+        </p>
       </header>
 
-      <div className="mb-4 rounded-lg border border-finland/15 bg-finland/[0.04] px-3.5 py-2.5">
-        <div className="flex items-center justify-between gap-3 mb-1.5">
-          <p className="text-sm font-semibold text-ink">
-            {publishReady
-              ? 'Ready to publish'
-              : needsVerificationAction
-                ? 'Action required'
-                : awaitingVerification
-                  ? 'Details saved — verification pending'
-                  : `${completed} of ${requiredSteps.length} verified`}
-          </p>
+      <section className="mb-5 rounded-[14px] border border-[#e8ebf0] bg-[#fafbfc] px-4 py-4 sm:px-5">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="text-[15px] font-semibold tracking-tight text-[#17191d]">
+              {progress.publishReady
+                ? 'Ready to publish'
+                : needsAction
+                  ? 'Action required'
+                  : progress.businessReview === 'pending' || progress.payoutConfigured
+                    ? 'Setup in progress'
+                    : 'Start setup'}
+            </p>
+            <p className="mt-1 text-[12px] leading-relaxed text-[#5c6570]">{progress.nextHint}</p>
+          </div>
           <StatusChip
             tone={
-              publishReady ? 'good' : needsVerificationAction ? 'bad' : awaitingVerification ? 'warn' : 'neutral'
+              progress.publishReady ? 'good' : needsAction ? 'bad' : 'warn'
             }
           >
-            {publishReady
-              ? 'Verified'
-              : needsVerificationAction
-                ? 'Action required'
-                : awaitingVerification
-                  ? 'Under review'
-                  : 'Incomplete'}
+            {progress.publishReady
+              ? 'Ready'
+              : needsAction
+                ? 'Needs attention'
+                : `${completed}/${required.length}`}
           </StatusChip>
         </div>
         <div
-          className="h-1.5 rounded-full bg-finland/15 overflow-hidden"
+          className="mt-3 h-1.5 overflow-hidden rounded-full bg-[#e8ebf0]"
           role="progressbar"
           aria-valuenow={completed}
           aria-valuemin={0}
-          aria-valuemax={requiredSteps.length}
-          aria-label="Onboarding verification progress"
+          aria-valuemax={required.length}
+          aria-label="Setup progress"
         >
           <div
-            className="h-full rounded-full bg-finland transition-[width] duration-300 ease-out"
+            className="h-full rounded-full bg-[#073b83] transition-[width] duration-300 ease-out"
             style={{
-              width: `${requiredSteps.length ? (completed / requiredSteps.length) * 100 : 0}%`,
+              width: `${required.length ? (completed / required.length) * 100 : 0}%`,
             }}
           />
         </div>
-      </div>
+        <button
+          type="button"
+          className="tv-btn-primary mt-4 h-11 w-full px-4 text-[13px] sm:w-auto"
+          onClick={() => {
+            if (progress.nextCta.toLowerCase().includes('listing')) {
+              onTours();
+              return;
+            }
+            onContinuePhase(progress.nextPhase);
+          }}
+        >
+          {progress.nextCta}
+          <ArrowRight className="ml-1.5 inline-block h-4 w-4" aria-hidden />
+        </button>
+      </section>
 
-      {showSetupBanner ? (
-        <div className="mb-6 space-y-3">
-          <NoticeCallout
-            title={
-              publishReady
-                ? 'Verified'
-                : needsVerificationAction
-                  ? 'Action required'
-                  : awaitingVerification
-                    ? 'Saved — not verified yet'
-                    : 'Finish setup'
-            }
-            tone={
-              publishReady ? 'success' : needsVerificationAction ? 'warn' : awaitingVerification ? 'info' : 'info'
-            }
-          >
-            {publishReady
-              ? PARTNER_ONBOARDING_PUBLISH_READY_NOTE
-              : needsVerificationAction
-                ? businessVerificationFeedback.trim()
-                  ? businessVerificationFeedback.trim()
-                  : 'Update the items Traverion flagged, then submit again. Saved details are not the same as verified status.'
-                : PARTNER_ONBOARDING_CHECKLIST_DONE_NOTE}
-            {!publishReady ? (
-              <div className="mt-2 flex flex-wrap gap-1.5">
-                <StatusChip tone={businessChip.tone}>{businessChip.label}</StatusChip>
-                <StatusChip tone={payoutChip.tone}>{payoutChip.label}</StatusChip>
-              </div>
-            ) : null}
-          </NoticeCallout>
-          <div className="flex flex-wrap gap-2">
+      {lanes ? (
+        <dl className="mb-5 grid grid-cols-1 gap-2 sm:grid-cols-2">
+          {[
+            ['Form progress', lanes.formProgress],
+            ['Traverion business', lanes.businessVerification],
+            ['Stripe verification', lanes.stripeVerification],
+            ['Payout readiness', lanes.payoutReadiness],
+          ].map(([label, value]) => (
+            <div
+              key={label}
+              className="flex items-center justify-between gap-3 rounded-[12px] border border-[#eef1f4] bg-white px-3.5 py-3"
+            >
+              <dt className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#71717a]">
+                {label}
+              </dt>
+              <dd className="text-right text-[12px] font-semibold text-[#17191d]">{value}</dd>
+            </div>
+          ))}
+        </dl>
+      ) : null}
+
+      <ol className="space-y-2.5">
+        {phases.map((step) => (
+          <li key={step.id}>
             <button
               type="button"
-              onClick={onTours}
-              className="tv-btn-primary inline-flex items-center gap-1.5"
+              onClick={step.action}
+              className="group flex w-full items-start gap-3 rounded-[14px] border border-[#e8ebf0] bg-white px-3.5 py-3.5 text-left transition-colors hover:border-[#073b83]/35 hover:bg-[#f8fafc]"
             >
-              {hasListing ? 'Open listings' : 'Create listing'} <ArrowRight className="w-4 h-4" aria-hidden />
-            </button>
-            {!publishReady ? (
-              <button
-                type="button"
-                onClick={
-                  payoutReview === 'rejected' && businessReview !== 'rejected' ? onPayout : onBusiness
-                }
-                className="tv-btn-secondary inline-flex items-center gap-1.5"
+              <span
+                className={[
+                  'mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-full text-[12px] font-bold',
+                  step.done
+                    ? 'bg-[#073b83] text-white'
+                    : 'border border-[#d0d5dd] bg-white text-[#5c6570]',
+                ].join(' ')}
+                aria-hidden
               >
-                {needsVerificationAction ? 'Fix and resubmit' : 'View status'}
-              </button>
-            ) : null}
-          </div>
+                {step.done ? <Check className="h-3.5 w-3.5" strokeWidth={3} /> : step.n}
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="flex flex-wrap items-center gap-2">
+                  <span className="text-[14px] font-semibold tracking-tight text-[#17191d]">
+                    {step.title}
+                  </span>
+                  {step.chip ? (
+                    <StatusChip tone={step.chip.tone}>{step.chip.label}</StatusChip>
+                  ) : null}
+                </span>
+                <span className="mt-1 block text-[12px] leading-relaxed text-[#5c6570]">
+                  {step.body}
+                </span>
+                <span className="mt-2 inline-flex items-center text-[13px] font-semibold text-[#073b83] group-hover:text-[#052d65]">
+                  {step.cta}
+                  <ArrowRight className="ml-1 h-3.5 w-3.5" aria-hidden />
+                </span>
+              </span>
+            </button>
+          </li>
+        ))}
+      </ol>
+
+      {hasListing ? (
+        <div className="mt-4">
+          <button
+            type="button"
+            className="lux-flat min-h-10 text-[13px] font-semibold text-[#5c6570] hover:text-[#17191d]"
+            onClick={() => onDepartures?.() ?? onTours()}
+          >
+            Open calendar for departures
+          </button>
         </div>
       ) : null}
 
-      <ol className="space-y-2">
-        {visibleSteps.map((s) => {
-          const isNext =
-            ('optionalUntilListing' in s && s.optionalUntilListing && hasListing && checklistComplete)
-              ? s.n === '04'
-              : nextIncomplete?.n === s.n;
-          return (
-            <li
-              key={s.n}
-              className={`rounded-lg border px-3 py-2.5 transition-colors ${
-                s.done
-                  ? 'border-emerald-200/80 bg-emerald-50/50'
-                  : isNext
-                    ? 'border-finland/40 bg-paper ring-1 ring-finland/25'
-                    : 'border-black/[0.06] bg-paper'
-              }`}
-            >
-              <div className="flex gap-2.5 items-start">
-                <span
-                  className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-[11px] font-semibold ${
-                    s.done
-                      ? 'bg-emerald-600 text-white'
-                      : isNext
-                        ? 'bg-finland text-white'
-                        : 'bg-black/[0.04] text-ink-muted'
-                  }`}
-                  aria-hidden
-                >
-                  {s.done ? <Check className="w-3.5 h-3.5" strokeWidth={2.5} /> : s.n}
-                </span>
-                <div className="flex-1 min-w-0">
-                  <div className="flex flex-wrap items-center gap-2 mb-0.5">
-                    <h2 className="text-sm font-semibold text-ink">{s.title}</h2>
-                    {s.statusChip ? (
-                      <StatusChip tone={s.statusChip.tone}>{s.statusChip.label}</StatusChip>
-                    ) : (
-                      <StatusChip tone={s.done ? 'good' : isNext ? 'warn' : 'neutral'}>
-                        {s.done ? 'Done' : isNext ? 'Up next' : 'To do'}
-                      </StatusChip>
-                    )}
-                  </div>
-                  <p className="text-sm text-ink-muted mb-2.5 leading-snug">{s.body}</p>
-                  <button
-                    type="button"
-                    onClick={s.action}
-                    className={
-                      isNext && !s.done
-                        ? 'tv-btn-primary inline-flex items-center gap-1.5'
-                        : 'lux-flat inline-flex items-center gap-1.5 text-sm font-semibold text-finland'
-                    }
-                  >
-                    {s.cta} <ArrowRight className="w-4 h-4" aria-hidden />
-                  </button>
-                </div>
-              </div>
-            </li>
-          );
-        })}
-      </ol>
+      {progress.publishReady ? (
+        <NoticeCallout className="mt-5" title="Ready to publish" tone="success">
+          {PARTNER_ONBOARDING_PUBLISH_READY_NOTE}
+        </NoticeCallout>
+      ) : progress.businessDraftComplete && progress.payoutConfigured ? (
+        <NoticeCallout className="mt-5" title="Details on file" tone="info">
+          {PARTNER_ONBOARDING_CHECKLIST_DONE_NOTE}
+        </NoticeCallout>
+      ) : null}
 
-      <button
-        type="button"
-        onClick={() => {
-          onSkip();
-          navigateSupplierUrl(PARTNER_APP_BASE);
-        }}
-        className="lux-flat mt-6 text-sm text-ink-muted hover:text-ink"
-      >
-        Continue to Today
-      </button>
+      <div className="mt-6 flex justify-center">
+        <button
+          type="button"
+          className="lux-flat min-h-10 text-[13px] font-semibold text-[#71717a] hover:text-[#17191d]"
+          onClick={onSkip}
+        >
+          Skip for now
+        </button>
+      </div>
     </div>
   );
 }

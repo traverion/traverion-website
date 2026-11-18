@@ -32,7 +32,13 @@ import {
   fetchSupplierProfile,
   updateSupplierPayout,
   updateSupplierCompanyProfile,
+  type SupplierProfileRow,
 } from '../../data/supabase-supplier-profile';
+import {
+  businessStepForPhase,
+  payoutStepForPhase,
+  type UnifiedSetupPhaseId,
+} from '../../lib/partner-unified-setup';
 import {
   applyLegalPlaceholders,
   applyLegalDate,
@@ -43,7 +49,7 @@ import { formatSupplierBusinessAddressFromParts } from '../../lib/supplierAddres
 import { fetchMyListings } from '../../data/supabase-listings';
 import { inventoryFamilyFromListing } from '../../lib/inventory';
 import { BRAND_LOGO_SRC } from '../../lib/brandAssets';
-import { isSupplierBusinessProfileComplete, isSupplierPayoutConfigured } from '../../lib/supplierOnboarding';
+import { isSupplierBankingReadyForPublish } from '../../lib/supplierOnboarding';
 import {
   supplierOwnsAnyListing,
   userCanAccessPartnerPortal,
@@ -350,8 +356,7 @@ export default function SupplierLayout() {
   const [companyMessage, setCompanyMessage] = useState<'success' | 'error' | null>(null);
   const [onboardingListingCount, setOnboardingListingCount] = useState<number | null>(null);
   const [onboardingFirstTourListingId, setOnboardingFirstTourListingId] = useState<string | null>(null);
-  const [onboardingHasPayout, setOnboardingHasPayout] = useState(false);
-  const [onboardingHasCompany, setOnboardingHasCompany] = useState(false);
+  const [onboardingProfile, setOnboardingProfile] = useState<SupplierProfileRow | null>(null);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     try {
@@ -705,8 +710,7 @@ export default function SupplierLayout() {
     if (!user?.id || !isSupabase) {
       setOnboardingListingCount(null);
       setOnboardingFirstTourListingId(null);
-      setOnboardingHasPayout(false);
-      setOnboardingHasCompany(false);
+      setOnboardingProfile(null);
       setVerificationStatus('');
       setVerificationSubmittedAt('');
       setPayoutVerificationStatus('');
@@ -726,8 +730,7 @@ export default function SupplierLayout() {
       setOnboardingListingCount(listings.length);
       const firstTour = listings.find((l) => inventoryFamilyFromListing(l) === 'tour');
       setOnboardingFirstTourListingId(firstTour?.id ?? null);
-      setOnboardingHasPayout(isSupplierPayoutConfigured(profile));
-      setOnboardingHasCompany(isSupplierBusinessProfileComplete(profile));
+      setOnboardingProfile(profile);
       setProfileDisplayName((profile?.display_name ?? '').trim());
       setCompanyLegalName((profile?.company_legal_name ?? '').trim());
       setVerificationStatus((profile?.verification_status ?? '').trim());
@@ -894,7 +897,8 @@ export default function SupplierLayout() {
       return;
     }
     if (target === 'payout') {
-      navigateSupplierUrl(`${PARTNER_APP_BASE}/money?tab=settings`);
+      // P9.40: first-time payout setup joins the unified flow (verification wizard).
+      navigateSupplierUrl(`${PARTNER_APP_BASE}/verification`);
       return;
     }
     setSettingsFocus(target);
@@ -948,9 +952,25 @@ export default function SupplierLayout() {
   const partnerMarketingPage = partnerMarketingPageFromPathname(pathname);
   const onboardingHasListing = onboardingListingCount !== null && onboardingListingCount > 0;
   const onboardingBusinessVerified = verificationStatus.trim().toLowerCase() === 'verified';
-  const onboardingPayoutVerified = payoutVerificationStatus.trim().toLowerCase() === 'verified';
+  const onboardingPayoutVerified =
+    payoutVerificationStatus.trim().toLowerCase() === 'verified' ||
+    isSupplierBankingReadyForPublish(onboardingProfile);
   const onboardingComplete =
     onboardingHasListing && onboardingPayoutVerified && onboardingBusinessVerified;
+
+  const continueUnifiedPhase = (phase: UnifiedSetupPhaseId) => {
+    if (phase === 'business' || phase === 'documents' || phase === 'status') {
+      const step = businessStepForPhase(phase);
+      navigateSupplierUrl(`${PARTNER_APP_BASE}/business-setup?step=${step}`);
+      return;
+    }
+    const step = payoutStepForPhase(phase);
+    navigateSupplierUrl(
+      step === 'bank'
+        ? `${PARTNER_APP_BASE}/verification?focus=bank`
+        : `${PARTNER_APP_BASE}/verification?step=${step}`
+    );
+  };
 
   const normalizedPathForVerify = pathname.replace(/\/$/, '') || '/';
   if (normalizedPathForVerify === PARTNER_EMAIL_VERIFIED_PATH) {
@@ -1261,9 +1281,9 @@ export default function SupplierLayout() {
                   <>
                     {section === 'onboarding' && (
                       <PartnerOnboarding
+                        profile={onboardingProfile}
                         onSkip={() => handleNavigate('dashboard')}
-                        onBusiness={() => handleNavigate('business-setup')}
-                        onPayout={() => openSettingsFocus('payout')}
+                        onContinuePhase={continueUnifiedPhase}
                         onTours={() => {
                           if (onboardingHasListing) {
                             handleNavigate('listings');
@@ -1278,15 +1298,7 @@ export default function SupplierLayout() {
                           }
                           handleNavigate('availability');
                         }}
-                        businessDone={onboardingHasCompany}
-                        payoutDone={onboardingHasPayout}
                         hasListing={onboardingHasListing}
-                        publishReady={onboardingBusinessVerified && onboardingPayoutVerified}
-                        businessVerificationStatus={verificationStatus}
-                        businessVerificationSubmittedAt={verificationSubmittedAt}
-                        businessVerificationFeedback={businessVerificationFeedback}
-                        payoutVerificationStatus={payoutVerificationStatus}
-                        payoutVerificationSubmittedAt={payoutVerificationSubmittedAt}
                       />
                     )}
                     {section === 'dashboard' && <SupplierDashboard />}

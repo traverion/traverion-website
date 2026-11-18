@@ -3,6 +3,7 @@ import {
   fetchSupplierProfile,
   patchSupplierProfile,
   removeSupplierVerificationDocumentFile,
+  updateSupplierSetupProgress,
   uploadSupplierVerificationDocument,
   verificationDocumentBasename,
   type SupplierProfileRow,
@@ -27,6 +28,11 @@ import {
   parseDirectors,
   serializeDirectors,
 } from '../../lib/business-identity-validation';
+import {
+  mergeServerBusinessSetupDraft,
+  phaseFromBusinessStep,
+  toServerSetupProgress,
+} from '../../lib/partner-unified-setup';
 import { PARTNER_HELP } from '../../lib/partnerHelpCopy';
 import { submitSupplierBusinessForReview } from '../../lib/submitSupplierBusinessForReview';
 import { isSupplierBusinessIdentityLocked } from '../../lib/supplierVerificationLocks';
@@ -167,7 +173,10 @@ export default function BusinessOnboardingWizard({
   const staffFeedback = (profile?.business_verification_feedback ?? '').trim();
 
   const [draft, setDraft] = useState<BusinessOnboardingDraft>(() => {
-    const saved = loadBusinessOnboardingDraft(userId);
+    const local = loadBusinessOnboardingDraft(userId);
+    const merged = mergeServerBusinessSetupDraft(local, profile?.setup_progress, {
+      serverUpdatedAt: profile?.setup_progress_updated_at,
+    });
     const initialFromQuery =
       typeof window !== 'undefined'
         ? (new URLSearchParams(window.location.search).get('step') as BusinessOnboardingStepId | null)
@@ -178,14 +187,14 @@ export default function BusinessOnboardingWizard({
         : null;
     return emptyBusinessOnboardingDraft({
       ...prefillFromProfile(profile),
-      ...(saved ?? {}),
+      ...(merged ?? {}),
       step:
         underReview || verified
           ? 'review'
           : actionRequired
             ? (validInitial ?? 'documents')
-            : validInitial ?? saved?.step ?? 'identity',
-      owner_authority_confirmed: saved?.owner_authority_confirmed ?? false,
+            : validInitial ?? merged?.step ?? 'identity',
+      owner_authority_confirmed: merged?.owner_authority_confirmed ?? false,
     });
   });
   const [direction, setDirection] = useState<'forward' | 'back'>('forward');
@@ -195,6 +204,7 @@ export default function BusinessOnboardingWizard({
   const [fieldErrors, setFieldErrors] = useState<BusinessOnboardingFieldErrors>({});
   const [persistLabel, setPersistLabel] = useState<string | null>(null);
   const focusPending = useRef<string | null>(null);
+  const serverProgressTimer = useRef<number | null>(null);
 
   const stepIndex = businessOnboardingStepIndex(draft.step);
   const screen = BUSINESS_ONBOARDING_SCREENS[stepIndex]!;
@@ -204,7 +214,24 @@ export default function BusinessOnboardingWizard({
     saveBusinessOnboardingDraft(userId, draft);
     setPersistLabel('Progress saved');
     const t = window.setTimeout(() => setPersistLabel(null), 1600);
-    return () => window.clearTimeout(t);
+    if (serverProgressTimer.current) window.clearTimeout(serverProgressTimer.current);
+    serverProgressTimer.current = window.setTimeout(() => {
+      void updateSupplierSetupProgress(
+        userId,
+        toServerSetupProgress({
+          phase: phaseFromBusinessStep(draft.step),
+          business_step: draft.step,
+          business_draft: draft as unknown as Record<string, unknown>,
+        })
+      ).then((result) => {
+        if (result.success) setPersistLabel('Saved to your account');
+        window.setTimeout(() => setPersistLabel(null), 1600);
+      });
+    }, 900);
+    return () => {
+      window.clearTimeout(t);
+      if (serverProgressTimer.current) window.clearTimeout(serverProgressTimer.current);
+    };
   }, [userId, draft]);
 
   useEffect(() => {
@@ -343,8 +370,8 @@ export default function BusinessOnboardingWizard({
         clearBusinessOnboardingDraft(userId);
         const next = result.profile ?? (await fetchSupplierProfile(userId));
         onProfile(next);
-        onSubmitted?.();
-        onClose();
+        if (onSubmitted) onSubmitted();
+        else onClose();
       } finally {
         setBusy(false);
       }

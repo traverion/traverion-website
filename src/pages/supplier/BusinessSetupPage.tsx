@@ -12,8 +12,8 @@ import { navigateSupplierUrl } from '../../lib/supplierPortalNavigation';
 const BusinessOnboardingWizard = lazy(() => import('../../components/supplier/BusinessOnboardingWizard'));
 
 /**
- * /partner/business-setup — full-screen Traverion business verification wizard (P9.16).
- * Does not touch Stripe Connect / payouts.
+ * /partner/business-setup — Traverion business verification steps of the unified
+ * supplier onboarding journey (P9.40). Continues into payout setup after submit.
  */
 export default function BusinessSetupPage() {
   const { user } = useSupplierAuth();
@@ -57,6 +57,10 @@ export default function BusinessSetupPage() {
     navigateSupplierUrl(`${PARTNER_APP_BASE}/onboarding`);
   };
 
+  const continueToPayouts = () => {
+    navigateSupplierUrl(`${PARTNER_APP_BASE}/verification?step=representative`);
+  };
+
   if (!user?.id) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center px-4 text-[13px] text-[#52525b]">
@@ -98,7 +102,7 @@ export default function BusinessSetupPage() {
         canEdit={canEdit}
         onProfile={setProfile}
         onClose={closeToOnboarding}
-        onSubmitted={closeToOnboarding}
+        onSubmitted={continueToPayouts}
       />
     </Suspense>
   );
