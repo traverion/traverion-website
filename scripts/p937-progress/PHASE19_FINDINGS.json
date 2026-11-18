@@ -1,0 +1,182 @@
+[
+  {
+    "route": "home",
+    "viewport": "desktop",
+    "ok": true,
+    "overflowX": false,
+    "scrollWidth": 1440,
+    "clientWidth": 1440,
+    "missingLabel": 0,
+    "title": "Traverion – Tours and stays"
+  },
+  {
+    "route": "tours",
+    "viewport": "desktop",
+    "ok": true,
+    "overflowX": false,
+    "scrollWidth": 1440,
+    "clientWidth": 1440,
+    "missingLabel": 0,
+    "title": "Tours · Traverion"
+  },
+  {
+    "route": "stays",
+    "viewport": "desktop",
+    "ok": true,
+    "overflowX": false,
+    "scrollWidth": 1440,
+    "clientWidth": 1440,
+    "missingLabel": 0,
+    "title": "Stays · Traverion"
+  },
+  {
+    "route": "rentals",
+    "viewport": "desktop",
+    "ok": true,
+    "overflowX": false,
+    "scrollWidth": 1440,
+    "clientWidth": 1440,
+    "missingLabel": 0,
+    "title": "Rentals · Traverion"
+  },
+  {
+    "route": "cart",
+    "viewport": "desktop",
+    "ok": true,
+    "overflowX": false,
+    "scrollWidth": 1440,
+    "clientWidth": 1440,
+    "missingLabel": 0,
+    "title": "Cart · Traverion"
+  },
+  {
+    "route": "partner-login",
+    "viewport": "desktop",
+    "ok": true,
+    "overflowX": false,
+    "scrollWidth": 1440,
+    "clientWidth": 1440,
+    "missingLabel": 0,
+    "title": "Home · Traverion Partner"
+  },
+  {
+    "route": "home",
+    "viewport": "tablet",
+    "ok": true,
+    "overflowX": false,
+    "scrollWidth": 768,
+    "clientWidth": 768,
+    "missingLabel": 0,
+    "title": "Traverion – Tours and stays"
+  },
+  {
+    "route": "tours",
+    "viewport": "tablet",
+    "ok": true,
+    "overflowX": false,
+    "scrollWidth": 768,
+    "clientWidth": 768,
+    "missingLabel": 0,
+    "title": "Tours · Traverion"
+  },
+  {
+    "route": "stays",
+    "viewport": "tablet",
+    "ok": true,
+    "overflowX": false,
+    "scrollWidth": 768,
+    "clientWidth": 768,
+    "missingLabel": 0,
+    "title": "Stays · Traverion"
+  },
+  {
+    "route": "rentals",
+    "viewport": "tablet",
+    "ok": true,
+    "overflowX": false,
+    "scrollWidth": 768,
+    "clientWidth": 768,
+    "missingLabel": 0,
+    "title": "Rentals · Traverion"
+  },
+  {
+    "route": "cart",
+    "viewport": "tablet",
+    "ok": true,
+    "overflowX": false,
+    "scrollWidth": 768,
+    "clientWidth": 768,
+    "missingLabel": 0,
+    "title": "Cart · Traverion"
+  },
+  {
+    "route": "partner-login",
+    "viewport": "tablet",
+    "ok": true,
+    "overflowX": false,
+    "scrollWidth": 768,
+    "clientWidth": 768,
+    "missingLabel": 0,
+    "title": "Home · Traverion Partner"
+  },
+  {
+    "route": "home",
+    "viewport": "mobile",
+    "ok": true,
+    "overflowX": false,
+    "scrollWidth": 390,
+    "clientWidth": 390,
+    "missingLabel": 0,
+    "title": "Traverion – Tours and stays"
+  },
+  {
+    "route": "tours",
+    "viewport": "mobile",
+    "ok": true,
+    "overflowX": false,
+    "scrollWidth": 390,
+    "clientWidth": 390,
+    "missingLabel": 0,
+    "title": "Tours · Traverion"
+  },
+  {
+    "route": "stays",
+    "viewport": "mobile",
+    "ok": true,
+    "overflowX": false,
+    "scrollWidth": 390,
+    "clientWidth": 390,
+    "missingLabel": 0,
+    "title": "Stays · Traverion"
+  },
+  {
+    "route": "rentals",
+    "viewport": "mobile",
+    "ok": true,
+    "overflowX": false,
+    "scrollWidth": 390,
+    "clientWidth": 390,
+    "missingLabel": 0,
+    "title": "Rentals · Traverion"
+  },
+  {
+    "route": "cart",
+    "viewport": "mobile",
+    "ok": true,
+    "overflowX": false,
+    "scrollWidth": 390,
+    "clientWidth": 390,
+    "missingLabel": 0,
+    "title": "Cart · Traverion"
+  },
+  {
+    "route": "partner-login",
+    "viewport": "mobile",
+    "ok": true,
+    "overflowX": false,
+    "scrollWidth": 390,
+    "clientWidth": 390,
+    "missingLabel": 0,
+    "title": "Home · Traverion Partner"
+  }
+]

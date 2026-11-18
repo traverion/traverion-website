@@ -71,9 +71,6 @@ import { PARTNER_HELP } from '../../lib/partnerHelpCopy';
 import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
 import PartnerHelpTip from './PartnerHelpTip';
 
-/** Centered content width — P9.29 calm financial onboarding. */
-const CONTENT_MAX = 'max-w-[36rem]';
-
 function normalizeCountryCode(raw: string): string {
   const t = raw.trim();
   if (!t) return '';
@@ -224,7 +221,7 @@ export default function PayoutSetupWizard({
   const [liveCreateBlockedReason, setLiveCreateBlockedReason] = useState<string | null>(null);
   const [identityDocSide, setIdentityDocSide] = useState<'front' | 'back'>('front');
   const [identityUploadNote, setIdentityUploadNote] = useState<string | null>(null);
-  const scrollRef = useRef<HTMLElement | null>(null);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
   const headingRef = useRef<HTMLHeadingElement | null>(null);
   const completePrimaryRef = useRef<HTMLButtonElement | null>(null);
   const serverDraftTimer = useRef<number | null>(null);
