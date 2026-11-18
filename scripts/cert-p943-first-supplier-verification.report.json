@@ -1,0 +1,179 @@
+{
+  "at": "2026-11-18T20:25:25.989Z",
+  "supplierId": "eced0f8c-c2e4-469b-8bba-15170be68cc1",
+  "document": {
+    "path": "eced0f8c-c2e4-469b-8bba-15170be68cc1/company-registration.pdf",
+    "bytes": 168386,
+    "type": "PRH Ote kaupparekisteristä",
+    "extractDate": "2026-04-28",
+    "stamped": "Leimattu sähköisesti PRH:n palvelussa 28.04.2026 12:27:03 EEST"
+  },
+  "ytj": {
+    "businessId": "3567289-4",
+    "name": "EM Global Oy",
+    "address": "Siljotie 2 D 7, 96100 ROVANIEMI",
+    "form": "Osakeyhtiö",
+    "registered": "2025-09-30"
+  },
+  "match": {
+    "legalName": true,
+    "yTunnus": true,
+    "address": true,
+    "directorProfile": "Miro Vesterinen ↔ Vesterinen Miro Kasperi (board + CEO)"
+  },
+  "approveBusiness": {
+    "status": 200,
+    "json": {
+      "ok": true,
+      "email": {
+        "sent": true,
+        "skipped": false,
+        "providerMessageId": "01a1f055-c7c5-7d48-88d6-de865484252e",
+        "to": "contact@royalnordic.fi"
+      }
+    }
+  },
+  "afterProfile": {
+    "id": "eced0f8c-c2e4-469b-8bba-15170be68cc1",
+    "company_legal_name": "EM Global Oy",
+    "verification_status": "verified",
+    "verification_submitted_at": "2026-11-18T18:42:15.258+00:00",
+    "business_verification_feedback": null,
+    "business_verified_email_sent_at": "2026-11-18T20:25:14.747+00:00",
+    "company_registration_document_path": "eced0f8c-c2e4-469b-8bba-15170be68cc1/company-registration.pdf",
+    "updated_at": "2026-11-18T20:25:16.195561+00:00"
+  },
+  "recentEvents": [
+    {
+      "id": "709771d1-bab4-4d72-9a5b-c49cbe554797",
+      "decision": "approve",
+      "before_status": "pending",
+      "after_status": "verified",
+      "created_at": "2026-11-18T20:25:15.27502+00:00",
+      "actor_id": "b6c7cc90-021c-4b6c-88df-2d6386afe305",
+      "feedback": null
+    },
+    {
+      "id": "4148b7f4-2666-4d24-931d-6e44674d71f5",
+      "decision": "reject",
+      "before_status": "rejected",
+      "after_status": "rejected",
+      "created_at": "2026-11-18T13:15:36.626323+00:00",
+      "actor_id": null,
+      "feedback": "Business profile fields match YTJ for EM Global Oy (3567289-4), but the uploaded company-registration.png is a Royal Nordic marketing poster, not a Trade Register / company extract. Please upload an official PRH/YTJ registration extract (PDF or clear scan) showing legal name, business ID, and registered address, then resubmit."
+    },
+    {
+      "id": "5c6f7f39-4415-41eb-8dfc-6362e9a9ca3a",
+      "decision": "reject",
+      "before_status": "pending",
+      "after_status": "rejected",
+      "created_at": "2026-11-18T13:14:54.13334+00:00",
+      "actor_id": null,
+      "feedback": "Business profile fields match YTJ for EM Global Oy (3567289-4), but the uploaded company-registration.png is a Royal Nordic marketing poster, not a Trade Register / company extract. Please upload an official PRH/YTJ registration extract (PDF or clear scan) showing legal name, business ID, and registered address, then resubmit."
+    },
+    {
+      "id": "2e0d071a-a53a-4262-9051-000c419d5592",
+      "decision": "submitted",
+      "before_status": "draft",
+      "after_status": "pending",
+      "created_at": "2026-11-17T14:52:13.806794+00:00",
+      "actor_id": "eced0f8c-c2e4-469b-8bba-15170be68cc1",
+      "feedback": null
+    }
+  ],
+  "assess": {
+    "status": 200,
+    "json": {
+      "ok": true,
+      "assessment": {
+        "eligible": true,
+        "supplierId": "eced0f8c-c2e4-469b-8bba-15170be68cc1",
+        "problems": [],
+        "reviewFlags": [],
+        "country": "FI",
+        "legalName": "EM Global Oy",
+        "businessType": "company",
+        "businessVerified": true,
+        "hasLiveConnectedAccount": false,
+        "hasOpenCreateClaim": false,
+        "gateEnabled": false,
+        "allowlisted": false
+      },
+      "owner_membership": {
+        "user_id": "eced0f8c-c2e4-469b-8bba-15170be68cc1",
+        "role": "owner"
+      },
+      "existing_approval": null,
+      "gate_enabled": false,
+      "allowlisted": false,
+      "note": "Do not allowlist or enable the LIVE creation gate from this assessment."
+    }
+  },
+  "pilot": {
+    "status": 200,
+    "json": {
+      "ok": true,
+      "approved": true,
+      "supplier_id": "eced0f8c-c2e4-469b-8bba-15170be68cc1",
+      "approved_by": "b6c7cc90-021c-4b6c-88df-2d6386afe305",
+      "approved_at": "2026-11-18T20:25:25.300Z",
+      "gate_enabled": false,
+      "allowlisted": false,
+      "assessment": {
+        "eligible": true,
+        "supplierId": "eced0f8c-c2e4-469b-8bba-15170be68cc1",
+        "problems": [],
+        "reviewFlags": [],
+        "country": "FI",
+        "legalName": "EM Global Oy",
+        "businessType": "company",
+        "businessVerified": true,
+        "hasLiveConnectedAccount": false,
+        "hasOpenCreateClaim": false,
+        "gateEnabled": false,
+        "allowlisted": false
+      },
+      "note": "Pilot approval recorded. LIVE account creation remains blocked until a separate gate and allowlist authorization."
+    }
+  },
+  "pilotRow": {
+    "supplier_id": "eced0f8c-c2e4-469b-8bba-15170be68cc1",
+    "approved_by": "b6c7cc90-021c-4b6c-88df-2d6386afe305",
+    "approved_at": "2026-11-18T20:25:25.3+00:00",
+    "owner_confirmed": true,
+    "stripe_verification_acknowledged": true,
+    "eligibility_snapshot": {
+      "country": "FI",
+      "eligible": true,
+      "problems": [],
+      "legalName": "EM Global Oy",
+      "supplierId": "eced0f8c-c2e4-469b-8bba-15170be68cc1",
+      "allowlisted": false,
+      "gateEnabled": false,
+      "reviewFlags": [],
+      "businessType": "company",
+      "businessVerified": true,
+      "hasOpenCreateClaim": false,
+      "hasLiveConnectedAccount": false
+    },
+    "note": "P9.43: EM Global Oy verified via genuine PRH kaupparekisteriote 28.04.2026 (3567289-4). Owner Miro Kasperi Vesterinen confirmed; Stripe LIVE verification acknowledged. Create gate/allowlist untouched."
+  },
+  "safety": {
+    "flags": [
+      {
+        "key": "stripe_connect_transfers_enabled",
+        "value_int": 0
+      },
+      {
+        "key": "payout_execution_enabled",
+        "value_int": 0
+      },
+      {
+        "key": "live_custom_onboarding_enabled",
+        "value_int": 0
+      }
+    ],
+    "allowlistCount": 0
+  },
+  "getSupplierStatus": 400
+}
