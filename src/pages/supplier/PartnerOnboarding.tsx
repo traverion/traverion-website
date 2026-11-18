@@ -18,10 +18,6 @@ import {
 } from '../../lib/partner-unified-setup';
 import { PARTNER_HELP } from '../../lib/partnerHelpCopy';
 import {
-  partnerBusinessStatusChip,
-  partnerPayoutStatusChip,
-} from '../../lib/partnerVerificationStatus';
-import {
   fetchSupplierProfile,
   type SupplierProfileRow,
 } from '../../data/supabase-supplier-profile';
@@ -213,8 +209,6 @@ export default function PartnerOnboarding({
     setShowStatusEmbed(true);
   }, [canEditFinance]);
 
-  const businessChip = partnerBusinessStatusChip(progress.businessReview);
-  const payoutChip = partnerPayoutStatusChip(progress.payoutReview);
   const phaseIndex = Math.max(
     0,
     UNIFIED_SETUP_SCREENS.findIndex((s) => s.id === phase)
@@ -255,16 +249,16 @@ export default function PartnerOnboarding({
 
   return (
     <div className="partner-unified-setup-shell payout-wizard flex h-full min-h-0 w-full flex-1 overflow-hidden bg-white">
-      <aside className="partner-unified-setup-shell__rail hidden h-full min-h-0 w-[15.5rem] shrink-0 flex-col overflow-hidden border-r border-[#e8ebf0] bg-[#f7f8fa] lg:flex">
-        <div className="shrink-0 px-4 pb-3 pt-[max(0.85rem,env(safe-area-inset-top))]">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#073b83]">
+      <aside className="partner-unified-setup-shell__rail hidden h-full min-h-0 shrink-0 flex-col overflow-hidden lg:flex">
+        <div className="shrink-0 px-3.5 pb-3 pt-[max(0.85rem,env(safe-area-inset-top))]">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#073b83]">
             Partner setup
           </p>
-          <p className="mt-1 font-display text-[1.2rem] font-bold tracking-tight text-[#17191d]">
+          <p className="partner-onboarding-title mt-1 text-[1.05rem] !font-bold tracking-tight text-[#17191d]">
             Get ready to host
           </p>
           <div
-            className="mt-3 h-1.5 overflow-hidden rounded-full bg-[#e8ebf0]"
+            className="partner-unified-setup-shell__progress mt-3 h-1 overflow-hidden rounded-full bg-[#e8ebf0]"
             role="progressbar"
             aria-valuenow={progress.requirementsDone}
             aria-valuemin={0}
@@ -272,7 +266,7 @@ export default function PartnerOnboarding({
             aria-label="Requirements completed"
           >
             <div
-              className="h-full rounded-full bg-[#073b83] transition-[width] duration-300 ease-out"
+              className="h-full rounded-full bg-[#073b83]"
               style={{ width: `${progressPct}%` }}
             />
           </div>
@@ -280,17 +274,11 @@ export default function PartnerOnboarding({
             {progress.requirementsDone} of {progress.requirementsTotal} complete
           </p>
         </div>
-        <nav className="min-h-0 flex-1 overflow-y-auto px-2 pb-4" aria-label="Setup steps">
-          <ol className="space-y-1">
+        <nav className="min-h-0 flex-1 overflow-y-auto px-2 pb-3" aria-label="Setup steps">
+          <ol className="space-y-0.5">
             {UNIFIED_SETUP_SCREENS.map((item, index) => {
               const current = item.id === phase;
               const done = phaseMet(item.id);
-              const chip =
-                item.id === 'documents'
-                  ? businessChip
-                  : item.id === 'payout'
-                    ? payoutChip
-                    : null;
               return (
                 <li key={item.id}>
                   <button
@@ -298,24 +286,24 @@ export default function PartnerOnboarding({
                     onClick={() => setPhaseAndUrl(item.id)}
                     aria-current={current ? 'step' : undefined}
                     className={[
-                      'lux-flat flex min-h-10 w-full items-center gap-2.5 rounded-lg px-2.5 text-left text-[13px] transition-colors',
+                      'partner-unified-setup-shell__rail-step lux-flat flex min-h-9 w-full items-center gap-2 rounded-lg px-2 text-left text-[12.5px]',
                       current
-                        ? 'bg-[rgba(7,59,131,0.08)] font-semibold text-[#073b83]'
+                        ? 'font-semibold text-[#073b83]'
                         : done
-                          ? 'font-medium text-[#17191d] hover:bg-[#eef1f5]'
-                          : 'font-medium text-[#71717a] hover:bg-[#eef1f5]',
+                          ? 'font-medium text-[#17191d]'
+                          : 'font-medium text-[#71717a]',
                     ].join(' ')}
                   >
                     <span
                       className={[
-                        'grid h-6 w-6 shrink-0 place-items-center rounded-full text-[11px] font-bold',
+                        'grid h-5 w-5 shrink-0 place-items-center rounded-full text-[10px] font-bold',
                         current || done
                           ? 'bg-[#073b83] text-white'
                           : 'border border-[#d0d5dd] bg-white text-[#71717a]',
                       ].join(' ')}
                     >
                       {done && !current ? (
-                        <Check className="h-3.5 w-3.5" strokeWidth={3} />
+                        <Check className="h-3 w-3" strokeWidth={3} />
                       ) : (
                         index + 1
                       )}
@@ -324,9 +312,9 @@ export default function PartnerOnboarding({
                     {item.id === 'documents' && progress.businessReview === 'pending' ? (
                       <StatusChip tone="warn">In review</StatusChip>
                     ) : item.id === 'documents' && progress.businessReview === 'rejected' ? (
-                      <StatusChip tone="bad">Action required</StatusChip>
+                      <StatusChip tone="bad">Fix</StatusChip>
                     ) : item.id === 'payout' && progress.payoutReview === 'rejected' ? (
-                      <StatusChip tone="bad">Action required</StatusChip>
+                      <StatusChip tone="bad">Fix</StatusChip>
                     ) : null}
                   </button>
                 </li>
@@ -334,10 +322,10 @@ export default function PartnerOnboarding({
             })}
           </ol>
         </nav>
-        <div className="shrink-0 border-t border-[#e8ebf0] p-3">
+        <div className="shrink-0 border-t border-[#e8ebf0] p-2.5">
           <button
             type="button"
-            className="lux-flat min-h-10 w-full rounded-lg px-3 text-left text-[13px] font-semibold text-[#5c6570] hover:bg-[#eef1f5] hover:text-[#17191d]"
+            className="lux-flat min-h-9 w-full rounded-lg px-2.5 text-left text-[12.5px] font-semibold text-[#5c6570] hover:bg-[#eef1f5] hover:text-[#17191d]"
             onClick={onSkip}
           >
             Save &amp; exit
@@ -422,23 +410,23 @@ export default function PartnerOnboarding({
 
           {showStatus ? (
             <div className="partner-unified-setup-status min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-5 sm:px-8 lg:px-10 [-webkit-overflow-scrolling:touch]">
-              <div className="partner-unified-setup-canvas mx-auto w-full">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#073b83]">
+              <div className="partner-unified-setup-canvas partner-unified-setup-stage mx-auto w-full">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#073b83]">
                   {progress.businessReview === 'rejected'
                     ? 'Action required'
                     : completionCopy.kicker}
                 </p>
-                <h1 className="mt-1 inline-flex flex-wrap items-center gap-1.5 font-display text-[1.5rem] font-bold tracking-tight text-[#17191d]">
+                <h1 className="partner-onboarding-title mt-1 inline-flex flex-wrap items-center gap-1.5">
                   {progress.businessReview === 'rejected'
                     ? 'Update your documents'
                     : statusHeadline}
                   <PartnerHelpTip label="About setup status">{PARTNER_HELP.publishGate}</PartnerHelpTip>
                 </h1>
-                <p className="mt-2 max-w-xl text-[14px] leading-relaxed text-[#5c6570]">
+                <p className="partner-onboarding-lede">
                   {progress.businessReview === 'rejected'
                     ? progress.nextHint
                     : needsStripeContinue
-                      ? 'Finish identity and bank details below. Traverion reuses what you already provided wherever Stripe allows.'
+                      ? 'Finish identity and bank details below.'
                       : completionCopy.lede}
                 </p>
 
@@ -524,17 +512,14 @@ export default function PartnerOnboarding({
                 ) : null}
 
                 {lanes ? (
-                  <ul className="mt-8 space-y-0 divide-y divide-[#eef1f4] border-y border-[#eef1f4]">
+                  <ul className="partner-status-lanes" aria-label="Setup status">
                     {[
                       ['Business verification', lanes.businessVerification],
                       ['Identity', lanes.formProgress],
                       ['Bank account', lanes.stripeVerification],
                       ['Ready to receive', lanes.payoutReadiness],
                     ].map(([label, value]) => (
-                      <li
-                        key={label}
-                        className="flex items-center justify-between gap-4 py-3.5 text-[13px]"
-                      >
+                      <li key={label}>
                         <span className="font-medium text-[#5c6570]">{label}</span>
                         <span className="text-right font-semibold text-[#17191d]">{value}</span>
                       </li>

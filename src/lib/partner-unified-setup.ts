@@ -42,27 +42,27 @@ export const UNIFIED_SETUP_SCREENS: UnifiedSetupScreen[] = [
   {
     id: 'business',
     title: 'Business verification',
-    lede: 'Your registered business and how travelers see your brand.',
+    lede: 'Your registered business and brand.',
   },
   {
     id: 'documents',
     title: 'Documents',
-    lede: 'Upload registration proof so Traverion can review your business.',
+    lede: 'Registration proof for Traverion review.',
   },
   {
     id: 'representative',
     title: 'Identity',
-    lede: 'Confirm who is authorized to act for the business — identity checks run securely in Traverion.',
+    lede: 'Who is authorized to act for the business.',
   },
   {
     id: 'payout',
     title: 'Bank account',
-    lede: 'Where payouts should go. Bank details are collected securely when verification is open.',
+    lede: 'Where payouts should go.',
   },
   {
     id: 'status',
     title: 'Ready to receive',
-    lede: 'What is saved, what Traverion approved, and what payout verification still needs.',
+    lede: 'What is done and what still needs attention.',
   },
 ];
 

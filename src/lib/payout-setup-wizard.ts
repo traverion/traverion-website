@@ -8,6 +8,8 @@
  * identity / bank (auth popup may appear — cannot be disabled).
  */
 
+import { parseIsoDob, validateIsoDob } from './date-of-birth';
+
 export type PayoutWizardStepId =
   | 'business'
   | 'representative'
@@ -30,37 +32,37 @@ export const PAYOUT_WIZARD_SCREENS: PayoutWizardScreen[] = [
   {
     id: 'business',
     title: 'Business details',
-    lede: 'Confirm the registered company used for payouts. Changes to an approved business go through business setup.',
+    lede: 'Confirm the company used for payouts.',
     collector: 'traverion',
   },
   {
     id: 'representative',
     title: 'Identity',
-    lede: 'Add the person authorized to act for the business, plus any owners of 25% or more. Ownership cannot exceed 100%.',
+    lede: 'Who is authorized to act for the business.',
     collector: 'traverion',
   },
   {
     id: 'identity',
     title: 'Identity',
-    lede: 'Identity checks run securely inside Traverion when payout connection is available — Traverion does not keep copies of ID documents.',
+    lede: 'Secure checks run inside Traverion when connection is open.',
     collector: 'mixed',
   },
   {
     id: 'bank',
     title: 'Bank account',
-    lede: 'Where payouts should go. Full account numbers are collected only in Stripe’s secure component — Traverion never keeps the full number.',
+    lede: 'Where payouts should go.',
     collector: 'traverion',
   },
   {
     id: 'preferences',
     title: 'Preferences',
-    lede: 'Choose how often you prefer payouts and a minimum amount. Preferences alone never move money.',
+    lede: 'How often you prefer payouts.',
     collector: 'traverion',
   },
   {
     id: 'review',
     title: 'Review',
-    lede: 'See what is saved on your Traverion account versus business approval, payout verification, and readiness.',
+    lede: 'What is saved versus what still needs verification.',
     collector: 'mixed',
   },
 ];
@@ -833,9 +835,8 @@ export function sanitizeDevicePayoutWizardDraft(draft: PayoutWizardDraft): Payou
 export function parsePayoutWizardDob(
   value: string
 ): { day: number; month: number; year: number } | null {
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value.trim());
-  if (!m) return null;
-  return { year: Number(m[1]), month: Number(m[2]), day: Number(m[3]) };
+  if (validateIsoDob(value, { required: true })) return null;
+  return parseIsoDob(value);
 }
 
 export type PayoutWizardFieldErrors = Partial<
@@ -924,7 +925,8 @@ export function validateBeneficialOwners(draft: PayoutWizardDraft): string | nul
     const label = `Owner ${i + 1}`;
     if (!owner.first_name.trim()) return `${label}: enter a first name.`;
     if (!owner.last_name.trim()) return `${label}: enter a last name.`;
-    if (!parsePayoutWizardDob(owner.dob)) return `${label}: enter a valid date of birth.`;
+    const ownerDobErr = validateIsoDob(owner.dob, { required: true });
+    if (ownerDobErr) return `${label}: ${ownerDobErr.charAt(0).toLowerCase()}${ownerDobErr.slice(1)}`;
     const ownershipErr = validateOwnershipPercent(owner.percent_ownership, { required: true });
     if (ownershipErr) return `${label}: ${ownershipErr}`;
   }
@@ -942,9 +944,8 @@ export function validateBeneficialOwners(draft: PayoutWizardDraft): string | nul
 export function validatePayoutWizardRepresentative(draft: PayoutWizardDraft): string | null {
   if (!draft.rep_first_name.trim()) return 'Enter the representative’s first name.';
   if (!draft.rep_last_name.trim()) return 'Enter the representative’s last name.';
-  if (!parsePayoutWizardDob(draft.rep_dob)) {
-    return 'Enter a valid date of birth.';
-  }
+  const dobErr = validateIsoDob(draft.rep_dob, { required: true });
+  if (dobErr) return dobErr;
   if (draft.rep_is_owner) {
     const ownershipErr = validateOwnershipPercent(draft.rep_percent_ownership, { required: true });
     if (ownershipErr) return ownershipErr;
@@ -960,9 +961,8 @@ export function validatePayoutWizardRepresentativeFields(
   const errors: PayoutWizardFieldErrors = {};
   if (!draft.rep_first_name.trim()) errors.rep_first_name = 'Enter the first name.';
   if (!draft.rep_last_name.trim()) errors.rep_last_name = 'Enter the last name.';
-  if (!parsePayoutWizardDob(draft.rep_dob)) {
-    errors.rep_dob = 'Enter a valid date of birth.';
-  }
+  const dobErr = validateIsoDob(draft.rep_dob, { required: true });
+  if (dobErr) errors.rep_dob = dobErr;
   if (draft.rep_is_owner) {
     const ownershipErr = validateOwnershipPercent(draft.rep_percent_ownership, { required: true });
     if (ownershipErr) errors.rep_percent_ownership = ownershipErr;

@@ -81,6 +81,8 @@ import { navigateSupplierUrl } from '../../lib/supplierPortalNavigation';
 import { PARTNER_HELP } from '../../lib/partnerHelpCopy';
 import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
 import PartnerHelpTip from './PartnerHelpTip';
+import DateOfBirthPicker from './DateOfBirthPicker';
+import { validateIsoDob } from '../../lib/date-of-birth';
 
 function normalizeCountryCode(raw: string): string {
   const t = raw.trim();
@@ -169,6 +171,65 @@ function FieldError({ message }: { message?: string }) {
       {message}
     </p>
   );
+}
+
+function OwnershipPercentInput({
+  value,
+  onChange,
+  disabled,
+}: {
+  value: string;
+  onChange: (next: string) => void;
+  disabled?: boolean;
+}) {
+  const bump = (delta: number) => {
+    const current = parseOwnershipPercent(value) ?? 0;
+    const next = Math.min(100, Math.max(0, Math.round((current + delta) * 100) / 100));
+    onChange(String(next));
+  };
+  return (
+    <div className="tv-ownership-stepper">
+      <button type="button" aria-label="Decrease ownership" disabled={disabled} onClick={() => bump(-1)}>
+        −
+      </button>
+      <input
+        className="tv-input h-11"
+        inputMode="decimal"
+        value={value}
+        disabled={disabled}
+        onChange={(e) => onChange(sanitizeOwnershipPercentInput(e.target.value))}
+        aria-label="Ownership percent"
+      />
+      <button type="button" aria-label="Increase ownership" disabled={disabled} onClick={() => bump(1)}>
+        +
+      </button>
+    </div>
+  );
+}
+
+function scrollToFirstFieldError(errors: PayoutWizardFieldErrors) {
+  const order: Array<keyof PayoutWizardFieldErrors> = [
+    'rep_first_name',
+    'rep_last_name',
+    'rep_dob',
+    'rep_percent_ownership',
+    'beneficial_owners',
+    'company_legal_name',
+    'business_type',
+    'address_street',
+    'address_city',
+    'address_postal_code',
+    'address_country',
+    'payment_cycle',
+    'payout_threshold_min',
+    'tos_accepted',
+  ];
+  const key = order.find((k) => errors[k]);
+  if (!key || typeof document === 'undefined') return;
+  const root = document.querySelector(`[data-field="${key}"]`);
+  root?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  const focusable = root?.querySelector<HTMLElement>('input,button,select,textarea');
+  focusable?.focus({ preventScroll: true });
 }
 
 export default function PayoutSetupWizard({
@@ -632,16 +693,20 @@ export default function PayoutSetupWizard({
     if (Object.keys(fields).length) {
       setFieldErrors(fields);
       setError(validatePayoutWizardRepresentative(draft));
+      scrollToFirstFieldError(fields);
       return false;
     }
     if (!canEdit) {
       setError('Your role can view setup but cannot change it.');
       return false;
     }
+    const dobErr = validateIsoDob(draft.rep_dob, { required: true });
     const dob = parsePayoutWizardDob(draft.rep_dob);
-    if (!dob) {
-      setFieldErrors({ rep_dob: 'Enter a valid date of birth.' });
-      setError('Enter a valid date of birth.');
+    if (dobErr || !dob) {
+      const msg = dobErr ?? 'Enter a valid date of birth.';
+      setFieldErrors({ rep_dob: msg });
+      setError(msg);
+      scrollToFirstFieldError({ rep_dob: msg });
       return false;
     }
     const ownership = draft.rep_is_owner
@@ -1721,14 +1786,8 @@ export default function PayoutSetupWizard({
                     void onContinue();
                   }}
                 >
-                  {!embedded ? (
-                    <p className="text-[13px] leading-snug text-[#5c6570]">
-                      Enter the person authorized to manage payouts. Do not assume a company director is
-                      automatically this representative.
-                    </p>
-                  ) : null}
-                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    <label className="block">
+                  <div className="partner-onboarding-grid mt-1">
+                    <label className="block" data-field="rep_first_name">
                       <FieldLabel>First name</FieldLabel>
                       <input
                         className="tv-input h-11 w-full"
@@ -1742,7 +1801,7 @@ export default function PayoutSetupWizard({
                       />
                       <FieldError message={fieldErrors.rep_first_name} />
                     </label>
-                    <label className="block">
+                    <label className="block" data-field="rep_last_name">
                       <FieldLabel>Last name</FieldLabel>
                       <input
                         className="tv-input h-11 w-full"
@@ -1756,33 +1815,29 @@ export default function PayoutSetupWizard({
                       />
                       <FieldError message={fieldErrors.rep_last_name} />
                     </label>
-                  </div>
-                  <label className="block">
-                    <FieldLabel help="Required for identity verification. Never inferred from company records.">
-                      Date of birth
-                    </FieldLabel>
-                    <input
-                      className="tv-input h-11 w-full sm:max-w-xs"
-                      type="date"
-                      value={draft.rep_dob}
-                      onChange={(e) => {
-                        patch({ rep_dob: e.target.value });
-                        setFieldErrors((f) => ({ ...f, rep_dob: undefined }));
-                      }}
-                      required
-                    />
-                    <FieldError message={fieldErrors.rep_dob} />
-                  </label>
-                  <label className="block">
-                    <FieldLabel optional>Title / role</FieldLabel>
-                    <input
-                      className="tv-input h-11 w-full"
-                      value={draft.rep_title}
-                      onChange={(e) => patch({ rep_title: e.target.value })}
-                      placeholder="Managing director"
-                    />
-                  </label>
-                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div className="block" data-field="rep_dob">
+                      <FieldLabel help="Required for identity checks.">Date of birth</FieldLabel>
+                      <DateOfBirthPicker
+                        value={draft.rep_dob}
+                        disabled={!canEdit}
+                        required
+                        aria-invalid={Boolean(fieldErrors.rep_dob)}
+                        onChange={(iso) => {
+                          patch({ rep_dob: iso });
+                          setFieldErrors((f) => ({ ...f, rep_dob: undefined }));
+                        }}
+                      />
+                      <FieldError message={fieldErrors.rep_dob} />
+                    </div>
+                    <label className="block">
+                      <FieldLabel optional>Title / role</FieldLabel>
+                      <input
+                        className="tv-input h-11 w-full"
+                        value={draft.rep_title}
+                        onChange={(e) => patch({ rep_title: e.target.value })}
+                        placeholder="Managing director"
+                      />
+                    </label>
                     <label className="block">
                       <FieldLabel optional>Email</FieldLabel>
                       <input
@@ -1832,13 +1887,12 @@ export default function PayoutSetupWizard({
                       </span>
                     </label>
                     {draft.rep_is_owner ? (
-                      <label className="mt-3 block max-w-[12rem]">
+                      <div className="mt-3" data-field="rep_percent_ownership">
                         <FieldLabel>Ownership %</FieldLabel>
-                        <input
-                          className="tv-input h-11 w-full"
+                        <OwnershipPercentInput
                           value={draft.rep_percent_ownership}
-                          onChange={(e) => {
-                            const next = sanitizeOwnershipPercentInput(e.target.value);
+                          disabled={!canEdit || busy}
+                          onChange={(next) => {
                             patch({ rep_percent_ownership: next });
                             const err = validateOwnershipPercent(next, { required: true });
                             setFieldErrors((f) => ({
@@ -1847,28 +1901,16 @@ export default function PayoutSetupWizard({
                               beneficial_owners: undefined,
                             }));
                           }}
-                          onBlur={() => {
-                            const err = validateOwnershipPercent(draft.rep_percent_ownership, {
-                              required: true,
-                            });
-                            setFieldErrors((f) => ({
-                              ...f,
-                              rep_percent_ownership: err ?? undefined,
-                            }));
-                          }}
-                          inputMode="decimal"
-                          placeholder="0–100"
-                          aria-invalid={Boolean(fieldErrors.rep_percent_ownership)}
                         />
                         <FieldError message={fieldErrors.rep_percent_ownership} />
-                      </label>
+                      </div>
                     ) : null}
                   </div>
 
-                  <div className="border-t border-[#E8EAED] pt-4">
+                  <div className="border-t border-[#E8EAED] pt-4" data-field="beneficial_owners">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <h2 className="inline-flex items-center gap-1.5 text-[14px] font-semibold text-[#18181b]">
-                        Beneficial owners
+                        Additional owners
                         <PartnerHelpTip label="About beneficial owners">
                           {PARTNER_HELP.beneficialOwners}
                         </PartnerHelpTip>
@@ -1892,10 +1934,6 @@ export default function PayoutSetupWizard({
                         </button>
                       ) : null}
                     </div>
-                    <p className="mt-1 text-[12px] leading-snug text-[#5c6570]">
-                      Add other owners when required. Ownership must be numeric from 0 to 100, and
-                      declared totals cannot exceed 100%.
-                    </p>
                     {draft.beneficial_owners.length === 0 ? (
                       <p className="mt-3 text-[13px] text-[#71717a]">No additional owners added.</p>
                     ) : (
@@ -1903,10 +1941,10 @@ export default function PayoutSetupWizard({
                         {draft.beneficial_owners.map((owner, index) => (
                           <li
                             key={owner.id}
-                            className="space-y-3 border-b border-[#f1f5f9] pb-4 last:border-b-0 last:pb-0"
+                            className="space-y-3 rounded-xl border border-[#eef1f4] bg-[#fafbfc] p-3.5"
                           >
                             <div className="flex items-center justify-between gap-2">
-                              <p className="text-[12px] font-semibold uppercase tracking-[0.08em] text-[#71717a]">
+                              <p className="text-[12px] font-semibold text-[#5c6570]">
                                 Owner {index + 1}
                               </p>
                               <button
@@ -1925,7 +1963,7 @@ export default function PayoutSetupWizard({
                                 Remove
                               </button>
                             </div>
-                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                            <div className="partner-onboarding-grid">
                               <label className="block">
                                 <FieldLabel>First name</FieldLabel>
                                 <input
@@ -1954,41 +1992,33 @@ export default function PayoutSetupWizard({
                                   }}
                                 />
                               </label>
-                            </div>
-                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                              <label className="block">
+                              <div className="block">
                                 <FieldLabel>Date of birth</FieldLabel>
-                                <input
-                                  className="tv-input h-11 w-full"
-                                  type="date"
+                                <DateOfBirthPicker
                                   value={owner.dob}
                                   disabled={!canEdit || busy}
-                                  onChange={(e) => {
+                                  onChange={(iso) => {
                                     const next = draft.beneficial_owners.map((o) =>
-                                      o.id === owner.id ? { ...o, dob: e.target.value } : o
+                                      o.id === owner.id ? { ...o, dob: iso } : o
                                     );
                                     patch({ beneficial_owners: next });
                                   }}
                                 />
-                              </label>
-                              <label className="block">
+                              </div>
+                              <div className="block">
                                 <FieldLabel>Ownership %</FieldLabel>
-                                <input
-                                  className="tv-input h-11 w-full"
+                                <OwnershipPercentInput
                                   value={owner.percent_ownership}
-                                  inputMode="decimal"
-                                  placeholder="0–100"
                                   disabled={!canEdit || busy}
-                                  onChange={(e) => {
-                                    const pct = sanitizeOwnershipPercentInput(e.target.value);
+                                  onChange={(pct) => {
                                     const next = draft.beneficial_owners.map((o) =>
                                       o.id === owner.id ? { ...o, percent_ownership: pct } : o
                                     );
                                     patch({ beneficial_owners: next });
                                   }}
                                 />
-                              </label>
-                              <label className="block">
+                              </div>
+                              <label className="block partner-onboarding-span-2">
                                 <FieldLabel optional>Email</FieldLabel>
                                 <input
                                   className="tv-input h-11 w-full"
@@ -2202,23 +2232,14 @@ export default function PayoutSetupWizard({
                     void onContinue();
                   }}
                 >
-                  {!embedded ? (
-                    <p className="text-[12px] leading-relaxed text-[#52525b]">
-                      Add your bank account. Traverion never stores your full account number — it is
-                      tokenized securely before submission.
-                    </p>
-                  ) : null}
                   {(bankManaged || bankMasked) && (
-                    <p className="rounded-[10px] border border-emerald-200 bg-emerald-50 px-3 py-2 text-[12px] text-emerald-950 sm:col-span-2">
-                      Bank on file{bankMasked ? `: ${bankMasked}` : ''}. Enter a new IBAN only to replace
-                      it.
+                    <p className="rounded-[10px] border border-emerald-200 bg-emerald-50 px-3 py-2 text-[12px] text-emerald-950">
+                      Bank on file{bankMasked ? `: ${bankMasked}` : ''}. Enter a new IBAN only to replace it.
                     </p>
                   )}
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
-                    <label className="block text-[13px]">
-                      <span className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.1em] text-[#71717a]">
-                        Account holder name
-                      </span>
+                  <div className="partner-onboarding-grid">
+                    <label className="block">
+                      <FieldLabel>Account holder</FieldLabel>
                       <input
                         className="tv-input h-11 w-full"
                         value={bankHolder}
@@ -2226,10 +2247,10 @@ export default function PayoutSetupWizard({
                         autoComplete="name"
                       />
                     </label>
-                    <label className="block text-[13px]">
-                      <span className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.1em] text-[#71717a]">
+                    <label className="block">
+                      <FieldLabel help="Tokenized before submission — Traverion never keeps the full number.">
                         IBAN
-                      </span>
+                      </FieldLabel>
                       <input
                         className="tv-input h-11 w-full font-mono text-[13px]"
                         value={bankIban}

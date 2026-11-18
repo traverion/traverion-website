@@ -632,7 +632,7 @@ export default function BusinessOnboardingWizard({
                 Step {stepIndex + 1} of {BUSINESS_ONBOARDING_SCREENS.length}
               </p>
               ) : null}
-              <h1 className="stay-title !mt-0 inline-flex flex-wrap items-center gap-1.5 !text-[1.45rem] sm:!text-[1.55rem]">
+              <h1 className="partner-onboarding-title stay-title !mt-0 inline-flex flex-wrap items-center gap-1.5">
                 {underReview
                   ? 'Under review'
                   : verified
@@ -650,13 +650,13 @@ export default function BusinessOnboardingWizard({
                   </PartnerHelpTip>
                 ) : null}
               </h1>
-              <p className="stay-lede mt-1.5 max-w-[40rem]">
+              <p className="partner-onboarding-lede stay-lede">
                 {underReview
                   ? 'You’ll be notified when a decision is ready.'
                   : verified
-                    ? 'Manage details from Business settings.'
+                    ? 'Approved business details are shown below.'
                     : actionRequired
-                      ? 'Update what Traverion asked for, replace the registration document if needed, then submit again.'
+                      ? 'Update what was requested, then submit again.'
                       : screen.lede}
               </p>
 
@@ -979,9 +979,7 @@ export default function BusinessOnboardingWizard({
               {!underReview && !verified && draft.step === 'documents' ? (
                 <div className="mt-5 max-w-2xl space-y-4">
                   {draft.business_type === 'individual' ? (
-                    <p className="text-[13px] text-[#5c6570]">
-                      Registration proof is optional for individual traders. You can continue without an upload.
-                    </p>
+                    <p className="text-[13px] text-[#5c6570]">Optional for individual traders.</p>
                   ) : null}
                   <BizField
                     label="Registration document"
@@ -990,9 +988,9 @@ export default function BusinessOnboardingWizard({
                     error={fieldErrors.company_registration_document_path}
                   >
                     {draft.company_registration_document_path ? (
-                      <div className="flex flex-col gap-3 rounded-xl border border-[#E5E7EB] bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="partner-doc-card flex-col sm:flex-row sm:items-center sm:justify-between">
                         <div className="min-w-0">
-                          <p className="text-[13px] font-semibold text-[#17191d]">Uploaded</p>
+                          <p className="text-[13px] font-semibold text-[#17191d]">On file</p>
                           <p className="mt-0.5 truncate text-[13px] text-[#5c6570]">
                             {verificationDocumentBasename(draft.company_registration_document_path)}
                           </p>
