@@ -77,7 +77,7 @@ export function MarketplaceBrowseShell({
 
         <section className="min-w-0" aria-labelledby={headingId}>
           <div className="mb-5 relative z-10 flex flex-wrap items-center justify-between gap-3">
-            <h1 id={headingId} className="tv-page-title text-lg sm:text-xl">
+            <h1 id={headingId} className="tv-page-title !text-[1.15rem] sm:!text-[1.35rem]">
               {resultTitle}
             </h1>
             {!desktopFilters ? <div className="hidden lg:block shrink-0">{sortControl}</div> : null}

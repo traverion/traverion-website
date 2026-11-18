@@ -874,7 +874,7 @@ body {
     background: #fff;
     border: 1px solid var(--ph-border);
     border-radius: var(--ph-radius);
-    box-shadow: var(--ph-shadow);
+    box-shadow: var(--partner-shadow-raised, var(--ph-shadow));
     overflow: hidden;
   }
 
