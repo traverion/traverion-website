@@ -1,0 +1,140 @@
+{
+  "mission": "P9.32",
+  "base": "http://127.0.0.1:5185",
+  "startedAt": "2026-11-18T00:02:00.601Z",
+  "production": {
+    "gates": [
+      {
+        "key": "live_custom_onboarding_enabled",
+        "value_int": 0
+      },
+      {
+        "key": "payout_execution_enabled",
+        "value_int": 0
+      },
+      {
+        "key": "stripe_connect_transfers_enabled",
+        "value_int": 0
+      }
+    ],
+    "allowlist": {
+      "allowlist_count": 0
+    },
+    "draft_columns": {
+      "n": 2
+    },
+    "accounts": {
+      "with_connect": 0
+    }
+  },
+  "checks": [
+    {
+      "check": "live_custom_onboarding_enabled remains OFF",
+      "ok": true,
+      "detail": "0"
+    },
+    {
+      "check": "payout_execution_enabled remains OFF",
+      "ok": true,
+      "detail": "0"
+    },
+    {
+      "check": "stripe_connect_transfers_enabled remains OFF",
+      "ok": true,
+      "detail": "0"
+    },
+    {
+      "check": "allowlist empty (no unauthorized pilot)",
+      "ok": true,
+      "detail": "{\"allowlist_count\":0}"
+    },
+    {
+      "check": "payout_wizard_draft columns exist",
+      "ok": true,
+      "detail": "{\"n\":2}"
+    },
+    {
+      "check": "no Connect accounts created by this mission",
+      "ok": true,
+      "detail": "{\"with_connect\":0}"
+    },
+    {
+      "check": "device draft has no IBAN secrets",
+      "ok": true,
+      "detail": "{\"hasIban\":false,\"hasFullDob\":false,\"hasDeferred\":true,\"repDob\":\"\"}"
+    },
+    {
+      "check": "device draft has no full DOB",
+      "ok": true,
+      "detail": "{\"hasIban\":false,\"hasFullDob\":false,\"hasDeferred\":true,\"repDob\":\"\"}"
+    },
+    {
+      "check": "Done does not show Verified/Confirmed without Connect",
+      "ok": true,
+      "detail": "honest completion"
+    },
+    {
+      "check": "Done shows connection not enabled / not available",
+      "ok": true,
+      "detail": "pilot gate honesty"
+    },
+    {
+      "check": "completion fits mobile",
+      "ok": true,
+      "detail": "390px"
+    },
+    {
+      "check": "server draft persisted for cert supplier",
+      "ok": true,
+      "detail": "{\"has_draft\":true,\"has_updated\":true}"
+    },
+    {
+      "check": "server draft contains no IBAN",
+      "ok": true,
+      "detail": "sanitized"
+    },
+    {
+      "check": "server draft contains no full DOB",
+      "ok": true,
+      "detail": "year-only or omitted"
+    },
+    {
+      "check": "settings never shows Verified without Connect",
+      "ok": true,
+      "detail": "returning supplier honesty"
+    },
+    {
+      "check": "settings shows connection-not-enabled or setup saved",
+      "ok": false,
+      "detail": "resume path"
+    }
+  ],
+  "screenshots": [
+    "/Users/mirovesterinen/Documents/traverion.com/scripts/p932-screenshots/complete-desktop-1280.png",
+    "/Users/mirovesterinen/Documents/traverion.com/scripts/p932-screenshots/complete-mobile-390.png",
+    "/Users/mirovesterinen/Documents/traverion.com/scripts/p932-screenshots/settings-returning-1280.png"
+  ],
+  "approval_checkpoint": {
+    "title": "APPROVAL_CHECKPOINT — enable LIVE Connect creation",
+    "required_before_create": [
+      "Explicitly name one supplier id for the pilot",
+      "Confirm Finland country + real legal entity on that profile",
+      "Insert one live_custom_onboarding_allowlist row (service role)",
+      "Separately authorize setting live_custom_onboarding_enabled=1 for a controlled window",
+      "Supplier continues once → ensure_account creates LIVE Accounts v2",
+      "Prefer closing the gate after create; leave transfers/execution at 0"
+    ],
+    "blocked_now": [
+      "live_custom_onboarding_enabled=0",
+      "allowlist empty",
+      "no named supplier approval in this mission"
+    ],
+    "never_auto": [
+      "payout_execution_enabled",
+      "stripe_connect_transfers_enabled",
+      "fabricated Verified / bank connected states"
+    ]
+  },
+  "verdict": "PARTIAL",
+  "finishedAt": "2026-11-18T00:02:56.581Z"
+}

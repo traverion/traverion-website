@@ -60,9 +60,13 @@ type Body = {
     | 'attach_bank_token'
     | 'submit_identity_file'
     | 'upload_identity_document'
+    /** Persist non-sensitive wizard progress (no IBAN / tokens / full DOB). */
+    | 'save_wizard_draft'
     /** Service-role only: archive TEST link + create LIVE Custom account + Account Link. */
     | 'admin_ensure_live_connect';
   supplier_id?: string;
+  /** Non-sensitive payout wizard draft — stripped server-side before write. */
+  wizard_draft?: Record<string, unknown>;
   /** Required confirmation for archiving an Express link before Custom create (TEST). */
   confirm_archive_express?: boolean;
   component?: 'account_onboarding' | 'account_management';
@@ -289,29 +293,147 @@ serve(async (req) => {
     }
     const body = (await req.json().catch(() => ({}))) as Body;
 
-    async function assertLiveCustomCreateAllowed(targetSupplierId: string): Promise<
-      { allowed: true } | { allowed: false; reason: string }
-    > {
-      if (platformMode !== 'live') return { allowed: true };
+    async function readLiveCreateEligibility(targetSupplierId: string): Promise<{
+      live_gate_enabled: boolean;
+      supplier_allowlisted: boolean;
+      live_create_allowed: boolean;
+      live_create_blocked_reason: string | null;
+    }> {
+      if (platformMode !== 'live') {
+        return {
+          live_gate_enabled: false,
+          supplier_allowlisted: false,
+          live_create_allowed: true,
+          live_create_blocked_reason: null,
+        };
+      }
       const { data: flagRow, error: flagErr } = await admin
         .from('commercial_runtime_config')
         .select('value_int')
         .eq('key', 'live_custom_onboarding_enabled')
         .maybeSingle();
       const flagValue = flagErr ? 0 : (flagRow?.value_int as number | undefined);
+      const liveGateEnabled = Number(flagValue) === 1;
       const { data: allowRow, error: allowErr } = await admin
         .from('live_custom_onboarding_allowlist')
         .select('supplier_id')
         .eq('supplier_id', targetSupplierId)
         .maybeSingle();
+      const supplierAllowlisted = !allowErr && Boolean(allowRow?.supplier_id);
       const decision = liveCustomCreateAllowed({
         platformMode,
         flagValue: flagErr ? 0 : flagValue,
-        supplierApproved: !allowErr && Boolean(allowRow?.supplier_id),
+        supplierApproved: supplierAllowlisted,
       });
-      return decision.allowed
+      return {
+        live_gate_enabled: liveGateEnabled,
+        supplier_allowlisted: supplierAllowlisted,
+        live_create_allowed: decision.allowed,
+        live_create_blocked_reason: decision.allowed
+          ? null
+          : (decision.reason ?? 'LIVE payout account creation is turned off.'),
+      };
+    }
+
+    async function assertLiveCustomCreateAllowed(targetSupplierId: string): Promise<
+      { allowed: true } | { allowed: false; reason: string }
+    > {
+      const eligibility = await readLiveCreateEligibility(targetSupplierId);
+      return eligibility.live_create_allowed
         ? { allowed: true }
-        : { allowed: false, reason: decision.reason ?? 'LIVE payout account creation is turned off.' };
+        : {
+            allowed: false,
+            reason:
+              eligibility.live_create_blocked_reason ?? 'LIVE payout account creation is turned off.',
+          };
+    }
+
+    /** Strip secrets before persisting — never store IBAN, tokens, or full DOB. */
+    function sanitizeWizardDraft(raw: unknown): Record<string, unknown> {
+      if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
+      const src = raw as Record<string, unknown>;
+      const step = typeof src.step === 'string' ? src.step : 'business';
+      const markers =
+        src.markers && typeof src.markers === 'object' && !Array.isArray(src.markers)
+          ? (src.markers as Record<string, unknown>)
+          : {};
+      const repIn =
+        src.rep && typeof src.rep === 'object' && !Array.isArray(src.rep)
+          ? (src.rep as Record<string, unknown>)
+          : {};
+      const ownersIn = Array.isArray(src.owners) ? src.owners : [];
+      const redactDobYear = (value: unknown): number | null => {
+        if (typeof value === 'number' && Number.isFinite(value) && value >= 1900 && value <= 2100) {
+          return Math.trunc(value);
+        }
+        if (typeof value === 'string') {
+          const m = /^(\d{4})/.exec(value.trim());
+          if (m) {
+            const y = Number(m[1]);
+            if (y >= 1900 && y <= 2100) return y;
+          }
+        }
+        return null;
+      };
+      return {
+        version: 1,
+        step,
+        rep: {
+          first_name: typeof repIn.first_name === 'string' ? repIn.first_name.slice(0, 80) : '',
+          last_name: typeof repIn.last_name === 'string' ? repIn.last_name.slice(0, 80) : '',
+          email: typeof repIn.email === 'string' ? repIn.email.slice(0, 120) : '',
+          phone: typeof repIn.phone === 'string' ? repIn.phone.slice(0, 40) : '',
+          title: typeof repIn.title === 'string' ? repIn.title.slice(0, 80) : '',
+          is_owner: Boolean(repIn.is_owner),
+          percent_ownership:
+            typeof repIn.percent_ownership === 'string' ? repIn.percent_ownership.slice(0, 8) : '',
+          dob_year: redactDobYear(repIn.dob_year ?? repIn.dob),
+        },
+        owners: ownersIn.slice(0, 8).map((owner) => {
+          const o =
+            owner && typeof owner === 'object' && !Array.isArray(owner)
+              ? (owner as Record<string, unknown>)
+              : {};
+          return {
+            id: typeof o.id === 'string' ? o.id.slice(0, 64) : '',
+            first_name: typeof o.first_name === 'string' ? o.first_name.slice(0, 80) : '',
+            last_name: typeof o.last_name === 'string' ? o.last_name.slice(0, 80) : '',
+            email: typeof o.email === 'string' ? o.email.slice(0, 120) : '',
+            percent_ownership:
+              typeof o.percent_ownership === 'string' ? o.percent_ownership.slice(0, 8) : '',
+            dob_year: redactDobYear(o.dob_year ?? o.dob),
+          };
+        }),
+        tos_accepted_intent: Boolean(src.tos_accepted_intent ?? src.tos_accepted),
+        stripe_auth_acknowledged: Boolean(src.stripe_auth_acknowledged),
+        payment_cycle:
+          src.payment_cycle === 'monthly' || src.payment_cycle === 'biweekly'
+            ? src.payment_cycle
+            : '',
+        payout_threshold_min:
+          typeof src.payout_threshold_min === 'string' ? src.payout_threshold_min.slice(0, 16) : '',
+        markers: {
+          businessSavedAt:
+            typeof markers.businessSavedAt === 'string' ? markers.businessSavedAt : null,
+          representativeSavedAt:
+            typeof markers.representativeSavedAt === 'string'
+              ? markers.representativeSavedAt
+              : null,
+          identitySavedAt:
+            typeof markers.identitySavedAt === 'string' ? markers.identitySavedAt : null,
+          bankDeferredAt:
+            typeof markers.bankDeferredAt === 'string' ? markers.bankDeferredAt : null,
+          bankSavedAt: typeof markers.bankSavedAt === 'string' ? markers.bankSavedAt : null,
+          bankLast4:
+            typeof markers.bankLast4 === 'string'
+              ? markers.bankLast4.replace(/\D/g, '').slice(-4) || null
+              : null,
+          preferencesSavedAt:
+            typeof markers.preferencesSavedAt === 'string' ? markers.preferencesSavedAt : null,
+          wizardCompletedAt:
+            typeof markers.wizardCompletedAt === 'string' ? markers.wizardCompletedAt : null,
+        },
+      };
     }
 
     async function claimConnectCreate(targetSupplierId: string): Promise<{
@@ -567,7 +689,7 @@ serve(async (req) => {
     const { data: profile, error: profileErr } = await admin
       .from('supplier_profiles')
       .select(
-        'id, display_name, company_legal_name, business_type, address_street, address_city, address_postal_code, address_country, contact_phone, company_registration_number, tax_id, stripe_connected_account_id, connect_account_type, connect_legacy_account_id, connect_account_livemode, connect_onboarding_status, connect_charges_enabled, connect_payouts_enabled, connect_details_submitted, connect_disabled_reason, connect_requirements_currently_due, connect_requirements_past_due, connect_default_currency, connect_country, connect_debit_negative_balances, connect_last_synced_at, payout_rail, payment_cycle'
+        'id, display_name, company_legal_name, business_type, address_street, address_city, address_postal_code, address_country, contact_phone, company_registration_number, tax_id, stripe_connected_account_id, connect_account_type, connect_legacy_account_id, connect_account_livemode, connect_onboarding_status, connect_charges_enabled, connect_payouts_enabled, connect_details_submitted, connect_disabled_reason, connect_requirements_currently_due, connect_requirements_past_due, connect_default_currency, connect_country, connect_debit_negative_balances, connect_last_synced_at, payout_rail, payment_cycle, payout_wizard_draft, payout_wizard_draft_updated_at'
       )
       .eq('id', supplierId)
       .maybeSingle();
@@ -888,10 +1010,71 @@ serve(async (req) => {
       };
     }
 
-    if (action === 'status' || action === 'refresh') {
+    async function statusExtras(): Promise<Record<string, unknown>> {
+      const eligibility = await readLiveCreateEligibility(supplierId);
+      return {
+        ...eligibility,
+        wizard_draft: sanitizeWizardDraft(
+          (profile as { payout_wizard_draft?: unknown }).payout_wizard_draft
+        ),
+        wizard_draft_updated_at:
+          (profile as { payout_wizard_draft_updated_at?: string | null })
+            .payout_wizard_draft_updated_at ?? null,
+      };
+    }
+
+    if (action === 'save_wizard_draft') {
+      const cleaned = sanitizeWizardDraft(body.wizard_draft);
+      const now = new Date().toISOString();
+      const { error: draftErr } = await admin
+        .from('supplier_profiles')
+        .update({
+          payout_wizard_draft: cleaned,
+          payout_wizard_draft_updated_at: now,
+          updated_at: now,
+        })
+        .eq('id', supplierId);
+      if (draftErr) {
+        return json({ success: false, error: draftErr.message }, 500);
+      }
+      (profile as { payout_wizard_draft?: unknown }).payout_wizard_draft = cleaned;
+      (profile as { payout_wizard_draft_updated_at?: string | null }).payout_wizard_draft_updated_at =
+        now;
+      const extras = await statusExtras();
       if (profile.stripe_connected_account_id) {
         const { mirror } = await syncAccount(profile.stripe_connected_account_id);
-        return json({ action, ...statusPayload(mirror, mirror.stripe_connected_account_id) });
+        return json({
+          action: 'save_wizard_draft',
+          ...statusPayload(mirror, mirror.stripe_connected_account_id, extras),
+        });
+      }
+      return json({
+        action: 'save_wizard_draft',
+        ...statusPayload(
+          {
+            connect_onboarding_status: 'not_started',
+            connect_payouts_enabled: false,
+            connect_charges_enabled: false,
+            connect_details_submitted: false,
+            connect_requirements_currently_due: [],
+            connect_requirements_past_due: [],
+            connect_account_type: null,
+            payout_rail: profile.payout_rail ?? 'manual_iban',
+          },
+          null,
+          extras
+        ),
+      });
+    }
+
+    if (action === 'status' || action === 'refresh') {
+      const extras = await statusExtras();
+      if (profile.stripe_connected_account_id) {
+        const { mirror } = await syncAccount(profile.stripe_connected_account_id);
+        return json({
+          action,
+          ...statusPayload(mirror, mirror.stripe_connected_account_id, extras),
+        });
       }
       return json({
         action,
@@ -906,7 +1089,8 @@ serve(async (req) => {
             connect_account_type: null,
             payout_rail: profile.payout_rail ?? 'manual_iban',
           },
-          null
+          null,
+          extras
         ),
       });
     }

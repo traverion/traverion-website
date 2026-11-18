@@ -15,7 +15,8 @@ export type ConnectOnboardingAction =
   | 'accept_tos'
   | 'attach_bank_token'
   | 'submit_identity_file'
-  | 'upload_identity_document';
+  | 'upload_identity_document'
+  | 'save_wizard_draft';
 
 export type ConnectEmbeddedComponent = 'account_onboarding' | 'account_management';
 
@@ -100,6 +101,14 @@ export type ConnectOnboardingResult = {
   bank_attached?: boolean;
   native_blocked_reason?: string | null;
   archived_legacy_account_id?: string | null;
+  /** LIVE Custom create eligibility (gate + allowlist). TEST always allowed. */
+  live_gate_enabled?: boolean;
+  supplier_allowlisted?: boolean;
+  live_create_allowed?: boolean;
+  live_create_blocked_reason?: string | null;
+  /** Non-sensitive server draft (no IBAN / full DOB). */
+  wizard_draft?: Record<string, unknown> | null;
+  wizard_draft_updated_at?: string | null;
 };
 
 async function edgeFunctionErrorMessage(error: unknown): Promise<string> {
@@ -182,6 +191,7 @@ export async function invokeConnectSupplierOnboarding(
       content_base64?: string;
     };
     confirm_archive_express?: boolean;
+    wizard_draft?: Record<string, unknown>;
   }
 ): Promise<ConnectOnboardingResult> {
   if (!supabase) return { success: false, error: 'Supabase not configured' };
@@ -200,6 +210,7 @@ export async function invokeConnectSupplierOnboarding(
         identity: opts?.identity,
         identity_upload: opts?.identity_upload,
         confirm_archive_express: opts?.confirm_archive_express,
+        wizard_draft: opts?.wizard_draft,
         returnOrigin:
           opts?.returnOrigin ??
           (typeof window !== 'undefined' ? window.location.origin : undefined),

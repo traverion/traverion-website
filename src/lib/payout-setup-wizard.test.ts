@@ -8,9 +8,11 @@ import {
   payoutBankPresentation,
   payoutVerificationPresentation,
   payoutWizardStepForRequirement,
+  sanitizeDevicePayoutWizardDraft,
   sanitizeOwnershipPercentInput,
   sumDeclaredOwnershipPercent,
   summarizePayoutWizardLocalProgress,
+  toServerPayoutWizardDraft,
   validateBeneficialOwners,
   validateOwnershipPercent,
   validatePayoutBusinessFromProfile,
@@ -179,16 +181,44 @@ describe('ownership percent validation', () => {
     ).toBeNull();
   });
 
-  it('provisions Connect only on TEST or existing account', () => {
+  it('provisions Connect on TEST, existing account, or LIVE when allowlisted+gated', () => {
     expect(
       canProvisionConnectAccount({ hasConnectedAccount: false, platformEnvironment: 'live' })
     ).toBe(false);
+    expect(
+      canProvisionConnectAccount({
+        hasConnectedAccount: false,
+        platformEnvironment: 'live',
+        liveCreateAllowed: false,
+      })
+    ).toBe(false);
+    expect(
+      canProvisionConnectAccount({
+        hasConnectedAccount: false,
+        platformEnvironment: 'live',
+        liveCreateAllowed: true,
+      })
+    ).toBe(true);
     expect(
       canProvisionConnectAccount({ hasConnectedAccount: false, platformEnvironment: 'test' })
     ).toBe(true);
     expect(
       canProvisionConnectAccount({ hasConnectedAccount: true, platformEnvironment: 'live' })
     ).toBe(true);
+  });
+
+  it('strips full DOB from device cache and server draft payload', () => {
+    const draft = emptyPayoutWizardDraft({
+      rep_first_name: 'Ada',
+      rep_dob: '1990-05-15',
+      bankLast4: '0785',
+    });
+    const device = sanitizeDevicePayoutWizardDraft(draft);
+    expect(device.rep_dob).toBe('');
+    const server = toServerPayoutWizardDraft(draft);
+    expect((server.rep as { dob_year?: number }).dob_year).toBe(1990);
+    expect(JSON.stringify(server)).not.toMatch(/1990-05-15/);
+    expect(JSON.stringify(server)).not.toMatch(/iban/i);
   });
 
   it('maps director requirements to business (SoT), owners to representative', () => {

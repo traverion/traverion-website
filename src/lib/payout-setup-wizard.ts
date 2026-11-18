@@ -212,8 +212,9 @@ export function payoutBankPresentation(opts: {
   return 'Not added';
 }
 
-const DRAFT_PREFIX = 'tv-payout-wizard:v4:';
+const DRAFT_PREFIX = 'tv-payout-wizard:v5:';
 const LEGACY_DRAFT_PREFIXES = [
+  'tv-payout-wizard:v4:',
   'tv-payout-wizard:v3:',
   'tv-payout-wizard:v2:',
   'tv-payout-wizard:v1:',
@@ -348,7 +349,11 @@ export function loadPayoutWizardDraft(userId: string): PayoutWizardDraft | null 
 
 export function savePayoutWizardDraft(userId: string, draft: PayoutWizardDraft): void {
   if (typeof window === 'undefined') return;
-  const payload = JSON.stringify({ ...draft, updatedAt: new Date().toISOString() });
+  const safe = sanitizeDevicePayoutWizardDraft({
+    ...draft,
+    updatedAt: new Date().toISOString(),
+  });
+  const payload = JSON.stringify(safe);
   const key = payoutWizardDraftKey(userId);
   try {
     window.localStorage?.setItem(key, payload);
@@ -462,13 +467,173 @@ export function validatePayoutBusinessFromProfile(
   return null;
 }
 
-/** Stripe TEST may create accounts; LIVE stays draft-first until an account already exists. */
+/**
+ * Stripe TEST may create accounts.
+ * LIVE creates only when the edge reports live_create_allowed (gate + allowlist),
+ * or when a connected account already exists.
+ */
 export function canProvisionConnectAccount(opts: {
   hasConnectedAccount: boolean;
   platformEnvironment: 'test' | 'live' | null;
+  liveCreateAllowed?: boolean | null;
 }): boolean {
   if (opts.hasConnectedAccount) return true;
-  return opts.platformEnvironment === 'test';
+  if (opts.platformEnvironment === 'test') return true;
+  if (opts.platformEnvironment === 'live' && opts.liveCreateAllowed === true) return true;
+  return false;
+}
+
+/** Build a server-safe draft payload (no IBAN, no full DOB). */
+export function toServerPayoutWizardDraft(draft: PayoutWizardDraft): Record<string, unknown> {
+  const dobYear = (iso: string): number | null => {
+    const m = /^(\d{4})/.exec(iso.trim());
+    if (!m) return null;
+    const y = Number(m[1]);
+    return y >= 1900 && y <= 2100 ? y : null;
+  };
+  return {
+    version: 1,
+    step: draft.step,
+    rep: {
+      first_name: draft.rep_first_name,
+      last_name: draft.rep_last_name,
+      email: draft.rep_email,
+      phone: draft.rep_phone,
+      title: draft.rep_title,
+      is_owner: draft.rep_is_owner,
+      percent_ownership: draft.rep_percent_ownership,
+      dob_year: dobYear(draft.rep_dob),
+    },
+    owners: draft.beneficial_owners.map((o) => ({
+      id: o.id,
+      first_name: o.first_name,
+      last_name: o.last_name,
+      email: o.email,
+      percent_ownership: o.percent_ownership,
+      dob_year: dobYear(o.dob),
+    })),
+    tos_accepted_intent: draft.tos_accepted,
+    stripe_auth_acknowledged: draft.stripeAuthAcknowledged,
+    payment_cycle: draft.payment_cycle,
+    payout_threshold_min: draft.payout_threshold_min,
+    markers: {
+      businessSavedAt: draft.businessSavedAt,
+      representativeSavedAt: draft.representativeSavedAt,
+      identitySavedAt: draft.identitySavedAt,
+      bankDeferredAt: draft.bankDeferredAt,
+      bankSavedAt: draft.bankSavedAt,
+      bankLast4: draft.bankLast4,
+      preferencesSavedAt: draft.preferencesSavedAt,
+      wizardCompletedAt: draft.wizardCompletedAt,
+    },
+  };
+}
+
+/** Merge a sanitized server draft into a local draft without inventing full DOB/IBAN. */
+export function mergeServerPayoutWizardDraft(
+  local: PayoutWizardDraft,
+  server: Record<string, unknown> | null | undefined
+): PayoutWizardDraft {
+  if (!server || typeof server !== 'object') return local;
+  const markers =
+    server.markers && typeof server.markers === 'object' && !Array.isArray(server.markers)
+      ? (server.markers as Record<string, unknown>)
+      : {};
+  const rep =
+    server.rep && typeof server.rep === 'object' && !Array.isArray(server.rep)
+      ? (server.rep as Record<string, unknown>)
+      : {};
+  const ownersRaw = Array.isArray(server.owners) ? server.owners : [];
+  return emptyPayoutWizardDraft({
+    ...local,
+    step: isWizardStep(server.step) ? server.step : local.step,
+    rep_first_name:
+      typeof rep.first_name === 'string' && rep.first_name ? rep.first_name : local.rep_first_name,
+    rep_last_name:
+      typeof rep.last_name === 'string' && rep.last_name ? rep.last_name : local.rep_last_name,
+    rep_email: typeof rep.email === 'string' && rep.email ? rep.email : local.rep_email,
+    rep_phone: typeof rep.phone === 'string' && rep.phone ? rep.phone : local.rep_phone,
+    rep_title: typeof rep.title === 'string' && rep.title ? rep.title : local.rep_title,
+    rep_is_owner: typeof rep.is_owner === 'boolean' ? rep.is_owner : local.rep_is_owner,
+    rep_percent_ownership:
+      typeof rep.percent_ownership === 'string' && rep.percent_ownership
+        ? rep.percent_ownership
+        : local.rep_percent_ownership,
+    // Full DOB is never restored from server — partner re-enters before Stripe submit.
+    rep_dob: local.rep_dob,
+    beneficial_owners:
+      ownersRaw.length > 0
+        ? ownersRaw.map((owner, index) => {
+            const o =
+              owner && typeof owner === 'object' && !Array.isArray(owner)
+                ? (owner as Record<string, unknown>)
+                : {};
+            const existing = local.beneficial_owners[index];
+            return emptyBeneficialOwner({
+              id: typeof o.id === 'string' ? o.id : existing?.id,
+              first_name: typeof o.first_name === 'string' ? o.first_name : '',
+              last_name: typeof o.last_name === 'string' ? o.last_name : '',
+              email: typeof o.email === 'string' ? o.email : '',
+              percent_ownership: typeof o.percent_ownership === 'string' ? o.percent_ownership : '',
+              dob: existing?.dob ?? '',
+            });
+          })
+        : local.beneficial_owners,
+    tos_accepted:
+      typeof server.tos_accepted_intent === 'boolean'
+        ? server.tos_accepted_intent
+        : local.tos_accepted,
+    stripeAuthAcknowledged:
+      typeof server.stripe_auth_acknowledged === 'boolean'
+        ? server.stripe_auth_acknowledged
+        : local.stripeAuthAcknowledged,
+    payment_cycle:
+      server.payment_cycle === 'monthly' || server.payment_cycle === 'biweekly'
+        ? server.payment_cycle
+        : local.payment_cycle,
+    payout_threshold_min:
+      typeof server.payout_threshold_min === 'string' && server.payout_threshold_min
+        ? server.payout_threshold_min
+        : local.payout_threshold_min,
+    businessSavedAt:
+      typeof markers.businessSavedAt === 'string'
+        ? markers.businessSavedAt
+        : local.businessSavedAt,
+    representativeSavedAt:
+      typeof markers.representativeSavedAt === 'string'
+        ? markers.representativeSavedAt
+        : local.representativeSavedAt,
+    identitySavedAt:
+      typeof markers.identitySavedAt === 'string'
+        ? markers.identitySavedAt
+        : local.identitySavedAt,
+    bankDeferredAt:
+      typeof markers.bankDeferredAt === 'string' ? markers.bankDeferredAt : local.bankDeferredAt,
+    bankSavedAt:
+      typeof markers.bankSavedAt === 'string' ? markers.bankSavedAt : local.bankSavedAt,
+    bankLast4:
+      typeof markers.bankLast4 === 'string' ? markers.bankLast4 : local.bankLast4,
+    preferencesSavedAt:
+      typeof markers.preferencesSavedAt === 'string'
+        ? markers.preferencesSavedAt
+        : local.preferencesSavedAt,
+    wizardCompletedAt:
+      typeof markers.wizardCompletedAt === 'string'
+        ? markers.wizardCompletedAt
+        : local.wizardCompletedAt,
+  });
+}
+
+/** Device cache must never hold IBAN or full DOB (re-enter before Stripe submit). */
+export function sanitizeDevicePayoutWizardDraft(draft: PayoutWizardDraft): PayoutWizardDraft {
+  return {
+    ...draft,
+    rep_dob: '',
+    beneficial_owners: draft.beneficial_owners.map((o) => ({
+      ...o,
+      dob: '',
+    })),
+  };
 }
 
 export function parsePayoutWizardDob(

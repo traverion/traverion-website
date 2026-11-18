@@ -39,9 +39,11 @@ import {
   sanitizeOwnershipPercentInput,
   savePayoutWizardDraft,
   sumDeclaredOwnershipPercent,
+  mergeServerPayoutWizardDraft,
   payoutBankPresentation,
   payoutVerificationPresentation,
   summarizePayoutWizardLocalProgress,
+  toServerPayoutWizardDraft,
   validateOwnershipPercent,
   validatePayoutBusinessFromProfile,
   validatePayoutWizardIdentity,
@@ -216,15 +218,19 @@ export default function PayoutSetupWizard({
   const [bankHolder, setBankHolder] = useState('');
   const [bankMasked, setBankMasked] = useState<string | null>(null);
   const [platformEnvironment, setPlatformEnvironment] = useState<'test' | 'live' | null>(null);
+  const [liveCreateAllowed, setLiveCreateAllowed] = useState(false);
+  const [liveCreateBlockedReason, setLiveCreateBlockedReason] = useState<string | null>(null);
   const [identityDocSide, setIdentityDocSide] = useState<'front' | 'back'>('front');
   const [identityUploadNote, setIdentityUploadNote] = useState<string | null>(null);
   const scrollRef = useRef<HTMLElement | null>(null);
   const headingRef = useRef<HTMLHeadingElement | null>(null);
   const completePrimaryRef = useRef<HTMLButtonElement | null>(null);
+  const serverDraftTimer = useRef<number | null>(null);
   const hasConnectedAccount = Boolean(profile?.stripe_connected_account_id?.trim());
   const canProvisionConnect = canProvisionConnectAccount({
     hasConnectedAccount,
     platformEnvironment,
+    liveCreateAllowed,
   });
 
   const stepIndex = payoutWizardStepIndex(draft.step);
@@ -248,7 +254,16 @@ export default function PayoutSetupWizard({
     savePayoutWizardDraft(userId, draft);
     setPersistLabel('Progress saved');
     const t = window.setTimeout(() => setPersistLabel(null), 1600);
-    return () => window.clearTimeout(t);
+    if (serverDraftTimer.current) window.clearTimeout(serverDraftTimer.current);
+    serverDraftTimer.current = window.setTimeout(() => {
+      void invokeConnectSupplierOnboarding('save_wizard_draft', {
+        wizard_draft: toServerPayoutWizardDraft(draft),
+      });
+    }, 900);
+    return () => {
+      window.clearTimeout(t);
+      if (serverDraftTimer.current) window.clearTimeout(serverDraftTimer.current);
+    };
   }, [userId, draft]);
 
   useEffect(() => {
@@ -258,10 +273,30 @@ export default function PayoutSetupWizard({
       if (result.environment === 'test' || result.environment === 'live') {
         setPlatformEnvironment(result.environment);
       }
+      const allowed = result.live_create_allowed === true || result.environment === 'test';
+      setLiveCreateAllowed(Boolean(result.live_create_allowed) || result.environment === 'test');
+      setLiveCreateBlockedReason(
+        result.environment === 'live' && !result.live_create_allowed
+          ? result.live_create_blocked_reason ?? PAYOUT_LIVE_SETUP_UNAVAILABLE_COPY
+          : null
+      );
+      if (!allowed && result.environment === 'live' && !hasConnectedAccount) {
+        setConnectSetupUnavailable(true);
+      }
+      if (result.wizard_draft && typeof result.wizard_draft === 'object') {
+        setDraft((current) => mergeServerPayoutWizardDraft(current, result.wizard_draft));
+      }
+      if (result.onboarding && typeof result.onboarding === 'object') {
+        // Status sync from Stripe mirror — never invent Verified from local markers.
+        void fetchSupplierProfile(userId).then((next) => {
+          if (!cancelled) onProfile(next);
+        });
+      }
     });
     return () => {
       cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount hydrate only
   }, []);
 
   // Never auto-mount Connect embeds on step entry — mounting Account Onboarding opens
@@ -324,22 +359,27 @@ export default function PayoutSetupWizard({
     navigateSupplierUrl(`${PARTNER_APP_BASE}/business-setup`);
   };
 
-  /** Stripe TEST may create; LIVE without an existing account stays draft-first. */
+  /** Stripe TEST may create; LIVE creates only when edge reports live_create_allowed. */
   const ensureConnectWhenAllowed = async (): Promise<{
     ok: boolean;
     provisioned: boolean;
     error?: string;
   }> => {
     if (hasConnectedAccount) return { ok: true, provisioned: true };
-    if (platformEnvironment !== 'test') {
+    if (!canProvisionConnectAccount({
+      hasConnectedAccount: false,
+      platformEnvironment,
+      liveCreateAllowed,
+    })) {
       setConnectSetupUnavailable(true);
-      setNote(PAYOUT_LIVE_SETUP_UNAVAILABLE_COPY);
+      setNote(liveCreateBlockedReason || PAYOUT_LIVE_SETUP_UNAVAILABLE_COPY);
       return { ok: true, provisioned: false };
     }
     const ensured = await invokeConnectSupplierOnboarding('ensure_account');
     if (!ensured.success) {
       if (isLiveAccountCreationGateError(ensured.error)) {
         setConnectSetupUnavailable(true);
+        setLiveCreateAllowed(false);
         setNote(PAYOUT_LIVE_SETUP_UNAVAILABLE_COPY);
         return { ok: true, provisioned: false };
       }
@@ -348,6 +388,13 @@ export default function PayoutSetupWizard({
     onProfile(await fetchSupplierProfile(userId));
     setConnectSetupUnavailable(false);
     return { ok: true, provisioned: true };
+  };
+
+  const persistServerDraft = async (next: PayoutWizardDraft = draft): Promise<boolean> => {
+    const result = await invokeConnectSupplierOnboarding('save_wizard_draft', {
+      wizard_draft: toServerPayoutWizardDraft(next),
+    });
+    return result.success;
   };
 
   const saveBusiness = async (): Promise<boolean> => {
@@ -848,9 +895,38 @@ export default function PayoutSetupWizard({
       return;
     }
     if (draft.step === 'review') {
-      patch({ wizardCompletedAt: new Date().toISOString() });
+      setBusy(true);
       setError(null);
       setNote(null);
+      const completedAt = new Date().toISOString();
+      const completedDraft = { ...draft, wizardCompletedAt: completedAt };
+      patch({ wizardCompletedAt: completedAt });
+      savePayoutWizardDraft(userId, completedDraft);
+      const saved = await persistServerDraft(completedDraft);
+      if (!saved) {
+        setBusy(false);
+        setError('Could not save setup progress. Check your connection and try again.');
+        return;
+      }
+      // When LIVE create is approved for this supplier, ensure Connect then sync Stripe mirror.
+      if (
+        canProvisionConnectAccount({
+          hasConnectedAccount,
+          platformEnvironment,
+          liveCreateAllowed,
+        })
+      ) {
+        const ensured = await ensureConnectWhenAllowed();
+        if (!ensured.ok) {
+          setBusy(false);
+          setError(connectOnboardingUserMessage(ensured.error));
+          return;
+        }
+      }
+      await refreshConnect();
+      onProfile(await fetchSupplierProfile(userId));
+      setBusy(false);
+      // Completion UI reads Stripe-mirrored profile + honest local markers — never simulates Verified.
       setPhase('complete');
       return;
     }
