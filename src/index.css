@@ -3292,6 +3292,24 @@ html {
   html {
     scroll-behavior: auto;
   }
+
+  /* P9.37 Phase 09 — disable decorative page/enter motion only (keep focus/state transitions) */
+  .tv-fade-in,
+  .tv-rise,
+  .lux-page-enter,
+  .lux-page-enter-forward,
+  .lux-page-enter-back,
+  .animate-fade-in,
+  .animate-fade-in-up,
+  .animate-slide-up {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+/* P9.37 Phase 09 — shared fade helper (rise already defined above) */
+.tv-fade-in {
+  animation: lux-page-enter-subtle var(--tv-duration-ui, 200ms) var(--tv-ease) both;
 }
 
 /* Route / section mount: subtle rise only — avoid opacity:0 + fill-mode both (blank screen after redirects). */
@@ -14394,6 +14412,32 @@ details:not([open]) > :not(summary) {
 }
 .tv-card--interactive:hover {
   box-shadow: var(--tv-elev-2, var(--tv-shadow-hover));
+}
+
+/* P9.37 Phase 10 — restrained surface elevation helpers */
+.tv-surface-0 {
+  box-shadow: var(--tv-elev-0);
+}
+.tv-surface-1 {
+  box-shadow: var(--tv-elev-1);
+  background: #fff;
+  border-radius: var(--tv-radius);
+}
+.tv-surface-2 {
+  box-shadow: var(--tv-elev-2);
+  background: #fff;
+  border-radius: var(--tv-radius);
+}
+.tv-surface-3 {
+  box-shadow: var(--tv-elev-3);
+  background: #fff;
+  border-radius: var(--tv-radius-lg);
+}
+.tv-popover-surface {
+  box-shadow: var(--tv-elev-4);
+  background: #fff;
+  border-radius: var(--tv-radius);
+  border: 1px solid var(--tv-border);
 }
 .tv-table-wrap {
   width: 100%;
