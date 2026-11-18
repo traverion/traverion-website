@@ -3,8 +3,8 @@
 | | |
 |---|---|
 | Verdict | **PARTIAL** |
-| Commit | *(pending)* |
-| Vercel | *(pending)* |
+| Commit | `603e5023` |
+| Vercel | **7869900810** |
 | Edge | `connect-supplier-onboarding` redeployed |
 | Migration | `20261117235450_p932_payout_wizard_server_draft.sql` applied |
 | Cert | `scripts/cert-p932-live-pilot.report.json` |

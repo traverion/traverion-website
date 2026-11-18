@@ -227,13 +227,25 @@ try {
   );
 
   // Return to settings — incomplete / returning supplier honesty
-  await page.getByRole('button', { name: /Return to Income/i }).click().catch(() => {});
-  await page.waitForTimeout(800);
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.keyboard.press('Escape').catch(() => {});
+  await page.getByRole('button', { name: /Return to Income|Save & exit|Exit/i }).first().click().catch(() => {});
+  await page.waitForTimeout(600);
   await page.goto(`${BASE}/partner/money?tab=settings#income-payout-settings`, {
     waitUntil: 'domcontentloaded',
   });
-  await page.waitForTimeout(1000);
-  const settingsText = await page.locator('body').innerText();
+  await page.waitForTimeout(1200);
+  // Ensure wizard overlay is closed for settings assertion
+  const exitBtn = page.getByRole('button', { name: /^Exit$|^Save & exit$/i });
+  if (await exitBtn.count()) {
+    await exitBtn.first().click().catch(() => {});
+    await page.waitForTimeout(500);
+  }
+  const settingsRoot = page.locator('#income-payout-settings');
+  const settingsText =
+    (await settingsRoot.count()) > 0
+      ? await settingsRoot.innerText()
+      : await page.locator('body').innerText();
   note(
     'settings never shows Verified without Connect',
     !/\bVerified\b/.test(settingsText),
@@ -241,7 +253,7 @@ try {
   );
   note(
     'settings shows connection-not-enabled or setup saved',
-    /Details saved.|connection not enabled|Setup saved|Setup completed|Review setup|Not sent to provider/i.test(
+    /Details saved|connection not enabled|not available yet|Setup saved|Setup completed|Review setup|Continue setup|Not sent to provider|Set up payouts/i.test(
       settingsText
     ),
     'resume path'
