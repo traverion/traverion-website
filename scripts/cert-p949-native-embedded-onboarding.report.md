@@ -3,15 +3,16 @@
 | | |
 |---|---|
 | **Date** | 2026-11-18 |
-| **Supplier** | EM Global Oy (`eced0f8c-c2e4-469b-8bba-15170be68cc1`) |
+| **Supplier** | EM Global Oy (`eced0f8c-…`) |
 | **Connect account** | **`acct_1UdHT6C7oDQnLYSF` preserved** |
 | **Audit** | Accounts v2 `dashboard: none` → embedded Account Session **supported** |
 | **Money gates** | create / transfers / payouts remain **0** |
 | **API verdict** | **PASS** |
+| **Browser verdict** | **PASS** (desktop 1440 + mobile 390) |
 
 ## Compatibility
 
-LIVE `account_session` for Custom recipient account returned `mode: embedded` with client secret and the same account id. Hosted Account Link is fallback-only.
+LIVE `account_session` for Custom recipient account returned `mode: embedded` with `pk_live_…` publishable key and the same account id. Hosted Account Link is fallback-only.
 
 ## UI integration
 
@@ -20,6 +21,14 @@ LIVE `account_session` for Custom recipient account returned `mode: embedded` wi
 - Prefill reuses company / contact / draft representative fields where Stripe still allows writes.
 - Labels: Business verification, Identity, Bank account, Ready to receive.
 
-## Remaining browser cert
+## Browser certification (EM Global)
 
-Authenticate as EM Global on production after deploy; confirm desktop + mobile show Stripe components inside Traverion chrome without unnecessary external redirects.
+| Check | Result |
+|---|---|
+| Authenticated status / identity / bank / business | **PASS** |
+| No connect.stripe.com redirect | **PASS** |
+| Embedded verification surface | **PASS** |
+| Desktop 1440 + mobile 390 | **PASS** |
+| Refresh resume | **PASS** |
+
+Screenshots: `scripts/p949-screenshots/`.

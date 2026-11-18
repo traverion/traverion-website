@@ -1,0 +1,147 @@
+{
+  "at": "2026-11-18T23:33:09.105Z",
+  "mission": "P9.49-browser",
+  "checks": [
+    {
+      "name": "desktop-1440 authenticated shell",
+      "ok": true,
+      "detail": "https://partner.traverion.com/partner/onboarding?phase=status"
+    },
+    {
+      "name": "desktop-1440 status url stays onboarding",
+      "ok": true,
+      "detail": "https://partner.traverion.com/partner/onboarding?phase=status"
+    },
+    {
+      "name": "desktop-1440 status no stripe-hosted redirect",
+      "ok": true,
+      "detail": "https://partner.traverion.com/partner/onboarding?phase=status"
+    },
+    {
+      "name": "desktop-1440 status embedded verification surface",
+      "ok": true,
+      "detail": "embed"
+    },
+    {
+      "name": "desktop-1440 status labels",
+      "ok": true,
+      "detail": "Skip to content PARTNER SETUP Get ready to host 2 of 4 complete Business verification Documents 3 Identity 4 Bank account 5 Ready to receive Save & exit VERIFICATION Verifica"
+    },
+    {
+      "name": "desktop-1440 representative url stays onboarding",
+      "ok": true,
+      "detail": "https://partner.traverion.com/partner/onboarding?phase=representative"
+    },
+    {
+      "name": "desktop-1440 representative no stripe-hosted redirect",
+      "ok": true,
+      "detail": "https://partner.traverion.com/partner/onboarding?phase=representative"
+    },
+    {
+      "name": "desktop-1440 representative embedded verification surface",
+      "ok": true,
+      "detail": "embed"
+    },
+    {
+      "name": "desktop-1440 payout url stays onboarding",
+      "ok": true,
+      "detail": "https://partner.traverion.com/partner/onboarding?phase=payout"
+    },
+    {
+      "name": "desktop-1440 payout no stripe-hosted redirect",
+      "ok": true,
+      "detail": "https://partner.traverion.com/partner/onboarding?phase=payout"
+    },
+    {
+      "name": "desktop-1440 payout embedded verification surface",
+      "ok": true,
+      "detail": "embed"
+    },
+    {
+      "name": "desktop-1440 business url stays onboarding",
+      "ok": true,
+      "detail": "https://partner.traverion.com/partner/onboarding?phase=business"
+    },
+    {
+      "name": "desktop-1440 business no stripe-hosted redirect",
+      "ok": true,
+      "detail": "https://partner.traverion.com/partner/onboarding?phase=business"
+    },
+    {
+      "name": "desktop-1440 refresh stays onboarding",
+      "ok": true,
+      "detail": "https://partner.traverion.com/partner/onboarding?phase=business"
+    },
+    {
+      "name": "mobile-390 authenticated shell",
+      "ok": true,
+      "detail": "https://partner.traverion.com/partner/onboarding?phase=status"
+    },
+    {
+      "name": "mobile-390 status url stays onboarding",
+      "ok": true,
+      "detail": "https://partner.traverion.com/partner/onboarding?phase=status"
+    },
+    {
+      "name": "mobile-390 status no stripe-hosted redirect",
+      "ok": true,
+      "detail": "https://partner.traverion.com/partner/onboarding?phase=status"
+    },
+    {
+      "name": "mobile-390 status embedded verification surface",
+      "ok": true,
+      "detail": "embed"
+    },
+    {
+      "name": "mobile-390 status labels",
+      "ok": true,
+      "detail": "Skip to content Exit Ready to receive 2/4 Business verification Documents Identity Bank account Ready to receive VERIFICATION Verification pending ? Finish identity and bank "
+    },
+    {
+      "name": "mobile-390 representative url stays onboarding",
+      "ok": true,
+      "detail": "https://partner.traverion.com/partner/onboarding?phase=representative"
+    },
+    {
+      "name": "mobile-390 representative no stripe-hosted redirect",
+      "ok": true,
+      "detail": "https://partner.traverion.com/partner/onboarding?phase=representative"
+    },
+    {
+      "name": "mobile-390 representative embedded verification surface",
+      "ok": true,
+      "detail": "embed"
+    },
+    {
+      "name": "mobile-390 payout url stays onboarding",
+      "ok": true,
+      "detail": "https://partner.traverion.com/partner/onboarding?phase=payout"
+    },
+    {
+      "name": "mobile-390 payout no stripe-hosted redirect",
+      "ok": true,
+      "detail": "https://partner.traverion.com/partner/onboarding?phase=payout"
+    },
+    {
+      "name": "mobile-390 payout embedded verification surface",
+      "ok": true,
+      "detail": "embed"
+    },
+    {
+      "name": "mobile-390 business url stays onboarding",
+      "ok": true,
+      "detail": "https://partner.traverion.com/partner/onboarding?phase=business"
+    },
+    {
+      "name": "mobile-390 business no stripe-hosted redirect",
+      "ok": true,
+      "detail": "https://partner.traverion.com/partner/onboarding?phase=business"
+    },
+    {
+      "name": "mobile-390 refresh stays onboarding",
+      "ok": true,
+      "detail": "https://partner.traverion.com/partner/onboarding?phase=business"
+    }
+  ],
+  "verdict": "PASS"
+}

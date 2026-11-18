@@ -107,5 +107,11 @@
       ]
     }
   ],
-  "verdict": "PASS"
+  "verdict": "PASS",
+  "browser": {
+    "verdict": "PASS",
+    "checks": 28,
+    "failed": 0,
+    "at": "2026-11-18T23:33:09.105Z"
+  }
 }
