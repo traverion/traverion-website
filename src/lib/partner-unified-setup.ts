@@ -113,13 +113,15 @@ export function resolveUnifiedSetupPhase(
   opts?: { userId?: string; hasListing?: boolean; requested?: UnifiedSetupPhaseId | null }
 ): UnifiedSetupPhaseId {
   if (opts?.requested) return opts.requested;
-  const businessComplete = isSupplierBusinessProfileComplete(profile);
+  const fieldsComplete = isSupplierBusinessProfileComplete(profile);
   const businessReview = partnerBusinessReviewState({
     verificationStatus: profile?.verification_status,
     submittedAt: profile?.verification_submitted_at,
-    draftComplete: businessComplete,
+    draftComplete: fieldsComplete,
     feedback: profile?.business_verification_feedback,
   });
+  const businessComplete =
+    fieldsComplete || businessReview === 'pending' || businessReview === 'verified';
   const payoutProgress = opts?.userId
     ? summarizePayoutWizardLocalProgress(loadPayoutWizardDraft(opts.userId))
     : summarizePayoutWizardLocalProgress(null);
@@ -130,6 +132,7 @@ export function resolveUnifiedSetupPhase(
     payoutProgress.hasSavedProgress ||
     payoutProgress.wizardCompleted;
 
+  if (businessReview === 'rejected') return 'documents';
   if (!businessComplete) {
     const bizDraft = opts?.userId ? loadBusinessOnboardingDraft(opts.userId) : null;
     if (
@@ -141,7 +144,6 @@ export function resolveUnifiedSetupPhase(
     }
     return 'business';
   }
-  if (businessReview === 'rejected') return 'documents';
   if (!payoutConfigured) {
     if (
       payoutProgress.lastStep === 'bank' ||
@@ -162,13 +164,17 @@ export function derivePartnerSetupProgress(
   profile: SupplierProfileRow | null | undefined,
   opts: { userId: string; hasListing: boolean }
 ): PartnerSetupProgress {
-  const businessDraftComplete = isSupplierBusinessProfileComplete(profile);
+  const fieldsComplete = isSupplierBusinessProfileComplete(profile);
   const businessReview = partnerBusinessReviewState({
     verificationStatus: profile?.verification_status,
     submittedAt: profile?.verification_submitted_at,
-    draftComplete: businessDraftComplete,
+    draftComplete: fieldsComplete,
     feedback: profile?.business_verification_feedback,
   });
+  // Pending / verified submissions already passed Traverion intake — treat as form-complete
+  // even if a later completeness helper tightens required fields.
+  const businessDraftComplete =
+    fieldsComplete || businessReview === 'pending' || businessReview === 'verified';
   const localPayout = summarizePayoutWizardLocalProgress(loadPayoutWizardDraft(opts.userId));
   const bankingReady = isSupplierBankingReadyForPublish(profile);
   const payoutConfigured =

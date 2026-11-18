@@ -65,20 +65,27 @@ export default function PartnerOnboarding({
     let chip: ReturnType<typeof partnerBusinessStatusChip> | null = null;
 
     if (screen.id === 'business') {
-      done = progress.businessDraftComplete && progress.businessReview !== 'rejected';
+      done =
+        progress.businessReview === 'pending' ||
+        progress.businessReview === 'verified' ||
+        (progress.businessDraftComplete && progress.businessReview !== 'rejected');
       chip = businessChip;
       cta =
         progress.businessReview === 'rejected'
           ? 'Fix details'
-          : progress.businessDraftComplete
-            ? 'Review company'
-            : 'Add company details';
+          : progress.businessReview === 'pending' || progress.businessReview === 'verified'
+            ? 'View company'
+            : progress.businessDraftComplete
+              ? 'Review company'
+              : 'Add company details';
       body =
         progress.businessReview === 'rejected'
           ? 'Traverion asked for updates to your company details.'
-          : progress.businessDraftComplete
-            ? 'Company details are saved and reused for payouts.'
-            : screen.lede;
+          : progress.businessReview === 'pending'
+            ? 'Company details are with Traverion for review.'
+            : progress.businessDraftComplete || progress.businessReview === 'verified'
+              ? 'Company details are saved and reused for payouts.'
+              : screen.lede;
     } else if (screen.id === 'documents') {
       done =
         progress.businessReview === 'verified' ||
