@@ -5,7 +5,11 @@ import {
   updateSupplierSetupProgress,
   type SupplierProfileRow,
 } from '../../data/supabase-supplier-profile';
-import { phaseFromPayoutStep, toServerSetupProgress } from '../../lib/partner-unified-setup';
+import {
+  phaseFromPayoutStep,
+  toServerSetupProgress,
+  unifiedPhaseFromPayoutStep,
+} from '../../lib/partner-unified-setup';
 import {
   connectOnboardingUserMessage,
   fetchConnectAccountLink,
@@ -98,6 +102,8 @@ type Props = {
   onProfile: (profile: SupplierProfileRow | null) => void;
   onClose: () => void;
   initialStep?: PayoutWizardStepId;
+  /** Authoritative shell phase when embedded — parent owns URL/sidebar. */
+  unifiedPhase?: 'representative' | 'payout';
   /** P9.41 — embed inside unified Partner setup shell. */
   variant?: 'fullscreen' | 'embedded';
   onUnifiedPhaseChange?: (phase: 'representative' | 'payout' | 'status') => void;
@@ -174,11 +180,13 @@ export default function PayoutSetupWizard({
   onProfile,
   onClose,
   initialStep,
+  unifiedPhase,
   variant = 'fullscreen',
   onUnifiedPhaseChange,
   onBackToPreviousPhase,
 }: Props) {
   const embedded = variant === 'embedded';
+  const shellPhase = unifiedPhase ?? null;
   const rates = catalogPayoutRates();
   const currency = (payoutCurrency || profile?.connect_default_currency || 'EUR').toUpperCase();
   // DEV-only UI probe (?express_embed_probe=1): exercise Express embed gating without mutating Stripe.
@@ -278,6 +286,7 @@ export default function PayoutSetupWizard({
       onboardingStatus === '' ||
       !profile?.connect_details_submitted);
 
+  // Parent shell owns phase/URL. Sync draft step DOWN from the shell — never fight back upward.
   useEffect(() => {
     if (!embedded || !initialStep) return;
     setDraft((d) => {
@@ -287,27 +296,25 @@ export default function PayoutSetupWizard({
           : step === 'business'
             ? 'business'
             : 'representative';
-      if (bucket(d.step) === bucket(initialStep)) return d;
+      const target = bucket(initialStep);
+      const current = bucket(d.step);
+      if (current === target) {
+        // Keep in-phase progress (e.g. preferences while shell says payout).
+        return d;
+      }
       return { ...d, step: initialStep };
     });
   }, [embedded, initialStep]);
 
   useEffect(() => {
-    if (embedded) {
-      if (draft.step === 'bank' || draft.step === 'preferences' || draft.step === 'review') {
-        onUnifiedPhaseChange?.('payout');
-      } else if (draft.step !== 'business') {
-        onUnifiedPhaseChange?.('representative');
-      }
-      return;
-    }
+    if (embedded) return;
     if (typeof window === 'undefined') return;
     const url = new URL(window.location.href);
     if (url.searchParams.get('step') === draft.step) return;
     url.searchParams.set('step', draft.step);
     url.searchParams.delete('focus');
     window.history.replaceState(null, '', `${url.pathname}${url.search}`);
-  }, [draft.step, embedded, onUnifiedPhaseChange]);
+  }, [draft.step, embedded]);
 
   useEffect(() => {
     // Local cache is a UX resume aid only — never the cross-device source of truth.
@@ -367,6 +374,13 @@ export default function PayoutSetupWizard({
             const merged = mergeServerPayoutWizardDraft(current, result.wizard_draft, {
               serverUpdatedAt: result.wizard_draft_updated_at,
             });
+            // Keep hydrated step inside the shell phase so parent navigation stays authoritative.
+            if (embedded && shellPhase) {
+              const mergedPhase = unifiedPhaseFromPayoutStep(merged.step);
+              if (mergedPhase !== shellPhase && mergedPhase !== 'status' && mergedPhase !== 'business') {
+                merged.step = initialStep ?? (shellPhase === 'payout' ? 'bank' : 'representative');
+              }
+            }
             savePayoutWizardDraft(userId, merged);
             return merged;
           });
@@ -416,6 +430,12 @@ export default function PayoutSetupWizard({
     setNote(null);
     setFieldErrors({});
     patch({ step });
+    if (embedded) {
+      const nextPhase = unifiedPhaseFromPayoutStep(step);
+      if (nextPhase === 'representative' || nextPhase === 'payout' || nextPhase === 'status') {
+        onUnifiedPhaseChange?.(nextPhase);
+      }
+    }
   };
 
   useEffect(() => {
@@ -988,6 +1008,11 @@ export default function PayoutSetupWizard({
     if (draft.step === 'preferences') {
       const ok = await savePreferences();
       if (!ok) return;
+      if (embedded) {
+        // Status lives in the unified shell — do not keep a nested review screen.
+        onUnifiedPhaseChange?.('status');
+        return;
+      }
       goTo('review', 'forward');
       return;
     }
@@ -1503,9 +1528,9 @@ export default function PayoutSetupWizard({
         </div>
         ) : null}
 
-        <main ref={scrollRef} className={embedded ? 'min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-4 pt-3 sm:px-6 [-webkit-overflow-scrolling:touch]' : 'payout-wizard__scroll'}>
-          <div className={embedded ? 'w-full max-w-[40rem]' : 'payout-wizard__canvas'}>
-            <div key={draft.step} className={stageClass}>
+        <main ref={scrollRef} className={embedded ? 'partner-unified-setup-main min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-4 pt-3 sm:px-8 lg:px-10 [-webkit-overflow-scrolling:touch]' : 'payout-wizard__scroll'}>
+          <div className={embedded ? 'partner-unified-setup-canvas mx-auto w-full' : 'payout-wizard__canvas'}>
+            <div key={draft.step} className={embedded ? 'partner-unified-setup-stage' : stageClass}>
               {!embedded ? (
               <p className="mb-1 hidden text-[11px] font-semibold uppercase tracking-[0.12em] text-[#073b83] lg:block">
                 Step {stepIndex + 1} of {PAYOUT_WIZARD_SCREENS.length}
@@ -2136,7 +2161,7 @@ export default function PayoutSetupWizard({
 
               {draft.step === 'bank' && !isExpress ? (
                 <form
-                  className="mt-4 grid gap-3"
+                  className="mt-4 grid gap-3 sm:gap-4"
                   onSubmit={(e) => {
                     e.preventDefault();
                     void onContinue();
@@ -2149,35 +2174,37 @@ export default function PayoutSetupWizard({
                     </p>
                   ) : null}
                   {(bankManaged || bankMasked) && (
-                    <p className="rounded-[10px] border border-emerald-200 bg-emerald-50 px-3 py-2 text-[12px] text-emerald-950">
+                    <p className="rounded-[10px] border border-emerald-200 bg-emerald-50 px-3 py-2 text-[12px] text-emerald-950 sm:col-span-2">
                       Bank on file{bankMasked ? `: ${bankMasked}` : ''}. Enter a new IBAN only to replace
                       it.
                     </p>
                   )}
-                  <label className="block text-[13px]">
-                    <span className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.1em] text-[#71717a]">
-                      Account holder name
-                    </span>
-                    <input
-                      className="tv-input h-11 w-full"
-                      value={bankHolder}
-                      onChange={(e) => setBankHolder(e.target.value)}
-                      autoComplete="name"
-                    />
-                  </label>
-                  <label className="block text-[13px]">
-                    <span className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.1em] text-[#71717a]">
-                      IBAN
-                    </span>
-                    <input
-                      className="tv-input h-11 w-full font-mono text-[13px]"
-                      value={bankIban}
-                      onChange={(e) => setBankIban(e.target.value)}
-                      autoComplete="off"
-                      placeholder="FI00 0000 0000 0000 00"
-                      spellCheck={false}
-                    />
-                  </label>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
+                    <label className="block text-[13px]">
+                      <span className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.1em] text-[#71717a]">
+                        Account holder name
+                      </span>
+                      <input
+                        className="tv-input h-11 w-full"
+                        value={bankHolder}
+                        onChange={(e) => setBankHolder(e.target.value)}
+                        autoComplete="name"
+                      />
+                    </label>
+                    <label className="block text-[13px]">
+                      <span className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.1em] text-[#71717a]">
+                        IBAN
+                      </span>
+                      <input
+                        className="tv-input h-11 w-full font-mono text-[13px]"
+                        value={bankIban}
+                        onChange={(e) => setBankIban(e.target.value)}
+                        autoComplete="off"
+                        placeholder="FI00 0000 0000 0000 00"
+                        spellCheck={false}
+                      />
+                    </label>
+                  </div>
                 </form>
               ) : null}
 

@@ -100,9 +100,25 @@ export default function PartnerOnboarding({
   }, [userId]);
 
   const setPhaseAndUrl = useCallback((next: UnifiedSetupPhaseId) => {
-    setPhase(next);
-    writeOnboardingPhaseToUrl(next);
+    setPhase((prev) => (prev === next ? prev : next));
+    if (readOnboardingPhaseFromUrl() !== next) {
+      writeOnboardingPhaseToUrl(next);
+    }
   }, []);
+
+  const handlePayoutPhaseChange = useCallback(
+    (next: 'representative' | 'payout' | 'status') => {
+      setPhaseAndUrl(next);
+    },
+    [setPhaseAndUrl]
+  );
+
+  const handleBusinessPhaseChange = useCallback(
+    (next: 'business' | 'documents') => {
+      setPhaseAndUrl(next);
+    },
+    [setPhaseAndUrl]
+  );
 
   // Stripe Account Link return/refresh → sync status into the same onboarding shell.
   useEffect(() => {
@@ -222,7 +238,7 @@ export default function PartnerOnboarding({
 
   return (
     <div className="partner-unified-setup-shell payout-wizard flex h-full min-h-0 w-full flex-1 overflow-hidden bg-white">
-      <aside className="partner-unified-setup-shell__rail hidden h-full min-h-0 w-[14.75rem] shrink-0 flex-col overflow-hidden border-r border-[#e8ebf0] bg-[#f7f8fa] lg:flex">
+      <aside className="partner-unified-setup-shell__rail hidden h-full min-h-0 w-[15.5rem] shrink-0 flex-col overflow-hidden border-r border-[#e8ebf0] bg-[#f7f8fa] lg:flex">
         <div className="shrink-0 px-4 pb-3 pt-[max(0.85rem,env(safe-area-inset-top))]">
           <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#073b83]">
             Partner setup
@@ -372,9 +388,7 @@ export default function PartnerOnboarding({
                 initialStep={businessStepForPhase(phase)}
                 onClose={onSkip}
                 onSubmitted={() => setPhaseAndUrl('representative')}
-                onUnifiedPhaseChange={(next) => {
-                  if (next === 'documents' || next === 'business') setPhaseAndUrl(next);
-                }}
+                onUnifiedPhaseChange={handleBusinessPhaseChange}
               />
             </Suspense>
           ) : null}
@@ -382,7 +396,7 @@ export default function PartnerOnboarding({
           {showPayout && userId ? (
             <Suspense
               fallback={
-                <div className="grid flex-1 place-items-center text-[13px] text-[#5c6570]">
+                <div className="grid flex-1 place-items-center px-4 text-[13px] text-[#5c6570]">
                   Opening payout setup…
                 </div>
               }
@@ -396,21 +410,18 @@ export default function PartnerOnboarding({
                 canEdit={canEditFinance}
                 onProfile={handleProfile}
                 variant="embedded"
+                unifiedPhase={phase === 'representative' || phase === 'payout' ? phase : 'payout'}
                 initialStep={payoutStepForPhase(phase)}
                 onClose={onSkip}
                 onBackToPreviousPhase={() => setPhaseAndUrl('documents')}
-                onUnifiedPhaseChange={(next) => {
-                  if (next === 'representative' || next === 'payout' || next === 'status') {
-                    setPhaseAndUrl(next);
-                  }
-                }}
+                onUnifiedPhaseChange={handlePayoutPhaseChange}
               />
             </Suspense>
           ) : null}
 
           {showStatus ? (
-            <div className="partner-unified-setup-status min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-6 sm:px-8 [-webkit-overflow-scrolling:touch]">
-              <div className="w-full max-w-[40rem]">
+            <div className="partner-unified-setup-status min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-5 sm:px-8 lg:px-10 [-webkit-overflow-scrolling:touch]">
+              <div className="partner-unified-setup-canvas mx-auto w-full">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#073b83]">
                   {progress.businessReview === 'rejected'
                     ? 'Action required'

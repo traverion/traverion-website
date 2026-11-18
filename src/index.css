@@ -392,7 +392,23 @@ body {
     height: 100%;
   }
 
-  .partner-unified-setup-shell .stay-title {
+  .partner-unified-setup-canvas {
+    width: 100%;
+    max-width: min(72rem, 100%);
+  }
+
+  @media (min-width: 1280px) {
+    .partner-unified-setup-canvas {
+      max-width: min(80rem, 100%);
+    }
+  }
+
+  .partner-unified-setup-stage {
+    width: 100%;
+  }
+
+  .partner-unified-setup-shell .stay-title,
+  .partner-unified-setup-shell .payout-wizard__title {
     font-size: 1.35rem !important;
     line-height: 1.2 !important;
   }
@@ -400,16 +416,37 @@ body {
   .partner-unified-setup-shell .stay-lede,
   .partner-unified-setup-shell .payout-wizard__lede {
     margin-top: 0.35rem;
-    max-width: 36rem;
+    max-width: 42rem;
     font-size: 0.8125rem;
     line-height: 1.45;
     color: #5c6570;
   }
 
   .partner-setup-embed.payout-wizard {
-    --pw-content-max: 40rem;
+    --pw-content-max: min(72rem, 100%);
     background: transparent;
     overflow: hidden;
+  }
+
+  .partner-setup-embed .payout-wizard__stage {
+    max-width: none;
+    margin: 0;
+    /* Avoid competing enter animations that leave opacity stuck during remount races. */
+    animation: none;
+  }
+
+  .partner-unified-setup-status .payout-wizard__status-grid,
+  .partner-setup-embed .payout-wizard__status-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.65rem 1.25rem;
+  }
+
+  @media (min-width: 768px) {
+    .partner-unified-setup-status .payout-wizard__status-grid,
+    .partner-setup-embed .payout-wizard__status-grid {
+      grid-template-columns: 1fr 1fr;
+    }
   }
 
   .partner-setup-embed .listing-creation-footer,

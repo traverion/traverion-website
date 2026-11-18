@@ -257,18 +257,14 @@ export default function BusinessOnboardingWizard({
   }, [embedded, initialStep, underReview, verified]);
 
   useEffect(() => {
-    if (embedded) {
-      onUnifiedPhaseChange?.(
-        draft.step === 'documents' || draft.step === 'review' ? 'documents' : 'business'
-      );
-      return;
-    }
+    // Embedded: parent shell owns phase/URL. Do not push step → phase (causes nav fights).
+    if (embedded) return;
     if (typeof window === 'undefined') return;
     const url = new URL(window.location.href);
     if (url.searchParams.get('step') === draft.step) return;
     url.searchParams.set('step', draft.step);
     window.history.replaceState(null, '', `${url.pathname}${url.search}`);
-  }, [draft.step, embedded, onUnifiedPhaseChange]);
+  }, [draft.step, embedded]);
 
   useEffect(() => {
     if (!focusPending.current) return;
@@ -326,6 +322,11 @@ export default function BusinessOnboardingWizard({
   const goTo = (step: BusinessOnboardingStepId, dir: 'forward' | 'back') => {
     setDirection(dir);
     patch({ step });
+    if (embedded) {
+      onUnifiedPhaseChange?.(
+        step === 'documents' || step === 'review' ? 'documents' : 'business'
+      );
+    }
   };
 
   const applyErrors = (errors: BusinessOnboardingFieldErrors, preferStep?: BusinessOnboardingStepId) => {
@@ -600,7 +601,7 @@ export default function BusinessOnboardingWizard({
 
         <div
           className={`flex min-h-0 w-full flex-1 flex-col overflow-hidden px-4 sm:px-6 ${
-            embedded ? 'max-w-[40rem] lg:px-8' : `${CONTENT_MAX} mx-auto lg:px-8`
+            embedded ? 'partner-unified-setup-canvas mx-auto w-full lg:px-2' : `${CONTENT_MAX} mx-auto lg:px-8`
           }`}
         >
           {!embedded ? (
