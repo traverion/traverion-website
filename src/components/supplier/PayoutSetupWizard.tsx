@@ -6,6 +6,7 @@ import {
 } from '../../data/supabase-supplier-profile';
 import {
   connectOnboardingUserMessage,
+  fetchConnectAccountLink,
   invokeConnectSupplierOnboarding,
 } from '../../data/supabase-connect-onboarding';
 import type { SupplierCommercialTermsRow } from '../../data/supabase-earnings';
@@ -213,6 +214,7 @@ export default function PayoutSetupWizard({
   const [expressLaunchFailed, setExpressLaunchFailed] = useState(false);
   const [showIdentityRemediation, setShowIdentityRemediation] = useState(false);
   const [hostedFallbackUrl, setHostedFallbackUrl] = useState<string | null>(null);
+  const [hostedLinkBusy, setHostedLinkBusy] = useState(false);
   const [persistLabel, setPersistLabel] = useState<string | null>(null);
   const [bankIban, setBankIban] = useState('');
   const [bankHolder, setBankHolder] = useState('');
@@ -1751,6 +1753,46 @@ export default function PayoutSetupWizard({
 
               {draft.step === 'identity' && !isExpress ? (
                 <div className="mt-4 space-y-4">
+                  {hasConnectedAccount &&
+                  (outstandingKeys.length > 0 ||
+                    accountRestricted ||
+                    onboardingStatus === 'pending' ||
+                    onboardingStatus === 'restricted') ? (
+                    <div className="rounded-[10px] border border-[#dbe4f0] bg-[#f0f4fa] px-3 py-3 text-[12px] leading-relaxed text-[#1e3a5f]">
+                      <p className="font-semibold text-[#073b83]">Stripe-hosted verification</p>
+                      <p className="mt-1">
+                        Complete remaining identity checks on Stripe’s secure page. Traverion only
+                        updates status after Stripe confirms it — never from this button alone.
+                      </p>
+                      {outstandingLabels.length > 0 ? (
+                        <ul className="mt-2 list-disc space-y-1 pl-4">
+                          {outstandingLabels.slice(0, 6).map((label) => (
+                            <li key={label}>{label}</li>
+                          ))}
+                        </ul>
+                      ) : null}
+                      <button
+                        type="button"
+                        className="tv-btn-primary mt-3 h-10 w-full text-[13px] disabled:opacity-50"
+                        disabled={!canEdit || busy || hostedLinkBusy}
+                        onClick={() => {
+                          void (async () => {
+                            setHostedLinkBusy(true);
+                            setError(null);
+                            const link = await fetchConnectAccountLink();
+                            setHostedLinkBusy(false);
+                            if (!link.url) {
+                              setError(link.error ?? 'Could not open Stripe verification.');
+                              return;
+                            }
+                            window.location.assign(link.url);
+                          })();
+                        }}
+                      >
+                        {hostedLinkBusy ? 'Opening…' : 'Continue on Stripe'}
+                      </button>
+                    </div>
+                  ) : null}
                   <p className="text-[13px] leading-relaxed text-[#52525b]">{PAYOUT_WIZARD_TOS_COPY}</p>
                   <p className="text-[13px] leading-relaxed text-[#18181b]">
                     <a

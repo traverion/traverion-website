@@ -227,6 +227,31 @@ export async function invokeConnectSupplierOnboarding(
   return data;
 }
 
+/** Stripe-hosted Account Link for Custom/Express KYC — status still comes from Stripe sync/webhooks. */
+export async function fetchConnectAccountLink(): Promise<{
+  url: string;
+  accountId: string | null;
+  expiresAt?: number;
+  error?: string;
+}> {
+  const result = await invokeConnectSupplierOnboarding('account_link');
+  if (!result.success) {
+    return {
+      url: '',
+      accountId: null,
+      error: connectOnboardingUserMessage(result.error),
+    };
+  }
+  if (!result.url) {
+    return { url: '', accountId: result.account_id ?? null, error: 'Missing Stripe onboarding URL' };
+  }
+  return {
+    url: result.url,
+    accountId: result.account_id ?? null,
+    expiresAt: result.expires_at,
+  };
+}
+
 /** Fetch a fresh Account Session client secret for Connect.js (Express legacy / remediation). */
 export async function fetchConnectAccountSessionSecret(
   component: ConnectEmbeddedComponent = 'account_onboarding'

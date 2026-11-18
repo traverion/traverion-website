@@ -298,6 +298,8 @@ serve(async (req) => {
       supplier_allowlisted: boolean;
       live_create_allowed: boolean;
       live_create_blocked_reason: string | null;
+      business_verified: boolean;
+      pilot_approved: boolean;
     }> {
       if (platformMode !== 'live') {
         return {
@@ -305,6 +307,8 @@ serve(async (req) => {
           supplier_allowlisted: false,
           live_create_allowed: true,
           live_create_blocked_reason: null,
+          business_verified: true,
+          pilot_approved: true,
         };
       }
       const { data: flagRow, error: flagErr } = await admin
@@ -325,13 +329,34 @@ serve(async (req) => {
         flagValue: flagErr ? 0 : flagValue,
         supplierApproved: supplierAllowlisted,
       });
+      const businessVerified =
+        String(profile.verification_status ?? '')
+          .trim()
+          .toLowerCase() === 'verified';
+      const { data: pilotRow } = await admin
+        .from('live_accounts_v2_pilot_approvals')
+        .select('supplier_id')
+        .eq('supplier_id', targetSupplierId)
+        .maybeSingle();
+      const pilotApproved = Boolean(pilotRow?.supplier_id);
+      let blocked: string | null = decision.allowed
+        ? null
+        : (decision.reason ?? 'LIVE payout account creation is turned off.');
+      if (!blocked && !businessVerified) {
+        blocked =
+          'Traverion business verification must be approved before LIVE payout account creation.';
+      }
+      if (!blocked && !pilotApproved) {
+        blocked =
+          'LIVE pilot approval has not been recorded for this supplier. Ask Traverion to complete the pilot checklist first.';
+      }
       return {
         live_gate_enabled: liveGateEnabled,
         supplier_allowlisted: supplierAllowlisted,
-        live_create_allowed: decision.allowed,
-        live_create_blocked_reason: decision.allowed
-          ? null
-          : (decision.reason ?? 'LIVE payout account creation is turned off.'),
+        live_create_allowed: decision.allowed && businessVerified && pilotApproved,
+        live_create_blocked_reason: blocked,
+        business_verified: businessVerified,
+        pilot_approved: pilotApproved,
       };
     }
 
@@ -689,7 +714,7 @@ serve(async (req) => {
     const { data: profile, error: profileErr } = await admin
       .from('supplier_profiles')
       .select(
-        'id, display_name, company_legal_name, business_type, address_street, address_city, address_postal_code, address_country, contact_phone, company_registration_number, tax_id, stripe_connected_account_id, connect_account_type, connect_legacy_account_id, connect_account_livemode, connect_onboarding_status, connect_charges_enabled, connect_payouts_enabled, connect_details_submitted, connect_disabled_reason, connect_requirements_currently_due, connect_requirements_past_due, connect_default_currency, connect_country, connect_debit_negative_balances, connect_last_synced_at, payout_rail, payment_cycle, payout_wizard_draft, payout_wizard_draft_updated_at'
+        'id, display_name, company_legal_name, business_type, address_street, address_city, address_postal_code, address_country, contact_phone, company_registration_number, tax_id, verification_status, company_registration_document_path, verification_submitted_at, stripe_connected_account_id, connect_account_type, connect_legacy_account_id, connect_account_livemode, connect_onboarding_status, connect_charges_enabled, connect_payouts_enabled, connect_details_submitted, connect_disabled_reason, connect_requirements_currently_due, connect_requirements_past_due, connect_default_currency, connect_country, connect_debit_negative_balances, connect_last_synced_at, payout_rail, payment_cycle, payout_wizard_draft, payout_wizard_draft_updated_at'
       )
       .eq('id', supplierId)
       .maybeSingle();
@@ -919,6 +944,29 @@ serve(async (req) => {
         const createGate = await assertLiveCustomCreateAllowed(supplierId!);
         if (!createGate.allowed) {
           throw new Error(createGate.reason);
+        }
+        // P9.36: never create a LIVE Connect account without Traverion business approval.
+        const businessStatus = String(profile.verification_status ?? '')
+          .trim()
+          .toLowerCase();
+        if (businessStatus !== 'verified') {
+          throw new Error(
+            'Traverion business verification must be approved before LIVE payout account creation.'
+          );
+        }
+        // Pilot approval (admin owner + Stripe ack) is required in addition to allowlist.
+        const { data: pilotRow, error: pilotErr } = await admin
+          .from('live_accounts_v2_pilot_approvals')
+          .select('supplier_id')
+          .eq('supplier_id', supplierId)
+          .maybeSingle();
+        if (pilotErr) {
+          throw new Error('Could not verify LIVE pilot approval.');
+        }
+        if (!pilotRow?.supplier_id) {
+          throw new Error(
+            'LIVE pilot approval has not been recorded for this supplier. Ask Traverion to complete the pilot checklist first.'
+          );
         }
       }
 
