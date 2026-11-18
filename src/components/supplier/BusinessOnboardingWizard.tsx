@@ -599,9 +599,9 @@ export default function BusinessOnboardingWizard({
         ) : null}
 
         <div
-          className={`mx-auto flex min-h-0 w-full ${
-            embedded ? 'max-w-[36rem]' : CONTENT_MAX
-          } flex-1 flex-col overflow-hidden px-4 sm:px-6 ${embedded ? 'lg:px-6' : 'lg:px-8'}`}
+          className={`flex min-h-0 w-full flex-1 flex-col overflow-hidden px-4 sm:px-6 ${
+            embedded ? 'max-w-[40rem] lg:px-8' : `${CONTENT_MAX} mx-auto lg:px-8`
+          }`}
         >
           {!embedded ? (
           <div className="shrink-0 bg-[#FCFCFD] pb-1 pt-3 lg:hidden">

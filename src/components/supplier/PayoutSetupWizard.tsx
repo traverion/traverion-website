@@ -1478,7 +1478,7 @@ export default function PayoutSetupWizard({
         ) : null}
 
         <main ref={scrollRef} className={embedded ? 'min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-4 pt-3 sm:px-6 [-webkit-overflow-scrolling:touch]' : 'payout-wizard__scroll'}>
-          <div className={embedded ? 'mx-auto w-full max-w-[36rem]' : 'payout-wizard__canvas'}>
+          <div className={embedded ? 'w-full max-w-[40rem]' : 'payout-wizard__canvas'}>
             <div key={draft.step} className={stageClass}>
               {!embedded ? (
               <p className="mb-1 hidden text-[11px] font-semibold uppercase tracking-[0.12em] text-[#073b83] lg:block">

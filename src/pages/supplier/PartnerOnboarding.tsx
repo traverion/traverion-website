@@ -364,7 +364,7 @@ export default function PartnerOnboarding({
 
           {showStatus ? (
             <div className="partner-unified-setup-status min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-5 sm:px-6 [-webkit-overflow-scrolling:touch]">
-              <div className="mx-auto w-full max-w-[36rem]">
+              <div className="w-full max-w-[40rem]">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#073b83]">
                   Status
                 </p>
