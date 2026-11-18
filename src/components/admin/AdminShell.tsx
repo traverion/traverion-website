@@ -496,29 +496,29 @@ function SuppliersDirectoryPanel() {
           {error}
         </NoticeCallout>
       ) : null}
-      <div className="tv-card overflow-x-auto">
-        <table className="w-full text-sm text-left min-w-[640px]">
-          <thead className="text-[11px] uppercase tracking-[0.12em] text-ink-faint border-b border-black/[0.06]">
+      <div className="tv-table-wrap">
+        <table className="tv-table min-w-[640px]">
+          <thead>
             <tr>
-              <th className="px-4 py-3 font-medium">Supplier</th>
-              <th className="px-3 py-3 font-medium">Business</th>
-              <th className="px-3 py-3 font-medium">Payout</th>
-              <th className="px-3 py-3 font-medium tabular-nums">Listings</th>
-              <th className="px-3 py-3 font-medium tabular-nums">Bookings</th>
+              <th>Supplier</th>
+              <th>Business</th>
+              <th>Payout</th>
+              <th className="tabular-nums">Listings</th>
+              <th className="tabular-nums">Bookings</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-black/[0.06]">
+          <tbody>
             {filtered.map((s) => (
               <tr key={s.id} className="hover:bg-finland/[0.03] transition-colors">
-                <td className="px-4 py-3">
+                <td>
                   <p className="font-medium text-ink">{s.display_name || '—'}</p>
                   <p className="text-xs text-ink-muted">{s.email || 'no email'}</p>
                   <p className="text-[10px] font-mono text-ink-faint mt-0.5">{s.id.slice(0, 8)}…</p>
                 </td>
-                <td className="px-3 py-3 text-ink-muted">{s.verification_status ?? '—'}</td>
-                <td className="px-3 py-3 text-ink-muted">{s.payout_verification_status ?? '—'}</td>
-                <td className="px-3 py-3 tabular-nums">{s.listings_count}</td>
-                <td className="px-3 py-3 tabular-nums">{s.bookings_count}</td>
+                <td className="text-ink-muted">{s.verification_status ?? '—'}</td>
+                <td className="text-ink-muted">{s.payout_verification_status ?? '—'}</td>
+                <td className="tabular-nums">{s.listings_count}</td>
+                <td className="tabular-nums">{s.bookings_count}</td>
               </tr>
             ))}
           </tbody>
