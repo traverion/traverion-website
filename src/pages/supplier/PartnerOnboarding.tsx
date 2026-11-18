@@ -216,8 +216,8 @@ export default function PartnerOnboarding({
                       <StatusChip tone="warn">In review</StatusChip>
                     ) : item.id === 'documents' && progress.businessReview === 'rejected' ? (
                       <StatusChip tone="bad">Action required</StatusChip>
-                    ) : item.id === 'payout' && chip && !progress.bankingReady ? (
-                      <StatusChip tone={chip.tone}>{chip.label}</StatusChip>
+                    ) : item.id === 'payout' && progress.payoutReview === 'rejected' ? (
+                      <StatusChip tone="bad">Action required</StatusChip>
                     ) : null}
                   </button>
                 </li>
