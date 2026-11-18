@@ -153,6 +153,6 @@ describe('partner-unified-setup', () => {
     const progress = derivePartnerSetupProgress(profile({}), { userId: 'u1', hasListing: false });
     expect(progress.publishReady).toBe(false);
     expect(progress.nextCta.length).toBeGreaterThan(0);
-    expect(progress.businessHref).toContain('/partner/business-setup');
+    expect(progress.businessHref).toContain('/partner/onboarding?phase=business');
   });
 });

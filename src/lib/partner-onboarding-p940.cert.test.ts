@@ -24,24 +24,20 @@ describe('P9.40 unified supplier onboarding cert', () => {
   it('wires Finish setup hub into phase routing', () => {
     const layout = read('components/supplier/SupplierLayout.tsx');
     const hub = read('pages/supplier/PartnerOnboarding.tsx');
-    expect(hub).toContain('onContinuePhase');
     expect(hub).toContain('UNIFIED_SETUP_SCREENS');
+    expect(hub).toContain('partner-unified-setup-shell');
     expect(layout).toContain('continueUnifiedPhase');
-    expect(layout).toContain('business-setup?step=');
-    expect(layout).toContain('verification?step=');
+    expect(layout).toContain('onboarding?phase=');
   });
 
-  it('continues business submit into payout representative step', () => {
+  it('folds legacy business-setup into onboarding', () => {
     const page = read('pages/supplier/BusinessSetupPage.tsx');
-    expect(page).toContain('verification?step=representative');
-    expect(page).toContain('onSubmitted={continueToPayouts}');
+    expect(page).toContain('onboarding?phase=');
   });
 
-  it('returns verification close to onboarding and honors step deep links', () => {
+  it('folds legacy verification into onboarding', () => {
     const page = read('pages/supplier/SupplierVerificationPage.tsx');
-    expect(page).toContain("PARTNER_APP_BASE}/onboarding");
-    expect(page).toContain('resolveInitialStep');
-    expect(page).toContain("params.get('step')");
+    expect(page).toContain('onboarding?phase=');
   });
 
   it('persists non-sensitive setup_progress from both wizards', () => {
@@ -57,8 +53,8 @@ describe('P9.40 unified supplier onboarding cert', () => {
 
   it('routes dashboard action items into the unified flow', () => {
     const dash = read('pages/supplier/SupplierDashboard.tsx');
-    expect(dash).toContain('business-setup?step=documents');
-    expect(dash).toContain('verification?step=representative');
+    expect(dash).toContain('onboarding?phase=documents');
+    expect(dash).toContain('onboarding?phase=representative');
     expect(dash).not.toContain('business-profile#company');
   });
 });

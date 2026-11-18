@@ -24,13 +24,18 @@ function maskIban(iban: string): string {
 }
 
 function openWizard(step?: string) {
-  const q = step ? `?step=${encodeURIComponent(step)}` : '';
-  navigateSupplierUrl(`${PARTNER_APP_BASE}/business-setup${q}`);
+  const phase =
+    step === 'documents' || step === 'review'
+      ? 'documents'
+      : step === 'identity' || step === 'contact'
+        ? 'business'
+        : 'business';
+  navigateSupplierUrl(`${PARTNER_APP_BASE}/onboarding?phase=${phase}`);
 }
 
 function openPayoutWizard(focus?: string) {
-  const q = focus ? `?focus=${encodeURIComponent(focus)}` : '';
-  navigateSupplierUrl(`${PARTNER_APP_BASE}/verification${q}`);
+  const phase = focus === 'bank' ? 'payout' : 'representative';
+  navigateSupplierUrl(`${PARTNER_APP_BASE}/onboarding?phase=${phase}`);
 }
 
 export type BusinessProfileSummaryProps = {

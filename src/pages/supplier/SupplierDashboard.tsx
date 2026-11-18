@@ -184,8 +184,8 @@ function accountNavHref(profile: NonNullable<Awaited<ReturnType<typeof fetchSupp
   const businessOk = (profile.verification_status || '').trim().toLowerCase() === 'verified';
   const payoutOk = (profile.payout_verification_status || '').trim().toLowerCase() === 'verified';
   if (kind === 'setup') return `${PARTNER_APP_BASE}/onboarding`;
-  // P9.40: unfinished or partial verification always resumes the unified setup hub.
-  if (businessOk && !payoutOk) return `${PARTNER_APP_BASE}/verification?step=representative`;
+  // P9.41: unfinished verification resumes inside the unified onboarding shell.
+  if (businessOk && !payoutOk) return `${PARTNER_APP_BASE}/onboarding?phase=representative`;
   return `${PARTNER_APP_BASE}/onboarding`;
 }
 
@@ -955,7 +955,7 @@ export default function SupplierDashboard() {
                     }) === 'rejected';
                   navigateSupplierUrl(
                     businessNeedsFix
-                      ? `${PARTNER_APP_BASE}/business-setup?step=documents`
+                      ? `${PARTNER_APP_BASE}/onboarding?phase=documents`
                       : `${PARTNER_APP_BASE}/onboarding`
                   );
                 }}

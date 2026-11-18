@@ -99,6 +99,35 @@ export function payoutStepForPhase(phase: UnifiedSetupPhaseId): PayoutWizardStep
   return 'business';
 }
 
+/** Business wizard step → unified phase (company vs documents). */
+export function unifiedPhaseFromBusinessStep(step: BusinessOnboardingStepId): UnifiedSetupPhaseId {
+  if (step === 'documents' || step === 'review') return 'documents';
+  return 'business';
+}
+
+/** Payout wizard step → unified phase. */
+export function unifiedPhaseFromPayoutStep(step: PayoutWizardStepId): UnifiedSetupPhaseId {
+  if (step === 'bank' || step === 'preferences') return 'payout';
+  if (step === 'review') return 'status';
+  if (step === 'business') return 'business';
+  return 'representative';
+}
+
+export function readOnboardingPhaseFromUrl(): UnifiedSetupPhaseId | null {
+  if (typeof window === 'undefined') return null;
+  const params = new URLSearchParams(window.location.search);
+  return parseUnifiedSetupPhase(params.get('phase') ?? params.get('step'));
+}
+
+export function writeOnboardingPhaseToUrl(phase: UnifiedSetupPhaseId): void {
+  if (typeof window === 'undefined') return;
+  const url = new URL(window.location.href);
+  url.searchParams.set('phase', phase);
+  url.searchParams.delete('step');
+  url.searchParams.delete('focus');
+  window.history.replaceState(null, '', `${url.pathname}${url.search}`);
+}
+
 export function parseUnifiedSetupPhase(raw: string | null | undefined): UnifiedSetupPhaseId | null {
   const t = (raw ?? '').trim().toLowerCase();
   return UNIFIED_SETUP_SCREENS.some((s) => s.id === t) ? (t as UnifiedSetupPhaseId) : null;
@@ -249,8 +278,8 @@ export function derivePartnerSetupProgress(
     nextCta,
     nextHint,
     formProgressLabel,
-    businessHref: '/partner/business-setup',
-    payoutHref: '/partner/verification',
+    businessHref: '/partner/onboarding?phase=business',
+    payoutHref: '/partner/onboarding?phase=representative',
     listingsHref: '/partner/listings',
   };
 }

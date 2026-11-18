@@ -123,6 +123,10 @@ type Props = {
   onProfile: (profile: SupplierProfileRow | null) => void;
   onClose: () => void;
   onSubmitted?: () => void;
+  /** P9.41 — embed inside unified Partner setup shell (no separate fullscreen page). */
+  variant?: 'fullscreen' | 'embedded';
+  initialStep?: BusinessOnboardingStepId;
+  onUnifiedPhaseChange?: (phase: 'business' | 'documents') => void;
 };
 
 function prefillFromProfile(profile: SupplierProfileRow | null): Partial<BusinessOnboardingDraft> {
@@ -155,7 +159,11 @@ export default function BusinessOnboardingWizard({
   onProfile,
   onClose,
   onSubmitted,
+  variant = 'fullscreen',
+  initialStep,
+  onUnifiedPhaseChange,
 }: Props) {
+  const embedded = variant === 'embedded';
   const locked = isSupplierBusinessIdentityLocked(
     profile?.verification_status,
     profile?.verification_submitted_at,
@@ -181,10 +189,12 @@ export default function BusinessOnboardingWizard({
       typeof window !== 'undefined'
         ? (new URLSearchParams(window.location.search).get('step') as BusinessOnboardingStepId | null)
         : null;
-    const validInitial =
-      initialFromQuery && BUSINESS_ONBOARDING_SCREENS.some((s) => s.id === initialFromQuery)
-        ? initialFromQuery
-        : null;
+    const prefer =
+      initialStep && BUSINESS_ONBOARDING_SCREENS.some((s) => s.id === initialStep)
+        ? initialStep
+        : initialFromQuery && BUSINESS_ONBOARDING_SCREENS.some((s) => s.id === initialFromQuery)
+          ? initialFromQuery
+          : null;
     return emptyBusinessOnboardingDraft({
       ...prefillFromProfile(profile),
       ...(merged ?? {}),
@@ -192,8 +202,8 @@ export default function BusinessOnboardingWizard({
         underReview || verified
           ? 'review'
           : actionRequired
-            ? (validInitial ?? 'documents')
-            : validInitial ?? merged?.step ?? 'identity',
+            ? (prefer ?? 'documents')
+            : prefer ?? merged?.step ?? 'identity',
       owner_authority_confirmed: merged?.owner_authority_confirmed ?? false,
     });
   });
@@ -235,12 +245,30 @@ export default function BusinessOnboardingWizard({
   }, [userId, draft]);
 
   useEffect(() => {
+    if (!embedded || !initialStep || underReview || verified) return;
+    setDraft((d) => {
+      const currentPhase =
+        d.step === 'documents' || d.step === 'review' ? 'documents' : 'business';
+      const targetPhase =
+        initialStep === 'documents' || initialStep === 'review' ? 'documents' : 'business';
+      if (currentPhase === targetPhase) return d;
+      return { ...d, step: initialStep };
+    });
+  }, [embedded, initialStep, underReview, verified]);
+
+  useEffect(() => {
+    if (embedded) {
+      onUnifiedPhaseChange?.(
+        draft.step === 'documents' || draft.step === 'review' ? 'documents' : 'business'
+      );
+      return;
+    }
     if (typeof window === 'undefined') return;
     const url = new URL(window.location.href);
     if (url.searchParams.get('step') === draft.step) return;
     url.searchParams.set('step', draft.step);
     window.history.replaceState(null, '', `${url.pathname}${url.search}`);
-  }, [draft.step]);
+  }, [draft.step, embedded, onUnifiedPhaseChange]);
 
   useEffect(() => {
     if (!focusPending.current) return;
@@ -327,7 +355,8 @@ export default function BusinessOnboardingWizard({
       return;
     }
     if (underReview || verified) {
-      onClose();
+      if (embedded && onSubmitted) onSubmitted();
+      else onClose();
       return;
     }
 
@@ -448,7 +477,14 @@ export default function BusinessOnboardingWizard({
   const inputClass = 'tv-input h-11 w-full rounded-xl';
 
   return (
-    <div className="payout-wizard listing-creation-workspace stay-creator fixed inset-0 z-[80] flex bg-white">
+    <div
+      className={
+        embedded
+          ? 'partner-setup-embed payout-wizard listing-creation-workspace stay-creator flex h-full min-h-0 w-full flex-1 flex-col bg-transparent'
+          : 'payout-wizard listing-creation-workspace stay-creator fixed inset-0 z-[80] flex bg-white'
+      }
+    >
+      {!embedded ? (
       <aside className="listing-creation-rail hidden h-full min-h-0 w-[15.75rem] shrink-0 flex-col overflow-hidden border-r border-[#E5E7EB] lg:flex xl:w-[16.5rem]">
         <div className="shrink-0 border-b border-[#E5E7EB] px-4 py-4">
           <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#073b83]">Traverion</p>
@@ -536,8 +572,16 @@ export default function BusinessOnboardingWizard({
           </button>
         </div>
       </aside>
+      ) : null}
 
-      <div className="relative flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[#FCFCFD]">
+      <div
+        className={
+          embedded
+            ? 'relative flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-transparent'
+            : 'relative flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[#FCFCFD]'
+        }
+      >
+        {!embedded ? (
         <header className="flex shrink-0 items-center justify-between gap-3 border-b border-[#E5E7EB] bg-white px-4 py-2.5 pt-[max(0.6rem,env(safe-area-inset-top))] sm:px-6 lg:hidden">
           <button
             type="button"
@@ -552,8 +596,14 @@ export default function BusinessOnboardingWizard({
             {persistLabel ?? ''}
           </p>
         </header>
+        ) : null}
 
-        <div className={`mx-auto flex min-h-0 w-full ${CONTENT_MAX} flex-1 flex-col overflow-hidden px-4 sm:px-6 lg:px-8`}>
+        <div
+          className={`mx-auto flex min-h-0 w-full ${
+            embedded ? 'max-w-[36rem]' : CONTENT_MAX
+          } flex-1 flex-col overflow-hidden px-4 sm:px-6 ${embedded ? 'lg:px-6' : 'lg:px-8'}`}
+        >
+          {!embedded ? (
           <div className="shrink-0 bg-[#FCFCFD] pb-1 pt-3 lg:hidden">
             <div
               className="h-[3px] overflow-hidden rounded-full bg-[#e5e7eb]"
@@ -572,12 +622,15 @@ export default function BusinessOnboardingWizard({
               Step {stepIndex + 1} of {BUSINESS_ONBOARDING_SCREENS.length}
             </p>
           </div>
+          ) : null}
 
-          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-4 pt-3 lg:overflow-y-auto lg:pb-5 lg:pt-6 [-webkit-overflow-scrolling:touch]">
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-4 pt-3 lg:overflow-y-auto lg:pb-5 lg:pt-4 [-webkit-overflow-scrolling:touch]">
             <div key={draft.step} className={stageClass}>
+              {!embedded ? (
               <p className="mb-1.5 hidden text-[12px] font-semibold text-[#073b83] lg:block">
                 Step {stepIndex + 1} of {BUSINESS_ONBOARDING_SCREENS.length}
               </p>
+              ) : null}
               <h1 className="stay-title !mt-0 inline-flex flex-wrap items-center gap-1.5 !text-[1.45rem] sm:!text-[1.55rem]">
                 {underReview
                   ? 'Under review'
@@ -1094,7 +1147,11 @@ export default function BusinessOnboardingWizard({
                 onClick={onBack}
                 disabled={busy}
               >
-                {stepIndex === 0 || underReview || verified ? 'Close' : 'Back'}
+                {stepIndex === 0 || underReview || verified
+                  ? embedded
+                    ? 'Exit'
+                    : 'Close'
+                  : 'Back'}
               </button>
               <button
                 type="button"
@@ -1105,7 +1162,9 @@ export default function BusinessOnboardingWizard({
                 {busy
                   ? 'Submitting…'
                   : underReview || verified
-                    ? 'Done'
+                    ? embedded
+                      ? 'Continue'
+                      : 'Done'
                     : draft.step === 'review'
                       ? actionRequired
                         ? 'Resubmit for review'

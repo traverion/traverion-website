@@ -376,14 +376,36 @@ body {
     flex-direction: column;
   }
 
-  /* P9.40 — unified supplier onboarding hub */
+  /* P9.40 / P9.41 — unified supplier onboarding shell */
   .partner-unified-setup {
     animation: partner-unified-setup-in 280ms ease-out;
   }
 
-  .partner-unified-setup button:focus-visible {
+  .partner-unified-setup button:focus-visible,
+  .partner-unified-setup-shell button:focus-visible {
     outline: 2px solid #073b83;
     outline-offset: 2px;
+  }
+
+  .partner-unified-setup-shell {
+    min-height: 0;
+    height: 100%;
+  }
+
+  .partner-setup-embed.payout-wizard {
+    --pw-content-max: 36rem;
+    background: transparent;
+    overflow: hidden;
+  }
+
+  .partner-setup-embed .listing-creation-footer,
+  .partner-setup-embed .payout-wizard__footer {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+    background: rgba(252, 252, 253, 0.96);
+    backdrop-filter: blur(8px);
+    border-top: 1px solid #e8ebf0;
   }
 
   @keyframes partner-unified-setup-in {

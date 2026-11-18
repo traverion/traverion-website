@@ -34,11 +34,7 @@ import {
   updateSupplierCompanyProfile,
   type SupplierProfileRow,
 } from '../../data/supabase-supplier-profile';
-import {
-  businessStepForPhase,
-  payoutStepForPhase,
-  type UnifiedSetupPhaseId,
-} from '../../lib/partner-unified-setup';
+import { type UnifiedSetupPhaseId } from '../../lib/partner-unified-setup';
 import {
   applyLegalPlaceholders,
   applyLegalDate,
@@ -897,8 +893,8 @@ export default function SupplierLayout() {
       return;
     }
     if (target === 'payout') {
-      // P9.40: first-time payout setup joins the unified flow (verification wizard).
-      navigateSupplierUrl(`${PARTNER_APP_BASE}/verification`);
+      // P9.41: payout setup stays inside the unified onboarding shell.
+      navigateSupplierUrl(`${PARTNER_APP_BASE}/onboarding?phase=representative`);
       return;
     }
     setSettingsFocus(target);
@@ -959,18 +955,32 @@ export default function SupplierLayout() {
     onboardingHasListing && onboardingPayoutVerified && onboardingBusinessVerified;
 
   const continueUnifiedPhase = (phase: UnifiedSetupPhaseId) => {
-    if (phase === 'business' || phase === 'documents' || phase === 'status') {
-      const step = businessStepForPhase(phase);
-      navigateSupplierUrl(`${PARTNER_APP_BASE}/business-setup?step=${step}`);
-      return;
-    }
-    const step = payoutStepForPhase(phase);
-    navigateSupplierUrl(
-      step === 'bank'
-        ? `${PARTNER_APP_BASE}/verification?focus=bank`
-        : `${PARTNER_APP_BASE}/verification?step=${step}`
-    );
+    navigateSupplierUrl(`${PARTNER_APP_BASE}/onboarding?phase=${phase}`);
   };
+
+  // P9.41: legacy setup URLs fold into the unified shell (no separate wizard pages).
+  useEffect(() => {
+    if (section !== 'business-setup' && section !== 'verification') return;
+    const params = new URLSearchParams(window.location.search);
+    const step = (params.get('step') ?? '').trim();
+    const focus = (params.get('focus') ?? '').trim();
+    let phase: UnifiedSetupPhaseId = 'business';
+    if (section === 'business-setup') {
+      phase =
+        step === 'documents' || step === 'review'
+          ? 'documents'
+          : step === 'identity' || step === 'contact'
+            ? 'business'
+            : 'business';
+    } else if (focus === 'bank' || step === 'bank' || step === 'preferences') {
+      phase = 'payout';
+    } else if (step === 'review') {
+      phase = 'status';
+    } else {
+      phase = 'representative';
+    }
+    navigateSupplierUrl(`${PARTNER_APP_BASE}/onboarding?phase=${phase}`);
+  }, [section]);
 
   const normalizedPathForVerify = pathname.replace(/\/$/, '') || '/';
   if (normalizedPathForVerify === PARTNER_EMAIL_VERIFIED_PATH) {
@@ -1073,10 +1083,14 @@ export default function SupplierLayout() {
 
       <div
         className={`partner-workspace${
-          section === 'verification' || section === 'business-setup' ? ' partner-workspace--focus' : ''
+          section === 'onboarding' || section === 'verification' || section === 'business-setup'
+            ? ' partner-workspace--focus'
+            : ''
         }`}
       >
-        {section === 'verification' || section === 'business-setup' ? null : (
+        {section === 'onboarding' ||
+        section === 'verification' ||
+        section === 'business-setup' ? null : (
           <PartnerSidebar
             primary={PARTNER_SIDEBAR_PRIMARY}
             footer={PARTNER_SIDEBAR_FOOTER}
@@ -1104,7 +1118,9 @@ export default function SupplierLayout() {
         )}
 
         <div className="partner-main-pane" ref={mainPaneRef}>
-          {section === 'verification' || section === 'business-setup' ? null : (
+          {section === 'onboarding' ||
+          section === 'verification' ||
+          section === 'business-setup' ? null : (
           <header className="partner-topbar sticky top-0 z-30 pt-[env(safe-area-inset-top)]">
             <div className="flex h-[var(--partner-topbar-h,2.75rem)] items-center gap-3 px-4 sm:px-6 lg:px-8">
               <button
@@ -1253,8 +1269,8 @@ export default function SupplierLayout() {
             id="main-content"
             tabIndex={-1}
             className={
-              section === 'verification'
-                ? 'min-h-0 flex-1 bg-white p-0'
+              section === 'onboarding' || section === 'verification' || section === 'business-setup'
+                ? 'flex min-h-0 flex-1 flex-col bg-white p-0'
                 : partnerPageFrameClass(
                     section === 'availability' || section === 'calendar'
                       ? 'ops'
@@ -1264,7 +1280,14 @@ export default function SupplierLayout() {
                   )
             }
           >
-            <div key={pageEnterKey} className={pageEnterClass}>
+            <div
+              key={pageEnterKey}
+              className={`${pageEnterClass}${
+                section === 'onboarding' || section === 'verification' || section === 'business-setup'
+                  ? ' flex min-h-0 flex-1 flex-col'
+                  : ''
+              }`}
+            >
               <ChunkLoadErrorBoundary resetKey={section}>
               <Suspense fallback={<PartnerSectionFallback />}>
                 {unknownPartnerPath ? (
@@ -1284,6 +1307,10 @@ export default function SupplierLayout() {
                         profile={onboardingProfile}
                         onSkip={() => handleNavigate('dashboard')}
                         onContinuePhase={continueUnifiedPhase}
+                        onProfileRefresh={(next) => {
+                          setOnboardingProfile(next);
+                          void refreshSupplierOnboardingSignals();
+                        }}
                         onTours={() => {
                           if (onboardingHasListing) {
                             handleNavigate('listings');
@@ -1453,7 +1480,9 @@ export default function SupplierLayout() {
 
       <nav
         className={`partner-bottom-nav md:hidden fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur-md pb-[env(safe-area-inset-bottom)] border-t border-slate-200/80${
-          section === 'verification' || section === 'business-setup' ? ' hidden' : ''
+          section === 'onboarding' || section === 'verification' || section === 'business-setup'
+            ? ' hidden'
+            : ''
         }`}
         aria-label="Primary"
       >

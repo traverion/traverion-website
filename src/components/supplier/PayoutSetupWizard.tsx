@@ -95,6 +95,10 @@ type Props = {
   onProfile: (profile: SupplierProfileRow | null) => void;
   onClose: () => void;
   initialStep?: PayoutWizardStepId;
+  /** P9.41 — embed inside unified Partner setup shell. */
+  variant?: 'fullscreen' | 'embedded';
+  onUnifiedPhaseChange?: (phase: 'representative' | 'payout' | 'status') => void;
+  onBackToPreviousPhase?: () => void;
 };
 
 /**
@@ -163,7 +167,11 @@ export default function PayoutSetupWizard({
   onProfile,
   onClose,
   initialStep,
+  variant = 'fullscreen',
+  onUnifiedPhaseChange,
+  onBackToPreviousPhase,
 }: Props) {
+  const embedded = variant === 'embedded';
   const rates = catalogPayoutRates();
   const currency = (payoutCurrency || profile?.connect_default_currency || 'EUR').toUpperCase();
   // DEV-only UI probe (?express_embed_probe=1): exercise Express embed gating without mutating Stripe.
@@ -255,13 +263,35 @@ export default function PayoutSetupWizard({
       !profile?.connect_details_submitted);
 
   useEffect(() => {
+    if (!embedded || !initialStep) return;
+    setDraft((d) => {
+      const bucket = (step: typeof d.step) =>
+        step === 'bank' || step === 'preferences' || step === 'review'
+          ? 'payout'
+          : step === 'business'
+            ? 'business'
+            : 'representative';
+      if (bucket(d.step) === bucket(initialStep)) return d;
+      return { ...d, step: initialStep };
+    });
+  }, [embedded, initialStep]);
+
+  useEffect(() => {
+    if (embedded) {
+      if (draft.step === 'bank' || draft.step === 'preferences' || draft.step === 'review') {
+        onUnifiedPhaseChange?.('payout');
+      } else if (draft.step !== 'business') {
+        onUnifiedPhaseChange?.('representative');
+      }
+      return;
+    }
     if (typeof window === 'undefined') return;
     const url = new URL(window.location.href);
     if (url.searchParams.get('step') === draft.step) return;
     url.searchParams.set('step', draft.step);
     url.searchParams.delete('focus');
     window.history.replaceState(null, '', `${url.pathname}${url.search}`);
-  }, [draft.step]);
+  }, [draft.step, embedded, onUnifiedPhaseChange]);
 
   useEffect(() => {
     // Local cache is a UX resume aid only — never the cross-device source of truth.
@@ -397,7 +427,11 @@ export default function PayoutSetupWizard({
   );
 
   const openBusinessAmendment = () => {
-    navigateSupplierUrl(`${PARTNER_APP_BASE}/business-setup`);
+    if (embedded) {
+      onBackToPreviousPhase?.();
+      return;
+    }
+    navigateSupplierUrl(`${PARTNER_APP_BASE}/onboarding?phase=business`);
   };
 
   /** Stripe TEST may create; LIVE creates only when edge reports live_create_allowed. */
@@ -988,6 +1022,10 @@ export default function PayoutSetupWizard({
       onProfile(await fetchSupplierProfile(userId));
       setBusy(false);
       // Completion UI reads Stripe-mirrored profile + honest markers — never simulates Verified.
+      if (embedded) {
+        onUnifiedPhaseChange?.('status');
+        return;
+      }
       setPhase('complete');
       return;
     }
@@ -1071,10 +1109,16 @@ export default function PayoutSetupWizard({
 
   const onBack = () => {
     if (stepIndex <= 0) {
-      onClose();
+      if (embedded) onBackToPreviousPhase?.() ?? onClose();
+      else onClose();
       return;
     }
     const prev = PAYOUT_WIZARD_SCREENS[stepIndex - 1]!.id;
+    // P9.41: company details already live in the unified shell — don't reopen payout "business".
+    if (embedded && prev === 'business') {
+      onBackToPreviousPhase?.() ?? onClose();
+      return;
+    }
     goTo(prev, 'back');
   };
 
@@ -1312,8 +1356,15 @@ export default function PayoutSetupWizard({
   }
 
   return (
-    <div className="payout-wizard listing-creation-workspace stay-creator fixed inset-0 z-[80] flex flex-col bg-white">
-      <div className="payout-wizard__body">
+    <div
+      className={
+        embedded
+          ? 'partner-setup-embed payout-wizard listing-creation-workspace stay-creator flex h-full min-h-0 w-full flex-1 flex-col bg-transparent'
+          : 'payout-wizard listing-creation-workspace stay-creator fixed inset-0 z-[80] flex flex-col bg-white'
+      }
+    >
+      <div className={embedded ? 'flex min-h-0 flex-1 flex-col overflow-hidden' : 'payout-wizard__body'}>
+      {!embedded ? (
       <aside className="payout-wizard__rail listing-creation-rail">
         <div className="payout-wizard__rail-head">
           <button
@@ -1385,8 +1436,10 @@ export default function PayoutSetupWizard({
           </ol>
         </nav>
       </aside>
+      ) : null}
 
-      <div className="payout-wizard__panel">
+      <div className={embedded ? 'relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden' : 'payout-wizard__panel'}>
+        {!embedded ? (
         <header className="payout-wizard__mobile-bar flex items-center justify-between gap-3">
           <button
             type="button"
@@ -1401,7 +1454,9 @@ export default function PayoutSetupWizard({
             {persistLabel ?? `${stepIndex + 1}/${PAYOUT_WIZARD_SCREENS.length}`}
           </p>
         </header>
+        ) : null}
 
+        {!embedded ? (
         <div className="payout-wizard__mobile-bar lg:hidden" style={{ borderTop: 'none', paddingTop: 0 }}>
           <div
             className="h-[3px] overflow-hidden rounded-full bg-[#e5e7eb]"
@@ -1420,9 +1475,10 @@ export default function PayoutSetupWizard({
             Step {stepIndex + 1} of {PAYOUT_WIZARD_SCREENS.length}
           </p>
         </div>
+        ) : null}
 
-        <main ref={scrollRef} className="payout-wizard__scroll">
-          <div className="payout-wizard__canvas">
+        <main ref={scrollRef} className={embedded ? 'min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-4 pt-3 sm:px-6 [-webkit-overflow-scrolling:touch]' : 'payout-wizard__scroll'}>
+          <div className={embedded ? 'mx-auto w-full max-w-[36rem]' : 'payout-wizard__canvas'}>
             <div key={draft.step} className={stageClass}>
               <p className="mb-1 hidden text-[11px] font-semibold uppercase tracking-[0.12em] text-[#073b83] lg:block">
                 Step {stepIndex + 1} of {PAYOUT_WIZARD_SCREENS.length}
