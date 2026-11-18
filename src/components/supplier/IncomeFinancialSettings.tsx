@@ -198,7 +198,7 @@ export default function IncomeFinancialSettings({
     hasConnectedAccount,
     localProgress,
   });
-  const canReceive = connectCanReceiveTransfers(profile);
+  const canReceive = connectCanReceiveTransfers(profile ?? {});
   const readinessLanes = useMemo(
     () =>
       buildPayoutReadinessLanes({
