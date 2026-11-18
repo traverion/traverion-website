@@ -50,7 +50,15 @@ describe('payout wizard local progress summary', () => {
     expect(summary.bankDeferred).toBe(true);
     expect(
       payoutBankPresentation({ bankManaged: false, localProgress: summary })
-    ).toBe('Not sent to provider');
+    ).toBe('Not sent to Stripe yet');
+    expect(
+      payoutBankPresentation({
+        bankManaged: false,
+        localProgress: summary,
+        connectSetupUnavailable: true,
+        hasConnectedAccount: false,
+      })
+    ).toBe('Saved for later — not sent to Stripe');
     expect(
       payoutVerificationPresentation({
         connectLabel: 'Not started',

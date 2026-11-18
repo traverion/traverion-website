@@ -242,6 +242,8 @@ export default function IncomeFinancialSettings({
         bankManaged: false,
         bankMasked: null,
         localProgress,
+        connectSetupUnavailable,
+        hasConnectedAccount,
       });
   const showBankCard =
     bankOk || localProgress.bankSavedLocally || localProgress.bankDeferred;
@@ -488,6 +490,8 @@ export default function IncomeFinancialSettings({
                       bankManaged: false,
                       bankMasked: null,
                       localProgress,
+                      connectSetupUnavailable,
+                      hasConnectedAccount,
                     })
               }
             />

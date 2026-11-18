@@ -21083,6 +21083,7 @@ details:not([open]) > :not(summary) {
   min-height: 0;
   flex: 1 1 auto;
   flex-direction: column;
+  align-items: center;
   overflow-x: hidden;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
@@ -21092,10 +21093,10 @@ details:not([open]) > :not(summary) {
 }
 
 .payout-wizard__complete-card {
-  width: 100%;
+  width: min(100%, 36rem);
   max-width: 36rem;
   /* Top-align on short and tall viewports — avoid vertically floating mid-screen review. */
-  margin: 0 auto;
+  margin: 0;
   padding: clamp(1.5rem, 8vh, 3.25rem) 1.35rem 2.75rem;
 }
 

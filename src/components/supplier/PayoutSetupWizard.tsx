@@ -1011,6 +1011,8 @@ export default function PayoutSetupWizard({
     bankManaged,
     bankMasked,
     localProgress,
+    connectSetupUnavailable,
+    hasConnectedAccount,
   });
 
   const showConnectionPendingNote =
@@ -2334,6 +2336,8 @@ export default function PayoutSetupWizard({
                           bankManaged,
                           bankMasked,
                           localProgress,
+                          connectSetupUnavailable,
+                          hasConnectedAccount,
                         })}
                       </span>
                     </li>

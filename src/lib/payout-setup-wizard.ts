@@ -309,16 +309,25 @@ export function payoutBankPresentation(opts: {
   bankManaged: boolean;
   bankMasked?: string | null;
   localProgress: PayoutWizardLocalProgress;
+  /** When LIVE create is blocked and no Connect account exists, never imply Stripe has the bank. */
+  connectSetupUnavailable?: boolean;
+  hasConnectedAccount?: boolean;
 }): string {
   if (opts.bankManaged || opts.bankMasked) {
     return opts.bankMasked?.trim() || 'On file';
   }
+  if (opts.connectSetupUnavailable && !opts.hasConnectedAccount) {
+    if (opts.localProgress.bankDeferred || opts.localProgress.bankSavedLocally) {
+      return 'Saved for later — not sent to Stripe';
+    }
+    return 'Not added';
+  }
   if (opts.localProgress.bankSavedLocally) {
     return opts.localProgress.bankLast4
-      ? `•••• ${opts.localProgress.bankLast4} — awaiting connection`
-      : 'Sent to provider — awaiting connection';
+      ? `•••• ${opts.localProgress.bankLast4} — awaiting confirmation`
+      : 'Sent to Stripe — awaiting confirmation';
   }
-  if (opts.localProgress.bankDeferred) return 'Not sent to provider';
+  if (opts.localProgress.bankDeferred) return 'Not sent to Stripe yet';
   return 'Not added';
 }
 
