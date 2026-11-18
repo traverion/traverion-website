@@ -1,5 +1,5 @@
 import { ArrowRight, Check } from 'lucide-react';
-import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import { useSupplierRole } from '../../hooks/useSupplierRole';
 import {
@@ -42,11 +42,8 @@ import { connectCanReceiveTransfers } from '../../lib/connect-payout-status';
 import StatusChip from '../../components/StatusChip';
 import NoticeCallout from '../../components/NoticeCallout';
 import PartnerHelpTip from '../../components/supplier/PartnerHelpTip';
-
-const BusinessOnboardingWizard = lazy(
-  () => import('../../components/supplier/BusinessOnboardingWizard')
-);
-const PayoutSetupWizard = lazy(() => import('../../components/supplier/PayoutSetupWizard'));
+import BusinessOnboardingWizard from '../../components/supplier/BusinessOnboardingWizard';
+import PayoutSetupWizard from '../../components/supplier/PayoutSetupWizard';
 
 type PartnerOnboardingProps = {
   profile: SupplierProfileRow | null;
@@ -371,52 +368,36 @@ export default function PartnerOnboarding({
 
         <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
           {showBusiness && userId ? (
-            <Suspense
-              fallback={
-                <div className="grid flex-1 place-items-center text-[13px] text-[#5c6570]">
-                  Opening company setup…
-                </div>
-              }
-            >
-              <BusinessOnboardingWizard
-                key="biz-embed"
-                userId={userId}
-                profile={profile}
-                canEdit={canEditBusiness}
-                onProfile={handleProfile}
-                variant="embedded"
-                initialStep={businessStepForPhase(phase)}
-                onClose={onSkip}
-                onSubmitted={() => setPhaseAndUrl('representative')}
-                onUnifiedPhaseChange={handleBusinessPhaseChange}
-              />
-            </Suspense>
+            <BusinessOnboardingWizard
+              key="biz-embed"
+              userId={userId}
+              profile={profile}
+              canEdit={canEditBusiness}
+              onProfile={handleProfile}
+              variant="embedded"
+              initialStep={businessStepForPhase(phase)}
+              onClose={onSkip}
+              onSubmitted={() => setPhaseAndUrl('representative')}
+              onUnifiedPhaseChange={handleBusinessPhaseChange}
+            />
           ) : null}
 
           {showPayout && userId ? (
-            <Suspense
-              fallback={
-                <div className="grid flex-1 place-items-center px-4 text-[13px] text-[#5c6570]">
-                  Opening payout setup…
-                </div>
-              }
-            >
-              <PayoutSetupWizard
-                key="pay-embed"
-                userId={userId}
-                profile={profile}
-                commercialTerms={commercialTerms}
-                payoutCurrency={profile?.connect_default_currency ?? 'EUR'}
-                canEdit={canEditFinance}
-                onProfile={handleProfile}
-                variant="embedded"
-                unifiedPhase={phase === 'representative' || phase === 'payout' ? phase : 'payout'}
-                initialStep={payoutStepForPhase(phase)}
-                onClose={onSkip}
-                onBackToPreviousPhase={() => setPhaseAndUrl('documents')}
-                onUnifiedPhaseChange={handlePayoutPhaseChange}
-              />
-            </Suspense>
+            <PayoutSetupWizard
+              key="pay-embed"
+              userId={userId}
+              profile={profile}
+              commercialTerms={commercialTerms}
+              payoutCurrency={profile?.connect_default_currency ?? 'EUR'}
+              canEdit={canEditFinance}
+              onProfile={handleProfile}
+              variant="embedded"
+              unifiedPhase={phase === 'representative' || phase === 'payout' ? phase : 'payout'}
+              initialStep={payoutStepForPhase(phase)}
+              onClose={onSkip}
+              onBackToPreviousPhase={() => setPhaseAndUrl('documents')}
+              onUnifiedPhaseChange={handlePayoutPhaseChange}
+            />
           ) : null}
 
           {showStatus ? (

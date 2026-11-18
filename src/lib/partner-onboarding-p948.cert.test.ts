@@ -25,6 +25,9 @@ describe('P9.48 onboarding stability', () => {
     expect(shell).toContain('handleBusinessPhaseChange');
     expect(shell).toContain('partner-unified-setup-canvas');
     expect(shell).toContain("unifiedPhase={phase === 'representative' || phase === 'payout' ? phase : 'payout'}");
+    // Eager imports avoid Suspense blank frames when switching business ↔ payout.
+    expect(shell).not.toMatch(/lazy\(\s*\(\)\s*=>\s*import\('\.\.\/\.\.\/components\/supplier\/PayoutSetupWizard'\)/);
+    expect(shell).toContain("import PayoutSetupWizard from '../../components/supplier/PayoutSetupWizard'");
   });
 
   it('centers desktop content beyond the old 40rem column', () => {
