@@ -13,19 +13,19 @@ body {
 @layer utilities {
   .partner-app-shell {
     -webkit-tap-highlight-color: transparent;
-    /* Transform 3.0 visual foundation — Traverion navy + crisp surfaces */
+    /* Transform 3.0 + P9.37 — partner tokens bridge to shared --tv-brand-* */
     --partner-bg: #f6f7f9;
     --partner-nav: #ffffff;
     --partner-surface: #ffffff;
     --partner-surface-muted: #f1f3f6;
     --partner-border: #e4e7ec;
     --partner-border-strong: #d0d5dd;
-    --partner-ink: #0c1118;
-    --partner-ink-muted: #5a6472;
+    --partner-ink: var(--tv-brand-ink, #0c1118);
+    --partner-ink-muted: var(--tv-brand-muted, #5a6472);
     --partner-ink-faint: #8892a0;
     --partner-accent: #073b83;
     --partner-accent-hover: #052d65;
-    --partner-accent-soft: #e8f0fc;
+    --partner-accent-soft: var(--tv-brand-soft, #e8f0fc);
     --partner-nav-hover: #f0f5fc;
     --partner-nav-active-ink: #0b3d88;
     --partner-success: #047857;
@@ -3956,7 +3956,7 @@ a:focus-visible,
   padding-top: calc(5.15rem + env(safe-area-inset-top, 0px));
 }
 
-/* Consumer header — Explore / Tours / Stays only (Inter ExtraBold uppercase) */
+/* Consumer header — Explore / Tours / Stays (Plus Jakarta ExtraBold uppercase) */
 .tv-header-nav__item {
   display: inline-flex;
   align-items: center;
@@ -3964,13 +3964,13 @@ a:focus-visible,
   min-height: 2.625rem;
   border-radius: 9999px;
   padding: 0.5rem 1.1rem;
-  font-family: 'Inter Display', Inter, ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--tv-font-sans, 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif);
   font-size: 0.875rem; /* 14px */
   font-weight: 800;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.04em;
   line-height: 1.2;
   text-transform: uppercase;
-  color: #1c1917;
+  color: var(--tv-brand-ink, #0c1118);
   transition:
     background-color var(--tv-duration-hover, 180ms) var(--tv-ease),
     color var(--tv-duration-hover, 180ms) var(--tv-ease),
@@ -4317,6 +4317,24 @@ a:focus-visible,
   --lux-duration: var(--tv-duration-ui);
   --lux-shadow-hover: var(--tv-shadow-hover);
   --lux-shadow-hover-sm: var(--tv-elev-2);
+
+  /* P9.37 — Unified brand contract (traveler + partner + admin share these) */
+  --tv-brand: #003580;
+  --tv-brand-hover: #00285f;
+  --tv-brand-soft: #e8f0fc;
+  --tv-brand-ink: #0c1118;
+  --tv-brand-muted: #5a6472;
+  --tv-font-sans: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+  --tv-font-display: Fraunces, Georgia, serif;
+  --tv-space-1: 0.25rem;
+  --tv-space-2: 0.5rem;
+  --tv-space-3: 0.75rem;
+  --tv-space-4: 1rem;
+  --tv-space-5: 1.25rem;
+  --tv-space-6: 1.5rem;
+  --tv-space-8: 2rem;
+  --tv-space-10: 2.5rem;
+  --tv-space-12: 3rem;
 }
 
 /* Shared consumer measure: header, catalogs, detail, account. */

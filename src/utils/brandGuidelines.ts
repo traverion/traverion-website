@@ -74,24 +74,24 @@ export const BRAND_COLORS = {
 };
 
 export const BRAND_TYPOGRAPHY = {
-  // PRIMARY FONT - Inter (modern, tech-forward)
+  // PRIMARY FONT — Plus Jakarta Sans (UI + body across Traverion)
   primary: {
-    fontFamily: 'Inter, system-ui, sans-serif',
-    weights: [300, 400, 500, 600, 700, 800],
+    fontFamily: '"Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif',
+    weights: [400, 500, 600, 700, 800],
     usage: 'Body text, UI elements, navigation',
   },
-  
-  // HEADING FONT - Playfair Display (elegant, luxury)
+
+  // DISPLAY FONT — Fraunces (editorial headlines)
   heading: {
-    fontFamily: 'Playfair Display, serif',
-    weights: [400, 500, 600, 700, 800],
+    fontFamily: 'Fraunces, Georgia, serif',
+    weights: [400, 500, 600, 700],
     usage: 'Headlines, hero text, luxury messaging',
   },
-  
-  // ACCENT FONT - Poppins (friendly, premium)
+
+  // ACCENT — same sans family at stronger weight (no third font stack)
   accent: {
-    fontFamily: 'Poppins, system-ui, sans-serif',
-    weights: [300, 400, 500, 600, 700],
+    fontFamily: '"Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif',
+    weights: [600, 700, 800],
     usage: 'Buttons, labels, accent text',
   },
   
