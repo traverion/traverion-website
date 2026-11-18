@@ -41,7 +41,7 @@ export default function Footer({ onNavigate }: { onNavigate?: (page: string) => 
             >
               <span className="tv-footer-logo-glow" aria-hidden />
               <img src={BRAND_LOGO_SRC} alt="" className="relative h-9 w-auto object-contain sm:h-10" />
-              <span className="relative font-sans text-base font-semibold tracking-tight text-white sm:text-lg">
+              <span className="relative font-display text-base font-semibold tracking-tight text-white sm:text-lg">
                 Traverion
               </span>
             </a>
