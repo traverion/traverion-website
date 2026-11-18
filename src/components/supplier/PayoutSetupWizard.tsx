@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   fetchSupplierProfile,
   updateSupplierPayout,
@@ -269,12 +269,25 @@ export default function PayoutSetupWizard({
     liveCreateAllowed,
   });
 
-  const stepIndex = payoutWizardStepIndex(draft.step);
+  const payoutStepBucket = (step: PayoutWizardStepId) =>
+    step === 'bank' || step === 'preferences' || step === 'review'
+      ? 'payout'
+      : step === 'business'
+        ? 'business'
+        : 'representative';
+
+  /** Prefer shell-driven step on first paint so sidebar/URL never disagree with content. */
+  const displayStep: PayoutWizardStepId =
+    embedded && initialStep && payoutStepBucket(draft.step) !== payoutStepBucket(initialStep)
+      ? initialStep
+      : draft.step;
+
+  const stepIndex = payoutWizardStepIndex(displayStep);
   const screen = PAYOUT_WIZARD_SCREENS[stepIndex]!;
   const progressPct = Math.round(((stepIndex + 1) / PAYOUT_WIZARD_SCREENS.length) * 100);
   const useStripeEmbed =
     isExpress &&
-    (draft.step === 'representative' || draft.step === 'identity' || draft.step === 'bank');
+    (displayStep === 'representative' || displayStep === 'identity' || displayStep === 'bank');
   const onboardingStatus = (profile?.connect_onboarding_status ?? '').toLowerCase();
   /** Express still needs Stripe-collected KYC — never auto-mount; user must start it. */
   const expressVerificationMandatory =
@@ -286,18 +299,12 @@ export default function PayoutSetupWizard({
       onboardingStatus === '' ||
       !profile?.connect_details_submitted);
 
-  // Parent shell owns phase/URL. Sync draft step DOWN from the shell — never fight back upward.
-  useEffect(() => {
+  // Parent shell owns phase/URL. Sync draft step DOWN before paint — never fight back upward.
+  useLayoutEffect(() => {
     if (!embedded || !initialStep) return;
     setDraft((d) => {
-      const bucket = (step: typeof d.step) =>
-        step === 'bank' || step === 'preferences' || step === 'review'
-          ? 'payout'
-          : step === 'business'
-            ? 'business'
-            : 'representative';
-      const target = bucket(initialStep);
-      const current = bucket(d.step);
+      const target = payoutStepBucket(initialStep);
+      const current = payoutStepBucket(d.step);
       if (current === target) {
         // Keep in-phase progress (e.g. preferences while shell says payout).
         return d;

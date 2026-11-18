@@ -244,7 +244,7 @@ export default function BusinessOnboardingWizard({
     };
   }, [userId, draft]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!embedded || !initialStep || underReview || verified) return;
     setDraft((d) => {
       const currentPhase =
