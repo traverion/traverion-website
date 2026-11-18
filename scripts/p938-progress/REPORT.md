@@ -40,10 +40,21 @@ Also keep `stripe_connect_transfers_enabled = 0` and `payout_execution_enabled =
 | `vitest` payout-setup-wizard + P9.38 cert | **PASS** |
 | `npm run build` | **PASS** |
 | LIVE gates flipped | **NO** |
-| Authenticated browser E2E (login → wizard → Stripe return) | **PARTIAL** — code + unit/cert; full auth session depends on supplier credentials / Vercel deploy settle |
+| Production deploy | `5ee25e1c` → hotfix `38a26ff4` → polish `bea742e5` on `main` |
+| Authenticated browser (P921 Test Supplier) | **PASS** — Income Settings four-lane status; wizard Review resume; Save & finish → “Setup saved / Saved to your account”; next step “Finish Traverion business verification first.” Stripe Connect not started (gates off). |
+| Stripe return / LIVE Account Link | **NOT RUN** — correctly blocked until LIVE create authorized |
+
+## Authorization request (required before LIVE Connect create)
+
+Please confirm explicitly if Traverion should:
+
+1. Insert one allowlisted supplier into `live_custom_onboarding_allowlist`
+2. Set `live_custom_onboarding_enabled = 1` for a controlled window
+
+Until then, eligible UX shows truthful “Waiting for connection access” and will launch Stripe Account Link only after those gates (plus business verified + pilot approval) are on.
 
 ## Remaining
 
-1. Full authenticated multi-device browser cert after deploy (login, edit, logout, login, Stripe return) once a TEST or allowlisted LIVE supplier session is available.
+1. Multi-device logout/login restore cert on a second browser profile after bank-status polish settles.
 2. LIVE create still blocked until explicit gate + allowlist authorization.
-3. EM Global / other rejected businesses remain ineligible until Traverion business verification + pilot approval.
+3. Businesses not Traverion-approved remain ineligible for Stripe connection.
