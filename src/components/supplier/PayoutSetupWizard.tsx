@@ -1624,10 +1624,12 @@ export default function PayoutSetupWizard({
                     void onContinue();
                   }}
                 >
-                  <p className="text-[13px] leading-snug text-[#5c6570]">
-                    Enter the person authorized to manage payouts. Do not assume a company director is
-                    automatically this representative.
-                  </p>
+                  {!embedded ? (
+                    <p className="text-[13px] leading-snug text-[#5c6570]">
+                      Enter the person authorized to manage payouts. Do not assume a company director is
+                      automatically this representative.
+                    </p>
+                  ) : null}
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <label className="block">
                       <FieldLabel>First name</FieldLabel>
@@ -2115,10 +2117,12 @@ export default function PayoutSetupWizard({
                     void onContinue();
                   }}
                 >
-                  <p className="text-[12px] leading-relaxed text-[#52525b]">
-                    Add your bank account. Traverion never stores your full account number — it is
-                    tokenized securely before submission.
-                  </p>
+                  {!embedded ? (
+                    <p className="text-[12px] leading-relaxed text-[#52525b]">
+                      Add your bank account. Traverion never stores your full account number — it is
+                      tokenized securely before submission.
+                    </p>
+                  ) : null}
                   {(bankManaged || bankMasked) && (
                     <p className="rounded-[10px] border border-emerald-200 bg-emerald-50 px-3 py-2 text-[12px] text-emerald-950">
                       Bank on file{bankMasked ? `: ${bankMasked}` : ''}. Enter a new IBAN only to replace
@@ -2533,9 +2537,13 @@ export default function PayoutSetupWizard({
             >
               {stepIndex === 0 ? 'Exit' : 'Back'}
             </button>
-            <span className="justify-self-center text-[11px] font-medium text-[#a1a1aa]">
-              {embedded ? '' : `${stepIndex + 1}/${PAYOUT_WIZARD_SCREENS.length}`}
-            </span>
+            {!embedded ? (
+              <span className="justify-self-center text-[11px] font-medium text-[#a1a1aa]">
+                {stepIndex + 1}/{PAYOUT_WIZARD_SCREENS.length}
+              </span>
+            ) : (
+              <span aria-hidden className="justify-self-center" />
+            )}
             <button
               type="button"
               className="tv-btn-primary payout-wizard__footer-next h-11 px-4 text-[13px]"

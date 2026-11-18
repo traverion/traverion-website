@@ -375,10 +375,10 @@ export default function PartnerOnboarding({
                 {lanes ? (
                   <ul className="mt-8 space-y-0 divide-y divide-[#eef1f4] border-y border-[#eef1f4]">
                     {[
-                      ['Company', lanes.businessVerification],
-                      ['Payout details', lanes.formProgress],
-                      ['Stripe', lanes.stripeVerification],
-                      ['Payouts', lanes.payoutReadiness],
+                      ['Company review', lanes.businessVerification],
+                      ['Your details', lanes.formProgress],
+                      ['Stripe check', lanes.stripeVerification],
+                      ['Ready to receive', lanes.payoutReadiness],
                     ].map(([label, value]) => (
                       <li
                         key={label}
