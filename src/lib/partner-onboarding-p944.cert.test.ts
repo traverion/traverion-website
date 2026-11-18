@@ -67,7 +67,7 @@ describe('P9.44 one-form onboarding + LIVE Connect readiness', () => {
   it('status shell syncs Stripe return inside PartnerOnboarding', () => {
     const page = readFileSync('src/pages/supplier/PartnerOnboarding.tsx', 'utf8');
     expect(page).toContain("connect !== 'return'");
-    expect(page).toContain('Continue with Stripe');
+    expect(page).toContain('Continue verification');
     expect(page).toContain('fetchConnectAccountLink');
     expect(page).toContain('onboardingCompletionCopy');
   });

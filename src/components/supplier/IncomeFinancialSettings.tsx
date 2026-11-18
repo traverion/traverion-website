@@ -74,7 +74,7 @@ function statusTone(label: string): PartnerStatusTone {
     case 'Restricted':
     case 'LIVE onboarding required':
       return 'bad';
-    case 'Details saved — Stripe not started':
+    case 'Details saved — verification not started':
       return 'neutral';
     default:
       return 'neutral';
@@ -435,20 +435,20 @@ export default function IncomeFinancialSettings({
                   ? PARTNER_HELP.underReview
                   : displayStatus === 'Action required' || displayStatus === 'Restricted'
                     ? PARTNER_HELP.actionRequired
-                    : displayStatus === 'Details saved — Stripe not started'
-                      ? 'Your details are saved on your Traverion account. Stripe verification starts only after payout connection is enabled for you.'
+                    : displayStatus === 'Details saved — verification not started'
+                      ? 'Your details are saved on your Traverion account. Payout verification starts only after connection is enabled for you.'
                       : PARTNER_HELP.incomplete}
             </PartnerHelpTip>
           </div>
           <dl className="grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-2 lg:grid-cols-4">
             <Fact label="Registered business" value={legalName} />
             <Fact label="Traverion business" value={readinessLanes.businessVerification} />
-            <Fact label="Stripe verification" value={readinessLanes.stripeVerification} />
+            <Fact label="Payout verification" value={readinessLanes.stripeVerification} />
             <Fact label="Payout readiness" value={readinessLanes.payoutReadiness} />
           </dl>
           <p className="mt-3 text-[12px] leading-relaxed text-[#71717a]">
             {readinessLanes.nextStep} Form progress restores across devices from your Traverion
-            account. Traverion never marks Stripe verification or payouts complete from a draft alone.
+            account. Traverion never marks verification or payouts complete from a draft alone.
           </p>
         </div>
       </SettingsCard>

@@ -62,7 +62,7 @@ export const UNIFIED_SETUP_SCREENS: UnifiedSetupScreen[] = [
   {
     id: 'status',
     title: 'Status',
-    lede: 'What is saved, what Traverion approved, and what Stripe still needs.',
+    lede: 'What is saved, what Traverion approved, and what payout verification still needs.',
   },
 ];
 
@@ -246,7 +246,7 @@ export function derivePartnerSetupProgress(
     nextPhase = phase === 'payout' ? 'payout' : 'representative';
     nextCta = nextPhase === 'payout' ? 'Set up payouts' : 'Add representative';
     nextHint =
-      'Confirm the authorized representative, then payout preferences. Continue with Stripe when connection opens.';
+      'Confirm the authorized representative, then payout preferences. Continue verification when connection opens.';
   } else if (!opts.hasListing) {
     nextPhase = 'status';
     nextCta = 'Create your first listing';

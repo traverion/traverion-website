@@ -211,7 +211,7 @@ export default function PartnerOnboarding({
   };
 
   const statusPrimaryLabel = needsStripeContinue
-    ? 'Continue with Stripe'
+    ? 'Continue verification'
     : progress.nextCta;
   const statusHeadline =
     progress.businessReview === 'rejected'
@@ -448,7 +448,7 @@ export default function PartnerOnboarding({
                     setPhaseAndUrl(progress.nextPhase);
                   }}
                 >
-                  {stripeBusy ? 'Opening Stripe…' : statusPrimaryLabel}
+                  {stripeBusy ? 'Opening secure verification…' : statusPrimaryLabel}
                   <ArrowRight className="ml-1.5 inline-block h-4 w-4" aria-hidden />
                 </button>
 
@@ -457,7 +457,7 @@ export default function PartnerOnboarding({
                     {[
                       ['Company review', lanes.businessVerification],
                       ['Your details', lanes.formProgress],
-                      ['Stripe check', lanes.stripeVerification],
+                      ['Payout verification', lanes.stripeVerification],
                       ['Ready to receive', lanes.payoutReadiness],
                     ].map(([label, value]) => (
                       <li
@@ -475,7 +475,7 @@ export default function PartnerOnboarding({
                   <NoticeCallout className="mt-6" title="Ready to host" tone="success">
                     {progress.publishReady
                       ? PARTNER_ONBOARDING_PUBLISH_READY_NOTE
-                      : 'Stripe verified your payout account. Create a listing when you are ready — Traverion enables payouts separately.'}
+                      : 'Payout verification is complete. Create a listing when you are ready — Traverion enables payouts separately.'}
                   </NoticeCallout>
                 ) : null}
 

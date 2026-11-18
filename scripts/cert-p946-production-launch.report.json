@@ -1,0 +1,105 @@
+{
+  "mission": "P9.46",
+  "title": "Traverion production launch readiness",
+  "generatedAt": "2026-11-19T00:33:00.000Z",
+  "overall": "BLOCKED_STRIPE_PLATFORM_PROFILE",
+  "platform": {
+    "stripe_account_id": "acct_1TFXp1CJawbWge6X",
+    "livemode": true,
+    "display_name": "Traverion",
+    "company": "EM Global Oy",
+    "country": "FI",
+    "charges_enabled": true,
+    "payouts_enabled": true,
+    "transfers_capability": "active",
+    "statement_descriptor": "TRAVERION ™",
+    "source": "Stripe GetAccount LIVE via MCP"
+  },
+  "blocker": {
+    "id": "platform_profile_requirements_collector",
+    "exact_error": "Please review the responsibilities of collecting requirements for connected accounts at https://dashboard.stripe.com/settings/connect/platform-profile.",
+    "evidence": [
+      "P9.45 ensure_account for EM Global returned this error; no account persisted",
+      "LIVE Express accounts for supplier 9e42bd3a carry metadata traverion_custom_create_error with the same message",
+      "Traverion create body uses dashboard=none + fees/losses_collector=application → requirements_collector=application"
+    ],
+    "founder_action": [
+      "Open https://dashboard.stripe.com/settings/connect/platform-profile in LIVE mode",
+      "Acknowledge collecting requirements for connected accounts",
+      "Confirm platform loss liability / negative balance responsibility",
+      "Confirm Connect platform setup allows live connected account creation",
+      "Authorize a temporary EM-only create window after Dashboard state changes"
+    ],
+    "retries": "STOPPED — no further ensure_account until Dashboard acknowledgment changes Stripe API acceptance"
+  },
+  "production_db": {
+    "project": "xcopqllkulxfkpunetbc",
+    "gates": {
+      "live_custom_onboarding_enabled": 0,
+      "stripe_connect_transfers_enabled": 0,
+      "payout_execution_enabled": 0,
+      "payout_auto_prepare_enabled": 0,
+      "payout_pilot_prepare_enabled": 0
+    },
+    "allowlist_count": 0,
+    "verified_suppliers": 1,
+    "suppliers_with_connect": 0,
+    "bookings_total": 0,
+    "bookings_paid": 0,
+    "em_global": {
+      "id": "eced0f8c-c2e4-469b-8bba-15170be68cc1",
+      "company_legal_name": "EM Global Oy",
+      "verification_status": "verified",
+      "has_connect": false,
+      "pilot_approval": true
+    }
+  },
+  "live_connected_accounts_observed": [
+    {
+      "id": "acct_1UcBXT2FvgTkBmd2",
+      "type": "express",
+      "supplier_id": "9e42bd3a-e72c-4472-bb7e-e8c3a59e2c18",
+      "name": "Royal Nordic",
+      "em_global": false,
+      "note": "Legacy Express fallback; not Accounts v2 recipient; not EM Global"
+    },
+    {
+      "id": "acct_1UcAxbCOlSVGqrHJ",
+      "type": "express",
+      "supplier_id": "9e42bd3a-e72c-4472-bb7e-e8c3a59e2c18",
+      "name": "Royal Nordic",
+      "em_global": false,
+      "note": "Second Express attempt for same supplier; custom create blocked by platform-profile"
+    }
+  ],
+  "phases": {
+    "1_connect_blocker": "DIAGNOSED_STOP_FOR_FOUNDER",
+    "2_one_form_onboarding": "OPERATIONAL",
+    "3_traverion_branding": "SHIPPED_THIS_MISSION",
+    "4_customer_payments": "CODE_READY_NOT_LIVE_CERTIFIED",
+    "5_commission_ledger": "MATH_READY_NO_LIVE_VOLUME",
+    "6_payout_readiness": "GATES_OFF_BY_DESIGN",
+    "7_booking_ops": "PARTIAL_RENTALS_GATED",
+    "8_premium_ux": "SHIPPED_CONTINUES_AFTER_CONNECT",
+    "9_monitoring": "PARTIAL_FLAGS_PREVENT_SILENT_MONEY_MOVES",
+    "10_e2e_cert": "BLOCKED_ON_PHASE_1"
+  },
+  "certification_matrix": {
+    "supplier_registration_to_verification": "PASS",
+    "approved_supplier_to_live_connect": "BLOCKED",
+    "connect_onboarding_to_verification_status": "BLOCKED",
+    "listing_publication": "PARTIAL",
+    "customer_booking_real_payment": "NOT_CERTIFIED",
+    "cancellation_refund": "CODE_PRESENT_NOT_LIVE_CERTIFIED",
+    "commission_earnings": "LOGIC_READY_NO_LIVE_DATA",
+    "payout_eligibility_transfer_readiness": "GATES_OFF",
+    "admin_monitoring_reconciliation": "PARTIAL"
+  },
+  "safety": {
+    "no_fabricated_kyc": true,
+    "no_fabricated_payments": true,
+    "no_duplicate_em_global_live_account": true,
+    "no_transfer_or_payout_gate_flip": true,
+    "create_retries_stopped": true
+  }
+}

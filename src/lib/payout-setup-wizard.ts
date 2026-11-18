@@ -40,13 +40,13 @@ export const PAYOUT_WIZARD_SCREENS: PayoutWizardScreen[] = [
   {
     id: 'identity',
     title: 'Identity',
-    lede: 'Accept the recipient agreement. Identity checks happen with Stripe when connection is available — Traverion does not keep copies of ID documents.',
+    lede: 'Accept the recipient agreement. Identity checks run securely when payout connection is available — Traverion does not keep copies of ID documents.',
     collector: 'mixed',
   },
   {
     id: 'bank',
     title: 'Bank account',
-    lede: 'Tell us where payouts should go. Full account numbers are sent only to Stripe when connection is allowed — Traverion never keeps the full number.',
+    lede: 'Tell us where payouts should go. Full account numbers are sent only when payout connection is allowed — Traverion never keeps the full number.',
     collector: 'traverion',
   },
   {
@@ -58,7 +58,7 @@ export const PAYOUT_WIZARD_SCREENS: PayoutWizardScreen[] = [
   {
     id: 'review',
     title: 'Review',
-    lede: 'See what is saved on your Traverion account versus business approval, Stripe checks, and payout readiness.',
+    lede: 'See what is saved on your Traverion account versus business approval, payout verification, and readiness.',
     collector: 'mixed',
   },
 ];
@@ -215,7 +215,7 @@ export function payoutVerificationPresentation(opts: {
   if (opts.connectLabel !== 'Not started') return opts.connectLabel;
   if (opts.hasConnectedAccount) return opts.connectLabel;
   if (opts.localProgress.wizardCompleted || opts.localProgress.hasSavedProgress) {
-    return 'Details saved — Stripe not started';
+    return 'Details saved — verification not started';
   }
   return 'Not started';
 }
@@ -283,7 +283,7 @@ export function buildPayoutReadinessLanes(opts: {
     payoutReadiness = 'TEST only — not LIVE payouts';
   } else if (!opts.hasConnectedAccount) {
     if (opts.liveCreateAllowed || opts.platformEnvironment === 'test') {
-      payoutReadiness = 'Ready to connect with Stripe';
+      payoutReadiness = 'Ready to connect payouts';
     } else if (opts.connectSetupUnavailable) {
       payoutReadiness = 'Waiting to connect';
     } else {
@@ -294,9 +294,9 @@ export function buildPayoutReadinessLanes(opts: {
     opts.connectLabel === 'Restricted' ||
     opts.connectLabel === 'LIVE onboarding required'
   ) {
-    payoutReadiness = 'Needs attention on Stripe';
+    payoutReadiness = 'Needs attention';
   } else {
-    payoutReadiness = 'Waiting for Stripe confirmation';
+    payoutReadiness = 'Waiting for confirmation';
   }
 
   let nextStep: string;
@@ -304,7 +304,7 @@ export function buildPayoutReadinessLanes(opts: {
     nextStep = 'Finish Traverion business verification first.';
   } else if (!opts.hasConnectedAccount) {
     if (opts.liveCreateAllowed || opts.platformEnvironment === 'test') {
-      nextStep = 'Continue with Stripe to verify identity and bank details.';
+      nextStep = 'Continue secure verification for identity and bank details.';
     } else {
       nextStep = 'Your details stay saved. Continue when payout connection opens for you.';
     }
@@ -313,11 +313,11 @@ export function buildPayoutReadinessLanes(opts: {
     opts.connectLabel === 'Restricted' ||
     opts.connectLabel === 'LIVE onboarding required'
   ) {
-    nextStep = 'Continue on Stripe to finish the items still needed.';
+    nextStep = 'Continue verification to finish the items still needed.';
   } else if (opts.canReceiveTransfers && opts.connectLivemode === true) {
-    nextStep = 'Stripe confirmed your account. Payouts start only after Traverion enables them.';
+    nextStep = 'Payout verification is complete. Payouts start only after Traverion enables them.';
   } else {
-    nextStep = 'Wait for Stripe to confirm your details, or refresh status.';
+    nextStep = 'Wait for verification to confirm your details, or refresh status.';
   }
 
   return {
@@ -343,16 +343,16 @@ export function payoutBankPresentation(opts: {
   }
   if (opts.connectSetupUnavailable && !opts.hasConnectedAccount) {
     if (opts.localProgress.bankDeferred || opts.localProgress.bankSavedLocally) {
-      return 'Saved for later — not sent to Stripe';
+      return 'Saved for later — not submitted yet';
     }
     return 'Not added';
   }
   if (opts.localProgress.bankSavedLocally) {
     return opts.localProgress.bankLast4
       ? `•••• ${opts.localProgress.bankLast4} — awaiting confirmation`
-      : 'Sent to Stripe — awaiting confirmation';
+      : 'Submitted — awaiting confirmation';
   }
-  if (opts.localProgress.bankDeferred) return 'Not sent to Stripe yet';
+  if (opts.localProgress.bankDeferred) return 'Not submitted yet';
   return 'Not added';
 }
 
@@ -978,7 +978,7 @@ export function isLiveAccountCreationGateError(message: string | null | undefine
 }
 
 export const PAYOUT_LIVE_SETUP_UNAVAILABLE_COPY =
-  'Payout connection is not open yet. Your details stay saved here — bank numbers are not sent to Stripe until you continue.';
+  'Payout connection is not open yet. Your details stay saved here — bank numbers are not submitted until you continue.';
 
 /** Shorter in-flow notice — full copy stays in help / status. */
 export const PAYOUT_LIVE_SETUP_UNAVAILABLE_SHORT =
@@ -1037,16 +1037,16 @@ export function onboardingCompletionCopy(state: OnboardingCompletionState): {
 } {
   if (state === 'ready_to_receive') {
     return {
-      kicker: 'Stripe confirmed',
+      kicker: 'Verified',
       title: 'Ready to receive payouts',
-      lede: 'Your payout account is verified with Stripe. Traverion enables payouts separately when your bookings are ready.',
+      lede: 'Your payout account is verified. Traverion enables payouts separately when your bookings are ready.',
     };
   }
   if (state === 'verification_pending') {
     return {
-      kicker: 'With Stripe',
+      kicker: 'Verification',
       title: 'Verification pending',
-      lede: 'Finish any remaining checks on Stripe. You will return here automatically.',
+      lede: 'Finish any remaining secure checks. You will return here automatically.',
     };
   }
   return {

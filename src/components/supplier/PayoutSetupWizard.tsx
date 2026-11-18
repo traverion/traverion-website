@@ -794,7 +794,7 @@ export default function PayoutSetupWizard({
       }
       onProfile(await fetchSupplierProfile(userId));
       setIdentityUploadNote(
-        `Document (${identityDocSide}) sent securely to Stripe. Traverion does not keep a copy.`
+        `Document (${identityDocSide}) sent securely for verification. Traverion does not keep a copy.`
       );
     } catch {
       setError('Could not read that file. Try a JPEG, PNG, or PDF under 8 MB.');
@@ -1036,7 +1036,7 @@ export default function PayoutSetupWizard({
           // Fall through to completion with honest next-step copy if Account Link fails.
           setNote(
             connectOnboardingUserMessage(link.error) ||
-              'Setup is saved. Open Continue on Stripe when you are ready.'
+              'Setup is saved. Open Continue verification when you are ready.'
           );
         }
       }
@@ -1119,7 +1119,7 @@ export default function PayoutSetupWizard({
       }
       const link = await fetchConnectAccountLink();
       if (!link.url) {
-        setError(connectOnboardingUserMessage(link.error) || 'Could not open Stripe.');
+        setError(connectOnboardingUserMessage(link.error) || 'Could not open secure verification.');
         return;
       }
       window.location.assign(link.url);
@@ -1176,11 +1176,11 @@ export default function PayoutSetupWizard({
       ? canLaunchHostedStripe && !hasConnectedAccount
         ? busy
           ? 'Connecting…'
-          : 'Connect with Stripe'
+          : 'Connect payouts'
         : canLaunchHostedStripe && (identityDocumentDue || accountRestricted || outstandingKeys.length > 0)
           ? busy
-            ? 'Opening Stripe…'
-            : 'Continue on Stripe'
+            ? 'Opening verification…'
+            : 'Continue verification'
           : busy
             ? 'Saving…'
             : 'Save & finish'
@@ -1257,7 +1257,7 @@ export default function PayoutSetupWizard({
                 {showConnectionPendingNote
                   ? 'Setup saved'
                   : canLaunchHostedStripe && !canReceive
-                    ? 'Continue with Stripe'
+                    ? 'Continue verification'
                     : 'You’re ready for the next step'}
               </h1>
               <p className="payout-wizard__complete-lede">{readinessLanes.nextStep}</p>
@@ -1288,7 +1288,7 @@ export default function PayoutSetupWizard({
                 </dd>
               </div>
               <div className="payout-wizard__status-row">
-                <dt>Stripe verification</dt>
+                <dt>Payout verification</dt>
                 <dd>
                   <span
                     className={[
@@ -1329,8 +1329,8 @@ export default function PayoutSetupWizard({
 
             <p className="payout-wizard__complete-note" role="status">
               {showConnectionPendingNote
-                ? 'Bank details are not sent to Stripe until Traverion enables payout connection for your account.'
-                : 'Statuses update only from Traverion business review and Stripe confirmation — never from finishing this form alone.'}
+                ? 'Bank details stay on Traverion until payout connection opens for your account.'
+                : 'Statuses update only from Traverion business review and payment-provider confirmation — never from finishing this form alone.'}
             </p>
 
             <div className="payout-wizard__complete-actions">
@@ -1342,7 +1342,11 @@ export default function PayoutSetupWizard({
                   disabled={busy || hostedLinkBusy || !canEdit}
                   onClick={() => void launchHostedStripe()}
                 >
-                  {hostedLinkBusy ? 'Opening Stripe…' : hasConnectedAccount ? 'Continue on Stripe' : 'Connect with Stripe'}
+                  {hostedLinkBusy
+                    ? 'Opening verification…'
+                    : hasConnectedAccount
+                      ? 'Continue verification'
+                      : 'Connect payouts'}
                 </button>
               ) : (
                 <button
@@ -1959,10 +1963,10 @@ export default function PayoutSetupWizard({
                     onboardingStatus === 'pending' ||
                     onboardingStatus === 'restricted') ? (
                     <div className="rounded-[10px] border border-[#dbe4f0] bg-[#f0f4fa] px-3 py-3 text-[12px] leading-relaxed text-[#1e3a5f]">
-                      <p className="font-semibold text-[#073b83]">Stripe-hosted verification</p>
+                      <p className="font-semibold text-[#073b83]">Secure verification</p>
                       <p className="mt-1">
-                        Complete remaining identity checks on Stripe’s secure page. Traverion only
-                        updates status after Stripe confirms it — never from this button alone.
+                        Complete remaining identity checks on the secure verification page. Traverion
+                        only updates status after confirmation — never from this button alone.
                       </p>
                       {outstandingLabels.length > 0 ? (
                         <ul className="mt-2 list-disc space-y-1 pl-4">
@@ -1982,14 +1986,14 @@ export default function PayoutSetupWizard({
                             const link = await fetchConnectAccountLink();
                             setHostedLinkBusy(false);
                             if (!link.url) {
-                              setError(link.error ?? 'Could not open Stripe verification.');
+                              setError(link.error ?? 'Could not open secure verification.');
                               return;
                             }
                             window.location.assign(link.url);
                           })();
                         }}
                       >
-                        {hostedLinkBusy ? 'Opening…' : 'Continue on Stripe'}
+                        {hostedLinkBusy ? 'Opening…' : 'Continue verification'}
                       </button>
                     </div>
                   ) : null}
@@ -2365,7 +2369,7 @@ export default function PayoutSetupWizard({
                       </dd>
                     </div>
                     <div className="payout-wizard__status-row">
-                      <dt>Stripe verification</dt>
+                      <dt>Payout verification</dt>
                       <dd>
                         <span className="payout-wizard__status-pill payout-wizard__status-pill--pending">
                           {verificationPresentation}
@@ -2518,7 +2522,7 @@ export default function PayoutSetupWizard({
                         disabled={busy || hostedLinkBusy || !canEdit}
                         onClick={() => void launchHostedStripe()}
                       >
-                        {hostedLinkBusy ? 'Opening Stripe…' : 'Open Stripe'}
+                        {hostedLinkBusy ? 'Opening verification…' : 'Continue verification'}
                       </button>
                     ) : null}
                     <button

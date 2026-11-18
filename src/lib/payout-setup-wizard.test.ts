@@ -50,7 +50,7 @@ describe('payout wizard local progress summary', () => {
     expect(summary.bankDeferred).toBe(true);
     expect(
       payoutBankPresentation({ bankManaged: false, localProgress: summary })
-    ).toBe('Not sent to Stripe yet');
+    ).toBe('Not submitted yet');
     expect(
       payoutBankPresentation({
         bankManaged: false,
@@ -58,14 +58,14 @@ describe('payout wizard local progress summary', () => {
         connectSetupUnavailable: true,
         hasConnectedAccount: false,
       })
-    ).toBe('Saved for later — not sent to Stripe');
+    ).toBe('Saved for later — not submitted yet');
     expect(
       payoutVerificationPresentation({
         connectLabel: 'Not started',
         hasConnectedAccount: false,
         localProgress: summary,
       })
-    ).toBe('Details saved — Stripe not started');
+    ).toBe('Details saved — verification not started');
     expect(
       payoutVerificationPresentation({
         connectLabel: 'Verified',
@@ -261,9 +261,9 @@ describe('ownership percent validation', () => {
     });
     expect(lanes.formProgress).toBe('Setup finished');
     expect(lanes.businessVerification).toBe('Approved');
-    expect(lanes.stripeVerification).toBe('Details saved — Stripe not started');
-    expect(lanes.payoutReadiness).toBe('Waiting for connection access');
-    expect(lanes.nextStep).toMatch(/Traverion account/i);
+    expect(lanes.stripeVerification).toBe('Details saved — verification not started');
+    expect(lanes.payoutReadiness).toBe('Waiting to connect');
+    expect(lanes.nextStep).toMatch(/payout connection opens/i);
   });
 
   it('prefers richer server draft when merging across devices', () => {
