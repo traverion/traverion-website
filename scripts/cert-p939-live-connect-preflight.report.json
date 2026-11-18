@@ -1,0 +1,67 @@
+{
+  "mission": "P9.39",
+  "generatedAt": "2026-11-18T18:37:12.671Z",
+  "project": "xcopqllkulxfkpunetbc",
+  "verdict": "NO-GO",
+  "gates": {
+    "live_custom_onboarding_enabled": 0,
+    "payout_auto_prepare_enabled": 0,
+    "payout_execution_enabled": 0,
+    "payout_pilot_prepare_enabled": 0,
+    "stripe_connect_transfers_enabled": 0
+  },
+  "allowlist_count": 0,
+  "pilot_approvals_count": 0,
+  "verified_supplier_count": 0,
+  "eligible_verified_without_connect": [],
+  "profiles": [
+    {
+      "company_legal_name": "EM Global Oy",
+      "company_registration_number": "3567289-4",
+      "has_connect": false,
+      "id": "eced0f8c-c2e4-469b-8bba-15170be68cc1",
+      "verification_status": "rejected"
+    },
+    {
+      "company_legal_name": "P9161 Browser Legal Oy",
+      "company_registration_number": "3123456-7",
+      "has_connect": false,
+      "id": "718ae3a5-ac82-4289-834e-a0ae960e3089",
+      "verification_status": "pending"
+    },
+    {
+      "company_legal_name": "P918 Arctic Tours Oy",
+      "company_registration_number": "1234567-1",
+      "has_connect": false,
+      "id": "be0f0169-26c4-4d74-90b0-69328cb929a8",
+      "verification_status": "pending"
+    },
+    {
+      "company_legal_name": "P921 Test Supplier Oy",
+      "company_registration_number": "1234567-1",
+      "has_connect": false,
+      "id": "a912ec92-660c-4d6e-9438-4506107b0500",
+      "verification_status": "pending"
+    },
+    {
+      "company_legal_name": "P922 TEST Supplier Oy",
+      "company_registration_number": "1234567-1",
+      "has_connect": false,
+      "id": "635efbf3-41c4-4a42-9039-4586f046c090",
+      "verification_status": "pending"
+    }
+  ],
+  "em_global": {
+    "company_legal_name": "EM Global Oy",
+    "company_registration_document_path": "eced0f8c-c2e4-469b-8bba-15170be68cc1/company-registration.png",
+    "company_registration_number": "3567289-4",
+    "feedback": "Business profile fields match YTJ for EM Global Oy (3567289-4), but the uploaded company-registration.png is a Royal Nordic marketing poster, not a Trade Register / company extract. Please upload an official PRH/YTJ registration extract (PD",
+    "id": "eced0f8c-c2e4-469b-8bba-15170be68cc1",
+    "verification_status": "rejected"
+  },
+  "notes": [
+    "Do not request LIVE create authorization while verified_supplier_count is 0.",
+    "Synthetic @traverion.invalid cert suppliers are not LIVE KYC-ready.",
+    "EM Global Oy remains rejected until a genuine PRH/YTJ extract is approved."
+  ]
+}
