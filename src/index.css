@@ -4359,31 +4359,51 @@ a:focus-visible,
 /* Consumer typography helpers — confident hierarchy without shouty all-caps */
 .tv-eyebrow {
   margin: 0 0 0.4rem;
-  font-family: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--tv-font-sans, 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif);
   font-size: var(--tv-type-label);
   font-weight: 650;
   letter-spacing: 0.04em;
   line-height: 1.3;
   text-transform: none;
-  color: #003580;
+  color: var(--tv-brand, #003580);
 }
 
 .tv-page-title {
-  font-family: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--tv-font-sans, 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif);
   font-size: var(--tv-type-page);
   font-weight: 700;
   letter-spacing: -0.025em;
   line-height: var(--tv-leading-tight);
-  color: #111827;
+  color: var(--tv-brand-ink, #0c1118);
 }
 
 .tv-section-heading {
-  font-family: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--tv-font-sans, 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif);
   font-size: var(--tv-type-section);
   font-weight: 650;
   letter-spacing: -0.022em;
   line-height: var(--tv-leading-tight);
-  color: var(--tv-pdp-ink, #111827);
+  color: var(--tv-pdp-ink, var(--tv-brand-ink, #0c1118));
+}
+
+.tv-display-title {
+  font-family: var(--tv-font-display, Fraunces, Georgia, serif);
+  font-size: var(--tv-type-display);
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: var(--tv-leading-tight);
+  color: var(--tv-brand-ink, #0c1118);
+}
+
+.tv-lede {
+  margin: 0;
+  font-family: var(--tv-font-sans, 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif);
+  font-size: var(--tv-type-body);
+  font-weight: 450;
+  letter-spacing: -0.01em;
+  line-height: var(--tv-leading-body);
+  color: var(--tv-brand-muted, #5a6472);
+  max-width: 40rem;
 }
 
 .tv-card-title {
