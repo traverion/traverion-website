@@ -1480,9 +1480,11 @@ export default function PayoutSetupWizard({
         <main ref={scrollRef} className={embedded ? 'min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-4 pt-3 sm:px-6 [-webkit-overflow-scrolling:touch]' : 'payout-wizard__scroll'}>
           <div className={embedded ? 'mx-auto w-full max-w-[36rem]' : 'payout-wizard__canvas'}>
             <div key={draft.step} className={stageClass}>
+              {!embedded ? (
               <p className="mb-1 hidden text-[11px] font-semibold uppercase tracking-[0.12em] text-[#073b83] lg:block">
                 Step {stepIndex + 1} of {PAYOUT_WIZARD_SCREENS.length}
               </p>
+              ) : null}
               <h1
                 ref={headingRef}
                 tabIndex={-1}
@@ -2519,7 +2521,7 @@ export default function PayoutSetupWizard({
               {stepIndex === 0 ? 'Exit' : 'Back'}
             </button>
             <span className="justify-self-center text-[11px] font-medium text-[#a1a1aa]">
-              {stepIndex + 1}/{PAYOUT_WIZARD_SCREENS.length}
+              {embedded ? '' : `${stepIndex + 1}/${PAYOUT_WIZARD_SCREENS.length}`}
             </span>
             <button
               type="button"
