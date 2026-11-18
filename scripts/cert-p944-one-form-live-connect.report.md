@@ -70,11 +70,27 @@ Then re-open the same controlled window and re-run `ensure_account` / Account Li
 
 ---
 
+## Browser certification (EM Global Oy)
+
+Authenticated production session on `partner.traverion.com/partner/onboarding` after Vercel deploy `3ed90eee`:
+
+| Phase | Observed |
+|---|---|
+| Company / Documents | Complete; company review **Approved** |
+| Representative / Payouts | Details saved in one shell; bank “Saved for later — not sent to Stripe” |
+| Status | **Setup submitted** · Stripe not started · Waiting to connect · CTA Create listing |
+
+No LIVE Connect account yet (Stripe platform-profile blocker). Transfers/payouts remain off.
+
+---
+
 ## Verdict
 
 | Area | Result |
 |---|---|
-| One-form UX + return path | **PASS** (code + edge deployed) |
+| One-form UX + return path | **PASS** (code + edge + Vercel production) |
 | Controlled create window open/close | **PASS** (audited; closed on failure) |
 | First LIVE Connect account for EM Global | **BLOCKED** — Stripe platform-profile acknowledgment |
 | Transfers / payouts | **OFF** (as required) |
+
+**Next human step:** Acknowledge Connect Platform profile in LIVE Stripe, then re-open the temporary create window for this supplier only.
