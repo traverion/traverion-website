@@ -40,7 +40,6 @@ export default function ConnectEmbeddedPanel({
 }: Props) {
   const [stripeConnectInstance, setStripeConnectInstance] = useState<StripeConnectInstance | null>(null);
   const [loading, setLoading] = useState(true);
-  const [painted, setPainted] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [retryNonce, setRetryNonce] = useState(0);
 
@@ -88,7 +87,6 @@ export default function ConnectEmbeddedPanel({
 
     void (async () => {
       setLoading(true);
-      setPainted(false);
       setError(null);
       setStripeConnectInstance(null);
       try {
@@ -180,14 +178,6 @@ export default function ConnectEmbeddedPanel({
 
   return (
     <div className="tv-connect-embed relative w-full min-w-0 min-h-[24rem] overflow-visible bg-white">
-      {!painted ? (
-        <div
-          className="absolute inset-0 z-10 flex items-center justify-center rounded-[10px] border border-[#e5e7eb] bg-white px-4 text-center text-[13px] text-[#52525b]"
-          role="status"
-        >
-          Loading secure verification…
-        </div>
-      ) : null}
       {expectStripeAuth ? (
         <div
           className="mb-3 rounded-[10px] border border-[#dbe4f0] bg-[#f0f4fa] px-3 py-2.5 text-[12px] leading-relaxed text-[#1e3a5f]"
@@ -216,7 +206,6 @@ export default function ConnectEmbeddedPanel({
               fields: 'eventually_due',
               futureRequirements: 'include',
             }}
-            onLoaderStart={() => setPainted(true)}
             onLoadError={({ error: loadError }) => {
               reportError(loadError?.message || 'Could not load verification');
             }}

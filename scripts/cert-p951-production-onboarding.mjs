@@ -248,10 +248,12 @@ async function runVp(browser, sess, vp) {
         await page
           .waitForFunction(
             () => {
-              const frame = document.querySelector('.tv-connect-embed iframe, iframe[src*="stripe"]');
-              if (!frame) return /Loading secure verification|Action required|date of birth/i.test(document.body.innerText);
-              const r = frame.getBoundingClientRect();
-              return r.height > 80 && r.width > 80;
+              const text = document.body?.innerText || '';
+              if (/Failed to send a request/i.test(text)) return true;
+              const frame = document.querySelector('.tv-connect-embed iframe[src*="connect-js.stripe.com"]');
+              if (!frame) return /date of birth/i.test(text);
+              const rect = frame.getBoundingClientRect();
+              return rect.height > 200 && rect.width > 200 && !/Loading secure verification/i.test(text);
             },
             { timeout: 25000 }
           )
@@ -290,10 +292,16 @@ async function runVp(browser, sess, vp) {
         );
       }
       if (phase === 'representative') {
+        const embedBox = await page.evaluate(() => {
+          const frame = document.querySelector('.tv-connect-embed iframe[src*="connect-js.stripe.com"]');
+          if (!frame) return null;
+          const rect = frame.getBoundingClientRect();
+          return { w: Math.round(rect.width), h: Math.round(rect.height) };
+        });
         note(
           `${vp.name} identity surface`,
-          box.dob > 0 || box.embed > 0 || /identity|verification|stripe/i.test(box.preview),
-          `dob=${box.dob} embed=${box.embed}`
+          box.dob > 0 || (embedBox && embedBox.h > 200 && !/Loading secure verification|Failed to send a request/i.test(box.preview)),
+          embedBox ? `${embedBox.w}x${embedBox.h}` : `dob=${box.dob}`
         );
         const focusRing = await page.evaluate(() => {
           const h1 = document.querySelector('h1');

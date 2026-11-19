@@ -1656,6 +1656,7 @@ export default function PayoutSetupWizard({
 
               {/* P9.42: show LIVE gate notice once per flow (representative), not on every step. */}
               {connectSetupUnavailable &&
+              !hasConnectedAccount &&
               (!embedded || draft.step === 'representative') ? (
                 <p
                   className="mt-3 inline-flex max-w-xl items-start gap-1.5 border-l-2 border-[#073b83] pl-3 text-[13px] leading-snug text-[#1e3a5f]"
