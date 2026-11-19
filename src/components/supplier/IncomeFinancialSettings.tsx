@@ -5,29 +5,23 @@ import {
 } from '../../data/supabase-supplier-profile';
 import { invokeConnectSupplierOnboarding } from '../../data/supabase-connect-onboarding';
 import type { SupplierCommercialTermsRow } from '../../data/supabase-earnings';
-import {
-  connectCanReceiveTransfers,
-  connectOnboardingLabel,
-} from '../../lib/connect-payout-status';
-import { deriveConnectExperienceState } from '../../lib/connect-payout-progress';
+import { connectCanReceiveTransfers } from '../../lib/connect-payout-status';
 import { bankAlreadyManaged } from '../../lib/verification-workspace-lifecycle';
 import { maskIban } from '../../lib/supplier-income';
 import { PARTNER_HELP } from '../../lib/partnerHelpCopy';
-import type { PartnerStatusTone } from '../../lib/partnerVerificationStatus';
+import { payoutAvailabilityCopy, supplierVerificationState } from '../../lib/supplier-verification-state';
+import SupplierVerificationCard from './SupplierVerificationCard';
 import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
 import {
-  buildPayoutReadinessLanes,
   firstOutstandingWizardStep,
   loadPayoutWizardDraft,
   mergeServerPayoutWizardDraft,
   payoutBankPresentation,
-  payoutVerificationPresentation,
   savePayoutWizardDraft,
   summarizePayoutWizardLocalProgress,
   emptyPayoutWizardDraft,
   type PayoutWizardStepId,
 } from '../../lib/payout-setup-wizard';
-import StatusChip from '../StatusChip';
 import PartnerHelpTip from './PartnerHelpTip';
 
 const PayoutSetupWizard = lazy(() => import('./PayoutSetupWizard'));
@@ -62,23 +56,6 @@ function preferenceMinimum(
   if (!Number.isFinite(n)) return String(min);
   const code = (currency || 'EUR').toUpperCase();
   return `${n.toLocaleString('en-GB', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ${code}`;
-}
-
-function statusTone(label: string): PartnerStatusTone {
-  switch (label) {
-    case 'Verified':
-      return 'good';
-    case 'Under review':
-      return 'warn';
-    case 'Action required':
-    case 'Restricted':
-    case 'LIVE onboarding required':
-      return 'bad';
-    case 'Details saved — verification not started':
-      return 'neutral';
-    default:
-      return 'neutral';
-  }
 }
 
 function bankStatusLabel(input: {
@@ -178,58 +155,19 @@ export default function IncomeFinancialSettings({
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
   const [draftTick, setDraftTick] = useState(0);
-  const [liveCreateAllowed, setLiveCreateAllowed] = useState(false);
-  const [platformEnvironment, setPlatformEnvironment] = useState<'test' | 'live' | null>(null);
   const [connectSetupUnavailable, setConnectSetupUnavailable] = useState(false);
+  const [payoutGatesOpen, setPayoutGatesOpen] = useState(false);
 
-  const experience = deriveConnectExperienceState(profile);
-  /** Provider mirror label — never “Payouts enabled” while execution may be off. */
-  const connectStatus = connectOnboardingLabel(profile?.connect_onboarding_status, {
-    connect_account_livemode: profile?.connect_account_livemode,
-  });
   const localProgress = useMemo(
     () => summarizePayoutWizardLocalProgress(loadPayoutWizardDraft(userId)),
     [userId, draftTick, wizardOpen]
   );
   const hasConnectedAccount = Boolean(profile?.stripe_connected_account_id);
-  /** Supplier-facing Stripe chip — never upgrades from form markers alone. */
-  const displayStatus = payoutVerificationPresentation({
-    connectLabel: connectStatus,
-    hasConnectedAccount,
-    localProgress,
-  });
-  const canReceive = connectCanReceiveTransfers(profile ?? {});
-  const readinessLanes = useMemo(
-    () =>
-      buildPayoutReadinessLanes({
-        localProgress,
-        verificationStatus: profile?.verification_status,
-        connectLabel: connectStatus,
-        hasConnectedAccount,
-        canReceiveTransfers: canReceive,
-        connectLivemode: profile?.connect_account_livemode,
-        connectSetupUnavailable,
-        liveCreateAllowed,
-        platformEnvironment,
-      }),
-    [
-      localProgress,
-      profile?.verification_status,
-      profile?.connect_account_livemode,
-      connectStatus,
-      hasConnectedAccount,
-      canReceive,
-      connectSetupUnavailable,
-      liveCreateAllowed,
-      platformEnvironment,
-    ]
-  );
-  const verified = displayStatus === 'Verified';
+  const verification = supplierVerificationState(profile);
+  const payoutNote = payoutAvailabilityCopy(verification.status, payoutGatesOpen);
+  const verified = verification.status === 'verified';
   const bankOk = bankAlreadyManaged(profile);
-  const actionRequired =
-    displayStatus === 'Action required' ||
-    displayStatus === 'Restricted' ||
-    displayStatus === 'LIVE onboarding required';
+  const actionRequired = verification.status === 'action_required';
   const maskedIban = maskIban(profile?.payout_iban);
   const bankIdentifier = maskedIban
     ? maskedIban
@@ -247,19 +185,12 @@ export default function IncomeFinancialSettings({
       });
   const showBankCard =
     bankOk || localProgress.bankSavedLocally || localProgress.bankDeferred;
-  const legalName =
-    profile?.company_legal_name?.trim() ||
-    profile?.display_name?.trim() ||
-    null;
 
   useEffect(() => {
     let cancelled = false;
     void invokeConnectSupplierOnboarding('status').then((result) => {
       if (cancelled) return;
-      if (result.environment === 'test' || result.environment === 'live') {
-        setPlatformEnvironment(result.environment);
-      }
-      setLiveCreateAllowed(Boolean(result.live_create_allowed) || result.environment === 'test');
+      setPayoutGatesOpen(result.payout_gates_open === true);
       if (result.environment === 'live' && !result.live_create_allowed && !hasConnectedAccount) {
         setConnectSetupUnavailable(true);
       } else {
@@ -351,15 +282,6 @@ export default function IncomeFinancialSettings({
     onProfile(await fetchSupplierProfile(userId));
   };
 
-  const primarySetupLabel = localProgress.wizardCompleted
-    ? 'Review setup'
-    : localProgress.hasSavedProgress
-      ? 'Continue setup'
-      : connectStatus === 'Not started' || experience === 'not_started'
-        ? 'Set up payouts'
-        : 'Continue setup';
-  const showPrimarySetup = !verified || actionRequired || localProgress.hasSavedProgress;
-
   if (wizardOpen) {
     return (
       <Suspense
@@ -392,81 +314,9 @@ export default function IncomeFinancialSettings({
 
   return (
     <div id="income-payout-settings" className={`mx-auto w-full ${CONTENT_MAX} space-y-4`}>
-      <SettingsCard
-        title="Payout account"
-        help={PARTNER_HELP.payoutStatus}
-        action={
-          showPrimarySetup ? (
-            <button
-              type="button"
-              className="tv-btn-primary h-10 px-4 text-[13px]"
-              disabled={!canEdit || busy}
-              onClick={() => openWizard()}
-            >
-              {busy ? 'Working…' : primarySetupLabel}
-            </button>
-          ) : verified ? (
-            <button
-              type="button"
-              className="tv-btn-secondary h-10 px-4 text-[13px]"
-              disabled={!canEdit || busy}
-              onClick={() => openWizard('review')}
-            >
-              Review setup
-            </button>
-          ) : null
-        }
-      >
-        <div className="rounded-[10px] border border-[#eef1f4] bg-[#f8fafc] px-4 py-4 sm:px-5">
-          <div className="mb-4 flex flex-wrap items-center gap-2">
-            <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#71717a]">
-              Status
-            </span>
-            <StatusChip tone={statusTone(displayStatus)}>{displayStatus}</StatusChip>
-            {localProgress.hasSavedProgress ? (
-              <StatusChip tone="neutral">
-                {localProgress.wizardCompleted ? 'Setup saved' : 'Details saved'}
-              </StatusChip>
-            ) : null}
-            <PartnerHelpTip label="About payout status">
-              {displayStatus === 'Verified'
-                ? PARTNER_HELP.verified
-                : displayStatus === 'Under review'
-                  ? PARTNER_HELP.underReview
-                  : displayStatus === 'Action required' || displayStatus === 'Restricted'
-                    ? PARTNER_HELP.actionRequired
-                    : displayStatus === 'Details saved — verification not started'
-                      ? 'Your details are saved on your Traverion account. Payout verification starts only after connection is enabled for you.'
-                      : PARTNER_HELP.incomplete}
-            </PartnerHelpTip>
-          </div>
-          <dl className="grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-2 lg:grid-cols-4">
-            <Fact label="Registered business" value={legalName} />
-            <Fact label="Traverion business" value={readinessLanes.businessVerification} />
-            <Fact label="Payout verification" value={readinessLanes.stripeVerification} />
-            <Fact label="Payout readiness" value={readinessLanes.payoutReadiness} />
-          </dl>
-          <p className="mt-3 text-[12px] leading-relaxed text-[#71717a]">
-            {readinessLanes.nextStep} Form progress restores across devices from your Traverion
-            account. Traverion never marks verification or payouts complete from a draft alone.
-          </p>
-        </div>
-      </SettingsCard>
+      <SupplierVerificationCard view={verification} variant="page" extra={payoutNote} />
 
-      <SettingsCard
-        title="Bank account"
-        help={PARTNER_HELP.bankAccount}
-        action={
-          <button
-            type="button"
-            className="tv-btn-secondary h-10 px-4 text-[13px]"
-            disabled={!canEdit || busy}
-            onClick={() => openWizard('bank')}
-          >
-            {bankOk ? 'Replace bank account' : 'Add bank account'}
-          </button>
-        }
-      >
+      <SettingsCard title="Bank account" help={PARTNER_HELP.bankAccount}>
         {showBankCard ? (
           <dl className="grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-2">
             <Fact

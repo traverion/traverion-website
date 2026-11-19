@@ -5,21 +5,8 @@ import NoticeCallout from '../../components/NoticeCallout';
 import StatusChip from '../../components/StatusChip';
 import { USER_ERROR } from '../../lib/userFacingError';
 import { ChevronRight } from 'lucide-react';
-import {
-  partnerAccountStatus,
-  partnerBusinessReviewState,
-  partnerPayoutReviewState,
-} from '../../lib/partnerVerificationStatus';
-import {
-  isSupplierBusinessProfileComplete,
-  isSupplierPayoutConfigured,
-} from '../../lib/supplierOnboarding';
-import {
-  ONBOARDING_LANE_LABEL,
-  onboardingLanesVerified,
-  supplierOnboardingSnapshot,
-  supplierSetupMenuLabel,
-} from '../../lib/supplier-onboarding-progress';
+import { supplierVerificationState } from '../../lib/supplier-verification-state';
+import SupplierVerificationCard from '../../components/supplier/SupplierVerificationCard';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import { fetchMyListings } from '../../data/supabase-listings';
 import { fetchBookingsForSupplier, type BookingRow } from '../../data/supabase-bookings';
@@ -184,15 +171,6 @@ function recentBookingStatus(b: BookingRow): { label: string; tone: 'ok' | 'warn
   if (isCollectedBooking(b)) return { label: 'Confirmed', tone: 'ok' };
   if (st) return { label: st.charAt(0).toUpperCase() + st.slice(1), tone: 'neutral' };
   return { label: 'Booked', tone: 'neutral' };
-}
-
-function accountNavHref(profile: NonNullable<Awaited<ReturnType<typeof fetchSupplierProfile>>>, kind: string) {
-  const businessOk = (profile.verification_status || '').trim().toLowerCase() === 'verified';
-  const payoutOk = (profile.payout_verification_status || '').trim().toLowerCase() === 'verified';
-  if (kind === 'setup') return `${PARTNER_APP_BASE}/onboarding`;
-  // P9.41: unfinished verification resumes inside the unified onboarding shell.
-  if (businessOk && !payoutOk) return `${PARTNER_APP_BASE}/onboarding?phase=representative`;
-  return `${PARTNER_APP_BASE}/onboarding`;
 }
 
 function bookingLabel(b: BookingRow | undefined, titles: Record<string, string>): string {
@@ -450,35 +428,13 @@ export default function SupplierDashboard() {
     [supplierBookings]
   );
 
-  /**
-   * profile starts null (before the first fetch resolves, or if that one fetch in the
-   * Promise.allSettled batch fails while bookings/listings still succeed) — defaulting to
-   * "needs action" in that case falsely tells an already-verified supplier to finish
-   * onboarding. Only flag this once we actually have profile data saying otherwise.
-   */
-  const accountStatus = useMemo(() => {
-    if (!profile) return null;
-    const business = partnerBusinessReviewState({
-      verificationStatus: profile.verification_status,
-      submittedAt: profile.verification_submitted_at,
-      draftComplete: isSupplierBusinessProfileComplete(profile),
-      feedback: profile.business_verification_feedback,
-    });
-    const payout = partnerPayoutReviewState({
-      verificationStatus: profile.payout_verification_status,
-      submittedAt: profile.payout_verification_submitted_at,
-      hasBankDetails: isSupplierPayoutConfigured(profile),
-    });
-    return partnerAccountStatus({ business, payout });
-  }, [profile]);
-
-  const setupSnapshot = useMemo(
-    () => (profile ? supplierOnboardingSnapshot(profile) : null),
+  const verification = useMemo(
+    () => (profile ? supplierVerificationState(profile) : null),
     [profile]
   );
 
   /** Incomplete / rejected verification counts toward Needs attention; pending review is shown in Account status. */
-  const verificationNeedsAction = Boolean(setupSnapshot?.actionable);
+  const verificationNeedsAction = verification?.status === 'action_required';
 
   const pickupGaps = useMemo(() => {
     const nowMs = Date.now();
@@ -623,11 +579,6 @@ export default function SupplierDashboard() {
         ? `${todayDepartures.length} today · ${dateLabel}`
         : dateLabel;
 
-  const openAccountStatus = () => {
-    if (!profile || !accountStatus) return;
-    navigateSupplierUrl(accountNavHref(profile, accountStatus.kind));
-  };
-
   const scheduleEvents = scheduleTab === 'today' ? todayScheduleEvents : weekScheduleEvents;
 
   return (
@@ -640,17 +591,6 @@ export default function SupplierDashboard() {
           <p className="partner-home__sub">{greetingSub}</p>
         </div>
         <div className="partner-home__header-actions">
-          {accountStatus?.kind === 'operational' && !dashboardLoading ? (
-            <button
-              type="button"
-              className="partner-home__ops-pill lux-flat"
-              onClick={openAccountStatus}
-              title={accountStatus.detail}
-            >
-              <span className="partner-home__ops-dot" aria-hidden />
-              Operational
-            </button>
-          ) : null}
           <button
             type="button"
             onClick={() => openSupplierCalendar(calendarFocusListingId)}
@@ -667,6 +607,8 @@ export default function SupplierDashboard() {
           </button>
         </div>
       </header>
+
+      {verification && !dashboardLoading ? <SupplierVerificationCard view={verification} variant="home" /> : null}
 
       {dashboardError && (
         <ErrorState
@@ -771,24 +713,6 @@ export default function SupplierDashboard() {
         </button>
       </section>
 
-      {setupSnapshot && !onboardingLanesVerified(setupSnapshot) && !dashboardLoading && profile ? (
-        <button
-          type="button"
-          onClick={openAccountStatus}
-          className="partner-home__account-alert lux-flat partner-row-interact partner-home__account-alert--setup"
-          data-setup-alert="open"
-        >
-          <span className="min-w-0 flex-1">
-            <span className="flex flex-wrap items-center gap-2">
-              <span className="text-[13.5px] font-semibold text-slate-900">{supplierSetupMenuLabel(setupSnapshot)}</span>
-            </span>
-            <span className="mt-1 block text-[12.5px] leading-snug text-slate-500">
-              {`${ONBOARDING_LANE_LABEL[setupSnapshot.company.status]} · ${ONBOARDING_LANE_LABEL[setupSnapshot.identity.status]} · ${ONBOARDING_LANE_LABEL[setupSnapshot.payout.status]}`}
-            </span>
-          </span>
-          <ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-slate-300" aria-hidden />
-        </button>
-      ) : null}
 
       {attentionCount > 0 && (
         <section className="partner-home-section" id="partner-home-attention">
@@ -946,39 +870,6 @@ export default function SupplierDashboard() {
                 }
                 detail="Finish and publish when ready"
                 onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/listings?filter=draft`)}
-              />
-            )}
-            {verificationNeedsAction && accountStatus?.kind === 'rejected' && (
-              <AttentionItem
-                tone="danger"
-                title={accountStatus.title}
-                detail={
-                  (profile?.business_verification_feedback ?? '').trim() ||
-                  (profile?.payout_verification_feedback ?? '').trim() ||
-                  accountStatus.detail
-                }
-                onClick={() => {
-                  const businessNeedsFix =
-                    partnerBusinessReviewState({
-                      verificationStatus: profile?.verification_status,
-                      submittedAt: profile?.verification_submitted_at,
-                      feedback: profile?.business_verification_feedback,
-                    }) === 'rejected';
-                  navigateSupplierUrl(
-                    businessNeedsFix
-                      ? `${PARTNER_APP_BASE}/onboarding?phase=documents`
-                      : `${PARTNER_APP_BASE}/onboarding`
-                  );
-                }}
-              />
-            )}
-            {setupSnapshot &&
-            (setupSnapshot.actionable || setupSnapshot.identity.status === 'pending_verification' || setupSnapshot.payout.status === 'pending_verification') && (
-              <AttentionItem
-                tone={setupSnapshot.actionable ? 'warn' : 'info'}
-                title={supplierSetupMenuLabel(setupSnapshot)}
-                detail={`${ONBOARDING_LANE_LABEL[setupSnapshot.company.status]} · ${ONBOARDING_LANE_LABEL[setupSnapshot.identity.status]} · ${ONBOARDING_LANE_LABEL[setupSnapshot.payout.status]}`}
-                onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/onboarding`)}
               />
             )}
           </ul>

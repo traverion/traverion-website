@@ -42,10 +42,9 @@ import {
   type SupplierOnboardingVisibility,
 } from '../../lib/supplier-onboarding-steps';
 import {
-  ONBOARDING_LANE_LABEL,
-  onboardingLanesVerified,
   supplierOnboardingSnapshot,
 } from '../../lib/supplier-onboarding-progress';
+import { supplierVerificationState } from '../../lib/supplier-verification-state';
 
 type OwnerEntry = { first_name: string; last_name: string; dob: string; percent_ownership: string };
 
@@ -325,7 +324,7 @@ export default function SupplierOnboardingFlow({
       if (ok) advance('terms', { bankOpen: false, termsOpen: false });
       return;
     }
-    if (snapshot.actionable) go(snapshot.nextScreen);
+    if (verification.actionLabel) go(snapshot.nextScreen);
     else onExit();
   };
 
@@ -533,27 +532,13 @@ export default function SupplierOnboardingFlow({
     screen === 'documents' ? ['company', 'documents', ...visible.filter((id) => id !== 'company')] : visible,
     screen === 'documents' ? 'documents' : visible.includes(screen) ? screen : visible[0] ?? 'company'
   );
-  const lanesVerified = onboardingLanesVerified(snapshot);
-  const title = screen === 'status'
-    ? snapshot.actionable
-      ? 'Action required'
-      : lanesVerified
-        ? 'Verified'
-        : 'Verification pending'
-    : meta.title;
-  const body = screen === 'status'
-    ? snapshot.actionable
-      ? snapshot.nextAction
-      : lanesVerified
-        ? 'Company, identity, and the payout account are verified.'
-        : 'Nothing else is needed right now.'
-    : meta.body;
+  const verification = supplierVerificationState(profile);
+  const title = screen === 'status' ? verification.title : meta.title;
+  const body = screen === 'status' ? verification.summary : meta.body;
   const cityLine = [profile?.address_postal_code, profile?.address_city].filter(Boolean).join(' ');
   const primary =
     screen === 'status'
-      ? snapshot.actionable
-        ? 'Continue'
-        : 'Done'
+      ? verification.actionLabel ?? 'Done'
       : screen === 'bank' && !flags.termsOpen
         ? 'Save bank account'
       : screen === 'consent'
@@ -814,23 +799,12 @@ export default function SupplierOnboardingFlow({
             </label>
           ) : null}
           {screen === 'status' ? (
-            <ul className="mt-4 divide-y divide-[#E6EAF0] rounded-2xl border border-[#E6EAF0]">
-              {(
-                [
-                  ['Company', snapshot.company],
-                  ['Identity', snapshot.identity],
-                  ['Payout account', snapshot.payout],
-                ] as const
-              ).map(([label, lane]) => (
-                <li key={label} className="flex items-center justify-between gap-4 px-4 py-3">
-                  <span className="text-[15px] font-medium text-ink">{label}</span>
-                  <span className="text-right text-[13px] text-ink/70">
-                    {ONBOARDING_LANE_LABEL[lane.status]}
-                    {lane.status === 'action_required' ? ` · ${lane.detail}` : ''}
-                  </span>
-                </li>
+            <div className="mt-4 space-y-3">
+              {verification.requirements.map((item) => (
+                <p key={item} className="text-[15px] text-ink">{item}</p>
               ))}
-            </ul>
+              <p className="text-[14px] text-ink/60">{verification.next}</p>
+            </div>
           ) : null}
           {error ? (
             <p className="mt-4 text-[14px] font-medium text-[#9f1239]" role="alert">

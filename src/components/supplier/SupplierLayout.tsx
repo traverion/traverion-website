@@ -35,7 +35,7 @@ import {
   type SupplierProfileRow,
 } from '../../data/supabase-supplier-profile';
 import { type UnifiedSetupPhaseId } from '../../lib/partner-unified-setup';
-import { supplierOnboardingSnapshot, supplierSetupMenuLabel } from '../../lib/supplier-onboarding-progress';
+import { supplierVerificationState } from '../../lib/supplier-verification-state';
 import {
   applyLegalPlaceholders,
   applyLegalDate,
@@ -951,16 +951,9 @@ export default function SupplierLayout() {
   const onPortalPath = isSupplierPortalPath(pathname);
   const partnerMarketingPage = partnerMarketingPageFromPathname(pathname);
   const onboardingHasListing = onboardingListingCount !== null && onboardingListingCount > 0;
-  const setupSnapshot = onboardingProfile ? supplierOnboardingSnapshot(onboardingProfile) : null;
-  const setupMenuLabel = setupSnapshot ? supplierSetupMenuLabel(setupSnapshot) : '';
-  const showSetupEntry = Boolean(
-    setupSnapshot &&
-      !(
-        setupSnapshot.company.status === 'verified' &&
-        setupSnapshot.identity.status === 'verified' &&
-        setupSnapshot.payout.status === 'verified'
-      )
-  );
+  const verification = onboardingProfile ? supplierVerificationState(onboardingProfile) : null;
+  const setupMenuLabel = verification?.title ?? '';
+  const showSetupEntry = Boolean(verification && verification.status !== 'verified');
 
   const continueUnifiedPhase = (phase: UnifiedSetupPhaseId) => {
     navigateSupplierUrl(`${PARTNER_APP_BASE}/onboarding?phase=${phase}`);
@@ -1110,7 +1103,7 @@ export default function SupplierLayout() {
             canCreate={canCreateListings}
             showFinishSetup={showSetupEntry}
             finishSetupLabel={setupMenuLabel}
-            onFinishSetup={() => handleNavigate('onboarding')}
+            onFinishSetup={() => handleNavigate('verification')}
             collapsed={sidebarCollapsed}
             onToggleCollapsed={() =>
               setSidebarCollapsed((v) => {
@@ -1181,7 +1174,7 @@ export default function SupplierLayout() {
                     {showSetupEntry && (
                       <button
                         type="button"
-                        onClick={() => handleNavigate('onboarding')}
+                        onClick={() => handleNavigate('verification')}
                         className="partner-nav-item lux-flat w-full text-left px-2.5 py-2 rounded-md text-[13px] text-slate-700 hover:bg-slate-50"
                       >
                         {setupMenuLabel}
@@ -1262,7 +1255,7 @@ export default function SupplierLayout() {
                     </p>
                   ) : null}
                   {showSetupEntry && (
-                    <button type="button" onClick={() => handleNavigate('onboarding')} className="partner-nav-item lux-flat w-full text-left rounded-md px-2 py-3 text-[15px] text-slate-700">
+                    <button type="button" onClick={() => handleNavigate('verification')} className="partner-nav-item lux-flat w-full text-left rounded-md px-2 py-3 text-[15px] text-slate-700">
                       {setupMenuLabel}
                     </button>
                   )}

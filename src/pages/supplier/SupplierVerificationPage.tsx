@@ -1,28 +1,55 @@
-import { useEffect } from 'react';
-import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
-import { navigateSupplierUrl } from '../../lib/supplierPortalNavigation';
+import { useEffect, useState } from 'react';
+import SupplierVerificationCard from '../../components/supplier/SupplierVerificationCard';
+import { SUPPLIER_PAGE_CLASS, SupplierPageHero } from '../../components/supplier/supplierUi';
+import { fetchSupplierProfile, type SupplierProfileRow } from '../../data/supabase-supplier-profile';
+import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
+import { supplierVerificationState } from '../../lib/supplier-verification-state';
 
-/**
- * Legacy /partner/verification — P9.41 redirects into the unified onboarding shell.
- * Income & Payouts still opens PayoutSetupWizard fullscreen for account management.
- */
-export default function SupplierVerificationPage() {
+export default function SupplierVerificationPage({
+  profile: initialProfile = null,
+}: {
+  profile?: SupplierProfileRow | null;
+}) {
+  const { user } = useSupplierAuth();
+  const [profile, setProfile] = useState<SupplierProfileRow | null>(initialProfile);
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const step = (params.get('step') ?? '').trim();
-    const focus = (params.get('focus') ?? '').trim();
-    const phase =
-      focus === 'bank' || step === 'bank' || step === 'preferences'
-        ? 'payout'
-        : step === 'review'
-          ? 'status'
-          : 'representative';
-    navigateSupplierUrl(`${PARTNER_APP_BASE}/onboarding?phase=${phase}`);
-  }, []);
+    setProfile(initialProfile);
+  }, [initialProfile]);
+  useEffect(() => {
+    if (!user?.id) return;
+    void fetchSupplierProfile(user.id).then((next) => {
+      if (next) setProfile(next);
+    });
+  }, [user?.id]);
+
+  const view = supplierVerificationState(profile);
+  const companyName = profile?.company_legal_name?.trim() || '';
+  const documentOnFile = Boolean(profile?.company_registration_document_path?.trim());
+  const payoutOnFile = profile?.connect_payouts_enabled === true;
 
   return (
-    <div className="flex min-h-[40vh] items-center justify-center px-4 text-[13px] text-[#52525b]">
-      Opening partner setup…
+    <div className={SUPPLIER_PAGE_CLASS}>
+      <SupplierPageHero sansTitle title="Verification" description="The status of your supplier account." />
+      <SupplierVerificationCard view={view} variant="page" />
+      <section className="rounded-2xl border border-slate-200/80 bg-white px-5 py-5 sm:px-6" aria-label="Submitted information">
+        <h2 className="text-[15px] font-semibold text-slate-900">Submitted information</h2>
+        <dl className="mt-4 grid gap-4 sm:grid-cols-3">
+          <div>
+            <dt className="text-[12px] text-slate-500">Company</dt>
+            <dd className="mt-1 text-[14px] text-slate-900">{companyName || 'Not added'}</dd>
+          </div>
+          <div>
+            <dt className="text-[12px] text-slate-500">Registration document</dt>
+            <dd className="mt-1 text-[14px] text-slate-900">{documentOnFile ? 'On file' : 'Not added'}</dd>
+          </div>
+          <div>
+            <dt className="text-[12px] text-slate-500">Payout account</dt>
+            <dd className="mt-1 text-[14px] text-slate-900">
+              {view.status === 'verified' ? 'Approved' : payoutOnFile ? 'Submitted' : 'Not added'}
+            </dd>
+          </div>
+        </dl>
+      </section>
     </div>
   );
 }

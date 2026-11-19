@@ -29,7 +29,7 @@ import { SUPPLIER_PAGE_CLASS, SupplierListSkeleton } from '../../components/supp
 import ErrorState from '../../components/ErrorState';
 import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
 import { openSupplierBooking } from '../../lib/supplierPortalNavigation';
-import { connectOnboardingLabel } from '../../lib/connect-payout-status';
+import { supplierVerificationState } from '../../lib/supplier-verification-state';
 import { formatIncomeMoney, normalizeCurrency } from '../../lib/money';
 import { isCollectedBooking, isRefundDueBooking } from '../../lib/payment-states';
 import { bookingIsRental, bookingIsStayNight } from '../../lib/pickup-completeness';
@@ -1165,12 +1165,10 @@ export default function SupplierEarnings() {
             </div>
             <div>
               <span className="tv-income-info-strip__label">Payout account</span>
-              <p className="tv-income-info-strip__value">
-                {connectOnboardingLabel(profile?.connect_onboarding_status, {
-                  connect_account_livemode: profile?.connect_account_livemode,
-                })}
+              <p className="tv-income-info-strip__value" data-verification-status={supplierVerificationState(profile).status}>
+                {supplierVerificationState(profile).title}
               </p>
-              <p className="tv-income-info-strip__hint">Same status as Settings · bank payouts stay gated</p>
+              <p className="tv-income-info-strip__hint">{supplierVerificationState(profile).summary}</p>
             </div>
           </section>
           <p className="text-[12px] text-[#52525b]">{nextPayoutLabel}</p>

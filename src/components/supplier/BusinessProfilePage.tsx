@@ -12,6 +12,7 @@ import {
   uploadSupplierBusinessLogo,
   uploadSupplierVerificationDocument,
   verificationDocumentBasename,
+  type SupplierProfileRow,
 } from '../../data/supabase-supplier-profile';
 import { formatSupplierBusinessAddressFromParts } from '../../lib/supplierAddress';
 import { getSupplierBusinessProfileMissingReasons } from '../../lib/supplierOnboarding';
@@ -34,20 +35,13 @@ import PartnerSelect from './PartnerSelect';
 import PartnerConfirmModal from './PartnerConfirmModal';
 import SupplierTeamPanel from './SupplierTeamPanel';
 import NoticeCallout from '../NoticeCallout';
-import StatusChip from '../StatusChip';
+import SupplierVerificationCard from './SupplierVerificationCard';
+import { supplierVerificationState } from '../../lib/supplier-verification-state';
 import {
   PARTNER_BUSINESS_READY_TO_SUBMIT_NOTE,
   PARTNER_BUSINESS_REVIEW_STATUS_NOTE,
 } from '../../lib/booking-confirmation-copy';
-import { PARTNER_HELP } from '../../lib/partnerHelpCopy';
-import {
-  partnerBusinessReviewState,
-  partnerBusinessStatusChip,
-  partnerPayoutReviewState,
-  partnerPayoutStatusChip,
-} from '../../lib/partnerVerificationStatus';
 import BusinessProfileSummary from './BusinessProfileSummary';
-import PartnerHelpTip from './PartnerHelpTip';
 import {
   BUSINESS_SETTINGS_CONTENT_CLASS,
   InfoGrid,
@@ -304,19 +298,14 @@ export default function BusinessProfilePage(p: BusinessProfilePageProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- open/close only
   }, [p.legalDocModal]);
 
-  const businessReview = partnerBusinessReviewState({
-    verificationStatus: p.verificationStatus,
-    submittedAt: p.verificationSubmittedAt,
-    draftComplete: draftBusinessComplete,
-    feedback: p.businessVerificationFeedback,
-  });
-  const payoutReview = partnerPayoutReviewState({
-    verificationStatus: p.payoutVerificationStatus,
-    submittedAt: p.payoutVerificationSubmittedAt,
-    hasBankDetails: Boolean(p.payoutIban.trim() && p.payoutBic.trim()),
-  });
-  const busChip = partnerBusinessStatusChip(businessReview);
-  const payChip = partnerPayoutStatusChip(payoutReview);
+  const [verificationProfile, setVerificationProfile] = useState<SupplierProfileRow | null>(null);
+  useEffect(() => {
+    if (!p.user?.id) return;
+    void fetchSupplierProfile(p.user.id).then((next) => {
+      if (next) setVerificationProfile(next);
+    });
+  }, [p.user?.id, p.verificationStatus, p.payoutVerificationStatus]);
+  const verification = supplierVerificationState(verificationProfile);
 
   const tabClass = (active: boolean) =>
     `lux-flat relative px-3.5 py-2.5 text-sm font-medium transition-colors ${
@@ -452,12 +441,7 @@ export default function BusinessProfilePage(p: BusinessProfilePageProps) {
         title="Business settings"
         description="Your business profile and verification status."
       >
-        <div className="mt-3 flex flex-wrap items-center gap-2" aria-label="Verification status">
-          <StatusChip tone={busChip.tone}>{busChip.label}</StatusChip>
-          <PartnerHelpTip label="About business status">{PARTNER_HELP.businessStatus}</PartnerHelpTip>
-          <StatusChip tone={payChip.tone}>{payChip.label}</StatusChip>
-          <PartnerHelpTip label="About payout status">{PARTNER_HELP.payoutStatus}</PartnerHelpTip>
-        </div>
+        {verificationProfile ? <SupplierVerificationCard view={verification} variant="compact" /> : null}
         {!canEditProfile ? (
           <NoticeCallout title="View only" tone="info" className="mt-4">
             Your role can view business profile details but cannot change company or legal settings.
