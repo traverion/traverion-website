@@ -8,6 +8,9 @@ import {
   X,
   UserCircle2,
   Plus,
+  Settings,
+  ListChecks,
+  LogOut,
 } from 'lucide-react';
 import type { User } from '@supabase/supabase-js';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
@@ -365,8 +368,8 @@ export default function SupplierLayout() {
   const [mobileAccountOpen, setMobileAccountOpen] = useState(false);
   const mobileAccountRef = useRef<HTMLDivElement>(null);
   const accountMenuRef = useRef<HTMLDivElement>(null);
+  const accountTriggerRef = useRef<HTMLButtonElement>(null);
   useDialogFocus(mobileAccountOpen, mobileAccountRef, () => setMobileAccountOpen(false));
-  useDialogFocus(accountMenuOpen, accountMenuRef, () => setAccountMenuOpen(false));
   const [settingsFocus, setSettingsFocus] = useState<AccountShortcutTarget | null>(null);
   const [profileDisplayName, setProfileDisplayName] = useState('');
   const [businessProfileTab, setBusinessProfileTab] = useState<BusinessProfileTab>('company');
@@ -882,6 +885,52 @@ export default function SupplierLayout() {
     mainPaneRef.current?.scrollTo({ top: 0 });
   }, [section]);
 
+  useEffect(() => {
+    if (!accountMenuOpen) return;
+    const menu = accountMenuRef.current;
+    const items = () =>
+      Array.from(menu?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]') ?? []);
+    items()[0]?.focus();
+    const onPointer = (event: MouseEvent) => {
+      const target = event.target as Node | null;
+      if (!target) return;
+      if (menu?.contains(target) || accountTriggerRef.current?.contains(target)) return;
+      setAccountMenuOpen(false);
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        setAccountMenuOpen(false);
+        accountTriggerRef.current?.focus();
+        return;
+      }
+      const list = items();
+      if (!list.length) return;
+      const current = list.indexOf(document.activeElement as HTMLButtonElement);
+      if (event.key === 'ArrowDown') {
+        event.preventDefault();
+        list[(current + 1) % list.length]?.focus();
+      } else if (event.key === 'ArrowUp') {
+        event.preventDefault();
+        list[(current <= 0 ? list.length - 1 : current - 1)]?.focus();
+      } else if (event.key === 'Home') {
+        event.preventDefault();
+        list[0]?.focus();
+      } else if (event.key === 'End') {
+        event.preventDefault();
+        list[list.length - 1]?.focus();
+      } else if (event.key === 'Tab') {
+        setAccountMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', onPointer);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onPointer);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [accountMenuOpen]);
+
   const handleNavigate = (s: SupplierSection) => {
     setUnknownPartnerPath(false);
     setSection(s);
@@ -1120,7 +1169,7 @@ export default function SupplierLayout() {
           section === 'verification' ||
           section === 'business-setup' ? null : (
           <header className="partner-topbar sticky top-0 z-30 pt-[env(safe-area-inset-top)]">
-            <div className="flex h-[var(--partner-topbar-h,2.75rem)] items-center gap-3 px-4 sm:px-6 lg:px-8">
+            <div className="partner-topbar__bar">
               <button
                 type="button"
                 onClick={() => handleNavigate('dashboard')}
@@ -1130,20 +1179,28 @@ export default function SupplierLayout() {
                 <img src={BRAND_LOGO_SRC} alt="" className="h-7 w-7 object-contain" />
                 <span className="font-sans text-[10px] font-semibold tracking-[0.18em] text-slate-800">TRAVERION</span>
               </button>
-              <div className="relative ml-auto flex items-center gap-2">
+              <div className="partner-account">
                 <button
                   type="button"
+                  ref={accountTriggerRef}
                   onClick={() => setAccountMenuOpen((v) => !v)}
-                  className="partner-nav-item lux-flat hidden md:inline-flex min-h-11 items-center gap-2 rounded-lg border border-slate-200/80 bg-white pl-1 pr-2.5 hover:bg-slate-50"
-                  aria-label="Account"
+                  onKeyDown={(event) => {
+                    if ((event.key === 'ArrowDown' || event.key === 'ArrowUp') && !accountMenuOpen) {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      setAccountMenuOpen(true);
+                    }
+                  }}
+                  className="partner-account-trigger"
+                  aria-label={supplierEmail ? `Account menu, ${supplierEmail}` : 'Account menu'}
                   aria-expanded={accountMenuOpen}
-                  aria-haspopup="dialog"
+                  aria-haspopup="menu"
                   aria-controls="partner-account-menu"
                 >
-                  <span className="flex h-6 w-6 items-center justify-center rounded-md bg-finland text-[10px] font-semibold text-white">
+                  <span className="partner-account-trigger__mark">
                     {(user?.email ?? user?.id ?? 'S').slice(0, 1).toUpperCase()}
                   </span>
-                  <span className="max-w-[9rem] min-w-0 truncate text-[12.5px] font-medium text-slate-700" title={supplierEmail || undefined}>
+                  <span className="partner-account-trigger__email" title={supplierEmail || undefined}>
                     {supplierEmail || 'Account'}
                   </span>
                 </button>
@@ -1151,38 +1208,53 @@ export default function SupplierLayout() {
                   <div
                     id="partner-account-menu"
                     ref={accountMenuRef}
-                    role="dialog"
+                    role="menu"
                     aria-label="Account"
-                    className="absolute right-0 top-12 w-64 rounded-lg bg-white shadow-[0_8px_30px_rgba(15,23,42,0.08)] ring-1 ring-slate-200/80 p-1.5 z-50 origin-top-right motion-safe:animate-slide-down"
+                    className="partner-account-menu"
                   >
-                    {supplierEmail ? (
-                      <p className="px-2.5 py-2 text-xs text-slate-500 truncate border-b border-slate-100 mb-1 min-w-0" title={supplierEmail}>
-                        {supplierEmail}
-                      </p>
-                    ) : null}
+                    <div className="partner-account-menu__identity">
+                      <p className="partner-account-menu__name">{operatorDisplayName}</p>
+                      {supplierEmail ? (
+                        <p className="partner-account-menu__email" title={supplierEmail}>
+                          {supplierEmail}
+                        </p>
+                      ) : null}
+                    </div>
                     <button
                       type="button"
+                      role="menuitem"
+                      aria-current={section === 'account-settings' ? 'page' : undefined}
                       onClick={() => openSettingsFocus('account')}
-                      className="partner-nav-item lux-flat w-full text-left px-2.5 py-2 rounded-md text-[13px] text-slate-700 hover:bg-slate-50"
+                      className="partner-account-menu__item"
                     >
+                      <Settings strokeWidth={1.75} aria-hidden />
                       Account settings
                     </button>
                     {showSetupEntry && (
                       <button
                         type="button"
-                        onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/onboarding`)}
-                        className="partner-nav-item lux-flat w-full text-left px-2.5 py-2 rounded-md text-[13px] text-slate-700 hover:bg-slate-50"
+                        role="menuitem"
+                        onClick={() => {
+                          setAccountMenuOpen(false);
+                          navigateSupplierUrl(`${PARTNER_APP_BASE}/onboarding`);
+                        }}
+                        className="partner-account-menu__item"
                       >
+                        <ListChecks strokeWidth={1.75} aria-hidden />
                         {setupMenuLabel}
                       </button>
                     )}
-                    <button
-                      type="button"
-                      onClick={handlePartnerSignOut}
-                      className="partner-nav-item lux-flat w-full text-left px-2.5 py-2 rounded-md text-[13px] text-rose-700 hover:bg-rose-50"
-                    >
-                      Log out
-                    </button>
+                    <div className="partner-account-menu__signout">
+                      <button
+                        type="button"
+                        role="menuitem"
+                        onClick={handlePartnerSignOut}
+                        className="partner-account-menu__item"
+                      >
+                        <LogOut strokeWidth={1.75} aria-hidden />
+                        Sign out
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
@@ -1256,7 +1328,7 @@ export default function SupplierLayout() {
                     </button>
                   )}
                   <button type="button" onClick={handlePartnerSignOut} className="partner-nav-item lux-flat w-full text-left rounded-md px-2 py-3 text-[15px] text-rose-700">
-                    Log out
+                    Sign out
                   </button>
                 </div>
               </div>
