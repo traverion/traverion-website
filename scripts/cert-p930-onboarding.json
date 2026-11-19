@@ -1,0 +1,78 @@
+{
+  "checks": [
+    {
+      "name": "reopen does not start at company",
+      "ok": true,
+      "detail": "status"
+    },
+    {
+      "name": "resume matches the server requirements",
+      "ok": true,
+      "detail": "status"
+    },
+    {
+      "name": "status names the real outcome",
+      "ok": true,
+      "detail": "Verified"
+    },
+    {
+      "name": "refresh keeps the same step",
+      "ok": true,
+      "detail": "status -> status"
+    },
+    {
+      "name": "done returns to the dashboard",
+      "ok": true,
+      "detail": "/partner"
+    },
+    {
+      "name": "no identity, terms, or bank submission",
+      "ok": true,
+      "detail": "save_wizard_draft"
+    },
+    {
+      "name": "dashboard does not say Finish setup",
+      "ok": true,
+      "detail": "absent"
+    },
+    {
+      "name": "dashboard copy matches the server state",
+      "ok": true,
+      "detail": "clear"
+    },
+    {
+      "name": "verification unchanged",
+      "ok": true,
+      "detail": "verified"
+    },
+    {
+      "name": "live account unchanged",
+      "ok": true,
+      "detail": "same"
+    },
+    {
+      "name": "bank field unchanged",
+      "ok": true,
+      "detail": "same"
+    },
+    {
+      "name": "payout flags unchanged",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "gates unchanged",
+      "ok": true,
+      "detail": "{\"stripe_connect_transfers_enabled\":0,\"payout_execution_enabled\":0,\"live_custom_onboarding_enabled\":0}"
+    },
+    {
+      "name": "session user matches supplier",
+      "ok": true,
+      "detail": "eced0f8c-c2e4-469b-8bba-15170be68cc1"
+    }
+  ],
+  "actions": [
+    "save_wizard_draft"
+  ],
+  "failed": 0
+}
