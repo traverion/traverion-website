@@ -5,7 +5,9 @@ import {
   emptyBeneficialOwner,
   emptyPayoutWizardDraft,
   isLiveAccountCreationGateError,
+  isOnboardingResetDraft,
   mergeServerPayoutWizardDraft,
+  serverDraftSupersedesLocal,
   parseOwnershipPercent,
   payoutBankPresentation,
   payoutVerificationPresentation,
@@ -287,6 +289,33 @@ describe('ownership percent validation', () => {
     expect(merged.step).toBe('preferences');
     expect(merged.rep_first_name).toBe('Ada');
     expect(merged.businessSavedAt).toBe('2026-01-02T00:00:00.000Z');
+  });
+
+  it('lets a newer empty server draft replace an older browser draft', () => {
+    const local = emptyPayoutWizardDraft({
+      step: 'review',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+      rep_first_name: 'Ada',
+      rep_last_name: 'Lovelace',
+      rep_is_owner: true,
+      rep_percent_ownership: '100',
+      verification_consent: true,
+      wizardCompletedAt: '2026-01-01T00:00:00.000Z',
+      representativeSavedAt: '2026-01-01T00:00:00.000Z',
+    });
+    const server = { version: 1, step: 'business', rep: {}, owners: [], markers: {} };
+    expect(serverDraftSupersedesLocal(local.updatedAt, '2026-01-02T00:00:00.000Z')).toBe(true);
+    expect(isOnboardingResetDraft(server)).toBe(true);
+    const merged = mergeServerPayoutWizardDraft(local, server, {
+      serverUpdatedAt: '2026-01-02T00:00:00.000Z',
+      localUpdatedAt: local.updatedAt,
+    });
+    expect(merged.step).toBe('business');
+    expect(merged.rep_first_name).toBe('');
+    expect(merged.rep_is_owner).toBe(false);
+    expect(merged.verification_consent).toBe(false);
+    expect(merged.wizardCompletedAt).toBeNull();
+    expect(merged.representativeSavedAt).toBeNull();
   });
 
   it('checks a Finnish IBAN before it can be tokenized', () => {

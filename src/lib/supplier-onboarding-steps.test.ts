@@ -66,6 +66,16 @@ describe('supplier onboarding screens', () => {
     expect(screenFromOnboardingUrl('?phase=payout', visible)).toBe('bank');
   });
 
+  it('sends a reset visit to Company even when the link is a later screen', () => {
+    const visible = visibleSupplierOnboardingScreens(open);
+    expect(
+      screenFromOnboardingUrl('?phase=status&screen=status', visible, { forceCompany: true })
+    ).toBe('company');
+    expect(
+      screenFromOnboardingUrl('?phase=representative&screen=dob', visible, { forceCompany: true })
+    ).toBe('company');
+  });
+
   it('numbers screens inside their group', () => {
     const visible = visibleSupplierOnboardingScreens(open);
     expect(onboardingGroupProgress(visible, 'dob')).toEqual({ group: 'Identity', index: 2, total: 6 });

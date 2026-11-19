@@ -710,10 +710,42 @@ function countDraftMarkers(draft: Pick<
  * Merge a sanitized server draft into a local draft without inventing full DOB/IBAN.
  * Server is preferred when it carries equal or richer progress (cross-device SoT).
  */
+/** True when the server copy was written after this browser's draft. */
+export function serverDraftSupersedesLocal(
+  localUpdatedAt: string | null | undefined,
+  serverUpdatedAt: string | null | undefined
+): boolean {
+  const serverMs = serverUpdatedAt ? Date.parse(serverUpdatedAt) : NaN;
+  if (!Number.isFinite(serverMs)) return false;
+  const localMs = localUpdatedAt ? Date.parse(localUpdatedAt) : NaN;
+  return !Number.isFinite(localMs) || serverMs > localMs;
+}
+
+/** A reset draft has no saved-step markers and still sits on the first step. */
+export function isOnboardingResetDraft(server: Record<string, unknown> | null | undefined): boolean {
+  if (!server || typeof server !== 'object' || Array.isArray(server)) return false;
+  const step = typeof server.step === 'string' && server.step ? server.step : 'business';
+  if (step !== 'business') return false;
+  const markers =
+    server.markers && typeof server.markers === 'object' && !Array.isArray(server.markers)
+      ? (server.markers as Record<string, unknown>)
+      : {};
+  const stamped = [
+    markers.businessSavedAt,
+    markers.representativeSavedAt,
+    markers.identitySavedAt,
+    markers.bankSavedAt,
+    markers.bankDeferredAt,
+    markers.preferencesSavedAt,
+    markers.wizardCompletedAt,
+  ].some((value) => typeof value === 'string' && value);
+  return !stamped;
+}
+
 export function mergeServerPayoutWizardDraft(
   local: PayoutWizardDraft,
   server: Record<string, unknown> | null | undefined,
-  opts?: { serverUpdatedAt?: string | null }
+  opts?: { serverUpdatedAt?: string | null; localUpdatedAt?: string | null }
 ): PayoutWizardDraft {
   if (!server || typeof server !== 'object') return local;
   const markers =
@@ -736,101 +768,92 @@ export function mergeServerPayoutWizardDraft(
   ].filter((v) => typeof v === 'string' && v).length;
   const localMarkerCount = countDraftMarkers(local);
   const serverUpdatedMs = opts?.serverUpdatedAt ? Date.parse(opts.serverUpdatedAt) : NaN;
-  const localUpdatedMs = Date.parse(local.updatedAt);
+  const localUpdatedMs = opts?.localUpdatedAt
+    ? Date.parse(opts.localUpdatedAt)
+    : Date.parse(local.updatedAt);
+  const serverSupersedes = serverDraftSupersedesLocal(
+    Number.isFinite(localUpdatedMs) ? new Date(localUpdatedMs).toISOString() : null,
+    Number.isFinite(serverUpdatedMs) ? new Date(serverUpdatedMs).toISOString() : null
+  );
+  const text = (value: unknown, fallback: string) => {
+    if (serverSupersedes) return typeof value === 'string' ? value : '';
+    return typeof value === 'string' && value ? value : fallback;
+  };
+  const flag = (value: unknown, fallback: boolean) =>
+    typeof value === 'boolean' ? value : serverSupersedes ? fallback : fallback;
+  const marker = (value: unknown, fallback: string | null) => {
+    if (serverSupersedes) return typeof value === 'string' && value ? value : null;
+    return typeof value === 'string' ? value : fallback;
+  };
   const preferServerStep =
+    serverSupersedes ||
     serverMarkerCount > localMarkerCount ||
     (serverMarkerCount === localMarkerCount &&
       Number.isFinite(serverUpdatedMs) &&
       (!Number.isFinite(localUpdatedMs) || serverUpdatedMs >= localUpdatedMs));
 
   return emptyPayoutWizardDraft({
-    ...local,
+    ...(serverSupersedes ? {} : local),
     step:
-      preferServerStep && isWizardStep(server.step)
+      (preferServerStep || serverSupersedes) && isWizardStep(server.step)
         ? server.step
         : isWizardStep(server.step) && localMarkerCount === 0
           ? server.step
-          : local.step,
-    rep_first_name:
-      typeof rep.first_name === 'string' && rep.first_name ? rep.first_name : local.rep_first_name,
-    rep_last_name:
-      typeof rep.last_name === 'string' && rep.last_name ? rep.last_name : local.rep_last_name,
-    rep_email: typeof rep.email === 'string' && rep.email ? rep.email : local.rep_email,
-    rep_phone: typeof rep.phone === 'string' && rep.phone ? rep.phone : local.rep_phone,
-    rep_title: typeof rep.title === 'string' && rep.title ? rep.title : local.rep_title,
-    rep_is_owner: typeof rep.is_owner === 'boolean' ? rep.is_owner : local.rep_is_owner,
-    rep_is_director:
-      typeof rep.is_director === 'boolean' ? rep.is_director : local.rep_is_director,
-    verification_consent:
-      typeof rep.verification_consent === 'boolean'
-        ? rep.verification_consent
-        : local.verification_consent,
-    rep_percent_ownership:
-      typeof rep.percent_ownership === 'string' && rep.percent_ownership
-        ? rep.percent_ownership
-        : local.rep_percent_ownership,
+          : serverSupersedes
+            ? 'business'
+            : local.step,
+    rep_first_name: text(rep.first_name, local.rep_first_name),
+    rep_last_name: text(rep.last_name, local.rep_last_name),
+    rep_email: text(rep.email, local.rep_email),
+    rep_phone: text(rep.phone, local.rep_phone),
+    rep_title: text(rep.title, local.rep_title),
+    rep_is_owner: flag(rep.is_owner, serverSupersedes ? false : local.rep_is_owner),
+    rep_is_director: flag(rep.is_director, serverSupersedes ? true : local.rep_is_director),
+    verification_consent: flag(
+      rep.verification_consent,
+      serverSupersedes ? false : local.verification_consent
+    ),
+    rep_percent_ownership: text(rep.percent_ownership, local.rep_percent_ownership),
     // Full DOB is never restored from server — partner re-enters before Stripe submit.
-    rep_dob: local.rep_dob,
+    rep_dob: serverSupersedes ? '' : local.rep_dob,
     beneficial_owners:
-      ownersRaw.length > 0
+      serverSupersedes || ownersRaw.length > 0
         ? ownersRaw.map((owner, index) => {
             const o =
               owner && typeof owner === 'object' && !Array.isArray(owner)
                 ? (owner as Record<string, unknown>)
                 : {};
-            const existing = local.beneficial_owners[index];
+            const existing = serverSupersedes ? undefined : local.beneficial_owners[index];
             return emptyBeneficialOwner({
               id: typeof o.id === 'string' ? o.id : existing?.id,
               first_name: typeof o.first_name === 'string' ? o.first_name : '',
               last_name: typeof o.last_name === 'string' ? o.last_name : '',
               email: typeof o.email === 'string' ? o.email : '',
               percent_ownership: typeof o.percent_ownership === 'string' ? o.percent_ownership : '',
-              dob: existing?.dob ?? '',
+              dob: serverSupersedes ? '' : (existing?.dob ?? ''),
             });
           })
         : local.beneficial_owners,
-    tos_accepted:
-      typeof server.tos_accepted_intent === 'boolean'
-        ? server.tos_accepted_intent
-        : local.tos_accepted,
-    stripeAuthAcknowledged:
-      typeof server.stripe_auth_acknowledged === 'boolean'
-        ? server.stripe_auth_acknowledged
-        : local.stripeAuthAcknowledged,
+    tos_accepted: flag(server.tos_accepted_intent, serverSupersedes ? false : local.tos_accepted),
+    stripeAuthAcknowledged: flag(
+      server.stripe_auth_acknowledged,
+      serverSupersedes ? false : local.stripeAuthAcknowledged
+    ),
     payment_cycle:
       server.payment_cycle === 'monthly' || server.payment_cycle === 'biweekly'
         ? server.payment_cycle
-        : local.payment_cycle,
-    payout_threshold_min:
-      typeof server.payout_threshold_min === 'string' && server.payout_threshold_min
-        ? server.payout_threshold_min
-        : local.payout_threshold_min,
-    businessSavedAt:
-      typeof markers.businessSavedAt === 'string'
-        ? markers.businessSavedAt
-        : local.businessSavedAt,
-    representativeSavedAt:
-      typeof markers.representativeSavedAt === 'string'
-        ? markers.representativeSavedAt
-        : local.representativeSavedAt,
-    identitySavedAt:
-      typeof markers.identitySavedAt === 'string'
-        ? markers.identitySavedAt
-        : local.identitySavedAt,
-    bankDeferredAt:
-      typeof markers.bankDeferredAt === 'string' ? markers.bankDeferredAt : local.bankDeferredAt,
-    bankSavedAt:
-      typeof markers.bankSavedAt === 'string' ? markers.bankSavedAt : local.bankSavedAt,
-    bankLast4:
-      typeof markers.bankLast4 === 'string' ? markers.bankLast4 : local.bankLast4,
-    preferencesSavedAt:
-      typeof markers.preferencesSavedAt === 'string'
-        ? markers.preferencesSavedAt
-        : local.preferencesSavedAt,
-    wizardCompletedAt:
-      typeof markers.wizardCompletedAt === 'string'
-        ? markers.wizardCompletedAt
-        : local.wizardCompletedAt,
+        : serverSupersedes
+          ? ''
+          : local.payment_cycle,
+    payout_threshold_min: text(server.payout_threshold_min, local.payout_threshold_min),
+    businessSavedAt: marker(markers.businessSavedAt, local.businessSavedAt),
+    representativeSavedAt: marker(markers.representativeSavedAt, local.representativeSavedAt),
+    identitySavedAt: marker(markers.identitySavedAt, local.identitySavedAt),
+    bankDeferredAt: marker(markers.bankDeferredAt, local.bankDeferredAt),
+    bankSavedAt: marker(markers.bankSavedAt, local.bankSavedAt),
+    bankLast4: marker(markers.bankLast4, local.bankLast4),
+    preferencesSavedAt: marker(markers.preferencesSavedAt, local.preferencesSavedAt),
+    wizardCompletedAt: marker(markers.wizardCompletedAt, local.wizardCompletedAt),
   });
 }
 

@@ -154,8 +154,10 @@ export function onboardingGroupProgress(
 
 export function screenFromOnboardingUrl(
   search: string,
-  visible: readonly SupplierOnboardingScreenId[]
+  visible: readonly SupplierOnboardingScreenId[],
+  opts?: { forceCompany?: boolean }
 ): SupplierOnboardingScreenId {
+  if (opts?.forceCompany) return 'company';
   const params = new URLSearchParams(search.startsWith('?') ? search.slice(1) : search);
   const requested = params.get('screen');
   if (requested === 'documents' || requested === 'company') {

@@ -19,8 +19,10 @@ import { humanizeConnectRequirements } from '../../lib/connect-requirement-label
 import {
   emptyBeneficialOwner,
   emptyPayoutWizardDraft,
+  isOnboardingResetDraft,
   loadPayoutWizardDraft,
   mergeServerPayoutWizardDraft,
+  serverDraftSupersedesLocal,
   onboardingCompletionCopy,
   parseOwnershipPercent,
   parsePayoutWizardDob,
@@ -31,6 +33,7 @@ import {
   validateIban,
   validateOwnershipPercent,
   type PayoutWizardDraft,
+  type PayoutWizardStepId,
 } from '../../lib/payout-setup-wizard';
 import { createBankAccountToken } from '../../lib/stripe-js-client';
 import { STRIPE_RECIPIENT_AGREEMENT } from '../../lib/stripe-recipient-agreement';
@@ -80,14 +83,6 @@ export default function SupplierOnboardingFlow({
   const booted = useRef(false);
   const submitting = useRef(false);
 
-  useEffect(() => {
-    if (!profile) return;
-    setDraft((current) => {
-      if (current.rep_first_name.trim() && current.rep_last_name.trim()) return current;
-      return initialDraft(userId, profile);
-    });
-  }, [profile, userId]);
-
   const due = useMemo(() => {
     const current = profile?.connect_requirements_currently_due ?? [];
     const past = profile?.connect_requirements_past_due ?? [];
@@ -126,10 +121,34 @@ export default function SupplierOnboardingFlow({
   useEffect(() => {
     if (!profile || booted.current) return;
     booted.current = true;
-    const next = screenFromOnboardingUrl(window.location.search, visibleSupplierOnboardingScreens(visibility));
+    const saved = userId ? loadPayoutWizardDraft(userId) : null;
+    const forceCompany =
+      isOnboardingResetDraft(profile.payout_wizard_draft) &&
+      serverDraftSupersedesLocal(saved?.updatedAt ?? null, profile.payout_wizard_draft_updated_at);
+    const nextDraft = initialDraft(userId, profile);
+    setDraft(nextDraft);
+    if (forceCompany) savePayoutWizardDraft(userId, nextDraft);
+    const opened = requirementFlags(due, Boolean(profile.stripe_connected_account_id));
+    const next = screenFromOnboardingUrl(
+      window.location.search,
+      visibleSupplierOnboardingScreens({
+        isCompany: (profile.business_type || nextDraft.business_type) !== 'individual',
+        hasRegistrationFile: Boolean(profile.company_registration_document_path?.trim()),
+        businessRejected: profile.verification_status === 'rejected',
+        identityOpen: opened.identityOpen,
+        owns: nextDraft.rep_is_owner,
+        share: parseOwnershipPercent(nextDraft.rep_percent_ownership),
+        others: null,
+        hasExtraOwner: false,
+        bankOpen: opened.bankOpen,
+        termsOpen: opened.termsOpen,
+      }),
+      { forceCompany }
+    );
     setScreen(next);
     writeScreen(next);
-  }, [profile, visibility, writeScreen]);
+  }, [profile, userId, writeScreen, due]);
+
 
   useEffect(() => {
     if (!userId || !hasAccount) return;
@@ -167,6 +186,12 @@ export default function SupplierOnboardingFlow({
 
   const go = (next: SupplierOnboardingScreenId) => {
     setError(null);
+    const step = wizardStepForScreen(next);
+    setDraft((current) => {
+      const updated = { ...current, step };
+      savePayoutWizardDraft(userId, updated);
+      return updated;
+    });
     setScreen(next);
     writeScreen(next);
   };
@@ -798,6 +823,14 @@ export default function SupplierOnboardingFlow({
   );
 }
 
+function wizardStepForScreen(id: SupplierOnboardingScreenId): PayoutWizardStepId {
+  const phase = supplierOnboardingScreen(id).phase;
+  if (phase === 'representative') return 'representative';
+  if (phase === 'payout') return 'bank';
+  if (phase === 'status') return 'review';
+  return 'business';
+}
+
 function Choice({
   value,
   yes,
@@ -840,6 +873,7 @@ function initialDraft(userId: string, profile: SupplierProfileRow | null): Payou
   });
   merged = mergeServerPayoutWizardDraft(merged, profile?.payout_wizard_draft ?? null, {
     serverUpdatedAt: profile?.payout_wizard_draft_updated_at,
+    localUpdatedAt: saved?.updatedAt ?? null,
   });
   if (!merged.rep_first_name.trim() && suggested?.first_name) merged.rep_first_name = suggested.first_name;
   if (!merged.rep_last_name.trim() && suggested?.last_name) merged.rep_last_name = suggested.last_name;
