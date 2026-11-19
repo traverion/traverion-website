@@ -535,24 +535,37 @@ export function groupPartnerUnifiedEventsByDate(
     .map(([iso, rows]) => ({ iso, events: rows }));
 }
 
-/** Every date in the window, including days with no events. */
+/**
+ * Agenda dates: today (even when empty), plus dates in the window that have events.
+ * Empty days between today and the next event are omitted.
+ */
 export function partnerUnifiedAgendaDays(
   events: PartnerUnifiedCalendarEvent[],
   fromYmd: string,
   toYmd: string,
+  todayYmd: string,
   maxDays = 45
 ): Array<{ iso: string; events: PartnerUnifiedCalendarEvent[] }> {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(fromYmd) || !/^\d{4}-\d{2}-\d{2}$/.test(toYmd) || fromYmd > toYmd) {
-    return [];
-  }
   const grouped = new Map(groupPartnerUnifiedEventsByDate(events).map((group) => [group.iso, group.events]));
-  const days: Array<{ iso: string; events: PartnerUnifiedCalendarEvent[] }> = [];
-  let cursor = fromYmd;
-  while (cursor && cursor <= toYmd && days.length < maxDays) {
-    days.push({ iso: cursor, events: grouped.get(cursor) ?? [] });
-    cursor = addCalendarDaysYmd(cursor, 1) ?? '';
+  const rangeOk = /^\d{4}-\d{2}-\d{2}$/.test(fromYmd) && /^\d{4}-\d{2}-\d{2}$/.test(toYmd) && fromYmd <= toYmd;
+  const dates = new Set<string>();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(todayYmd)) dates.add(todayYmd);
+  if (rangeOk) {
+    for (const [iso, rows] of grouped) {
+      if (!rows.length || iso < fromYmd || iso > toYmd) continue;
+      dates.add(iso);
+    }
   }
-  return days;
+  let chosen = [...dates].sort();
+  if (chosen.length > maxDays) {
+    const todayIndex = Math.max(0, chosen.indexOf(todayYmd));
+    const start = Math.max(0, todayIndex - Math.floor(maxDays / 4));
+    chosen = chosen.slice(start, start + maxDays);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(todayYmd) && !chosen.includes(todayYmd)) {
+      chosen = [todayYmd, ...chosen.slice(0, maxDays - 1)];
+    }
+  }
+  return chosen.map((iso) => ({ iso, events: grouped.get(iso) ?? [] }));
 }
 
 export function summarizePartnerUnifiedMonthDays(

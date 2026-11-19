@@ -640,22 +640,73 @@ describe('partnerUnifiedSmartDefaultFocusYmd', () => {
     ).toBe('2026-11-14');
   });
 
-  it('keeps empty dates in the agenda window', () => {
+  it('shows only today when nothing is scheduled', () => {
+    const days = partnerUnifiedAgendaDays([], '2026-11-14', '2026-11-20', '2026-11-14');
+    expect(days.map((day) => day.iso)).toEqual(['2026-11-14']);
+    expect(days[0]?.events).toEqual([]);
+  });
+
+  it('skips empty dates between today and a later event', () => {
     const days = partnerUnifiedAgendaDays(
       [
         bookableEvent({
-          key: 'mid',
-          ymd: '2026-11-15',
+          key: 'later',
+          ymd: '2026-11-18',
           kind: 'tour_departure',
           category: 'tour',
           departureStatus: 'available',
         }),
       ],
       '2026-11-14',
-      '2026-11-16'
+      '2026-11-20',
+      '2026-11-14'
     );
-    expect(days.map((day) => day.iso)).toEqual(['2026-11-14', '2026-11-15', '2026-11-16']);
+    expect(days.map((day) => day.iso)).toEqual(['2026-11-14', '2026-11-18']);
     expect(days[0]?.events).toEqual([]);
     expect(days[1]?.events).toHaveLength(1);
+  });
+
+  it('groups multiple bookings on the same date', () => {
+    const days = partnerUnifiedAgendaDays(
+      [
+        bookableEvent({
+          key: 'a',
+          ymd: '2026-11-16',
+          kind: 'tour_departure',
+          category: 'tour',
+          departureStatus: 'available',
+        }),
+        bookableEvent({
+          key: 'b',
+          ymd: '2026-11-16',
+          kind: 'tour_departure',
+          category: 'tour',
+          departureStatus: 'available',
+        }),
+      ],
+      '2026-11-14',
+      '2026-11-20',
+      '2026-11-14'
+    );
+    expect(days.map((day) => day.iso)).toEqual(['2026-11-14', '2026-11-16']);
+    expect(days[1]?.events.map((event) => event.key).sort()).toEqual(['a', 'b']);
+  });
+
+  it('keeps a past event date and drops the empty days around it', () => {
+    const days = partnerUnifiedAgendaDays(
+      [
+        bookableEvent({
+          key: 'past',
+          ymd: '2026-11-10',
+          kind: 'tour_departure',
+          category: 'tour',
+          departureStatus: 'available',
+        }),
+      ],
+      '2026-11-09',
+      '2026-11-20',
+      '2026-11-14'
+    );
+    expect(days.map((day) => day.iso)).toEqual(['2026-11-10', '2026-11-14']);
   });
 });

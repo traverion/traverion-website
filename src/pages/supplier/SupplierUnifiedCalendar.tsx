@@ -812,11 +812,10 @@ export default function SupplierUnifiedCalendar() {
     toYmd,
   ]);
 
-  const agendaGroups = useMemo(() => {
-    const start =
-      !includePast && range.fromYmd < operatingTodayIso ? operatingTodayIso : range.fromYmd;
-    return partnerUnifiedAgendaDays(filteredEvents, start, range.toYmd);
-  }, [filteredEvents, includePast, operatingTodayIso, range.fromYmd, range.toYmd]);
+  const agendaGroups = useMemo(
+    () => partnerUnifiedAgendaDays(filteredEvents, range.fromYmd, range.toYmd, operatingTodayIso || todayIso),
+    [filteredEvents, operatingTodayIso, todayIso, range.fromYmd, range.toYmd]
+  );
 
   const monthCells = useMemo(
     () => partnerUnifiedWeeksCoveringRange(range.fromYmd, range.toYmd),

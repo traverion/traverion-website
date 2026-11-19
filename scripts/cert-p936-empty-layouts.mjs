@@ -112,11 +112,14 @@ try {
     await page.waitForFunction(() => !document.querySelector('.partner-unified-cal__loading'), null, { timeout: 25000 });
     note(`${viewport.label} calendar shows Agenda Week Month and Today`, (await page.getByRole('button', { name: 'Today' }).count()) > 0);
     const agendaText = await page.locator('.partner-unified-cal__agenda').innerText();
+    const agendaDays = await page.locator('.partner-unified-cal__day').count();
+    const quietDays = await page.locator('.partner-unified-cal__agenda .partner-unified-cal__quiet').count();
     note(
-      `${viewport.label} agenda shows dates, including quiet days`,
-      agendaText.includes('Nothing scheduled') || /[A-Z][a-z]+ \d/.test(agendaText),
+      `${viewport.label} agenda shows today and only dates with events`,
+      agendaText.includes('Today') && quietDays <= 1 && agendaDays >= 1 && (agendaDays === 1 || quietDays === 0 || agendaDays > quietDays),
       agendaText.slice(0, 90).replace(/\s+/g, ' '),
     );
+    note(`${viewport.label} week and month stay available`, (await page.getByRole('tab', { name: 'Week' }).count()) > 0 && (await page.getByRole('tab', { name: 'Month' }).count()) > 0);
     await page.getByRole('tab', { name: 'Week' }).click();
     await page.locator('.partner-unified-cal__week-col').first().waitFor({ timeout: 15000 });
     const weekCols = await page.locator('.partner-unified-cal__week-col').count();
