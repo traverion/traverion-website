@@ -228,23 +228,42 @@ async function runVp(browser, sess, vp) {
       };
       page.on('framenavigated', onNav);
       const samples = [];
-      await page.goto(`${PARTNER}/partner/onboarding?phase=${phase}`, {
-        waitUntil: 'domcontentloaded',
-        timeout: 60000,
-      });
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+          await page.goto(`${PARTNER}/partner/onboarding?phase=${phase}`, {
+            waitUntil: 'domcontentloaded',
+            timeout: 60000,
+          });
+          break;
+        } catch (err) {
+          if (attempt === 1) throw err;
+          await page.waitForTimeout(800);
+        }
+      }
       await page.waitForSelector('[data-cert="p951"]', { timeout: 30000 });
       await page.waitForFunction(
         () => {
           const text = document.body?.innerText || '';
+          if (/Loading your details/i.test(text)) return false;
           return /Get ready to host|Verified|Identity|Business verification|Documents/.test(text);
         },
         { timeout: 30000 }
       );
+      if (phase === 'business') {
+        await page
+          .waitForFunction(() => {
+            const terms = [...document.querySelectorAll('dt')];
+            const legalDt = terms.find((el) => /legal name/i.test(el.textContent || ''));
+            const value = (legalDt?.nextElementSibling?.textContent || '').replace(/\s+/g, ' ').trim();
+            return value.length > 1 && value !== '—' && value !== '-';
+          }, { timeout: 15000 })
+          .catch(() => {});
+      }
       for (let i = 0; i < 8; i++) {
         samples.push(await page.evaluate(() => (document.body?.innerText || '').trim().length));
         await page.waitForTimeout(150);
       }
-      if (phase === 'representative' || phase === 'status') {
+      if (phase === 'representative' || phase === 'payout' || phase === 'status') {
         await page
           .waitForFunction(
             () => {
@@ -258,6 +277,7 @@ async function runVp(browser, sess, vp) {
             { timeout: 25000 }
           )
           .catch(() => {});
+        await page.waitForTimeout(4000);
       }
       page.off('framenavigated', onNav);
       const url = page.url();
@@ -326,7 +346,19 @@ async function runVp(browser, sess, vp) {
 
       const beforeReload = url;
       await page.reload({ waitUntil: 'domcontentloaded' });
-      await page.waitForTimeout(900);
+      await page.waitForSelector('[data-cert="p951"]', { timeout: 30000 });
+      if (phase === 'business') {
+        await page
+          .waitForFunction(() => {
+            const terms = [...document.querySelectorAll('dt')];
+            const legalDt = terms.find((el) => /legal name/i.test(el.textContent || ''));
+            const value = (legalDt?.nextElementSibling?.textContent || '').replace(/\s+/g, ' ').trim();
+            return value.length > 1 && value !== '—';
+          }, { timeout: 15000 })
+          .catch(() => {});
+      } else {
+        await page.waitForTimeout(900);
+      }
       const after = page.url();
       note(
         `${vp.name} ${phase} refresh resume`,

@@ -49,6 +49,7 @@ type PartnerOnboardingProps = {
   onContinuePhase?: (phase: UnifiedSetupPhaseId) => void;
   onTours: () => void;
   hasListing: boolean;
+  profileReady?: boolean;
   onDepartures?: () => void;
   onProfileRefresh?: (profile: SupplierProfileRow | null) => void;
 };
@@ -58,6 +59,7 @@ export default function PartnerOnboarding({
   onSkip,
   onTours,
   hasListing,
+  profileReady = true,
   onDepartures,
   onProfileRefresh,
 }: PartnerOnboardingProps) {
@@ -268,6 +270,19 @@ export default function PartnerOnboarding({
       : showStatus
         ? completionCopy.title
         : progress.nextHint;
+
+  if (!profileReady) {
+    return (
+      <div
+        className="partner-unified-setup-shell flex h-full min-h-0 w-full flex-1 items-center justify-center bg-white"
+        data-cert="p951"
+      >
+        <p className="text-[13px] text-[#71717a]" role="status">
+          Loading your details…
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div

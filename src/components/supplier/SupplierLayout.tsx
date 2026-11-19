@@ -353,6 +353,7 @@ export default function SupplierLayout() {
   const [onboardingListingCount, setOnboardingListingCount] = useState<number | null>(null);
   const [onboardingFirstTourListingId, setOnboardingFirstTourListingId] = useState<string | null>(null);
   const [onboardingProfile, setOnboardingProfile] = useState<SupplierProfileRow | null>(null);
+  const [onboardingProfileReady, setOnboardingProfileReady] = useState(false);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     try {
@@ -707,6 +708,7 @@ export default function SupplierLayout() {
       setOnboardingListingCount(null);
       setOnboardingFirstTourListingId(null);
       setOnboardingProfile(null);
+      setOnboardingProfileReady(true);
       setVerificationStatus('');
       setVerificationSubmittedAt('');
       setPayoutVerificationStatus('');
@@ -727,6 +729,7 @@ export default function SupplierLayout() {
       const firstTour = listings.find((l) => inventoryFamilyFromListing(l) === 'tour');
       setOnboardingFirstTourListingId(firstTour?.id ?? null);
       setOnboardingProfile(profile);
+      setOnboardingProfileReady(true);
       setProfileDisplayName((profile?.display_name ?? '').trim());
       setCompanyLegalName((profile?.company_legal_name ?? '').trim());
       setVerificationStatus((profile?.verification_status ?? '').trim());
@@ -742,6 +745,7 @@ export default function SupplierLayout() {
     } catch {
       if (gen !== partnerProfileGenRef.current) return;
       setOnboardingListingCount(null);
+      setOnboardingProfileReady(true);
     }
   }, [user?.id, isSupabase]);
 
@@ -1305,6 +1309,7 @@ export default function SupplierLayout() {
                     {section === 'onboarding' && (
                       <PartnerOnboarding
                         profile={onboardingProfile}
+                        profileReady={onboardingProfileReady}
                         onSkip={() => handleNavigate('dashboard')}
                         onContinuePhase={continueUnifiedPhase}
                         onProfileRefresh={(next) => {
