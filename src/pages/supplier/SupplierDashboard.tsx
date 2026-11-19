@@ -16,6 +16,7 @@ import {
 } from '../../lib/supplierOnboarding';
 import {
   ONBOARDING_LANE_LABEL,
+  onboardingLanesVerified,
   supplierOnboardingSnapshot,
   supplierSetupMenuLabel,
 } from '../../lib/supplier-onboarding-progress';
@@ -477,9 +478,7 @@ export default function SupplierDashboard() {
   );
 
   /** Incomplete / rejected verification counts toward Needs attention; pending review is shown in Account status. */
-  const verificationNeedsAction = Boolean(
-    accountStatus && (accountStatus.kind === 'setup' || accountStatus.kind === 'rejected')
-  );
+  const verificationNeedsAction = Boolean(setupSnapshot?.actionable);
 
   const pickupGaps = useMemo(() => {
     const nowMs = Date.now();
@@ -772,18 +771,20 @@ export default function SupplierDashboard() {
         </button>
       </section>
 
-      {accountStatus && accountStatus.kind !== 'operational' && !dashboardLoading && profile ? (
+      {setupSnapshot && !onboardingLanesVerified(setupSnapshot) && !dashboardLoading && profile ? (
         <button
           type="button"
           onClick={openAccountStatus}
-          className={`partner-home__account-alert lux-flat partner-row-interact partner-home__account-alert--${accountStatus.kind}`}
+          className="partner-home__account-alert lux-flat partner-row-interact partner-home__account-alert--setup"
+          data-setup-alert="open"
         >
           <span className="min-w-0 flex-1">
             <span className="flex flex-wrap items-center gap-2">
-              <span className="text-[13.5px] font-semibold text-slate-900">{accountStatus.title}</span>
-              <StatusChip tone={accountStatus.tone}>{accountStatus.chipLabel}</StatusChip>
+              <span className="text-[13.5px] font-semibold text-slate-900">{supplierSetupMenuLabel(setupSnapshot)}</span>
             </span>
-            <span className="mt-1 block text-[12.5px] leading-snug text-slate-500">{accountStatus.detail}</span>
+            <span className="mt-1 block text-[12.5px] leading-snug text-slate-500">
+              {`${ONBOARDING_LANE_LABEL[setupSnapshot.company.status]} · ${ONBOARDING_LANE_LABEL[setupSnapshot.identity.status]} · ${ONBOARDING_LANE_LABEL[setupSnapshot.payout.status]}`}
+            </span>
           </span>
           <ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-slate-300" aria-hidden />
         </button>
