@@ -782,7 +782,7 @@ export default function SupplierOnboardingFlow({
           ) : null}
           {screen === 'status' && due.length > 0 ? (
             <ul className="mt-2 space-y-2 text-[14px] text-ink">
-              {humanizeConnectRequirements(due).slice(0, 4).map((item) => (
+              {humanizeConnectRequirements(due).slice(0, 6).map((item) => (
                 <li key={item}>{item}</li>
               ))}
             </ul>
