@@ -111,49 +111,72 @@ async function surface() {
   }));
 }
 
+async function ready() {
+  await page.waitForFunction(() => {
+    const screen = document.querySelector('[data-onboarding-screen]')?.getAttribute('data-onboarding-screen');
+    return Boolean(screen && screen !== 'loading');
+  }, { timeout: 25000 });
+  await page.waitForTimeout(500);
+}
+
+await ready();
 let snap = await surface();
-note('reopen does not start at company', snap.screen !== 'company' && snap.screen !== 'loading', snap.screen ?? '');
-note('resume is an identity step', snap.screen === 'person' || snap.screen === 'dob', snap.screen ?? '');
+const openRequirements = (before.connect_requirements_currently_due ?? []).length;
+note('reopen does not start at company', snap.screen !== 'company', snap.screen ?? '');
+note(
+  'resume matches the server requirements',
+  openRequirements === 0 ? snap.screen === 'status' : snap.screen === 'person' || snap.screen === 'dob' || snap.screen === 'bank' || snap.screen === 'terms',
+  snap.screen ?? ''
+);
+note(
+  'status names the real outcome',
+  snap.screen !== 'status' || (before.connect_payouts_enabled ? /verified/i.test(snap.h1) : /verification pending|action required/i.test(snap.h1)),
+  snap.h1
+);
 await page.screenshot({ path: resolve(OUT, 'resume.png') });
 const resumed = snap.screen;
 await page.reload({ waitUntil: 'domcontentloaded' });
-await page.waitForFunction(
-  () => document.querySelector('[data-onboarding-screen]')?.getAttribute('data-onboarding-screen') !== 'loading',
-  { timeout: 20000 }
-);
-await page.waitForTimeout(800);
+await ready();
 snap = await surface();
 note('refresh keeps the same step', snap.screen === resumed, `${resumed} -> ${snap.screen}`);
 
-await page.getByRole('button', { name: 'Continue' }).dblclick();
-await page.waitForTimeout(800);
-snap = await surface();
-note('continue moves one step without a provider write', snap.screen !== resumed && snap.screen !== 'status', snap.screen ?? '');
-const forbidden = actions.filter((action) => /submit_|accept_tos|attach_bank|ensure_account|create_account/.test(action));
-note('no identity or bank submission', forbidden.length === 0, actions.join(',') || 'none');
+if (snap.screen === 'status') {
+  await page.getByRole('button', { name: 'Done' }).click();
+  await page.waitForTimeout(1200);
+  const path = await page.evaluate(() => location.pathname);
+  note('done returns to the dashboard', path === '/partner' || path === '/partner/', path);
+} else {
+  await page.getByRole('button', { name: 'Continue' }).dblclick();
+  await page.waitForTimeout(800);
+  snap = await surface();
+  note('duplicate continue does not skip to status', snap.screen !== 'status', snap.screen ?? '');
+  await page.goBack();
+  await page.waitForTimeout(600);
+  snap = await surface();
+  note('browser back returns to the resumed step', snap.screen === resumed, snap.screen ?? '');
+}
 
-await page.goBack();
-await page.waitForTimeout(600);
-snap = await surface();
-note('browser back returns to the resumed step', snap.screen === resumed, snap.screen ?? '');
+const forbidden = actions.filter((action) => /submit_|accept_tos|attach_bank|ensure_account|create_account/.test(action));
+note('no identity, terms, or bank submission', forbidden.length === 0, actions.join(',') || 'none');
 
 await page.goto(`${PARTNER}/partner`, { waitUntil: 'domcontentloaded', timeout: 45000 });
 await page.waitForTimeout(1500);
 const home = await page.evaluate(() => document.body?.innerText ?? '');
+const expectsSetup = openRequirements > 0 || !before.connect_payouts_enabled;
 note('dashboard does not say Finish setup', !home.includes('Finish setup'), home.includes('Finish setup') ? 'found' : 'absent');
 note(
-  'dashboard names the outstanding requirement or pending review',
-  /Company director|Director|date of birth|Bank account|Verification pending|Action required/i.test(home),
-  ''
+  'dashboard copy matches the server state',
+  expectsSetup ? /Verification pending|Action required|Director|Bank account|date of birth/i.test(home) : !/Finish setup|Action required/i.test(home),
+  expectsSetup ? 'outstanding' : 'clear'
 );
 await page.screenshot({ path: resolve(OUT, 'dashboard.png') });
 
 const after = await row();
 const gatesAfter = await gates();
-note('verification unchanged', before.verification_status === after.verification_status && after.verification_status === 'verified', after.verification_status);
-note('live account unchanged', after.stripe_connected_account_id === ACCOUNT && after.stripe_connected_account_id === before.stripe_connected_account_id, after.stripe_connected_account_id);
-note('bank field unchanged', after.payout_iban == null && before.payout_iban == null, 'empty');
-note('payouts stay disabled', after.connect_payouts_enabled === false && after.connect_details_submitted === false, '');
+note('verification unchanged', after.verification_status === before.verification_status, after.verification_status);
+note('live account unchanged', after.stripe_connected_account_id === ACCOUNT && after.stripe_connected_account_id === before.stripe_connected_account_id, 'same');
+note('bank field unchanged', after.payout_iban === before.payout_iban, 'same');
+note('payout flags unchanged', after.connect_payouts_enabled === before.connect_payouts_enabled && after.connect_details_submitted === before.connect_details_submitted, '');
 note('gates unchanged', JSON.stringify(gatesBefore) === JSON.stringify(gatesAfter), JSON.stringify(gatesAfter));
 note('session user matches supplier', uid === ID, uid);
 

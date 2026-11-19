@@ -167,8 +167,17 @@ export function supplierOnboardingSnapshot(
   };
 }
 
-/** Sidebar and dashboard label. Pending review is not phrased as unfinished setup. */
-export function supplierSetupMenuLabel(snapshot: SupplierOnboardingSnapshot): string {
+export function onboardingLanesVerified(snapshot: SupplierOnboardingSnapshot): boolean {
+  return (
+    snapshot.company.status === 'verified' &&
+    snapshot.identity.status === 'verified' &&
+    snapshot.payout.status === 'verified'
+  );
+}
+
+/** Sidebar and dashboard label. A verified account is not unfinished setup. */
+export function supplierSetupMenuLabel(snapshot: SupplierOnboardingSnapshot): string | null {
+  if (onboardingLanesVerified(snapshot)) return null;
   if (!snapshot.actionable) return 'Verification pending';
   return snapshot.nextAction;
 }

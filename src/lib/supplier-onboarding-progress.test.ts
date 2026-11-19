@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  onboardingLanesVerified,
   supplierOnboardingSnapshot,
   supplierSetupMenuLabel,
 } from './supplier-onboarding-progress';
@@ -51,6 +52,21 @@ describe('supplier onboarding progress', () => {
     expect(snapshot.nextScreen).toBe('status');
     expect(snapshot.identity.status).toBe('pending_verification');
     expect(supplierSetupMenuLabel(snapshot)).toBe('Verification pending');
+  });
+
+  it('treats an enabled payout account with no open requirements as verified', () => {
+    const snapshot = supplierOnboardingSnapshot({
+      ...verifiedCompany,
+      connect_details_submitted: true,
+      connect_payouts_enabled: true,
+      connect_onboarding_status: 'complete',
+      connect_requirements_currently_due: [],
+      connect_requirements_past_due: [],
+    });
+    expect(onboardingLanesVerified(snapshot)).toBe(true);
+    expect(snapshot.nextScreen).toBe('status');
+    expect(snapshot.actionable).toBe(false);
+    expect(supplierSetupMenuLabel(snapshot)).toBeNull();
   });
 
   it('does not call a rejected company verified', () => {

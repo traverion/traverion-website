@@ -15,16 +15,13 @@ import {
 } from '../../data/supabase-connect-onboarding';
 import { isValidFinnishBusinessId, normalizeCountryCode } from '../../lib/business-identity-validation';
 import { validateIsoDob } from '../../lib/date-of-birth';
-import { connectCanReceiveTransfers } from '../../lib/connect-payout-status';
 import {
   emptyBeneficialOwner,
   emptyPayoutWizardDraft,
   loadPayoutWizardDraft,
   mergeServerPayoutWizardDraft,
-  onboardingCompletionCopy,
   parseOwnershipPercent,
   parsePayoutWizardDob,
-  resolveOnboardingCompletionState,
   savePayoutWizardDraft,
   suggestRepresentativeNameFromDirectors,
   toServerPayoutWizardDraft,
@@ -46,6 +43,7 @@ import {
 } from '../../lib/supplier-onboarding-steps';
 import {
   ONBOARDING_LANE_LABEL,
+  onboardingLanesVerified,
   supplierOnboardingSnapshot,
 } from '../../lib/supplier-onboarding-progress';
 
@@ -81,7 +79,6 @@ export default function SupplierOnboardingFlow({
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [editingName, setEditingName] = useState(false);
-  const [payoutGatesOpen, setPayoutGatesOpen] = useState(false);
   const booted = useRef(false);
   const submitting = useRef(false);
   const navigating = useRef(false);
@@ -139,23 +136,12 @@ export default function SupplierOnboardingFlow({
   useEffect(() => {
     const onPop = () => {
       const requested = screenFromOnboardingUrl(window.location.search, visible);
-      setScreen(visible.some((step) => step.id === requested) ? requested : snapshot.nextScreen);
+      setScreen(visible.includes(requested) ? requested : snapshot.nextScreen);
     };
     window.addEventListener('popstate', onPop);
     return () => window.removeEventListener('popstate', onPop);
   }, [visible, snapshot.nextScreen]);
 
-
-  useEffect(() => {
-    if (!userId || !hasAccount) return;
-    let cancelled = false;
-    void invokeConnectSupplierOnboarding('status').then((result) => {
-      if (!cancelled) setPayoutGatesOpen(result.payout_gates_open === true);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [userId, hasAccount]);
 
   useEffect(() => {
     if (screen !== 'status' || !userId) return;
@@ -547,19 +533,21 @@ export default function SupplierOnboardingFlow({
     screen === 'documents' ? ['company', 'documents', ...visible.filter((id) => id !== 'company')] : visible,
     screen === 'documents' ? 'documents' : visible.includes(screen) ? screen : visible[0] ?? 'company'
   );
-  const canReceive = connectCanReceiveTransfers(profile ?? {});
-  const completion = onboardingCompletionCopy(
-    resolveOnboardingCompletionState({
-      hasConnectedAccount: hasAccount,
-      canReceiveTransfers: canReceive,
-      connectLivemode: profile?.connect_account_livemode,
-      wizardCompleted: false,
-      payoutConfigured: false,
-      payoutGatesOpen,
-    })
-  );
-  const title = screen === 'status' ? (snapshot.actionable ? 'Action required' : completion.title) : meta.title;
-  const body = screen === 'status' ? (snapshot.actionable ? snapshot.nextAction : completion.lede) : meta.body;
+  const lanesVerified = onboardingLanesVerified(snapshot);
+  const title = screen === 'status'
+    ? snapshot.actionable
+      ? 'Action required'
+      : lanesVerified
+        ? 'Verified'
+        : 'Verification pending'
+    : meta.title;
+  const body = screen === 'status'
+    ? snapshot.actionable
+      ? snapshot.nextAction
+      : lanesVerified
+        ? 'Company, identity, and the payout account are verified.'
+        : 'Nothing else is needed right now.'
+    : meta.body;
   const cityLine = [profile?.address_postal_code, profile?.address_city].filter(Boolean).join(' ');
   const primary =
     screen === 'status'
