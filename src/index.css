@@ -8597,7 +8597,7 @@ details:not([open]) > :not(summary) {
 
 .tv-inbox-split {
   display: flex;
-  min-height: 0;
+  min-height: 28rem;
   flex: 1;
   overflow: hidden;
   overflow-x: clip;
@@ -8614,6 +8614,20 @@ details:not([open]) > :not(summary) {
   min-width: 0;
   background: #fff;
   border-right: 1px solid rgba(15, 23, 42, 0.07);
+}
+
+@media (max-width: 767px) {
+  .tv-inbox-split {
+    flex-direction: column;
+    min-height: 34rem;
+  }
+
+  .tv-inbox-list-pane {
+    flex: 1 1 auto;
+    max-height: 52%;
+    border-right: 0;
+    border-bottom: 1px solid rgba(15, 23, 42, 0.07);
+  }
 }
 
 /* Tablet+: conversation list beside chat (booking docks only when container is wide enough). */
@@ -12188,6 +12202,60 @@ details:not([open]) > :not(summary) {
 
 .partner-listings-workspace__empty {
   padding: 1.25rem 1rem;
+}
+
+.partner-inline-empty {
+  padding: 1.15rem 1rem 1.35rem;
+}
+
+.partner-inline-empty__title,
+.partner-inline-empty {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #3f3f46;
+}
+
+.partner-inline-empty__body {
+  margin: 0.35rem 0 0;
+  max-width: 36rem;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  font-weight: 450;
+  color: #71717a;
+}
+
+.partner-inline-empty__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-top: 0.55rem;
+}
+
+.partner-unified-cal__quiet {
+  margin: 0;
+  padding: 0.1rem 0 0.2rem;
+  font-size: 0.8125rem;
+  color: #71717a;
+}
+
+.partner-bookings-workspace__columns {
+  display: none;
+}
+
+@media (min-width: 900px) {
+  .partner-bookings-workspace__columns {
+    display: grid;
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 0.8fr);
+    gap: 0.75rem;
+    padding: 0.55rem 1.05rem;
+    border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+    font-size: 0.6875rem;
+    font-weight: 650;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #71717a;
+  }
 }
 
 /* Phase Bookings V2: Tours & Activities bookings workspace */

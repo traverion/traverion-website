@@ -252,7 +252,7 @@ export default function PartnerUnifiedWeekView({
                   className="partner-unified-cal__week-empty lux-flat"
                   onClick={() => onSelectDay(iso)}
                 >
-                  No events
+                  Nothing scheduled
                 </button>
               ) : (
                 visible.map((event) => {

@@ -16,7 +16,6 @@ import {
 } from '../../data/supabase-booking-ops';
 import {
   SUPPLIER_PAGE_CLASS,
-  SupplierEmptyState,
   SupplierListSkeleton,
 } from '../../components/supplier/supplierUi';
 import InboxBookingPanel from '../../components/supplier/InboxBookingPanel';
@@ -718,7 +717,7 @@ export default function SupplierInbox() {
   );
 
   const showList = !mobileSheet || !openId;
-  const showChat = !mobileSheet || Boolean(openId);
+  const showChat = !mobileSheet || Boolean(openId) || (!loading && threads.length === 0 && !error);
   const showBookingPanel = Boolean(openBooking) && bookingPanelOpen;
   const showBookingDockedPane = Boolean(openBooking) && bookingDocked;
   const showBookingDrawer = Boolean(openBooking) && !bookingDocked && bookingDrawerMounted;
@@ -769,8 +768,7 @@ export default function SupplierInbox() {
                 </p>
               )}
             </div>
-            {threads.length > 0 ? (
-              <div className="tv-inbox-search mt-2.5">
+            <div className="tv-inbox-search mt-2.5">
                 <label htmlFor="partner-inbox-search" className="sr-only">
                   Search conversations
                 </label>
@@ -785,8 +783,6 @@ export default function SupplierInbox() {
                   autoComplete="off"
                 />
               </div>
-            ) : null}
-            {threads.length > 0 ? (
               <div className="tv-inbox-tabs mt-2" role="tablist" aria-label="Inbox filter">
                 <button
                   type="button"
@@ -813,7 +809,6 @@ export default function SupplierInbox() {
                   <span className="tv-inbox-tab__count">{unreadCount}</span>
                 </button>
               </div>
-            ) : null}
           </header>
           {olderConversationsHidden ? (
             <div className="flex items-center justify-between gap-2 border-b border-black/[0.06] px-3 py-2">
@@ -829,24 +824,24 @@ export default function SupplierInbox() {
           ) : null}
           {loading && threads.length === 0 ? (
             <SupplierListSkeleton rows={4} />
-          ) : threads.length === 0 ? (
+          ) : threads.length === 0 && !filterQuery.trim() && !unreadOnly ? (
             error ? null : (
-              <SupplierEmptyState
-                icon={MessageSquare}
-                title="No booking conversations yet"
-                body="When a traveler pays for one of your tours or stays, you can message them here about that booking."
-                action={
-                  <div className="flex flex-wrap gap-2">
-                    <button type="button" className="tv-btn-primary" onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/bookings`)}>
-                      Open bookings
-                    </button>
-                    {/* Phase 1641: new suppliers need a path to listings while waiting for paid threads. */}
-                    <button type="button" className="tv-btn-ghost" onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/listings`)}>
-                      Your listings
-                    </button>
-                  </div>
-                }
-              />
+              <div className="partner-inline-empty" role="status">
+                <p className="partner-inline-empty__title">No conversations yet</p>
+                <p className="partner-inline-empty__body">
+                  When a traveler pays, you can message them here about that booking.
+                </p>
+                <div className="partner-inline-empty__actions">
+                  {/* Phase 1641: new suppliers need a path to listings while waiting for paid threads. */}
+                  <button
+                    type="button"
+                    className="tv-btn-ghost"
+                    onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/listings`)}
+                  >
+                    Your listings
+                  </button>
+                </div>
+              </div>
             )
           ) : (
             <div
@@ -865,27 +860,19 @@ export default function SupplierInbox() {
             >
               {visibleThreads.length === 0 ? (
                 filterQuery.trim() ? (
-                  <SupplierEmptyState
-                    icon={MessageSquare}
-                    title="No conversations match your search"
-                    body="Try another guest name, purchased listing title, or booking number."
-                    action={
-                      <button type="button" className="tv-btn-secondary" onClick={() => setFilterQuery('')}>
-                        Clear search
-                      </button>
-                    }
-                  />
+                  <div className="partner-inline-empty" role="status">
+                    <p className="partner-inline-empty__title">No conversations match your search</p>
+                    <button type="button" className="tv-btn-ghost" onClick={() => setFilterQuery('')}>
+                      Clear search
+                    </button>
+                  </div>
                 ) : (
-                  <SupplierEmptyState
-                    icon={MessageSquare}
-                    title="No unread messages"
-                    body="You’re caught up. Switch to All to see every booking thread."
-                    action={
-                      <button type="button" className="tv-btn-secondary" onClick={() => setUnreadOnlyAndUrl(false)}>
-                        Show all conversations
-                      </button>
-                    }
-                  />
+                  <div className="partner-inline-empty" role="status">
+                    <p className="partner-inline-empty__title">No unread messages</p>
+                    <button type="button" className="tv-btn-ghost" onClick={() => setUnreadOnlyAndUrl(false)}>
+                      Show all conversations
+                    </button>
+                  </div>
                 )
               ) : (
                 <ul className="tv-inbox-list" aria-busy={loading || undefined}>

@@ -535,6 +535,26 @@ export function groupPartnerUnifiedEventsByDate(
     .map(([iso, rows]) => ({ iso, events: rows }));
 }
 
+/** Every date in the window, including days with no events. */
+export function partnerUnifiedAgendaDays(
+  events: PartnerUnifiedCalendarEvent[],
+  fromYmd: string,
+  toYmd: string,
+  maxDays = 45
+): Array<{ iso: string; events: PartnerUnifiedCalendarEvent[] }> {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(fromYmd) || !/^\d{4}-\d{2}-\d{2}$/.test(toYmd) || fromYmd > toYmd) {
+    return [];
+  }
+  const grouped = new Map(groupPartnerUnifiedEventsByDate(events).map((group) => [group.iso, group.events]));
+  const days: Array<{ iso: string; events: PartnerUnifiedCalendarEvent[] }> = [];
+  let cursor = fromYmd;
+  while (cursor && cursor <= toYmd && days.length < maxDays) {
+    days.push({ iso: cursor, events: grouped.get(cursor) ?? [] });
+    cursor = addCalendarDaysYmd(cursor, 1) ?? '';
+  }
+  return days;
+}
+
 export function summarizePartnerUnifiedMonthDays(
   events: PartnerUnifiedCalendarEvent[],
   year: number,

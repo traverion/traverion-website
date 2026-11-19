@@ -4,7 +4,6 @@ import {
   ChevronRight,
   Download,
   RefreshCw,
-  CalendarDays,
   Search,
   X,
 } from 'lucide-react';
@@ -41,11 +40,7 @@ import { SkeletonListItem } from '../../components/ui/Skeleton';
 import ErrorState from '../../components/ErrorState';
 import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
 import { partnerToast } from '../../lib/partner-toast';
-import {
-  SUPPLIER_PAGE_CLASS,
-  SupplierEmptyState,
-  SupplierPageHero,
-} from '../../components/supplier/supplierUi';
+import { SUPPLIER_PAGE_CLASS, SupplierPageHero } from '../../components/supplier/supplierUi';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import {
   executeBookingRefund,
@@ -1483,52 +1478,7 @@ export default function SupplierBookings({
         </div>
       ) : null}
 
-      {listHidden ? null : loading && bookings.length === 0 && !bookingFiltersActive ? (
-        <div className="space-y-3 animate-fade-in-up" aria-busy="true" aria-label="Loading bookings">
-          <SkeletonListItem />
-          <SkeletonListItem />
-          <SkeletonListItem />
-          <SkeletonListItem />
-        </div>
-      ) : error ? null : bookings.length === 0 && !bookingFiltersActive ? (
-        <SupplierEmptyState
-          icon={CalendarDays}
-          title={
-            inventoryFamily === 'stay'
-              ? 'No reservations yet'
-              : inventoryFamily === 'rental'
-                ? 'No rental bookings yet'
-                : 'No bookings yet'
-          }
-          body={
-            inventoryFamily === 'stay'
-              ? 'When guests book a stay, arrival and departure details appear here.'
-              : inventoryFamily === 'rental'
-                ? 'When guests book a rental, collection and return details appear here.'
-                : isUnifiedDesk
-                  ? 'When guests book, tours, stays, and rentals appear here together.'
-                  : 'When guests book a tour, departure details appear here.'
-          }
-          action={
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => navigateSupplierUrl(PARTNER_CREATE_PATH)}
-                className="tv-btn-primary"
-              >
-                New listing
-              </button>
-              <button
-                type="button"
-                onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/listings`)}
-                className="tv-btn-ghost"
-              >
-                Your listings
-              </button>
-            </div>
-          }
-        />
-      ) : (
+      {listHidden ? null : error && bookings.length === 0 ? null : (
       <div className="partner-bookings-workspace">
       <div className="partner-bookings-workspace__toolbar">
         <div className="partner-bookings-workspace__quick">
@@ -1706,11 +1656,54 @@ export default function SupplierBookings({
           aria-label={isStayDesk ? 'Reservations' : 'Bookings'}
           className="partner-bookings-workspace__body"
         >
-        {filteredBookings.length === 0 ? (
-        <SupplierEmptyState
-          icon={CalendarDays}
-          title={
-            opsFilter === 'unpaid'
+        <div className="partner-bookings-workspace__columns" aria-hidden="true">
+          <span>Guest</span>
+          <span>Experience</span>
+          <span>Date</span>
+          <span>Status</span>
+        </div>
+        {loading && bookings.length === 0 ? (
+        <div className="space-y-3 animate-fade-in-up px-4 py-4" aria-busy="true" aria-label="Loading bookings">
+          <SkeletonListItem />
+          <SkeletonListItem />
+          <SkeletonListItem />
+        </div>
+        ) : bookings.length === 0 && !bookingFiltersActive ? (
+        <div className="partner-inline-empty" role="status">
+          {/* Phase 1698 — empty desk keeps listing actions inside the table. */}
+          <p className="partner-inline-empty__title">
+            {inventoryFamily === 'stay'
+              ? 'No reservations yet'
+              : inventoryFamily === 'rental'
+                ? 'No rental bookings yet'
+                : 'No bookings yet'}
+          </p>
+          <p className="partner-inline-empty__body">
+            {inventoryFamily === 'stay'
+              ? 'When guests book a stay, arrival and departure details appear here.'
+              : inventoryFamily === 'rental'
+                ? 'When guests book a rental, collection and return details appear here.'
+                : isUnifiedDesk
+                  ? 'When guests book, tours, stays, and rentals appear here together.'
+                  : 'When guests book a tour, departure details appear here.'}
+          </p>
+          <div className="partner-inline-empty__actions">
+            <button type="button" onClick={() => navigateSupplierUrl(PARTNER_CREATE_PATH)} className="tv-btn-ghost">
+              New listing
+            </button>
+            <button
+              type="button"
+              onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/listings`)}
+              className="tv-btn-ghost"
+            >
+              Your listings
+            </button>
+          </div>
+        </div>
+        ) : filteredBookings.length === 0 ? (
+        <div className="partner-inline-empty" role="status">
+          <p className="partner-inline-empty__title">
+            {opsFilter === 'unpaid'
               ? 'No unpaid checkouts match these filters.'
               : categoryFilter &&
                   activeBookingFilterCount === 1 &&
@@ -1722,36 +1715,19 @@ export default function SupplierBookings({
                   : categoryFilter === 'rental'
                     ? 'No rental bookings yet'
                     : 'No tour bookings yet'
-                : 'No bookings match your selected filters.'
-          }
-          body={
-            opsFilter === 'unpaid'
-              ? 'Live holds stay here until payment completes or the hold expires.'
-              : categoryFilter &&
-                  activeBookingFilterCount === 1 &&
-                  !filterQuery.trim() &&
-                  !filterListingId &&
-                  view === 'all'
-                ? categoryFilter === 'stay'
-                  ? 'When guests book a stay, arrival and departure details appear here.'
-                  : categoryFilter === 'rental'
-                    ? 'When guests book a rental, collection and return details appear here.'
-                    : 'When guests book a tour, departure details appear here.'
-                : 'Try another day, category, or search — or reset filters to see all bookings again.'
-          }
-          action={
-              <button
-                type="button"
-                onClick={() => {
-                  resetBookingFilters();
-                  setBookingsListPage(1);
-                }}
-                className="tv-btn-secondary"
-              >
-                Reset filters
-              </button>
-          }
-        />
+                : 'No bookings match your selected filters.'}
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              resetBookingFilters();
+              setBookingsListPage(1);
+            }}
+            className="tv-btn-ghost"
+          >
+            Reset filters
+          </button>
+        </div>
       ) : (
         <div className="space-y-2.5" aria-busy={loading || undefined}>
           <div className="partner-bookings-workspace__list">

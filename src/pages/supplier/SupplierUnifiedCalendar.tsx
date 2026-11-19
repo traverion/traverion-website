@@ -11,7 +11,7 @@ import {
   type Dispatch,
   type SetStateAction,
 } from 'react';
-import { CalendarDays, ChevronLeft, ChevronRight, ImageOff, ListFilter, Pencil } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ImageOff, ListFilter, Pencil } from 'lucide-react';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import { useSupplierRole } from '../../hooks/useSupplierRole';
 import { canManageBookings } from '../../lib/supplierTeamRoles';
@@ -37,7 +37,7 @@ import {
   filterPartnerUnifiedCalendarEvents,
   formatPartnerUnifiedMonthLabel,
   formatPartnerUnifiedWeekLabel,
-  groupPartnerUnifiedEventsByDate,
+  partnerUnifiedAgendaDays,
   listingsForUnifiedCategoryFilter,
   parsePartnerUnifiedCalendarView,
   parsePartnerUnifiedCategoryFilter,
@@ -82,11 +82,7 @@ import {
   sortMonthCellEvents,
 } from '../../lib/partner-unified-calendar-month';
 import { partnerUnifiedDayBoundsUtc } from '../../lib/partner-unified-day-edits';
-import {
-  SUPPLIER_PAGE_CLASS,
-  SupplierEmptyState,
-  SupplierPageHero,
-} from '../../components/supplier/supplierUi';
+import { SUPPLIER_PAGE_CLASS, SupplierPageHero } from '../../components/supplier/supplierUi';
 import PartnerSelect from '../../components/supplier/PartnerSelect';
 import PartnerUnifiedBulkEditPanel from '../../components/supplier/PartnerUnifiedBulkEditPanel';
 import PartnerUnifiedInlineAvailabilityEdit from '../../components/supplier/PartnerUnifiedInlineAvailabilityEdit';
@@ -816,10 +812,11 @@ export default function SupplierUnifiedCalendar() {
     toYmd,
   ]);
 
-  const agendaGroups = useMemo(
-    () => groupPartnerUnifiedEventsByDate(filteredEvents),
-    [filteredEvents]
-  );
+  const agendaGroups = useMemo(() => {
+    const start =
+      !includePast && range.fromYmd < operatingTodayIso ? operatingTodayIso : range.fromYmd;
+    return partnerUnifiedAgendaDays(filteredEvents, start, range.toYmd);
+  }, [filteredEvents, includePast, operatingTodayIso, range.fromYmd, range.toYmd]);
 
   const monthCells = useMemo(
     () => partnerUnifiedWeeksCoveringRange(range.fromYmd, range.toYmd),
@@ -1090,9 +1087,6 @@ export default function SupplierUnifiedCalendar() {
   const listingForEvent = (event: PartnerUnifiedCalendarEvent) =>
     listings.find((l) => l.id === event.listingId) ?? null;
 
-  const emptyPastHint =
-    !includePast && range.toYmd < todayIso;
-
   if (!isSupabase) {
     return (
       <div className={SUPPLIER_PAGE_CLASS}>
@@ -1287,36 +1281,11 @@ export default function SupplierUnifiedCalendar() {
         <div className="partner-unified-cal__loading" aria-busy="true">
           Loading calendar…
         </div>
-      ) : listings.length === 0 ? (
-        <SupplierEmptyState
-          icon={CalendarDays}
-          title="No listings yet"
-          body="Create a tour, stay, or rental to see operations here."
-        />
       ) : view === 'agenda' ? (
-        agendaGroups.length === 0 ? (
-          <SupplierEmptyState
-            icon={CalendarDays}
-            title={emptyPastHint ? 'Past window' : 'Nothing upcoming'}
-            body={
-              emptyPastHint
-                ? 'Past events are hidden. Turn on Show past, or jump to Today.'
-                : 'No departures, stays, or rentals in this range.'
-            }
-            action={
-              !includePast ? (
-                <button
-                  type="button"
-                  className="tv-btn-secondary inline-flex min-h-10 items-center px-3 text-sm font-semibold"
-                  onClick={() => setIncludePast(true)}
-                >
-                  Show past
-                </button>
-              ) : undefined
-            }
-          />
-        ) : (
           <div className="partner-unified-cal__agenda">
+            {agendaGroups.length === 0 ? (
+              <p className="partner-unified-cal__quiet">Nothing scheduled</p>
+            ) : null}
             {agendaGroups.map((group) => (
               <section
                 key={group.iso}
@@ -1334,6 +1303,9 @@ export default function SupplierUnifiedCalendar() {
                   <span>{group.events.length}</span>
                 </header>
                 <div className="partner-unified-cal__cards">
+                  {group.events.length === 0 ? (
+                    <p className="partner-unified-cal__quiet">Nothing scheduled</p>
+                  ) : null}
                   {group.events.map((event) => {
                     const expanded = expandedKey === event.key;
                     const listing = listingForEvent(event);
@@ -1558,7 +1530,6 @@ export default function SupplierUnifiedCalendar() {
               </section>
             ))}
           </div>
-        )
       ) : view === 'week' ? (
         <PartnerUnifiedWeekView
           weekFromYmd={range.fromYmd}

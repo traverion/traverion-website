@@ -15,7 +15,6 @@ import {
   Pencil,
   Trash2,
   EyeOff,
-  Map,
   Compass,
   Home,
   KeyRound,
@@ -111,7 +110,6 @@ import {
   partnerListingsFamilyCounts,
   partnerListingsFiltersFromWorkspace,
   partnerListingsStatusCounts,
-  partnerListingsVisibleFamilyFilters,
   type PartnerListingsFamilyFilter,
   type PartnerListingsStatusFilter,
 } from '../../lib/partner-listings-filter';
@@ -119,8 +117,7 @@ import { normalizeListingForDraftSave } from '../../lib/listingDraftUtils';
 import { SkeletonListItem } from '../../components/ui/Skeleton';
 import ErrorState from '../../components/ErrorState';
 import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
-import { SUPPLIER_PAGE_CLASS, SupplierEmptyState, SupplierModalHeader, SupplierPageHero } from '../../components/supplier/supplierUi';
-import { PARTNER_FIRST_LISTING_STEP_NOTE } from '../../lib/booking-confirmation-copy';
+import { SUPPLIER_PAGE_CLASS, SupplierModalHeader, SupplierPageHero } from '../../components/supplier/supplierUi';
 import StatusChip from '../../components/StatusChip';
 import PartnerSelect from '../../components/supplier/PartnerSelect';
 import {
@@ -1211,7 +1208,7 @@ export default function SupplierListings() {
   };
 
   const listingsToolbar =
-    listings.length > 0 && !showForm ? (
+    !showForm ? (
       <div className="partner-listings-workspace__toolbar">
         <div className="partner-listings-workspace__controls">
           <label className="partner-listings-workspace__search">
@@ -1266,10 +1263,7 @@ export default function SupplierListings() {
                 { id: 'rental' as const, label: 'Rentals' },
               ] as const
             )
-              .filter((tab) =>
-                partnerListingsVisibleFamilyFilters(familyCounts, familyFilter).includes(tab.id)
-              )
-              .map((tab) => (
+                .map((tab) => (
                 <button
                   key={tab.id}
                   type="button"
@@ -1580,64 +1574,41 @@ export default function SupplierListings() {
         </Suspense>
       )}
 
-      {loading && listings.length === 0 ? (
-        <div className="space-y-3 animate-fade-in-up" aria-busy="true" aria-label="Loading listings">
-          <SkeletonListItem />
-          <SkeletonListItem />
-          <SkeletonListItem />
-        </div>
-      ) : listings.length === 0 && !showForm && !error ? (
-        <SupplierEmptyState
-          icon={Map}
-          title="No listings yet"
-          body={PARTNER_FIRST_LISTING_STEP_NOTE}
-          action={
-            <button
-              type="button"
-              onClick={openCreateChooser}
-              disabled={!canEditListings}
-              title={
-                !canEditListings
-                  ? 'Your role cannot add listings.'
-                  : !canPostNewListing
-                    ? 'You can draft now. Publishing needs business and payout verification.'
-                    : undefined
-              }
-              className="tv-btn-primary"
-            >
-              <Plus className="w-5 h-5" />
-              Create listing
-            </button>
-          }
-        />
-      ) : listings.length > 0 && !showForm ? (
+      {!showForm && !error ? (
         <div className="partner-listings-workspace">
           {listingsToolbar}
           <div className="partner-listings-workspace__body">
-            {filteredListings.length === 0 ? (
+            {loading && listings.length === 0 ? (
+              <div className="space-y-3 animate-fade-in-up" aria-busy="true" aria-label="Loading listings">
+                <SkeletonListItem />
+                <SkeletonListItem />
+                <SkeletonListItem />
+              </div>
+            ) : filteredListings.length === 0 ? (
               <div className="partner-listings-workspace__empty">
-                <SupplierEmptyState
-                  icon={Map}
-                  title={listQuery.trim() ? 'No matching listings' : 'Nothing in this view'}
-                  body={
-                    listQuery.trim()
-                      ? 'No listings match this search and filters. Clear search or change filters.'
-                      : 'You have listings, but none match these filters. Clear them to see everything.'
-                  }
-                  action={
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setListQueryAndUrl('');
-                        setFamilyFilterAndUrl('all');
-                        setStatusFilterAndUrl('all');
-                      }}
-                      className="tv-btn-secondary"
-                    >
-                      Show all listings
-                    </button>
-                  }
-                />
+                <p className="partner-inline-empty" role="status">
+                  {listings.length === 0 &&
+                  !listQuery.trim() &&
+                  familyFilter === 'all' &&
+                  statusFilter === 'all'
+                    ? 'No listings yet'
+                    : listQuery.trim()
+                      ? 'No matching listings'
+                      : 'Nothing in this view'}
+                </p>
+                {listQuery.trim() || familyFilter !== 'all' || statusFilter !== 'all' ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setListQueryAndUrl('');
+                    setFamilyFilterAndUrl('all');
+                    setStatusFilterAndUrl('all');
+                  }}
+                  className="tv-btn-ghost"
+                >
+                  Show all listings
+                </button>
+                ) : null}
               </div>
             ) : (
           <div className="tv-ops-listings-table" aria-busy={loading || undefined}>

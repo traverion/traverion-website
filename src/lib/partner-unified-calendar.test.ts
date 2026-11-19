@@ -6,6 +6,7 @@ import {
   filterPartnerUnifiedCalendarEvents,
   formatPartnerUnifiedMonthLabel,
   groupPartnerUnifiedEventsByDate,
+  partnerUnifiedAgendaDays,
   formatPartnerUnifiedWeekLabel,
   parsePartnerUnifiedCalendarView,
   partnerUnifiedApplyShift,
@@ -637,5 +638,24 @@ describe('partnerUnifiedSmartDefaultFocusYmd', () => {
     expect(
       partnerUnifiedSmartDefaultFocusYmd({ todayIso: '2026-11-14', events })
     ).toBe('2026-11-14');
+  });
+
+  it('keeps empty dates in the agenda window', () => {
+    const days = partnerUnifiedAgendaDays(
+      [
+        bookableEvent({
+          key: 'mid',
+          ymd: '2026-11-15',
+          kind: 'tour_departure',
+          category: 'tour',
+          departureStatus: 'available',
+        }),
+      ],
+      '2026-11-14',
+      '2026-11-16'
+    );
+    expect(days.map((day) => day.iso)).toEqual(['2026-11-14', '2026-11-15', '2026-11-16']);
+    expect(days[0]?.events).toEqual([]);
+    expect(days[1]?.events).toHaveLength(1);
   });
 });
