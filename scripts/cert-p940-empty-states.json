@@ -1,0 +1,127 @@
+{
+  "origin": "https://partner.traverion.com",
+  "passed": 24,
+  "failed": 0,
+  "checks": [
+    {
+      "name": "desktop /partner",
+      "ok": true,
+      "detail": "rgba(0, 0, 0, 0)"
+    },
+    {
+      "name": "desktop /partner/calendar",
+      "ok": true,
+      "detail": "rgba(0, 0, 0, 0)"
+    },
+    {
+      "name": "desktop /partner/bookings",
+      "ok": true,
+      "detail": "rgba(0, 0, 0, 0)"
+    },
+    {
+      "name": "desktop /partner/listings",
+      "ok": true,
+      "detail": "rgba(0, 0, 0, 0)"
+    },
+    {
+      "name": "desktop /partner/inbox",
+      "ok": true,
+      "detail": "rgba(0, 0, 0, 0)"
+    },
+    {
+      "name": "desktop /partner/money",
+      "ok": true,
+      "detail": "rgba(0, 0, 0, 0)"
+    },
+    {
+      "name": "desktop /partner/performance",
+      "ok": true,
+      "detail": "rgba(0, 0, 0, 0)"
+    },
+    {
+      "name": "agenda empty is under today",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "week empty days remain",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "month grid still renders",
+      "ok": true,
+      "detail": "42"
+    },
+    {
+      "name": "mobile /partner",
+      "ok": true,
+      "detail": "rgba(0, 0, 0, 0)"
+    },
+    {
+      "name": "mobile /partner/calendar",
+      "ok": true,
+      "detail": "rgba(0, 0, 0, 0)"
+    },
+    {
+      "name": "mobile /partner/bookings",
+      "ok": true,
+      "detail": "rgba(0, 0, 0, 0)"
+    },
+    {
+      "name": "mobile /partner/listings",
+      "ok": true,
+      "detail": "rgba(0, 0, 0, 0)"
+    },
+    {
+      "name": "mobile /partner/inbox",
+      "ok": true,
+      "detail": "rgba(0, 0, 0, 0)"
+    },
+    {
+      "name": "mobile /partner/money",
+      "ok": true,
+      "detail": "rgba(0, 0, 0, 0)"
+    },
+    {
+      "name": "mobile /partner/performance",
+      "ok": true,
+      "detail": "rgba(0, 0, 0, 0)"
+    },
+    {
+      "name": "dark /partner",
+      "ok": true,
+      "detail": "rgba(0, 0, 0, 0)"
+    },
+    {
+      "name": "dark /partner/calendar",
+      "ok": true,
+      "detail": "rgba(0, 0, 0, 0)"
+    },
+    {
+      "name": "dark /partner/bookings",
+      "ok": true,
+      "detail": "rgba(0, 0, 0, 0)"
+    },
+    {
+      "name": "dark /partner/listings",
+      "ok": true,
+      "detail": "rgba(0, 0, 0, 0)"
+    },
+    {
+      "name": "dark /partner/inbox",
+      "ok": true,
+      "detail": "rgba(0, 0, 0, 0)"
+    },
+    {
+      "name": "dark /partner/money",
+      "ok": true,
+      "detail": "rgba(0, 0, 0, 0)"
+    },
+    {
+      "name": "dark /partner/performance",
+      "ok": true,
+      "detail": "rgba(0, 0, 0, 0)"
+    }
+  ]
+}
