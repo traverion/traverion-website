@@ -1,0 +1,37 @@
+{
+  "origin": "https://partner.traverion.com",
+  "passed": 6,
+  "failed": 0,
+  "checks": [
+    {
+      "name": "income arrow key selects the next tab",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "income and analytics tabs match",
+      "ok": true,
+      "detail": "36px/36px 13px"
+    },
+    {
+      "name": "income and analytics titles match",
+      "ok": true,
+      "detail": "25px/25px"
+    },
+    {
+      "name": "pages do not overflow horizontally",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "search fields share one height",
+      "ok": true,
+      "detail": "40px/40px/40px"
+    },
+    {
+      "name": "mobile listings do not overflow",
+      "ok": true,
+      "detail": ""
+    }
+  ]
+}
