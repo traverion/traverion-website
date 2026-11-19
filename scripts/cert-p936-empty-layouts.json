@@ -1,6 +1,6 @@
 {
   "origin": "https://partner.traverion.com",
-  "passed": 38,
+  "passed": 40,
   "failed": 0,
   "checks": [
     {
@@ -34,9 +34,14 @@
       "detail": ""
     },
     {
-      "name": "desktop agenda shows dates, including quiet days",
+      "name": "desktop agenda shows today and only dates with events",
       "ok": true,
-      "detail": "Thursday 19 November Today 0 Nothing scheduled Friday 20 November 0 Nothing scheduled "
+      "detail": "Thursday 19 November Today 0 Nothing scheduled"
+    },
+    {
+      "name": "desktop week and month stay available",
+      "ok": true,
+      "detail": ""
     },
     {
       "name": "desktop week shows seven days",
@@ -114,9 +119,14 @@
       "detail": ""
     },
     {
-      "name": "mobile agenda shows dates, including quiet days",
+      "name": "mobile agenda shows today and only dates with events",
       "ok": true,
-      "detail": "Thursday 19 November Today 0 Nothing scheduled Friday 20 November 0 Nothing scheduled "
+      "detail": "Thursday 19 November Today 0 Nothing scheduled"
+    },
+    {
+      "name": "mobile week and month stay available",
+      "ok": true,
+      "detail": ""
     },
     {
       "name": "mobile week shows seven days",

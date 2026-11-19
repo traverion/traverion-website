@@ -1,11 +1,11 @@
-# P9.36 — Persistent page layouts
+# P9.36 — Agenda dates
 
-Calendar, Bookings, Listings, and Inbox keep their operational chrome when there is nothing to show. Empty copy sits inside the content area. Search and filters stay usable, and a failed bookings load stays distinct from an empty list.
+Agenda lists today, even when it is empty, and later dates only when they have a booking or scheduled event. Empty days between those dates are omitted. With nothing upcoming, Agenda is today’s date and “Nothing scheduled”. Several bookings on one date stay under that date. Week and Month still show every date in the grid.
 
-Deployment: `ba43d241` on `main`. Production chunks include `SupplierUnifiedCalendar-rsJXhunK.js`, `SupplierBookings-BLggIB6W.js`, `SupplierListings-BaBqxFSS.js`, and `SupplierInbox-CKDcibmH.js`.
+Deployment: `91839726` on `main`. Production calendar chunk: `SupplierUnifiedCalendar-DHk9XVmB.js`.
 
-The live supplier currently has no listings, bookings, or conversations. No records were created or deleted. Desktop (1440) and mobile (390) both kept Agenda, Week, and Month, Today, filters, the bookings workspace, the listings toolbar, and both inbox panels. Agenda for 19 November 2026 showed the date and “Nothing scheduled”. Week rendered seven columns. Month rendered 42 cells with today highlighted once. A search that matches nothing stays inside the same workspace and switches to the filtered-empty message. Aborting the listings request on Bookings shows “Bookings unavailable” and does not show “No bookings yet”.
+The live supplier has no listings, bookings, or conversations, so production Agenda showed only Thursday 19 November with “Nothing scheduled” on desktop and mobile. Week showed seven columns. Month showed 42 cells with today highlighted once. No records were created.
 
-One scheduled item among empty agenda dates is covered by `partnerUnifiedAgendaDays` in `src/lib/partner-unified-calendar.test.ts`. Mixed tour, stay, and rental events remain covered by the existing calendar unit tests. Those populated cases were not present on this live account.
+Gaps, a single future event, multiple events on one date, and a past event with empty days around it are covered by `partnerUnifiedAgendaDays` in `src/lib/partner-unified-calendar.test.ts` (21 tests passed).
 
-38/38 PASS.
+40/40 PASS on `https://partner.traverion.com`.
