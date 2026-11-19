@@ -1,5 +1,5 @@
 import { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef } from 'react';
-import { Info, TrendingUp } from 'lucide-react';
+import { BarChart3, Info } from 'lucide-react';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import { fetchMyListings } from '../../data/supabase-listings';
 import type { BookingRow } from '../../data/supabase-bookings';
@@ -751,11 +751,11 @@ export default function SupplierPerformance() {
 
       {!loading && !error && !hasAnyPaid && listings.length === 0 ? (
         <SupplierEmptyState
-          icon={TrendingUp}
+          icon={BarChart3}
           title="No listings yet"
-          body="Analytics uses the same paid bookings as Income. Create a listing to start collecting bookings."
+          body="Analytics starts once a listing is live."
           action={
-            <button type="button" onClick={() => navigateSupplierUrl(PARTNER_CREATE_PATH)} className="tv-btn-primary">
+            <button type="button" onClick={() => navigateSupplierUrl(PARTNER_CREATE_PATH)} className="tv-btn-secondary">
               Create a listing
             </button>
           }
@@ -763,50 +763,44 @@ export default function SupplierPerformance() {
       ) : null}
 
       {!loading && !error && !hasAnyPaid && listings.length > 0 ? (
-        <div className="tv-analytics-empty">
-          {/* Phase 1652: View bookings when unpaid-only. Phase 1673: Your listings when zero bookings. */}
-          <p className="font-semibold text-[#18181b]">
-            {bookings.length > 0 ? 'No paid bookings in this window' : 'No paid bookings yet'}
-          </p>
-          <p className="mt-1 text-[13px] text-[#71717a]">
-            Your performance will appear here after your first paid booking. Unpaid checkouts are never counted.
-          </p>
-          {bookings.length > 0 ? (
-            <button
-              type="button"
-              className="tv-btn-secondary mt-3 h-9 px-3 text-[13px]"
-              onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/bookings`)}
-            >
-              View bookings
-            </button>
-          ) : (
-            <button
-              type="button"
-              className="tv-btn-ghost mt-3 h-9 px-3 text-[13px]"
-              onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/listings`)}
-            >
-              Your listings
-            </button>
-          )}
-        </div>
+        <SupplierEmptyState
+          icon={BarChart3}
+          title={bookings.length > 0 ? 'No paid bookings in this window' : 'No paid bookings yet'}
+          body="Paid bookings will show up here."
+          action={
+            bookings.length > 0 ? (
+              /* Phase 1652: View bookings when unpaid-only. Phase 1673: listings stay in navigation. */
+              <button
+                type="button"
+                className="tv-btn-secondary"
+                onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/bookings`)}
+              >
+                View bookings
+              </button>
+            ) : undefined
+          }
+        />
       ) : null}
 
       {!loading && !error && hasAnyPaid && filteredPaid.length === 0 && !dailySummary?.collectedCount && !detailListingId ? (
-        <div className="tv-analytics-empty">
-          <p className="font-semibold text-[#18181b]">No results for these filters</p>
-          <p className="mt-1 text-[13px] text-[#71717a]">Try a wider date range or clear the listing filter.</p>
-          <button
-            type="button"
-            className="tv-btn-secondary mt-3 h-9 px-3 text-[13px]"
-            onClick={() => {
-              setRangeKey('all');
-              setListingId('');
-              pushUrl({ range: 'all', listingId: '' }, true);
-            }}
-          >
-            Show all time
-          </button>
-        </div>
+        <SupplierEmptyState
+          icon={BarChart3}
+          title="No results for these filters"
+          body="Try a wider date range."
+          action={
+            <button
+              type="button"
+              className="tv-btn-secondary"
+              onClick={() => {
+                setRangeKey('all');
+                setListingId('');
+                pushUrl({ range: 'all', listingId: '' }, true);
+              }}
+            >
+              Show all time
+            </button>
+          }
+        />
       ) : null}
 
       {detailListingId && detailMeta ? (

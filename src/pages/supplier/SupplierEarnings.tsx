@@ -25,7 +25,7 @@ import {
 import type { BookingRow } from '../../data/supabase-bookings';
 import { fetchSupplierProfile } from '../../data/supabase-supplier-profile';
 import { insertSupplierExportRun } from '../../data/supabase-supplier-campaigns-exports';
-import { SUPPLIER_PAGE_CLASS, SupplierListSkeleton } from '../../components/supplier/supplierUi';
+import { SUPPLIER_PAGE_CLASS, SupplierEmptyState, SupplierListSkeleton } from '../../components/supplier/supplierUi';
 import ErrorState from '../../components/ErrorState';
 import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
 import { openSupplierBooking } from '../../lib/supplierPortalNavigation';
@@ -1390,15 +1390,17 @@ export default function SupplierEarnings() {
               <tbody>
                 {pageRows.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-3 py-10 text-center">
-                      <p className="text-sm font-semibold text-[#18181b]">
-                        {hasMoney ? 'No rows for this filter' : 'No earnings yet'}
-                      </p>
-                      <p className="mx-auto mt-1 max-w-md text-[13px] leading-relaxed text-[#71717a]">
-                        {hasMoney
-                          ? PARTNER_MONEY_FILTER_EMPTY_BODY
-                          : 'Your earnings will appear here when you receive your first eligible booking.'}
-                      </p>
+                    <td colSpan={7}>
+                      <SupplierEmptyState
+                        className="partner-empty--inset"
+                        icon={Wallet}
+                        title={hasMoney ? 'No rows for this filter' : 'No earnings yet'}
+                        body={
+                          hasMoney
+                            ? PARTNER_MONEY_FILTER_EMPTY_BODY
+                            : 'Earnings appear with the first eligible booking.'
+                        }
+                      />
                     </td>
                   </tr>
                 ) : (
@@ -1442,15 +1444,17 @@ export default function SupplierEarnings() {
             </table>
           </div>
           {pageRows.length === 0 ? (
-            <div className="rounded-[10px] border border-[#e5e7eb] bg-white px-4 py-10 text-center md:hidden">
-              <p className="text-sm font-semibold text-[#18181b]">
-                {hasMoney ? 'No rows for this filter' : 'No earnings yet'}
-              </p>
-              <p className="mx-auto mt-1 max-w-md text-[13px] leading-relaxed text-[#71717a]">
-                {hasMoney
-                  ? PARTNER_MONEY_FILTER_EMPTY_BODY
-                  : 'Your earnings will appear here when you receive your first eligible booking.'}
-              </p>
+            <div className="md:hidden">
+              <SupplierEmptyState
+                className="partner-empty--inset"
+                icon={Wallet}
+                title={hasMoney ? 'No rows for this filter' : 'No earnings yet'}
+                body={
+                  hasMoney
+                    ? PARTNER_MONEY_FILTER_EMPTY_BODY
+                    : 'Earnings appear with the first eligible booking.'
+                }
+              />
             </div>
           ) : (
             <ul className="divide-y divide-[#e5e7eb] overflow-hidden rounded-[10px] border border-[#e5e7eb] bg-white md:hidden">
@@ -1487,11 +1491,13 @@ export default function SupplierEarnings() {
           <p className="text-[12px] text-[#71717a]">{nextPayoutLabel}</p>
           <ul className="divide-y divide-[#e5e7eb] overflow-hidden rounded-[10px] border border-[#e5e7eb] bg-white">
             {payoutPeriods.length === 0 && filteredEarningsInWindow.length === 0 ? (
-              <li className="px-4 py-10 text-center">
-                <p className="text-sm font-semibold text-[#18181b]">No payouts yet</p>
-                <p className="mx-auto mt-1 max-w-md text-[13px] leading-relaxed text-[#71717a]">
-                  Your payout history will appear here once payouts are processed.
-                </p>
+              <li>
+                <SupplierEmptyState
+                  className="partner-empty--inset"
+                  icon={Wallet}
+                  title="No payouts yet"
+                  body="Payout history appears after the first payout."
+                />
               </li>
             ) : (
               <>
@@ -1573,12 +1579,11 @@ export default function SupplierEarnings() {
             );
             if (payoutStatementDocs.length === 0 && paymentConfirmationDocs.length === 0) {
               return (
-                <div className="rounded-[10px] border border-[#e5e7eb] bg-white px-4 py-10 text-center">
-                  <p className="text-sm font-semibold text-[#18181b]">No documents yet</p>
-                  <p className="mx-auto mt-1 max-w-md text-[13px] leading-relaxed text-[#71717a]">
-                    Statements and payment confirmations appear here after a payout period is confirmed.
-                  </p>
-                </div>
+                <SupplierEmptyState
+                  icon={FileText}
+                  title="No documents yet"
+                  body="Statements appear after a payout is confirmed."
+                />
               );
             }
             return (

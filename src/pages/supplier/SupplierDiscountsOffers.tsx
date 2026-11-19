@@ -1,5 +1,5 @@
 import { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef } from 'react';
-import { ChevronDown, MapPin, MoreHorizontal, Search } from 'lucide-react';
+import { ChevronDown, MapPin, MoreHorizontal, Search, Tag } from 'lucide-react';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import { fetchMyListings } from '../../data/supabase-listings';
 import { TourPackage } from '../../types/tour';
@@ -21,7 +21,7 @@ import DiscountOfferWizardModal from '../../components/supplier/DiscountOfferWiz
 import PartnerConfirmModal from '../../components/supplier/PartnerConfirmModal';
 import ErrorState from '../../components/ErrorState';
 import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
-import { SUPPLIER_PAGE_CLASS, SupplierListSkeleton } from '../../components/supplier/supplierUi';
+import { SUPPLIER_PAGE_CLASS, SupplierEmptyState, SupplierListSkeleton } from '../../components/supplier/supplierUi';
 import { formatMoney, normalizeCurrency } from '../../lib/money';
 import { catalogOfferTodayIso } from '../../lib/discount-display';
 import {
@@ -469,15 +469,10 @@ export default function SupplierDiscountsOffers() {
         </div>
         {canEdit ? (
           listings.length === 0 ? (
-            <div className="flex flex-wrap gap-2">
-              {/* Phase 1682: Calendar dual-CTA parity — create vs open listings. */}
-              <button type="button" onClick={() => navigateSupplierUrl(PARTNER_CREATE_PATH)} className="tv-btn-primary h-10 px-3 text-[13px]">
-                New listing
-              </button>
-              <button type="button" onClick={goToListings} className="tv-btn-ghost h-10 px-3 text-[13px]">
-                Your listings
-              </button>
-            </div>
+            <button type="button" onClick={() => navigateSupplierUrl(PARTNER_CREATE_PATH)} className="tv-btn-primary h-10 px-3 text-[13px]">
+              {/* Phase 1682: one create action when there are no listings. */}
+              New listing
+            </button>
           ) : publishedCount === 0 ? (
             <button type="button" onClick={goToListings} className="tv-btn-primary h-10 px-3 text-[13px]">
               Publish a listing
@@ -580,53 +575,44 @@ export default function SupplierDiscountsOffers() {
           ) : null}
 
           {rows.length === 0 ? (
-            <div className="tv-offers-empty">
-              <p className="tv-offers-empty__title" role="heading" aria-level={2}>
-                No offers yet
-              </p>
-              <p className="mt-1 max-w-md text-[13px] leading-relaxed text-[#71717a]">
-                {publishedCount === 0
-                  ? 'Publish a tour with booking options first. Stay listings cannot use percentage discounts yet.'
-                  : 'Create a timed discount on a published tour. It will appear on the public product page and checkout.'}
-              </p>
-              {canEdit ? (
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {publishedCount === 0 ? (
-                    <>
-                      <button type="button" onClick={() => navigateSupplierUrl(PARTNER_CREATE_PATH)} className="tv-btn-primary h-9 px-3 text-[13px]">
-                        New listing
-                      </button>
-                      <button type="button" onClick={goToListings} className="tv-btn-ghost h-9 px-3 text-[13px]">
-                        Your listings
-                      </button>
-                    </>
+            <SupplierEmptyState
+              icon={Tag}
+              title="No offers yet"
+              body={publishedCount === 0 ? 'Publish a tour before creating an offer.' : 'Timed discounts show up here.'}
+              action={
+                canEdit ? (
+                  publishedCount === 0 ? (
+                    <button type="button" onClick={() => navigateSupplierUrl(PARTNER_CREATE_PATH)} className="tv-btn-secondary">
+                      New listing
+                    </button>
                   ) : (
-                    <button type="button" onClick={openNew} className="tv-btn-primary h-9 px-3 text-[13px]">
+                    <button type="button" onClick={openNew} className="tv-btn-secondary">
                       New offer
                     </button>
-                  )}
-                </div>
-              ) : null}
-            </div>
+                  )
+                ) : undefined
+              }
+            />
           ) : filteredGroups.length === 0 ? (
-            <div className="tv-offers-empty">
-              <p className="tv-offers-empty__title" role="heading" aria-level={2}>
-                No matching offers
-              </p>
-              <p className="mt-1 text-[13px] text-[#71717a]">Try adjusting your search or filters.</p>
-              <button
-                type="button"
-                className="tv-btn-secondary mt-3 h-9 px-3 text-[13px]"
-                onClick={() => {
-                  setSearchInput('');
-                  setSearch('');
-                  setProductFilter('all');
-                  setStatusFilterAndUrl('all');
-                }}
-              >
-                Clear filters
-              </button>
-            </div>
+            <SupplierEmptyState
+              icon={Tag}
+              title="No matching offers"
+              body="Nothing matches these filters."
+              action={
+                <button
+                  type="button"
+                  className="tv-btn-secondary"
+                  onClick={() => {
+                    setSearchInput('');
+                    setSearch('');
+                    setProductFilter('all');
+                    setStatusFilterAndUrl('all');
+                  }}
+                >
+                  Clear filters
+                </button>
+              }
+            />
           ) : (
             <ul className="space-y-2.5">
               {visibleGroups.map((group) => {

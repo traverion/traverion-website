@@ -1,4 +1,6 @@
 import { useMemo, useState } from 'react';
+import { BarChart3 } from 'lucide-react';
+import { SupplierEmptyState } from '../supplierUi';
 import type { AnalyticsListingRow } from '../../../lib/partner-analytics';
 import { formatMoney } from '../../../lib/money';
 
@@ -63,10 +65,11 @@ export default function AnalyticsListingTable({
 
   if (rows.length === 0) {
     return (
-      <div className="tv-analytics-empty">
-        <p className="font-semibold text-[#18181b]">No listing performance yet</p>
-        <p className="mt-1 text-[13px] text-[#71717a]">Paid bookings in this range will appear here by listing.</p>
-      </div>
+      <SupplierEmptyState
+        icon={BarChart3}
+        title="No listing performance yet"
+        body="Paid bookings in this range appear here by listing."
+      />
     );
   }
 

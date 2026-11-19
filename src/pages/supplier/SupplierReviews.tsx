@@ -6,7 +6,7 @@ import { Star, MessageSquare, Check, Search, ChevronDown } from 'lucide-react';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import { useSupplierRole } from '../../hooks/useSupplierRole';
 import { canManageBookings } from '../../lib/supplierTeamRoles';
-import { SUPPLIER_PAGE_CLASS, SupplierListSkeleton } from '../../components/supplier/supplierUi';
+import { SUPPLIER_PAGE_CLASS, SupplierEmptyState, SupplierListSkeleton } from '../../components/supplier/supplierUi';
 import ErrorState from '../../components/ErrorState';
 import NoticeCallout from '../../components/NoticeCallout';
 import PartnerSelect from '../../components/supplier/PartnerSelect';
@@ -546,17 +546,12 @@ export default function SupplierReviews() {
         {loading ? (
           <SupplierListSkeleton rows={3} />
         ) : error ? null : reviews.length === 0 ? (
-          <div className="tv-reviews-empty" data-testid="reviews-empty-zero">
-            <div className="tv-reviews-empty__icon">
-              <Star className="h-5 w-5" aria-hidden />
-            </div>
-            <p className="tv-reviews-empty__title" role="heading" aria-level={2}>
-              No reviews yet
-            </p>
-            <p className="mt-1 max-w-sm text-[13px] leading-relaxed text-[#71717a]">
-              Guest feedback will show up here after stays and tours.
-            </p>
-          </div>
+          <SupplierEmptyState
+            testId="reviews-empty-zero"
+            icon={Star}
+            title="No reviews yet"
+            body="Guest reviews appear here after a stay or tour."
+          />
         ) : (
           <>
             <div className="tv-reviews-overview" role="group" aria-label="Review statistics">
@@ -646,18 +641,16 @@ export default function SupplierReviews() {
             </div>
 
             {filteredReviews.length === 0 ? (
-              <div className="tv-reviews-empty">
-                <div className="tv-reviews-empty__icon">
-                  <Star className="h-5 w-5" aria-hidden />
-                </div>
-                <p className="tv-reviews-empty__title" role="heading" aria-level={2}>
-                  No matching reviews
-                </p>
-                <p className="mt-1 max-w-sm text-[13px] text-[#71717a]">Try adjusting your search or filters.</p>
-                <button type="button" className="tv-btn-secondary mt-3 h-9 px-3 text-[13px]" onClick={clearFilters}>
-                  Clear filters
-                </button>
-              </div>
+              <SupplierEmptyState
+                icon={Star}
+                title="No matching reviews"
+                body="Nothing matches these filters."
+                action={
+                  <button type="button" className="tv-btn-secondary" onClick={clearFilters}>
+                    Clear filters
+                  </button>
+                }
+              />
             ) : (
               <>
               <ul className="space-y-2">

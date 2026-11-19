@@ -114,6 +114,7 @@ try {
     const agendaText = await page.locator('.partner-unified-cal__agenda').innerText();
     const agendaDays = await page.locator('.partner-unified-cal__day').count();
     const quietDays = await page.locator('.partner-unified-cal__agenda .partner-unified-cal__quiet').count();
+    note(`${viewport.label} agenda empty state has an icon`, (await page.locator('.partner-unified-cal__agenda .partner-empty__icon').count()) > 0);
     note(
       `${viewport.label} agenda shows today and only dates with events`,
       agendaText.includes('Today') && quietDays <= 1 && agendaDays >= 1 && (agendaDays === 1 || quietDays === 0 || agendaDays > quietDays),
@@ -149,8 +150,9 @@ try {
       bookingRows > 0 ? `${bookingRows} rows` : 'zero records',
     );
     await search.fill('zzz-no-such-booking-p936');
-    await page.getByText('No bookings match your selected filters.').waitFor({ timeout: 15000 });
+    await page.getByText('No matching bookings').waitFor({ timeout: 15000 });
     note(`${viewport.label} filtered bookings stay inside the workspace`, (await page.locator('.partner-bookings-workspace').count()) > 0 && (await page.getByRole('button', { name: 'Tours' }).count()) > 0);
+    note(`${viewport.label} bookings empty state has an icon`, (await page.locator('.partner-bookings-workspace .partner-empty__icon').count()) > 0);
     await search.fill('');
 
     await page.goto(`${ORIGIN}/partner/listings`, { waitUntil: 'domcontentloaded', timeout: 45000 });
@@ -168,6 +170,7 @@ try {
     await listingSearch.fill('zzz-no-such-listing-p936');
     await page.getByText('No matching listings').waitFor({ timeout: 15000 });
     note(`${viewport.label} filtered listings stay in the content area`, (await page.locator('.partner-listings-workspace').count()) > 0 && (await page.getByRole('tab', { name: /Tours/ }).count()) > 0);
+    note(`${viewport.label} listings empty state has an icon`, (await page.locator('.partner-listings-workspace .partner-empty__icon').count()) > 0);
 
     await page.goto(`${ORIGIN}/partner/inbox`, { waitUntil: 'domcontentloaded', timeout: 45000 });
     await page.getByLabel('Search conversations').waitFor({ timeout: 30000 });
@@ -182,6 +185,7 @@ try {
     await page.getByLabel('Search conversations').fill('zzz-no-such-thread-p936');
     await page.getByText('No conversations match your search').waitFor({ timeout: 15000 });
     note(`${viewport.label} inbox search empty stays in the list`, (await page.locator('.tv-inbox-split').count()) > 0 && (await page.locator('.tv-inbox-chat').count()) > 0);
+    note(`${viewport.label} inbox empty states have icons`, (await page.locator('.tv-inbox-split .partner-empty__icon').count()) > 0);
     await page.close();
   }
 
@@ -208,6 +212,38 @@ try {
   await broken.getByText('Bookings unavailable').waitFor({ timeout: 25000 });
   note('booking load errors stay distinct from the empty list', (await broken.getByText('No bookings yet').count()) === 0);
   await broken.close();
+
+  const dark = await browser.newPage({ viewport: { width: 390, height: 844 }, colorScheme: 'dark' });
+  await dark.goto(`${ORIGIN}/partner/login`, { waitUntil: 'domcontentloaded', timeout: 45000 });
+  await dark.evaluate(
+    ({ key, session }) => {
+      localStorage.setItem(
+        key,
+        JSON.stringify({
+          access_token: session.access_token,
+          refresh_token: session.refresh_token,
+          expires_at: session.expires_at,
+          expires_in: session.expires_in,
+          token_type: session.token_type ?? 'bearer',
+          user: session.user,
+        }),
+      );
+    },
+    { key: `sb-${PROJECT}-auth-token`, session },
+  );
+  await dark.goto(`${ORIGIN}/partner/bookings`, { waitUntil: 'domcontentloaded', timeout: 45000 });
+  await dark.locator('.partner-empty__title').first().waitFor({ timeout: 25000 });
+  const titleColor = await dark.locator('.partner-empty__title').first().evaluate((el) => getComputedStyle(el).color);
+  const iconBox = await dark.locator('.partner-empty__icon').first().boundingBox();
+  note('dark mode empty title stays readable', /rgb\(/.test(titleColor) && !titleColor.startsWith('rgb(0, 0, 0)'), titleColor);
+  note('empty icon container is compact', Boolean(iconBox && iconBox.width <= 48 && iconBox.height <= 48), iconBox ? `${Math.round(iconBox.width)}px` : 'missing');
+  await dark.goto(`${ORIGIN}/partner/performance`, { waitUntil: 'domcontentloaded', timeout: 45000 });
+  await dark.getByText(/No listings yet|No paid bookings/).first().waitFor({ timeout: 25000 });
+  note('analytics empty state is present', (await dark.locator('.partner-empty__icon').count()) > 0);
+  await dark.goto(`${ORIGIN}/partner/money?tab=payouts`, { waitUntil: 'domcontentloaded', timeout: 45000 });
+  await dark.getByText('No payouts yet').waitFor({ timeout: 25000 });
+  note('payouts empty state is present', (await dark.locator('.partner-empty__icon').count()) > 0);
+  await dark.close();
 } finally {
   await browser.close();
 }

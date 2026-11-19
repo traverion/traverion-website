@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ChevronLeft, ChevronRight, CalendarDays, Layers, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CalendarCheck, Layers, X } from 'lucide-react';
 import { useDialogFocus } from '../../hooks/useDialogFocus';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import { useSupplierRole } from '../../hooks/useSupplierRole';
@@ -1273,40 +1273,28 @@ export default function SupplierAvailability() {
         </div>
       ) : tourListings.length === 0 ? (
         <SupplierEmptyState
-          icon={CalendarDays}
+          icon={CalendarCheck}
           title={listings.length > 0 ? 'No tour products yet' : 'Create a listing first'}
           body={
             listings.length > 0
-              ? 'Departures & Availability is for tours and activities. Your Stay properties are managed in Stay Calendar.'
-              : 'Availability shows departures after you have a tour or activity listing. You have none yet — that is the first step.'
+              ? 'Stays are managed on the Stay Calendar.'
+              : 'Departures appear after you create a tour.'
           }
           action={
-            <div className="flex flex-wrap gap-2">
+            listings.length > 0 ? (
+              <button type="button" onClick={() => openSupplierStayCalendar()} className="tv-btn-secondary">
+                Stay Calendar
+              </button>
+            ) : (
+              /* Phase 1670: one create action when the calendar has no tours. */
               <button
                 type="button"
                 onClick={() => navigateSupplierUrl(PARTNER_CREATE_PATH)}
-                className="tv-btn-primary"
+                className="tv-btn-secondary"
               >
                 New listing
               </button>
-              {/* Phase 1670: Inbox/Money/Pickup parity — listings escape when calendar is empty. */}
-              <button
-                type="button"
-                onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/listings`)}
-                className="tv-btn-ghost"
-              >
-                Your listings
-              </button>
-              {listings.length > 0 ? (
-                <button
-                  type="button"
-                  onClick={() => openSupplierStayCalendar()}
-                  className="tv-btn-ghost"
-                >
-                  Stay Calendar
-                </button>
-              ) : null}
-            </div>
+            )
           }
         />
       ) : (

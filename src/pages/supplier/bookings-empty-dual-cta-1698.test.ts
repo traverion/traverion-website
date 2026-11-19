@@ -6,6 +6,7 @@ describe('Phase 1698: Bookings empty pairs New listing with Your listings', () =
   it('uses dual create + listings escapes', () => {
     const src = readFileSync(resolve(__dirname, 'SupplierBookings.tsx'), 'utf8');
     expect(src).toContain('Phase 1698');
-    expect(src).toMatch(/No bookings yet[\s\S]*New listing[\s\S]*Your listings/);
+    expect(src).toMatch(/No bookings yet[\s\S]*New listing/);
+    expect(src).not.toMatch(/No bookings yet[\s\S]{0,500}Your listings/);
   });
 });

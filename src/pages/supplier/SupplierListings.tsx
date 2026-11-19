@@ -12,6 +12,7 @@ import {
 import { createPortal } from 'react-dom';
 import {
   Plus,
+  LayoutGrid,
   Pencil,
   Trash2,
   EyeOff,
@@ -117,7 +118,7 @@ import { normalizeListingForDraftSave } from '../../lib/listingDraftUtils';
 import { SkeletonListItem } from '../../components/ui/Skeleton';
 import ErrorState from '../../components/ErrorState';
 import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
-import { SUPPLIER_PAGE_CLASS, SupplierModalHeader, SupplierPageHero } from '../../components/supplier/supplierUi';
+import { SUPPLIER_PAGE_CLASS, SupplierEmptyState, SupplierModalHeader, SupplierPageHero } from '../../components/supplier/supplierUi';
 import StatusChip from '../../components/StatusChip';
 import PartnerSelect from '../../components/supplier/PartnerSelect';
 import {
@@ -1586,29 +1587,40 @@ export default function SupplierListings() {
               </div>
             ) : filteredListings.length === 0 ? (
               <div className="partner-listings-workspace__empty">
-                <p className="partner-inline-empty" role="status">
-                  {listings.length === 0 &&
-                  !listQuery.trim() &&
-                  familyFilter === 'all' &&
-                  statusFilter === 'all'
-                    ? 'No listings yet'
-                    : listQuery.trim()
-                      ? 'No matching listings'
-                      : 'Nothing in this view'}
-                </p>
-                {listQuery.trim() || familyFilter !== 'all' || statusFilter !== 'all' ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setListQueryAndUrl('');
-                    setFamilyFilterAndUrl('all');
-                    setStatusFilterAndUrl('all');
-                  }}
-                  className="tv-btn-ghost"
-                >
-                  Show all listings
-                </button>
-                ) : null}
+                <SupplierEmptyState
+                  className="partner-empty--inset"
+                  icon={LayoutGrid}
+                  title={
+                    listings.length === 0 &&
+                    !listQuery.trim() &&
+                    familyFilter === 'all' &&
+                    statusFilter === 'all'
+                      ? 'No listings yet'
+                      : listQuery.trim()
+                        ? 'No matching listings'
+                        : 'Nothing in this view'
+                  }
+                  body={
+                    listings.length === 0 && !listQuery.trim() && familyFilter === 'all' && statusFilter === 'all'
+                      ? 'Tours, stays, and rentals you create will show up here.'
+                      : 'Nothing matches these filters.'
+                  }
+                  action={
+                    listQuery.trim() || familyFilter !== 'all' || statusFilter !== 'all' ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setListQueryAndUrl('');
+                          setFamilyFilterAndUrl('all');
+                          setStatusFilterAndUrl('all');
+                        }}
+                        className="tv-btn-secondary"
+                      >
+                        Show all listings
+                      </button>
+                    ) : undefined
+                  }
+                />
               </div>
             ) : (
           <div className="tv-ops-listings-table" aria-busy={loading || undefined}>

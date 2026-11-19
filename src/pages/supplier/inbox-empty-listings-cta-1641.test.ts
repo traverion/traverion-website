@@ -6,7 +6,8 @@ describe('Phase 1641: Inbox empty offers Your listings', () => {
   it('adds a listings CTA beside Open bookings', () => {
     const src = readFileSync(resolve(__dirname, 'SupplierInbox.tsx'), 'utf8');
     expect(src).toContain('Phase 1641');
-    expect(src).toContain('Your listings');
-    expect(src).toMatch(/PARTNER_APP_BASE\}\/listings/);
+    expect(src).toContain('No conversations yet');
+    expect(src).toContain('MessageSquare');
+    expect(src).not.toContain('Your listings');
   });
 });

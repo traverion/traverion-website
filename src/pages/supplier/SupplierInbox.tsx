@@ -16,15 +16,15 @@ import {
 } from '../../data/supabase-booking-ops';
 import {
   SUPPLIER_PAGE_CLASS,
+  SupplierEmptyState,
   SupplierListSkeleton,
 } from '../../components/supplier/supplierUi';
 import InboxBookingPanel from '../../components/supplier/InboxBookingPanel';
 import NoticeCallout from '../../components/NoticeCallout';
 import ErrorState from '../../components/ErrorState';
 import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
-import { navigateSupplierUrl, openSupplierBooking } from '../../lib/supplierPortalNavigation';
+import { openSupplierBooking } from '../../lib/supplierPortalNavigation';
 import { partnerInboxHref, readPartnerInboxBookingId } from '../../lib/partner-inbox-route';
-import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
 import BookingMessageThread from '../../components/BookingMessageThread';
 import { bookingPaymentWasCollected } from '../../lib/payment-states';
 import {
@@ -822,26 +822,17 @@ export default function SupplierInbox() {
               </button>
             </div>
           ) : null}
+          {/* Phase 1641: listings stay in the main navigation, not this empty state. */}
           {loading && threads.length === 0 ? (
             <SupplierListSkeleton rows={4} />
           ) : threads.length === 0 && !filterQuery.trim() && !unreadOnly ? (
             error ? null : (
-              <div className="partner-inline-empty" role="status">
-                <p className="partner-inline-empty__title">No conversations yet</p>
-                <p className="partner-inline-empty__body">
-                  When a traveler pays, you can message them here about that booking.
-                </p>
-                <div className="partner-inline-empty__actions">
-                  {/* Phase 1641: new suppliers need a path to listings while waiting for paid threads. */}
-                  <button
-                    type="button"
-                    className="tv-btn-ghost"
-                    onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/listings`)}
-                  >
-                    Your listings
-                  </button>
-                </div>
-              </div>
+              <SupplierEmptyState
+                className="partner-empty--inset"
+                icon={MessageSquare}
+                title="No conversations yet"
+                body="Guest messages appear after a paid booking."
+              />
             )
           ) : (
             <div
@@ -860,19 +851,28 @@ export default function SupplierInbox() {
             >
               {visibleThreads.length === 0 ? (
                 filterQuery.trim() ? (
-                  <div className="partner-inline-empty" role="status">
-                    <p className="partner-inline-empty__title">No conversations match your search</p>
-                    <button type="button" className="tv-btn-ghost" onClick={() => setFilterQuery('')}>
-                      Clear search
-                    </button>
-                  </div>
+                  <SupplierEmptyState
+                    className="partner-empty--inset"
+                    icon={Search}
+                    title="No conversations match your search"
+                    action={
+                      <button type="button" className="tv-btn-secondary" onClick={() => setFilterQuery('')}>
+                        Clear search
+                      </button>
+                    }
+                  />
                 ) : (
-                  <div className="partner-inline-empty" role="status">
-                    <p className="partner-inline-empty__title">No unread messages</p>
-                    <button type="button" className="tv-btn-ghost" onClick={() => setUnreadOnlyAndUrl(false)}>
-                      Show all conversations
-                    </button>
-                  </div>
+                  <SupplierEmptyState
+                    className="partner-empty--inset"
+                    icon={MessageSquare}
+                    title="No unread messages"
+                    body="Everything here has been read."
+                    action={
+                      <button type="button" className="tv-btn-secondary" onClick={() => setUnreadOnlyAndUrl(false)}>
+                        Show all
+                      </button>
+                    }
+                  />
                 )
               ) : (
                 <ul className="tv-inbox-list" aria-busy={loading || undefined}>
@@ -1069,11 +1069,11 @@ export default function SupplierInbox() {
             </div>
           ) : (
             <div className="tv-inbox-empty-pane">
-              <span className="tv-inbox-empty-pane__icon" aria-hidden>
-                <MessageSquare className="h-5 w-5" />
-              </span>
-              <h2 className="tv-inbox-empty-pane__title">Select a conversation</h2>
-              <p className="tv-inbox-empty-pane__body">Choose a thread to reply.</p>
+              <SupplierEmptyState
+                icon={MessageSquare}
+                title="Select a conversation"
+                body="Choose a thread to reply."
+              />
             </div>
           )}
           {!loading && openId && !openBooking && !deepLinkMissing && threads.length > 0 ? (

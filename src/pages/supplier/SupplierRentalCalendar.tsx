@@ -294,7 +294,7 @@ export default function SupplierRentalCalendar() {
         <SupplierEmptyState
           icon={KeyRound}
           title="No rental listings yet"
-          body="Create a rental draft to manage availability and inventory here."
+          body="Availability appears here after you create a rental."
           action={
             <button
               type="button"

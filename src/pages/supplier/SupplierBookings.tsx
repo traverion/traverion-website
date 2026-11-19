@@ -2,6 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import {
   ChevronLeft,
   ChevronRight,
+  Calendar,
   Download,
   RefreshCw,
   Search,
@@ -40,7 +41,7 @@ import { SkeletonListItem } from '../../components/ui/Skeleton';
 import ErrorState from '../../components/ErrorState';
 import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
 import { partnerToast } from '../../lib/partner-toast';
-import { SUPPLIER_PAGE_CLASS, SupplierPageHero } from '../../components/supplier/supplierUi';
+import { SUPPLIER_PAGE_CLASS, SupplierEmptyState, SupplierPageHero } from '../../components/supplier/supplierUi';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import {
   executeBookingRefund,
@@ -1669,65 +1670,57 @@ export default function SupplierBookings({
           <SkeletonListItem />
         </div>
         ) : bookings.length === 0 && !bookingFiltersActive ? (
-        <div className="partner-inline-empty" role="status">
-          {/* Phase 1698 — empty desk keeps listing actions inside the table. */}
-          <p className="partner-inline-empty__title">
-            {inventoryFamily === 'stay'
+        <SupplierEmptyState
+          className="partner-empty--inset"
+          icon={Calendar}
+          title={
+            inventoryFamily === 'stay'
               ? 'No reservations yet'
               : inventoryFamily === 'rental'
                 ? 'No rental bookings yet'
-                : 'No bookings yet'}
-          </p>
-          <p className="partner-inline-empty__body">
-            {inventoryFamily === 'stay'
-              ? 'When guests book a stay, arrival and departure details appear here.'
-              : inventoryFamily === 'rental'
-                ? 'When guests book a rental, collection and return details appear here.'
-                : isUnifiedDesk
-                  ? 'When guests book, tours, stays, and rentals appear here together.'
-                  : 'When guests book a tour, departure details appear here.'}
-          </p>
-          <div className="partner-inline-empty__actions">
-            <button type="button" onClick={() => navigateSupplierUrl(PARTNER_CREATE_PATH)} className="tv-btn-ghost">
+                : 'No bookings yet'
+          }
+          body="Reservations will appear in this list."
+          action={
+            /* Phase 1698 — one create action inside the table. */
+            <button type="button" onClick={() => navigateSupplierUrl(PARTNER_CREATE_PATH)} className="tv-btn-secondary">
               New listing
             </button>
-            <button
-              type="button"
-              onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/listings`)}
-              className="tv-btn-ghost"
-            >
-              Your listings
-            </button>
-          </div>
-        </div>
+          }
+        />
         ) : filteredBookings.length === 0 ? (
-        <div className="partner-inline-empty" role="status">
-          <p className="partner-inline-empty__title">
-            {opsFilter === 'unpaid'
-              ? 'No unpaid checkouts match these filters.'
+        <SupplierEmptyState
+          className="partner-empty--inset"
+          icon={Search}
+          title={
+            opsFilter === 'unpaid'
+              ? 'No unpaid checkouts'
               : categoryFilter &&
                   activeBookingFilterCount === 1 &&
                   !filterQuery.trim() &&
                   !filterListingId &&
                   view === 'all'
                 ? categoryFilter === 'stay'
-                  ? 'No stay reservations yet'
+                  ? 'No stay reservations'
                   : categoryFilter === 'rental'
-                    ? 'No rental bookings yet'
-                    : 'No tour bookings yet'
-                : 'No bookings match your selected filters.'}
-          </p>
-          <button
-            type="button"
-            onClick={() => {
-              resetBookingFilters();
-              setBookingsListPage(1);
-            }}
-            className="tv-btn-ghost"
-          >
-            Reset filters
-          </button>
-        </div>
+                    ? 'No rental bookings'
+                    : 'No tour bookings'
+                : 'No matching bookings'
+          }
+          body="Nothing matches these filters."
+          action={
+            <button
+              type="button"
+              onClick={() => {
+                resetBookingFilters();
+                setBookingsListPage(1);
+              }}
+              className="tv-btn-secondary"
+            >
+              Reset filters
+            </button>
+          }
+        />
       ) : (
         <div className="space-y-2.5" aria-busy={loading || undefined}>
           <div className="partner-bookings-workspace__list">

@@ -197,20 +197,24 @@ export function SupplierEmptyState({
   body,
   action,
   className = '',
+  testId,
 }: {
   icon?: LucideIcon;
   title: string;
-  body: string;
+  body?: string;
   action?: ReactNode;
   className?: string;
+  testId?: string;
 }) {
   return (
-    <div className={`partner-empty ${className}`.trim()} role="status">
+    <div className={`partner-empty ${className}`.trim()} role="status" data-testid={testId}>
       {Icon ? (
-        <Icon className="partner-icon mb-0.5 text-finland" strokeWidth={1.85} aria-hidden />
+        <span className="partner-empty__icon" aria-hidden>
+          <Icon strokeWidth={1.75} />
+        </span>
       ) : null}
       <p className="partner-empty__title">{title}</p>
-      <p className="partner-empty__body">{body}</p>
+      {body ? <p className="partner-empty__body">{body}</p> : null}
       {action ? <div className="partner-empty__actions">{action}</div> : null}
     </div>
   );

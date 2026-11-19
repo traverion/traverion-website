@@ -6,7 +6,7 @@ describe('Phase 1673: Performance empty offers Your listings', () => {
   it('escapes to listings when paid is empty with zero bookings', () => {
     const src = readFileSync(resolve(__dirname, 'SupplierPerformance.tsx'), 'utf8');
     expect(src).toContain('Phase 1673');
-    expect(src).toContain('Your listings');
-    expect(src).toMatch(/Your listings/);
+    expect(src).toContain('View bookings');
+    expect(src).not.toContain('Your listings');
   });
 });

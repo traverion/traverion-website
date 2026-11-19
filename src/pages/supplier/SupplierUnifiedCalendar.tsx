@@ -11,7 +11,7 @@ import {
   type Dispatch,
   type SetStateAction,
 } from 'react';
-import { ChevronLeft, ChevronRight, ImageOff, ListFilter, Pencil } from 'lucide-react';
+import { CalendarCheck, ChevronLeft, ChevronRight, ImageOff, ListFilter, Pencil } from 'lucide-react';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import { useSupplierRole } from '../../hooks/useSupplierRole';
 import { canManageBookings } from '../../lib/supplierTeamRoles';
@@ -82,7 +82,7 @@ import {
   sortMonthCellEvents,
 } from '../../lib/partner-unified-calendar-month';
 import { partnerUnifiedDayBoundsUtc } from '../../lib/partner-unified-day-edits';
-import { SUPPLIER_PAGE_CLASS, SupplierPageHero } from '../../components/supplier/supplierUi';
+import { SUPPLIER_PAGE_CLASS, SupplierEmptyState, SupplierPageHero } from '../../components/supplier/supplierUi';
 import PartnerSelect from '../../components/supplier/PartnerSelect';
 import PartnerUnifiedBulkEditPanel from '../../components/supplier/PartnerUnifiedBulkEditPanel';
 import PartnerUnifiedInlineAvailabilityEdit from '../../components/supplier/PartnerUnifiedInlineAvailabilityEdit';
@@ -1283,7 +1283,12 @@ export default function SupplierUnifiedCalendar() {
       ) : view === 'agenda' ? (
           <div className="partner-unified-cal__agenda">
             {agendaGroups.length === 0 ? (
-              <p className="partner-unified-cal__quiet">Nothing scheduled</p>
+              <SupplierEmptyState
+                className="partner-empty--inset"
+                icon={CalendarCheck}
+                title="Nothing scheduled"
+                body="Today is open."
+              />
             ) : null}
             {agendaGroups.map((group) => (
               <section
@@ -1303,7 +1308,12 @@ export default function SupplierUnifiedCalendar() {
                 </header>
                 <div className="partner-unified-cal__cards">
                   {group.events.length === 0 ? (
-                    <p className="partner-unified-cal__quiet">Nothing scheduled</p>
+                    <SupplierEmptyState
+                      className="partner-empty--inset"
+                      icon={CalendarCheck}
+                      title="Nothing scheduled"
+                      body="Today is open."
+                    />
                   ) : null}
                   {group.events.map((event) => {
                     const expanded = expandedKey === event.key;

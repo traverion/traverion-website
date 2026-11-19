@@ -528,7 +528,7 @@ export default function SupplierStayCalendar() {
         <SupplierEmptyState
           icon={CalendarDays}
           title="No stay listings yet"
-          body="Publish a Stay listing to manage nights, blocks and reservations here."
+          body="Nights and blocks appear here after you publish a stay."
           action={
             <button type="button" className="tv-btn-primary" onClick={() => navigateSupplierUrl(PARTNER_CREATE_PATH)}>
               Create Stay listing

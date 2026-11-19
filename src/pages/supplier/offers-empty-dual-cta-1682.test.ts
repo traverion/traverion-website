@@ -8,6 +8,6 @@ describe('Phase 1682: Offers empty uses New listing + Your listings', () => {
     expect(src).toContain('Phase 1682');
     expect(src).toContain('PARTNER_CREATE_PATH');
     expect(src).toContain('New listing');
-    expect(src).toContain('Your listings');
+    expect(src).not.toContain('Your listings');
   });
 });

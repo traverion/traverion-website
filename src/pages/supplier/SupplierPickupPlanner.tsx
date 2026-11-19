@@ -2,7 +2,7 @@
  * Supplier: pickup planner – bookings with meeting / pickup, filters, CSV, deep link to edit listing pickup fields.
  */
 import { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef } from 'react';
-import { Download, CalendarDays } from 'lucide-react';
+import { Download, MapPin } from 'lucide-react';
 import { TraverionDateRangeField } from '../../components/calendar/TraverionDateRangeField';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import {
@@ -703,25 +703,25 @@ export default function SupplierPickupPlanner() {
 
       {!loading && activeBookingsCount === 0 ? (
         <SupplierEmptyState
-          icon={CalendarDays}
+          icon={MapPin}
           title="No bookings yet"
-          body="When a traveler pays for a tour, their pickup appears here."
+          body="Pickups appear here after a paid tour booking."
           action={
-            <div className="flex flex-wrap gap-2">
-              {/* Phase 1651 */}
-              <button type="button" className="tv-btn-primary" onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/bookings`)}>
-                Open bookings
-              </button>
-              <button type="button" className="tv-btn-ghost" onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/listings`)}>
-                Your listings
-              </button>
-            </div>
+            /* Phase 1651 */
+            <button type="button" className="tv-btn-secondary" onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/bookings`)}>
+              Open bookings
+            </button>
           }
         />
       ) : null}
 
       {filtersOn && listBookings.length === 0 && activeBookingsCount > 0 && !departureId ? (
-        <p className="text-sm text-[#52525b]">No departures match these filters.</p>
+        <SupplierEmptyState
+          className="partner-empty--inset"
+          icon={MapPin}
+          title="No matching departures"
+          body="Nothing matches these filters."
+        />
       ) : (
         <PickupPlannerWorkspace
           bookings={listBookings}
