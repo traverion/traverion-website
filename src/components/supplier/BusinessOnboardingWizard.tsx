@@ -1120,7 +1120,7 @@ export default function BusinessOnboardingWizard({
                     />
                     <ReviewFact label="Country" value={businessCountryLabel(draft.address_country)} />
                   </ReviewSection>
-                  {draft.step === 'review' || underReview ? (
+                  {underReview || (draft.step === 'review' && !(embedded && verified)) ? (
                   <ReviewSection
                     title="Documents"
                     onEdit={canEditReview ? () => goTo('documents', 'back') : undefined}

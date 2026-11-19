@@ -412,6 +412,10 @@ body {
     background: #eef1f6;
   }
 
+  .partner-unified-setup-shell.payout-wizard {
+    background: #eef1f6;
+  }
+
   .tv-connect-embed iframe {
     width: 100% !important;
     min-height: 28rem;
