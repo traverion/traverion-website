@@ -153,6 +153,9 @@ export function connectOnboardingUserMessage(raw: string | null | undefined): st
   if (/forbidden|not allowed|role can view/i.test(msg)) {
     return 'Your role can view payout setup but cannot start Stripe verification.';
   }
+  if (/failed to send a request to the edge function/i.test(msg)) {
+    return 'We could not save that step. Your details are still here — try again.';
+  }
   if (/failed to fetch|networkerror|load failed|aborterror|timed?\s*out/i.test(msg)) {
     return 'Could not reach payout verification. Check your connection and try again.';
   }

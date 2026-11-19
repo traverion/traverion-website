@@ -152,6 +152,25 @@ export function isAccountsV2Native(account: V2AccountSnapshot | null | undefined
   return account?.metadata?.traverion_account_api === 'v2';
 }
 
+/**
+ * In-app and email notice that payouts are ready.
+ * Requires Stripe's transfer capability, a LIVE account, and Traverion's own payout gates.
+ * A local form submit is not enough.
+ */
+export function payoutReadyNoticeAllowed(input: {
+  transfersActive: boolean;
+  livemode: boolean | null | undefined;
+  payoutExecutionEnabled: boolean;
+  connectTransfersEnabled: boolean;
+}): boolean {
+  return (
+    input.transfersActive === true &&
+    input.livemode === true &&
+    input.payoutExecutionEnabled === true &&
+    input.connectTransfersEnabled === true
+  );
+}
+
 /** Authoritative transfer capability for a v2 account. Missing means not verified. */
 export function v2StripeTransfersStatus(account: V2AccountSnapshot | null | undefined): string {
   return (

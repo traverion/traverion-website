@@ -5,6 +5,7 @@ import {
   assertV2RecipientConfig,
   buildV2RecipientCreateBody,
   finlandSupplierCountry,
+  payoutReadyNoticeAllowed,
   v2StripeTransfersStatus,
 } from './accounts-v2-config';
 import { liveCustomCreateAllowed } from '../../supabase/functions/_shared/live-custom-onboarding-gate';
@@ -169,6 +170,22 @@ describe('Accounts v2 TEST recipient configuration', () => {
         connect_account_livemode: true,
         require_live: true,
         stripe_transfers_status: 'active',
+      })
+    ).toBe(true);
+    expect(
+      payoutReadyNoticeAllowed({
+        transfersActive: true,
+        livemode: true,
+        payoutExecutionEnabled: false,
+        connectTransfersEnabled: false,
+      })
+    ).toBe(false);
+    expect(
+      payoutReadyNoticeAllowed({
+        transfersActive: true,
+        livemode: true,
+        payoutExecutionEnabled: true,
+        connectTransfersEnabled: true,
       })
     ).toBe(true);
     expect(v2StripeTransfersStatus(null)).toBe('missing');

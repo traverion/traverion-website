@@ -305,6 +305,9 @@ export default function PayoutSetupWizard({
   const [fieldErrors, setFieldErrors] = useState<PayoutWizardFieldErrors>({});
   const [connectSetupUnavailable, setConnectSetupUnavailable] = useState(false);
   const [showStripeEmbed, setShowStripeEmbed] = useState(false);
+  const [repIsDirector, setRepIsDirector] = useState(
+    () => profile?.business_type !== 'individual'
+  );
   const [expressLaunchFailed, setExpressLaunchFailed] = useState(false);
   const [showIdentityRemediation, setShowIdentityRemediation] = useState(false);
   const [hostedFallbackUrl, setHostedFallbackUrl] = useState<string | null>(null);
@@ -345,8 +348,9 @@ export default function PayoutSetupWizard({
   const screen = PAYOUT_WIZARD_SCREENS[stepIndex]!;
   const progressPct = Math.round(((stepIndex + 1) / PAYOUT_WIZARD_SCREENS.length) * 100);
   const onboardingStatus = (profile?.connect_onboarding_status ?? '').toLowerCase();
-  /** P9.49: Custom Accounts v2 (dashboard:none) uses embedded Account Onboarding when a Connect account already exists — no hosted redirect. */
-  const customUsesEmbeddedVerification = isCustom && hasConnectedAccount;
+  // P9.52: Custom Accounts v2 (dashboard none, platform collects requirements) uses Traverion forms.
+  // Stripe is updated through server APIs. Do not mount the full embedded questionnaire.
+  const customUsesEmbeddedVerification = false;
   const useStripeEmbed =
     (isExpress || customUsesEmbeddedVerification) &&
     (displayStep === 'representative' || displayStep === 'identity' || displayStep === 'bank');
@@ -755,7 +759,7 @@ export default function PayoutSetupWizard({
           owner: draft.rep_is_owner,
           executive: true,
           // Do not mark every representative as a company director automatically.
-          director: false,
+          director: repIsDirector,
           percent_ownership: draft.rep_is_owner ? ownership : null,
         },
       },
@@ -1845,6 +1849,24 @@ export default function PayoutSetupWizard({
                     </label>
                   </div>
                   <div className="border-t border-[#E8EAED] pt-4">
+                    {profile?.business_type !== 'individual' ? (
+                      <label className="mb-3 flex items-start gap-2.5 text-[13px] text-[#17191d]">
+                        <input
+                          type="checkbox"
+                          className="mt-0.5"
+                          checked={repIsDirector}
+                          onChange={(e) => setRepIsDirector(e.target.checked)}
+                        />
+                        <span>
+                          This person is a director
+                          <PartnerHelpTip label="About directors">
+                            Finnish companies need at least one director on the payout account. The name
+                            and date of birth are sent to Stripe for verification. Traverion does not keep
+                            a copy of an identity document.
+                          </PartnerHelpTip>
+                        </span>
+                      </label>
+                    ) : null}
                     <label className="flex items-start gap-2.5 text-[13px] text-[#17191d]">
                       <input
                         type="checkbox"

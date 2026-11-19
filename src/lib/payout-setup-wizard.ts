@@ -2,8 +2,8 @@
  * P9.1 / P8.8 Unified payout setup wizard — 6-step model + draft resume.
  *
  * Custom without Connect yet: Traverion draft forms for business / preferences.
- * Custom with Connect (Accounts v2 dashboard:none): embedded Account Onboarding for
- * identity / bank (P9.49) — no redundant Traverion KYC or hosted redirect.
+ * Custom with Connect (Accounts v2 dashboard:none): Traverion forms submit through
+ * Accounts v2 and the Persons API (P9.52). The full embedded questionnaire is not the supplier form.
  * Express: Traverion owns business/preferences; Stripe embeds for representative /
  * identity / bank (auth popup may appear — cannot be disabled).
  */
