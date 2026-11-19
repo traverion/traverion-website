@@ -17,6 +17,7 @@ import {
   toServerPayoutWizardDraft,
   traverionBusinessVerificationLabel,
   validateBeneficialOwners,
+  validateIban,
   validateOwnershipPercent,
   validatePayoutBusinessFromProfile,
   validatePayoutWizardRepresentative,
@@ -286,5 +287,11 @@ describe('ownership percent validation', () => {
     expect(merged.step).toBe('preferences');
     expect(merged.rep_first_name).toBe('Ada');
     expect(merged.businessSavedAt).toBe('2026-01-02T00:00:00.000Z');
+  });
+
+  it('checks a Finnish IBAN before it can be tokenized', () => {
+    expect(validateIban('FI2112345600000785', 'FI')).toBeNull();
+    expect(validateIban('FI00 0000 0000 0000 00', 'FI')).toMatch(/doesn’t look right|18 characters/);
+    expect(validateIban('', 'FI')).toMatch(/Enter the IBAN/);
   });
 });

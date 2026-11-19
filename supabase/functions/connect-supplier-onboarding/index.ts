@@ -258,7 +258,10 @@ serve(async (req) => {
       });
       const payload = await response.json();
       if (!response.ok) {
-        const message = payload?.error?.message || 'Accounts v2 request failed';
+        const raw = String(payload?.error?.message || 'Accounts v2 request failed');
+        const message = /\d{6,}|acct_|req_|parameter/i.test(raw)
+          ? 'We could not save that step. Your details are still here — try again.'
+          : raw.slice(0, 180);
         throw new Error(message);
       }
       return payload as V2AccountSnapshot;
@@ -525,6 +528,8 @@ serve(async (req) => {
           phone: typeof repIn.phone === 'string' ? repIn.phone.slice(0, 40) : '',
           title: typeof repIn.title === 'string' ? repIn.title.slice(0, 80) : '',
           is_owner: Boolean(repIn.is_owner),
+          is_director: Boolean(repIn.is_director),
+          verification_consent: Boolean(repIn.verification_consent),
           percent_ownership:
             typeof repIn.percent_ownership === 'string' ? repIn.percent_ownership.slice(0, 8) : '',
           dob_year: redactDobYear(repIn.dob_year ?? repIn.dob),
@@ -1421,6 +1426,26 @@ serve(async (req) => {
           }
           const registeredName = b.legal_name || profile.company_legal_name || profile.display_name || undefined;
           const registration = (b.registration_number || b.tax_id || profile.company_registration_number || profile.tax_id || '').trim();
+          if (businessType !== 'individual') {
+            const digits = registration.replace(/\D/g, '');
+            const normalized = digits.length === 8 ? `${digits.slice(0, 7)}-${digits.slice(7)}` : registration;
+            const match = /^(\d{7})-(\d)$/.exec(normalized);
+            const weights = [7, 9, 10, 5, 8, 4, 2];
+            let validBusinessId = false;
+            if (match) {
+              let sum = 0;
+              for (let i = 0; i < 7; i++) sum += Number(match[1][i]) * weights[i];
+              const rem = sum % 11;
+              const expected = rem === 0 ? 0 : rem === 1 ? -1 : 11 - rem;
+              validBusinessId = expected >= 0 && Number(match[2]) === expected;
+            }
+            if (!validBusinessId) {
+              return json({
+                success: false,
+                error: 'The Finnish Business ID on the company record needs to be corrected before it can be sent.',
+              }, 400);
+            }
+          }
           await stripeV2('POST', `/v2/core/accounts/${accountId}`, {
             display_name: registeredName,
             contact_phone: b.phone || profile.contact_phone || undefined,

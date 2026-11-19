@@ -57,6 +57,7 @@ import {
   summarizePayoutWizardLocalProgress,
   toServerPayoutWizardDraft,
   validateOwnershipPercent,
+  validateIban,
   validatePayoutBusinessFromProfile,
   validatePayoutWizardIdentity,
   validatePayoutWizardPreferences,
@@ -66,7 +67,7 @@ import {
   type PayoutWizardFieldErrors,
   type PayoutWizardStepId,
 } from '../../lib/payout-setup-wizard';
-import { parseDirectors, serializeDirectors } from '../../lib/business-identity-validation';
+import { isValidFinnishBusinessId, parseDirectors, serializeDirectors } from '../../lib/business-identity-validation';
 import { STRIPE_RECIPIENT_AGREEMENT } from '../../lib/stripe-recipient-agreement';
 import { createBankAccountToken } from '../../lib/stripe-js-client';
 import { isSupplierBusinessIdentityLocked } from '../../lib/supplierVerificationLocks';
@@ -720,6 +721,19 @@ export default function PayoutSetupWizard({
       setError(ownershipErr);
       return false;
     }
+    if (!draft.verification_consent) {
+      setError('Confirm that Traverion may send the company record and this person’s details for verification.');
+      return false;
+    }
+    const registrationCountry = normalizeCountryCode(profile?.address_country || draft.address_country || '');
+    if (
+      (profile?.business_type || draft.business_type) === 'company' &&
+      registrationCountry === 'FI' &&
+      !isValidFinnishBusinessId(profile?.company_registration_number || draft.company_registration_number)
+    ) {
+      setError('The Finnish Business ID on the company record needs to be corrected before it can be sent.');
+      return false;
+    }
 
     setBusy(true);
     setError(null);
@@ -748,6 +762,26 @@ export default function PayoutSetupWizard({
 
     const country =
       normalizeCountryCode(draft.address_country || profile?.address_country || '') || 'FI';
+    const businessSubmit = await invokeConnectSupplierOnboarding('submit_business', {
+      business: {
+        legal_name: (profile?.company_legal_name || draft.company_legal_name).trim() || undefined,
+        business_type: profile?.business_type || draft.business_type || undefined,
+        registration_number:
+          (profile?.company_registration_number || draft.company_registration_number).trim() || undefined,
+        phone: (profile?.contact_phone || draft.contact_phone).trim() || undefined,
+        address: {
+          line1: (profile?.address_street || draft.address_street).trim(),
+          city: (profile?.address_city || draft.address_city).trim(),
+          postal_code: (profile?.address_postal_code || draft.address_postal_code).trim(),
+          country,
+        },
+      },
+    });
+    if (!businessSubmit.success && !isLiveAccountCreationGateError(businessSubmit.error)) {
+      setBusy(false);
+      setError(connectOnboardingUserMessage(businessSubmit.error));
+      return false;
+    }
     const result = await invokeConnectSupplierOnboarding('submit_representative', {
       representative: {
         first_name: draft.rep_first_name.trim(),
@@ -962,6 +996,18 @@ export default function PayoutSetupWizard({
     }
     if (!bankIban.trim() || !bankHolder.trim()) {
       setError('Enter the account holder name and IBAN.');
+      return false;
+    }
+    if (!draft.tos_accepted) {
+      setError('Accept the terms before the bank account is sent.');
+      return false;
+    }
+    const ibanError = validateIban(
+      bankIban,
+      normalizeCountryCode(draft.address_country || profile?.address_country || '') || 'FI'
+    );
+    if (ibanError) {
+      setError(ibanError);
       return false;
     }
     setBusy(true);
@@ -1785,6 +1831,9 @@ export default function PayoutSetupWizard({
                     void onContinue();
                   }}
                 >
+                  <p className="text-[13px] leading-snug text-[#5c6570]">
+                    The verified company record stays as entered. This step adds the person who acts for it.
+                  </p>
                   <div className="partner-onboarding-grid mt-1">
                     <label className="block" data-field="rep_first_name">
                       <FieldLabel>First name</FieldLabel>
@@ -1903,6 +1952,20 @@ export default function PayoutSetupWizard({
                       </span>
                     </label>
                   </div>
+                  <label className="po-choice po-consent">
+                    <input
+                      type="checkbox"
+                      checked={draft.verification_consent}
+                      onChange={(e) => patch({ verification_consent: e.target.checked })}
+                    />
+                    <span>
+                      Send for verification
+                      <PartnerHelpTip label="About sending these details">
+                        Traverion sends the verified company record and this person’s name and date of
+                        birth. The date of birth is not stored in Traverion.
+                      </PartnerHelpTip>
+                    </span>
+                  </label>
                     {draft.rep_is_owner ? (
                       <div className="mt-3" data-field="rep_percent_ownership">
                         <FieldLabel>Ownership %</FieldLabel>
@@ -2241,7 +2304,7 @@ export default function PayoutSetupWizard({
                       />
                     </label>
                     <label className="block">
-                      <FieldLabel help="Tokenized before submission — Traverion never keeps the full number.">
+                      <FieldLabel help="Checked on this device, then sent as a secure token. Traverion does not keep the full number.">
                         IBAN
                       </FieldLabel>
                       <input
@@ -2254,6 +2317,20 @@ export default function PayoutSetupWizard({
                       />
                     </label>
                   </div>
+                  <label className="po-choice">
+                    <input
+                      type="checkbox"
+                      checked={draft.tos_accepted}
+                      onChange={(e) => patch({ tos_accepted: e.target.checked })}
+                    />
+                    <span>
+                      Accept the terms
+                      <PartnerHelpTip label="About the terms">
+                        This records acceptance of the recipient terms and confirms the bank account can be
+                        tokenized. Traverion does not keep the IBAN.
+                      </PartnerHelpTip>
+                    </span>
+                  </label>
                 </form>
               ) : null}
 

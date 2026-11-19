@@ -57,7 +57,11 @@ type EventType =
   /** Phase 1735: Stripe partial refund — amount_paid shrunk, stays Paid */
   | 'partial_refund_recorded'
   /** Stripe transfers are active and Traverion payout gates are open. */
-  | 'payout_ready';
+  | 'payout_ready'
+  /** Stripe has no outstanding requirements. Payouts may still be closed. */
+  | 'verification_complete'
+  /** Submitted account still has provider requirements. */
+  | 'verification_action_required';
 
 type Payload = {
   supplierId: string;
@@ -180,6 +184,12 @@ function eventSubject(payload: Payload): string {
   if (payload.eventType === 'payout_ready') {
     return 'Verification complete — payouts are ready';
   }
+  if (payload.eventType === 'verification_complete') {
+    return 'Verification complete';
+  }
+  if (payload.eventType === 'verification_action_required') {
+    return 'More information is needed for verification';
+  }
   const listing = payload.listingTitle ?? 'your listing';
   const ref = (payload.publicReference ?? '').trim();
   const dated = payload.bookingDate ? ` · ${payload.bookingDate}` : '';
@@ -248,6 +258,28 @@ function eventBody(payload: Payload): string {
       'Stripe has confirmed this account can receive payouts, and Traverion payouts are open.',
       '',
       'Verification is complete. You can receive payouts for eligible bookings.',
+      '',
+      `Open Finish setup: ${base}/partner/onboarding`,
+      '',
+      '— Traverion',
+    ].join('\n');
+  }
+  if (payload.eventType === 'verification_complete') {
+    const base = siteBase(payload);
+    return [
+      'Verification is complete. Stripe has no further information requests on this account.',
+      '',
+      'Payouts become available separately, once Traverion opens them.',
+      '',
+      `Open Finish setup: ${base}/partner/onboarding`,
+      '',
+      '— Traverion',
+    ].join('\n');
+  }
+  if (payload.eventType === 'verification_action_required') {
+    const base = siteBase(payload);
+    return [
+      'Verification needs a few more details. Open Finish setup to see what is still required.',
       '',
       `Open Finish setup: ${base}/partner/onboarding`,
       '',
@@ -455,6 +487,26 @@ function eventHtml(payload: Payload): string {
       bodyHtml: '',
       ctaUrl: `${base}/partner/onboarding`,
       ctaLabel: 'View verification',
+      siteUrl: 'https://www.traverion.com',
+    });
+  }
+  if (payload.eventType === 'verification_complete') {
+    return transactionalEmailDocument({
+      headline: 'Verification complete',
+      introHtml: `<p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.55;color:${EMAIL_THEME.muted};">Stripe has no further information requests. Payouts open separately.</p>`,
+      bodyHtml: '',
+      ctaUrl: `${base}/partner/onboarding`,
+      ctaLabel: 'View verification',
+      siteUrl: 'https://www.traverion.com',
+    });
+  }
+  if (payload.eventType === 'verification_action_required') {
+    return transactionalEmailDocument({
+      headline: 'More information needed',
+      introHtml: `<p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.55;color:${EMAIL_THEME.muted};">Verification needs a few more details. The list is in Finish setup.</p>`,
+      bodyHtml: '',
+      ctaUrl: `${base}/partner/onboarding`,
+      ctaLabel: 'Review details',
       siteUrl: 'https://www.traverion.com',
     });
   }
@@ -726,7 +778,11 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Payout-ready mail is not a supplier-invoked event. Service role only,
     // and only after Stripe capability plus Traverion money gates are open.
-    if (payload.eventType === 'payout_ready') {
+    if (
+      payload.eventType === 'payout_ready' ||
+      payload.eventType === 'verification_complete' ||
+      payload.eventType === 'verification_action_required'
+    ) {
       const authHeader = req.headers.get('Authorization');
       if (!isServiceRoleBearer(authHeader, serviceRoleKey)) {
         return json({ success: false, error: 'Unauthorized' }, 401);
@@ -798,6 +854,31 @@ const handler = async (req: Request): Promise<Response> => {
       });
       if (!allowed) {
         return json({ success: true, skipped: true, reason: 'payout_not_ready', notified: 0 });
+      }
+    }
+    if (
+      payload.eventType === 'verification_complete' ||
+      payload.eventType === 'verification_action_required'
+    ) {
+      const { data: prof, error: profErr } = await admin
+        .from('supplier_profiles')
+        .select(
+          'connect_account_livemode, connect_details_submitted, connect_payouts_enabled, connect_requirements_currently_due, connect_requirements_past_due'
+        )
+        .eq('id', payload.supplierId)
+        .maybeSingle();
+      if (profErr || prof?.connect_account_livemode !== true || prof.connect_details_submitted !== true) {
+        return json({ success: true, skipped: true, reason: 'verification_not_ready', notified: 0 });
+      }
+      const due = [
+        ...(Array.isArray(prof.connect_requirements_currently_due) ? prof.connect_requirements_currently_due : []),
+        ...(Array.isArray(prof.connect_requirements_past_due) ? prof.connect_requirements_past_due : []),
+      ];
+      if (payload.eventType === 'verification_complete' && (due.length > 0 || prof.connect_payouts_enabled === true)) {
+        return json({ success: true, skipped: true, reason: 'verification_not_ready', notified: 0 });
+      }
+      if (payload.eventType === 'verification_action_required' && due.length === 0) {
+        return json({ success: true, skipped: true, reason: 'verification_not_ready', notified: 0 });
       }
     }
     // Phase 1139: fieldDiffs/changeSummary only from supplier-side or service-role
@@ -1482,24 +1563,41 @@ const handler = async (req: Request): Promise<Response> => {
         .update({ welcome_email_sent_at: now, updated_at: now })
         .eq('id', payload.supplierId);
     }
-    if (payload.eventType === 'payout_ready') {
+    if (payload.eventType === 'payout_ready' || payload.eventType === 'verification_complete' || payload.eventType === 'verification_action_required') {
+      const notice = payload.eventType;
+      const copy =
+        notice === 'payout_ready'
+          ? {
+              title: 'Verification complete',
+              body: 'Payouts are ready. Stripe confirmed this account, and Traverion payouts are open.',
+            }
+          : notice === 'verification_complete'
+            ? {
+                title: 'Verification complete',
+                body: 'Stripe has no further information requests. Payouts open separately.',
+              }
+            : {
+                title: 'More information needed',
+                body: 'Verification needs a few more details. Open Finish setup to see what is still required.',
+              };
       const { data: existingNotice } = await admin
         .from('supplier_activity_notifications')
         .select('id')
         .eq('supplier_id', payload.supplierId)
-        .eq('event_type', 'payout_ready')
+        .eq('event_type', notice)
+        .eq('body', copy.body)
         .limit(1)
         .maybeSingle();
       if (!existingNotice?.id) {
         const { error: activityErr } = await admin.from('supplier_activity_notifications').insert({
           supplier_id: payload.supplierId,
-          event_type: 'payout_ready',
-          title: 'Verification complete',
-          body: 'Payouts are ready. Stripe confirmed this account, and Traverion payouts are open.',
+          event_type: notice,
+          title: copy.title,
+          body: copy.body,
           href_path: '/partner/onboarding',
         });
-        if (activityErr && !/duplicate|unique/i.test(activityErr.message ?? '')) {
-          console.error('supplier_activity_notifications insert failed', activityErr.message);
+        if (activityErr) {
+          console.error(JSON.stringify({ source: 'notify-supplier-event', notice, activityError: activityErr.message }));
         }
       }
     }

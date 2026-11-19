@@ -19,6 +19,7 @@ import {
 import { PARTNER_HELP } from '../../lib/partnerHelpCopy';
 import {
   fetchSupplierProfile,
+  invalidateSupplierProfileCache,
   type SupplierProfileRow,
 } from '../../data/supabase-supplier-profile';
 import { invokeConnectSupplierOnboarding } from '../../data/supabase-connect-onboarding';
@@ -231,6 +232,17 @@ export default function PartnerOnboarding({
   const showBusiness = phase === 'business' || phase === 'documents';
   const showPayout = phase === 'representative' || phase === 'payout';
   const showStatus = phase === 'status';
+
+  useEffect(() => {
+    if (!showStatus || !userId) return;
+    const timer = window.setInterval(() => {
+      invalidateSupplierProfileCache(userId);
+      void fetchSupplierProfile(userId).then((next) => {
+        if (next) handleProfile(next);
+      });
+    }, 20000);
+    return () => window.clearInterval(timer);
+  }, [showStatus, userId, handleProfile]);
 
   const phaseMet = (id: UnifiedSetupPhaseId): boolean => {
     if (id === 'status') return progress.publishReady || completionState === 'ready_to_receive';

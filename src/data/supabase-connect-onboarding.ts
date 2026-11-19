@@ -186,6 +186,24 @@ export function connectOnboardingUserMessage(raw: string | null | undefined): st
   if (/responsibilities of collecting requirements|platform-profile|platform profile/i.test(msg)) {
     return 'Payout connection is almost ready. Traverion is finishing Stripe platform setup — try again shortly.';
   }
+  if (/tax_id|id_number|business id|y-tunnus|registration number/i.test(msg)) {
+    return 'The business ID could not be verified. Check the Finnish Business ID on the company record.';
+  }
+  if (/date of birth|dob|too young|at least 18/i.test(msg)) {
+    return 'Check the date of birth. The person must be at least 18.';
+  }
+  if (/iban|account_number|routing_number|external_account|bank account/i.test(msg)) {
+    return 'That bank account could not be saved. Check the IBAN and try again.';
+  }
+  if (/percent_ownership|ownership/i.test(msg)) {
+    return 'Check the ownership percentage. It must be between 0 and 100.';
+  }
+  if (/tos|terms of service|recipient agreement/i.test(msg)) {
+    return 'Accept the terms, then try again.';
+  }
+  if (/acct_|req_|sk_|pk_|btok_|tok_|parameter_invalid|invalid_request|no such/i.test(msg)) {
+    return 'We could not save that step. Your details are still here — try again.';
+  }
   return msg;
 }
 

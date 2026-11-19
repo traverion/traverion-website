@@ -1243,7 +1243,48 @@ serve(async (req) => {
           },
         });
         await markProcessed('processed');
-        if (mirror.connect_payouts_enabled === true && mirror.connect_account_livemode === true) {
+        const dueNow = [
+          ...(mirror.connect_requirements_currently_due ?? []),
+          ...(mirror.connect_requirements_past_due ?? []),
+        ];
+        const submitted = mirror.connect_details_submitted === true;
+        const liveAccount = mirror.connect_account_livemode === true;
+        const payoutsOn = mirror.connect_payouts_enabled === true;
+        if (liveAccount && submitted && supabaseUrl && serviceRoleKey) {
+          const noticeType = dueNow.length === 0 && !payoutsOn
+            ? 'verification_complete'
+            : dueNow.length > 0
+              ? 'verification_action_required'
+              : null;
+          if (noticeType) {
+            const signature = [...dueNow].sort().join(',');
+            try {
+              await fetch(`${supabaseUrl}/functions/v1/notify-supplier-event`, {
+                method: 'POST',
+                headers: {
+                  Authorization: `Bearer ${serviceRoleKey}`,
+                  apikey: serviceRoleKey,
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  supplierId: supplier!.id,
+                  eventType: noticeType,
+                  idempotencyKey: `supplier:${noticeType}:${supplier!.id}:${signature || 'clear'}`,
+                }),
+              });
+            } catch (noticeErr) {
+              console.error(
+                JSON.stringify({
+                  source: 'stripe-webhook',
+                  eventId: event.id,
+                  supplierId: supplier!.id,
+                  noticeError: noticeErr instanceof Error ? noticeErr.message : 'verification notice failed',
+                })
+              );
+            }
+          }
+        }
+        if (payoutsOn && liveAccount) {
           try {
             const { data: gateRows } = await admin
               .from('commercial_runtime_config')

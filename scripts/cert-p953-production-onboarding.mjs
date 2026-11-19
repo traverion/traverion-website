@@ -141,6 +141,8 @@ async function surface(page) {
       cert: document.querySelector('[data-cert]')?.getAttribute('data-cert') ?? null,
       dob: document.querySelectorAll('.tv-dob-picker').length,
       director: /\bDirector\b/.test(text),
+      consent: /send for verification/i.test(text),
+      terms: /accept the terms/i.test(text),
       embedCopy: /tell us about your business|continue secure verification|prefer stripe/i.test(text),
       loadingSecure: /loading secure verification/i.test(text),
       continueCount: [...document.querySelectorAll('button')].filter((b) =>
@@ -222,6 +224,10 @@ try {
       note(`${vp.name} ${phase} no page overflow`, snap.scrollW <= snap.clientW + 2, `${snap.scrollW}/${snap.clientW}`);
       if (phase === 'representative') {
         note(`${vp.name} representative dob picker`, snap.dob > 0 && snap.director, `dob=${snap.dob}`);
+        note(`${vp.name} representative consent`, snap.consent);
+      }
+      if (phase === 'payout') {
+        note(`${vp.name} bank terms consent`, snap.terms);
       }
       if (phase === 'business' && vp.width < 1024) {
         note(

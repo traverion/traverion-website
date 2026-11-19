@@ -100,6 +100,8 @@ export type PayoutWizardDraft = {
   rep_is_owner: boolean;
   /** Company director flag. Collected explicitly; defaults on for companies until the supplier changes it. */
   rep_is_director: boolean;
+  /** Supplier agreed Traverion may send the verified company record and this person’s identity. */
+  verification_consent: boolean;
   rep_percent_ownership: string;
   /** Stripe Person id after native submit (session only). */
   rep_person_id: string;
@@ -452,6 +454,7 @@ export function emptyPayoutWizardDraft(
     // Never assume the representative owns shares — collect ownership explicitly.
     rep_is_owner: false,
     rep_is_director: true,
+    verification_consent: false,
     rep_percent_ownership: '',
     rep_person_id: '',
     tos_accepted: false,
@@ -653,6 +656,7 @@ export function toServerPayoutWizardDraft(draft: PayoutWizardDraft): Record<stri
       title: draft.rep_title,
       is_owner: draft.rep_is_owner,
       is_director: draft.rep_is_director,
+      verification_consent: draft.verification_consent,
       percent_ownership: draft.rep_percent_ownership,
       dob_year: dobYear(draft.rep_dob),
     },
@@ -757,6 +761,10 @@ export function mergeServerPayoutWizardDraft(
     rep_is_owner: typeof rep.is_owner === 'boolean' ? rep.is_owner : local.rep_is_owner,
     rep_is_director:
       typeof rep.is_director === 'boolean' ? rep.is_director : local.rep_is_director,
+    verification_consent:
+      typeof rep.verification_consent === 'boolean'
+        ? rep.verification_consent
+        : local.verification_consent,
     rep_percent_ownership:
       typeof rep.percent_ownership === 'string' && rep.percent_ownership
         ? rep.percent_ownership
@@ -958,6 +966,29 @@ export function validatePayoutWizardRepresentative(draft: PayoutWizardDraft): st
   }
   const ownersErr = validateBeneficialOwners(draft);
   if (ownersErr) return ownersErr;
+  return null;
+}
+
+/** IBAN checksum. Finnish accounts are FI plus 16 digits. The number is not stored. */
+export function validateIban(raw: string | null | undefined, country?: string | null): string | null {
+  const compact = (raw ?? '').replace(/\s+/g, '').toUpperCase();
+  if (!compact) return 'Enter the IBAN.';
+  const cc = (country ?? 'FI').trim().toUpperCase();
+  if (cc === 'FI' && !/^FI\d{16}$/.test(compact)) {
+    return 'Enter a Finnish IBAN. It starts with FI and has 18 characters.';
+  }
+  if (!/^[A-Z]{2}\d{2}[A-Z0-9]{10,30}$/.test(compact)) {
+    return 'Enter a valid IBAN.';
+  }
+  const rearranged = compact.slice(4) + compact.slice(0, 4);
+  let remainder = 0;
+  for (const char of rearranged) {
+    const chunk = char >= 'A' && char <= 'Z' ? String(char.charCodeAt(0) - 55) : char;
+    for (const digit of chunk) {
+      remainder = (remainder * 10 + Number(digit)) % 97;
+    }
+  }
+  if (remainder !== 1) return 'That IBAN doesn’t look right. Check it and try again.';
   return null;
 }
 
