@@ -1,0 +1,197 @@
+{
+  "origin": "https://partner.traverion.com",
+  "passed": 38,
+  "failed": 0,
+  "checks": [
+    {
+      "name": "calendar keeps agenda dates when the window is empty",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "calendar does not replace the grid with an empty card",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "bookings keeps the workspace when there are no rows",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "listings keeps search and category filters with zero listings",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "inbox keeps both panels and search with zero conversations",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "desktop calendar shows Agenda Week Month and Today",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "desktop agenda shows dates, including quiet days",
+      "ok": true,
+      "detail": "Thursday 19 November Today 0 Nothing scheduled Friday 20 November 0 Nothing scheduled "
+    },
+    {
+      "name": "desktop week shows seven days",
+      "ok": true,
+      "detail": "7"
+    },
+    {
+      "name": "desktop month grid includes every date",
+      "ok": true,
+      "detail": "42"
+    },
+    {
+      "name": "desktop month highlights today",
+      "ok": true,
+      "detail": "1"
+    },
+    {
+      "name": "desktop calendar keeps filters",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "desktop bookings keeps Tours Stays Rentals",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "desktop bookings shows rows or an in-table empty message",
+      "ok": true,
+      "detail": "zero records"
+    },
+    {
+      "name": "desktop filtered bookings stay inside the workspace",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "desktop listings keeps category filters",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "desktop listings keeps create control",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "desktop listings shows rows or an in-content empty message",
+      "ok": true,
+      "detail": "zero records"
+    },
+    {
+      "name": "desktop filtered listings stay in the content area",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "desktop inbox shows both panels",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "desktop inbox shows threads or an in-list empty message",
+      "ok": true,
+      "detail": "zero records"
+    },
+    {
+      "name": "desktop inbox search empty stays in the list",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "mobile calendar shows Agenda Week Month and Today",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "mobile agenda shows dates, including quiet days",
+      "ok": true,
+      "detail": "Thursday 19 November Today 0 Nothing scheduled Friday 20 November 0 Nothing scheduled "
+    },
+    {
+      "name": "mobile week shows seven days",
+      "ok": true,
+      "detail": "7"
+    },
+    {
+      "name": "mobile month grid includes every date",
+      "ok": true,
+      "detail": "42"
+    },
+    {
+      "name": "mobile month highlights today",
+      "ok": true,
+      "detail": "1"
+    },
+    {
+      "name": "mobile calendar keeps filters",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "mobile bookings keeps Tours Stays Rentals",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "mobile bookings shows rows or an in-table empty message",
+      "ok": true,
+      "detail": "zero records"
+    },
+    {
+      "name": "mobile filtered bookings stay inside the workspace",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "mobile listings keeps category filters",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "mobile listings keeps create control",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "mobile listings shows rows or an in-content empty message",
+      "ok": true,
+      "detail": "zero records"
+    },
+    {
+      "name": "mobile filtered listings stay in the content area",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "mobile inbox shows both panels",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "mobile inbox shows threads or an in-list empty message",
+      "ok": true,
+      "detail": "zero records"
+    },
+    {
+      "name": "mobile inbox search empty stays in the list",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "booking load errors stay distinct from the empty list",
+      "ok": true,
+      "detail": ""
+    }
+  ]
+}
