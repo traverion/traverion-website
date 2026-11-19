@@ -308,6 +308,32 @@ export default function PayoutSetupWizard({
     }
     return merged;
   });
+  // The shell can mount this form before the profile row arrives. Fill a blank
+  // name from the saved draft once, without waiting for the Stripe status call.
+  useEffect(() => {
+    if (!profile) return;
+    setDraft((current) => {
+      if (current.rep_first_name.trim() && current.rep_last_name.trim()) return current;
+      const prefill = prefillFromProfile(profile);
+      const merged = mergeServerPayoutWizardDraft(current, profile.payout_wizard_draft ?? null, {
+        serverUpdatedAt: profile.payout_wizard_draft_updated_at,
+      });
+      if (!merged.rep_first_name.trim() && prefill.rep_first_name) {
+        merged.rep_first_name = prefill.rep_first_name;
+      }
+      if (!merged.rep_last_name.trim() && prefill.rep_last_name) {
+        merged.rep_last_name = prefill.rep_last_name;
+      }
+      if (embedded && initialStep) merged.step = initialStep;
+      if (
+        merged.rep_first_name === current.rep_first_name &&
+        merged.rep_last_name === current.rep_last_name
+      ) {
+        return current;
+      }
+      return merged;
+    });
+  }, [profile, embedded, initialStep]);
   const [direction, setDirection] = useState<'forward' | 'back'>('forward');
   const [phase, setPhase] = useState<'steps' | 'complete'>('steps');
   const [busy, setBusy] = useState(false);
