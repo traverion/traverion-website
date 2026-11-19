@@ -1,0 +1,57 @@
+{
+  "at": "2026-11-19T19:54:35.168Z",
+  "passed": 10,
+  "failed": 0,
+  "checks": [
+    {
+      "name": "home explains that payouts are not available yet",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "home has no take-action button",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "settings has no payout wizard",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "bank status stays visible",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "saved frequency stays selected",
+      "ok": true,
+      "detail": "monthly"
+    },
+    {
+      "name": "saved frequency is stored",
+      "ok": true,
+      "detail": "monthly"
+    },
+    {
+      "name": "verified supplier leaves onboarding",
+      "ok": true,
+      "detail": "/partner"
+    },
+    {
+      "name": "original payout preferences restored",
+      "ok": true,
+      "detail": "same"
+    },
+    {
+      "name": "connected account and verification unchanged",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "payout gates unchanged",
+      "ok": true,
+      "detail": "{\"stripe_connect_transfers_enabled\":0,\"payout_execution_enabled\":0}"
+    }
+  ]
+}
