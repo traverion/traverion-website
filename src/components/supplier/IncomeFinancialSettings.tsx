@@ -10,7 +10,12 @@ import { bankAlreadyManaged } from '../../lib/verification-workspace-lifecycle';
 import { maskIban } from '../../lib/supplier-income';
 import { PARTNER_HELP } from '../../lib/partnerHelpCopy';
 import { supplierOperationalIndicators } from '../../lib/supplier-verification-state';
-import { parsePayoutThreshold, type PayoutCyclePreference } from '../../lib/payout-preference';
+import { formatBpsAsPercent } from '../../lib/commercial-money';
+import {
+  payoutFrequencyQuote,
+  parsePayoutThreshold,
+  type PayoutCyclePreference,
+} from '../../lib/payout-preference';
 import { partnerToast } from '../../lib/partner-toast';
 import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
 import { navigateSupplierUrl } from '../../lib/supplierPortalNavigation';
@@ -24,6 +29,7 @@ type Props = {
   userId: string;
   profile: SupplierProfileRow | null;
   commercialTerms: SupplierCommercialTermsRow | null;
+  commercialTermsReady?: boolean;
   payoutCurrency: string | null;
   canEdit: boolean;
   onProfile: (profile: SupplierProfileRow | null) => void;
@@ -87,7 +93,8 @@ function minimumFromProfile(min: number | string | null | undefined): string {
 export default function IncomeFinancialSettings({
   userId,
   profile,
-  commercialTerms: _commercialTerms,
+  commercialTerms,
+  commercialTermsReady = true,
   payoutCurrency,
   canEdit,
   onProfile,
@@ -104,6 +111,7 @@ export default function IncomeFinancialSettings({
   const bankOk = bankAlreadyManaged(profile);
   const maskedIban = maskIban(profile?.payout_iban);
   const currency = (payoutCurrency || 'EUR').toUpperCase();
+  const frequencyQuote = payoutFrequencyQuote(commercialTerms?.commission_bps);
 
   useEffect(() => {
     setCycle(cycleFromProfile(profile?.payment_cycle));
@@ -232,24 +240,58 @@ export default function IncomeFinancialSettings({
                 ['monthly', 'Monthly'],
                 ['biweekly', 'Twice a month'],
               ] as const
-            ).map(([value, label]) => (
-              <label
-                key={value}
-                className={`flex cursor-pointer items-center gap-2 rounded-[10px] border px-3 py-3 text-[14px] ${
-                  cycle === value ? 'border-[#17191d] bg-[#fafbfc]' : 'border-[#e5e7eb]'
-                }`}
-              >
-                <input
-                  type="radio"
-                  name="payout-frequency"
-                  value={value}
-                  checked={cycle === value}
-                  onChange={() => setCycle(value)}
-                />
-                {label}
-              </label>
-            ))}
+            ).map(([value, label]) => {
+              const selected = cycle === value;
+              const totalBps = frequencyQuote.available
+                ? value === 'biweekly'
+                  ? frequencyQuote.twiceMonthlyTotalBps
+                  : frequencyQuote.monthlyTotalBps
+                : null;
+              return (
+                <label
+                  key={value}
+                  data-frequency={value}
+                  data-selected={selected ? 'true' : 'false'}
+                  className={`flex min-w-0 cursor-pointer flex-col rounded-[12px] border px-3 py-3 transition-colors ${
+                    selected ? 'border-[#17191d] bg-[#fafbfc]' : 'border-[#e5e7eb] bg-white hover:border-[#d4d4d8]'
+                  }`}
+                >
+                  <span className="flex items-center gap-2">
+                    <input
+                      type="radio"
+                      name="payout-frequency"
+                      value={value}
+                      checked={selected}
+                      onChange={() => setCycle(value)}
+                    />
+                    <span className="text-[14px] font-semibold tracking-tight text-[#17191d]">{label}</span>
+                  </span>
+                  {!commercialTermsReady ? (
+                    <span className="mt-2 text-[12px] text-[#71717a]">Loading commission rate…</span>
+                  ) : frequencyQuote.available ? (
+                    <span className="mt-2 space-y-0.5 text-[12px] leading-5 text-[#52525b]">
+                      <span className="block">
+                        Standard commission {formatBpsAsPercent(frequencyQuote.standardBps)}
+                      </span>
+                      <span className="block">
+                        {value === 'monthly'
+                          ? 'No additional fee'
+                          : `Additional fee ${formatBpsAsPercent(frequencyQuote.twiceMonthlyExtraBps)}`}
+                      </span>
+                      <span className="block font-semibold text-[#17191d]" data-total-bps={totalBps}>
+                        Total {formatBpsAsPercent(totalBps ?? frequencyQuote.standardBps)}
+                      </span>
+                    </span>
+                  ) : (
+                    <span className="mt-2 text-[12px] text-[#71717a]">Commission rate unavailable</span>
+                  )}
+                </label>
+              );
+            })}
           </div>
+          <p className="mt-3 text-[12px] leading-5 text-[#71717a]">
+            Existing bookings keep the commission already agreed. This choice does not send a payout.
+          </p>
         </fieldset>
         <label className="mt-5 block">
           <span className="text-[13px] font-semibold text-[#18181b]">Minimum payout</span>

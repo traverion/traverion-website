@@ -1640,6 +1640,7 @@ export default function SupplierEarnings() {
           userId={user.id}
           profile={profile}
           commercialTerms={commercialTerms}
+          commercialTermsReady={!loading}
           payoutCurrency={
             snapshots.find((row) => row.currency?.trim())?.currency?.trim().toUpperCase() ||
             paidBookings.find((row) => row.currency?.trim())?.currency?.trim().toUpperCase() ||
