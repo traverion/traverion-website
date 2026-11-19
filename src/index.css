@@ -411,6 +411,11 @@ body {
     height: 100%;
   }
 
+  .tv-connect-embed iframe {
+    width: 100% !important;
+    min-height: 28rem;
+  }
+
   .partner-unified-setup-shell .font-display,
   .partner-unified-setup-shell .stay-title,
   .partner-unified-setup-shell .payout-wizard__title,

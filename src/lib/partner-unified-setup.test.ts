@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import { payoutWizardDraftKey } from './payout-setup-wizard';
 import {
   businessStepForPhase,
   derivePartnerSetupProgress,
@@ -154,5 +155,44 @@ describe('partner-unified-setup', () => {
     expect(progress.publishReady).toBe(false);
     expect(progress.nextCta.length).toBeGreaterThan(0);
     expect(progress.businessHref).toContain('/partner/onboarding?phase=business');
+  });
+
+  it('does not count identity or bank complete while Stripe requirements are open', () => {
+    const mem = new Map<string, string>();
+    const storage = {
+      getItem: (key: string) => mem.get(key) ?? null,
+      setItem: (key: string, value: string) => {
+        mem.set(key, value);
+      },
+      removeItem: (key: string) => {
+        mem.delete(key);
+      },
+    };
+    vi.stubGlobal('window', { localStorage: storage, sessionStorage: storage });
+    storage.setItem(
+      payoutWizardDraftKey('u1'),
+      JSON.stringify({
+        step: 'review',
+        wizardCompletedAt: '2026-11-18T00:00:00.000Z',
+        representativeSavedAt: '2026-11-18T00:00:00.000Z',
+        bankDeferredAt: '2026-11-18T00:00:00.000Z',
+      })
+    );
+    const progress = derivePartnerSetupProgress(
+      profile({
+        verification_status: 'verified',
+        company_registration_document_path: 'u1/reg.pdf',
+        stripe_connected_account_id: 'acct_test',
+        connect_requirements_currently_due: ['directors.dob.day', 'external_account'],
+        connect_payouts_enabled: false,
+      }),
+      { userId: 'u1', hasListing: false }
+    );
+    expect(progress.phaseComplete.business).toBe(true);
+    expect(progress.phaseComplete.documents).toBe(true);
+    expect(progress.phaseComplete.representative).toBe(false);
+    expect(progress.phaseComplete.payout).toBe(false);
+    expect(progress.requirementsDone).toBe(2);
+    vi.unstubAllGlobals();
   });
 });

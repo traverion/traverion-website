@@ -120,6 +120,53 @@ function syncDirectors(partial: Partial<BusinessOnboardingDraft>): Partial<Busin
   return partial;
 }
 
+function stringBlank(value: unknown): boolean {
+  return typeof value !== 'string' || value.trim() === '';
+}
+
+function directorsBlank(value: unknown): boolean {
+  return !Array.isArray(value) || value.every((item) => stringBlank(item));
+}
+
+/**
+ * Copy saved profile/server values into blank draft slots.
+ * A newer empty draft must not hide company details already stored on the profile.
+ */
+export function fillBlankBusinessDraft(
+  draft: BusinessOnboardingDraft,
+  fallback: Partial<BusinessOnboardingDraft> | null | undefined
+): BusinessOnboardingDraft {
+  if (!fallback) return draft;
+  const next: BusinessOnboardingDraft = { ...draft };
+  const stringKeys = [
+    'display_name',
+    'company_legal_name',
+    'business_type',
+    'company_registration_number',
+    'tax_id',
+    'vat_id',
+    'managing_directors',
+    'contact_phone',
+    'address_street',
+    'address_city',
+    'address_postal_code',
+    'address_country',
+    'company_registration_document_path',
+  ] as const;
+  let changed = false;
+  for (const key of stringKeys) {
+    const incoming = fallback[key];
+    if (stringBlank(incoming) || !stringBlank(next[key])) continue;
+    next[key] = incoming as BusinessOnboardingDraft[typeof key];
+    changed = true;
+  }
+  if (directorsBlank(next.directors) && !directorsBlank(fallback.directors)) {
+    next.directors = [...(fallback.directors as string[])];
+    changed = true;
+  }
+  return changed ? emptyBusinessOnboardingDraft(next) : draft;
+}
+
 export function emptyBusinessOnboardingDraft(
   partial?: Partial<BusinessOnboardingDraft>
 ): BusinessOnboardingDraft {

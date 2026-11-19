@@ -13,6 +13,7 @@ import {
   businessOnboardingStepIndex,
   clearBusinessOnboardingDraft,
   emptyBusinessOnboardingDraft,
+  fillBlankBusinessDraft,
   firstBusinessOnboardingErrorField,
   loadBusinessOnboardingDraft,
   normalizeBusinessOnboardingDraft,
@@ -195,7 +196,7 @@ export default function BusinessOnboardingWizard({
         : initialFromQuery && BUSINESS_ONBOARDING_SCREENS.some((s) => s.id === initialFromQuery)
           ? initialFromQuery
           : null;
-    return emptyBusinessOnboardingDraft({
+    const seeded = emptyBusinessOnboardingDraft({
       ...prefillFromProfile(profile),
       ...(merged ?? {}),
       step:
@@ -206,6 +207,8 @@ export default function BusinessOnboardingWizard({
             : prefer ?? merged?.step ?? 'identity',
       owner_authority_confirmed: merged?.owner_authority_confirmed ?? false,
     });
+    // Empty local/server drafts must not hide company fields already on the profile.
+    return fillBlankBusinessDraft(seeded, prefillFromProfile(profile));
   });
   const [direction, setDirection] = useState<'forward' | 'back'>('forward');
   const [busy, setBusy] = useState(false);
@@ -221,9 +224,24 @@ export default function BusinessOnboardingWizard({
   const progressPct = Math.round(((stepIndex + 1) / BUSINESS_ONBOARDING_SCREENS.length) * 100);
 
   useEffect(() => {
+    if (!profile) return;
+    setDraft((current) => fillBlankBusinessDraft(current, prefillFromProfile(profile)));
+  }, [profile]);
+
+  useEffect(() => {
     saveBusinessOnboardingDraft(userId, draft);
     setPersistLabel('Progress saved');
     const t = window.setTimeout(() => setPersistLabel(null), 1600);
+    const profileHasIdentity = Boolean(
+      profile?.company_legal_name?.trim() || profile?.display_name?.trim()
+    );
+    const draftHasIdentity = Boolean(draft.company_legal_name.trim() || draft.display_name.trim());
+    // Wait until profile values land. Saving the blank first paint would wipe resume data.
+    if (!profile || (profileHasIdentity && !draftHasIdentity)) {
+      return () => {
+        window.clearTimeout(t);
+      };
+    }
     if (serverProgressTimer.current) window.clearTimeout(serverProgressTimer.current);
     serverProgressTimer.current = window.setTimeout(() => {
       void updateSupplierSetupProgress(
@@ -242,7 +260,7 @@ export default function BusinessOnboardingWizard({
       window.clearTimeout(t);
       if (serverProgressTimer.current) window.clearTimeout(serverProgressTimer.current);
     };
-  }, [userId, draft]);
+  }, [userId, draft, profile]);
 
   useLayoutEffect(() => {
     if (!embedded || !initialStep || underReview || verified) return;

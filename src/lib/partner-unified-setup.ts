@@ -24,6 +24,7 @@ import {
 } from './business-onboarding-wizard';
 import { partnerBusinessReviewState, partnerPayoutReviewState } from './partnerVerificationStatus';
 import { connectOnboardingLabel } from './connect-payout-status';
+import { connectRequirementPressure } from './connect-requirement-labels';
 
 export type UnifiedSetupPhaseId =
   | 'business'
@@ -274,6 +275,20 @@ export function derivePartnerSetupProgress(
       (opts.userId ? loadBusinessOnboardingDraft(opts.userId)?.company_registration_document_path : '')
   );
 
+  const stripeDue = [
+    ...(Array.isArray(profile?.connect_requirements_currently_due)
+      ? profile.connect_requirements_currently_due
+      : []),
+    ...(Array.isArray(profile?.connect_requirements_past_due)
+      ? profile.connect_requirements_past_due
+      : []),
+  ];
+  // A finished local wizard is not identity or bank completion while Stripe still has requirements.
+  const stripeBlocking =
+    Boolean(profile?.stripe_connected_account_id) &&
+    connectRequirementPressure(stripeDue).open &&
+    !bankingReady;
+
   const phaseComplete = {
     business:
       businessDraftComplete && businessReview !== 'rejected',
@@ -282,13 +297,18 @@ export function derivePartnerSetupProgress(
       businessReview === 'verified' ||
       (businessDraftComplete && hasRegDoc && businessReview !== 'rejected'),
     representative:
-      bankingReady || localPayout.representativeSaved || localPayout.wizardCompleted,
+      !stripeBlocking &&
+      (bankingReady ||
+        localPayout.representativeSaved ||
+        localPayout.identitySaved ||
+        localPayout.wizardCompleted),
     payout:
-      bankingReady ||
-      localPayout.bankSavedLocally ||
-      localPayout.preferencesSaved ||
-      localPayout.bankDeferred ||
-      localPayout.wizardCompleted,
+      !stripeBlocking &&
+      (bankingReady ||
+        localPayout.bankSavedLocally ||
+        localPayout.preferencesSaved ||
+        localPayout.bankDeferred ||
+        localPayout.wizardCompleted),
   } as const;
   const requirementsTotal = 4;
   const requirementsDone = (

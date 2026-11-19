@@ -35,6 +35,7 @@ import {
   resolveOnboardingCompletionState,
 } from '../../lib/payout-setup-wizard';
 import { connectCanReceiveTransfers } from '../../lib/connect-payout-status';
+import { connectRequirementPressure } from '../../lib/connect-requirement-labels';
 import StatusChip from '../../components/StatusChip';
 import NoticeCallout from '../../components/NoticeCallout';
 import PartnerHelpTip from '../../components/supplier/PartnerHelpTip';
@@ -181,6 +182,27 @@ export default function PartnerOnboarding({
     payoutConfigured: progress.payoutConfigured,
   });
   const completionCopy = onboardingCompletionCopy(completionState);
+  const stripeDue = [
+    ...(Array.isArray(profile?.connect_requirements_currently_due)
+      ? profile.connect_requirements_currently_due
+      : []),
+    ...(Array.isArray(profile?.connect_requirements_past_due)
+      ? profile.connect_requirements_past_due
+      : []),
+  ];
+  const stripePressure = connectRequirementPressure(stripeDue);
+  const identityStatusLabel = !hasConnectedAccount
+    ? (lanes?.formProgress ?? 'Not started')
+    : stripePressure.identity
+      ? 'Action required'
+      : 'On file';
+  const bankStatusLabel = !hasConnectedAccount
+    ? (lanes?.stripeVerification ?? 'Not started')
+    : stripePressure.bank
+      ? 'Action required'
+      : canReceive
+        ? 'On file'
+        : (lanes?.stripeVerification ?? 'Not started');
   const needsStripeContinue =
     hasConnectedAccount &&
     (!canReceive ||
@@ -248,7 +270,10 @@ export default function PartnerOnboarding({
         : progress.nextHint;
 
   return (
-    <div className="partner-unified-setup-shell payout-wizard flex h-full min-h-0 w-full flex-1 overflow-hidden bg-white">
+    <div
+      className="partner-unified-setup-shell payout-wizard flex h-full min-h-0 w-full flex-1 overflow-hidden bg-white"
+      data-cert="p951"
+    >
       <aside className="partner-unified-setup-shell__rail hidden h-full min-h-0 shrink-0 flex-col overflow-hidden lg:flex">
         <div className="shrink-0 px-3.5 pb-3 pt-[max(0.85rem,env(safe-area-inset-top))]">
           <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#073b83]">
@@ -515,8 +540,8 @@ export default function PartnerOnboarding({
                   <ul className="partner-status-lanes" aria-label="Setup status">
                     {[
                       ['Business verification', lanes.businessVerification],
-                      ['Identity', lanes.formProgress],
-                      ['Bank account', lanes.stripeVerification],
+                      ['Identity', identityStatusLabel],
+                      ['Bank account', bankStatusLabel],
                       ['Ready to receive', lanes.payoutReadiness],
                     ].map(([label, value]) => (
                       <li key={label}>

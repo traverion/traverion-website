@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   emptyBusinessOnboardingDraft,
+  fillBlankBusinessDraft,
   validateBusinessOnboardingContact,
   validateBusinessOnboardingDocuments,
   validateBusinessOnboardingIdentity,
@@ -87,5 +88,21 @@ describe('business onboarding wizard validation', () => {
         })
       )
     ).toBeNull();
+  });
+
+  it('keeps profile company details when a resume draft is blank', () => {
+    const filled = fillBlankBusinessDraft(emptyBusinessOnboardingDraft({ display_name: '' }), {
+      display_name: 'EM Global',
+      company_legal_name: 'EM Global Oy',
+      business_type: 'company',
+      address_city: 'Helsinki',
+      directors: ['Ada'],
+    });
+    expect(filled.display_name).toBe('EM Global');
+    expect(filled.company_legal_name).toBe('EM Global Oy');
+    expect(filled.address_city).toBe('Helsinki');
+    expect(filled.directors).toEqual(['Ada']);
+    const kept = fillBlankBusinessDraft(filled, { display_name: 'Other' });
+    expect(kept.display_name).toBe('EM Global');
   });
 });

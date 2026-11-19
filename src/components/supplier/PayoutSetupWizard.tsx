@@ -320,8 +320,6 @@ export default function PayoutSetupWizard({
   const [identityDocSide, setIdentityDocSide] = useState<'front' | 'back'>('front');
   const [identityUploadNote, setIdentityUploadNote] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
-  const headingRef = useRef<HTMLHeadingElement | null>(null);
-  const completePrimaryRef = useRef<HTMLButtonElement | null>(null);
   const serverDraftTimer = useRef<number | null>(null);
   const hasConnectedAccount = Boolean(profile?.stripe_connected_account_id?.trim());
   const canProvisionConnect = canProvisionConnectAccount({
@@ -495,15 +493,21 @@ export default function PayoutSetupWizard({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- mount hydrate only
   }, []);
 
-  // Never auto-mount Connect embeds on step entry — mounting Account Onboarding opens
-  // connect.stripe.com/embedded/loading (Express auth popup). Keep embeds user-initiated.
+  // Express embeds stay user-initiated. Custom accounts that already require verification
+  // keep the embedded component mounted across Identity and Bank so it does not flash blank.
   useEffect(() => {
-    setShowStripeEmbed(false);
-    setHostedFallbackUrl(null);
-    setShowIdentityRemediation(false);
-    setExpressLaunchFailed(false);
+    const keepCustomEmbed =
+      customUsesEmbeddedVerification &&
+      customVerificationMandatory &&
+      (draft.step === 'representative' || draft.step === 'identity' || draft.step === 'bank');
+    if (!keepCustomEmbed) {
+      setShowStripeEmbed(false);
+      setHostedFallbackUrl(null);
+      setShowIdentityRemediation(false);
+      setExpressLaunchFailed(false);
+    }
     setIdentityUploadNote(null);
-  }, [draft.step]);
+  }, [draft.step, customUsesEmbeddedVerification, customVerificationMandatory]);
 
   useEffect(() => {
     const holder =
@@ -535,20 +539,7 @@ export default function PayoutSetupWizard({
   useEffect(() => {
     const node = scrollRef.current;
     if (node) node.scrollTo({ top: 0, behavior: 'auto' });
-    // Prefer the primary action on completion — focusing the heading left a visible blue ring.
-    const focusTarget =
-      phase === 'complete' ? completePrimaryRef.current : headingRef.current;
-    if (!focusTarget) return;
-    try {
-      focusTarget.focus({ preventScroll: true });
-    } catch {
-      focusTarget.focus();
-    }
-    // Ensure completion title never retains a stray programmatic focus ring.
-    if (phase === 'complete' && headingRef.current && document.activeElement === headingRef.current) {
-      headingRef.current.blur();
-      focusTarget.focus({ preventScroll: true });
-    }
+    // Do not focus the heading. Programmatic focus drew a rectangle around the title on each phase.
   }, [draft.step, phase]);
 
   const businessLocked = isSupplierBusinessIdentityLocked(
@@ -1473,7 +1464,6 @@ export default function PayoutSetupWizard({
             <div className="payout-wizard__complete-actions">
               {canLaunchHostedStripe && (!canReceive || identityDocumentDue || accountRestricted) ? (
                 <button
-                  ref={completePrimaryRef}
                   type="button"
                   className="tv-btn-primary payout-wizard__complete-primary h-11 w-full px-4 text-[13px]"
                   disabled={busy || hostedLinkBusy || !canEdit}
@@ -1487,7 +1477,6 @@ export default function PayoutSetupWizard({
                 </button>
               ) : (
                 <button
-                  ref={completePrimaryRef}
                   type="button"
                   className="tv-btn-primary payout-wizard__complete-primary h-11 w-full px-4 text-[13px]"
                   onClick={returnToIncomePayouts}
@@ -1648,11 +1637,7 @@ export default function PayoutSetupWizard({
                 Step {stepIndex + 1} of {PAYOUT_WIZARD_SCREENS.length}
               </p>
               ) : null}
-              <h1
-                ref={headingRef}
-                tabIndex={-1}
-                className="payout-wizard__title inline-flex flex-wrap items-center gap-1.5 outline-none"
-              >
+              <h1 className="payout-wizard__title inline-flex flex-wrap items-center gap-1.5">
                 {screen.title}
                 {draft.step === 'representative' ? (
                   <PartnerHelpTip label="About representative">{PARTNER_HELP.representative}</PartnerHelpTip>

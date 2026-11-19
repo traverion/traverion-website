@@ -88,6 +88,34 @@ const GROUP_TITLE: Record<RequirementGroupId, string> = {
   other: 'Additional',
 };
 
+/** Which onboarding phases Stripe still blocks. Directors and DOB count as identity. */
+export function connectRequirementPressure(due: unknown): {
+  identity: boolean;
+  bank: boolean;
+  open: boolean;
+} {
+  const list = Array.isArray(due) ? due.map(String) : [];
+  let identity = false;
+  let bank = false;
+  for (const raw of list) {
+    const key = raw.trim().toLowerCase();
+    if (!key) continue;
+    if (key.includes('external_account') || key.includes('bank_account') || key.includes('tos_acceptance')) {
+      bank = true;
+    } else if (
+      key.startsWith('directors.') ||
+      key.includes('directors_provided') ||
+      key.startsWith('representative.') ||
+      key.startsWith('individual.') ||
+      key.startsWith('person_') ||
+      key.includes('verification')
+    ) {
+      identity = true;
+    }
+  }
+  return { identity, bank, open: list.some((item) => item.trim()) };
+}
+
 /** Unique, human-readable requirement labels (no raw Stripe keys, no PII values). */
 export function humanizeConnectRequirements(due: unknown): string[] {
   const list = Array.isArray(due) ? due.map(String) : [];
