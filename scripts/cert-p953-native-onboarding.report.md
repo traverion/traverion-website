@@ -1,6 +1,8 @@
-# P9.53 — Native onboarding finalization
+# P9.53 — Native verification and onboarding UX
 
-TEST API: **PASS** on disposable account `acct_1UdWWoC3BagnTlZ5` (livemode false). Production UI: **PASS 62/62**. EM Global stayed on `acct_1UdHT6C7oDQnLYSF`. No live identity or bank submission. Money gates stayed at 0.
+**Verdict: PASS.** TEST Accounts v2 certification passed on disposable account `acct_1UdWWoC3BagnTlZ5` (livemode false). Production UI passed **62/62** after the visual pass, on `cb33f420`. EM Global stayed on `acct_1UdHT6C7oDQnLYSF`. No live identity or bank submission. Money gates stayed at 0.
+
+Final production screenshots (1440, 768, 390 × company, documents, identity, bank, verification) are local only in `scripts/p953-screenshots/`. They are not in git.
 
 ## TEST Accounts v2
 
@@ -25,9 +27,26 @@ This test account did not require an identity document before transfers showed a
 
 Custom accounts no longer get a generic “open Stripe’s questionnaire” button. The identity screen is the Traverion date picker, director checkbox, and owners. A Stripe embedded step can appear only when a requirement is liveness, selfie, or a risk review. EM Global has none of those, and the production pass found no Stripe onboarding frame.
 
-Status stays **Verification pending** and lists the real due items. **Ready to receive payouts** now also requires `payout_execution_enabled` and `stripe_connect_transfers_enabled`. Both are 0.
+Status stays **Verification pending** and lists the real due items. Identity and payout readiness are separate lanes. **Ready to receive payouts** also requires `payout_execution_enabled` and `stripe_connect_transfers_enabled`. Both are 0, so a finished form cannot show payouts as ready.
 
-Desktop, tablet, and mobile. Company details stayed visible. Refresh resumed the same step. Edge calls were status reads. The same live account remained restricted. Autosaved wizard JSON was restored.
+Desktop, tablet, and mobile. Company details stayed visible. The documents step shows only the file already on record. Refresh resumed the same step. Edge calls were status reads. The same live account remained restricted. Autosaved wizard JSON was restored.
+
+## UX changes
+
+The earlier production screens showed uncarded text on a white field, the documents step repeating the whole company record on tablet, and the verification action sitting in the page body.
+
+What shipped:
+
+- One column, about 40rem, with the same card, radius, hairline, and shadow on the company summary, documents file, identity form, bank form, requirement list, and status lanes.
+- Canvas set to `#eef1f6` so those cards sit on a surface. The sticky footer stays white, with one primary action: Continue, or Continue verification on the status step.
+- Step motion stays at 200ms.
+- Verified companies follow the selected phase. Company shows the approved summary. Documents shows the registration file. The company step no longer repeats that file.
+- Labels stay short. Extra explanation stays behind the blue help icon.
+- 390px keeps the phase chips in a horizontal scroller. The identity form continues in the step pane above the footer.
+
+## Remaining visual note
+
+Short steps (documents, bank) still leave open canvas under the card because the footer stays pinned to the viewport. That space is the workspace, not a second scroll. On a 390px screen the director row begins at the bottom of the first identity view and continues in the step pane.
 
 ## Remaining live blockers
 
