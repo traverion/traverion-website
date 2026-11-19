@@ -62,9 +62,9 @@ describe('Phase 6: supplier income experience', () => {
     expect(page).toContain('fetchSupplierActiveFinancialHolds');
     expect(page).toContain('earningStatusExplanation');
     expect(earningStatusExplanation('pending')).toMatch(/awaiting service completion/i);
-    expect(settings).toContain('Payout account');
+    expect(settings).toContain('Bank account');
     expect(settings).toContain('Payout preferences');
-    expect(settings).toContain('Set up payouts');
+    expect(settings).toContain('Save preferences');
   });
 
   it('hardens period RPC access, paid-mark confirmation, and missing durations', () => {

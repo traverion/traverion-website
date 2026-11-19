@@ -897,8 +897,7 @@ export default function SupplierLayout() {
       return;
     }
     if (target === 'payout') {
-      // P9.41: payout setup stays inside the unified onboarding shell.
-      navigateSupplierUrl(`${PARTNER_APP_BASE}/onboarding?phase=representative`);
+      navigateSupplierUrl(`${PARTNER_APP_BASE}/money?tab=settings`);
       return;
     }
     setSettingsFocus(target);
@@ -958,6 +957,13 @@ export default function SupplierLayout() {
   const continueUnifiedPhase = (phase: UnifiedSetupPhaseId) => {
     navigateSupplierUrl(`${PARTNER_APP_BASE}/onboarding?phase=${phase}`);
   };
+
+  // A verified supplier stays out of onboarding. Legacy business-setup still opens it for everyone else.
+  useEffect(() => {
+    if (section !== 'onboarding' || !onboardingProfileReady) return;
+    if (supplierVerificationState(onboardingProfile).status !== 'verified') return;
+    navigateSupplierUrl(PARTNER_APP_BASE);
+  }, [section, onboardingProfile, onboardingProfileReady]);
 
   // Legacy business-setup URLs still open onboarding. The old verification page opens Business settings.
   useEffect(() => {

@@ -66,10 +66,10 @@ describe('P8.3 pilot isolation hardening', () => {
     expect(adminUi).not.toContain('pilotDryRun: false');
   });
 
-  it('partner settings uses Connect refresh + unified payout wizard', () => {
+  it('partner settings refreshes Connect status without opening the payout wizard', () => {
     expect(partnerSettings).toContain("invokeConnectSupplierOnboarding('refresh')");
-    expect(partnerSettings).toContain('Continue setup');
-    expect(partnerSettings).toContain('PayoutSetupWizard');
+    expect(partnerSettings).toContain('Save preferences');
+    expect(partnerSettings).not.toContain('PayoutSetupWizard');
     expect(partnerSettings).toContain("connect !== 'return'");
   });
 

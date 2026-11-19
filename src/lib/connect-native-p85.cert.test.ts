@@ -98,10 +98,10 @@ describe('P8.5 native onboarding experience', () => {
     );
   });
 
-  it('Income settings launches unified payout wizard (P8.8)', () => {
-    expect(settings).toContain('PayoutSetupWizard');
-    expect(settings).toMatch(/Set up payouts|Start payout setup/);
-    expect(settings).toContain('Continue payout setup');
+  it('Income settings edits payout preferences without the payout wizard (P8.8)', () => {
+    expect(settings).not.toContain('PayoutSetupWizard');
+    expect(settings).toContain('Save preferences');
+    expect(settings).toContain('name="payout-frequency"');
     const wizard = readFileSync(
       resolve(root, 'src/components/supplier/PayoutSetupWizard.tsx'),
       'utf8'

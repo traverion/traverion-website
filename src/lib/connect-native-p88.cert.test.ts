@@ -43,9 +43,9 @@ describe('P8.8 unified payout setup wizard (unit/source)', () => {
   });
 
   it('settings hub launches wizard and no longer stacks long-form sections', () => {
-    expect(settings).toContain('PayoutSetupWizard');
-    expect(settings).toMatch(/Set up payouts|Start payout setup/);
-    expect(settings).toContain('Continue payout setup');
+    expect(settings).not.toContain('PayoutSetupWizard');
+    expect(settings).toContain('Save preferences');
+    expect(settings).toContain('name="payout-frequency"');
     expect(settings).not.toContain('1. Business details');
     expect(settings).not.toContain('groupConnectRequirements');
     expect(settings).not.toContain('EXPRESS_STRIPE_AUTH_LIMITATION');

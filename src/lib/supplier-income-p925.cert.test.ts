@@ -168,9 +168,9 @@ describe('P9.25 Income & Payouts populated-branch certification', () => {
   });
 
   it('keeps Settings chrome coherent with Income tabs (no payouts-enabled copy)', () => {
-    expect(settings).toContain('Payout account');
+    expect(settings).toContain('Bank account');
     expect(settings).toContain('Payout preferences');
-    expect(settings).toContain('Set up payouts');
+    expect(settings).toContain('Save preferences');
     expect(settings).not.toMatch(/>\s*Payouts enabled\s*</i);
     expect(settings).not.toMatch(/['"`]Payouts enabled['"`]/);
     expect(page).toContain('IncomeFinancialSettings');

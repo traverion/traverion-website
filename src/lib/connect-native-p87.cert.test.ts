@@ -65,7 +65,7 @@ describe('P8.7 native payout onboarding UX (unit/source)', () => {
   });
 
   it('guided payout sequence lives in unified wizard (P8.8 successor)', () => {
-    expect(settings).toContain('PayoutSetupWizard');
+    expect(settings).not.toContain('PayoutSetupWizard');
     const wizard = readFileSync(
       resolve(root, 'src/components/supplier/PayoutSetupWizard.tsx'),
       'utf8'

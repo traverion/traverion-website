@@ -55,8 +55,8 @@ describe('P8.6 embedded Connect production certification (unit/source)', () => {
   });
 
   it('partner settings launches wizard that wraps embedded Stripe components', () => {
-    expect(settings).toContain('PayoutSetupWizard');
-    expect(settings).toMatch(/Set up payouts|Start payout setup/);
+    expect(settings).not.toContain('PayoutSetupWizard');
+    expect(settings).toContain('Save preferences');
     const wizard = readFileSync(
       resolve(root, 'src/components/supplier/PayoutSetupWizard.tsx'),
       'utf8'

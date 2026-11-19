@@ -119,7 +119,7 @@ export function supplierVerificationState(
 export function payoutAvailabilityCopy(status: SupplierVerificationStatus, gatesOpen: boolean): string {
   if (status !== 'verified') return 'Payouts are not available until verification is complete.';
   if (gatesOpen) return 'Payouts can be sent to your account.';
-  return 'Your payout account is approved. Payouts are not being sent yet.';
+  return 'Your payout account is approved. Payouts are not available yet.';
 }
 
 export type OperationalKind = 'ready' | 'pending' | 'restricted' | 'action' | 'closed';
@@ -171,11 +171,11 @@ export function supplierOperationalIndicators(
   } else if (view.status === 'action_required') {
     accountKind = restricted ? 'restricted' : 'action';
     accountDetail = view.requirements[0] || 'We need some additional information before the account can operate.';
-    accountAction = 'Continue';
+    accountAction = 'Take action';
   } else {
     accountKind = 'action';
     accountDetail = 'Verification has not been completed.';
-    accountAction = 'Continue';
+    accountAction = 'Take action';
   }
 
   const payoutsOperational = accountOperational && eligible && gatesOpen;
@@ -186,7 +186,7 @@ export function supplierOperationalIndicators(
     payoutDetail = 'Payouts can be sent to your account.';
   } else if (accountOperational && eligible && !gatesOpen) {
     payoutKind = 'closed';
-    payoutDetail = 'Your payout account is approved. Payouts are not being sent yet.';
+    payoutDetail = 'Your payout account is approved. Payouts are not available yet.';
   } else if (view.status === 'verification_pending') {
     payoutKind = 'pending';
     payoutDetail = 'Payouts stay unavailable until verification is finished.';

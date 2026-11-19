@@ -42,7 +42,8 @@ describe('P9.41 seamless onboarding integration cert', () => {
 
   it('keeps Income settings fullscreen payout wizard for management', () => {
     const settings = read('components/supplier/IncomeFinancialSettings.tsx');
-    expect(settings).toContain('PayoutSetupWizard');
+    expect(settings).not.toContain('PayoutSetupWizard');
+    expect(settings).toContain('updateSupplierPayout');
     expect(settings).not.toContain('variant="embedded"');
   });
 });

@@ -69,7 +69,7 @@ describe('supplier verification state', () => {
 
   it('does not promise payouts while financial gates are closed', () => {
     expect(payoutAvailabilityCopy('verified', false)).toBe(
-      'Your payout account is approved. Payouts are not being sent yet.'
+      'Your payout account is approved. Payouts are not available yet.'
     );
     expect(payoutAvailabilityCopy('verification_pending', true)).toBe(
       'Payouts are not available until verification is complete.'
@@ -83,7 +83,7 @@ describe('supplier verification state', () => {
     expect(view.account.actionLabel).toBeNull();
     expect(view.payouts.operational).toBe(false);
     expect(view.payouts.kind).toBe('closed');
-    expect(view.payouts.detail).toBe('Your payout account is approved. Payouts are not being sent yet.');
+    expect(view.payouts.detail).toBe('Your payout account is approved. Payouts are not available yet.');
     expect(view.payouts.actionLabel).toBeNull();
   });
 
@@ -117,13 +117,13 @@ describe('supplier verification state', () => {
       true
     );
     expect(restricted.account.kind).toBe('restricted');
-    expect(restricted.account.actionLabel).toBe('Continue');
+    expect(restricted.account.actionLabel).toBe('Take action');
     expect(restricted.payouts.operational).toBe(false);
     expect(restricted.payouts.kind).toBe('restricted');
   });
 
   it('asks the supplier to continue only when verification has not started or still needs their input', () => {
-    expect(supplierOperationalIndicators({}, false).account.actionLabel).toBe('Continue');
+    expect(supplierOperationalIndicators({}, false).account.actionLabel).toBe('Take action');
     expect(supplierOperationalIndicators({}, false).account.kind).toBe('action');
   });
 

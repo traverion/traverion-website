@@ -55,7 +55,7 @@ describe('Native Traverion Custom Connect onboarding', () => {
       resolve(root, 'src/components/supplier/PayoutSetupWizard.tsx'),
       'utf8'
     );
-    expect(settings).toContain('PayoutSetupWizard');
+    expect(settings).not.toContain('PayoutSetupWizard');
     expect(wizard).toContain('ConnectEmbeddedPanel');
     expect(wizard).toContain('createBankAccountToken');
     expect(wizard).toContain('submit_business');
