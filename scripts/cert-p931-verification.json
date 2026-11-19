@@ -1,0 +1,111 @@
+{
+  "checks": [
+    {
+      "name": "home shows one status",
+      "ok": true,
+      "detail": "verified"
+    },
+    {
+      "name": "home uses the verified explanation",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "home does not say Incomplete",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "verification shows one status",
+      "ok": true,
+      "detail": "verified"
+    },
+    {
+      "name": "verification uses the verified explanation",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "verification does not say Incomplete",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "business settings shows one status",
+      "ok": true,
+      "detail": "verified"
+    },
+    {
+      "name": "business settings uses the verified explanation",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "business settings does not say Incomplete",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "income shows one status",
+      "ok": true,
+      "detail": "verified"
+    },
+    {
+      "name": "income uses the verified explanation",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "income does not say Incomplete",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "all four pages match",
+      "ok": true,
+      "detail": "verified,verified,verified,verified"
+    },
+    {
+      "name": "income does not promise active payouts",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "no verification or bank submission",
+      "ok": true,
+      "detail": "status,status,status,status"
+    },
+    {
+      "name": "verification unchanged",
+      "ok": true,
+      "detail": "verified"
+    },
+    {
+      "name": "account unchanged",
+      "ok": true,
+      "detail": "same"
+    },
+    {
+      "name": "payout flags unchanged",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "bank unchanged",
+      "ok": true,
+      "detail": "same"
+    },
+    {
+      "name": "gates unchanged",
+      "ok": true,
+      "detail": "{\"stripe_connect_transfers_enabled\":0,\"payout_execution_enabled\":0,\"live_custom_onboarding_enabled\":0}"
+    }
+  ],
+  "actions": [
+    "status",
+    "status",
+    "status",
+    "status"
+  ],
+  "failed": 0
+}
