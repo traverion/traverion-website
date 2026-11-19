@@ -140,7 +140,7 @@ async function surface(page) {
     return {
       cert: document.querySelector('[data-cert]')?.getAttribute('data-cert') ?? null,
       dob: document.querySelectorAll('.tv-dob-picker').length,
-      director: /this person is a director/i.test(text),
+      director: /\bDirector\b/.test(text),
       embedCopy: /tell us about your business|continue secure verification|prefer stripe/i.test(text),
       loadingSecure: /loading secure verification/i.test(text),
       continueCount: [...document.querySelectorAll('button')].filter((b) =>
@@ -152,6 +152,14 @@ async function surface(page) {
       pending: /verification pending|restricted|finish identity/i.test(text),
       scrollW: document.documentElement.scrollWidth,
       clientW: document.documentElement.clientWidth,
+      phaseNav: (() => {
+        const nav = document.querySelector('.po-phase-nav');
+        if (!nav || nav.getClientRects().length === 0) return null;
+        return {
+          count: nav.querySelectorAll('button').length,
+          overflow: nav.scrollWidth > nav.clientWidth + 2,
+        };
+      })(),
     };
   });
 }
@@ -214,6 +222,13 @@ try {
       note(`${vp.name} ${phase} no page overflow`, snap.scrollW <= snap.clientW + 2, `${snap.scrollW}/${snap.clientW}`);
       if (phase === 'representative') {
         note(`${vp.name} representative dob picker`, snap.dob > 0 && snap.director, `dob=${snap.dob}`);
+      }
+      if (phase === 'business' && vp.width < 1024) {
+        note(
+          `${vp.name} phase nav visible`,
+          snap.phaseNav?.count === 5 && snap.phaseNav.overflow === false,
+          snap.phaseNav ? `count=${snap.phaseNav.count} overflow=${snap.phaseNav.overflow}` : 'hidden'
+        );
       }
       if (phase === 'business' || phase === 'documents') {
         note(`${vp.name} ${phase} company visible`, snap.legal >= 8, `len=${snap.legal}`);

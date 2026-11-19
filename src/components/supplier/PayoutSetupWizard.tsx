@@ -227,7 +227,7 @@ function scrollToFirstFieldError(errors: PayoutWizardFieldErrors) {
   const key = order.find((k) => errors[k]);
   if (!key || typeof document === 'undefined') return;
   const root = document.querySelector(`[data-field="${key}"]`);
-  root?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  root?.scrollIntoView({ block: 'nearest', behavior: 'auto' });
   const focusable = root?.querySelector<HTMLElement>('input,button,select,textarea');
   focusable?.focus({ preventScroll: true });
 }
@@ -298,6 +298,9 @@ export default function PayoutSetupWizard({
     if (!merged.rep_last_name.trim() && prefill.rep_last_name) {
       merged.rep_last_name = prefill.rep_last_name;
     }
+    if (profile?.business_type === 'individual' && !saved?.representativeSavedAt) {
+      merged.rep_is_director = false;
+    }
     return merged;
   });
   const [direction, setDirection] = useState<'forward' | 'back'>('forward');
@@ -308,9 +311,6 @@ export default function PayoutSetupWizard({
   const [fieldErrors, setFieldErrors] = useState<PayoutWizardFieldErrors>({});
   const [connectSetupUnavailable, setConnectSetupUnavailable] = useState(false);
   const [showStripeEmbed, setShowStripeEmbed] = useState(false);
-  const [repIsDirector, setRepIsDirector] = useState(
-    () => profile?.business_type !== 'individual'
-  );
   const [expressLaunchFailed, setExpressLaunchFailed] = useState(false);
   const [showIdentityRemediation, setShowIdentityRemediation] = useState(false);
   const [hostedFallbackUrl, setHostedFallbackUrl] = useState<string | null>(null);
@@ -762,7 +762,7 @@ export default function PayoutSetupWizard({
           owner: draft.rep_is_owner,
           executive: true,
           // Do not mark every representative as a company director automatically.
-          director: repIsDirector,
+          director: draft.rep_is_director,
           percent_ownership: draft.rep_is_owner ? ownership : null,
         },
       },
@@ -1638,7 +1638,7 @@ export default function PayoutSetupWizard({
         </div>
         ) : null}
 
-        <main ref={scrollRef} className={embedded ? 'partner-unified-setup-main min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-4 pt-3 sm:px-8 lg:px-10 [-webkit-overflow-scrolling:touch]' : 'payout-wizard__scroll'}>
+        <main ref={scrollRef} className={embedded ? 'partner-unified-setup-main min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pt-3 sm:px-8 lg:px-10 [-webkit-overflow-scrolling:touch]' : 'payout-wizard__scroll'}>
           <div className={embedded ? 'partner-unified-setup-canvas mx-auto w-full' : 'payout-wizard__canvas'}>
             <div key={draft.step} className={embedded ? 'partner-unified-setup-stage' : stageClass}>
               {!embedded ? (
@@ -1792,6 +1792,7 @@ export default function PayoutSetupWizard({
                           setFieldErrors((f) => ({ ...f, rep_first_name: undefined }));
                         }}
                         autoComplete="given-name"
+                        aria-invalid={Boolean(fieldErrors.rep_first_name) || undefined}
                         required
                       />
                       <FieldError message={fieldErrors.rep_first_name} />
@@ -1806,6 +1807,7 @@ export default function PayoutSetupWizard({
                           setFieldErrors((f) => ({ ...f, rep_last_name: undefined }));
                         }}
                         autoComplete="family-name"
+                        aria-invalid={Boolean(fieldErrors.rep_last_name) || undefined}
                         required
                       />
                       <FieldError message={fieldErrors.rep_last_name} />
@@ -1853,29 +1855,27 @@ export default function PayoutSetupWizard({
                       />
                     </label>
                   </div>
-                  <div className="border-t border-[#E8EAED] pt-4">
+                  <div className="po-roles" role="group" aria-label="Role in the business">
                     {profile?.business_type !== 'individual' ? (
-                      <label className="mb-3 flex items-start gap-2.5 text-[13px] text-[#17191d]">
+                      <label className="po-choice">
                         <input
                           type="checkbox"
-                          className="mt-0.5"
-                          checked={repIsDirector}
-                          onChange={(e) => setRepIsDirector(e.target.checked)}
+                          checked={draft.rep_is_director}
+                          onChange={(e) => patch({ rep_is_director: e.target.checked })}
                         />
                         <span>
-                          This person is a director
+                          Director
                           <PartnerHelpTip label="About directors">
                             Finnish companies need at least one director on the payout account. The name
-                            and date of birth are sent to Stripe for verification. Traverion does not keep
-                            a copy of an identity document.
+                            and date of birth are sent for verification. Traverion does not keep a copy of
+                            an identity document.
                           </PartnerHelpTip>
                         </span>
                       </label>
                     ) : null}
-                    <label className="flex items-start gap-2.5 text-[13px] text-[#17191d]">
+                    <label className="po-choice">
                       <input
                         type="checkbox"
-                        className="mt-0.5"
                         checked={draft.rep_is_owner}
                         onChange={(e) => {
                           const checked = e.target.checked;
@@ -1891,14 +1891,14 @@ export default function PayoutSetupWizard({
                         }}
                       />
                       <span>
-                        This person owns shares in the business
+                        Owner
                         <PartnerHelpTip label="About ownership">
-                          An authorized representative does not need to own shares. Only tick this when
-                          they are a beneficial owner. Directors are listed separately in business
-                          details.
+                          Tick this only when this person owns shares. A director can act for the company
+                          without being an owner.
                         </PartnerHelpTip>
                       </span>
                     </label>
+                  </div>
                     {draft.rep_is_owner ? (
                       <div className="mt-3" data-field="rep_percent_ownership">
                         <FieldLabel>Ownership %</FieldLabel>
@@ -1918,7 +1918,6 @@ export default function PayoutSetupWizard({
                         <FieldError message={fieldErrors.rep_percent_ownership} />
                       </div>
                     ) : null}
-                  </div>
 
                   <div className="border-t border-[#E8EAED] pt-4" data-field="beneficial_owners">
                     <div className="flex flex-wrap items-center justify-between gap-2">
@@ -2630,9 +2629,7 @@ export default function PayoutSetupWizard({
               ) : null}
             </div>
           </div>
-        </main>
-
-        <footer className="payout-wizard__footer listing-creation-footer">
+        <footer className="payout-wizard__footer listing-creation-footer po-step-footer -mx-4 sm:-mx-8 lg:-mx-10">
           <div className="payout-wizard__footer-inner">
             <button
               type="button"
@@ -2665,6 +2662,7 @@ export default function PayoutSetupWizard({
             </button>
           </div>
         </footer>
+        </main>
       </div>
       </div>
     </div>

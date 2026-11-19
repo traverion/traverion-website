@@ -98,6 +98,8 @@ export type PayoutWizardDraft = {
   /** ISO date YYYY-MM-DD */
   rep_dob: string;
   rep_is_owner: boolean;
+  /** Company director flag. Collected explicitly; defaults on for companies until the supplier changes it. */
+  rep_is_director: boolean;
   rep_percent_ownership: string;
   /** Stripe Person id after native submit (session only). */
   rep_person_id: string;
@@ -449,6 +451,7 @@ export function emptyPayoutWizardDraft(
     rep_dob: '',
     // Never assume the representative owns shares — collect ownership explicitly.
     rep_is_owner: false,
+    rep_is_director: true,
     rep_percent_ownership: '',
     rep_person_id: '',
     tos_accepted: false,
@@ -649,6 +652,7 @@ export function toServerPayoutWizardDraft(draft: PayoutWizardDraft): Record<stri
       phone: draft.rep_phone,
       title: draft.rep_title,
       is_owner: draft.rep_is_owner,
+      is_director: draft.rep_is_director,
       percent_ownership: draft.rep_percent_ownership,
       dob_year: dobYear(draft.rep_dob),
     },
@@ -751,6 +755,8 @@ export function mergeServerPayoutWizardDraft(
     rep_phone: typeof rep.phone === 'string' && rep.phone ? rep.phone : local.rep_phone,
     rep_title: typeof rep.title === 'string' && rep.title ? rep.title : local.rep_title,
     rep_is_owner: typeof rep.is_owner === 'boolean' ? rep.is_owner : local.rep_is_owner,
+    rep_is_director:
+      typeof rep.is_director === 'boolean' ? rep.is_director : local.rep_is_director,
     rep_percent_ownership:
       typeof rep.percent_ownership === 'string' && rep.percent_ownership
         ? rep.percent_ownership

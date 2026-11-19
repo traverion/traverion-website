@@ -232,10 +232,15 @@ export default function BusinessOnboardingWizard({
     setDraft((current) => fillBlankBusinessDraft(current, prefillFromProfile(profile)));
   }, [profile]);
 
+  const persistBoot = useRef(true);
   useEffect(() => {
     saveBusinessOnboardingDraft(userId, draft);
-    setPersistLabel('Progress saved');
     const t = window.setTimeout(() => setPersistLabel(null), 1600);
+    if (persistBoot.current) {
+      persistBoot.current = false;
+      return () => window.clearTimeout(t);
+    }
+    setPersistLabel('Progress saved');
     const profileHasIdentity = Boolean(
       profile?.company_legal_name?.trim() || profile?.display_name?.trim()
     );
@@ -304,7 +309,7 @@ export default function BusinessOnboardingWizard({
     const focusable = (root?.querySelector('input, select, textarea') ??
       root?.querySelector('button')) as HTMLElement | null;
     focusable?.focus();
-    root?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    root?.scrollIntoView({ block: 'nearest', behavior: 'auto' });
   }, [fieldErrors, draft.step]);
 
   const railItems = useMemo(
@@ -655,7 +660,7 @@ export default function BusinessOnboardingWizard({
           </div>
           ) : null}
 
-          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-4 pt-3 lg:overflow-y-auto lg:pb-5 lg:pt-4 [-webkit-overflow-scrolling:touch]">
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pt-3 lg:pt-4 [-webkit-overflow-scrolling:touch]">
             <div key={draft.step} className={stageClass}>
               {!embedded ? (
               <p className="mb-1.5 hidden text-[12px] font-semibold text-[#073b83] lg:block">
@@ -1187,9 +1192,8 @@ export default function BusinessOnboardingWizard({
                 </label>
               ) : null}
             </div>
-          </div>
 
-          <footer className="listing-creation-footer shrink-0 -mx-4 px-4 py-2.5 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+          <footer className="listing-creation-footer po-step-footer -mx-4 px-4 py-2.5 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
             <div className="flex items-center justify-between gap-3">
               <button
                 type="button"
@@ -1223,6 +1227,7 @@ export default function BusinessOnboardingWizard({
               </button>
             </div>
           </footer>
+          </div>
         </div>
       </div>
     </div>

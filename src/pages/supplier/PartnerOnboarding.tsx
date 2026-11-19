@@ -364,30 +364,36 @@ export default function PartnerOnboarding({
           </p>
         </header>
 
-        <div className="shrink-0 border-b border-[#e8ebf0] bg-white px-4 py-2 sm:px-5 lg:hidden">
-          <div className="flex gap-1.5 overflow-x-auto pb-0.5">
-            {UNIFIED_SETUP_SCREENS.map((item) => {
+        <div className="shrink-0 border-b border-[#e8ebf0] bg-white px-3 py-2 sm:px-5 lg:hidden">
+          <nav className="po-phase-nav" aria-label="Setup steps">
+            {UNIFIED_SETUP_SCREENS.map((item, index) => {
               const current = item.id === phase;
               const done = phaseMet(item.id);
+              const short =
+                item.id === 'business'
+                  ? 'Company'
+                  : item.id === 'documents'
+                    ? 'Documents'
+                    : item.id === 'representative'
+                      ? 'Identity'
+                      : item.id === 'payout'
+                        ? 'Bank'
+                        : 'Status';
               return (
                 <button
                   key={item.id}
                   type="button"
+                  aria-current={current ? 'step' : undefined}
+                  aria-label={item.title}
+                  data-done={done ? 'true' : 'false'}
                   onClick={() => setPhaseAndUrl(item.id)}
-                  className={[
-                    'shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold transition-colors',
-                    current
-                      ? 'bg-[#073b83] text-white'
-                      : done
-                        ? 'bg-[#e8eef8] text-[#073b83]'
-                        : 'bg-[#f1f3f6] text-[#71717a]',
-                  ].join(' ')}
                 >
-                  {item.title}
+                  <span className="po-phase-nav__index">{done && !current ? '✓' : index + 1}</span>
+                  <span className="po-phase-nav__label">{short}</span>
                 </button>
               );
             })}
-          </div>
+          </nav>
         </div>
 
         <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
@@ -493,8 +499,7 @@ export default function PartnerOnboarding({
                   </button>
                 )}
               </div>
-            </div>
-            <footer className="listing-creation-footer shrink-0 px-4 py-2.5 sm:px-6 lg:px-8">
+            <footer className="listing-creation-footer po-step-footer -mx-4 mt-4 px-4 py-2.5 sm:-mx-8 sm:px-8 lg:-mx-10 lg:px-10">
               <div className="flex items-center justify-between gap-3">
                 <button
                   type="button"
@@ -527,6 +532,7 @@ export default function PartnerOnboarding({
                 </button>
               </div>
             </footer>
+            </div>
             </div>
           ) : null}
         </div>
