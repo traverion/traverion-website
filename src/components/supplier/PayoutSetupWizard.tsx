@@ -285,12 +285,16 @@ export default function PayoutSetupWizard({
   const [draft, setDraft] = useState<PayoutWizardDraft>(() => {
     const saved = loadPayoutWizardDraft(userId);
     const prefill = prefillFromProfile(profile);
-    const merged = emptyPayoutWizardDraft({
+    let merged = emptyPayoutWizardDraft({
       ...prefill,
       ...(saved ?? {}),
       tos_accepted: false,
       step: initialStep ?? saved?.step ?? (embedded ? 'representative' : 'business'),
     });
+    merged = mergeServerPayoutWizardDraft(merged, profile?.payout_wizard_draft ?? null, {
+      serverUpdatedAt: profile?.payout_wizard_draft_updated_at,
+    });
+    if (embedded && initialStep) merged.step = initialStep;
     // Keep soft-suggested names when a prior draft left them blank.
     if (!merged.rep_first_name.trim() && prefill.rep_first_name) {
       merged.rep_first_name = prefill.rep_first_name;
@@ -298,7 +302,7 @@ export default function PayoutSetupWizard({
     if (!merged.rep_last_name.trim() && prefill.rep_last_name) {
       merged.rep_last_name = prefill.rep_last_name;
     }
-    if (profile?.business_type === 'individual' && !saved?.representativeSavedAt) {
+    if (profile?.business_type === 'individual' && !saved?.representativeSavedAt && !merged.representativeSavedAt) {
       merged.rep_is_director = false;
     }
     return merged;
@@ -1775,7 +1779,7 @@ export default function PayoutSetupWizard({
 
               {draft.step === 'representative' && !isExpress && !customUsesEmbeddedVerification ? (
                 <form
-                  className="po-form grid gap-4"
+                  className="po-form po-identity grid gap-4"
                   onSubmit={(e) => {
                     e.preventDefault();
                     void onContinue();
