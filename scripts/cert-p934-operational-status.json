@@ -1,0 +1,97 @@
+{
+  "at": "2026-11-19T19:29:45.549Z",
+  "rootCause": {
+    "verification_status": "verified",
+    "payout_verification_status": null,
+    "legacy_iban_present": false,
+    "legacy_bic_present": false,
+    "connect_account_present": true,
+    "connect_payouts_enabled": true,
+    "connect_details_submitted": true,
+    "connect_onboarding_status": "complete",
+    "gates": {
+      "stripe_connect_transfers_enabled": 0,
+      "payout_execution_enabled": 0,
+      "live_custom_onboarding_enabled": 0
+    }
+  },
+  "passed": 15,
+  "failed": 0,
+  "checks": [
+    {
+      "name": "home account operational",
+      "ok": true,
+      "detail": "1"
+    },
+    {
+      "name": "home payouts not operational while gates are closed",
+      "ok": true,
+      "detail": "0/closed"
+    },
+    {
+      "name": "home does not offer an action button",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "home has no verification page link",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "status sits below the KPI cards",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "business settings shows one verified status",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "business settings bank is connected",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "business settings does not say payouts are incomplete",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "business settings does not say the bank account is missing",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "income overview matches payouts not operational",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "income settings drops the verification card",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "income settings does not claim a missing bank",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "verification route opens business settings",
+      "ok": true,
+      "detail": "/partner/settings"
+    },
+    {
+      "name": "status fits a phone width",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "reduced motion skips the pulse",
+      "ok": true,
+      "detail": "none"
+    }
+  ]
+}
