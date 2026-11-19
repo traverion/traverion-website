@@ -143,6 +143,10 @@ async function surface(page) {
       director: /\bDirector\b/.test(text),
       consent: /send for verification/i.test(text),
       terms: /accept the terms/i.test(text),
+      nameLens: [...document.querySelectorAll('.po-identity input')]
+        .filter((el) => el.type === 'text' || el.type === 'email')
+        .slice(0, 2)
+        .map((el) => (el.value || '').length),
       embedCopy: /tell us about your business|continue secure verification|prefer stripe/i.test(text),
       loadingSecure: /loading secure verification/i.test(text),
       continueCount: [...document.querySelectorAll('button')].filter((b) =>
@@ -225,6 +229,11 @@ try {
       if (phase === 'representative') {
         note(`${vp.name} representative dob picker`, snap.dob > 0 && snap.director, `dob=${snap.dob}`);
         note(`${vp.name} representative consent`, snap.consent);
+        note(
+          `${vp.name} representative saved name`,
+          (snap.nameLens?.[0] ?? 0) > 0 && (snap.nameLens?.[1] ?? 0) > 0,
+          (snap.nameLens ?? []).join('/')
+        );
       }
       if (phase === 'payout') {
         note(`${vp.name} bank terms consent`, snap.terms);
