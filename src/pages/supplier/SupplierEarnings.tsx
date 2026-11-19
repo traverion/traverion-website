@@ -29,7 +29,8 @@ import { SUPPLIER_PAGE_CLASS, SupplierListSkeleton } from '../../components/supp
 import ErrorState from '../../components/ErrorState';
 import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
 import { openSupplierBooking } from '../../lib/supplierPortalNavigation';
-import { supplierVerificationState } from '../../lib/supplier-verification-state';
+import { supplierOperationalIndicators } from '../../lib/supplier-verification-state';
+import { fetchPayoutExecutionGates } from '../../data/payout-execution-gates';
 import { formatIncomeMoney, normalizeCurrency } from '../../lib/money';
 import { isCollectedBooking, isRefundDueBooking } from '../../lib/payment-states';
 import { bookingIsRental, bookingIsStayNight } from '../../lib/pickup-completeness';
@@ -187,6 +188,17 @@ export default function SupplierEarnings() {
   const [snapshots, setSnapshots] = useState<BookingCommercialSnapshotRow[]>([]);
   const [listingTitles, setListingTitles] = useState<Record<string, string>>({});
   const [profile, setProfile] = useState<Awaited<ReturnType<typeof fetchSupplierProfile>>>(null);
+  const [payoutGatesOpen, setPayoutGatesOpen] = useState(false);
+  useEffect(() => {
+    if (!isSupabase || !user?.id) return;
+    let cancelled = false;
+    void fetchPayoutExecutionGates().then((open) => {
+      if (!cancelled) setPayoutGatesOpen(open);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [isSupabase, user?.id]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [ledgerError, setLedgerError] = useState<string | null>(null);
@@ -1165,10 +1177,10 @@ export default function SupplierEarnings() {
             </div>
             <div>
               <span className="tv-income-info-strip__label">Payout account</span>
-              <p className="tv-income-info-strip__value" data-verification-status={supplierVerificationState(profile).status}>
-                {supplierVerificationState(profile).title}
+              <p className="tv-income-info-strip__value" data-payouts-operational={supplierOperationalIndicators(profile, payoutGatesOpen).payouts.operational ? '1' : '0'}>
+                {supplierOperationalIndicators(profile, payoutGatesOpen).payouts.headline}
               </p>
-              <p className="tv-income-info-strip__hint">{supplierVerificationState(profile).summary}</p>
+              <p className="tv-income-info-strip__hint">{supplierOperationalIndicators(profile, payoutGatesOpen).payouts.detail}</p>
             </div>
           </section>
           <p className="text-[12px] text-[#52525b]">{nextPayoutLabel}</p>

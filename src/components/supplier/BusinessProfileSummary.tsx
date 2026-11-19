@@ -2,26 +2,12 @@ import { Building2, Lock } from 'lucide-react';
 import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
 import { navigateSupplierUrl } from '../../lib/supplierPortalNavigation';
 import { PARTNER_HELP } from '../../lib/partnerHelpCopy';
-import {
-  partnerBusinessReviewState,
-  partnerBusinessStatusChip,
-  partnerPayoutReviewState,
-  partnerPayoutStatusChip,
-  partnerReviewStatusHelp,
-  type PartnerReviewState,
-} from '../../lib/partnerVerificationStatus';
+import { partnerBusinessReviewState, type PartnerReviewState } from '../../lib/partnerVerificationStatus';
 import { getSupplierBusinessProfileMissingReasons } from '../../lib/supplierOnboarding';
 import { verificationDocumentBasename } from '../../data/supabase-supplier-profile';
 import NoticeCallout from '../NoticeCallout';
-import StatusChip from '../StatusChip';
 import PartnerHelpTip from './PartnerHelpTip';
 import { BUSINESS_SETTINGS_CONTENT_CLASS, InfoGrid, InfoRow, ProfileCard } from './businessProfileUi';
-
-function maskIban(iban: string): string {
-  const compact = iban.replace(/\s+/g, '');
-  if (compact.length < 8) return compact ? '••••' : '—';
-  return `${compact.slice(0, 4)} •••• ${compact.slice(-4)}`;
-}
 
 function openWizard(step?: string) {
   const phase =
@@ -33,9 +19,8 @@ function openWizard(step?: string) {
   navigateSupplierUrl(`${PARTNER_APP_BASE}/onboarding?phase=${phase}`);
 }
 
-function openPayoutWizard(focus?: string) {
-  const phase = focus === 'bank' ? 'payout' : 'representative';
-  navigateSupplierUrl(`${PARTNER_APP_BASE}/onboarding?phase=${phase}`);
+function openVerification() {
+  navigateSupplierUrl(`${PARTNER_APP_BASE}/onboarding`);
 }
 
 export type BusinessProfileSummaryProps = {
@@ -63,6 +48,13 @@ export type BusinessProfileSummaryProps = {
   payoutVerificationSubmittedAt: string;
   paymentCycle?: string;
   payoutThreshold?: string;
+  verificationTitle: string;
+  verificationSummary: string;
+  verificationStatusKey: string;
+  payoutDetail: string;
+  bankLabel: string;
+  showLegacyBic: boolean;
+  continueVerification: string | null;
   onSupport: () => void;
 };
 
@@ -87,13 +79,6 @@ export default function BusinessProfileSummary(p: BusinessProfileSummaryProps) {
     draftComplete,
     feedback: p.businessVerificationFeedback,
   });
-  const payoutReview = partnerPayoutReviewState({
-    verificationStatus: p.payoutVerificationStatus,
-    submittedAt: p.payoutVerificationSubmittedAt,
-    hasBankDetails: Boolean(p.payoutIban.trim() && p.payoutBic.trim()),
-  });
-  const busChip = partnerBusinessStatusChip(businessReview);
-  const payChip = partnerPayoutStatusChip(payoutReview);
 
   const needsContinue =
     businessReview === 'incomplete' || businessReview === 'ready' || businessReview === 'rejected';
@@ -225,14 +210,23 @@ export default function BusinessProfileSummary(p: BusinessProfileSummaryProps) {
         </InfoGrid>
       </ProfileCard>
 
-      <ProfileCard title="Verification" help={PARTNER_HELP.businessStatus}>
-        <div className="mb-3 flex flex-wrap items-center gap-2">
-          <StatusChip tone={busChip.tone}>{busChip.label}</StatusChip>
-          <PartnerHelpTip label="About business status">
-            {partnerReviewStatusHelp(businessReview)}
-          </PartnerHelpTip>
+      <ProfileCard
+        title="Verification"
+        help={PARTNER_HELP.businessStatus}
+        actions={
+          p.canEdit && p.continueVerification ? (
+            <button type="button" className="tv-btn-secondary h-9 px-3 text-[13px]" onClick={openVerification}>
+              {p.continueVerification}
+            </button>
+          ) : null
+        }
+      >
+        <div className="mb-3" data-verification-status={p.verificationStatusKey}>
+          <p className="text-[15px] font-semibold text-ink">{p.verificationTitle}</p>
+          <p className="mt-1 text-[13px] leading-relaxed text-ink-muted">{p.verificationSummary}</p>
+          <p className="mt-1 text-[13px] leading-relaxed text-ink-muted">{p.payoutDetail}</p>
           {businessReview === 'verified' ? (
-            <span className="inline-flex items-center gap-1 text-[11px] font-medium text-ink-muted">
+            <span className="mt-2 inline-flex items-center gap-1 text-[11px] font-medium text-ink-muted">
               <Lock className="h-3 w-3" aria-hidden />
               Locked
             </span>
@@ -276,30 +270,10 @@ export default function BusinessProfileSummary(p: BusinessProfileSummaryProps) {
         ) : null}
       </ProfileCard>
 
-      <ProfileCard
-        title="Payouts"
-        help={PARTNER_HELP.payoutStatus}
-        actions={
-          p.canEdit ? (
-            <button
-              type="button"
-              className="tv-btn-secondary h-9 px-3 text-[13px]"
-              onClick={() => openPayoutWizard()}
-            >
-              Open payout setup
-            </button>
-          ) : null
-        }
-      >
-        <div className="mb-3 flex flex-wrap items-center gap-2">
-          <StatusChip tone={payChip.tone}>{payChip.label}</StatusChip>
-          <PartnerHelpTip label="About payout status">
-            {partnerReviewStatusHelp(payoutReview)}
-          </PartnerHelpTip>
-        </div>
+      <ProfileCard title="Payouts" help={PARTNER_HELP.payoutStatus}>
         <InfoGrid>
-          <InfoRow label="Bank account" help={PARTNER_HELP.bankAccount} value={maskIban(p.payoutIban)} />
-          <InfoRow label="BIC" value={p.payoutBic.trim() ? '••••' : '—'} />
+          <InfoRow label="Bank account" help={PARTNER_HELP.bankAccount} value={p.bankLabel} />
+          {p.showLegacyBic ? <InfoRow label="BIC" value="••••" /> : null}
           <InfoRow label="Schedule" help={PARTNER_HELP.payoutSchedule} value={payoutSchedule} />
           <InfoRow
             label="Minimum"

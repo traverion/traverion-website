@@ -9,8 +9,7 @@ import { connectCanReceiveTransfers } from '../../lib/connect-payout-status';
 import { bankAlreadyManaged } from '../../lib/verification-workspace-lifecycle';
 import { maskIban } from '../../lib/supplier-income';
 import { PARTNER_HELP } from '../../lib/partnerHelpCopy';
-import { payoutAvailabilityCopy, supplierVerificationState } from '../../lib/supplier-verification-state';
-import SupplierVerificationCard from './SupplierVerificationCard';
+import { supplierOperationalIndicators, supplierVerificationState } from '../../lib/supplier-verification-state';
 import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
 import {
   firstOutstandingWizardStep,
@@ -61,12 +60,11 @@ function preferenceMinimum(
 function bankStatusLabel(input: {
   bankOk: boolean;
   verified: boolean;
-  actionRequired: boolean;
+  payoutsEnabled: boolean;
 }): string {
-  if (!input.bankOk) return 'Not connected';
-  if (input.actionRequired) return 'Needs attention';
-  if (input.verified) return 'Connected';
-  return 'On file';
+  if (input.verified && input.payoutsEnabled) return 'Connected';
+  if (input.bankOk) return 'Not confirmed';
+  return 'Not added';
 }
 
 function resolveResumeStep(profile: SupplierProfileRow | null): PayoutWizardStepId {
@@ -164,10 +162,9 @@ export default function IncomeFinancialSettings({
   );
   const hasConnectedAccount = Boolean(profile?.stripe_connected_account_id);
   const verification = supplierVerificationState(profile);
-  const payoutNote = payoutAvailabilityCopy(verification.status, payoutGatesOpen);
+  const operations = supplierOperationalIndicators(profile, payoutGatesOpen);
   const verified = verification.status === 'verified';
   const bankOk = bankAlreadyManaged(profile);
-  const actionRequired = verification.status === 'action_required';
   const maskedIban = maskIban(profile?.payout_iban);
   const bankIdentifier = maskedIban
     ? maskedIban
@@ -314,7 +311,9 @@ export default function IncomeFinancialSettings({
 
   return (
     <div id="income-payout-settings" className={`mx-auto w-full ${CONTENT_MAX} space-y-4`}>
-      <SupplierVerificationCard view={verification} variant="page" extra={payoutNote} />
+      <p className="text-[13px] text-[#52525b]" data-payouts-operational={operations.payouts.operational ? '1' : '0'}>
+        {operations.payouts.headline}. {operations.payouts.detail}
+      </p>
 
       <SettingsCard title="Bank account" help={PARTNER_HELP.bankAccount}>
         {showBankCard ? (
@@ -335,7 +334,11 @@ export default function IncomeFinancialSettings({
               label="Status"
               value={
                 bankOk
-                  ? bankStatusLabel({ bankOk, verified, actionRequired })
+                  ? bankStatusLabel({
+                      bankOk,
+                      verified,
+                      payoutsEnabled: profile?.connect_payouts_enabled === true,
+                    })
                   : payoutBankPresentation({
                       bankManaged: false,
                       bankMasked: null,

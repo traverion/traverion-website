@@ -5,8 +5,9 @@ import NoticeCallout from '../../components/NoticeCallout';
 import StatusChip from '../../components/StatusChip';
 import { USER_ERROR } from '../../lib/userFacingError';
 import { ChevronRight } from 'lucide-react';
-import { supplierVerificationState } from '../../lib/supplier-verification-state';
-import SupplierVerificationCard from '../../components/supplier/SupplierVerificationCard';
+import { supplierOperationalIndicators, supplierVerificationState } from '../../lib/supplier-verification-state';
+import PartnerOperationalStatus from '../../components/supplier/PartnerOperationalStatus';
+import { fetchPayoutExecutionGates } from '../../data/payout-execution-gates';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import { fetchMyListings } from '../../data/supabase-listings';
 import { fetchBookingsForSupplier, type BookingRow } from '../../data/supabase-bookings';
@@ -432,6 +433,21 @@ export default function SupplierDashboard() {
     () => (profile ? supplierVerificationState(profile) : null),
     [profile]
   );
+  const [payoutGatesOpen, setPayoutGatesOpen] = useState(false);
+  useEffect(() => {
+    if (!isSupabase || !user?.id) return;
+    let cancelled = false;
+    void fetchPayoutExecutionGates().then((open) => {
+      if (!cancelled) setPayoutGatesOpen(open);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [isSupabase, user?.id]);
+  const operations = useMemo(
+    () => (profile ? supplierOperationalIndicators(profile, payoutGatesOpen) : null),
+    [profile, payoutGatesOpen]
+  );
 
   /** Incomplete / rejected verification counts toward Needs attention; pending review is shown in Account status. */
   const verificationNeedsAction = verification?.status === 'action_required';
@@ -608,8 +624,6 @@ export default function SupplierDashboard() {
         </div>
       </header>
 
-      {verification && !dashboardLoading ? <SupplierVerificationCard view={verification} variant="home" /> : null}
-
       {dashboardError && (
         <ErrorState
           className="py-4"
@@ -713,6 +727,9 @@ export default function SupplierDashboard() {
         </button>
       </section>
 
+      {operations && !dashboardLoading ? (
+        <PartnerOperationalStatus account={operations.account} payouts={operations.payouts} />
+      ) : null}
 
       {attentionCount > 0 && (
         <section className="partner-home-section" id="partner-home-attention">
@@ -858,6 +875,14 @@ export default function SupplierDashboard() {
                     })
                   )
                 }
+              />
+            )}
+            {verificationNeedsAction && (
+              <AttentionItem
+                tone="warn"
+                title="Verification needs your input"
+                detail={verification?.requirements[0] || 'Continue verification to operate on Traverion.'}
+                onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/onboarding`)}
               />
             )}
             {draftListingsCount != null && draftListingsCount > 0 && (

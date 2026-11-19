@@ -107,7 +107,6 @@ const SupplierUnifiedCalendar = lazy(() => import('../../pages/supplier/Supplier
 const SupplierStayCalendar = lazy(() => import('../../pages/supplier/SupplierStayCalendar'));
 const SupplierRentalCalendar = lazy(() => import('../../pages/supplier/SupplierRentalCalendar'));
 const SupplierEarnings = lazy(() => import('../../pages/supplier/SupplierEarnings'));
-const SupplierVerificationPage = lazy(() => import('../../pages/supplier/SupplierVerificationPage'));
 const BusinessSetupPage = lazy(() => import('../../pages/supplier/BusinessSetupPage'));
 const SupplierPerformance = lazy(() => import('../../pages/supplier/SupplierPerformance'));
 const SupplierInbox = lazy(() => import('../../pages/supplier/SupplierInbox'));
@@ -953,15 +952,19 @@ export default function SupplierLayout() {
   const partnerMarketingPage = partnerMarketingPageFromPathname(pathname);
   const onboardingHasListing = onboardingListingCount !== null && onboardingListingCount > 0;
   const verification = onboardingProfile ? supplierVerificationState(onboardingProfile) : null;
-  const setupMenuLabel = verification?.title ?? '';
-  const showSetupEntry = Boolean(verification && verification.status !== 'verified');
+  const setupMenuLabel = verification?.status === 'not_verified' ? 'Start verification' : 'Continue verification';
+  const showSetupEntry = Boolean(verification?.actionLabel);
 
   const continueUnifiedPhase = (phase: UnifiedSetupPhaseId) => {
     navigateSupplierUrl(`${PARTNER_APP_BASE}/onboarding?phase=${phase}`);
   };
 
-  // Legacy business-setup URLs still open onboarding. Verification is its own page.
+  // Legacy business-setup URLs still open onboarding. The old verification page opens Business settings.
   useEffect(() => {
+    if (section === 'verification') {
+      navigateSupplierUrl(`${PARTNER_APP_BASE}/settings`);
+      return;
+    }
     if (section !== 'business-setup') return;
     const params = new URLSearchParams(window.location.search);
     const step = (params.get('step') ?? '').trim();
@@ -1090,7 +1093,7 @@ export default function SupplierLayout() {
             canCreate={canCreateListings}
             showFinishSetup={showSetupEntry}
             finishSetupLabel={setupMenuLabel}
-            onFinishSetup={() => handleNavigate('verification')}
+            onFinishSetup={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/onboarding`)}
             collapsed={sidebarCollapsed}
             onToggleCollapsed={() =>
               setSidebarCollapsed((v) => {
@@ -1161,7 +1164,7 @@ export default function SupplierLayout() {
                     {showSetupEntry && (
                       <button
                         type="button"
-                        onClick={() => handleNavigate('verification')}
+                        onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/onboarding`)}
                         className="partner-nav-item lux-flat w-full text-left px-2.5 py-2 rounded-md text-[13px] text-slate-700 hover:bg-slate-50"
                       >
                         {setupMenuLabel}
@@ -1242,7 +1245,7 @@ export default function SupplierLayout() {
                     </p>
                   ) : null}
                   {showSetupEntry && (
-                    <button type="button" onClick={() => handleNavigate('verification')} className="partner-nav-item lux-flat w-full text-left rounded-md px-2 py-3 text-[15px] text-slate-700">
+                    <button type="button" onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/onboarding`)} className="partner-nav-item lux-flat w-full text-left rounded-md px-2 py-3 text-[15px] text-slate-700">
                       {setupMenuLabel}
                     </button>
                   )}
@@ -1338,7 +1341,6 @@ export default function SupplierLayout() {
                         <SupplierEarnings />
                       </div>
                     )}
-                    {section === 'verification' && <SupplierVerificationPage />}
                     {section === 'business-setup' && <BusinessSetupPage />}
                     {section === 'discounts' && <SupplierDiscountsOffers />}
                     {section === 'reviews' && <SupplierReviews />}

@@ -35,8 +35,12 @@ import PartnerSelect from './PartnerSelect';
 import PartnerConfirmModal from './PartnerConfirmModal';
 import SupplierTeamPanel from './SupplierTeamPanel';
 import NoticeCallout from '../NoticeCallout';
-import SupplierVerificationCard from './SupplierVerificationCard';
-import { supplierVerificationState } from '../../lib/supplier-verification-state';
+import {
+  supplierBankAccountCopy,
+  supplierOperationalIndicators,
+  supplierVerificationState,
+} from '../../lib/supplier-verification-state';
+import { fetchPayoutExecutionGates } from '../../data/payout-execution-gates';
 import { partnerToast } from '../../lib/partner-toast';
 import {
   PARTNER_BUSINESS_READY_TO_SUBMIT_NOTE,
@@ -308,6 +312,17 @@ export default function BusinessProfilePage(p: BusinessProfilePageProps) {
     });
   }, [p.user?.id, p.verificationStatus, p.payoutVerificationStatus]);
   const verification = supplierVerificationState(verificationProfile);
+  const [payoutGatesOpen, setPayoutGatesOpen] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    void fetchPayoutExecutionGates().then((open) => {
+      if (!cancelled) setPayoutGatesOpen(open);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [verificationProfile?.id]);
+  const operations = supplierOperationalIndicators(verificationProfile, payoutGatesOpen);
 
   const tabClass = (active: boolean) =>
     `lux-flat relative px-3.5 py-2.5 text-sm font-medium transition-colors ${
@@ -464,7 +479,6 @@ export default function BusinessProfilePage(p: BusinessProfilePageProps) {
         title="Business settings"
         description="Your business profile and verification status."
       >
-        {verificationProfile ? <SupplierVerificationCard view={verification} variant="compact" /> : null}
         {!canEditProfile ? (
           <NoticeCallout title="View only" tone="info" className="mt-4">
             Your role can view business profile details but cannot change company or legal settings.
@@ -522,6 +536,13 @@ export default function BusinessProfilePage(p: BusinessProfilePageProps) {
           payoutVerificationSubmittedAt={p.payoutVerificationSubmittedAt}
           paymentCycle={p.paymentCycle ?? ''}
           payoutThreshold={p.payoutThreshold ?? ''}
+          verificationTitle={verificationProfile ? verification.title : 'Checking status'}
+          verificationSummary={verificationProfile ? verification.summary : 'Loading your account status.'}
+          verificationStatusKey={verificationProfile ? verification.status : 'loading'}
+          payoutDetail={verificationProfile ? operations.payouts.detail : ''}
+          bankLabel={verificationProfile ? supplierBankAccountCopy(verificationProfile).label : 'Checking'}
+          showLegacyBic={Boolean(p.payoutBic.trim())}
+          continueVerification={verificationProfile ? operations.account.actionLabel : null}
           onSupport={() => p.handleNavigate('support')}
         />
       )}

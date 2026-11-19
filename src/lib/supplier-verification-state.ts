@@ -121,3 +121,127 @@ export function payoutAvailabilityCopy(status: SupplierVerificationStatus, gates
   if (gatesOpen) return 'Payouts can be sent to your account.';
   return 'Your payout account is approved. Payouts are not being sent yet.';
 }
+
+export type OperationalKind = 'ready' | 'pending' | 'restricted' | 'action' | 'closed';
+
+export type OperationalIndicator = {
+  key: 'account' | 'payouts';
+  headline: string;
+  detail: string;
+  operational: boolean;
+  kind: OperationalKind;
+  /** Set only when the supplier can resolve the requirement. */
+  actionLabel: string | null;
+};
+
+/**
+ * Account operational: verification has passed and the account may operate.
+ * Payouts operational: that account can also receive payouts, and platform payout gates are open.
+ */
+export function supplierOperationalIndicators(
+  profile: SupplierVerificationProfile | null | undefined,
+  gatesOpen: boolean
+): { account: OperationalIndicator; payouts: OperationalIndicator } {
+  const view = supplierVerificationState(profile);
+  const row = profile ?? {};
+  const connectStatus = (row.connect_onboarding_status ?? '').trim().toLowerCase();
+  const restricted = connectStatus === 'restricted' || connectStatus === 'rejected';
+  const payoutsEnabled = row.connect_payouts_enabled === true;
+  const due = [
+    ...(row.connect_requirements_currently_due ?? []),
+    ...(row.connect_requirements_past_due ?? []),
+  ];
+  const eligible =
+    payoutsEnabled &&
+    due.length === 0 &&
+    connectStatus === 'complete' &&
+    row.connect_details_submitted === true &&
+    row.connect_account_livemode !== false;
+
+  const accountOperational = view.status === 'verified';
+  let accountKind: OperationalKind = 'closed';
+  let accountDetail = 'Your account is not ready to operate on Traverion.';
+  let accountAction: string | null = null;
+  if (accountOperational) {
+    accountKind = 'ready';
+    accountDetail = 'Your account is verified and can operate on Traverion.';
+  } else if (view.status === 'verification_pending') {
+    accountKind = 'pending';
+    accountDetail = 'Your information is being reviewed. No action is needed right now.';
+  } else if (view.status === 'action_required') {
+    accountKind = restricted ? 'restricted' : 'action';
+    accountDetail = view.requirements[0] || 'We need some additional information before the account can operate.';
+    accountAction = 'Continue';
+  } else {
+    accountKind = 'action';
+    accountDetail = 'Verification has not been completed.';
+    accountAction = 'Continue';
+  }
+
+  const payoutsOperational = accountOperational && eligible && gatesOpen;
+  let payoutKind: OperationalKind = 'closed';
+  let payoutDetail = 'Payouts are not available yet.';
+  if (payoutsOperational) {
+    payoutKind = 'ready';
+    payoutDetail = 'Payouts can be sent to your account.';
+  } else if (accountOperational && eligible && !gatesOpen) {
+    payoutKind = 'closed';
+    payoutDetail = 'Your payout account is approved. Payouts are not being sent yet.';
+  } else if (view.status === 'verification_pending') {
+    payoutKind = 'pending';
+    payoutDetail = 'Payouts stay unavailable until verification is finished.';
+  } else if (restricted) {
+    payoutKind = 'restricted';
+    payoutDetail = 'Payouts are unavailable until the account restriction is resolved.';
+  } else if (view.status === 'action_required' || view.status === 'not_verified') {
+    payoutKind = 'action';
+    payoutDetail = 'Payouts are not available until verification is complete.';
+  }
+
+  return {
+    account: {
+      key: 'account',
+      headline: accountOperational ? 'Account operational' : 'Account not operational',
+      detail: accountDetail,
+      operational: accountOperational,
+      kind: accountKind,
+      actionLabel: accountAction,
+    },
+    payouts: {
+      key: 'payouts',
+      headline: payoutsOperational ? 'Payouts operational' : 'Payouts not operational',
+      detail: payoutDetail,
+      operational: payoutsOperational,
+      kind: payoutKind,
+      actionLabel: null,
+    },
+  };
+}
+
+export type SupplierBankAccountCopy = {
+  status: 'on_file' | 'connected' | 'unconfirmed' | 'not_added';
+  number: string | null;
+  label: string;
+};
+
+/** Never invent an account number, and never call a bare connection approved. */
+export function supplierBankAccountCopy(
+  profile: SupplierVerificationProfile & { payout_iban?: string | null } | null | undefined
+): SupplierBankAccountCopy {
+  const iban = (profile?.payout_iban ?? '').replace(/\s+/g, '');
+  if (iban.length >= 8) {
+    return {
+      status: 'on_file',
+      number: `${iban.slice(0, 4)} •••• ${iban.slice(-4)}`,
+      label: `${iban.slice(0, 4)} •••• ${iban.slice(-4)}`,
+    };
+  }
+  const verified = supplierVerificationState(profile).status === 'verified';
+  if (verified && profile?.connect_payouts_enabled === true) {
+    return { status: 'connected', number: null, label: 'Connected' };
+  }
+  if (profile?.stripe_connected_account_id?.trim()) {
+    return { status: 'unconfirmed', number: null, label: 'Not confirmed' };
+  }
+  return { status: 'not_added', number: null, label: 'Not added' };
+}
