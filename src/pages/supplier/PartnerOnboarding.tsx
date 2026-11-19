@@ -447,7 +447,7 @@ export default function PartnerOnboarding({
                 </p>
 
                 {needsStripeContinue ? (
-                  <ul className="mt-5 list-disc space-y-1 pl-5 text-[13px] leading-snug text-[#3f3f46]">
+                  <ul className="po-requirements">
                     {humanizeConnectRequirements(stripeDue).slice(0, 8).map((item) => (
                       <li key={item}>{item}</li>
                     ))}

@@ -653,7 +653,7 @@ export default function BusinessOnboardingWizard({
               <h1 className="partner-onboarding-title stay-title !mt-0 inline-flex flex-wrap items-center gap-1.5">
                 {underReview
                   ? 'Under review'
-                  : verified
+                  : verified && draft.step !== 'documents'
                     ? 'Verified'
                     : actionRequired
                       ? 'Action required'
@@ -671,6 +671,8 @@ export default function BusinessOnboardingWizard({
               <p className="partner-onboarding-lede stay-lede">
                 {underReview
                   ? 'You’ll be notified when a decision is ready.'
+                  : verified && draft.step === 'documents'
+                    ? 'This registration proof is already on file.'
                   : verified
                     ? 'Approved business details are shown below.'
                     : actionRequired
@@ -1068,8 +1070,8 @@ export default function BusinessOnboardingWizard({
                 </div>
               ) : null}
 
-              {(draft.step === 'review' || underReview || verified) && (
-                <div className="mt-5">
+              {(draft.step === 'review' || underReview || (verified && draft.step !== 'documents')) && (
+                <div className="po-summary">
                   <ReviewSection
                     title="Business details"
                     onEdit={canEditReview ? () => goTo('identity', 'back') : undefined}
@@ -1106,6 +1108,7 @@ export default function BusinessOnboardingWizard({
                     />
                     <ReviewFact label="Country" value={businessCountryLabel(draft.address_country)} />
                   </ReviewSection>
+                  {draft.step === 'review' || underReview ? (
                   <ReviewSection
                     title="Documents"
                     onEdit={canEditReview ? () => goTo('documents', 'back') : undefined}
@@ -1121,8 +1124,26 @@ export default function BusinessOnboardingWizard({
                       })()}
                     />
                   </ReviewSection>
+                  ) : null}
                 </div>
               )}
+
+              {verified && draft.step === 'documents' ? (
+                <div className="po-summary">
+                  <ReviewSection title="Documents">
+                    <ReviewFact
+                      label="Registration proof"
+                      value={(() => {
+                        const path =
+                          draft.company_registration_document_path.trim() ||
+                          (profile?.company_registration_document_path ?? '').trim();
+                        if (path) return `Uploaded · ${verificationDocumentBasename(path)}`;
+                        return 'Not uploaded';
+                      })()}
+                    />
+                  </ReviewSection>
+                </div>
+              ) : null}
 
               {!underReview && !verified && draft.step === 'review' ? (
                 <label
