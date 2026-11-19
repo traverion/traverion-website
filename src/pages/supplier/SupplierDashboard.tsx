@@ -14,6 +14,11 @@ import {
   isSupplierBusinessProfileComplete,
   isSupplierPayoutConfigured,
 } from '../../lib/supplierOnboarding';
+import {
+  ONBOARDING_LANE_LABEL,
+  supplierOnboardingSnapshot,
+  supplierSetupMenuLabel,
+} from '../../lib/supplier-onboarding-progress';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import { fetchMyListings } from '../../data/supabase-listings';
 import { fetchBookingsForSupplier, type BookingRow } from '../../data/supabase-bookings';
@@ -465,6 +470,11 @@ export default function SupplierDashboard() {
     });
     return partnerAccountStatus({ business, payout });
   }, [profile]);
+
+  const setupSnapshot = useMemo(
+    () => (profile ? supplierOnboardingSnapshot(profile) : null),
+    [profile]
+  );
 
   /** Incomplete / rejected verification counts toward Needs attention; pending review is shown in Account status. */
   const verificationNeedsAction = Boolean(
@@ -961,11 +971,12 @@ export default function SupplierDashboard() {
                 }}
               />
             )}
-            {verificationNeedsAction && accountStatus?.kind === 'setup' && (
+            {setupSnapshot &&
+            (setupSnapshot.actionable || setupSnapshot.identity.status === 'pending_verification' || setupSnapshot.payout.status === 'pending_verification') && (
               <AttentionItem
-                tone="warn"
-                title={accountStatus.title}
-                detail={accountStatus.detail}
+                tone={setupSnapshot.actionable ? 'warn' : 'info'}
+                title={supplierSetupMenuLabel(setupSnapshot)}
+                detail={`${ONBOARDING_LANE_LABEL[setupSnapshot.company.status]} · ${ONBOARDING_LANE_LABEL[setupSnapshot.identity.status]} · ${ONBOARDING_LANE_LABEL[setupSnapshot.payout.status]}`}
                 onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/onboarding`)}
               />
             )}

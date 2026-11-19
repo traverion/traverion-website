@@ -137,7 +137,8 @@ export function visibleSupplierOnboardingScreens(
     }
     ids.push('consent');
   }
-  if (input.bankOpen || input.termsOpen) ids.push('bank', 'terms');
+  if (input.bankOpen) ids.push('bank');
+  if (input.termsOpen) ids.push('terms');
   ids.push('status');
   return ids;
 }

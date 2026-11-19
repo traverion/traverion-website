@@ -5,6 +5,7 @@ import {
   fetchSupplierProfile,
   invalidateSupplierProfileCache,
   patchSupplierProfile,
+  updateSupplierSetupProgress,
   uploadSupplierVerificationDocument,
   type SupplierProfileRow,
 } from '../../data/supabase-supplier-profile';
@@ -15,15 +16,11 @@ import {
 import { isValidFinnishBusinessId, normalizeCountryCode } from '../../lib/business-identity-validation';
 import { validateIsoDob } from '../../lib/date-of-birth';
 import { connectCanReceiveTransfers } from '../../lib/connect-payout-status';
-import { humanizeConnectRequirements } from '../../lib/connect-requirement-labels';
 import {
   emptyBeneficialOwner,
   emptyPayoutWizardDraft,
-  isOnboardingResetDraft,
   loadPayoutWizardDraft,
   mergeServerPayoutWizardDraft,
-  readStoredDraftUpdatedAt,
-  serverDraftSupersedesLocal,
   onboardingCompletionCopy,
   parseOwnershipPercent,
   parsePayoutWizardDob,
@@ -47,6 +44,10 @@ import {
   type SupplierOnboardingScreenId,
   type SupplierOnboardingVisibility,
 } from '../../lib/supplier-onboarding-steps';
+import {
+  ONBOARDING_LANE_LABEL,
+  supplierOnboardingSnapshot,
+} from '../../lib/supplier-onboarding-progress';
 
 type OwnerEntry = { first_name: string; last_name: string; dob: string; percent_ownership: string };
 
@@ -71,28 +72,19 @@ export default function SupplierOnboardingFlow({
   onOpenListings: () => void;
   hasListing: boolean;
 }) {
-  const priorLocalUpdatedAt = useRef<string | null | undefined>(undefined);
-  if (priorLocalUpdatedAt.current === undefined) {
-    priorLocalUpdatedAt.current = userId ? readStoredDraftUpdatedAt(userId) : null;
-  }
   const [draft, setDraft] = useState<PayoutWizardDraft>(() => initialDraft(userId, profile));
   const [repDob, setRepDob] = useState('');
   const [owner, setOwner] = useState<OwnerEntry>(blankOwner);
   const [others, setOthers] = useState<boolean | null>(null);
   const [iban, setIban] = useState('');
-  const [screen, setScreen] = useState<SupplierOnboardingScreenId>('company');
+  const [screen, setScreen] = useState<SupplierOnboardingScreenId | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [editingName, setEditingName] = useState(false);
   const [payoutGatesOpen, setPayoutGatesOpen] = useState(false);
   const booted = useRef(false);
   const submitting = useRef(false);
-  const forceCompanyRef = useRef<boolean | null>(null);
-  if (profile?.payout_wizard_draft_updated_at && forceCompanyRef.current === null) {
-    forceCompanyRef.current =
-      isOnboardingResetDraft(profile.payout_wizard_draft) &&
-      serverDraftSupersedesLocal(priorLocalUpdatedAt.current, profile.payout_wizard_draft_updated_at);
-  }
+  const navigating = useRef(false);
 
   const due = useMemo(() => {
     const current = profile?.connect_requirements_currently_due ?? [];
@@ -120,42 +112,38 @@ export default function SupplierOnboardingFlow({
     [isCompany, hasFile, profile?.verification_status, flags, draft.rep_is_owner, share, others, owner.first_name]
   );
   const visible = useMemo(() => visibleSupplierOnboardingScreens(visibility), [visibility]);
+  const snapshot = useMemo(() => supplierOnboardingSnapshot(profile), [profile]);
 
-  const writeScreen = useCallback((next: SupplierOnboardingScreenId) => {
+  const writeScreen = useCallback((next: SupplierOnboardingScreenId, mode: 'push' | 'replace') => {
     const phase = supplierOnboardingScreen(next).phase;
     const url = new URL(window.location.href);
     url.searchParams.set('phase', phase);
     url.searchParams.set('screen', next);
-    window.history.replaceState(null, '', `${url.pathname}${url.search}`);
+    const href = `${url.pathname}${url.search}`;
+    const state = { onboardingScreen: next };
+    if (mode === 'push') window.history.pushState(state, '', href);
+    else window.history.replaceState(state, '', href);
   }, []);
 
   useEffect(() => {
     if (!profile || booted.current) return;
     booted.current = true;
-    const forceCompany = forceCompanyRef.current === true;
     const nextDraft = initialDraft(userId, profile);
     setDraft(nextDraft);
-    if (forceCompany) savePayoutWizardDraft(userId, nextDraft);
-    const opened = requirementFlags(due, Boolean(profile.stripe_connected_account_id));
-    const next = screenFromOnboardingUrl(
-      window.location.search,
-      visibleSupplierOnboardingScreens({
-        isCompany: (profile.business_type || nextDraft.business_type) !== 'individual',
-        hasRegistrationFile: Boolean(profile.company_registration_document_path?.trim()),
-        businessRejected: profile.verification_status === 'rejected',
-        identityOpen: opened.identityOpen,
-        owns: nextDraft.rep_is_owner,
-        share: parseOwnershipPercent(nextDraft.rep_percent_ownership),
-        others: null,
-        hasExtraOwner: false,
-        bankOpen: opened.bankOpen,
-        termsOpen: opened.termsOpen,
-      }),
-      { forceCompany }
-    );
+    const next = supplierOnboardingSnapshot(profile).nextScreen;
     setScreen(next);
-    writeScreen(next);
-  }, [profile, userId, writeScreen, due]);
+    writeScreen(next, 'replace');
+    void updateSupplierSetupProgress(userId, progressRecord(profile, next));
+  }, [profile, userId, writeScreen]);
+
+  useEffect(() => {
+    const onPop = () => {
+      const requested = screenFromOnboardingUrl(window.location.search, visible);
+      setScreen(visible.some((step) => step.id === requested) ? requested : snapshot.nextScreen);
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, [visible, snapshot.nextScreen]);
 
 
   useEffect(() => {
@@ -201,7 +189,8 @@ export default function SupplierOnboardingFlow({
       return updated;
     });
     setScreen(next);
-    writeScreen(next);
+    writeScreen(next, 'push');
+    void updateSupplierSetupProgress(userId, progressRecord(profile, next));
   };
 
   const sequence = (patch?: Partial<SupplierOnboardingVisibility>) =>
@@ -218,16 +207,24 @@ export default function SupplierOnboardingFlow({
   };
 
   const back = () => {
+    if (window.history.state?.onboardingScreen) {
+      window.history.back();
+      return;
+    }
     if (screen === 'documents') {
       go('company');
       return;
     }
-    const index = visible.indexOf(screen);
+    const index = visible.indexOf(screen!);
     if (index > 0) go(visible[index - 1]!);
   };
 
   const onContinue = async () => {
-    if (busy || submitting.current) return;
+    if (busy || submitting.current || navigating.current) return;
+    navigating.current = true;
+    window.setTimeout(() => {
+      navigating.current = false;
+    }, 600);
     if (!canEdit && screen !== 'company' && screen !== 'status') {
       setError('Your role can view setup but cannot change it.');
       return;
@@ -325,6 +322,11 @@ export default function SupplierOnboardingFlow({
         setError(ibanError);
         return;
       }
+      if (!flags.termsOpen) {
+        const ok = await submitBank();
+        if (ok) advance('bank', { bankOpen: false });
+        return;
+      }
       advance('bank');
       return;
     }
@@ -337,9 +339,8 @@ export default function SupplierOnboardingFlow({
       if (ok) advance('terms', { bankOpen: false, termsOpen: false });
       return;
     }
-    if (flags.identityOpen) go('person');
-    else if (flags.bankOpen || flags.termsOpen) go('bank');
-    else onOpenListings();
+    if (snapshot.actionable) go(snapshot.nextScreen);
+    else onExit();
   };
 
   const submitIdentity = async (): Promise<boolean> => {
@@ -463,15 +464,18 @@ export default function SupplierOnboardingFlow({
     submitting.current = true;
     setBusy(true);
     setError(null);
-    const terms = await invokeConnectSupplierOnboarding('accept_tos', {
-      tos_accepted: true,
-      agreement_version: STRIPE_RECIPIENT_AGREEMENT.version,
-    });
-    if (!terms.success) {
-      setBusy(false);
-      submitting.current = false;
-      setError(connectOnboardingUserMessage(terms.error));
-      return false;
+    if (flags.termsOpen) {
+      const terms = await invokeConnectSupplierOnboarding('accept_tos', {
+        tos_accepted: true,
+        agreement_version: STRIPE_RECIPIENT_AGREEMENT.version,
+      });
+      if (!terms.success) {
+        setBusy(false);
+        submitting.current = false;
+        setError(connectOnboardingUserMessage(terms.error));
+        return false;
+      }
+      setDraft((current) => ({ ...current, tos_accepted: true }));
     }
     const tokenized = await createBankAccountToken({
       country,
@@ -530,6 +534,14 @@ export default function SupplierOnboardingFlow({
     setBusy(false);
   };
 
+  if (!screen) {
+    return (
+      <div className="partner-unified-setup-shell payout-wizard flex h-full min-h-0 w-full flex-1 items-center justify-center" data-cert="p953" data-onboarding-screen="loading">
+        <p className="text-[15px] text-ink/70">Loading your details…</p>
+      </div>
+    );
+  }
+
   const meta = supplierOnboardingScreen(screen);
   const progress = onboardingGroupProgress(
     screen === 'documents' ? ['company', 'documents', ...visible.filter((id) => id !== 'company')] : visible,
@@ -546,16 +558,16 @@ export default function SupplierOnboardingFlow({
       payoutGatesOpen,
     })
   );
-  const title = screen === 'status' ? completion.title : meta.title;
-  const body = screen === 'status' ? completion.lede : meta.body;
+  const title = screen === 'status' ? (snapshot.actionable ? 'Action required' : completion.title) : meta.title;
+  const body = screen === 'status' ? (snapshot.actionable ? snapshot.nextAction : completion.lede) : meta.body;
   const cityLine = [profile?.address_postal_code, profile?.address_city].filter(Boolean).join(' ');
   const primary =
     screen === 'status'
-      ? flags.identityOpen || flags.bankOpen || flags.termsOpen
-        ? 'Continue verification'
-        : hasListing
-          ? 'Done'
-          : 'Create a listing'
+      ? snapshot.actionable
+        ? 'Continue'
+        : 'Done'
+      : screen === 'bank' && !flags.termsOpen
+        ? 'Save bank account'
       : screen === 'consent'
         ? 'Send for verification'
         : screen === 'terms'
@@ -813,10 +825,22 @@ export default function SupplierOnboardingFlow({
               Accept the terms
             </label>
           ) : null}
-          {screen === 'status' && due.length > 0 ? (
-            <ul className="mt-2 space-y-2 text-[14px] text-ink">
-              {humanizeConnectRequirements(due).slice(0, 6).map((item) => (
-                <li key={item}>{item}</li>
+          {screen === 'status' ? (
+            <ul className="mt-4 divide-y divide-[#E6EAF0] rounded-2xl border border-[#E6EAF0]">
+              {(
+                [
+                  ['Company', snapshot.company],
+                  ['Identity', snapshot.identity],
+                  ['Payout account', snapshot.payout],
+                ] as const
+              ).map(([label, lane]) => (
+                <li key={label} className="flex items-center justify-between gap-4 px-4 py-3">
+                  <span className="text-[15px] font-medium text-ink">{label}</span>
+                  <span className="text-right text-[13px] text-ink/70">
+                    {ONBOARDING_LANE_LABEL[lane.status]}
+                    {lane.status === 'action_required' ? ` · ${lane.detail}` : ''}
+                  </span>
+                </li>
               ))}
             </ul>
           ) : null}
@@ -829,6 +853,20 @@ export default function SupplierOnboardingFlow({
       </ListingCreationWorkspace>
     </div>
   );
+}
+
+function progressRecord(profile: SupplierProfileRow | null, next: SupplierOnboardingScreenId) {
+  const existing =
+    profile?.setup_progress && typeof profile.setup_progress === 'object' && !Array.isArray(profile.setup_progress)
+      ? profile.setup_progress
+      : {};
+  return {
+    ...existing,
+    version: 1,
+    phase: supplierOnboardingScreen(next).phase,
+    payout_step: wizardStepForScreen(next),
+    updated_at: new Date().toISOString(),
+  };
 }
 
 function wizardStepForScreen(id: SupplierOnboardingScreenId): PayoutWizardStepId {

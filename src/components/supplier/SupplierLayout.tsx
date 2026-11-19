@@ -35,6 +35,7 @@ import {
   type SupplierProfileRow,
 } from '../../data/supabase-supplier-profile';
 import { type UnifiedSetupPhaseId } from '../../lib/partner-unified-setup';
+import { supplierOnboardingSnapshot, supplierSetupMenuLabel } from '../../lib/supplier-onboarding-progress';
 import {
   applyLegalPlaceholders,
   applyLegalDate,
@@ -45,7 +46,6 @@ import { formatSupplierBusinessAddressFromParts } from '../../lib/supplierAddres
 import { fetchMyListings } from '../../data/supabase-listings';
 import { inventoryFamilyFromListing } from '../../lib/inventory';
 import { BRAND_LOGO_SRC } from '../../lib/brandAssets';
-import { isSupplierBankingReadyForPublish } from '../../lib/supplierOnboarding';
 import {
   supplierOwnsAnyListing,
   userCanAccessPartnerPortal,
@@ -951,12 +951,16 @@ export default function SupplierLayout() {
   const onPortalPath = isSupplierPortalPath(pathname);
   const partnerMarketingPage = partnerMarketingPageFromPathname(pathname);
   const onboardingHasListing = onboardingListingCount !== null && onboardingListingCount > 0;
-  const onboardingBusinessVerified = verificationStatus.trim().toLowerCase() === 'verified';
-  const onboardingPayoutVerified =
-    payoutVerificationStatus.trim().toLowerCase() === 'verified' ||
-    isSupplierBankingReadyForPublish(onboardingProfile);
-  const onboardingComplete =
-    onboardingHasListing && onboardingPayoutVerified && onboardingBusinessVerified;
+  const setupSnapshot = onboardingProfile ? supplierOnboardingSnapshot(onboardingProfile) : null;
+  const setupMenuLabel = setupSnapshot ? supplierSetupMenuLabel(setupSnapshot) : '';
+  const showSetupEntry = Boolean(
+    setupSnapshot &&
+      !(
+        setupSnapshot.company.status === 'verified' &&
+        setupSnapshot.identity.status === 'verified' &&
+        setupSnapshot.payout.status === 'verified'
+      )
+  );
 
   const continueUnifiedPhase = (phase: UnifiedSetupPhaseId) => {
     navigateSupplierUrl(`${PARTNER_APP_BASE}/onboarding?phase=${phase}`);
@@ -1104,7 +1108,8 @@ export default function SupplierLayout() {
             onHome={() => handleNavigate('dashboard')}
             onCreate={() => handleNavigate('create')}
             canCreate={canCreateListings}
-            showFinishSetup={!onboardingComplete}
+            showFinishSetup={showSetupEntry}
+            finishSetupLabel={setupMenuLabel}
             onFinishSetup={() => handleNavigate('onboarding')}
             collapsed={sidebarCollapsed}
             onToggleCollapsed={() =>
@@ -1173,13 +1178,13 @@ export default function SupplierLayout() {
                     >
                       Account settings
                     </button>
-                    {!onboardingComplete && (
+                    {showSetupEntry && (
                       <button
                         type="button"
                         onClick={() => handleNavigate('onboarding')}
                         className="partner-nav-item lux-flat w-full text-left px-2.5 py-2 rounded-md text-[13px] text-slate-700 hover:bg-slate-50"
                       >
-                        Finish setup
+                        {setupMenuLabel}
                       </button>
                     )}
                     <button
@@ -1256,9 +1261,9 @@ export default function SupplierLayout() {
                       {supplierEmail}
                     </p>
                   ) : null}
-                  {!onboardingComplete && (
+                  {showSetupEntry && (
                     <button type="button" onClick={() => handleNavigate('onboarding')} className="partner-nav-item lux-flat w-full text-left rounded-md px-2 py-3 text-[15px] text-slate-700">
-                      Finish setup
+                      {setupMenuLabel}
                     </button>
                   )}
                   <button type="button" onClick={handlePartnerSignOut} className="partner-nav-item lux-flat w-full text-left rounded-md px-2 py-3 text-[15px] text-rose-700">

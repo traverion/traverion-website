@@ -28,6 +28,7 @@ type PartnerSidebarProps = {
   /** Phase 1755: hide Create CTA for finance/viewer. */
   canCreate?: boolean;
   showFinishSetup?: boolean;
+  finishSetupLabel?: string;
   onFinishSetup?: () => void;
   collapsed?: boolean;
   onToggleCollapsed?: () => void;
@@ -166,6 +167,7 @@ export default function PartnerSidebar({
   onNavigate,
   onHome,
   showFinishSetup,
+  finishSetupLabel = 'Finish setup',
   onFinishSetup,
   collapsed,
   onToggleCollapsed,
@@ -336,10 +338,10 @@ export default function PartnerSidebar({
               className={`partner-nav-item lux-flat w-full rounded-lg border border-amber-200/80 bg-amber-50/80 text-[13px] font-semibold text-amber-950 hover:bg-amber-50 ${
                 collapsed ? 'partner-nav-item--collapsed' : 'text-left'
               }`}
-              title="Finish setup"
-              aria-label="Finish setup"
+              title={finishSetupLabel}
+              aria-label={finishSetupLabel}
             >
-              {collapsed ? '!' : 'Finish setup'}
+              {collapsed ? '!' : finishSetupLabel}
             </button>
           </div>
         ) : null}
