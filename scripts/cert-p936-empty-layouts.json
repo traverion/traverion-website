@@ -1,6 +1,6 @@
 {
   "origin": "https://partner.traverion.com",
-  "passed": 40,
+  "passed": 52,
   "failed": 0,
   "checks": [
     {
@@ -34,9 +34,14 @@
       "detail": ""
     },
     {
+      "name": "desktop agenda empty state has an icon",
+      "ok": true,
+      "detail": ""
+    },
+    {
       "name": "desktop agenda shows today and only dates with events",
       "ok": true,
-      "detail": "Thursday 19 November Today 0 Nothing scheduled"
+      "detail": "Thursday 19 November Today 0 Nothing scheduled Today is open."
     },
     {
       "name": "desktop week and month stay available",
@@ -79,6 +84,11 @@
       "detail": ""
     },
     {
+      "name": "desktop bookings empty state has an icon",
+      "ok": true,
+      "detail": ""
+    },
+    {
       "name": "desktop listings keeps category filters",
       "ok": true,
       "detail": ""
@@ -99,6 +109,11 @@
       "detail": ""
     },
     {
+      "name": "desktop listings empty state has an icon",
+      "ok": true,
+      "detail": ""
+    },
+    {
       "name": "desktop inbox shows both panels",
       "ok": true,
       "detail": ""
@@ -114,14 +129,24 @@
       "detail": ""
     },
     {
+      "name": "desktop inbox empty states have icons",
+      "ok": true,
+      "detail": ""
+    },
+    {
       "name": "mobile calendar shows Agenda Week Month and Today",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "mobile agenda empty state has an icon",
       "ok": true,
       "detail": ""
     },
     {
       "name": "mobile agenda shows today and only dates with events",
       "ok": true,
-      "detail": "Thursday 19 November Today 0 Nothing scheduled"
+      "detail": "Thursday 19 November Today 0 Nothing scheduled Today is open."
     },
     {
       "name": "mobile week and month stay available",
@@ -164,6 +189,11 @@
       "detail": ""
     },
     {
+      "name": "mobile bookings empty state has an icon",
+      "ok": true,
+      "detail": ""
+    },
+    {
       "name": "mobile listings keeps category filters",
       "ok": true,
       "detail": ""
@@ -184,6 +214,11 @@
       "detail": ""
     },
     {
+      "name": "mobile listings empty state has an icon",
+      "ok": true,
+      "detail": ""
+    },
+    {
       "name": "mobile inbox shows both panels",
       "ok": true,
       "detail": ""
@@ -199,7 +234,32 @@
       "detail": ""
     },
     {
+      "name": "mobile inbox empty states have icons",
+      "ok": true,
+      "detail": ""
+    },
+    {
       "name": "booking load errors stay distinct from the empty list",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "dark mode empty title stays readable",
+      "ok": true,
+      "detail": "rgb(244, 247, 251)"
+    },
+    {
+      "name": "empty icon container is compact",
+      "ok": true,
+      "detail": "40px"
+    },
+    {
+      "name": "analytics empty state is present",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "payouts empty state is present",
       "ok": true,
       "detail": ""
     }
