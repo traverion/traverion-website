@@ -1,0 +1,994 @@
+{
+  "at": "2026-11-19T13:35:57.868Z",
+  "mission": "P9.51",
+  "account": "acct_1UdHT6C7oDQnLYSF",
+  "checks": [
+    {
+      "name": "baseline connect account",
+      "ok": true,
+      "detail": "restricted"
+    },
+    {
+      "name": "baseline money gates off",
+      "ok": true,
+      "detail": [
+        {
+          "key": "stripe_connect_transfers_enabled",
+          "value_int": 0
+        },
+        {
+          "key": "payout_execution_enabled",
+          "value_int": 0
+        },
+        {
+          "key": "live_custom_onboarding_enabled",
+          "value_int": 0
+        }
+      ]
+    },
+    {
+      "name": "baseline single connect row",
+      "ok": true,
+      "detail": "1"
+    },
+    {
+      "name": "desktop-1440 business url",
+      "ok": true,
+      "detail": "https://partner.traverion.com/partner/onboarding?phase=business"
+    },
+    {
+      "name": "desktop-1440 business no blank flash",
+      "ok": true,
+      "detail": "min=561"
+    },
+    {
+      "name": "desktop-1440 business no nav loop",
+      "ok": true,
+      "detail": "stable"
+    },
+    {
+      "name": "desktop-1440 business no horizontal overflow",
+      "ok": true,
+      "detail": []
+    },
+    {
+      "name": "desktop-1440 business type scale",
+      "ok": true,
+      "detail": "22px/13px Verified ?"
+    },
+    {
+      "name": "desktop-1440 business content scrollable",
+      "ok": true,
+      "detail": []
+    },
+    {
+      "name": "desktop-1440 company values shown",
+      "ok": true,
+      "detail": "len=12"
+    },
+    {
+      "name": "desktop-1440 business refresh resume",
+      "ok": true,
+      "detail": "https://partner.traverion.com/partner/onboarding?phase=business"
+    },
+    {
+      "name": "desktop-1440 business values persist",
+      "ok": true,
+      "detail": "len=12"
+    },
+    {
+      "name": "desktop-1440 documents url",
+      "ok": true,
+      "detail": "https://partner.traverion.com/partner/onboarding?phase=documents"
+    },
+    {
+      "name": "desktop-1440 documents no blank flash",
+      "ok": true,
+      "detail": "min=561"
+    },
+    {
+      "name": "desktop-1440 documents no nav loop",
+      "ok": true,
+      "detail": "stable"
+    },
+    {
+      "name": "desktop-1440 documents no horizontal overflow",
+      "ok": true,
+      "detail": []
+    },
+    {
+      "name": "desktop-1440 documents type scale",
+      "ok": true,
+      "detail": "22px/13px Verified ?"
+    },
+    {
+      "name": "desktop-1440 documents content scrollable",
+      "ok": true,
+      "detail": []
+    },
+    {
+      "name": "desktop-1440 documents refresh resume",
+      "ok": true,
+      "detail": "https://partner.traverion.com/partner/onboarding?phase=documents"
+    },
+    {
+      "name": "desktop-1440 representative url",
+      "ok": true,
+      "detail": "https://partner.traverion.com/partner/onboarding?phase=representative"
+    },
+    {
+      "name": "desktop-1440 representative no blank flash",
+      "ok": true,
+      "detail": "min=409"
+    },
+    {
+      "name": "desktop-1440 representative no nav loop",
+      "ok": true,
+      "detail": "stable"
+    },
+    {
+      "name": "desktop-1440 representative no horizontal overflow",
+      "ok": true,
+      "detail": []
+    },
+    {
+      "name": "desktop-1440 representative type scale",
+      "ok": true,
+      "detail": "22px/14px Identity ?"
+    },
+    {
+      "name": "desktop-1440 representative content scrollable",
+      "ok": true,
+      "detail": [
+        {
+          "className": "partner-unified-setup-main min-h-0 flex-1 overflow-y-auto overscroll-contain px-",
+          "client": 831,
+          "scroll": 831,
+          "overflowY": "auto"
+        }
+      ]
+    },
+    {
+      "name": "desktop-1440 identity surface",
+      "ok": true,
+      "detail": "672x448"
+    },
+    {
+      "name": "desktop-1440 identity title unfocused",
+      "ok": true,
+      "detail": "unfocused"
+    },
+    {
+      "name": "desktop-1440 representative refresh resume",
+      "ok": true,
+      "detail": "https://partner.traverion.com/partner/onboarding?phase=representative"
+    },
+    {
+      "name": "desktop-1440 payout url",
+      "ok": true,
+      "detail": "https://partner.traverion.com/partner/onboarding?phase=payout"
+    },
+    {
+      "name": "desktop-1440 payout no blank flash",
+      "ok": true,
+      "detail": "min=424"
+    },
+    {
+      "name": "desktop-1440 payout no nav loop",
+      "ok": true,
+      "detail": "stable"
+    },
+    {
+      "name": "desktop-1440 payout no horizontal overflow",
+      "ok": true,
+      "detail": []
+    },
+    {
+      "name": "desktop-1440 payout type scale",
+      "ok": true,
+      "detail": "22px/14px Bank account ?"
+    },
+    {
+      "name": "desktop-1440 payout content scrollable",
+      "ok": true,
+      "detail": [
+        {
+          "className": "partner-unified-setup-main min-h-0 flex-1 overflow-y-auto overscroll-contain px-",
+          "client": 831,
+          "scroll": 1289,
+          "overflowY": "auto"
+        }
+      ]
+    },
+    {
+      "name": "desktop-1440 payout refresh resume",
+      "ok": true,
+      "detail": "https://partner.traverion.com/partner/onboarding?phase=payout"
+    },
+    {
+      "name": "desktop-1440 status url",
+      "ok": true,
+      "detail": "https://partner.traverion.com/partner/onboarding?phase=status"
+    },
+    {
+      "name": "desktop-1440 status no blank flash",
+      "ok": true,
+      "detail": "min=468"
+    },
+    {
+      "name": "desktop-1440 status no nav loop",
+      "ok": true,
+      "detail": "stable"
+    },
+    {
+      "name": "desktop-1440 status no horizontal overflow",
+      "ok": true,
+      "detail": []
+    },
+    {
+      "name": "desktop-1440 status type scale",
+      "ok": true,
+      "detail": "22px/14px Verification pending ?"
+    },
+    {
+      "name": "desktop-1440 status content scrollable",
+      "ok": true,
+      "detail": [
+        {
+          "className": "partner-unified-setup-status min-h-0 flex-1 overflow-y-auto overscroll-contain p",
+          "client": 900,
+          "scroll": 1536,
+          "overflowY": "auto"
+        }
+      ]
+    },
+    {
+      "name": "desktop-1440 verification status",
+      "ok": true,
+      "detail": "Skip to content PARTNER SETUP Get ready to host 2 of 4 complete Business verification Documents 3 Identity 4 Bank account 5 Ready to receive Save & exit VERIFIC"
+    },
+    {
+      "name": "desktop-1440 status refresh resume",
+      "ok": true,
+      "detail": "https://partner.traverion.com/partner/onboarding?phase=status"
+    },
+    {
+      "name": "desktop-1440 no account create or kyc submit",
+      "ok": true,
+      "detail": "status,account_session,save_wizard_draft,stripe:/v1/account_sessions/claim,stripe:/v1/embedded_surfaces?include_only%5B%5D=id%2Cmerchant%2Clivemode,status,account_session,status,account_session,save_wizard_draft,stripe:/v1/account_sessions/claim,stripe:/v1/embedded_surfaces?include_only%5B%5D=id%2Cmerchant%2Clivemode,stripe:/v1/connect/onboarding_insights/events,status,account_session,account_session,stripe:/v1/account_sessions/claim,stripe:/v1/embedded_surfaces?include_only%5B%5D=id%2Cmerchant%2Clivemode,stripe:/v1/connect/onboarding_insights/events,account_session"
+    },
+    {
+      "name": "tablet-768 business url",
+      "ok": true,
+      "detail": "https://partner.traverion.com/partner/onboarding?phase=business"
+    },
+    {
+      "name": "tablet-768 business no blank flash",
+      "ok": true,
+      "detail": "min=523"
+    },
+    {
+      "name": "tablet-768 business no nav loop",
+      "ok": true,
+      "detail": "stable"
+    },
+    {
+      "name": "tablet-768 business no horizontal overflow",
+      "ok": true,
+      "detail": []
+    },
+    {
+      "name": "tablet-768 business type scale",
+      "ok": true,
+      "detail": "22px/13px Verified ?"
+    },
+    {
+      "name": "tablet-768 business content scrollable",
+      "ok": true,
+      "detail": []
+    },
+    {
+      "name": "tablet-768 company values shown",
+      "ok": true,
+      "detail": "len=12"
+    },
+    {
+      "name": "tablet-768 business refresh resume",
+      "ok": true,
+      "detail": "https://partner.traverion.com/partner/onboarding?phase=business"
+    },
+    {
+      "name": "tablet-768 business values persist",
+      "ok": true,
+      "detail": "len=12"
+    },
+    {
+      "name": "tablet-768 documents url",
+      "ok": true,
+      "detail": "https://partner.traverion.com/partner/onboarding?phase=documents"
+    },
+    {
+      "name": "tablet-768 documents no blank flash",
+      "ok": true,
+      "detail": "min=511"
+    },
+    {
+      "name": "tablet-768 documents no nav loop",
+      "ok": true,
+      "detail": "stable"
+    },
+    {
+      "name": "tablet-768 documents no horizontal overflow",
+      "ok": true,
+      "detail": []
+    },
+    {
+      "name": "tablet-768 documents type scale",
+      "ok": true,
+      "detail": "22px/13px Verified ?"
+    },
+    {
+      "name": "tablet-768 documents content scrollable",
+      "ok": true,
+      "detail": []
+    },
+    {
+      "name": "tablet-768 documents refresh resume",
+      "ok": true,
+      "detail": "https://partner.traverion.com/partner/onboarding?phase=documents"
+    },
+    {
+      "name": "tablet-768 representative url",
+      "ok": true,
+      "detail": "https://partner.traverion.com/partner/onboarding?phase=representative"
+    },
+    {
+      "name": "tablet-768 representative no blank flash",
+      "ok": true,
+      "detail": "min=382"
+    },
+    {
+      "name": "tablet-768 representative no nav loop",
+      "ok": true,
+      "detail": "stable"
+    },
+    {
+      "name": "tablet-768 representative no horizontal overflow",
+      "ok": true,
+      "detail": []
+    },
+    {
+      "name": "tablet-768 representative type scale",
+      "ok": true,
+      "detail": "22px/14px Identity ?"
+    },
+    {
+      "name": "tablet-768 representative content scrollable",
+      "ok": true,
+      "detail": [
+        {
+          "className": "partner-unified-setup-main min-h-0 flex-1 overflow-y-auto overscroll-contain px-",
+          "client": 851,
+          "scroll": 851,
+          "overflowY": "auto"
+        }
+      ]
+    },
+    {
+      "name": "tablet-768 identity surface",
+      "ok": true,
+      "detail": "672x448"
+    },
+    {
+      "name": "tablet-768 identity title unfocused",
+      "ok": true,
+      "detail": "unfocused"
+    },
+    {
+      "name": "tablet-768 representative refresh resume",
+      "ok": true,
+      "detail": "https://partner.traverion.com/partner/onboarding?phase=representative"
+    },
+    {
+      "name": "tablet-768 payout url",
+      "ok": true,
+      "detail": "https://partner.traverion.com/partner/onboarding?phase=payout"
+    },
+    {
+      "name": "tablet-768 payout no blank flash",
+      "ok": true,
+      "detail": "min=379"
+    },
+    {
+      "name": "tablet-768 payout no nav loop",
+      "ok": true,
+      "detail": "stable"
+    },
+    {
+      "name": "tablet-768 payout no horizontal overflow",
+      "ok": true,
+      "detail": []
+    },
+    {
+      "name": "tablet-768 payout type scale",
+      "ok": true,
+      "detail": "22px/14px Bank account ?"
+    },
+    {
+      "name": "tablet-768 payout content scrollable",
+      "ok": true,
+      "detail": [
+        {
+          "className": "partner-unified-setup-main min-h-0 flex-1 overflow-y-auto overscroll-contain px-",
+          "client": 851,
+          "scroll": 1289,
+          "overflowY": "auto"
+        }
+      ]
+    },
+    {
+      "name": "tablet-768 payout refresh resume",
+      "ok": true,
+      "detail": "https://partner.traverion.com/partner/onboarding?phase=payout"
+    },
+    {
+      "name": "tablet-768 status url",
+      "ok": true,
+      "detail": "https://partner.traverion.com/partner/onboarding?phase=status"
+    },
+    {
+      "name": "tablet-768 status no blank flash",
+      "ok": true,
+      "detail": "min=427"
+    },
+    {
+      "name": "tablet-768 status no nav loop",
+      "ok": true,
+      "detail": "stable"
+    },
+    {
+      "name": "tablet-768 status no horizontal overflow",
+      "ok": true,
+      "detail": []
+    },
+    {
+      "name": "tablet-768 status type scale",
+      "ok": true,
+      "detail": "22px/14px Verification pending ?"
+    },
+    {
+      "name": "tablet-768 status content scrollable",
+      "ok": true,
+      "detail": [
+        {
+          "className": "partner-unified-setup-status min-h-0 flex-1 overflow-y-auto overscroll-contain p",
+          "client": 920,
+          "scroll": 1536,
+          "overflowY": "auto"
+        }
+      ]
+    },
+    {
+      "name": "tablet-768 verification status",
+      "ok": true,
+      "detail": "Skip to content Exit Ready to receive 2/4 Business verification Documents Identity Bank account Ready to receive VERIFICATION Verification pending ? Finish iden"
+    },
+    {
+      "name": "tablet-768 status refresh resume",
+      "ok": true,
+      "detail": "https://partner.traverion.com/partner/onboarding?phase=status"
+    },
+    {
+      "name": "tablet-768 no account create or kyc submit",
+      "ok": true,
+      "detail": "status,account_session,save_wizard_draft,stripe:/v1/account_sessions/claim,stripe:/v1/embedded_surfaces?include_only%5B%5D=id%2Cmerchant%2Clivemode,status,account_session,status,account_session,save_wizard_draft,stripe:/v1/account_sessions/claim,stripe:/v1/embedded_surfaces?include_only%5B%5D=id%2Cmerchant%2Clivemode,stripe:/v1/connect/onboarding_insights/events,status,account_session,account_session,stripe:/v1/account_sessions/claim,stripe:/v1/embedded_surfaces?include_only%5B%5D=id%2Cmerchant%2Clivemode,stripe:/v1/connect/onboarding_insights/events,account_session"
+    },
+    {
+      "name": "mobile-390 business url",
+      "ok": true,
+      "detail": "https://partner.traverion.com/partner/onboarding?phase=business"
+    },
+    {
+      "name": "mobile-390 business no blank flash",
+      "ok": true,
+      "detail": "min=523"
+    },
+    {
+      "name": "mobile-390 business no nav loop",
+      "ok": true,
+      "detail": "stable"
+    },
+    {
+      "name": "mobile-390 business no horizontal overflow",
+      "ok": true,
+      "detail": []
+    },
+    {
+      "name": "mobile-390 business type scale",
+      "ok": true,
+      "detail": "22px/13px Verified ?"
+    },
+    {
+      "name": "mobile-390 business content scrollable",
+      "ok": true,
+      "detail": []
+    },
+    {
+      "name": "mobile-390 company values shown",
+      "ok": true,
+      "detail": "len=12"
+    },
+    {
+      "name": "mobile-390 business refresh resume",
+      "ok": true,
+      "detail": "https://partner.traverion.com/partner/onboarding?phase=business"
+    },
+    {
+      "name": "mobile-390 business values persist",
+      "ok": true,
+      "detail": "len=12"
+    },
+    {
+      "name": "mobile-390 documents url",
+      "ok": true,
+      "detail": "https://partner.traverion.com/partner/onboarding?phase=documents"
+    },
+    {
+      "name": "mobile-390 documents no blank flash",
+      "ok": true,
+      "detail": "min=511"
+    },
+    {
+      "name": "mobile-390 documents no nav loop",
+      "ok": true,
+      "detail": "stable"
+    },
+    {
+      "name": "mobile-390 documents no horizontal overflow",
+      "ok": true,
+      "detail": []
+    },
+    {
+      "name": "mobile-390 documents type scale",
+      "ok": true,
+      "detail": "22px/13px Verified ?"
+    },
+    {
+      "name": "mobile-390 documents content scrollable",
+      "ok": true,
+      "detail": []
+    },
+    {
+      "name": "mobile-390 documents refresh resume",
+      "ok": true,
+      "detail": "https://partner.traverion.com/partner/onboarding?phase=documents"
+    },
+    {
+      "name": "mobile-390 representative url",
+      "ok": true,
+      "detail": "https://partner.traverion.com/partner/onboarding?phase=representative"
+    },
+    {
+      "name": "mobile-390 representative no blank flash",
+      "ok": true,
+      "detail": "min=389"
+    },
+    {
+      "name": "mobile-390 representative no nav loop",
+      "ok": true,
+      "detail": "stable"
+    },
+    {
+      "name": "mobile-390 representative no horizontal overflow",
+      "ok": true,
+      "detail": []
+    },
+    {
+      "name": "mobile-390 representative type scale",
+      "ok": true,
+      "detail": "22px/14px Identity ?"
+    },
+    {
+      "name": "mobile-390 representative content scrollable",
+      "ok": true,
+      "detail": [
+        {
+          "className": "partner-unified-setup-main min-h-0 flex-1 overflow-y-auto overscroll-contain px-",
+          "client": 671,
+          "scroll": 1536,
+          "overflowY": "auto"
+        }
+      ]
+    },
+    {
+      "name": "mobile-390 identity surface",
+      "ok": true,
+      "detail": "358x1353"
+    },
+    {
+      "name": "mobile-390 identity title unfocused",
+      "ok": true,
+      "detail": "unfocused"
+    },
+    {
+      "name": "mobile-390 representative refresh resume",
+      "ok": true,
+      "detail": "https://partner.traverion.com/partner/onboarding?phase=representative"
+    },
+    {
+      "name": "mobile-390 payout url",
+      "ok": true,
+      "detail": "https://partner.traverion.com/partner/onboarding?phase=payout"
+    },
+    {
+      "name": "mobile-390 payout no blank flash",
+      "ok": true,
+      "detail": "min=379"
+    },
+    {
+      "name": "mobile-390 payout no nav loop",
+      "ok": true,
+      "detail": "stable"
+    },
+    {
+      "name": "mobile-390 payout no horizontal overflow",
+      "ok": true,
+      "detail": []
+    },
+    {
+      "name": "mobile-390 payout type scale",
+      "ok": true,
+      "detail": "22px/14px Bank account ?"
+    },
+    {
+      "name": "mobile-390 payout content scrollable",
+      "ok": true,
+      "detail": [
+        {
+          "className": "partner-unified-setup-main min-h-0 flex-1 overflow-y-auto overscroll-contain px-",
+          "client": 671,
+          "scroll": 1536,
+          "overflowY": "auto"
+        }
+      ]
+    },
+    {
+      "name": "mobile-390 payout refresh resume",
+      "ok": true,
+      "detail": "https://partner.traverion.com/partner/onboarding?phase=payout"
+    },
+    {
+      "name": "mobile-390 status url",
+      "ok": true,
+      "detail": "https://partner.traverion.com/partner/onboarding?phase=status"
+    },
+    {
+      "name": "mobile-390 status no blank flash",
+      "ok": true,
+      "detail": "min=427"
+    },
+    {
+      "name": "mobile-390 status no nav loop",
+      "ok": true,
+      "detail": "stable"
+    },
+    {
+      "name": "mobile-390 status no horizontal overflow",
+      "ok": true,
+      "detail": []
+    },
+    {
+      "name": "mobile-390 status type scale",
+      "ok": true,
+      "detail": "22px/14px Verification pending ?"
+    },
+    {
+      "name": "mobile-390 status content scrollable",
+      "ok": true,
+      "detail": [
+        {
+          "className": "partner-unified-setup-status min-h-0 flex-1 overflow-y-auto overscroll-contain p",
+          "client": 740,
+          "scroll": 1759,
+          "overflowY": "auto"
+        }
+      ]
+    },
+    {
+      "name": "mobile-390 verification status",
+      "ok": true,
+      "detail": "Skip to content Exit Ready to receive 2/4 Business verification Documents Identity Bank account Ready to receive VERIFICATION Verification pending ? Finish iden"
+    },
+    {
+      "name": "mobile-390 status refresh resume",
+      "ok": true,
+      "detail": "https://partner.traverion.com/partner/onboarding?phase=status"
+    },
+    {
+      "name": "mobile-390 no account create or kyc submit",
+      "ok": true,
+      "detail": "status,account_session,save_wizard_draft,stripe:/v1/account_sessions/claim,stripe:/v1/embedded_surfaces?include_only%5B%5D=id%2Cmerchant%2Clivemode,stripe:/v1/connect/onboarding_insights/events,status,account_session,status,account_session,save_wizard_draft,stripe:/v1/account_sessions/claim,stripe:/v1/embedded_surfaces?include_only%5B%5D=id%2Cmerchant%2Clivemode,stripe:/v1/connect/onboarding_insights/events,status,account_session,account_session,stripe:/v1/account_sessions/claim,stripe:/v1/embedded_surfaces?include_only%5B%5D=id%2Cmerchant%2Clivemode,stripe:/v1/connect/onboarding_insights/events,account_session"
+    },
+    {
+      "name": "profile identity unchanged",
+      "ok": true,
+      "detail": "stable"
+    },
+    {
+      "name": "money gates unchanged",
+      "ok": true,
+      "detail": [
+        {
+          "key": "stripe_connect_transfers_enabled",
+          "value_int": 0
+        },
+        {
+          "key": "payout_execution_enabled",
+          "value_int": 0
+        },
+        {
+          "key": "live_custom_onboarding_enabled",
+          "value_int": 0
+        }
+      ]
+    },
+    {
+      "name": "no duplicate connect account",
+      "ok": true,
+      "detail": "1"
+    },
+    {
+      "name": "autosave side effect restored",
+      "ok": true,
+      "detail": "draft=true progress=true restored"
+    }
+  ],
+  "actions": [
+    {
+      "vp": "desktop-1440",
+      "action": "status"
+    },
+    {
+      "vp": "desktop-1440",
+      "action": "account_session"
+    },
+    {
+      "vp": "desktop-1440",
+      "action": "save_wizard_draft"
+    },
+    {
+      "vp": "desktop-1440",
+      "action": "stripe:/v1/account_sessions/claim"
+    },
+    {
+      "vp": "desktop-1440",
+      "action": "stripe:/v1/embedded_surfaces?include_only%5B%5D=id%2Cmerchant%2Clivemode"
+    },
+    {
+      "vp": "desktop-1440",
+      "action": "status"
+    },
+    {
+      "vp": "desktop-1440",
+      "action": "account_session"
+    },
+    {
+      "vp": "desktop-1440",
+      "action": "status"
+    },
+    {
+      "vp": "desktop-1440",
+      "action": "account_session"
+    },
+    {
+      "vp": "desktop-1440",
+      "action": "save_wizard_draft"
+    },
+    {
+      "vp": "desktop-1440",
+      "action": "stripe:/v1/account_sessions/claim"
+    },
+    {
+      "vp": "desktop-1440",
+      "action": "stripe:/v1/embedded_surfaces?include_only%5B%5D=id%2Cmerchant%2Clivemode"
+    },
+    {
+      "vp": "desktop-1440",
+      "action": "stripe:/v1/connect/onboarding_insights/events"
+    },
+    {
+      "vp": "desktop-1440",
+      "action": "status"
+    },
+    {
+      "vp": "desktop-1440",
+      "action": "account_session"
+    },
+    {
+      "vp": "desktop-1440",
+      "action": "account_session"
+    },
+    {
+      "vp": "desktop-1440",
+      "action": "stripe:/v1/account_sessions/claim"
+    },
+    {
+      "vp": "desktop-1440",
+      "action": "stripe:/v1/embedded_surfaces?include_only%5B%5D=id%2Cmerchant%2Clivemode"
+    },
+    {
+      "vp": "desktop-1440",
+      "action": "stripe:/v1/connect/onboarding_insights/events"
+    },
+    {
+      "vp": "desktop-1440",
+      "action": "account_session"
+    },
+    {
+      "vp": "tablet-768",
+      "action": "status"
+    },
+    {
+      "vp": "tablet-768",
+      "action": "account_session"
+    },
+    {
+      "vp": "tablet-768",
+      "action": "save_wizard_draft"
+    },
+    {
+      "vp": "tablet-768",
+      "action": "stripe:/v1/account_sessions/claim"
+    },
+    {
+      "vp": "tablet-768",
+      "action": "stripe:/v1/embedded_surfaces?include_only%5B%5D=id%2Cmerchant%2Clivemode"
+    },
+    {
+      "vp": "tablet-768",
+      "action": "status"
+    },
+    {
+      "vp": "tablet-768",
+      "action": "account_session"
+    },
+    {
+      "vp": "tablet-768",
+      "action": "status"
+    },
+    {
+      "vp": "tablet-768",
+      "action": "account_session"
+    },
+    {
+      "vp": "tablet-768",
+      "action": "save_wizard_draft"
+    },
+    {
+      "vp": "tablet-768",
+      "action": "stripe:/v1/account_sessions/claim"
+    },
+    {
+      "vp": "tablet-768",
+      "action": "stripe:/v1/embedded_surfaces?include_only%5B%5D=id%2Cmerchant%2Clivemode"
+    },
+    {
+      "vp": "tablet-768",
+      "action": "stripe:/v1/connect/onboarding_insights/events"
+    },
+    {
+      "vp": "tablet-768",
+      "action": "status"
+    },
+    {
+      "vp": "tablet-768",
+      "action": "account_session"
+    },
+    {
+      "vp": "tablet-768",
+      "action": "account_session"
+    },
+    {
+      "vp": "tablet-768",
+      "action": "stripe:/v1/account_sessions/claim"
+    },
+    {
+      "vp": "tablet-768",
+      "action": "stripe:/v1/embedded_surfaces?include_only%5B%5D=id%2Cmerchant%2Clivemode"
+    },
+    {
+      "vp": "tablet-768",
+      "action": "stripe:/v1/connect/onboarding_insights/events"
+    },
+    {
+      "vp": "tablet-768",
+      "action": "account_session"
+    },
+    {
+      "vp": "mobile-390",
+      "action": "status"
+    },
+    {
+      "vp": "mobile-390",
+      "action": "account_session"
+    },
+    {
+      "vp": "mobile-390",
+      "action": "save_wizard_draft"
+    },
+    {
+      "vp": "mobile-390",
+      "action": "stripe:/v1/account_sessions/claim"
+    },
+    {
+      "vp": "mobile-390",
+      "action": "stripe:/v1/embedded_surfaces?include_only%5B%5D=id%2Cmerchant%2Clivemode"
+    },
+    {
+      "vp": "mobile-390",
+      "action": "stripe:/v1/connect/onboarding_insights/events"
+    },
+    {
+      "vp": "mobile-390",
+      "action": "status"
+    },
+    {
+      "vp": "mobile-390",
+      "action": "account_session"
+    },
+    {
+      "vp": "mobile-390",
+      "action": "status"
+    },
+    {
+      "vp": "mobile-390",
+      "action": "account_session"
+    },
+    {
+      "vp": "mobile-390",
+      "action": "save_wizard_draft"
+    },
+    {
+      "vp": "mobile-390",
+      "action": "stripe:/v1/account_sessions/claim"
+    },
+    {
+      "vp": "mobile-390",
+      "action": "stripe:/v1/embedded_surfaces?include_only%5B%5D=id%2Cmerchant%2Clivemode"
+    },
+    {
+      "vp": "mobile-390",
+      "action": "stripe:/v1/connect/onboarding_insights/events"
+    },
+    {
+      "vp": "mobile-390",
+      "action": "status"
+    },
+    {
+      "vp": "mobile-390",
+      "action": "account_session"
+    },
+    {
+      "vp": "mobile-390",
+      "action": "account_session"
+    },
+    {
+      "vp": "mobile-390",
+      "action": "stripe:/v1/account_sessions/claim"
+    },
+    {
+      "vp": "mobile-390",
+      "action": "stripe:/v1/embedded_surfaces?include_only%5B%5D=id%2Cmerchant%2Clivemode"
+    },
+    {
+      "vp": "mobile-390",
+      "action": "stripe:/v1/connect/onboarding_insights/events"
+    },
+    {
+      "vp": "mobile-390",
+      "action": "account_session"
+    }
+  ],
+  "verdict": "PASS",
+  "failed": []
+}
