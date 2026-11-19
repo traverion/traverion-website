@@ -1,0 +1,72 @@
+{
+  "origin": "https://partner.traverion.com",
+  "passed": 13,
+  "failed": 0,
+  "checks": [
+    {
+      "name": "desktop header fits and centers the profile button",
+      "ok": true,
+      "detail": "53"
+    },
+    {
+      "name": "trigger is a menu button",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "keyboard moves from Account settings to Sign out",
+      "ok": true,
+      "detail": "Account settings -> Sign out"
+    },
+    {
+      "name": "desktop menu stays in the viewport",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "account info is separate from Sign out",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "menu items have icons",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "escape closes and restores trigger focus",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "outside click closes the menu",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "choosing an item closes the menu and navigates",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "header height is the same on Home, Calendar, and Bookings",
+      "ok": true,
+      "detail": "53/53/53"
+    },
+    {
+      "name": "mobile header fits and centers the profile button",
+      "ok": true,
+      "detail": "53"
+    },
+    {
+      "name": "mobile menu stays in the viewport",
+      "ok": true,
+      "detail": "118,48 256x169"
+    },
+    {
+      "name": "mobile escape closes the menu",
+      "ok": true,
+      "detail": ""
+    }
+  ]
+}
