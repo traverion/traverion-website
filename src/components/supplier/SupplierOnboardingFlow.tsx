@@ -82,6 +82,13 @@ export default function SupplierOnboardingFlow({
   const [payoutGatesOpen, setPayoutGatesOpen] = useState(false);
   const booted = useRef(false);
   const submitting = useRef(false);
+  const forceCompanyRef = useRef<boolean | null>(null);
+  if (profile?.payout_wizard_draft_updated_at && forceCompanyRef.current === null) {
+    const saved = userId ? loadPayoutWizardDraft(userId) : null;
+    forceCompanyRef.current =
+      isOnboardingResetDraft(profile.payout_wizard_draft) &&
+      serverDraftSupersedesLocal(saved?.updatedAt ?? null, profile.payout_wizard_draft_updated_at);
+  }
 
   const due = useMemo(() => {
     const current = profile?.connect_requirements_currently_due ?? [];
@@ -121,10 +128,7 @@ export default function SupplierOnboardingFlow({
   useEffect(() => {
     if (!profile || booted.current) return;
     booted.current = true;
-    const saved = userId ? loadPayoutWizardDraft(userId) : null;
-    const forceCompany =
-      isOnboardingResetDraft(profile.payout_wizard_draft) &&
-      serverDraftSupersedesLocal(saved?.updatedAt ?? null, profile.payout_wizard_draft_updated_at);
+    const forceCompany = forceCompanyRef.current === true;
     const nextDraft = initialDraft(userId, profile);
     setDraft(nextDraft);
     if (forceCompany) savePayoutWizardDraft(userId, nextDraft);
