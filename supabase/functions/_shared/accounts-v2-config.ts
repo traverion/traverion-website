@@ -152,6 +152,24 @@ export function isAccountsV2Native(account: V2AccountSnapshot | null | undefined
   return account?.metadata?.traverion_account_api === 'v2';
 }
 
+/**
+ * Payout-ready email and in-app notice. Stripe capability and Traverion money
+ * gates must all be open. A closed gate must not announce that payouts are ready.
+ */
+export function payoutReadyNoticeAllowed(input: {
+  transfersActive: boolean;
+  livemode: boolean | null | undefined;
+  payoutExecutionEnabled: boolean;
+  connectTransfersEnabled: boolean;
+}): boolean {
+  return (
+    input.transfersActive === true &&
+    input.livemode === true &&
+    input.payoutExecutionEnabled === true &&
+    input.connectTransfersEnabled === true
+  );
+}
+
 /** Authoritative transfer capability for a v2 account. Missing means not verified. */
 export function v2StripeTransfersStatus(account: V2AccountSnapshot | null | undefined): string {
   return (

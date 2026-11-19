@@ -20,6 +20,12 @@ const FIELD_LABELS: Record<string, string> = {
   'business_profile.mcc': 'Business category',
   'company.name': 'Legal business name',
   'company.tax_id': 'Company tax ID',
+  'company.directors_provided': 'Company director',
+  'directors.first_name': 'Director name',
+  'directors.last_name': 'Director name',
+  'directors.dob.day': 'Director date of birth',
+  'directors.dob.month': 'Director date of birth',
+  'directors.dob.year': 'Director date of birth',
   'company.address.line1': 'Company street address',
   'company.address.city': 'Company city',
   'company.address.postal_code': 'Company postal code',
@@ -55,6 +61,8 @@ function labelFor(raw: string): string {
   if (key.startsWith('individual.dob')) return 'Date of birth';
   if (key.startsWith('individual.verification')) return 'Identity verification';
   if (key.startsWith('individual.')) return 'Identity verification';
+  if (key.startsWith('directors.dob')) return 'Director date of birth';
+  if (key.startsWith('directors.')) return 'Director name';
   if (key.startsWith('company.address')) return 'Company address';
   if (key.startsWith('company.')) return 'Company details';
   if (key.startsWith('business_profile.')) return 'Business profile';
@@ -68,7 +76,9 @@ function groupFor(raw: string): RequirementGroupId {
   const key = raw.trim();
   if (key.startsWith('tos_acceptance') || key.includes('tos_acceptance')) return 'agreements';
   if (key.includes('external_account') || key.includes('bank')) return 'bank';
-  if (key.startsWith('representative.') || key.startsWith('individual.')) return 'representative';
+  if (key.startsWith('representative.') || key.startsWith('individual.') || key.startsWith('directors.')) {
+    return 'representative';
+  }
   if (
     key.startsWith('company.') ||
     key.startsWith('business_') ||

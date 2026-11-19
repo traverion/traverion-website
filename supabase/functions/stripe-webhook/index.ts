@@ -27,6 +27,7 @@ import { mirrorConnectAccount } from '../_shared/connect-account-mirror.ts';
 import {
   ACCOUNTS_V2_STRIPE_VERSION,
   V2_RETRIEVE_INCLUDE,
+  payoutReadyNoticeAllowed,
   type V2AccountSnapshot,
 } from '../_shared/accounts-v2-config.ts';
 import {
@@ -1242,6 +1243,46 @@ serve(async (req) => {
           },
         });
         await markProcessed('processed');
+        if (mirror.connect_payouts_enabled === true && mirror.connect_account_livemode === true) {
+          try {
+            const { data: gateRows } = await admin
+              .from('commercial_runtime_config')
+              .select('key, value_int')
+              .in('key', ['payout_execution_enabled', 'stripe_connect_transfers_enabled']);
+            const gateOn = (key: string) =>
+              (gateRows ?? []).some((row) => row.key === key && row.value_int === 1);
+            const notify = payoutReadyNoticeAllowed({
+              transfersActive: true,
+              livemode: true,
+              payoutExecutionEnabled: gateOn('payout_execution_enabled'),
+              connectTransfersEnabled: gateOn('stripe_connect_transfers_enabled'),
+            });
+            if (notify && supabaseUrl && serviceRoleKey) {
+              await fetch(`${supabaseUrl}/functions/v1/notify-supplier-event`, {
+                method: 'POST',
+                headers: {
+                  Authorization: `Bearer ${serviceRoleKey}`,
+                  apikey: serviceRoleKey,
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  supplierId: supplier!.id,
+                  eventType: 'payout_ready',
+                  idempotencyKey: `supplier:payout_ready:${supplier!.id}`,
+                }),
+              });
+            }
+          } catch (noticeErr) {
+            console.error(
+              JSON.stringify({
+                source: 'stripe-webhook',
+                eventId: event.id,
+                supplierId: supplier!.id,
+                noticeError: noticeErr instanceof Error ? noticeErr.message : 'payout ready notice failed',
+              })
+            );
+          }
+        }
         return json({
           success: true,
           eventId: event.id,

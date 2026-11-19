@@ -68,7 +68,7 @@ describe('P8.3 pilot isolation hardening', () => {
 
   it('partner settings uses Connect refresh + unified payout wizard', () => {
     expect(partnerSettings).toContain("invokeConnectSupplierOnboarding('refresh')");
-    expect(partnerSettings).toMatch(/Start payout setup|Continue payout setup|Review payout setup/);
+    expect(partnerSettings).toContain('Continue setup');
     expect(partnerSettings).toContain('PayoutSetupWizard');
     expect(partnerSettings).toContain("connect !== 'return'");
   });

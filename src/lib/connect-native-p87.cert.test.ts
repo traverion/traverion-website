@@ -71,8 +71,8 @@ describe('P8.7 native payout onboarding UX (unit/source)', () => {
       'utf8'
     );
     expect(wizard).toContain('Business information');
-    expect(wizard).toContain('Representative details');
-    expect(wizard).toContain('Identity verification');
+    expect(wizard).toContain('This person is a director');
+    expect(wizard).toContain('Date of birth');
     expect(wizard).toContain('Bank account');
     expect(wizard).toContain('Payout preferences');
     expect(wizard).toContain("goTo('review'");

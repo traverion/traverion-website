@@ -37,6 +37,7 @@ import {
   supplierLifecycleNotifyAllowed,
 } from '../_shared/notify-lifecycle-gate.ts';
 import { isTransactionalEmailLogOnly } from '../_shared/transactional-email-mode.ts';
+import { payoutReadyNoticeAllowed } from '../_shared/accounts-v2-config.ts';
 
 type EventType =
   | 'new_booking'
@@ -54,7 +55,9 @@ type EventType =
   | 'refund_completed'
   | 'refund_initiated'
   /** Phase 1735: Stripe partial refund — amount_paid shrunk, stays Paid */
-  | 'partial_refund_recorded';
+  | 'partial_refund_recorded'
+  /** Stripe transfers are active and Traverion payout gates are open. */
+  | 'payout_ready';
 
 type Payload = {
   supplierId: string;
@@ -174,6 +177,9 @@ function eventSubject(payload: Payload): string {
   if (payload.eventType === 'verification_submitted') {
     return 'We received your Traverion business verification';
   }
+  if (payload.eventType === 'payout_ready') {
+    return 'Verification complete — payouts are ready';
+  }
   const listing = payload.listingTitle ?? 'your listing';
   const ref = (payload.publicReference ?? '').trim();
   const dated = payload.bookingDate ? ` · ${payload.bookingDate}` : '';
@@ -232,6 +238,18 @@ function eventBody(payload: Payload): string {
       '2. Create your first listing (draft anytime). Publishing needs Traverion business and payout verification.',
       '',
       `Open your supplier portal: ${base}/partner`,
+      '',
+      '— Traverion',
+    ].join('\n');
+  }
+  if (payload.eventType === 'payout_ready') {
+    const base = siteBase(payload);
+    return [
+      'Stripe has confirmed this account can receive payouts, and Traverion payouts are open.',
+      '',
+      'Verification is complete. You can receive payouts for eligible bookings.',
+      '',
+      `Open Finish setup: ${base}/partner/onboarding`,
       '',
       '— Traverion',
     ].join('\n');
@@ -426,6 +444,17 @@ function eventHtml(payload: Payload): string {
       bodyHtml: '',
       ctaUrl: portal,
       ctaLabel: 'Open supplier portal',
+      siteUrl: 'https://www.traverion.com',
+    });
+  }
+
+  if (payload.eventType === 'payout_ready') {
+    return transactionalEmailDocument({
+      headline: 'Verification complete',
+      introHtml: `<p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.55;color:${EMAIL_THEME.muted};">Stripe confirmed this account can receive payouts, and Traverion payouts are open.</p>`,
+      bodyHtml: '',
+      ctaUrl: `${base}/partner/onboarding`,
+      ctaLabel: 'View verification',
       siteUrl: 'https://www.traverion.com',
     });
   }
@@ -695,6 +724,15 @@ const handler = async (req: Request): Promise<Response> => {
       return json({ success: false, error: 'Missing supplierId/eventType' }, 400);
     }
 
+    // Payout-ready mail is not a supplier-invoked event. Service role only,
+    // and only after Stripe capability plus Traverion money gates are open.
+    if (payload.eventType === 'payout_ready') {
+      const authHeader = req.headers.get('Authorization');
+      if (!isServiceRoleBearer(authHeader, serviceRoleKey)) {
+        return json({ success: false, error: 'Unauthorized' }, 401);
+      }
+    }
+
     // Phase 1033: supplier_welcome / verification_submitted have no booking to
     // re-derive against. Require JWT owner match OR supplier_team_members row
     // (Phase 1703 — team company save notifies with owner supplierId).
@@ -734,6 +772,34 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     const admin = createClient(supabaseUrl, serviceRoleKey);
+    if (payload.eventType === 'payout_ready') {
+      const { data: prof, error: profErr } = await admin
+        .from('supplier_profiles')
+        .select('connect_account_livemode, connect_payouts_enabled')
+        .eq('id', payload.supplierId)
+        .maybeSingle();
+      if (profErr) {
+        return json({ success: false, error: 'Could not confirm payout eligibility.' }, 500);
+      }
+      const { data: gateRows, error: gateErr } = await admin
+        .from('commercial_runtime_config')
+        .select('key, value_int')
+        .in('key', ['payout_execution_enabled', 'stripe_connect_transfers_enabled']);
+      if (gateErr) {
+        return json({ success: false, error: 'Could not confirm payout eligibility.' }, 500);
+      }
+      const gateOn = (key: string) =>
+        (gateRows ?? []).some((row) => row.key === key && row.value_int === 1);
+      const allowed = payoutReadyNoticeAllowed({
+        transfersActive: prof?.connect_payouts_enabled === true,
+        livemode: prof?.connect_account_livemode === true,
+        payoutExecutionEnabled: gateOn('payout_execution_enabled'),
+        connectTransfersEnabled: gateOn('stripe_connect_transfers_enabled'),
+      });
+      if (!allowed) {
+        return json({ success: true, skipped: true, reason: 'payout_not_ready', notified: 0 });
+      }
+    }
     // Phase 1139: fieldDiffs/changeSummary only from supplier-side or service-role
     // (guest_message / booking_detail_changed may still carry guest-authored copy).
     let allowCallerFieldDiffs = false;
@@ -1415,6 +1481,27 @@ const handler = async (req: Request): Promise<Response> => {
         .from('supplier_profiles')
         .update({ welcome_email_sent_at: now, updated_at: now })
         .eq('id', payload.supplierId);
+    }
+    if (payload.eventType === 'payout_ready') {
+      const { data: existingNotice } = await admin
+        .from('supplier_activity_notifications')
+        .select('id')
+        .eq('supplier_id', payload.supplierId)
+        .eq('event_type', 'payout_ready')
+        .limit(1)
+        .maybeSingle();
+      if (!existingNotice?.id) {
+        const { error: activityErr } = await admin.from('supplier_activity_notifications').insert({
+          supplier_id: payload.supplierId,
+          event_type: 'payout_ready',
+          title: 'Verification complete',
+          body: 'Payouts are ready. Stripe confirmed this account, and Traverion payouts are open.',
+          href_path: '/partner/onboarding',
+        });
+        if (activityErr && !/duplicate|unique/i.test(activityErr.message ?? '')) {
+          console.error('supplier_activity_notifications insert failed', activityErr.message);
+        }
+      }
     }
     if (payload.eventType === 'verification_submitted') {
       await admin
