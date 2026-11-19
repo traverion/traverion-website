@@ -1,0 +1,69 @@
+{
+  "at": "2026-11-19T14:41:56.767Z",
+  "mission": "P9.53",
+  "account": "acct_1UdWWoC3BagnTlZ5",
+  "livemode": false,
+  "businessOk": true,
+  "personId": "created",
+  "ownerId": "created",
+  "steps": [
+    {
+      "name": "create test account",
+      "ok": true,
+      "detail": "livemode=false"
+    },
+    {
+      "name": "company and finnish business id",
+      "ok": true,
+      "detail": "accepted"
+    },
+    {
+      "name": "v2 person create",
+      "ok": true,
+      "detail": "v2.core.account_person"
+    },
+    {
+      "name": "v2 person update",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "v2 beneficial owner",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "person attestations",
+      "ok": true,
+      "detail": "due=3"
+    },
+    {
+      "name": "terms acceptance",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "bank token attach",
+      "ok": true,
+      "detail": "last4=0785"
+    },
+    {
+      "name": "identity document upload",
+      "ok": false,
+      "detail": "Unrecognized request URL. This endpoint is available at files.stripe.com instead of api.stripe.com. Please try using https://files.stripe.com or see https://stripe.com/docs for more information."
+    },
+    {
+      "name": "requirements sync",
+      "ok": true,
+      "detail": "transfers=active due=none"
+    },
+    {
+      "name": "identity document attach",
+      "ok": true,
+      "detail": "primary_verification type front_back via files.stripe.com"
+    }
+  ],
+  "verdict": "PASS",
+  "document_required_for_this_test_account": false,
+  "transfers_after_keyed_fields": "active"
+}

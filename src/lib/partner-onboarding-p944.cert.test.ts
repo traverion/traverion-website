@@ -59,8 +59,17 @@ describe('P9.44 one-form onboarding + LIVE Connect readiness', () => {
         hasConnectedAccount: true,
         canReceiveTransfers: true,
         connectLivemode: true,
+        payoutGatesOpen: true,
       })
     ).toBe('ready_to_receive');
+    expect(
+      resolveOnboardingCompletionState({
+        hasConnectedAccount: true,
+        canReceiveTransfers: true,
+        connectLivemode: true,
+        payoutGatesOpen: false,
+      })
+    ).toBe('verification_pending');
     expect(onboardingCompletionCopy('verification_pending').title).toMatch(/pending/i);
     expect(onboardingCompletionCopy('ready_to_receive').title).toMatch(/receive/i);
   });
@@ -69,7 +78,7 @@ describe('P9.44 one-form onboarding + LIVE Connect readiness', () => {
     const page = readFileSync('src/pages/supplier/PartnerOnboarding.tsx', 'utf8');
     expect(page).toContain("connect !== 'return'");
     expect(page).toContain('Continue verification');
-    expect(page).toContain('fetchConnectAccountLink');
+    expect(page).toContain('payout_gates_open');
     expect(page).toContain('onboardingCompletionCopy');
   });
 });

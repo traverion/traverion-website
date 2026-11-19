@@ -137,6 +137,17 @@ export default function PartnerOnboarding({
     };
   }, [userId, onProfileRefresh, setPhaseAndUrl]);
 
+  useEffect(() => {
+    if (!userId || !profile?.stripe_connected_account_id) return;
+    let cancelled = false;
+    void invokeConnectSupplierOnboarding('status').then((result) => {
+      if (!cancelled) setPayoutGatesOpen(result.payout_gates_open === true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [userId, profile?.stripe_connected_account_id]);
+
   const progress = useMemo(
     () =>
       derivePartnerSetupProgress(profile, {
@@ -167,6 +178,7 @@ export default function PartnerOnboarding({
     [onProfileRefresh]
   );
 
+  const [payoutGatesOpen, setPayoutGatesOpen] = useState(false);
   const hasConnectedAccount = Boolean(profile?.stripe_connected_account_id);
   const canReceive = connectCanReceiveTransfers(profile ?? {});
   const completionState = resolveOnboardingCompletionState({
@@ -175,6 +187,7 @@ export default function PartnerOnboarding({
     connectLivemode: profile?.connect_account_livemode,
     wizardCompleted: progress.payoutConfigured,
     payoutConfigured: progress.payoutConfigured,
+    payoutGatesOpen,
   });
   const completionCopy = onboardingCompletionCopy(completionState);
   const stripeDue = [
@@ -238,7 +251,7 @@ export default function PartnerOnboarding({
     return (
       <div
         className="partner-unified-setup-shell flex h-full min-h-0 w-full flex-1 items-center justify-center bg-white"
-        data-cert="p952"
+        data-cert="p953"
       >
         <p className="text-[13px] text-[#71717a]" role="status">
           Loading your details…
@@ -250,7 +263,7 @@ export default function PartnerOnboarding({
   return (
     <div
       className="partner-unified-setup-shell payout-wizard flex h-full min-h-0 w-full flex-1 overflow-hidden bg-white"
-      data-cert="p952"
+      data-cert="p953"
     >
       <aside className="partner-unified-setup-shell__rail hidden h-full min-h-0 shrink-0 flex-col overflow-hidden lg:flex">
         <div className="shrink-0 px-3.5 pb-3 pt-[max(0.85rem,env(safe-area-inset-top))]">
@@ -484,7 +497,7 @@ export default function PartnerOnboarding({
                   <NoticeCallout className="mt-6" title="Ready to host" tone="success">
                     {progress.publishReady
                       ? PARTNER_ONBOARDING_PUBLISH_READY_NOTE
-                      : 'Payout verification is complete. Create a listing when you are ready — Traverion enables payouts separately.'}
+                      : 'Verification is complete and payouts are ready.'}
                   </NoticeCallout>
                 ) : null}
 

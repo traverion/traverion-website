@@ -1019,8 +1019,10 @@ export function resolveOnboardingCompletionState(opts: {
   connectLivemode?: boolean | null;
   wizardCompleted?: boolean;
   payoutConfigured?: boolean;
+  /** Both Traverion payout gates. Closed gates must not say payouts are ready. */
+  payoutGatesOpen?: boolean;
 }): OnboardingCompletionState {
-  if (opts.canReceiveTransfers && opts.connectLivemode === true) {
+  if (opts.canReceiveTransfers && opts.connectLivemode === true && opts.payoutGatesOpen === true) {
     return 'ready_to_receive';
   }
   if (opts.hasConnectedAccount) {
@@ -1041,7 +1043,7 @@ export function onboardingCompletionCopy(state: OnboardingCompletionState): {
     return {
       kicker: 'Verified',
       title: 'Ready to receive payouts',
-      lede: 'Your payout account is verified. Traverion enables payouts separately when your bookings are ready.',
+      lede: 'Stripe confirmed this account and Traverion payouts are open.',
     };
   }
   if (state === 'verification_pending') {

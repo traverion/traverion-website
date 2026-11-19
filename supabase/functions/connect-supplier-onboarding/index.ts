@@ -264,6 +264,86 @@ serve(async (req) => {
       return payload as V2AccountSnapshot;
     }
 
+    type V2PersonRecord = {
+      id?: string;
+      given_name?: string | null;
+      surname?: string | null;
+      relationship?: { representative?: boolean; owner?: boolean } | null;
+    };
+
+    async function listV2Persons(accountId: string): Promise<V2PersonRecord[]> {
+      const listed = (await stripeV2(
+        'GET',
+        `/v2/core/accounts/${accountId}/persons?limit=100`
+      )) as { data?: V2PersonRecord[] };
+      return Array.isArray(listed.data) ? listed.data : [];
+    }
+
+    function v2PersonBody(input: {
+      first_name: string;
+      last_name: string;
+      email?: string;
+      phone?: string;
+      dob: { day: number; month: number; year: number };
+      address: {
+        line1?: string;
+        line2?: string;
+        city?: string;
+        postal_code?: string;
+        state?: string;
+        country: string;
+      };
+      relationship: {
+        representative: boolean;
+        director: boolean;
+        executive: boolean;
+        owner: boolean;
+        percent_ownership?: number;
+        title: string;
+      };
+    }) {
+      const ownership = input.relationship.percent_ownership;
+      const owner = input.relationship.owner && ownership != null && ownership > 0;
+      return {
+        given_name: input.first_name,
+        surname: input.last_name,
+        email: input.email,
+        phone: input.phone,
+        date_of_birth: input.dob,
+        address: {
+          line1: input.address.line1,
+          line2: input.address.line2,
+          city: input.address.city,
+          postal_code: input.address.postal_code,
+          state: input.address.state,
+          country: input.address.country.toLowerCase(),
+        },
+        relationship: {
+          representative: input.relationship.representative,
+          director: input.relationship.director,
+          executive: input.relationship.executive,
+          owner,
+          ...(owner && ownership != null ? { percent_ownership: String(ownership) } : {}),
+          title: input.relationship.title,
+        },
+      };
+    }
+
+    async function saveV2Person(
+      accountId: string,
+      body: ReturnType<typeof v2PersonBody>,
+      match: (person: V2PersonRecord) => boolean
+    ): Promise<string> {
+      const people = await listV2Persons(accountId);
+      const existing = people.find(match);
+      const saved = existing?.id
+        ? await stripeV2('POST', `/v2/core/accounts/${accountId}/persons/${existing.id}`, body)
+        : await stripeV2('POST', `/v2/core/accounts/${accountId}/persons`, body);
+      const personId = (saved as { id?: string }).id;
+      if (!personId) throw new Error('Stripe did not return a person id');
+      return personId;
+    }
+
     function v2RetrievePath(accountId: string): string {
       const include = V2_RETRIEVE_INCLUDE.map((item) => `include=${encodeURIComponent(item)}`).join('&');
       return `/v2/core/accounts/${accountId}?${include}`;
@@ -1096,8 +1176,18 @@ serve(async (req) => {
 
     async function statusExtras(): Promise<Record<string, unknown>> {
       const eligibility = await readLiveCreateEligibility(supplierId);
+      const { data: gateRows } = await admin
+        .from('commercial_runtime_config')
+        .select('key, value_int')
+        .in('key', ['payout_execution_enabled', 'stripe_connect_transfers_enabled']);
+      const gateOn = (key: string) =>
+        (gateRows ?? []).some((row) => row.key === key && row.value_int === 1);
       return {
         ...eligibility,
+        payout_execution_enabled: gateOn('payout_execution_enabled'),
+        connect_transfers_enabled: gateOn('stripe_connect_transfers_enabled'),
+        payout_gates_open:
+          gateOn('payout_execution_enabled') && gateOn('stripe_connect_transfers_enabled'),
         wizard_draft: sanitizeWizardDraft(
           (profile as { payout_wizard_draft?: unknown }).payout_wizard_draft
         ),
@@ -1488,6 +1578,51 @@ serve(async (req) => {
       if (!/^[A-Z]{2}$/.test(country)) {
         return json({ success: false, error: 'Enter a two-letter country code' }, 400);
       }
+      const representativeV2 = await nativeV2Account(accountId);
+      if (representativeV2) {
+        const ownerDeclared = Boolean(r.relationship?.owner) && ownership != null && Number(ownership) > 0;
+        const personId = await saveV2Person(
+          accountId,
+          v2PersonBody({
+            first_name: r.first_name.trim(),
+            last_name: r.last_name.trim(),
+            email: r.email?.trim() || authData.user.email || undefined,
+            phone: r.phone?.trim() || undefined,
+            dob: { day, month, year },
+            address: {
+              line1: r.address?.line1 || profile.address_street || undefined,
+              line2: r.address?.line2 || undefined,
+              city: r.address?.city || profile.address_city || undefined,
+              postal_code: r.address?.postal_code || profile.address_postal_code || undefined,
+              state: r.address?.state || undefined,
+              country,
+            },
+            relationship: {
+              representative: true,
+              executive: r.relationship?.executive !== false,
+              director: Boolean(r.relationship?.director),
+              owner: ownerDeclared,
+              percent_ownership: ownership != null ? Number(ownership) : undefined,
+              title: r.title?.trim() || 'Representative',
+            },
+          }),
+          (person) => person.relationship?.representative === true
+        );
+        await stripeV2('POST', `/v2/core/accounts/${accountId}`, {
+          identity: {
+            attestations: {
+              persons_provided: {
+                directors: Boolean(r.relationship?.director),
+                executives: r.relationship?.executive !== false,
+                owners: ownerDeclared,
+              },
+            },
+          },
+          include: [...V2_RETRIEVE_INCLUDE],
+        });
+        const { mirror } = await syncAccount(accountId);
+        return json({ action, person_id: personId, ...statusPayload(mirror, accountId) });
+      }
       const persons = await stripe.accounts.listPersons(accountId, { limit: 20 });
       const existingRep = persons.data.find((p) => p.relationship?.representative);
       const personParams: Stripe.PersonCreateParams | Stripe.PersonUpdateParams = {
@@ -1528,24 +1663,6 @@ serve(async (req) => {
         const created = await stripe.accounts.createPerson(accountId, personParams as Stripe.PersonCreateParams);
         personId = created.id;
       }
-      const representativeV2 = await nativeV2Account(accountId);
-      if (representativeV2) {
-          const ownerDeclared = Boolean(r.relationship?.owner) && ownership != null;
-          await stripeV2('POST', `/v2/core/accounts/${accountId}`, {
-            identity: {
-              attestations: {
-                persons_provided: {
-                  directors: Boolean(r.relationship?.director),
-                  executives: r.relationship?.executive !== false,
-                  owners: ownerDeclared,
-                },
-              },
-            },
-            include: [...V2_RETRIEVE_INCLUDE],
-          });
-          const { mirror } = await syncAccount(accountId);
-          return json({ action, person_id: personId, ...statusPayload(mirror, accountId) });
-      }
       // Mark ownership/structure declarations when the representative covers those roles.
       const ownerDeclared = Boolean(r.relationship?.owner) && ownership != null;
       if (profile.business_type !== 'individual') {
@@ -1575,7 +1692,10 @@ serve(async (req) => {
       }
       const country =
         (profile.address_country || profile.connect_country || 'FI').toString().slice(0, 2).toUpperCase();
-      const existing = await stripe.accounts.listPersons(accountId, { limit: 100 });
+      const ownersAreV2 = Boolean(await nativeV2Account(accountId));
+      const existing = ownersAreV2
+        ? { data: [] as Stripe.Person[] }
+        : await stripe.accounts.listPersons(accountId, { limit: 100 });
       const personIds: string[] = [];
       for (const o of owners) {
         const first = (o.first_name ?? '').trim();
@@ -1596,6 +1716,46 @@ serve(async (req) => {
         const dob = o.dob;
         if (!dob?.day || !dob?.month || !dob?.year) {
           return json({ success: false, error: 'Each beneficial owner needs a date of birth.' }, 400);
+        }
+        if (ownersAreV2) {
+          if (ownership <= 0) {
+            return json({
+              success: false,
+              error: 'Each beneficial owner needs an ownership percentage above 0.',
+            }, 400);
+          }
+          const personId = await saveV2Person(
+            accountId,
+            v2PersonBody({
+              first_name: first,
+              last_name: last,
+              email: o.email?.trim() || undefined,
+              dob: { day: dob.day, month: dob.month, year: dob.year },
+              address: {
+                line1: o.address?.line1 || profile.address_street || undefined,
+                line2: o.address?.line2 || undefined,
+                city: o.address?.city || profile.address_city || undefined,
+                postal_code: o.address?.postal_code || profile.address_postal_code || undefined,
+                state: o.address?.state || undefined,
+                country: (o.address?.country || country).toString(),
+              },
+              relationship: {
+                representative: false,
+                director: false,
+                executive: false,
+                owner: true,
+                percent_ownership: ownership,
+                title: 'Owner',
+              },
+            }),
+            (person) =>
+              (person.given_name || '').trim().toLowerCase() === first.toLowerCase() &&
+              (person.surname || '').trim().toLowerCase() === last.toLowerCase() &&
+              person.relationship?.owner === true &&
+              person.relationship?.representative !== true
+          );
+          personIds.push(personId);
+          continue;
         }
         const personParams: Stripe.PersonUpdateParams = {
           first_name: first,
@@ -1636,8 +1796,7 @@ serve(async (req) => {
           personIds.push(created.id);
         }
       }
-      const ownersV2 = await nativeV2Account(accountId);
-      if (ownersV2) {
+      if (ownersAreV2) {
         await stripeV2('POST', `/v2/core/accounts/${accountId}`, {
           identity: {
             attestations: {
@@ -1798,11 +1957,24 @@ serve(async (req) => {
           account_type: 'express',
         }, 409);
       }
-      await stripe.accounts.updatePerson(accountId, personId, {
-        verification: {
-          document: side === 'back' ? { back: fileId } : { front: fileId },
-        },
-      });
+      const identityV2 = await nativeV2Account(accountId);
+      if (identityV2) {
+        const sideKey = side === 'back' ? 'back' : 'front';
+        await stripeV2('POST', `/v2/core/accounts/${accountId}/persons/${personId}`, {
+          documents: {
+            primary_verification: {
+              type: 'front_back',
+              front_back: { [sideKey]: fileId },
+            },
+          },
+        });
+      } else {
+        await stripe.accounts.updatePerson(accountId, personId, {
+          verification: {
+            document: side === 'back' ? { back: fileId } : { front: fileId },
+          },
+        });
+      }
       const { mirror } = await syncAccount(accountId);
       return json({ action, ...statusPayload(mirror, accountId) });
     }
@@ -1851,11 +2023,24 @@ serve(async (req) => {
           type: contentType === 'image/jpg' ? 'image/jpeg' : contentType,
         },
       });
-      await stripe.accounts.updatePerson(accountId, personId, {
-        verification: {
-          document: side === 'back' ? { back: stripeFile.id } : { front: stripeFile.id },
-        },
-      });
+      const uploadV2 = await nativeV2Account(accountId);
+      if (uploadV2) {
+        const sideKey = side === 'back' ? 'back' : 'front';
+        await stripeV2('POST', `/v2/core/accounts/${accountId}/persons/${personId}`, {
+          documents: {
+            primary_verification: {
+              type: 'front_back',
+              front_back: { [sideKey]: stripeFile.id },
+            },
+          },
+        });
+      } else {
+        await stripe.accounts.updatePerson(accountId, personId, {
+          verification: {
+            document: side === 'back' ? { back: stripeFile.id } : { front: stripeFile.id },
+          },
+        });
+      }
       const { mirror } = await syncAccount(accountId);
       return json({
         action,

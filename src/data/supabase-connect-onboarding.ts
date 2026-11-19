@@ -106,6 +106,9 @@ export type ConnectOnboardingResult = {
   supplier_allowlisted?: boolean;
   live_create_allowed?: boolean;
   live_create_blocked_reason?: string | null;
+  payout_gates_open?: boolean;
+  payout_execution_enabled?: boolean;
+  connect_transfers_enabled?: boolean;
   /** Non-sensitive server draft (no IBAN / full DOB). */
   wizard_draft?: Record<string, unknown> | null;
   wizard_draft_updated_at?: string | null;

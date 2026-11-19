@@ -269,7 +269,10 @@ export default function PayoutSetupWizard({
   ].map(String);
   const outstandingLabels = humanizeConnectRequirements(outstandingKeys);
   const identityDocumentDue = outstandingKeys.some((key) =>
-    /verification\.document|additional_document|documents|proof_of_liveness|liveness|ssn_last_4/i.test(key)
+    /verification\.document|additional_document|identity_document|primary_verification/i.test(key)
+  );
+  const providerControlledDue = outstandingKeys.some((key) =>
+    /liveness|selfie|risk_review|electronic_id|proof_of_liveness/i.test(key)
   );
   const bankRequirementDue = outstandingKeys.some((key) =>
     /external_account|bank_account/i.test(key)
@@ -1218,6 +1221,7 @@ export default function PayoutSetupWizard({
     (!hasConnectedAccount && platformEnvironment === 'live' && !liveCreateAllowed);
 
   const canLaunchHostedStripe =
+    isExpress &&
     canProvisionConnect &&
     (hasConnectedAccount || liveCreateAllowed || platformEnvironment === 'test');
 
@@ -1244,8 +1248,9 @@ export default function PayoutSetupWizard({
         setNote(supplierFacingLiveCreateBlockReason(liveCreateBlockedReason || PAYOUT_LIVE_SETUP_UNAVAILABLE_COPY));
         return;
       }
-      // After create, Custom accounts stay in Traverion via embed; Express may still need hosted.
-      if (isCustom || isExpress) {
+      // Custom accounts stay on Traverion forms. Express may still need hosted verification.
+      if (isCustom) return;
+      if (isExpress) {
         setShowStripeEmbed(true);
         return;
       }
@@ -2067,32 +2072,14 @@ export default function PayoutSetupWizard({
 
               {draft.step === 'identity' && !isExpress && !customUsesEmbeddedVerification ? (
                 <div className="mt-4 space-y-4">
-                  {hasConnectedAccount &&
-                  (outstandingKeys.length > 0 ||
-                    accountRestricted ||
-                    onboardingStatus === 'pending' ||
-                    onboardingStatus === 'restricted') ? (
+                  {outstandingLabels.length > 0 ? (
                     <div className="rounded-[10px] border border-[#dbe4f0] bg-[#f0f4fa] px-3 py-3 text-[12px] leading-relaxed text-[#1e3a5f]">
-                      <p className="font-semibold text-[#073b83]">Secure verification</p>
-                      <p className="mt-1">
-                        Complete remaining identity checks in Traverion. Traverion only updates status
-                        after confirmation — never from this button alone.
-                      </p>
-                      {outstandingLabels.length > 0 ? (
-                        <ul className="mt-2 list-disc space-y-1 pl-4">
-                          {outstandingLabels.slice(0, 6).map((label) => (
-                            <li key={label}>{label}</li>
-                          ))}
-                        </ul>
-                      ) : null}
-                      <button
-                        type="button"
-                        className="tv-btn-primary mt-3 h-10 w-full text-[13px] disabled:opacity-50"
-                        disabled={!canEdit || busy || hostedLinkBusy}
-                        onClick={() => void launchHostedStripe()}
-                      >
-                        {hostedLinkBusy ? 'Opening…' : 'Continue verification'}
-                      </button>
+                      <p className="font-semibold text-[#073b83]">Still needed</p>
+                      <ul className="mt-2 list-disc space-y-1 pl-4">
+                        {outstandingLabels.slice(0, 6).map((label) => (
+                          <li key={label}>{label}</li>
+                        ))}
+                      </ul>
                     </div>
                   ) : null}
                   <p className="text-[13px] leading-relaxed text-[#52525b]">{PAYOUT_WIZARD_TOS_COPY}</p>
@@ -2132,12 +2119,12 @@ export default function PayoutSetupWizard({
                       and payout information with Stripe.
                     </span>
                   </label>
-                  {identityDocumentDue || accountRestricted || draft.rep_person_id ? (
+                  {identityDocumentDue ? (
                     <div className="space-y-3 rounded-[10px] border border-[#e5e7eb] bg-[#fafafa] px-3 py-3">
                       <p className="text-[13px] font-semibold text-[#18181b]">Identity document</p>
                       <p className="text-[12px] leading-relaxed text-[#52525b]">
-                        When Stripe asks for an ID, upload a passport or national ID here. The file goes
-                        straight to Stripe — Traverion does not store a copy.
+                        Stripe asked for an identity document. The file goes straight to Stripe. Traverion
+                        does not keep a copy.
                       </p>
                       {draft.rep_person_id && canProvisionConnect ? (
                         <div className="space-y-2">
@@ -2180,53 +2167,48 @@ export default function PayoutSetupWizard({
                         </div>
                       ) : (
                         <p className="text-[12px] leading-relaxed text-[#52525b]">
-                          Save the representative first so the document can be attached to the right
-                          person. If Stripe opens a secure page instead, use the handoff below — never
-                          skip document checks.
+                          Save the representative first so the document can be attached to the right person.
                         </p>
                       )}
-                      {identityDocumentDue || accountRestricted ? (
-                        <div className="border-t border-[#e5e7eb] pt-3">
-                          <p className="text-[12px] leading-relaxed text-[#52525b]">
-                            Prefer Stripe’s secure step? Continue verification to complete any remaining
-                            checks (including liveness when required).
-                          </p>
-                          {!showIdentityRemediation ? (
-                            <button
-                              type="button"
-                              className="tv-btn-primary mt-3 h-10 px-3 text-[13px]"
-                              onClick={() => setShowIdentityRemediation(true)}
-                            >
-                              Continue secure verification
-                            </button>
-                          ) : (
-                            <div className="mt-3">
-                              <Suspense
-                                fallback={
-                                  <p className="text-[12px] text-[#71717a]">Loading verification…</p>
-                                }
-                              >
-                                <ConnectEmbeddedPanel
-                                  component="account_onboarding"
-                                  expectStripeAuth={false}
-                                  onExit={() => {
-                                    setShowIdentityRemediation(false);
-                                    void refreshConnect();
-                                  }}
-                                  onHostedFallback={(url) => {
-                                    setHostedFallbackUrl(url);
-                                    setShowIdentityRemediation(false);
-                                  }}
-                                  onError={(msg) => {
-                                    setShowIdentityRemediation(false);
-                                    setError(connectOnboardingUserMessage(msg));
-                                  }}
-                                />
-                              </Suspense>
-                            </div>
-                          )}
-                        </div>
-                      ) : null}
+                    </div>
+                  ) : null}
+                  {providerControlledDue ? (
+                    <div className="space-y-3 rounded-[10px] border border-[#e5e7eb] bg-[#fafafa] px-3 py-3">
+                      <p className="text-[13px] font-semibold text-[#18181b]">Stripe must finish this check</p>
+                      <p className="text-[12px] leading-relaxed text-[#52525b]">
+                        This item is a liveness or risk check. Traverion cannot complete it in the form.
+                        The secure step opens only for that check.
+                      </p>
+                      {!showIdentityRemediation ? (
+                        <button
+                          type="button"
+                          className="tv-btn-primary h-10 px-3 text-[13px]"
+                          onClick={() => setShowIdentityRemediation(true)}
+                        >
+                          Continue this check
+                        </button>
+                      ) : (
+                        <Suspense
+                          fallback={<p className="text-[12px] text-[#71717a]">Loading verification…</p>}
+                        >
+                          <ConnectEmbeddedPanel
+                            component="account_onboarding"
+                            expectStripeAuth={false}
+                            onExit={() => {
+                              setShowIdentityRemediation(false);
+                              void refreshConnect();
+                            }}
+                            onHostedFallback={(url) => {
+                              setHostedFallbackUrl(url);
+                              setShowIdentityRemediation(false);
+                            }}
+                            onError={(msg) => {
+                              setShowIdentityRemediation(false);
+                              setError(connectOnboardingUserMessage(msg));
+                            }}
+                          />
+                        </Suspense>
+                      )}
                     </div>
                   ) : null}
                 </div>
