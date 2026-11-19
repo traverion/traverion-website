@@ -72,7 +72,8 @@ describe('Post-Phase-6 certification contracts', () => {
     expect(incomePage).toContain('Next payout — eligible');
     expect(incomePage).toContain('Awaiting clearance');
     expect(incomePage).not.toContain('Period sales');
-    expect(incomePage).toContain('Automatic bank payouts are not enabled');
+    expect(incomePage).not.toContain('Payout preference');
+    expect(incomePage).not.toContain('Automatic bank payouts are not enabled');
     expect(mig271).toContain('payment_reference_required');
   });
 

@@ -71,7 +71,6 @@ import {
   nextPayoutPreparationLabel,
   payoutConfirmedScheduleDate,
   payoutMaySayPaid,
-  payoutPreferenceLabel,
   selectAwaitingClearanceEarnings,
   selectLastCompletedPayout,
   selectUnallocatedEligibleEarnings,
@@ -726,11 +725,6 @@ export default function SupplierEarnings() {
     () => selectLastCompletedPayout(payoutPeriods),
     [payoutPeriods]
   );
-  const preferenceLabel = useMemo(
-    () => payoutPreferenceLabel(commercialTerms),
-    [commercialTerms]
-  );
-
   const filteredIncomeRows = incomeRows;
 
   const earningsForInvoices = useMemo(
@@ -1143,13 +1137,6 @@ export default function SupplierEarnings() {
           ) : null}
 
           <section className="tv-income-info-strip" aria-label="Next payout details">
-            <div>
-              <span className="tv-income-info-strip__label">Payout preference</span>
-              <p className="tv-income-info-strip__value">{preferenceLabel}</p>
-              <p className="tv-income-info-strip__hint">
-                Active commercial terms · Automatic bank payouts are not enabled
-              </p>
-            </div>
             <div>
               <span className="tv-income-info-strip__label">Preparation status</span>
               <p className="tv-income-info-strip__value">
