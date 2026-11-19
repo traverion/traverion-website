@@ -846,17 +846,16 @@ export default function SupplierDiscountsOffers() {
           )}
         </div>
       ) : error ? null : (
-        <div className="tv-offers-empty">
-          <p className="tv-offers-empty__title" role="heading" aria-level={2}>
-            No listings yet
-          </p>
-          <p className="mt-1 max-w-md text-[13px] text-[#71717a]">
-            Offers attach to published tours and stays. Create a listing first.
-          </p>
-          <button type="button" onClick={goToListings} className="tv-btn-primary mt-3 h-9 px-3 text-[13px]">
-            Open listings
-          </button>
-        </div>
+        <SupplierEmptyState
+          icon={Tag}
+          title="No listings yet"
+          body="Offers attach to published tours and stays. Create a listing first."
+          action={
+            <button type="button" onClick={goToListings} className="tv-btn-secondary">
+              Open listings
+            </button>
+          }
+        />
       )}
 
       <DiscountOfferWizardModal

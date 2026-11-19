@@ -1284,7 +1284,7 @@ export default function SupplierUnifiedCalendar() {
           <div className="partner-unified-cal__agenda">
             {agendaGroups.length === 0 ? (
               <SupplierEmptyState
-                className="partner-empty--inset"
+                className="partner-empty--agenda"
                 icon={CalendarCheck}
                 title="Nothing scheduled"
                 body="Today is open."
@@ -1309,7 +1309,7 @@ export default function SupplierUnifiedCalendar() {
                 <div className="partner-unified-cal__cards">
                   {group.events.length === 0 ? (
                     <SupplierEmptyState
-                      className="partner-empty--inset"
+                      className="partner-empty--agenda"
                       icon={CalendarCheck}
                       title="Nothing scheduled"
                       body="Today is open."

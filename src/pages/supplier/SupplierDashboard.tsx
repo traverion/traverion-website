@@ -1,10 +1,10 @@
 import { useState, useEffect, useLayoutEffect, useMemo, useCallback, useRef, type ReactNode } from 'react';
-import { SUPPLIER_PAGE_CLASS } from '../../components/supplier/supplierUi';
+import { SUPPLIER_PAGE_CLASS, SupplierEmptyState } from '../../components/supplier/supplierUi';
 import ErrorState from '../../components/ErrorState';
 import NoticeCallout from '../../components/NoticeCallout';
 import StatusChip from '../../components/StatusChip';
 import { USER_ERROR } from '../../lib/userFacingError';
-import { ChevronRight } from 'lucide-react';
+import { AlertCircle, Calendar, ChevronRight } from 'lucide-react';
 import { supplierOperationalIndicators, supplierVerificationState } from '../../lib/supplier-verification-state';
 import PartnerOperationalStatus from '../../components/supplier/PartnerOperationalStatus';
 import { fetchPayoutExecutionGates } from '../../data/payout-execution-gates';
@@ -946,52 +946,37 @@ export default function SupplierDashboard() {
         ) : bookingsLoadFailed ? (
           // Phase 1617: do not look like an empty schedule when bookings failed to load.
           // Unified Upcoming schedule covers both Today and Next 7 days tabs.
-          <div className="partner-home__panel">
-            <div className="partner-home__panel-empty">
-              <div className="min-w-0">
-                <p className="partner-home__panel-empty-title">Bookings couldn’t load</p>
-                <p className="partner-home__panel-empty-body">
-                  Today’s schedule and the week-ahead view need bookings to load successfully.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => void reloadDashboard()}
-                className="partner-btn-secondary lux-flat shrink-0 rounded-lg border border-slate-200 px-3 py-1.5 text-[12px] font-semibold text-slate-700 hover:bg-slate-50"
-              >
+          <SupplierEmptyState
+            icon={AlertCircle}
+            title="Bookings couldn’t load"
+            body="Today’s schedule and the week-ahead view need bookings to load successfully."
+            action={
+              <button type="button" onClick={() => void reloadDashboard()} className="tv-btn-secondary">
                 Retry
               </button>
-            </div>
-          </div>
+            }
+          />
         ) : scheduleEvents.length === 0 ? (
-          <div className="partner-home__panel">
-            <div className="partner-home__panel-empty">
-              <div className="min-w-0">
-                {scheduleTab === 'today' ? (
-                  <>
-                    <p className="partner-home__panel-empty-title">{todayEmptyCopy.title}</p>
-                    <p className="partner-home__panel-empty-body">{todayEmptyCopy.body}</p>
-                  </>
-                ) : (
-                  <>
-                    <p className="partner-home__panel-empty-title">Nothing in the next 7 days</p>
-                    <p className="partner-home__panel-empty-body">
-                      No confirmed tour departures, stay check-ins, or rental collections/returns in the coming week.
-                    </p>
-                  </>
-                )}
-              </div>
-              {attentionCount === 0 ? (
+          <SupplierEmptyState
+            icon={Calendar}
+            title={scheduleTab === 'today' ? todayEmptyCopy.title : 'Nothing in the next 7 days'}
+            body={
+              scheduleTab === 'today'
+                ? todayEmptyCopy.body
+                : 'No confirmed tour departures, stay check-ins, or rental collections/returns in the coming week.'
+            }
+            action={
+              attentionCount === 0 ? (
                 <button
                   type="button"
                   onClick={() => openSupplierCalendar(calendarFocusListingId)}
-                  className="partner-btn-secondary lux-flat shrink-0 rounded-lg border border-slate-200 px-3 py-1.5 text-[12px] font-semibold text-slate-700 hover:bg-slate-50"
+                  className="tv-btn-secondary"
                 >
                   Open calendar
                 </button>
-              ) : null}
-            </div>
-          </div>
+              ) : undefined
+            }
+          />
         ) : (
           <ul className="partner-home__panel">
             {scheduleEvents.map((ev) => {

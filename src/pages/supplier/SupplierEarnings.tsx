@@ -1214,13 +1214,12 @@ export default function SupplierEarnings() {
               </button>
             </div>
             {!lastCompletedPayout ? (
-              <div className="tv-income-empty tv-income-empty--compact mt-2">
-                <div className="tv-income-empty__icon"><Wallet className="h-5 w-5" aria-hidden /></div>
-                <h3 className="text-sm font-bold text-[#18181b]">No completed payouts yet</h3>
-                <p className="mt-1 max-w-md text-[13px] leading-relaxed text-[#52525b]">
-                  When a payout period is confirmed, it appears here with its statement under Documents.
-                </p>
-              </div>
+              <SupplierEmptyState
+                className="partner-empty--inset"
+                icon={Wallet}
+                title="No completed payouts yet"
+                body="When a payout period is confirmed, it appears here with its statement under Documents."
+              />
             ) : (
               <div className="mt-2 overflow-hidden rounded-[10px] border border-[#e5e7eb] bg-white">
                 <button

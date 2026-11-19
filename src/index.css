@@ -1644,25 +1644,33 @@ body {
   }
 
   .partner-empty {
-    color-scheme: light dark;
     display: flex;
     width: 100%;
-    max-width: 26rem;
+    max-width: 24rem;
     margin: 0 auto;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 0.3rem;
-    padding: 2rem 1.25rem;
+    gap: 0.25rem;
+    padding: 1.75rem 1rem;
     text-align: center;
     border: 0;
-    border-radius: 0.875rem;
-    background: light-dark(transparent, #171e28);
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
   }
 
   .partner-empty--inset {
     max-width: 22rem;
-    padding: 1.35rem 1rem 1.5rem;
+    padding: 1.25rem 1rem 1.4rem;
+  }
+
+  .partner-empty--agenda {
+    max-width: none;
+    margin: 0;
+    align-items: flex-start;
+    padding: 0.15rem 0 0.85rem;
+    text-align: left;
   }
 
   .partner-empty__icon {
@@ -1673,9 +1681,9 @@ body {
     align-items: center;
     justify-content: center;
     border-radius: 0.75rem;
-    background: light-dark(color-mix(in srgb, #073b83 8%, #fff), rgba(142, 180, 245, 0.14));
-    color: light-dark(#073b83, #d5e4ff);
-    box-shadow: inset 0 0 0 1px light-dark(rgba(7, 59, 131, 0.12), rgba(142, 180, 245, 0.22));
+    background: #f3f4f6;
+    color: #8b919c;
+    box-shadow: none;
   }
 
   .partner-empty__icon svg {
@@ -1688,7 +1696,7 @@ body {
     font-size: 0.9375rem;
     font-weight: 600;
     letter-spacing: -0.02em;
-    color: light-dark(var(--partner-ink, #0c1118), #f4f7fb);
+    color: var(--partner-ink, #0c1118);
     line-height: 1.3;
   }
 
@@ -1698,22 +1706,13 @@ body {
     font-size: 0.8125rem;
     line-height: 1.45;
     font-weight: 450;
-    color: light-dark(var(--partner-ink-muted, #5a6472), #b4c0ce);
+    color: var(--partner-ink-muted, #5a6472);
   }
 
   .partner-empty__actions {
     margin-top: 0.65rem;
     display: flex;
     justify-content: center;
-  }
-
-  @media (prefers-color-scheme: dark) {
-    .partner-empty .tv-btn-ghost,
-    .partner-empty .tv-btn-secondary {
-      color: #e8eef6;
-      border-color: rgba(255, 255, 255, 0.14);
-      background: transparent;
-    }
   }
 
   .partner-metric-grid {
