@@ -126,11 +126,12 @@ try {
   const stacked = await page.locator('.partner-toast').count();
   note('consecutive toasts stack', stacked >= 2, String(stacked));
 
-  await openLegal(page);
   await page.route('**/rest/v1/supplier_profiles**', (route) => {
     if (route.request().method() === 'PATCH') return route.abort('failed');
     return route.continue();
   });
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await page.waitForSelector('text=Policies for travelers', { timeout: 25000 });
   await page.getByRole('button', { name: 'Edit' }).nth(0).click();
   const failDialog = page.getByRole('dialog');
   await failDialog.locator('textarea').fill(`${before}${MARK} failed`);
@@ -139,7 +140,8 @@ try {
   await errorToast.waitFor({ timeout: 20000 });
   note('backend failure shows an error toast', true, '');
   note('failed save keeps the editor open', (await failDialog.count()) > 0, '');
-  note('failed save does not announce success', (await page.locator('.partner-toast--success').count()) === 0, '');
+  const successTexts = await page.locator('.partner-toast--success').allInnerTexts();
+  note('failed save does not announce success', successTexts.length === 0, successTexts.join(' | ') || 'none');
   const dismiss = errorToast.getByRole('button', { name: 'Dismiss' });
   await dismiss.focus();
   note('dismiss can take keyboard focus', await dismiss.evaluate((el) => el === document.activeElement), '');

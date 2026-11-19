@@ -1,0 +1,82 @@
+{
+  "at": "2026-11-19T19:20:48.122Z",
+  "passed": 15,
+  "failed": 0,
+  "checks": [
+    {
+      "name": "success toast after save",
+      "ok": true,
+      "detail": "Privacy policy saved"
+    },
+    {
+      "name": "duplicate click sends one save",
+      "ok": true,
+      "detail": "1"
+    },
+    {
+      "name": "duplicate message is a single toast",
+      "ok": true,
+      "detail": "1"
+    },
+    {
+      "name": "sits about 28px above the bottom",
+      "ok": true,
+      "detail": "28"
+    },
+    {
+      "name": "hover pauses dismissal",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "success leaves after the pause",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "consecutive toasts stack",
+      "ok": true,
+      "detail": "2"
+    },
+    {
+      "name": "backend failure shows an error toast",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "failed save keeps the editor open",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "failed save does not announce success",
+      "ok": true,
+      "detail": "none"
+    },
+    {
+      "name": "dismiss can take keyboard focus",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "keyboard dismiss removes the error",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "mobile toast stays inside the screen",
+      "ok": true,
+      "detail": "358/390"
+    },
+    {
+      "name": "reduced motion skips the slide",
+      "ok": true,
+      "detail": "none"
+    },
+    {
+      "name": "original policies restored",
+      "ok": true,
+      "detail": "same"
+    }
+  ]
+}
