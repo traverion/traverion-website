@@ -1,0 +1,332 @@
+{
+  "at": "2026-11-19T14:31:15.281Z",
+  "mission": "P9.52",
+  "account": "acct_1UdHT6C7oDQnLYSF",
+  "checks": [
+    {
+      "name": "existing live account",
+      "ok": true,
+      "detail": "custom"
+    },
+    {
+      "name": "money gates stay closed",
+      "ok": true,
+      "detail": "stripe_connect_transfers_enabled=0 payout_execution_enabled=0 live_custom_onboarding_enabled=0"
+    },
+    {
+      "name": "desktop-1440 business no stripe iframe",
+      "ok": true,
+      "detail": "Verified?"
+    },
+    {
+      "name": "desktop-1440 business no page overflow",
+      "ok": true,
+      "detail": "1440/1440"
+    },
+    {
+      "name": "desktop-1440 business company visible",
+      "ok": true,
+      "detail": "len=10"
+    },
+    {
+      "name": "desktop-1440 business refresh resume",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "desktop-1440 documents no stripe iframe",
+      "ok": true,
+      "detail": "Verified?"
+    },
+    {
+      "name": "desktop-1440 documents no page overflow",
+      "ok": true,
+      "detail": "1440/1440"
+    },
+    {
+      "name": "desktop-1440 documents company visible",
+      "ok": true,
+      "detail": "len=10"
+    },
+    {
+      "name": "desktop-1440 documents refresh resume",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "desktop-1440 representative no stripe iframe",
+      "ok": true,
+      "detail": "Identity?"
+    },
+    {
+      "name": "desktop-1440 representative no page overflow",
+      "ok": true,
+      "detail": "1440/1440"
+    },
+    {
+      "name": "desktop-1440 representative dob picker",
+      "ok": true,
+      "detail": "dob=1"
+    },
+    {
+      "name": "desktop-1440 representative refresh resume",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "desktop-1440 payout no stripe iframe",
+      "ok": true,
+      "detail": "Bank account?"
+    },
+    {
+      "name": "desktop-1440 payout no page overflow",
+      "ok": true,
+      "detail": "1440/1440"
+    },
+    {
+      "name": "desktop-1440 payout refresh resume",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "desktop-1440 status no stripe iframe",
+      "ok": true,
+      "detail": "Verification pending?"
+    },
+    {
+      "name": "desktop-1440 status no page overflow",
+      "ok": true,
+      "detail": "1440/1440"
+    },
+    {
+      "name": "desktop-1440 status reflects provider",
+      "ok": true,
+      "detail": "Verification pending?"
+    },
+    {
+      "name": "desktop-1440 status refresh resume",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "tablet-768 business no stripe iframe",
+      "ok": true,
+      "detail": "Verified?"
+    },
+    {
+      "name": "tablet-768 business no page overflow",
+      "ok": true,
+      "detail": "768/768"
+    },
+    {
+      "name": "tablet-768 business company visible",
+      "ok": true,
+      "detail": "len=10"
+    },
+    {
+      "name": "tablet-768 business refresh resume",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "tablet-768 documents no stripe iframe",
+      "ok": true,
+      "detail": "Verified?"
+    },
+    {
+      "name": "tablet-768 documents no page overflow",
+      "ok": true,
+      "detail": "768/768"
+    },
+    {
+      "name": "tablet-768 documents company visible",
+      "ok": true,
+      "detail": "len=10"
+    },
+    {
+      "name": "tablet-768 documents refresh resume",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "tablet-768 representative no stripe iframe",
+      "ok": true,
+      "detail": "Identity?"
+    },
+    {
+      "name": "tablet-768 representative no page overflow",
+      "ok": true,
+      "detail": "768/768"
+    },
+    {
+      "name": "tablet-768 representative dob picker",
+      "ok": true,
+      "detail": "dob=1"
+    },
+    {
+      "name": "tablet-768 representative refresh resume",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "tablet-768 payout no stripe iframe",
+      "ok": true,
+      "detail": "Bank account?"
+    },
+    {
+      "name": "tablet-768 payout no page overflow",
+      "ok": true,
+      "detail": "768/768"
+    },
+    {
+      "name": "tablet-768 payout refresh resume",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "tablet-768 status no stripe iframe",
+      "ok": true,
+      "detail": "Verification pending?"
+    },
+    {
+      "name": "tablet-768 status no page overflow",
+      "ok": true,
+      "detail": "768/768"
+    },
+    {
+      "name": "tablet-768 status reflects provider",
+      "ok": true,
+      "detail": "Verification pending?"
+    },
+    {
+      "name": "tablet-768 status refresh resume",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "mobile-390 business no stripe iframe",
+      "ok": true,
+      "detail": "Verified?"
+    },
+    {
+      "name": "mobile-390 business no page overflow",
+      "ok": true,
+      "detail": "390/390"
+    },
+    {
+      "name": "mobile-390 business company visible",
+      "ok": true,
+      "detail": "len=10"
+    },
+    {
+      "name": "mobile-390 business refresh resume",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "mobile-390 documents no stripe iframe",
+      "ok": true,
+      "detail": "Verified?"
+    },
+    {
+      "name": "mobile-390 documents no page overflow",
+      "ok": true,
+      "detail": "390/390"
+    },
+    {
+      "name": "mobile-390 documents company visible",
+      "ok": true,
+      "detail": "len=10"
+    },
+    {
+      "name": "mobile-390 documents refresh resume",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "mobile-390 representative no stripe iframe",
+      "ok": true,
+      "detail": "Identity?"
+    },
+    {
+      "name": "mobile-390 representative no page overflow",
+      "ok": true,
+      "detail": "390/390"
+    },
+    {
+      "name": "mobile-390 representative dob picker",
+      "ok": true,
+      "detail": "dob=1"
+    },
+    {
+      "name": "mobile-390 representative refresh resume",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "mobile-390 payout no stripe iframe",
+      "ok": true,
+      "detail": "Bank account?"
+    },
+    {
+      "name": "mobile-390 payout no page overflow",
+      "ok": true,
+      "detail": "390/390"
+    },
+    {
+      "name": "mobile-390 payout refresh resume",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "mobile-390 status no stripe iframe",
+      "ok": true,
+      "detail": "Verification pending?"
+    },
+    {
+      "name": "mobile-390 status no page overflow",
+      "ok": true,
+      "detail": "390/390"
+    },
+    {
+      "name": "mobile-390 status reflects provider",
+      "ok": true,
+      "detail": "Verification pending?"
+    },
+    {
+      "name": "mobile-390 status refresh resume",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "no account create or kyc submit",
+      "ok": true,
+      "detail": "desktop-1440:status,desktop-1440:status,desktop-1440:status,desktop-1440:status,tablet-768:status,tablet-768:status,tablet-768:status,tablet-768:status,mobile-390:status,mobile-390:status,mobile-390:status,mobile-390:status"
+    },
+    {
+      "name": "same live account",
+      "ok": true,
+      "detail": "restricted"
+    },
+    {
+      "name": "autosave restored",
+      "ok": true,
+      "detail": "restored"
+    }
+  ],
+  "actions": [
+    "desktop-1440:status",
+    "desktop-1440:status",
+    "desktop-1440:status",
+    "desktop-1440:status",
+    "tablet-768:status",
+    "tablet-768:status",
+    "tablet-768:status",
+    "tablet-768:status",
+    "mobile-390:status",
+    "mobile-390:status",
+    "mobile-390:status",
+    "mobile-390:status"
+  ],
+  "verdict": "PASS"
+}

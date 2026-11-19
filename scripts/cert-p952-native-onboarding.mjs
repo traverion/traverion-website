@@ -5,7 +5,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { chromium } from 'playwright';
 import { execSync } from 'node:child_process';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, unlinkSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 const PROJECT = 'xcopqllkulxfkpunetbc';
@@ -74,7 +74,15 @@ async function session() {
 }
 
 async function inject(page, sess) {
-  await page.goto(`${PARTNER}/partner/login`, { waitUntil: 'domcontentloaded' });
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      await page.goto(`${PARTNER}/partner/login`, { waitUntil: 'domcontentloaded', timeout: 45000 });
+      await page.waitForLoadState('domcontentloaded');
+      break;
+    } catch (err) {
+      if (attempt === 1) throw err;
+    }
+  }
   await page.evaluate(
     ({ key, session }) => {
       localStorage.setItem(
@@ -150,6 +158,15 @@ async function surface(page) {
 
 const sess = await session();
 const before = await profile();
+writeFileSync(
+  resolve(process.cwd(), 'scripts/cert-p952-restore-snapshot.json'),
+  JSON.stringify({
+    payout_wizard_draft: before.payout_wizard_draft,
+    payout_wizard_draft_updated_at: before.payout_wizard_draft_updated_at,
+    setup_progress: before.setup_progress,
+    setup_progress_updated_at: before.setup_progress_updated_at,
+  })
+);
 note(
   'existing live account',
   before.stripe_connected_account_id === ACCOUNT && before.connect_account_livemode === true,
@@ -172,6 +189,7 @@ note(
 
 const browser = await chromium.launch({ headless: true });
 const actions = [];
+let crash = null;
 
 try {
   for (const vp of VIEWPORTS) {
@@ -212,6 +230,8 @@ try {
     }
     await context.close();
   }
+} catch (err) {
+  crash = err;
 } finally {
   await browser.close();
 }
@@ -244,9 +264,15 @@ if (draftChanged || progressChanged) {
 } else {
   note('wizard draft unchanged', true);
 }
+try {
+  unlinkSync(resolve(process.cwd(), 'scripts/cert-p952-restore-snapshot.json'));
+} catch {
+  /* snapshot already removed */
+}
 
+if (crash) note('browser run finished', false, crash instanceof Error ? crash.message : String(crash));
 const failed = report.checks.filter((c) => !c.ok);
-report.verdict = failed.length === 0 ? 'PASS' : 'FAIL';
+report.verdict = failed.length === 0 && !crash ? 'PASS' : 'FAIL';
 writeFileSync(resolve(process.cwd(), 'scripts/cert-p952-native-onboarding.json'), JSON.stringify(report, null, 2));
 console.log('VERDICT', report.verdict, `${report.checks.length - failed.length}/${report.checks.length}`);
-if (failed.length) process.exit(1);
+if (failed.length || crash) process.exit(1);
