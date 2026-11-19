@@ -1,0 +1,70 @@
+{
+  "checks": [
+    {
+      "name": "Privacy Policy toast",
+      "ok": true,
+      "detail": "Privacy policy saved"
+    },
+    {
+      "name": "Privacy Policy modal closes",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Privacy Policy page status updates",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Privacy Policy ignores a second click",
+      "ok": true,
+      "detail": "1"
+    },
+    {
+      "name": "Privacy Policy persists after refresh",
+      "ok": true,
+      "detail": "1952"
+    },
+    {
+      "name": "Terms & Conditions toast",
+      "ok": true,
+      "detail": "Terms & conditions saved"
+    },
+    {
+      "name": "Terms & Conditions modal closes",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Terms & Conditions page status updates",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Terms & Conditions ignores a second click",
+      "ok": true,
+      "detail": "1"
+    },
+    {
+      "name": "Terms & Conditions persists after refresh",
+      "ok": true,
+      "detail": "12"
+    },
+    {
+      "name": "cancel closes without saving",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "cancel leaves stored privacy unchanged",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "original policies restored",
+      "ok": true,
+      "detail": "same"
+    }
+  ],
+  "failed": 0
+}
