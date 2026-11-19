@@ -166,6 +166,8 @@ export default function BusinessProfilePage(p: BusinessProfilePageProps) {
   const [policySaveError, setPolicySaveError] = useState<string | null>(null);
   const [policyDiscardOpen, setPolicyDiscardOpen] = useState(false);
   const [policySaveOk, setPolicySaveOk] = useState(false);
+  const [policyToast, setPolicyToast] = useState<string | null>(null);
+  const policySavingRef = useRef(false);
 
   const { role } = useSupplierRole();
   const canEditProfile = canManageBookings(role);
@@ -273,7 +275,7 @@ export default function BusinessProfilePage(p: BusinessProfilePageProps) {
     const prevBodyWidth = body.style.width;
     const scrollY = window.scrollY;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return;
+      if (e.key !== 'Escape' || policySavingRef.current) return;
       if (policyDirtyRef.current) {
         setPolicyDiscardOpen(true);
         return;
@@ -313,12 +315,19 @@ export default function BusinessProfilePage(p: BusinessProfilePageProps) {
     }`;
 
   const requestClosePolicyEditor = () => {
+    if (policySavingRef.current) return;
     if (policyDirty) {
       setPolicyDiscardOpen(true);
       return;
     }
     p.setLegalDocModal(null);
   };
+
+  useEffect(() => {
+    if (!policyToast) return;
+    const timer = window.setTimeout(() => setPolicyToast(null), 4000);
+    return () => window.clearTimeout(timer);
+  }, [policyToast]);
 
   const discardPolicyEditor = () => {
     setPolicyDiscardOpen(false);
@@ -357,23 +366,27 @@ export default function BusinessProfilePage(p: BusinessProfilePageProps) {
   };
 
   const savePolicyFromEditor = async () => {
-    if (!p.user?.id || !p.legalDocModal || !canEditProfile || policySaving) return;
+    if (!p.user?.id || !p.legalDocModal || !canEditProfile || policySavingRef.current) return;
+    const kind = p.legalDocModal;
+    const saved = policyDraft.trim();
+    policySavingRef.current = true;
     setPolicySaving(true);
     setPolicySaveError(null);
     setPolicySaveOk(false);
-    const key = p.legalDocModal === 'privacy' ? 'privacy_policy_text' : 'terms_conditions_text';
-    const value = policyDraft.trim() || null;
-    const res = await patchSupplierProfile(p.user.id, { [key]: value });
+    const key = kind === 'privacy' ? 'privacy_policy_text' : 'terms_conditions_text';
+    const res = await patchSupplierProfile(p.user.id, { [key]: saved || null });
+    policySavingRef.current = false;
     setPolicySaving(false);
     if (!res.success) {
       setPolicySaveError(userFacingError(res.error ?? 'Could not save.', USER_ERROR.generic));
       return;
     }
-    if (p.legalDocModal === 'privacy') p.setPrivacyPolicyText(policyDraft);
-    else p.setTermsConditionsText(policyDraft);
+    if (kind === 'privacy') p.setPrivacyPolicyText(saved);
+    else p.setTermsConditionsText(saved);
     setPolicyDirty(false);
     policyDirtyRef.current = false;
-    setPolicySaveOk(true);
+    p.setLegalDocModal(null);
+    setPolicyToast(kind === 'privacy' ? 'Privacy policy saved' : 'Terms & conditions saved');
   };
 
   const insuranceHasData = Boolean(
@@ -668,6 +681,7 @@ export default function BusinessProfilePage(p: BusinessProfilePageProps) {
             type="button"
             className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
             aria-label="Close editor"
+            disabled={policySaving}
             onClick={requestClosePolicyEditor}
           />
           <div
@@ -690,7 +704,8 @@ export default function BusinessProfilePage(p: BusinessProfilePageProps) {
               <button
                 type="button"
                 onClick={requestClosePolicyEditor}
-                className="lux-flat inline-flex h-10 w-10 items-center justify-center rounded-full text-ink-muted hover:bg-black/[0.04] hover:text-ink"
+                disabled={policySaving}
+                className="lux-flat inline-flex h-10 w-10 items-center justify-center rounded-full text-ink-muted hover:bg-black/[0.04] hover:text-ink disabled:opacity-40"
                 aria-label="Close"
               >
                 <X className="h-5 w-5" aria-hidden />
@@ -700,6 +715,7 @@ export default function BusinessProfilePage(p: BusinessProfilePageProps) {
               <textarea
                 className="min-h-0 w-full flex-1 resize-none rounded-xl border border-black/[0.08] bg-[#fafbfc] px-4 py-3 text-[15px] leading-relaxed text-ink focus:outline-none focus:ring-2 focus:ring-finland/30"
                 value={policyDraft}
+                readOnly={policySaving}
                 onChange={(e) => {
                   setPolicyDraft(e.target.value);
                   setPolicyDirty(true);
@@ -719,7 +735,8 @@ export default function BusinessProfilePage(p: BusinessProfilePageProps) {
                 {!policyConfirmTemplate ? (
                   <button
                     type="button"
-                    className="tv-btn-ghost h-10 px-3 text-[13px]"
+                    className="tv-btn-ghost h-10 px-3 text-[13px] disabled:opacity-50"
+                    disabled={policySaving}
                     onClick={insertPolicyTemplate}
                   >
                     Insert template
@@ -755,7 +772,8 @@ export default function BusinessProfilePage(p: BusinessProfilePageProps) {
               <div className="flex flex-wrap gap-2">
                 <button
                   type="button"
-                  className="tv-btn-ghost h-10 px-4 text-[13px]"
+                  className="tv-btn-ghost h-10 px-4 text-[13px] disabled:opacity-50"
+                  disabled={policySaving}
                   onClick={requestClosePolicyEditor}
                 >
                   Cancel
@@ -772,6 +790,15 @@ export default function BusinessProfilePage(p: BusinessProfilePageProps) {
             </div>
           </div>
         </div>
+      ) : null}
+
+      {policyToast ? (
+        <p
+          role="status"
+          className="fixed bottom-6 left-1/2 z-[80] -translate-x-1/2 rounded-xl border border-black/[0.08] bg-white px-4 py-2.5 text-[13px] font-medium text-ink shadow-lg"
+        >
+          {policyToast}
+        </p>
       ) : null}
 
       <PartnerConfirmModal
