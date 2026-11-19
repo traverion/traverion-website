@@ -18,7 +18,17 @@ const STORAGE_KEY = `sb-${PROJECT}-auth-token`;
 const OUT = resolve(process.cwd(), 'scripts/p953-screenshots');
 mkdirSync(OUT, { recursive: true });
 
-const PHASES = ['business', 'documents', 'representative', 'payout', 'status'];
+const PHASES = [
+  { phase: 'business', screen: 'company', expect: /confirm your company/i },
+  { phase: 'documents', screen: 'documents', expect: /registration document/i },
+  { phase: 'representative', screen: 'person', expect: /who acts/i },
+  { phase: 'representative', screen: 'dob', expect: /date of birth/i },
+  { phase: 'representative', screen: 'director', expect: /director/i },
+  { phase: 'representative', screen: 'ownership', expect: /own part/i },
+  { phase: 'payout', screen: 'bank', expect: /payouts go/i },
+  { phase: 'payout', screen: 'terms', expect: /payout terms/i },
+  { phase: 'status', screen: 'status', expect: /verification pending/i },
+];
 const VIEWPORTS = [
   { name: 'desktop-1440', width: 1440, height: 900 },
   { name: 'tablet-768', width: 768, height: 1024 },
@@ -110,8 +120,8 @@ async function profile() {
   return data;
 }
 
-async function openPhase(page, phase) {
-  const url = `${PARTNER}/partner/onboarding?phase=${phase}`;
+async function openPhase(page, phase, screen) {
+  const url = `${PARTNER}/partner/onboarding?phase=${phase}&screen=${screen}`;
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
       await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 45000 });
@@ -158,14 +168,16 @@ async function surface(page) {
       pending: /verification pending|restricted|finish identity/i.test(text),
       scrollW: document.documentElement.scrollWidth,
       clientW: document.documentElement.clientWidth,
-      phaseNav: (() => {
-        const nav = document.querySelector('.po-phase-nav');
-        if (!nav || nav.getClientRects().length === 0) return null;
-        return {
-          count: nav.querySelectorAll('button').length,
-          overflow: nav.scrollWidth > nav.clientWidth + 2,
-        };
+      rail: document.querySelectorAll('.partner-unified-setup-shell__rail').length,
+      phaseNav: document.querySelectorAll('.po-phase-nav').length,
+      primary: document.querySelectorAll('.tv-btn-primary').length,
+      contentScroll: (() => {
+        const pane = document.querySelector('.listing-creation-content');
+        if (!pane) return null;
+        return pane.scrollHeight <= pane.clientHeight + 4;
       })(),
+      savedGiven: Number(document.querySelector('[data-saved-given]')?.getAttribute('data-saved-given') ?? 0),
+      savedFamily: Number(document.querySelector('[data-saved-family]')?.getAttribute('data-saved-family') ?? 0),
     };
   });
 }
@@ -220,51 +232,45 @@ try {
       }
     });
     await inject(page, sess);
-    for (const phase of PHASES) {
-      await openPhase(page, phase);
+    for (const step of PHASES) {
+      await openPhase(page, step.phase, step.screen);
       const snap = await surface(page);
       const stripeFrame = snap.iframes.length > 0;
-      note(`${vp.name} ${phase} no stripe iframe`, !stripeFrame && !snap.embedCopy && !snap.loadingSecure, snap.h1);
-      note(`${vp.name} ${phase} no page overflow`, snap.scrollW <= snap.clientW + 2, `${snap.scrollW}/${snap.clientW}`);
-      if (phase === 'representative') {
-        note(`${vp.name} representative dob picker`, snap.dob > 0 && snap.director, `dob=${snap.dob}`);
-        note(`${vp.name} representative consent`, snap.consent);
-        note(
-          `${vp.name} representative saved name`,
-          (snap.nameLens?.[0] ?? 0) > 0 && (snap.nameLens?.[1] ?? 0) > 0,
-          (snap.nameLens ?? []).join('/')
-        );
+      const label = `${vp.name} ${step.screen}`;
+      note(`${label} no stripe iframe`, !stripeFrame && !snap.embedCopy && !snap.loadingSecure, snap.h1);
+      note(`${label} no page overflow`, snap.scrollW <= snap.clientW + 2, `${snap.scrollW}/${snap.clientW}`);
+      note(`${label} no sidebar`, snap.rail === 0 && snap.phaseNav === 0);
+      note(`${label} one primary action`, snap.primary === 1, `primary=${snap.primary}`);
+      note(`${label} question`, step.expect.test(snap.h1), snap.h1);
+      if (vp.width >= 1024 && step.screen !== 'status') {
+        note(`${label} no inner scroll`, snap.contentScroll === true);
       }
-      if (phase === 'payout') {
-        note(`${vp.name} bank terms consent`, snap.terms);
+      if (step.screen === 'person') {
+        note(`${label} saved name`, snap.savedGiven > 0 && snap.savedFamily > 0, `${snap.savedGiven}/${snap.savedFamily}`);
       }
-      if (phase === 'business' && vp.width < 1024) {
-        note(
-          `${vp.name} phase nav visible`,
-          snap.phaseNav?.count === 5 && snap.phaseNav.overflow === false,
-          snap.phaseNav ? `count=${snap.phaseNav.count} overflow=${snap.phaseNav.overflow}` : 'hidden'
-        );
+      if (step.screen === 'dob') {
+        note(`${label} dob picker`, snap.dob > 0);
+        await page.getByRole('button', { name: 'Back' }).click();
+        await page.waitForTimeout(250);
+        const back = await surface(page);
+        note(`${label} back`, /who acts/i.test(back.h1), back.h1);
+        await page.getByRole('button', { name: 'Continue' }).click();
+        await page.waitForTimeout(250);
+        const forward = await surface(page);
+        note(`${label} forward`, /date of birth/i.test(forward.h1), forward.h1);
       }
-      if (phase === 'business' || phase === 'documents') {
-        note(`${vp.name} ${phase} company visible`, snap.legal >= 8, `len=${snap.legal}`);
-      }
-      if (phase === 'status') {
-        note(`${vp.name} status reflects provider`, snap.pending, snap.h1);
-      }
-      await page.screenshot({ path: resolve(OUT, `${vp.name}-${phase}.png`), fullPage: false });
+      if (step.screen === 'terms') note(`${label} terms`, snap.terms);
+      if (step.screen === 'status') note(`${label} pending`, snap.pending, snap.h1);
+      await page.screenshot({ path: resolve(OUT, `${vp.name}-${step.screen}.png`), fullPage: false });
       await page.reload({ waitUntil: 'domcontentloaded' });
       await page.waitForSelector('[data-cert="p953"]', { timeout: 30000 });
       await page.waitForFunction(
         () => !(document.body?.innerText ?? '').includes('Loading your details'),
         { timeout: 20000 }
       );
-      await page.waitForTimeout(400);
+      await page.waitForTimeout(500);
       const again = await surface(page);
-      note(
-        `${vp.name} ${phase} refresh resume`,
-        again.h1 === snap.h1 && again.iframes.length === 0,
-        again.h1
-      );
+      note(`${label} refresh resume`, again.h1 === snap.h1 && again.iframes.length === 0, again.h1);
     }
     await context.close();
   }
@@ -276,7 +282,7 @@ try {
 
 report.actions = actions;
 const forbidden = actions.filter((a) =>
-  /ensure_account|submit_business|submit_representative|submit_bank|submit_identity|create_account|account_link|account_session/.test(a)
+  /ensure_account|submit_|attach_bank|accept_tos|create_account|account_link|account_session/.test(a)
 );
 note('no account create or kyc submit', forbidden.length === 0, actions.join(',') || 'none');
 

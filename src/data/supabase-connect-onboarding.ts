@@ -201,6 +201,9 @@ export function connectOnboardingUserMessage(raw: string | null | undefined): st
   if (/tos|terms of service|recipient agreement/i.test(msg)) {
     return 'Accept the terms, then try again.';
   }
+  if (/limit must be greater than 0/i.test(msg)) {
+    return 'We could not save this person. Your place in the form is unchanged — try again.';
+  }
   if (/acct_|req_|sk_|pk_|btok_|tok_|parameter_invalid|invalid_request|no such/i.test(msg)) {
     return 'We could not save that step. Your details are still here — try again.';
   }

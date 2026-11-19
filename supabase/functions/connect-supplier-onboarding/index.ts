@@ -259,9 +259,11 @@ serve(async (req) => {
       const payload = await response.json();
       if (!response.ok) {
         const raw = String(payload?.error?.message || 'Accounts v2 request failed');
-        const message = /\d{6,}|acct_|req_|parameter/i.test(raw)
-          ? 'We could not save that step. Your details are still here — try again.'
-          : raw.slice(0, 180);
+        const message = /limit must be greater than 0/i.test(raw)
+          ? 'We could not save this person. Your place in the form is unchanged — try again.'
+          : /\d{6,}|acct_|req_|parameter/i.test(raw)
+            ? 'We could not save that step. Your details are still here — try again.'
+            : raw.slice(0, 180);
         throw new Error(message);
       }
       return payload as V2AccountSnapshot;
@@ -275,11 +277,31 @@ serve(async (req) => {
     };
 
     async function listV2Persons(accountId: string): Promise<V2PersonRecord[]> {
-      const listed = (await stripeV2(
-        'GET',
-        `/v2/core/accounts/${accountId}/persons?limit=100`
-      )) as { data?: V2PersonRecord[] };
-      return Array.isArray(listed.data) ? listed.data : [];
+      const people: V2PersonRecord[] = [];
+      let page: string | null = null;
+      const seen = new Set<string>();
+      for (let i = 0; i < 10; i++) {
+        const params = new URLSearchParams({ limit: '20' });
+        if (page) params.set('page', page);
+        const listed = (await stripeV2(
+          'GET',
+          `/v2/core/accounts/${accountId}/persons?${params.toString()}`
+        )) as { data?: V2PersonRecord[]; next_page?: string | null; next_page_url?: string | null };
+        if (Array.isArray(listed.data)) people.push(...listed.data);
+        let next: string | null = null;
+        if (typeof listed.next_page === 'string' && listed.next_page.trim()) next = listed.next_page.trim();
+        else if (typeof listed.next_page_url === 'string' && listed.next_page_url.includes('page=')) {
+          try {
+            next = new URL(listed.next_page_url, 'https://api.stripe.com').searchParams.get('page');
+          } catch {
+            next = null;
+          }
+        }
+        if (!next || seen.has(next)) break;
+        seen.add(next);
+        page = next;
+      }
+      return people;
     }
 
     function v2PersonBody(input: {
@@ -335,13 +357,14 @@ serve(async (req) => {
     async function saveV2Person(
       accountId: string,
       body: ReturnType<typeof v2PersonBody>,
-      match: (person: V2PersonRecord) => boolean
+      match: (person: V2PersonRecord) => boolean,
+      idempotencyKey?: string
     ): Promise<string> {
       const people = await listV2Persons(accountId);
       const existing = people.find(match);
       const saved = existing?.id
         ? await stripeV2('POST', `/v2/core/accounts/${accountId}/persons/${existing.id}`, body)
-        : await stripeV2('POST', `/v2/core/accounts/${accountId}/persons`, body);
+        : await stripeV2('POST', `/v2/core/accounts/${accountId}/persons`, body, idempotencyKey);
       const personId = (saved as { id?: string }).id;
       if (!personId) throw new Error('Stripe did not return a person id');
       return personId;
@@ -1631,7 +1654,8 @@ serve(async (req) => {
               title: r.title?.trim() || 'Representative',
             },
           }),
-          (person) => person.relationship?.representative === true
+          (person) => person.relationship?.representative === true,
+          `rep:${supplierId}`
         );
         await stripeV2('POST', `/v2/core/accounts/${accountId}`, {
           identity: {
@@ -1777,7 +1801,8 @@ serve(async (req) => {
               (person.given_name || '').trim().toLowerCase() === first.toLowerCase() &&
               (person.surname || '').trim().toLowerCase() === last.toLowerCase() &&
               person.relationship?.owner === true &&
-              person.relationship?.representative !== true
+              person.relationship?.representative !== true,
+            `owner:${supplierId}:${first.toLowerCase()}:${last.toLowerCase()}`.slice(0, 200)
           );
           personIds.push(personId);
           continue;
