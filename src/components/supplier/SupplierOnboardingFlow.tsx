@@ -22,6 +22,7 @@ import {
   isOnboardingResetDraft,
   loadPayoutWizardDraft,
   mergeServerPayoutWizardDraft,
+  readStoredDraftUpdatedAt,
   serverDraftSupersedesLocal,
   onboardingCompletionCopy,
   parseOwnershipPercent,
@@ -70,6 +71,10 @@ export default function SupplierOnboardingFlow({
   onOpenListings: () => void;
   hasListing: boolean;
 }) {
+  const priorLocalUpdatedAt = useRef<string | null | undefined>(undefined);
+  if (priorLocalUpdatedAt.current === undefined) {
+    priorLocalUpdatedAt.current = userId ? readStoredDraftUpdatedAt(userId) : null;
+  }
   const [draft, setDraft] = useState<PayoutWizardDraft>(() => initialDraft(userId, profile));
   const [repDob, setRepDob] = useState('');
   const [owner, setOwner] = useState<OwnerEntry>(blankOwner);
@@ -84,10 +89,9 @@ export default function SupplierOnboardingFlow({
   const submitting = useRef(false);
   const forceCompanyRef = useRef<boolean | null>(null);
   if (profile?.payout_wizard_draft_updated_at && forceCompanyRef.current === null) {
-    const saved = userId ? loadPayoutWizardDraft(userId) : null;
     forceCompanyRef.current =
       isOnboardingResetDraft(profile.payout_wizard_draft) &&
-      serverDraftSupersedesLocal(saved?.updatedAt ?? null, profile.payout_wizard_draft_updated_at);
+      serverDraftSupersedesLocal(priorLocalUpdatedAt.current, profile.payout_wizard_draft_updated_at);
   }
 
   const due = useMemo(() => {

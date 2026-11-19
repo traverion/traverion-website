@@ -485,6 +485,19 @@ function migrateLegacyStep(step: unknown): PayoutWizardStepId {
   return 'business';
 }
 
+/** Timestamp already on disk. Does not rewrite the browser draft. */
+export function readStoredDraftUpdatedAt(userId: string): string | null {
+  if (typeof window === 'undefined' || !userId) return null;
+  try {
+    const raw = window.localStorage?.getItem(payoutWizardDraftKey(userId));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { updatedAt?: unknown };
+    return typeof parsed.updatedAt === 'string' ? parsed.updatedAt : null;
+  } catch {
+    return null;
+  }
+}
+
 export function loadPayoutWizardDraft(userId: string): PayoutWizardDraft | null {
   try {
     const raw = readDraftRaw(userId);
