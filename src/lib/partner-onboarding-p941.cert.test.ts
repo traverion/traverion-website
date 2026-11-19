@@ -35,7 +35,7 @@ describe('P9.41 seamless onboarding integration cert', () => {
     const dash = read('pages/supplier/SupplierDashboard.tsx');
     expect(layout).toContain('onboarding?phase=');
     expect(businessPage).toContain('onboarding?phase=');
-    expect(verificationPage).toContain('onboarding?phase=');
+    expect(verificationPage).toContain('data-verification-status');
     expect(dash).toContain('onboarding?phase=representative');
     expect(dash).toContain('onboarding?phase=documents');
   });

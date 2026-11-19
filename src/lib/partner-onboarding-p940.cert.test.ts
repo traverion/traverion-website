@@ -35,9 +35,10 @@ describe('P9.40 unified supplier onboarding cert', () => {
     expect(page).toContain('onboarding?phase=');
   });
 
-  it('folds legacy verification into onboarding', () => {
+  it('shows one verification status on the verification page', () => {
     const page = read('pages/supplier/SupplierVerificationPage.tsx');
-    expect(page).toContain('onboarding?phase=');
+    expect(page).toContain('supplierVerificationState');
+    expect(page).toContain('SupplierVerificationCard');
   });
 
   it('persists non-sensitive setup_progress from both wizards', () => {

@@ -959,27 +959,13 @@ export default function SupplierLayout() {
     navigateSupplierUrl(`${PARTNER_APP_BASE}/onboarding?phase=${phase}`);
   };
 
-  // P9.41: legacy setup URLs fold into the unified shell (no separate wizard pages).
+  // Legacy business-setup URLs still open onboarding. Verification is its own page.
   useEffect(() => {
-    if (section !== 'business-setup' && section !== 'verification') return;
+    if (section !== 'business-setup') return;
     const params = new URLSearchParams(window.location.search);
     const step = (params.get('step') ?? '').trim();
-    const focus = (params.get('focus') ?? '').trim();
-    let phase: UnifiedSetupPhaseId = 'business';
-    if (section === 'business-setup') {
-      phase =
-        step === 'documents' || step === 'review'
-          ? 'documents'
-          : step === 'identity' || step === 'contact'
-            ? 'business'
-            : 'business';
-    } else if (focus === 'bank' || step === 'bank' || step === 'preferences') {
-      phase = 'payout';
-    } else if (step === 'review') {
-      phase = 'status';
-    } else {
-      phase = 'representative';
-    }
+    const phase: UnifiedSetupPhaseId =
+      step === 'documents' || step === 'review' ? 'documents' : 'business';
     navigateSupplierUrl(`${PARTNER_APP_BASE}/onboarding?phase=${phase}`);
   }, [section]);
 
