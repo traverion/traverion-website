@@ -18,6 +18,7 @@ import { supabase } from '../../lib/supabase';
 import PartnerAuthPage from './PartnerAuthPage';
 import PartnerLandingPage from './PartnerLandingPage';
 import PartnerSidebar from './PartnerSidebar';
+import PartnerToastViewport from './PartnerToastViewport';
 import {
   PARTNER_MORE_GROUPS,
   PARTNER_SIDEBAR_FOOTER,
@@ -1524,6 +1525,7 @@ export default function SupplierLayout() {
           </button>
         </div>
       </nav>
+      <PartnerToastViewport />
     </div>
   );
 }

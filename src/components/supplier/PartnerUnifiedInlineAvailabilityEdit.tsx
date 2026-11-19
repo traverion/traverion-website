@@ -39,6 +39,7 @@ import {
   type PartnerUnifiedCalendarEvent,
 } from '../../lib/partner-unified-calendar';
 import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
+import { partnerToast } from '../../lib/partner-toast';
 import { normalizeStartTimeHm } from '../../lib/listing-slot-overrides';
 
 type Props = {
@@ -187,6 +188,7 @@ export default function PartnerUnifiedInlineAvailabilityEdit({
       const res = await fn();
       if (!res.ok) {
         setError(res.error ?? 'Could not save.');
+        partnerToast.error(res.error ?? "Couldn't save changes. Try again.");
         return;
       }
       if (res.listing) {
@@ -194,10 +196,13 @@ export default function PartnerUnifiedInlineAvailabilityEdit({
         onListingsChange((prev) => prev.map((l) => (l.id === updated.id ? updated : l)));
       }
       setNote(res.message ?? 'Saved.');
+      partnerToast.success('Calendar updated');
       await load();
       onSaved?.();
     } catch (e) {
-      setError(userFacingError(e, USER_ERROR.listingSave));
+      const message = userFacingError(e, USER_ERROR.listingSave);
+      setError(message);
+      partnerToast.error(message);
     } finally {
       setSaving(false);
     }

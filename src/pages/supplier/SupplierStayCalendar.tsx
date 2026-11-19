@@ -17,6 +17,7 @@ import { listingHeroImageSrc } from '../../lib/listingPhotoGrid';
 import { experienceTodayIsoForListing } from '../../lib/booking-quote';
 import { parseListingExtras } from '../../types/listingExtras';
 import { localYmd } from '../../lib/local-ymd';
+import { partnerToast } from '../../lib/partner-toast';
 import { buildMonthCells } from '../../lib/availability-ops';
 import { addCalendarDays as addStayDays } from '../../lib/stayOccupancy';
 import {
@@ -103,17 +104,12 @@ export default function SupplierStayCalendar() {
   const [caps, setCaps] = useState<StayCalendarCap[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [toast, setToast] = useState<{ message: string; tone: 'ok' | 'error' | 'warn' } | null>(null);
   const [saving, setSaving] = useState(false);
-  const toastTimerRef = useRef<number | null>(null);
 
   const showToast = useCallback((message: string, tone: 'ok' | 'error' | 'warn' = 'ok') => {
-    if (toastTimerRef.current != null) window.clearTimeout(toastTimerRef.current);
-    setToast({ message, tone });
-    toastTimerRef.current = window.setTimeout(() => {
-      setToast(null);
-      toastTimerRef.current = null;
-    }, 3000);
+    if (tone === 'error') partnerToast.error(message);
+    else if (tone === 'warn') partnerToast.info(message);
+    else partnerToast.success(message);
   }, []);
 
   const [view, setView] = useState<StayCalendarViewMode>(() => {
@@ -246,12 +242,6 @@ export default function SupplierStayCalendar() {
     url.searchParams.set('listing', id);
     window.history.replaceState({}, '', `${url.pathname}${url.search}`);
   }, [listings, listingId]);
-
-  useEffect(() => {
-    return () => {
-      if (toastTimerRef.current != null) window.clearTimeout(toastTimerRef.current);
-    };
-  }, []);
 
   // Load availability caps for visible window / selected properties.
   useEffect(() => {
@@ -515,15 +505,6 @@ export default function SupplierStayCalendar() {
 
   return (
     <div className={`${SUPPLIER_PAGE_CLASS} tv-stay-cal-page min-h-[70vh]`}>
-      {toast ? (
-        <div
-          className={`tv-stay-cal-toast${toast.tone === 'error' ? ' tv-stay-cal-toast--error' : toast.tone === 'warn' ? ' tv-stay-cal-toast--warn' : ''}`}
-          role="status"
-          aria-live="polite"
-        >
-          {toast.message}
-        </div>
-      ) : null}
       <header className="tv-avail-page-head stay-ops-cal-head">
         <div className="tv-avail-page-head__text">
           <h1>Stay Calendar</h1>

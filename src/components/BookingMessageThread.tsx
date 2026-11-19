@@ -8,6 +8,7 @@ import {
   type BookingMessageRow,
 } from '../data/supabase-booking-ops';
 import { userFacingError } from '../lib/userFacingError';
+import { partnerToast } from '../lib/partner-toast';
 import NoticeCallout from './NoticeCallout';
 import {
   PARTNER_INBOX_MESSAGE_DELIVERY_NOTE,
@@ -239,9 +240,12 @@ export default function BookingMessageThread({
     sendingRef.current = false;
     setSending(false);
     if (!res.ok) {
-      setError(userFacingError(res.error, BOOKING_MESSAGE_SUBMIT_ERROR));
+      const message = userFacingError(res.error, BOOKING_MESSAGE_SUBMIT_ERROR);
+      setError(message);
+      partnerToast.error(message);
       return;
     }
+    partnerToast.success('Message sent');
     setDraft('');
     if (layout === 'panel') panelDrafts.delete(bookingId);
     stickToBottomRef.current = true;

@@ -45,6 +45,7 @@ import {
   supplierOnboardingSnapshot,
 } from '../../lib/supplier-onboarding-progress';
 import { supplierVerificationState } from '../../lib/supplier-verification-state';
+import { partnerToast } from '../../lib/partner-toast';
 
 type OwnerEntry = { first_name: string; last_name: string; dob: string; percent_ownership: string };
 
@@ -365,6 +366,7 @@ export default function SupplierOnboardingFlow({
       setBusy(false);
       submitting.current = false;
       setError(connectOnboardingUserMessage(business.error));
+      partnerToast.error(connectOnboardingUserMessage(business.error));
       return false;
     }
     const ownership = draft.rep_is_owner ? share : null;
@@ -394,6 +396,7 @@ export default function SupplierOnboardingFlow({
       setBusy(false);
       submitting.current = false;
       setError(connectOnboardingUserMessage(person.error));
+      partnerToast.error(connectOnboardingUserMessage(person.error));
       return false;
     }
     if (others && owner.first_name.trim()) {
@@ -425,6 +428,7 @@ export default function SupplierOnboardingFlow({
         setBusy(false);
         submitting.current = false;
         setError(connectOnboardingUserMessage(owners.error));
+        partnerToast.error(connectOnboardingUserMessage(owners.error));
         return false;
       }
     }
@@ -434,6 +438,7 @@ export default function SupplierOnboardingFlow({
     setRepDob('');
     setBusy(false);
     submitting.current = false;
+    partnerToast.success('Verification sent');
     return true;
   };
 
@@ -458,6 +463,7 @@ export default function SupplierOnboardingFlow({
         setBusy(false);
         submitting.current = false;
         setError(connectOnboardingUserMessage(terms.error));
+        partnerToast.error(connectOnboardingUserMessage(terms.error));
         return false;
       }
       setDraft((current) => ({ ...current, tos_accepted: true }));
@@ -473,6 +479,7 @@ export default function SupplierOnboardingFlow({
       setBusy(false);
       submitting.current = false;
       setError(tokenized.error);
+      partnerToast.error(tokenized.error);
       return false;
     }
     const attached = await invokeConnectSupplierOnboarding('attach_bank_token', {
@@ -483,6 +490,7 @@ export default function SupplierOnboardingFlow({
       setBusy(false);
       submitting.current = false;
       setError(connectOnboardingUserMessage(attached.error));
+      partnerToast.error(connectOnboardingUserMessage(attached.error));
       return false;
     }
     const next = await fetchSupplierProfile(userId);
@@ -495,6 +503,7 @@ export default function SupplierOnboardingFlow({
     }));
     setBusy(false);
     submitting.current = false;
+    partnerToast.success('Payout account saved');
     return true;
   };
 
@@ -506,17 +515,20 @@ export default function SupplierOnboardingFlow({
     if (!up.path) {
       setBusy(false);
       setError('That document could not be uploaded.');
+      partnerToast.error('That document could not be uploaded.');
       return;
     }
     const saved = await patchSupplierProfile(userId, { company_registration_document_path: up.path });
     if (!saved.success) {
       setBusy(false);
       setError('That document could not be saved.');
+      partnerToast.error("Couldn't save changes. Try again.");
       return;
     }
     const next = await fetchSupplierProfile(userId);
     if (next) onProfile(next);
     setBusy(false);
+    partnerToast.success('Verification sent');
   };
 
   if (!screen) {

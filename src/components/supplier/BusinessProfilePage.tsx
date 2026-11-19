@@ -37,6 +37,7 @@ import SupplierTeamPanel from './SupplierTeamPanel';
 import NoticeCallout from '../NoticeCallout';
 import SupplierVerificationCard from './SupplierVerificationCard';
 import { supplierVerificationState } from '../../lib/supplier-verification-state';
+import { partnerToast } from '../../lib/partner-toast';
 import {
   PARTNER_BUSINESS_READY_TO_SUBMIT_NOTE,
   PARTNER_BUSINESS_REVIEW_STATUS_NOTE,
@@ -166,7 +167,6 @@ export default function BusinessProfilePage(p: BusinessProfilePageProps) {
   const [policySaveError, setPolicySaveError] = useState<string | null>(null);
   const [policyDiscardOpen, setPolicyDiscardOpen] = useState(false);
   const [policySaveOk, setPolicySaveOk] = useState(false);
-  const [policyToast, setPolicyToast] = useState<string | null>(null);
   const policySavingRef = useRef(false);
 
   const { role } = useSupplierRole();
@@ -323,12 +323,6 @@ export default function BusinessProfilePage(p: BusinessProfilePageProps) {
     p.setLegalDocModal(null);
   };
 
-  useEffect(() => {
-    if (!policyToast) return;
-    const timer = window.setTimeout(() => setPolicyToast(null), 4000);
-    return () => window.clearTimeout(timer);
-  }, [policyToast]);
-
   const discardPolicyEditor = () => {
     setPolicyDiscardOpen(false);
     setPolicyDirty(false);
@@ -374,19 +368,26 @@ export default function BusinessProfilePage(p: BusinessProfilePageProps) {
     setPolicySaveError(null);
     setPolicySaveOk(false);
     const key = kind === 'privacy' ? 'privacy_policy_text' : 'terms_conditions_text';
-    const res = await patchSupplierProfile(p.user.id, { [key]: saved || null });
-    policySavingRef.current = false;
-    setPolicySaving(false);
-    if (!res.success) {
-      setPolicySaveError(userFacingError(res.error ?? 'Could not save.', USER_ERROR.generic));
-      return;
+    try {
+      const res = await patchSupplierProfile(p.user.id, { [key]: saved || null });
+      if (!res.success) {
+        setPolicySaveError(userFacingError(res.error ?? 'Could not save.', USER_ERROR.generic));
+        partnerToast.error("Couldn't save changes. Try again.");
+        return;
+      }
+      if (kind === 'privacy') p.setPrivacyPolicyText(saved);
+      else p.setTermsConditionsText(saved);
+      setPolicyDirty(false);
+      policyDirtyRef.current = false;
+      p.setLegalDocModal(null);
+      partnerToast.success(kind === 'privacy' ? 'Privacy policy saved' : 'Terms & conditions saved');
+    } catch {
+      setPolicySaveError("Couldn't save changes. Try again.");
+      partnerToast.error("Couldn't save changes. Try again.");
+    } finally {
+      policySavingRef.current = false;
+      setPolicySaving(false);
     }
-    if (kind === 'privacy') p.setPrivacyPolicyText(saved);
-    else p.setTermsConditionsText(saved);
-    setPolicyDirty(false);
-    policyDirtyRef.current = false;
-    p.setLegalDocModal(null);
-    setPolicyToast(kind === 'privacy' ? 'Privacy policy saved' : 'Terms & conditions saved');
   };
 
   const insuranceHasData = Boolean(
@@ -423,28 +424,37 @@ export default function BusinessProfilePage(p: BusinessProfilePageProps) {
     p.setLegalSaving(true);
     p.setLegalMessage(null);
     setInsuranceLocalError(null);
-    const res = await patchSupplierProfile(p.user.id, {
-      insurance_provider: insuranceDraft.provider.trim() || null,
-      insurance_policy_number: insuranceDraft.policy.trim() || null,
-      insurance_coverage: insuranceDraft.coverage.trim() || null,
-      insurance_start: insuranceDraft.start || null,
-      insurance_end: insuranceDraft.end || null,
-      privacy_policy_text: p.privacyPolicyText.trim() || null,
-      terms_conditions_text: p.termsConditionsText.trim() || null,
-    });
-    p.setLegalSaving(false);
-    if (!res.success) {
+    try {
+      const res = await patchSupplierProfile(p.user.id, {
+        insurance_provider: insuranceDraft.provider.trim() || null,
+        insurance_policy_number: insuranceDraft.policy.trim() || null,
+        insurance_coverage: insuranceDraft.coverage.trim() || null,
+        insurance_start: insuranceDraft.start || null,
+        insurance_end: insuranceDraft.end || null,
+        privacy_policy_text: p.privacyPolicyText.trim() || null,
+        terms_conditions_text: p.termsConditionsText.trim() || null,
+      });
+      if (!res.success) {
+        p.setLegalMessage('error');
+        setInsuranceLocalError(userFacingError(res.error ?? 'Could not save.', USER_ERROR.generic));
+        partnerToast.error("Couldn't save changes. Try again.");
+        return;
+      }
+      partnerToast.success('Insurance saved');
+      p.setInsuranceProvider(insuranceDraft.provider);
+      p.setInsurancePolicyNumber(insuranceDraft.policy);
+      p.setInsuranceCoverage(insuranceDraft.coverage);
+      p.setInsuranceStart(insuranceDraft.start);
+      p.setInsuranceEnd(insuranceDraft.end);
+      p.setLegalMessage('success');
+      setInsuranceEditing(false);
+    } catch {
       p.setLegalMessage('error');
-      setInsuranceLocalError(userFacingError(res.error ?? 'Could not save.', USER_ERROR.generic));
-      return;
+      setInsuranceLocalError("Couldn't save changes. Try again.");
+      partnerToast.error("Couldn't save changes. Try again.");
+    } finally {
+      p.setLegalSaving(false);
     }
-    p.setInsuranceProvider(insuranceDraft.provider);
-    p.setInsurancePolicyNumber(insuranceDraft.policy);
-    p.setInsuranceCoverage(insuranceDraft.coverage);
-    p.setInsuranceStart(insuranceDraft.start);
-    p.setInsuranceEnd(insuranceDraft.end);
-    p.setLegalMessage('success');
-    setInsuranceEditing(false);
   };
 
   return (
@@ -600,9 +610,6 @@ export default function BusinessProfilePage(p: BusinessProfilePageProps) {
                   <p className="text-[12px] text-red-700" role="alert">
                     {insuranceLocalError}
                   </p>
-                ) : null}
-                {p.legalMessage === 'success' ? (
-                  <p className="text-[12px] font-medium text-emerald-800">Insurance saved.</p>
                 ) : null}
                 <div className="flex flex-wrap gap-2 pt-1">
                   <button
@@ -790,15 +797,6 @@ export default function BusinessProfilePage(p: BusinessProfilePageProps) {
             </div>
           </div>
         </div>
-      ) : null}
-
-      {policyToast ? (
-        <p
-          role="status"
-          className="fixed bottom-6 left-1/2 z-[80] -translate-x-1/2 rounded-xl border border-black/[0.08] bg-white px-4 py-2.5 text-[13px] font-medium text-ink shadow-lg"
-        >
-          {policyToast}
-        </p>
       ) : null}
 
       <PartnerConfirmModal

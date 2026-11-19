@@ -81,6 +81,7 @@ import { PARTNER_APP_BASE } from '../../lib/partnerPortalPaths';
 import { navigateSupplierUrl } from '../../lib/supplierPortalNavigation';
 import { PARTNER_HELP } from '../../lib/partnerHelpCopy';
 import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
+import { partnerToast } from '../../lib/partner-toast';
 import PartnerHelpTip from './PartnerHelpTip';
 import DateOfBirthPicker from './DateOfBirthPicker';
 import { validateIsoDob } from '../../lib/date-of-birth';
@@ -1105,12 +1106,15 @@ export default function PayoutSetupWizard({
     });
     if (!res.success) {
       setBusy(false);
-      setError(userFacingError(res.error, USER_ERROR.generic));
+      const message = userFacingError(res.error, USER_ERROR.generic);
+      setError(message);
+      partnerToast.error(message);
       return false;
     }
     onProfile(await fetchSupplierProfile(userId));
     patch({ preferencesSavedAt: new Date().toISOString() });
     setBusy(false);
+    partnerToast.success('Payout settings saved');
     return true;
   };
 

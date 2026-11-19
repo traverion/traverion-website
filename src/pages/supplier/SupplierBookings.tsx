@@ -40,6 +40,7 @@ import { PARTNER_CANCEL_REQUEST_SUBMIT_ERROR } from '../../lib/booking-confirmat
 import { SkeletonListItem } from '../../components/ui/Skeleton';
 import ErrorState from '../../components/ErrorState';
 import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
+import { partnerToast } from '../../lib/partner-toast';
 import {
   SUPPLIER_PAGE_CLASS,
   SupplierEmptyState,
@@ -995,6 +996,9 @@ export default function SupplierBookings({
       const previousStatus = booking.status;
       const res = await updateBookingStatus(booking.id, status, options);
       if (res.ok) {
+        partnerToast.success(
+          status === 'cancelled' ? 'Booking cancelled' : status === 'confirmed' ? 'Booking confirmed' : 'Booking updated'
+        );
         if (status === 'cancelled' && previousStatus === 'confirmed' && booking.booking_date) {
           await decrementAvailabilityBooked(booking.listing_id, booking.booking_date, booking.guests ?? 1);
         }
@@ -1013,6 +1017,7 @@ export default function SupplierBookings({
         );
       } else {
         setError(userFacingError(res.error, 'Could not update this booking.'));
+        partnerToast.error(userFacingError(res.error, 'Could not update this booking.'));
       }
       setUpdatingId(null);
     },
@@ -1215,11 +1220,16 @@ export default function SupplierBookings({
       cancellation_reason: 'unpaid_release',
       refund_choice: 'no_refund',
     });
-    if (!res.ok) return { ok: false, error: userFacingError(res.error, 'Could not release this hold.') };
+    if (!res.ok) {
+      const message = userFacingError(res.error, 'Could not release this hold.');
+      partnerToast.error(message);
+      return { ok: false, error: message };
+    }
     if (previous === 'confirmed' && booking.booking_date) {
       await decrementAvailabilityBooked(booking.listing_id, booking.booking_date, booking.guests ?? 1);
     }
     await load();
+    partnerToast.success('Booking cancelled');
     return { ok: true };
   }, [bookings, load]);
 

@@ -210,6 +210,7 @@ import {
   shouldResetWizardOnEditingIdChange,
 } from '../../lib/listing-creation-persist';
 import { userFacingError } from '../../lib/userFacingError';
+import { partnerToast } from '../../lib/partner-toast';
 import { normalizeListingForDraftSave } from '../../lib/listingDraftUtils';
 import {
   MAX_LISTING_DESCRIPTION_LENGTH,
@@ -3140,6 +3141,7 @@ export default function SupplierListingForm({
           const result = await onSave(listing);
           if (!result.success) {
             const msg = userFacingError(result.error, 'Could not save your listing. Please try again.');
+            partnerToast.error(msg);
             if (opts?.closeOnSuccess) {
               setDraftCloseError(msg);
               setLeaveConfirmOpen(true);
@@ -3158,6 +3160,15 @@ export default function SupplierListingForm({
           });
           setLastSavedAt(Date.now());
           setSaveFlash(effectiveStatus === 'published' ? 'published' : 'draft');
+          partnerToast.success(
+            enteringPublished
+              ? 'Listing published'
+              : !editingId
+                ? 'Listing created'
+                : effectiveStatus === 'published'
+                  ? 'Listing updated'
+                  : 'Listing saved'
+          );
           if (opts?.closeOnSuccess) {
             clearListingDraftBackup(editingId);
             finishCloseEditor({ animated: true });
@@ -3197,7 +3208,9 @@ export default function SupplierListingForm({
       const ok = await runSubmit('published', { bypassLastStepArm: true, closeOnSuccess: true });
       if (!ok) setLeaveConfirmOpen(true);
     } catch (e) {
-      setDraftCloseError(userFacingError(e, 'Could not save your listing. Please try again.'));
+      const message = userFacingError(e, 'Could not save your listing. Please try again.');
+      setDraftCloseError(message);
+      partnerToast.error(message);
       setLeaveConfirmOpen(true);
     } finally {
       setDraftCloseBusy(false);
@@ -3219,16 +3232,18 @@ export default function SupplierListingForm({
       if (onSaveDraft) {
         const ok = await onSaveDraft(listing);
         if (!ok) {
-          setDraftCloseError('Could not save your draft. Check your connection and try again.');
+          const message = 'Could not save your draft. Check your connection and try again.';
+          setDraftCloseError(message);
+          partnerToast.error(message);
           setLeaveConfirmOpen(true);
           return;
         }
       } else {
         const result = await Promise.resolve(onSave(listing));
         if (!result.success) {
-          setDraftCloseError(
-            userFacingError(result.error, 'Could not save your draft. Please try again.')
-          );
+          const message = userFacingError(result.error, 'Could not save your draft. Please try again.');
+          setDraftCloseError(message);
+          partnerToast.error(message);
           setLeaveConfirmOpen(true);
           return;
         }
@@ -3239,9 +3254,12 @@ export default function SupplierListingForm({
       clearListingDraftBackup(editingId);
       initialFormSnapshotRef.current = serializeListingFormState(formRef.current);
       setLastSavedAt(Date.now());
+      partnerToast.success(editingId ? 'Listing saved' : 'Listing created');
       finishCloseEditor({ animated: true });
     } catch (e) {
-      setDraftCloseError(userFacingError(e, 'Could not save your draft. Please try again.'));
+      const message = userFacingError(e, 'Could not save your draft. Please try again.');
+      setDraftCloseError(message);
+      partnerToast.error(message);
       setLeaveConfirmOpen(true);
     } finally {
       setDraftCloseBusy(false);

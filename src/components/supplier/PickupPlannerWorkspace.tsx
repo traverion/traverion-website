@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { AlertTriangle, ArrowLeft, ChevronDown, MapPin, Printer, Download } from 'lucide-react';
+import { partnerToast } from '../../lib/partner-toast';
 import PickupLocationSearch from '../checkout/PickupLocationSearch';
 import PickupCoverageMap from './PickupCoverageMap';
 import PartnerTimeSelect from './PartnerTimeSelect';
@@ -435,13 +436,16 @@ function DeparturePlanner({
     setMeetingBusy(false);
     if (!res.ok) {
       setMeetingNote(res.error || 'Could not save meeting time.');
+      partnerToast.error(res.error || "Couldn't save changes. Try again.");
       return;
     }
     if (notify && res.notifyError) {
       setMeetingNote(`Saved. ${res.notifyError}`);
+      partnerToast.error(res.notifyError);
       return;
     }
     setMeetingNote(notify ? `Saved and notified ${rows.length} guest${rows.length === 1 ? '' : 's'}.` : 'Draft saved.');
+    partnerToast.success(notify ? 'Meeting time sent' : 'Meeting time saved');
   };
 
   return (
@@ -769,12 +773,15 @@ function PickupManageWorkspace({
     setSaving(false);
     if (!res.ok) {
       setNote(res.error || 'Could not save pickup details.');
+      partnerToast.error(res.error || "Couldn't save changes. Try again.");
       return;
     }
     if (notify && res.notifyError) {
       setNote(`Saved. ${res.notifyError}`);
+      partnerToast.error(res.notifyError);
       return;
     }
+    partnerToast.success(notify ? 'Pickup time sent successfully' : 'Pickup details saved');
     onClose();
   };
 

@@ -36,6 +36,7 @@ import {
 } from '../../lib/partner-unified-day-edits';
 import { stayCalendarNightKindLabel } from '../../lib/stay-calendar-workspace';
 import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
+import { partnerToast } from '../../lib/partner-toast';
 import { openSupplierBooking } from '../../lib/supplierPortalNavigation';
 import {
   partnerUnifiedEventKindLabel,
@@ -201,13 +202,17 @@ export default function PartnerUnifiedDayAvailabilityPanel({
       const res = await fn();
       if (!res.ok) {
         setError(res.error ?? 'Could not save.');
+        partnerToast.error(res.error ?? "Couldn't save changes. Try again.");
         return;
       }
       if (res.listing) patchListing(res.listing);
       setNote(res.message ?? 'Saved.');
+      partnerToast.success('Calendar updated');
       await loadDayData();
     } catch (e) {
-      setError(userFacingError(e, USER_ERROR.listingSave));
+      const message = userFacingError(e, USER_ERROR.listingSave);
+      setError(message);
+      partnerToast.error(message);
     } finally {
       setSaving(false);
     }
