@@ -191,6 +191,54 @@ export function SupplierListSkeleton({ rows = 3 }: { rows?: number }) {
   );
 }
 
+export function PartnerTabs<T extends string>({
+  label,
+  value,
+  onChange,
+  tabs,
+  className = '',
+}: {
+  label: string;
+  value: T;
+  onChange: (next: T) => void;
+  tabs: readonly { id: T; label: string }[];
+  className?: string;
+}) {
+  return (
+    <div
+      className={`partner-tabs ${className}`.trim()}
+      role="tablist"
+      aria-label={label}
+      onKeyDown={(event) => {
+        if (event.key !== 'ArrowRight' && event.key !== 'ArrowLeft' && event.key !== 'Home' && event.key !== 'End') return;
+        event.preventDefault();
+        const index = tabs.findIndex((tab) => tab.id === value);
+        const last = tabs.length - 1;
+        const next =
+          event.key === 'ArrowRight' ? (index + 1) % tabs.length
+          : event.key === 'ArrowLeft' ? (index - 1 + tabs.length) % tabs.length
+          : event.key === 'Home' ? 0
+          : last;
+        onChange(tabs[next].id);
+        event.currentTarget.querySelectorAll('button')[next]?.focus();
+      }}
+    >
+      {tabs.map((tab) => (
+        <button
+          key={tab.id}
+          type="button"
+          role="tab"
+          aria-selected={value === tab.id}
+          tabIndex={value === tab.id ? 0 : -1}
+          onClick={() => onChange(tab.id)}
+        >
+          {tab.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export function SupplierEmptyState({
   icon: Icon,
   title,

@@ -25,7 +25,7 @@ import {
 import type { BookingRow } from '../../data/supabase-bookings';
 import { fetchSupplierProfile } from '../../data/supabase-supplier-profile';
 import { insertSupplierExportRun } from '../../data/supabase-supplier-campaigns-exports';
-import { SUPPLIER_PAGE_CLASS, SupplierEmptyState, SupplierListSkeleton } from '../../components/supplier/supplierUi';
+import { PartnerTabs, SUPPLIER_PAGE_CLASS, SupplierEmptyState, SupplierListSkeleton } from '../../components/supplier/supplierUi';
 import ErrorState from '../../components/ErrorState';
 import { USER_ERROR, userFacingError } from '../../lib/userFacingError';
 import { openSupplierBooking } from '../../lib/supplierPortalNavigation';
@@ -1010,7 +1010,7 @@ export default function SupplierEarnings() {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <h1 className="tv-income-title">Income & Payouts</h1>
+            <h1 className="partner-page-title">Income & Payouts</h1>
             {showAdminStripeTestDiagnostics() ? (
               <span
                 className="rounded-md border border-amber-300 bg-amber-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em] text-amber-950"
@@ -1044,25 +1044,19 @@ export default function SupplierEarnings() {
           <p className="tv-income-export__hint">CSV for the selected window.</p>
         </div>
       </div>
-      <div className="tv-income-tabs" role="tablist" aria-label="Income">
-        {([
-          ['overview', 'Overview'],
-          ['earnings', 'Earnings'],
-          ['payouts', 'Payouts'],
-          ['documents', 'Documents'],
-          ['settings', 'Settings'],
-        ] as const).map(([id, label]) => (
-          <button
-            key={id}
-            type="button"
-            role="tab"
-            aria-selected={tab === id}
-            onClick={() => setTabAndUrl(id)}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
+      <PartnerTabs
+        className="tv-income-tabs"
+        label="Income"
+        value={tab}
+        onChange={setTabAndUrl}
+        tabs={[
+          { id: 'overview', label: 'Overview' },
+          { id: 'earnings', label: 'Earnings' },
+          { id: 'payouts', label: 'Payouts' },
+          { id: 'documents', label: 'Documents' },
+          { id: 'settings', label: 'Settings' },
+        ]}
+      />
 
       {error && (
         <ErrorState

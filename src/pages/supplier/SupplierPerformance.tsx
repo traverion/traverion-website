@@ -13,6 +13,7 @@ import { fetchReviewsForSupplierListings } from '../../data/supabase-reviews';
 import { fetchListingTrafficCounts, type ListingTrafficCounts } from '../../data/supabase-listing-traffic';
 import type { TourPackage } from '../../types/tour';
 import {
+  PartnerTabs,
   SUPPLIER_PAGE_CLASS,
   SupplierEmptyState,
   SupplierStatSkeletonGrid,
@@ -615,7 +616,7 @@ export default function SupplierPerformance() {
     <div className={`${SUPPLIER_PAGE_CLASS} tv-analytics font-sans`}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <h1 className="tv-analytics-title">Analytics</h1>
+          <h1 className="partner-page-title">Analytics</h1>
         </div>
         <div className="flex flex-wrap items-end gap-2">
           <label className="tv-analytics-field">
@@ -654,22 +655,16 @@ export default function SupplierPerformance() {
       </div>
 
 
-      <div className="tv-analytics-tabs" role="tablist" aria-label="Analytics sections">
-        {ANALYTICS_SECTIONS.map((tab) => (
-          <button
-            key={tab.id}
-            type="button"
-            role="tab"
-            aria-selected={section === tab.id}
-            onClick={() => {
-              setSection(tab.id);
-              pushUrl({ section: tab.id });
-            }}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
+      <PartnerTabs
+        className="tv-analytics-tabs"
+        label="Analytics sections"
+        value={section}
+        onChange={(id) => {
+          setSection(id);
+          pushUrl({ section: id });
+        }}
+        tabs={ANALYTICS_SECTIONS.map((tab) => ({ id: tab.id, label: tab.label }))}
+      />
 
       <div className="tv-analytics-filters">
         <label className="tv-analytics-field tv-analytics-field--listing">

@@ -8492,14 +8492,6 @@ details:not([open]) > :not(summary) {
   font-family: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif !important;
 }
 
-.tv-inbox-title {
-  margin: 0;
-  font-size: 1.25rem;
-  font-weight: 700;
-  letter-spacing: -0.03em;
-  line-height: 1.2;
-  color: #18181b;
-}
 
 .tv-inbox-list {
   border-radius: 0.75rem;
@@ -11750,13 +11742,6 @@ details:not([open]) > :not(summary) {
   }
 }
 
-.tv-analytics-title {
-  font-size: var(--partner-title-size, 1.5625rem);
-  font-weight: 700;
-  letter-spacing: -0.032em;
-  line-height: 1.15;
-  color: var(--tv-analytics-ink);
-}
 
 .tv-analytics-subtitle {
   margin-top: 0.2rem;
@@ -11867,36 +11852,62 @@ details:not([open]) > :not(summary) {
   color: var(--tv-analytics-ink);
 }
 
-.tv-analytics-tabs {
+.partner-tabs,
+.tv-analytics-tabs,
+.tv-income-tabs {
   display: flex;
   gap: 2px;
   overflow-x: auto;
-  border-bottom: 1px solid var(--tv-analytics-border);
-  padding-bottom: 1px;
+  border-bottom: 1px solid var(--partner-border, #e4e7ec);
   scrollbar-width: thin;
 }
 
-.tv-analytics-tabs button {
-  height: 34px;
+.partner-tabs button,
+.tv-analytics-tabs button,
+.tv-income-tabs button {
+  height: 2.25rem;
   flex-shrink: 0;
   border: 0;
-  border-radius: 8px 8px 0 0;
+  border-radius: var(--partner-radius, 0.5rem) var(--partner-radius, 0.5rem) 0 0;
   background: transparent;
-  padding: 0 12px;
-  font-size: 13px;
+  padding: 0 0.8rem;
+  font-size: 0.8125rem;
   font-weight: 600;
-  color: #52525b;
-  transition: color 150ms ease, background-color 150ms ease, box-shadow 150ms ease;
+  letter-spacing: -0.01em;
+  color: var(--partner-ink-muted, #5a6472);
+  transition:
+    color 160ms var(--partner-ease, ease),
+    background-color 160ms var(--partner-ease, ease);
 }
 
-.tv-analytics-tabs button[aria-selected='true'] {
-  color: var(--tv-analytics-navy);
-  background: #f0f4fa;
-  box-shadow: inset 0 -2px 0 var(--tv-analytics-navy);
+.partner-tabs button[aria-selected='true'],
+.tv-analytics-tabs button[aria-selected='true'],
+.tv-income-tabs button[aria-selected='true'] {
+  color: var(--partner-nav-active-ink, #0b3d88);
+  background: #f4f7fb;
+  box-shadow: inset 0 -2px 0 var(--partner-accent, #073b83);
 }
 
-.tv-analytics-tabs button:hover {
-  color: var(--tv-analytics-ink);
+.partner-tabs button:hover,
+.tv-analytics-tabs button:hover,
+.tv-income-tabs button:hover {
+  color: var(--partner-ink, #0c1118);
+  background: #f7f8fa;
+}
+
+.partner-tabs button:focus-visible,
+.tv-analytics-tabs button:focus-visible,
+.tv-income-tabs button:focus-visible {
+  outline: 2px solid var(--partner-accent, #073b83);
+  outline-offset: 1px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .partner-tabs button,
+  .tv-analytics-tabs button,
+  .tv-income-tabs button {
+    transition: none;
+  }
 }
 
 .tv-analytics-filters {
@@ -12723,7 +12734,28 @@ details:not([open]) > :not(summary) {
 .partner-bookings-workspace__controls .partner-select [role='combobox'] {
   min-height: var(--pb-control-h);
   height: var(--pb-control-h);
-  border-radius: 0.55rem;
+  border-radius: 0.5rem;
+}
+
+.partner-app-shell .partner-bookings-workspace__search .tv-input,
+.partner-app-shell .partner-listings-workspace__search-input.tv-input,
+.partner-app-shell .tv-inbox-search__input,
+.partner-app-shell .tv-reviews-search__input,
+.partner-app-shell .tv-income-filters .tv-input[type='search'],
+.partner-app-shell .tv-pickup-toolbar input[type='search'] {
+  min-height: 2.5rem;
+  height: 2.5rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--partner-border, #e4e7ec);
+  background: #fff;
+  font-size: 0.8125rem;
+  box-shadow: none;
+}
+
+.partner-app-shell .tv-inbox-search__input:focus-visible,
+.partner-app-shell .tv-reviews-search__input:focus-visible {
+  outline: 2px solid var(--partner-accent, #073b83);
+  outline-offset: 1px;
 }
 
 .partner-bookings-workspace__meta {
@@ -15688,12 +15720,23 @@ details:not([open]) > :not(summary) {
   }
 }
 
-.tv-income-title {
-  font-size: clamp(1.5rem, 1.35rem + 0.6vw, 1.75rem);
-  font-weight: 750;
-  letter-spacing: -0.035em;
+.tv-income-title,
+.tv-analytics-title,
+.tv-inbox-title {
+  margin: 0;
+  font-size: var(--partner-title-size-sm, 1.3125rem);
+  font-weight: 700;
+  letter-spacing: -0.034em;
   line-height: 1.12;
-  color: var(--tv-income-ink);
+  color: var(--partner-ink, #0c1118);
+}
+
+@media (min-width: 640px) {
+  .tv-income-title,
+  .tv-analytics-title,
+  .tv-inbox-title {
+    font-size: var(--partner-title-size, 1.5625rem);
+  }
 }
 
 .tv-income-subtitle {
@@ -15705,47 +15748,6 @@ details:not([open]) > :not(summary) {
   color: var(--tv-income-muted);
 }
 
-.tv-income-tabs {
-  display: flex;
-  gap: 4px;
-  overflow-x: auto;
-  border-bottom: 1px solid var(--tv-income-border);
-  padding-bottom: 1px;
-  scrollbar-width: thin;
-}
-
-.tv-income-tabs button {
-  height: 36px;
-  flex-shrink: 0;
-  border: 0;
-  border-radius: 8px 8px 0 0;
-  background: transparent;
-  padding: 0 12px;
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: var(--tv-income-muted);
-  transition:
-    color 180ms var(--partner-ease, ease),
-    background-color 180ms var(--partner-ease, ease),
-    box-shadow 180ms var(--partner-ease, ease);
-}
-
-.tv-income-tabs button[aria-selected='true'] {
-  color: var(--tv-income-navy-deep);
-  background: var(--tv-income-hover);
-  font-weight: 700;
-  box-shadow: inset 0 -2px 0 var(--tv-income-navy);
-}
-
-.tv-income-tabs button:hover {
-  color: var(--tv-income-ink);
-  background: var(--tv-income-surface);
-}
-
-.tv-income-tabs button:focus-visible {
-  outline: 2px solid var(--tv-income-navy);
-  outline-offset: 2px;
-}
 
 .tv-income .tv-money-row {
   border-radius: 8px;
@@ -24752,11 +24754,11 @@ details:not([open]) > :not(summary) {
 }
 
 .partner-toast--in {
-  animation: partner-toast-in 280ms ease;
+  animation: partner-toast-in 180ms var(--partner-ease, ease);
 }
 
 .partner-toast--out {
-  animation: partner-toast-out 280ms ease forwards;
+  animation: partner-toast-out 160ms var(--partner-ease, ease) forwards;
 }
 
 @keyframes partner-toast-in {
