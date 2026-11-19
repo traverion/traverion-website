@@ -1,0 +1,63 @@
+{
+  "origin": "https://partner.traverion.com",
+  "agreement_bps_present": true,
+  "passed": 11,
+  "failed": 0,
+  "checks": [
+    {
+      "name": "mobile shows both frequency cards",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "monthly shows the agreement rate and no extra fee",
+      "ok": true,
+      "detail": "Monthly Standard commission 15% No additional fee Total 15%"
+    },
+    {
+      "name": "twice a month adds 3 points to that rate",
+      "ok": true,
+      "detail": "Twice a month Standard commission 15% Additional fee 3% Total 18%"
+    },
+    {
+      "name": "cards do not invent a catalog rate",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "saved frequency stays selected",
+      "ok": true,
+      "detail": "monthly"
+    },
+    {
+      "name": "saved frequency is stored",
+      "ok": true,
+      "detail": "monthly"
+    },
+    {
+      "name": "minimum payout was not changed",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "agreement commission was not rewritten",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "original frequency restored",
+      "ok": true,
+      "detail": "biweekly"
+    },
+    {
+      "name": "account and verification unchanged",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "payout gates unchanged",
+      "ok": true,
+      "detail": "{\"stripe_connect_transfers_enabled\":0,\"payout_execution_enabled\":0}"
+    }
+  ]
+}

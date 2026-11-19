@@ -110,9 +110,8 @@ try {
     await page.getByRole('radio', { name: /Monthly/ }).waitFor({ timeout: 25000 });
     await page
       .locator('[data-frequency="monthly"]')
-      .getByText(/Standard commission|Commission rate unavailable|Loading commission rate/)
-      .waitFor({ timeout: 20000 });
-    await page.getByText('Loading commission rate').waitFor({ state: 'hidden', timeout: 20000 }).catch(() => {});
+      .getByText(/Standard commission|Commission rate unavailable/)
+      .waitFor({ timeout: 25000 });
   }
 
   const mobile = await browser.newPage({ viewport: { width: 390, height: 844 } });
