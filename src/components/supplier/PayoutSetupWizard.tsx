@@ -1775,7 +1775,7 @@ export default function PayoutSetupWizard({
 
               {draft.step === 'representative' && !isExpress && !customUsesEmbeddedVerification ? (
                 <form
-                  className="mt-5 grid gap-4"
+                  className="po-form grid gap-4"
                   onSubmit={(e) => {
                     e.preventDefault();
                     void onContinue();
@@ -2216,7 +2216,7 @@ export default function PayoutSetupWizard({
 
               {draft.step === 'bank' && !isExpress && !customUsesEmbeddedVerification ? (
                 <form
-                  className="mt-4 grid gap-3 sm:gap-4"
+                  className="po-form grid gap-3 sm:gap-4"
                   onSubmit={(e) => {
                     e.preventDefault();
                     void onContinue();

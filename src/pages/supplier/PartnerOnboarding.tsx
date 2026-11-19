@@ -250,7 +250,7 @@ export default function PartnerOnboarding({
   if (!profileReady) {
     return (
       <div
-        className="partner-unified-setup-shell flex h-full min-h-0 w-full flex-1 items-center justify-center bg-white"
+        className="partner-unified-setup-shell flex h-full min-h-0 w-full flex-1 items-center justify-center"
         data-cert="p953"
       >
         <p className="text-[13px] text-[#71717a]" role="status">
@@ -262,7 +262,7 @@ export default function PartnerOnboarding({
 
   return (
     <div
-      className="partner-unified-setup-shell payout-wizard flex h-full min-h-0 w-full flex-1 overflow-hidden bg-white"
+      className="partner-unified-setup-shell payout-wizard flex h-full min-h-0 w-full flex-1 overflow-hidden"
       data-cert="p953"
     >
       <aside className="partner-unified-setup-shell__rail hidden h-full min-h-0 shrink-0 flex-col overflow-hidden lg:flex">
@@ -425,6 +425,7 @@ export default function PartnerOnboarding({
           ) : null}
 
           {showStatus ? (
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
             <div className="partner-unified-setup-status min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-5 sm:px-8 lg:px-10 [-webkit-overflow-scrolling:touch]">
               <div className="partner-unified-setup-canvas partner-unified-setup-stage mx-auto w-full">
                 <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#073b83]">
@@ -453,29 +454,6 @@ export default function PartnerOnboarding({
                     ))}
                   </ul>
                 ) : null}
-
-                <button
-                    type="button"
-                    className="tv-btn-primary mt-6 h-11 min-w-[12rem] px-5 text-[13px]"
-                    onClick={() => {
-                      if (needsStripeContinue) {
-                        setPhaseAndUrl('representative');
-                        return;
-                      }
-                      if (progress.nextCta.toLowerCase().includes('listing')) {
-                        onTours();
-                        return;
-                      }
-                      if (progress.nextPhase === 'status') {
-                        onTours();
-                        return;
-                      }
-                      setPhaseAndUrl(progress.nextPhase);
-                    }}
-                  >
-                    {needsStripeContinue ? 'Continue verification' : statusPrimaryLabel}
-                    <ArrowRight className="ml-1.5 inline-block h-4 w-4" aria-hidden />
-                  </button>
 
                 {lanes ? (
                   <ul className="partner-status-lanes" aria-label="Setup status">
@@ -515,6 +493,40 @@ export default function PartnerOnboarding({
                   </button>
                 )}
               </div>
+            </div>
+            <footer className="listing-creation-footer shrink-0 px-4 py-2.5 sm:px-6 lg:px-8">
+              <div className="flex items-center justify-between gap-3">
+                <button
+                  type="button"
+                  className="tv-btn-secondary h-11 min-w-[5.5rem] rounded-xl px-4 text-sm"
+                  onClick={onSkip}
+                >
+                  Exit
+                </button>
+                <button
+                  type="button"
+                  className="tv-btn-primary h-11 min-w-[8rem] rounded-xl px-5 text-sm"
+                  onClick={() => {
+                    if (needsStripeContinue) {
+                      setPhaseAndUrl('representative');
+                      return;
+                    }
+                    if (progress.nextCta.toLowerCase().includes('listing')) {
+                      onTours();
+                      return;
+                    }
+                    if (progress.nextPhase === 'status') {
+                      onTours();
+                      return;
+                    }
+                    setPhaseAndUrl(progress.nextPhase);
+                  }}
+                >
+                  {needsStripeContinue ? 'Continue verification' : statusPrimaryLabel}
+                  <ArrowRight className="ml-1.5 inline-block h-4 w-4" aria-hidden />
+                </button>
+              </div>
+            </footer>
             </div>
           ) : null}
         </div>

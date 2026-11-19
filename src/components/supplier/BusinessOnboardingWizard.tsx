@@ -200,11 +200,15 @@ export default function BusinessOnboardingWizard({
       ...prefillFromProfile(profile),
       ...(merged ?? {}),
       step:
-        underReview || verified
+        underReview
           ? 'review'
-          : actionRequired
-            ? (prefer ?? 'documents')
-            : prefer ?? merged?.step ?? 'identity',
+          : verified
+            ? prefer === 'documents'
+              ? 'documents'
+              : 'review'
+            : actionRequired
+              ? (prefer ?? 'documents')
+              : prefer ?? merged?.step ?? 'identity',
       owner_authority_confirmed: merged?.owner_authority_confirmed ?? false,
     });
     // Empty local/server drafts must not hide company fields already on the profile.
@@ -247,7 +251,8 @@ export default function BusinessOnboardingWizard({
       void updateSupplierSetupProgress(
         userId,
         toServerSetupProgress({
-          phase: phaseFromBusinessStep(draft.step),
+          phase:
+            embedded && draft.step === 'review' ? 'business' : phaseFromBusinessStep(draft.step),
           business_step: draft.step,
           business_draft: draft as unknown as Record<string, unknown>,
         })
@@ -260,11 +265,18 @@ export default function BusinessOnboardingWizard({
       window.clearTimeout(t);
       if (serverProgressTimer.current) window.clearTimeout(serverProgressTimer.current);
     };
-  }, [userId, draft, profile]);
+  }, [userId, draft, profile, embedded]);
 
   useLayoutEffect(() => {
-    if (!embedded || !initialStep || underReview || verified) return;
+    if (!embedded || !initialStep) return;
     setDraft((d) => {
+      if (underReview) {
+        return d.step === 'review' ? d : { ...d, step: 'review' };
+      }
+      if (verified) {
+        const target = initialStep === 'documents' ? 'documents' : 'review';
+        return d.step === target ? d : { ...d, step: target };
+      }
       const currentPhase =
         d.step === 'documents' || d.step === 'review' ? 'documents' : 'business';
       const targetPhase =

@@ -409,6 +409,7 @@ body {
   .partner-unified-setup-shell {
     min-height: 0;
     height: 100%;
+    background: #eef1f6;
   }
 
   .tv-connect-embed iframe {
@@ -487,6 +488,15 @@ body {
   .partner-unified-setup-shell .po-summary > section {
     padding-top: 0.85rem;
     padding-bottom: 0.85rem;
+  }
+
+  .partner-unified-setup-shell .po-form {
+    margin-top: 1.15rem;
+    border: 1px solid var(--po-line);
+    border-radius: 14px;
+    background: #fff;
+    box-shadow: 0 10px 28px rgba(23, 25, 29, 0.045);
+    padding: 1.05rem 1.15rem 1.15rem;
   }
 
   .partner-unified-setup-shell .po-requirements {
@@ -589,11 +599,12 @@ body {
   }
 
   .partner-unified-setup-shell .partner-status-lanes {
-    margin-top: 1.75rem;
+    margin-top: 1rem;
     border: 1px solid var(--po-line);
-    border-radius: 12px;
+    border-radius: 14px;
     overflow: hidden;
     background: #fff;
+    box-shadow: 0 10px 28px rgba(23, 25, 29, 0.045);
   }
 
   .partner-unified-setup-shell .partner-status-lanes li {

@@ -224,9 +224,17 @@ try {
       await page.screenshot({ path: resolve(OUT, `${vp.name}-${phase}.png`), fullPage: false });
       await page.reload({ waitUntil: 'domcontentloaded' });
       await page.waitForSelector('[data-cert="p953"]', { timeout: 30000 });
-      await page.waitForTimeout(800);
+      await page.waitForFunction(
+        () => !(document.body?.innerText ?? '').includes('Loading your details'),
+        { timeout: 20000 }
+      );
+      await page.waitForTimeout(400);
       const again = await surface(page);
-      note(`${vp.name} ${phase} refresh resume`, again.h1 === snap.h1 && again.iframes.length === 0);
+      note(
+        `${vp.name} ${phase} refresh resume`,
+        again.h1 === snap.h1 && again.iframes.length === 0,
+        again.h1
+      );
     }
     await context.close();
   }
