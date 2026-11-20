@@ -1,19 +1,22 @@
 /**
- * Mission 2 Phases 3–5: Stripe Connect SCAT transfers + optional bank payout create (TEST only).
+ * Stripe Connect transfers and optional bank payouts.
  *
- * Kill switches (all required for any money movement):
- * 1. resolveStripeMoneySecretFromEnv (LIVE still requires STRIPE_LIVE_PAYMENTS_ENABLED)
- * 2. Platform payment mode must remain TEST — Connect transfers never run on LIVE in this function
- * 3. STRIPE_CONNECT_TRANSFERS_ENABLED must equal exactly "test"
- * 4. commercial_runtime_config.stripe_connect_transfers_enabled = 1
- * 5. supplier_transfer_batches constrained to environment=test, live_money_enabled=false
- *
- * Live Connect payouts are never activated by this function.
+ * Live execution code is present. It cannot run while
+ * LIVE_SUPPLIER_TRANSFER_EXECUTION_APPROVED is false. After that approval,
+ * both database gates and the live transfer flag must also be on.
+ * Test batches still require the env flag to must equal exactly "test"
+ * and the transfers gate.
  */
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.4';
 import Stripe from 'https://esm.sh/stripe@16.12.0?target=deno';
 import { resolveStripeMoneySecretFromEnv } from '../_shared/resolve-stripe-money-secret.ts';
+import {
+  LIVE_SUPPLIER_TRANSFER_EXECUTION_APPROVED,
+  classifySupplierTransferFailure,
+  supplierTransferCreateParams,
+  supplierTransferExecutionDecision,
+} from '../_shared/live-supplier-transfer-executor.ts';
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -63,8 +66,8 @@ serve(async (req) => {
   if (!stripeMoney.ok) {
     return json({ success: false, error: stripeMoney.error, live_blocked: true }, stripeMoney.status);
   }
-  // Connect SCAT remains TEST-only even if platform LIVE payments are later enabled.
-  if (stripeMoney.mode !== 'test') {
+  // Live supplier payouts stay closed until the code approval constant is changed.
+  if (stripeMoney.mode !== 'test' && !LIVE_SUPPLIER_TRANSFER_EXECUTION_APPROVED) {
     return json({
       success: false,
       error: 'Stripe Connect transfers remain TEST-only. LIVE supplier payouts are not enabled.',
@@ -73,7 +76,7 @@ serve(async (req) => {
     }, 503);
   }
   const stripeSecret = stripeMoney.secret;
-  if (transfersFlag !== 'test') {
+  if (stripeMoney.mode === 'test' && transfersFlag !== 'test') {
     return json({
       success: false,
       error: 'Stripe Connect transfers disabled. Set STRIPE_CONNECT_TRANSFERS_ENABLED=test to run TEST transfers only.',
@@ -83,6 +86,28 @@ serve(async (req) => {
   }
 
   const admin = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } });
+  const { data: gateRows } = await admin
+    .from('commercial_runtime_config')
+    .select('key, value_int')
+    .in('key', ['stripe_connect_transfers_enabled', 'payout_execution_enabled']);
+  const gateValue = (key: string) =>
+    Number((gateRows ?? []).find((row) => row.key === key)?.value_int ?? 0);
+  const decision = supplierTransferExecutionDecision({
+    platformMode: stripeMoney.mode,
+    transfersFlag,
+    dbTransfersEnabled: gateValue('stripe_connect_transfers_enabled'),
+    dbPayoutExecutionEnabled: gateValue('payout_execution_enabled'),
+  });
+  if (!decision.allowed) {
+    return json({
+      success: false,
+      error: decision.error,
+      live_blocked: stripeMoney.mode !== 'test',
+      live_money: false,
+      transfers_enabled: false,
+    }, decision.status);
+  }
+
   const stripe = new Stripe(stripeSecret);
   const body = (await req.json().catch(() => ({}))) as {
     limit?: number;
@@ -95,19 +120,6 @@ serve(async (req) => {
   const limit = Math.min(Math.max(Number(body.limit) || 25, 1), 100);
   const createBankPayouts = body.create_bank_payouts === true;
   const dryRun = body.dry_run === true;
-
-  const { data: cfgRow } = await admin
-    .from('commercial_runtime_config')
-    .select('value_int')
-    .eq('key', 'stripe_connect_transfers_enabled')
-    .maybeSingle();
-  if (!cfgRow || Number(cfgRow.value_int) !== 1) {
-    return json({
-      success: false,
-      error: 'DB kill switch stripe_connect_transfers_enabled is not 1',
-      transfers_enabled: false,
-    }, 503);
-  }
 
   // Snapshot platform balance → liquidity helper (never use raw available alone).
   const balance = await stripe.balance.retrieve();
@@ -138,7 +150,7 @@ serve(async (req) => {
     outstanding_supplier_liability_minor: Number(
       (liquidity as { outstanding_supplier_liability_minor?: number })?.outstanding_supplier_liability_minor ?? 0
     ),
-    note: 'execute-supplier-transfers TEST batch',
+    note: `execute-supplier-transfers ${decision.environment} batch`,
   });
 
   const transferable = Number((liquidity as { transferable_minor?: number })?.transferable_minor ?? 0);
@@ -148,9 +160,9 @@ serve(async (req) => {
     .insert({
       scheduled_for: nowIso.slice(0, 10),
       status: 'running',
-      environment: 'test',
-      live_money_enabled: false,
-      note: dryRun ? 'dry_run' : 'test_transfers',
+      environment: decision.environment,
+      live_money_enabled: decision.liveMoney,
+      note: dryRun ? 'dry_run' : `${decision.environment}_transfers`,
     })
     .select('id')
     .single();
@@ -245,18 +257,15 @@ serve(async (req) => {
 
     try {
       const transfer = await stripe.transfers.create(
-        {
-          amount,
-          currency: (row.currency || 'eur').toLowerCase(),
+        supplierTransferCreateParams({
+          amountMinor: amount,
+          currency: row.currency || 'eur',
           destination,
-          transfer_group: `period_${row.payout_period_id}`,
-          metadata: {
-            traverion_payout_period_id: row.payout_period_id,
-            traverion_transfer_attempt_id: attemptId,
-            traverion_supplier_id: row.supplier_id,
-            traverion_environment: 'test',
-          },
-        },
+          payoutPeriodId: row.payout_period_id,
+          transferAttemptId: attemptId,
+          supplierId: row.supplier_id,
+          environment: decision.environment,
+        }),
         { idempotencyKey: idempotency }
       );
 
@@ -311,7 +320,7 @@ serve(async (req) => {
                 metadata: {
                   traverion_bank_payout_attempt_id: bankRow.id,
                   traverion_payout_period_id: row.payout_period_id,
-                  traverion_environment: 'test',
+                  traverion_environment: decision.environment,
                 },
               },
               {
@@ -373,15 +382,16 @@ serve(async (req) => {
     } catch (err) {
       failed += 1;
       const msg = err instanceof Error ? err.message : 'transfer_failed';
-      const code =
+      const stripeCode =
         typeof err === 'object' && err && 'code' in err
           ? String((err as { code?: string }).code ?? 'stripe_error')
           : 'stripe_error';
+      const code = classifySupplierTransferFailure(stripeCode);
       await admin
         .from('supplier_transfer_attempts')
         .update({
           status: 'transfer_failed',
-          error_code: code,
+          error_code: stripeCode,
           error_message: msg,
           updated_at: new Date().toISOString(),
         })
@@ -394,7 +404,7 @@ serve(async (req) => {
         supplier_id: row.supplier_id,
         payout_period_id: row.payout_period_id,
         transfer_attempt_id: attemptId,
-        reason_code: code === 'balance_insufficient' ? 'insufficient_funds' : 'transfer_failed',
+        reason_code: code,
         detail: msg,
       });
       results.push({
@@ -422,8 +432,8 @@ serve(async (req) => {
 
   return json({
     success: true,
-    environment: 'test',
-    live_money: false,
+    environment: decision.environment,
+    live_money: decision.liveMoney,
     dry_run: dryRun,
     batch_id: batch.id,
     liquidity,

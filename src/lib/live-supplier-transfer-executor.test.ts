@@ -57,6 +57,27 @@ describe('production-safe supplier transfer executor', () => {
     expect(classifySupplierTransferFailure('card_declined')).toBe('transfer_failed');
   });
 
+  it('allows live execution only when the code approval, live flag, and both gates are on', () => {
+    expect(
+      supplierTransferExecutionDecision({
+        platformMode: 'live',
+        transfersFlag: 'live',
+        dbTransfersEnabled: 1,
+        dbPayoutExecutionEnabled: 1,
+        executionApproved: true,
+      })
+    ).toEqual({ allowed: true, environment: 'live', liveMoney: true });
+    expect(LIVE_SUPPLIER_TRANSFER_EXECUTION_APPROVED).toBe(false);
+    expect(
+      supplierTransferExecutionDecision({
+        platformMode: 'live',
+        transfersFlag: 'live',
+        dbTransfersEnabled: 1,
+        dbPayoutExecutionEnabled: 1,
+      }).allowed
+    ).toBe(false);
+  });
+
   it('stamps test metadata and does not add a commission surcharge', () => {
     const params = supplierTransferCreateParams({
       amountMinor: 1500,
@@ -70,6 +91,17 @@ describe('production-safe supplier transfer executor', () => {
     expect(params.metadata.traverion_environment).toBe('test');
     expect(params.amount).toBe(1500);
     expect(JSON.stringify(params)).not.toMatch(/surcharge|application_fee/);
+    const live = supplierTransferCreateParams({ ...{
+      amountMinor: 1500,
+      currency: 'EUR',
+      destination: 'acct_test',
+      payoutPeriodId: 'period-1',
+      transferAttemptId: 'attempt-1',
+      supplierId: 'supplier-1',
+    }, environment: 'live' });
+    expect(live.metadata.traverion_environment).toBe('live');
+    expect(live.amount).toBe(1500);
+    expect(JSON.stringify(live)).not.toMatch(/surcharge|application_fee/);
   });
 
   it('leaves the deployed executor hard-refusing live mode', () => {
@@ -78,8 +110,10 @@ describe('production-safe supplier transfer executor', () => {
       'utf8'
     );
     expect(source).toContain("stripeMoney.mode !== 'test'");
+    expect(source).toContain('LIVE_SUPPLIER_TRANSFER_EXECUTION_APPROVED');
     expect(source).toContain('Stripe Connect transfers remain TEST-only');
-    expect(source).toContain("environment: 'test'");
-    expect(source).toContain('live_money_enabled: false');
+    expect(source).toContain('supplierTransferExecutionDecision');
+    expect(source).toContain('supplierTransferCreateParams');
+    expect(source.indexOf('LIVE_SUPPLIER_TRANSFER_EXECUTION_APPROVED')).toBeLessThan(source.indexOf('new Stripe'));
   });
 });

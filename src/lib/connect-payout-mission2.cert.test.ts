@@ -67,8 +67,9 @@ describe('Mission 2: Connect onboarding + TEST transfer engine', () => {
     expect(transfers).toContain('resolveStripeMoneySecretFromEnv');
     expect(transfers).toContain('Connect transfers remain TEST-only');
     expect(transfers).toContain('stripe_connect_transfers_enabled');
-    expect(transfers).toContain('live_money_enabled: false');
-    expect(transfers).toContain("environment: 'test'");
+    expect(transfers).toContain('decision.liveMoney');
+    expect(transfers).toContain('decision.environment');
+    expect(transfers).toContain('LIVE_SUPPLIER_TRANSFER_EXECUTION_APPROVED');
     expect(transfers).toContain('reserve_supplier_transfer_attempt');
     expect(transfers).toContain('compute_platform_transferable_minor');
     expect(transfers).toContain('idempotencyKey');

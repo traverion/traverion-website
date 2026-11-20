@@ -67,6 +67,7 @@ describe('P9.36 LIVE Connect launch readiness (safe)', () => {
 
   it('refuses LIVE transfers in the executor regardless of UI', () => {
     expect(transfers).toContain("stripeMoney.mode !== 'test'");
+    expect(transfers).toContain('LIVE_SUPPLIER_TRANSFER_EXECUTION_APPROVED');
     expect(transfers).toContain('stripe_connect_transfers_enabled');
   });
 

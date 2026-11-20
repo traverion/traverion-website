@@ -1,23 +1,23 @@
 /**
- * Production-safe supplier transfer decision.
- * The running execute-supplier-transfers function still hard-refuses LIVE mode.
- * This module is the activation contract: live money stays impossible until
- * LIVE_SUPPLIER_TRANSFER_EXECUTION_APPROVED is changed in code after an explicit approval,
- * and both database gates plus the live env flag are on.
- * It does not call Stripe.
+ * Supplier transfer decision and Stripe request shape.
+ * Live money stays impossible until LIVE_SUPPLIER_TRANSFER_EXECUTION_APPROVED
+ * is changed after an explicit approval, the env flag is "live", and both
+ * database payout gates are on. This module does not call Stripe.
  */
 
 export const LIVE_SUPPLIER_TRANSFER_EXECUTION_APPROVED = false;
 
+export type SupplierTransferEnvironment = 'test' | 'live';
+
 export type SupplierTransferDecision =
   | {
       allowed: true;
-      environment: 'test';
-      liveMoney: false;
+      environment: SupplierTransferEnvironment;
+      liveMoney: boolean;
     }
   | {
       allowed: false;
-      environment: 'test' | 'live';
+      environment: SupplierTransferEnvironment;
       liveMoney: false;
       status: 503;
       error: string;
@@ -65,6 +65,15 @@ export function supplierTransferExecutionDecision(input: {
       error: 'Stripe Connect transfers remain TEST-only. LIVE supplier payouts are not enabled.',
     };
   }
+  if (mode !== 'live') {
+    return {
+      allowed: false,
+      environment: 'live',
+      liveMoney: false,
+      status: 503,
+      error: 'LIVE supplier payouts are not enabled.',
+    };
+  }
   if (flag !== 'live' || Number(input.dbTransfersEnabled) !== 1 || Number(input.dbPayoutExecutionEnabled) !== 1) {
     return {
       allowed: false,
@@ -74,13 +83,7 @@ export function supplierTransferExecutionDecision(input: {
       error: 'LIVE supplier transfers stay closed until both payout gates and the live transfer flag are on.',
     };
   }
-  return {
-    allowed: false,
-    environment: 'live',
-    liveMoney: false,
-    status: 503,
-    error: 'LIVE supplier payouts are not enabled.',
-  };
+  return { allowed: true, environment: 'live', liveMoney: true };
 }
 
 export function supplierTransferIdempotencyKey(payoutPeriodId: string, attemptNumber: number): string {
@@ -100,7 +103,7 @@ export function supplierTransferCreateParams(input: {
   payoutPeriodId: string;
   transferAttemptId: string;
   supplierId: string;
-  environment: 'test';
+  environment: SupplierTransferEnvironment;
 }): {
   amount: number;
   currency: string;

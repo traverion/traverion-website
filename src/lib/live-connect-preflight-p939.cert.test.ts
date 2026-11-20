@@ -62,6 +62,7 @@ describe('P9.39 LIVE Connect activation preflight (safe)', () => {
   it('keeps transfers LIVE-hard-blocked and Account Link available in code', () => {
     expect(transfers).toContain("stripeMoney.mode !== 'test'");
     expect(transfers).toContain('Stripe Connect transfers remain TEST-only');
+    expect(transfers).toContain('LIVE_SUPPLIER_TRANSFER_EXECUTION_APPROVED');
     expect(edge).toContain("action === 'account_link'");
     expect(edge).toContain('accountLinks.create');
     expect(wizard).toContain('fetchConnectAccountLink');

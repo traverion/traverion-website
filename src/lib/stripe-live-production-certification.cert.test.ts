@@ -71,9 +71,10 @@ describe('Stripe LIVE production certification — safety locks remain', () => {
     const transfers = read('supabase/functions/execute-supplier-transfers/index.ts');
     expect(transfers).toContain("STRIPE_CONNECT_TRANSFERS_ENABLED");
     expect(transfers).toMatch(/transfersFlag !== ['"]test['"]/);
-    expect(transfers).toContain("environment: 'test'");
-    expect(transfers).toContain('live_money_enabled: false');
+    expect(transfers).toContain('decision.environment');
+    expect(transfers).toContain('decision.liveMoney');
     expect(transfers).toContain('Connect transfers remain TEST-only');
+    expect(transfers).toContain('LIVE_SUPPLIER_TRANSFER_EXECUTION_APPROVED');
     expect(transfers).not.toMatch(/STRIPE_CONNECT_TRANSFERS_ENABLED.*live/);
   });
 
