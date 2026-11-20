@@ -41,12 +41,14 @@ describe('GetYourGuide ingestion stays disabled', () => {
     expect(gygRetryDecision({ attempt: 1, httpStatus: 409 })).toBe('stop');
   });
 
-  it('keeps the edge handler closed', () => {
+  it('keeps the public endpoint generic and closed', () => {
     const source = readFileSync(
       resolve(import.meta.dirname, '../../supabase/functions/gyg-booking-ingestion/index.ts'),
       'utf8'
     );
     expect(source).toContain('gygIngestionEnabled');
+    expect(source).toContain("error: 'Not found'");
     expect(source).not.toContain('api.getyourguide.com');
+    expect(source).not.toMatch(/GetYourGuide|Viator|TripAdvisor/);
   });
 });
