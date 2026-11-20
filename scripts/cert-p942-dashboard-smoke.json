@@ -1,0 +1,122 @@
+{
+  "at": "2026-11-20T22:46:19.081Z",
+  "passed": 23,
+  "total": 23,
+  "checks": [
+    {
+      "name": "desktop Home renders",
+      "ok": true,
+      "detail": "status 200 chars 725 overflow false"
+    },
+    {
+      "name": "desktop Calendar renders",
+      "ok": true,
+      "detail": "status 200 chars 306 overflow false"
+    },
+    {
+      "name": "desktop Bookings renders",
+      "ok": true,
+      "detail": "status 200 chars 393 overflow false"
+    },
+    {
+      "name": "desktop Listings renders",
+      "ok": true,
+      "detail": "status 200 chars 377 overflow false"
+    },
+    {
+      "name": "desktop Inbox renders",
+      "ok": true,
+      "detail": "status 200 chars 344 overflow false"
+    },
+    {
+      "name": "desktop Income renders",
+      "ok": true,
+      "detail": "status 200 chars 279 overflow false"
+    },
+    {
+      "name": "desktop Analytics renders",
+      "ok": true,
+      "detail": "status 200 chars 359 overflow false"
+    },
+    {
+      "name": "desktop Business settings renders",
+      "ok": true,
+      "detail": "status 200 chars 841 overflow false"
+    },
+    {
+      "name": "desktop Account settings renders",
+      "ok": true,
+      "detail": "status 200 chars 648 overflow false"
+    },
+    {
+      "name": "desktop console",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "mobile Home renders",
+      "ok": true,
+      "detail": "status 200 chars 320 overflow false"
+    },
+    {
+      "name": "mobile Calendar renders",
+      "ok": true,
+      "detail": "status 200 chars 196 overflow false"
+    },
+    {
+      "name": "mobile Bookings renders",
+      "ok": true,
+      "detail": "status 200 chars 253 overflow false"
+    },
+    {
+      "name": "mobile Listings renders",
+      "ok": true,
+      "detail": "status 200 chars 267 overflow false"
+    },
+    {
+      "name": "mobile Inbox renders",
+      "ok": true,
+      "detail": "status 200 chars 234 overflow false"
+    },
+    {
+      "name": "mobile Income renders",
+      "ok": true,
+      "detail": "status 200 chars 168 overflow false"
+    },
+    {
+      "name": "mobile Analytics renders",
+      "ok": true,
+      "detail": "status 200 chars 249 overflow false"
+    },
+    {
+      "name": "mobile Business settings renders",
+      "ok": true,
+      "detail": "status 200 chars 730 overflow false"
+    },
+    {
+      "name": "mobile Account settings renders",
+      "ok": true,
+      "detail": "status 200 chars 537 overflow false"
+    },
+    {
+      "name": "mobile console",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "income does not say payouts operational",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "income keeps the closed-gate sentence or not-operational headline",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "verified supplier leaves onboarding",
+      "ok": true,
+      "detail": "https://partner.traverion.com/partner"
+    }
+  ]
+}
