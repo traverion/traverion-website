@@ -3,12 +3,12 @@
   "steps": [
     {
       "name": "created_paid_pi",
-      "paymentIntentId": "pi_3UTTLyC3BaJIHpM60QQ7KPbC",
+      "paymentIntentId": "pi_3Ue0exC3BaJIHpM60gsgRGZb",
       "amountMinor": 2700
     },
     {
       "name": "inserted_cancelled_stay_booking",
-      "bookingId": "a3333333-3333-4333-8333-333333333333"
+      "bookingId": "cc193cf2-82c3-4750-bf0e-018768c9d1a8"
     },
     {
       "name": "fixture_is_stay",
@@ -16,9 +16,10 @@
     },
     {
       "name": "ensure_instruction",
-      "id": "6268939f-8a4b-4f08-aab7-289abc01c7c0",
+      "id": "62de07d6-bec9-428b-83bf-2c185c6a220b",
       "status": "ready",
-      "amountMinor": 2700
+      "amountMinor": 2700,
+      "idempotencyKey": "cancel-refund:cc193cf2-82c3-4750-bf0e-018768c9d1a8"
     },
     {
       "name": "claim_instruction",
@@ -26,12 +27,12 @@
     },
     {
       "name": "stripe_refund_created",
-      "refundId": "re_3UTTLyC3BaJIHpM60tuW93rf",
+      "refundId": "re_3Ue0exC3BaJIHpM60VguLCJT",
       "status": "succeeded"
     },
     {
       "name": "stripe_refund_idempotent_replay",
-      "refundId": "re_3UTTLyC3BaJIHpM60tuW93rf"
+      "refundId": "re_3Ue0exC3BaJIHpM60VguLCJT"
     },
     {
       "name": "mark_instruction_submitted",
@@ -47,16 +48,18 @@
     },
     {
       "name": "stripe_refund_verified",
-      "id": "re_3UTTLyC3BaJIHpM60tuW93rf",
+      "id": "re_3Ue0exC3BaJIHpM60VguLCJT",
       "status": "succeeded",
       "amount": 2700
     }
   ],
-  "stripePaymentIntentId": "pi_3UTTLyC3BaJIHpM60QQ7KPbC",
-  "stripeRefundId": "re_3UTTLyC3BaJIHpM60tuW93rf",
+  "stripePaymentIntentId": "pi_3Ue0exC3BaJIHpM60gsgRGZb",
+  "stripeRefundId": "re_3Ue0exC3BaJIHpM60VguLCJT",
   "stripeRefundStatus": "succeeded",
-  "duplicateRefundId": "re_3UTTLyC3BaJIHpM60tuW93rf",
+  "duplicateRefundId": "re_3Ue0exC3BaJIHpM60VguLCJT",
   "instructionStatus": "succeeded",
   "nonRefundableBlocked": true,
-  "errors": []
+  "errors": [],
+  "target": "gedktutbpfwnstcbffsc",
+  "idempotencyKey": "cancel-refund:cc193cf2-82c3-4750-bf0e-018768c9d1a8"
 }

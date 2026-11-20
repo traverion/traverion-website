@@ -391,10 +391,20 @@ async function assertProductionWebhooksRemainEnabled(sk) {
   const prod = (listed.data || []).filter((endpoint) =>
     String(endpoint.url || '').includes(PRODUCTION_PROJECT_REF)
   );
-  const disabled = prod.filter((endpoint) => endpoint.status === 'disabled');
-  if (disabled.length) {
+  const byUrl = new Map();
+  for (const endpoint of prod) {
+    const url = String(endpoint.url || '');
+    const bucket = byUrl.get(url) || [];
+    bucket.push(endpoint);
+    byUrl.set(url, bucket);
+  }
+  const uncovered = [];
+  for (const [url, endpoints] of byUrl) {
+    if (!endpoints.some((endpoint) => endpoint.status === 'enabled')) uncovered.push(url);
+  }
+  if (uncovered.length) {
     throw new Error(
-      `ABORT: production Stripe webhook(s) are disabled (${disabled.map((e) => e.id).join(', ')}). Cert must not disable them; re-enable manually.`
+      `ABORT: production Stripe webhook URL has no enabled endpoint (${uncovered.join(', ')}). Cert must not disable them; re-enable manually.`
     );
   }
   return prod.map((endpoint) => ({

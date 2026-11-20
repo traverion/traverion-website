@@ -1,0 +1,45 @@
+{
+  "ok": true,
+  "project": "gedktutbpfwnstcbffsc",
+  "runId": "73271d21",
+  "steps": [
+    {
+      "name": "identities",
+      "ok": true
+    },
+    {
+      "name": "tour_listing_published",
+      "ok": true,
+      "listingId": "478c28e2-6ed8-4ca8-b2ba-835894fab788"
+    },
+    {
+      "name": "tour_checkout_session",
+      "ok": true,
+      "bookingId": "e7ac7b91-f51e-4f8f-886f-7aec2bffa6c3"
+    },
+    {
+      "name": "tour_test_payment",
+      "ok": true,
+      "amount": 3000,
+      "livemode": false
+    },
+    {
+      "name": "tour_confirmed",
+      "ok": true,
+      "status": "confirmed",
+      "payment": "paid",
+      "amount": "30.00"
+    },
+    {
+      "name": "other_supplier_cannot_read_booking",
+      "ok": true
+    },
+    {
+      "name": "tour_refund_idempotent",
+      "ok": true,
+      "refundId": "re_3Ue0laC3BaJIHpM602Vjzr6T",
+      "status": "succeeded"
+    }
+  ],
+  "errors": []
+}

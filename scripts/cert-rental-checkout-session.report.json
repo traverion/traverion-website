@@ -1,8 +1,8 @@
 {
   "ok": true,
   "phase": "rental_checkout_session",
-  "startedAt": "2026-11-08T18:31:54.146Z",
-  "runId": "6ff681a3",
+  "startedAt": "2026-11-20T22:53:10.993Z",
+  "runId": "ce3af079",
   "environment": {
     "project": "gedktutbpfwnstcbffsc",
     "productionRefRejected": "xcopqllkulxfkpunetbc",
@@ -13,7 +13,7 @@
   },
   "safety": {
     "before": {
-      "bookings": 9,
+      "bookings": 12,
       "published_rentals": 1
     },
     "productionFlagStillAbsent": true,
@@ -29,97 +29,99 @@
       "ok": true,
       "via": "capability_probe",
       "http": 200,
-      "at": "2026-11-08T18:31:55.092Z"
+      "at": "2026-11-20T22:53:11.228Z"
     },
     {
       "name": "staging_rental_checkout_flag_present",
       "ok": true,
       "via": "capability_probe",
       "http": 200,
-      "at": "2026-11-08T18:31:55.345Z"
+      "at": "2026-11-20T22:53:11.396Z"
     },
     {
       "name": "baseline_published_rentals_present_allowed",
       "ok": true,
       "published_rentals": 1,
       "note": "staging browser fixtures may already be published; cert fixture stays draft",
-      "at": "2026-11-08T18:31:59.829Z"
+      "at": "2026-11-20T22:53:13.856Z"
     },
     {
       "name": "baseline_counts",
       "ok": true,
-      "bookings": 9,
+      "bookings": 12,
       "published_rentals": 1,
-      "at": "2026-11-08T18:31:59.830Z"
+      "at": "2026-11-20T22:53:13.856Z"
     },
     {
       "name": "production_stripe_webhooks_remain_enabled",
       "ok": true,
-      "count": 1,
+      "count": 3,
       "ids": [
+        "we_1UcARhC3BaJIHpM69G7NUbEl",
+        "we_1UcARgC3BaJIHpM6vICBe08B",
         "we_1TWkBwC3BaJIHpM6eVbY1DOc"
       ],
-      "at": "2026-11-08T18:32:00.177Z"
+      "at": "2026-11-20T22:53:14.359Z"
     },
     {
       "name": "cert_identities_example_com",
       "ok": true,
-      "at": "2026-11-08T18:32:05.531Z"
+      "at": "2026-11-20T22:53:19.941Z"
     },
     {
       "name": "fixture_listing_draft",
       "ok": true,
-      "at": "2026-11-08T18:32:07.540Z"
+      "at": "2026-11-20T22:53:21.989Z"
     },
     {
       "name": "publication_gate_282_blocks_publish",
       "ok": true,
       "status": "draft",
       "attempt": "refused_kept_draft",
-      "at": "2026-11-08T18:32:11.460Z"
+      "at": "2026-11-20T22:53:26.218Z"
     },
     {
       "name": "using_staging_hosted_checkout_function",
       "ok": true,
       "url": "https://gedktutbpfwnstcbffsc.supabase.co/functions/v1/create-booking-checkout-session",
-      "at": "2026-11-08T18:32:11.461Z"
+      "at": "2026-11-20T22:53:26.219Z"
     },
     {
       "name": "staging_capability_probe_open",
       "ok": true,
       "success": true,
       "rentalCheckoutEnabled": true,
-      "at": "2026-11-08T18:32:11.691Z"
+      "at": "2026-11-20T22:53:26.361Z"
     },
     {
       "name": "production_capability_probe_closed",
       "ok": true,
       "http": 200,
       "rentalCheckoutEnabled": false,
-      "at": "2026-11-08T18:32:11.863Z"
+      "at": "2026-11-20T22:53:26.512Z"
     },
     {
       "name": "preview_fixture_rejected",
       "ok": true,
       "http": 404,
       "error": "Listing not found",
-      "at": "2026-11-08T18:32:12.665Z"
+      "at": "2026-11-20T22:53:27.289Z"
     },
     {
       "name": "price_tamper_rejected",
       "ok": true,
       "http": 409,
-      "at": "2026-11-08T18:32:13.336Z"
+      "at": "2026-11-20T22:53:27.962Z"
     },
     {
       "name": "checkout_session_created_idempotent",
       "ok": true,
-      "bookingId": "a78c9fbb",
-      "sessionId": "cs_test_a19laisAk9ZPu41Qf2Dvk5LzUNBWdeP7ry6JqpVI3i4nVgf7LSxRoaw67v",
+      "bookingId": "c7ee1b5a",
+      "sessionId": "cs_test_a01wnWQwW9kd6FyWasineOl67DTwBm9DyxtO6iLHC8zZ8uhCf3Ro4wfC3m",
       "quotedTotal": 25,
       "unpaidHolds": 0,
       "mode": "instant_book_no_hold",
-      "at": "2026-11-08T18:32:17.320Z"
+      "at": "2026-11-20T22:53:32.586Z"
     },
     {
       "name": "stripe_checkout_session_test_mode",
@@ -130,21 +132,21 @@
       "projectRef": "gedktutbpfwnstcbffsc",
       "successOrigin": "http://127.0.0.1:5184",
       "success_url": "http://127.0.0.1:5184/booking-confirmed?session_id={CHECKOUT_SESSION_ID}",
-      "at": "2026-11-08T18:32:17.638Z"
+      "at": "2026-11-20T22:53:32.909Z"
     },
     {
       "name": "checkout_session_completed",
       "ok": true,
       "via": "payment_pages_confirm_tok_visa",
-      "at": "2026-11-08T18:32:19.015Z"
+      "at": "2026-11-20T22:53:34.223Z"
     },
     {
       "name": "success_page_reconcile_first",
       "ok": true,
       "http": 200,
-      "alreadySettled": false,
-      "promoted": true,
-      "at": "2026-11-08T18:32:31.341Z"
+      "alreadySettled": true,
+      "promoted": false,
+      "at": "2026-11-20T22:53:42.935Z"
     },
     {
       "name": "webhook_or_reconcile_promoted",
@@ -152,22 +154,22 @@
       "status": "confirmed",
       "payment": "paid",
       "amount": "25.00",
-      "publicReference": "TV-AMMGJBCG",
+      "publicReference": "TV-T8RH8WHX",
       "holdsConfirmed": 1,
-      "at": "2026-11-08T18:32:36.047Z"
+      "at": "2026-11-20T22:53:47.722Z"
     },
     {
       "name": "cross_env_no_production_refund",
       "ok": true,
-      "paymentIntentId": "pi_3UZat4C3BaJIHpM610Y90yTw",
-      "at": "2026-11-08T18:32:52.547Z"
+      "paymentIntentId": "pi_3Ue0gTC3BaJIHpM61uSkEnR2",
+      "at": "2026-11-20T22:54:04.262Z"
     },
     {
       "name": "success_page_refresh_idempotent",
       "ok": true,
       "http": 200,
       "alreadySettled": true,
-      "at": "2026-11-08T18:32:52.925Z"
+      "at": "2026-11-20T22:54:07.111Z"
     },
     {
       "name": "signed_webhook_processed",
@@ -176,17 +178,23 @@
         "checkout.session.completed",
         "payment_intent.succeeded"
       ],
-      "webhook": [],
-      "via": "reconcile_already_promoted_webhook_row_missing",
-      "completedEventId": "evt_1UZat5C3BaJIHpM640LkHnMp",
-      "at": "2026-11-08T18:34:24.280Z"
+      "webhook": [
+        {
+          "event_type": "checkout.session.completed",
+          "id": "evt_1Ue0gUC3BaJIHpM6MqOyOcBh",
+          "status": "processed"
+        }
+      ],
+      "via": "stripe_listen",
+      "at": "2026-11-20T22:54:09.952Z"
     },
     {
       "name": "duplicate_webhook_idempotent",
       "ok": true,
+      "webhookStatus": "processed",
       "holds": 1,
       "via": "stripe_events_resend",
-      "at": "2026-11-08T18:34:36.735Z"
+      "at": "2026-11-20T22:54:23.359Z"
     },
     {
       "name": "out_of_order_events_single_reservation",
@@ -194,7 +202,7 @@
       "sawPaymentIntentSucceeded": true,
       "sawCheckoutCompleted": true,
       "confirmedHolds": 1,
-      "at": "2026-11-08T18:34:38.667Z"
+      "at": "2026-11-20T22:54:25.338Z"
     },
     {
       "name": "paid_notifications_captured",
@@ -212,10 +220,10 @@
           "channel": "customer",
           "template": "booking_confirmed_paid",
           "status": "skipped",
-          "recipient": "cert-rental-guest-6ff681a3@example.com"
+          "recipient": "cert-rental-guest-ce3af079@example.com"
         }
       ],
-      "at": "2026-11-08T18:34:43.646Z"
+      "at": "2026-11-20T22:54:30.371Z"
     },
     {
       "name": "confirmation_dedup",
@@ -223,7 +231,7 @@
       "http": 401,
       "skipped": false,
       "reason": null,
-      "at": "2026-11-08T18:34:44.287Z"
+      "at": "2026-11-20T22:54:30.780Z"
     },
     {
       "name": "ownership_visibility",
@@ -231,7 +239,7 @@
       "guest": 1,
       "supplier": 1,
       "anon": 0,
-      "at": "2026-11-08T18:34:44.831Z"
+      "at": "2026-11-20T22:54:30.988Z"
     },
     {
       "name": "admin_permissions_blocked",
@@ -239,44 +247,44 @@
       "edge": 403,
       "rpc": 403,
       "error": "Forbidden: Traverion admin role required (see grant_traverion_admin.sql).",
-      "at": "2026-11-08T18:34:45.524Z"
+      "at": "2026-11-20T22:54:31.968Z"
     },
     {
       "name": "abandon_checkout_no_inventory_reserved",
       "ok": true,
-      "payment": "pending",
-      "status": "pending",
+      "payment": "failed",
+      "status": "cancelled",
       "holds": [],
       "mode": "instant_book_no_hold",
-      "note": "unpaid pending after expire still reserves nothing (no-hold)",
-      "at": "2026-11-08T18:35:38.991Z"
+      "note": "session expire promoted booking to failed/cancelled",
+      "at": "2026-11-20T22:54:46.844Z"
     },
     {
       "name": "cancel_races_promotion_refunded",
       "ok": true,
       "status": "cancelled",
-      "payment": "pending",
-      "refund": "re_3UZawNC3BaJIHpM60MU4s9EE",
-      "at": "2026-11-08T18:36:13.925Z"
+      "payment": "refunded",
+      "refund": "re_3Ue0hiC3BaJIHpM61cHjCp5G",
+      "at": "2026-11-20T22:54:59.179Z"
     },
     {
       "name": "last_unit_two_unpaid_sessions_no_hold",
       "ok": true,
-      "bookingA": "be87fe34",
-      "bookingB": "c517cfb4",
+      "bookingA": "bf2ac109",
+      "bookingB": "b7a13ccb",
       "reserved": 0,
-      "at": "2026-11-08T18:36:17.647Z"
+      "at": "2026-11-20T22:55:03.397Z"
     },
     {
       "name": "paid_inventory_conflict_one_winner_loser_refunded",
       "ok": true,
-      "winner": "be87fe34",
-      "loser": "c517cfb4",
-      "refund": "re_3UZawwC3BaJIHpM61ykwgRf9",
+      "winner": "b7a13ccb",
+      "loser": "bf2ac109",
+      "refund": "re_3Ue0hwC3BaJIHpM60TKgH0pT",
       "reserved": 1,
       "refundCount": 1,
       "mode": "instant_book_no_hold",
-      "at": "2026-11-08T18:36:38.027Z"
+      "at": "2026-11-20T22:55:23.262Z"
     },
     {
       "name": "admin_stuck_hold_recovered",
@@ -286,29 +294,29 @@
         "pending_hold_expired"
       ],
       "hold": "expired",
-      "at": "2026-11-08T18:36:52.139Z"
+      "at": "2026-11-20T22:55:33.137Z"
     },
     {
       "name": "cancel_released_confirmed_hold",
       "ok": true,
-      "at": "2026-11-08T18:36:56.091Z"
+      "at": "2026-11-20T22:55:37.024Z"
     },
     {
       "name": "execute_booking_refund_rental_no_auto",
       "ok": true,
-      "http": 200,
+      "http": 400,
       "error": "rental_no_auto_refund",
-      "replayHttp": 200,
+      "replayHttp": 400,
       "replayError": "rental_no_auto_refund",
-      "at": "2026-11-08T18:36:57.353Z"
+      "at": "2026-11-20T22:55:38.224Z"
     },
     {
       "name": "manual_stripe_refund_after_no_auto",
       "ok": true,
-      "refundId": "re_3UZat4C3BaJIHpM61A6azsJU",
+      "refundId": "re_3Ue0gTC3BaJIHpM61FEMFUAz",
       "status": "succeeded",
-      "bookingPayment": "paid",
-      "at": "2026-11-08T18:37:00.200Z"
+      "bookingPayment": "refunded",
+      "at": "2026-11-20T22:55:42.004Z"
     },
     {
       "name": "notification_smoke",
@@ -341,44 +349,56 @@
           "channel": "customer",
           "template": "booking_confirmed_paid",
           "status": "skipped",
-          "recipient": "cert-rental-guest-6ff681a3@example.com"
+          "recipient": "cert-rental-guest-ce3af079@example.com"
+        },
+        {
+          "channel": "customer",
+          "template": "refund_completed",
+          "status": "skipped",
+          "recipient": "cert-rental-guest-ce3af079@example.com"
+        },
+        {
+          "channel": "supplier",
+          "template": "refund_completed",
+          "status": "skipped",
+          "recipient": null
         }
       ],
-      "at": "2026-11-08T18:37:05.167Z"
+      "at": "2026-11-20T22:55:47.300Z"
     },
     {
       "name": "no_live_booking_contamination",
       "ok": true,
-      "other_bookings": 9,
+      "other_bookings": 12,
       "published_rentals": 1,
-      "at": "2026-11-08T18:37:07.091Z"
+      "at": "2026-11-20T22:55:49.493Z"
     },
     {
       "name": "cleanup_listing",
       "ok": true,
-      "at": "2026-11-08T18:37:09.071Z"
+      "at": "2026-11-20T22:55:51.652Z"
     },
     {
       "name": "cleanup_cert_users",
       "ok": true,
-      "at": "2026-11-08T18:37:09.488Z"
+      "at": "2026-11-20T22:55:52.026Z"
     },
     {
       "name": "production_stripe_webhooks_still_enabled_after_cert",
       "ok": true,
-      "count": 1,
-      "at": "2026-11-08T18:37:09.861Z"
+      "count": 3,
+      "at": "2026-11-20T22:55:52.369Z"
     }
   ],
   "errors": [],
   "ids": {
-    "guestEmail": "cert-rental-guest-6ff681a3@example.com",
-    "supplierEmail": "cert-rental-supplier-6ff681a3@example.com",
-    "guestId": "b664438b-bf77-4f2b-92ea-875dd55595da",
-    "supplierId": "499a3388-6d81-4ed3-b43c-82cd870fa7c6",
-    "listingId": "b9847182-5b4d-411a-afc6-48aa2d5443cd",
-    "bookingId": "a78c9fbb-d716-4a94-aa99-9b2460e55d54",
-    "checkoutSessionId": "cs_test_a19laisAk9ZPu41Qf2Dvk5LzUNBWdeP7ry6JqpVI3i4nVgf7LSxRoaw67v"
+    "guestEmail": "cert-rental-guest-ce3af079@example.com",
+    "supplierEmail": "cert-rental-supplier-ce3af079@example.com",
+    "guestId": "bd6452c5-998e-4518-a4d9-404a68557012",
+    "supplierId": "c0b7b779-2e07-427a-b472-0319fbc96d51",
+    "listingId": "bfb47619-61e9-4d4e-a162-891fb818ca5b",
+    "bookingId": "c7ee1b5a-6f1f-4cd2-8bb4-8da1f0cbe150",
+    "checkoutSessionId": "cs_test_a01wnWQwW9kd6FyWasineOl67DTwBm9DyxtO6iLHC8zZ8uhCf3Ro4wfC3m"
   },
   "notifications": [
     {
@@ -391,8 +411,20 @@
       "channel": "customer",
       "template": "booking_confirmed_paid",
       "status": "skipped",
-      "recipient": "cert-rental-guest-6ff681a3@example.com"
+      "recipient": "cert-rental-guest-ce3af079@example.com"
+    },
+    {
+      "channel": "customer",
+      "template": "refund_completed",
+      "status": "skipped",
+      "recipient": "cert-rental-guest-ce3af079@example.com"
+    },
+    {
+      "channel": "supplier",
+      "template": "refund_completed",
+      "status": "skipped",
+      "recipient": null
     }
   ],
-  "finishedAt": "2026-11-08T18:37:10.247Z"
+  "finishedAt": "2026-11-20T22:55:55.632Z"
 }
