@@ -28,6 +28,7 @@ import {
   supplierEventPartyAllowsNotify,
   supplierTeamRoleIsEditor,
 } from '../_shared/notify-supplier-event-auth.ts';
+import { isAuthorizedServiceRoleRequest } from '../_shared/notify-customer-booking-auth.ts';
 import { authUserVerifiedEmail } from '../_shared/auth-verified-email.ts';
 import { notifyUnpaidCheckoutFromPaymentStatus } from '../_shared/notify-unpaid-checkout.ts';
 import { travelerOwnsCheckoutBooking } from '../_shared/booking-traveler-ownership.ts';
@@ -784,7 +785,14 @@ const handler = async (req: Request): Promise<Response> => {
       payload.eventType === 'verification_action_required'
     ) {
       const authHeader = req.headers.get('Authorization');
-      if (!isServiceRoleBearer(authHeader, serviceRoleKey)) {
+      if (
+        !(await isAuthorizedServiceRoleRequest({
+          authHeader,
+          serviceRoleKey,
+          supabaseUrl,
+          anonKey: Deno.env.get('SUPABASE_ANON_KEY'),
+        }))
+      ) {
         return json({ success: false, error: 'Unauthorized' }, 401);
       }
     }
@@ -892,7 +900,14 @@ const handler = async (req: Request): Promise<Response> => {
     // Phase 1127: guest JWT may only invoke guest-originated booking events.
     if (isBookingTiedSupplierEvent(payload.eventType) || isReviewTiedSupplierEvent(payload.eventType)) {
       const authHeader = req.headers.get('Authorization');
-      if (isServiceRoleBearer(authHeader, serviceRoleKey)) {
+      if (
+        await isAuthorizedServiceRoleRequest({
+          authHeader,
+          serviceRoleKey,
+          supabaseUrl,
+          anonKey: Deno.env.get('SUPABASE_ANON_KEY'),
+        })
+      ) {
         allowCallerFieldDiffs = true;
       } else {
         const anonKey = Deno.env.get('SUPABASE_ANON_KEY');

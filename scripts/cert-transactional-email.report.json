@@ -1,0 +1,16 @@
+{
+  "ok": true,
+  "project": "gedktutbpfwnstcbffsc",
+  "inbox": "delivered@resend.dev",
+  "auth": "service-role JWT accepted after signature check; anon token rejected",
+  "messages": [
+    { "kind": "traveler_welcome", "providerMessageId": "01a1fb40-d1f4-735c-abcf-45ef613b72a6", "last_event": "delivered" },
+    { "kind": "booking_confirmed_paid", "providerMessageId": "01a1fb42-243c-7cd2-82cc-4073f4c20910", "last_event": "delivered", "subject": "Your Traverion booking is confirmed · Cert mail tour" },
+    { "kind": "refund_completed", "providerMessageId": "01a1fb42-2a5a-7d31-9d4f-72482f9d6628", "last_event": "delivered", "subject": "Your refund has been processed · TV-92PNN829" },
+    { "kind": "supplier_new_booking", "providerMessageId": "01a1fb42-329e-77ff-97d7-2bd450f4bc20", "last_event": "delivered", "subject": "New booking · Cert mail tour" },
+    { "kind": "booking_cancelled", "providerMessageId": "01a1fb42-3629-7404-88f1-cf70743f8845", "last_event": "delivered", "subject": "Your booking has been cancelled · TV-92PNN829" }
+  ],
+  "dedup": "immediate replay of paid, refund, and supplier sends returned already_sent",
+  "log": "five transactional_email_log rows recorded status sent",
+  "staging_mode_restored": "TRANSACTIONAL_EMAIL_MODE=log_only"
+}

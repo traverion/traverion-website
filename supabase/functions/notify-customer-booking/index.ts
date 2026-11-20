@@ -34,6 +34,7 @@ import {
   bookingPartyAllowsCustomerNotify,
   customerEmailKindRequiresServiceRole,
   guestMayInvokeCustomerEmailKind,
+  isAuthorizedServiceRoleRequest,
   isServiceRoleBearer,
   supplierTeamRoleIsEditor,
 } from '../_shared/notify-customer-booking-auth.ts';
@@ -534,7 +535,14 @@ const handler = async (req: Request): Promise<Response> => {
         return json({ success: false, error: 'Unauthorized' }, 401);
       }
       const authHeader = req.headers.get('Authorization');
-      if (isServiceRoleBearer(authHeader, serviceRoleKey)) {
+      if (
+        await isAuthorizedServiceRoleRequest({
+          authHeader,
+          serviceRoleKey,
+          supabaseUrl: Deno.env.get('SUPABASE_URL'),
+          anonKey: Deno.env.get('SUPABASE_ANON_KEY'),
+        })
+      ) {
         allowCallerFieldDiffs = true;
       } else {
         if (customerEmailKindRequiresServiceRole(kind)) {
