@@ -10,6 +10,7 @@ import SkipLink from '../components/SkipLink';
 import { navigateBackOrFallback } from '../lib/appRouting';
 import TravelerAuthForm, { type TravelerAuthTab } from '../components/auth/TravelerAuthForm';
 import { useAuth } from '../contexts/AuthContext';
+import { armTravelerToast } from '../lib/traveler-toast';
 
 interface AuthPageProps {
   onNavigate: (page: string) => void;
@@ -79,6 +80,7 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
   useEffect(() => {
     const params = new URLSearchParams();
     params.set('next', nextPage);
+    if (new URLSearchParams(window.location.search).get('via') === 'link') params.set('via', 'link');
     const path = tab === 'signup' ? '/sign-up' : '/log-in';
     window.history.replaceState({}, '', `${path}?${params.toString()}`);
   }, [tab, nextPage]);
@@ -140,7 +142,10 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
                 destinationHint={destinationHint(nextPage)}
                 bannerError={bannerError}
                 showPartnerLink
-                onAuthenticated={() => onNavigate(nextPage)}
+                onAuthenticated={(kind) => {
+                  armTravelerToast(kind, nextPage);
+                  onNavigate(nextPage);
+                }}
               />
             </div>
           </div>

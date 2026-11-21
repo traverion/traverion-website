@@ -29,6 +29,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { BRAND_LOGO_SRC } from '../lib/brandAssets';
 import { supplierPortalLandingHref } from '../lib/partnerHost';
+import { armTravelerToast } from '../lib/traveler-toast';
 import { travelerDisplayNameFromSources } from '../lib/traveler-display-name';
 import TravelerTestModeBanner from './TravelerTestModeBanner';
 import {
@@ -431,7 +432,7 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                           type="button"
                           onClick={() => {
                             setIsUserMenuOpen(false);
-                            void signOut();
+                            void signOut().then(() => armTravelerToast('logout', currentPage));
                           }}
                           className="lux-flat tv-profile-menu__item"
                         >
@@ -664,8 +665,8 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                     <button
                       type="button"
                       onClick={() => {
-                        void signOut();
                         setIsMobileMenuOpen(false);
+                        void signOut().then(() => armTravelerToast('logout', currentPage));
                       }}
                       className="lux-flat tv-profile-menu__item w-full"
                     >

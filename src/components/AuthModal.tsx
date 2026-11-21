@@ -3,6 +3,7 @@ import { X } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useDialogFocus } from '../hooks/useDialogFocus';
 import TravelerAuthForm, { type TravelerAuthTab } from './auth/TravelerAuthForm';
+import { armTravelerToast } from '../lib/traveler-toast';
 
 const EXIT_MS = 200;
 
@@ -14,7 +15,7 @@ function prefersReducedMotion(): boolean {
  * Shared traveler authentication modal for Tour, Stay, and Rental checkout gates.
  * Enter/exit motion is CSS-driven; reduced-motion skips slide/fade.
  */
-export default function AuthModal() {
+export default function AuthModal({ page }: { page: string }) {
   const { authModalOpen, authIntent, closeAuthModal, triggerAuthSuccess } = useAuth();
   const [tab, setTab] = useState<TravelerAuthTab>('signin');
   const [mounted, setMounted] = useState(false);
@@ -112,7 +113,8 @@ export default function AuthModal() {
             afterConfirmNext="account"
             returnHref={`${window.location.pathname}${window.location.search}`}
             showPartnerLink
-            onAuthenticated={() => {
+            onAuthenticated={(kind) => {
+              armTravelerToast(kind, page);
               void triggerAuthSuccess();
             }}
           />

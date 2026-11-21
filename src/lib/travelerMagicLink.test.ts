@@ -13,6 +13,7 @@ describe('traveler magic link redirect', () => {
     const kept = new URL(travelerMagicLinkRedirect('home', '/tours/lapland?date=2026-12-01'));
     expect(kept.pathname).toBe('/tours/lapland');
     expect(kept.searchParams.get('date')).toBe('2026-12-01');
+    expect(kept.searchParams.get('via')).toBe('link');
     expect(kept.hostname).toBe('www.traverion.com');
     const dropped = new URL(travelerMagicLinkRedirect('bookings', 'https://evil.example/phish'));
     expect(dropped.hostname).not.toBe('evil.example');

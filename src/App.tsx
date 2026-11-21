@@ -8,6 +8,7 @@ import { SupplierAuthProvider } from './contexts/SupplierAuthContext';
 import { SupplierRoleProvider } from './contexts/SupplierRoleContext';
 import { AuthProvider } from './contexts/AuthContext';
 import AuthModal from './components/AuthModal';
+import TravelerToastHost from './components/TravelerToastHost';
 import EmailVerifiedModal from './components/EmailVerifiedModal';
 import {
   setPageMetaWithOg,
@@ -69,6 +70,7 @@ import {
   type EmailVerifyNotice,
 } from './lib/emailVerifiedLanding';
 import { settleTravelerEmailConfirm } from './lib/settleTravelerEmailConfirm';
+import { armTravelerToast } from './lib/traveler-toast';
 import type { TourPackage as TourPackageType } from './types/tour';
 import { SkeletonCardGrid, SkeletonPageHero } from './components/ui/Skeleton';
 import { HERO_IMG } from './lib/heroImages';
@@ -177,9 +179,12 @@ function App() {
     supplierPath === '/supplier-log-in' ||
     supplierPath === '/supplier' ||
     supplierPath.startsWith('/supplier/');
-  const [emailVerifyNotice, setEmailVerifyNotice] = useState<EmailVerifyNotice | null>(() =>
-    isSupplierArea || isTraverionAdminHost() ? null : immediateEmailVerifyNotice(),
-  );
+  const [emailVerifyNotice, setEmailVerifyNotice] = useState<EmailVerifyNotice | null>(() => {
+    if (isSupplierArea || isTraverionAdminHost()) return null;
+    const notice = immediateEmailVerifyNotice();
+    if (notice === 'success') return null;
+    return notice;
+  });
   // Sync internal route from the URL (initial load + browser back/forward)
   const syncRouteFromUrl = useCallback(() => {
     if (isSupplierArea) return;
@@ -298,7 +303,8 @@ function App() {
       const path = window.location.pathname.replace(/\/$/, '') || '/';
       if (path === '/') {
         const stored = peekEmailVerifyNotice();
-        if (stored) setEmailVerifyNotice(stored);
+        if (stored === 'success') clearEmailVerifyNotice();
+        else if (stored) setEmailVerifyNotice(stored);
       }
       return;
     }
@@ -308,8 +314,10 @@ function App() {
       const notice = await settleTravelerEmailConfirm();
       if (cancelled) return;
       if (notice === 'success') {
-        rememberEmailVerifyNotice('success');
+        clearEmailVerifyNotice();
         window.history.replaceState({}, '', '/');
+        setCurrentPage('home');
+        armTravelerToast('welcome', 'home');
         return;
       }
       show(notice);
@@ -1139,14 +1147,14 @@ function App() {
             <ChunkLoadErrorBoundary resetKey={currentPage}>
               <Suspense fallback={<RouteFallback />}>{renderPage()}</Suspense>
             </ChunkLoadErrorBoundary>
-            <AuthModal />
+            <AuthModal page={currentPage} />
           </>
         ) : minimalTravelerChrome ? (
           <div key={currentPage} className="min-h-screen bg-paper lux-page-enter lux-page-enter--slide">
             <ChunkLoadErrorBoundary resetKey={currentPage}>
               <Suspense fallback={<RouteFallback />}>{renderPage()}</Suspense>
             </ChunkLoadErrorBoundary>
-            <AuthModal />
+            <AuthModal page={currentPage} />
           </div>
         ) : (
           <div className="min-h-screen bg-paper relative flex flex-col">
@@ -1162,9 +1170,10 @@ function App() {
               </div>
             </main>
             {tourCheckoutOpen ? null : <Footer onNavigate={handleNavigate} />}
-            <AuthModal />
+            <AuthModal page={currentPage} />
           </div>
         )}
+        {staffShell ? null : <TravelerToastHost page={currentPage} />}
         {emailVerifyNotice && !staffShell ? (
           <EmailVerifiedModal
             notice={emailVerifyNotice}

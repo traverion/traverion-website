@@ -15,6 +15,7 @@ import { splitTravelerFullName } from '../../lib/splitTravelerFullName';
 import { TRAVELER_PASSWORD_HINT, travelerPasswordError } from '../../lib/travelerPassword';
 import { APPLE_AUTH_ENABLED, GOOGLE_AUTH_ENABLED } from '../../lib/googleAuth';
 import { TRAVELER_MAGIC_LINK_REQUESTED, travelerMagicLinkRedirect } from '../../lib/travelerMagicLink';
+import { TRAVELER_CHECK_EMAIL } from '../../lib/traveler-toast';
 import NoticeCallout from '../NoticeCallout';
 
 export type TravelerAuthTab = 'signin' | 'signup';
@@ -30,7 +31,7 @@ type Props = {
   afterConfirmNext?: string;
   /** Same-origin page to reopen after an email link, such as the checkout the guest already filled. */
   returnHref?: string | null;
-  onAuthenticated: () => void;
+  onAuthenticated: (kind: 'login' | 'welcome') => void;
   showPartnerLink?: boolean;
   destinationHint?: string | null;
   bannerError?: string | null;
@@ -179,7 +180,7 @@ export default function TravelerAuthForm({
         }
         // Phase 1704: session must be readable before checkout onAuthenticated resumes Pay.
         if (supabase) await supabase.auth.getSession();
-        onAuthenticated();
+        onAuthenticated('login');
       } else {
         const name = splitTravelerFullName(fullName);
         const { error: err, hasSession } = await signUp(trimmedEmail, password, {
@@ -193,8 +194,8 @@ export default function TravelerAuthForm({
         }
         if (hasSession) {
           if (supabase) await supabase.auth.getSession();
-          onAuthenticated();
-        } else setSuccessMessage(AUTH_CONFIRMATION_EMAIL_REQUESTED);
+          onAuthenticated('welcome');
+        } else setSuccessMessage(TRAVELER_CHECK_EMAIL.message);
       }
     } finally {
       setSubmitting(false);

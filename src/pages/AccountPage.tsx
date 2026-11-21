@@ -13,6 +13,7 @@ import { SkeletonFormFields, SkeletonConsumerPage } from '../components/ui/Skele
 import { USER_ERROR, userFacingError } from '../lib/userFacingError';
 import ErrorState from '../components/ErrorState';
 import { travelerLoginHref } from '../lib/travelerAuthLinks';
+import { armTravelerToast } from '../lib/traveler-toast';
 import { useAuth } from '../contexts/AuthContext';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { fetchMyBookings } from '../data/supabase-bookings';
@@ -374,7 +375,8 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
                   className="tv-account-security__btn lux-flat"
                   onClick={() => {
                     setSigningOut(true);
-                    void signOut().finally(() => {
+                    void signOut().then(() => {
+                      armTravelerToast('logout', 'home');
                       onNavigate('home');
                     });
                   }}
