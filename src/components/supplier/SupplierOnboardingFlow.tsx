@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import DateOfBirthPicker from './DateOfBirthPicker';
+import RegisteredBusinessAddress from './RegisteredBusinessAddress';
 import { ListingCreationWorkspace } from './listing-creation/ListingCreationWorkspace';
 import {
   fetchSupplierProfile,
@@ -15,6 +16,11 @@ import {
   invokeConnectSupplierOnboarding,
 } from '../../data/supabase-connect-onboarding';
 import { isValidFinnishBusinessId, normalizeCountryCode, normalizeFinnishBusinessId } from '../../lib/business-identity-validation';
+import {
+  BUSINESS_ADDRESS_FIELD_ERROR,
+  missingBusinessAddressField,
+  type StructuredBusinessAddress,
+} from '../../lib/business-address';
 import { validateIsoDob } from '../../lib/date-of-birth';
 import {
   emptyBeneficialOwner,
@@ -99,6 +105,8 @@ export default function SupplierOnboardingFlow({
   const [companyReg, setCompanyReg] = useState(profile?.company_registration_number ?? '');
   const [companyCity, setCompanyCity] = useState(profile?.address_city ?? '');
   const [companyPostal, setCompanyPostal] = useState(profile?.address_postal_code ?? '');
+  const [companyStreet, setCompanyStreet] = useState(profile?.address_street ?? '');
+  const [companyCountry, setCompanyCountry] = useState(profile?.address_country ?? '');
   const [screen, setScreen] = useState<SupplierOnboardingScreenId | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -223,22 +231,33 @@ export default function SupplierOnboardingFlow({
 
   const saveCompany = async (): Promise<boolean> => {
     const legal = companyLegal.trim();
-    const country = normalizeCountryCode(profile?.address_country || 'FI') || 'FI';
-    const registration = country === 'FI' ? normalizeFinnishBusinessId(companyReg) : companyReg.trim();
+    const countryCode = normalizeCountryCode(companyCountry);
+    const registration = countryCode === 'FI' ? normalizeFinnishBusinessId(companyReg) : companyReg.trim();
+    const address: StructuredBusinessAddress = {
+      street: companyStreet.trim(),
+      postal: companyPostal.trim(),
+      city: companyCity.trim(),
+      country: companyCountry.trim(),
+    };
+    const missingAddress = missingBusinessAddressField(address);
     if (!legal) {
       setError('Enter the registered legal name.');
       return false;
     }
-    if (country === 'FI' && !isValidFinnishBusinessId(registration)) {
+    if (!companyCountry.trim()) {
+      setError(BUSINESS_ADDRESS_FIELD_ERROR.country);
+      return false;
+    }
+    if (countryCode === 'FI' && !isValidFinnishBusinessId(registration)) {
       setError('Enter a valid Finnish business ID.');
       return false;
     }
-    if (country !== 'FI' && registration.length < 3) {
+    if (countryCode !== 'FI' && registration.length < 3) {
       setError('Enter the business registration number.');
       return false;
     }
-    if (!companyCity.trim()) {
-      setError('Enter the city.');
+    if (missingAddress) {
+      setError(BUSINESS_ADDRESS_FIELD_ERROR[missingAddress]);
       return false;
     }
     setBusy(true);
@@ -246,9 +265,10 @@ export default function SupplierOnboardingFlow({
     const saved = await updateSupplierCompanyProfile(userId, {
       company_legal_name: legal,
       company_registration_number: registration,
-      address_city: companyCity.trim(),
-      address_postal_code: companyPostal.trim() || null,
-      address_country: country,
+      address_street: address.street,
+      address_city: address.city,
+      address_postal_code: address.postal,
+      address_country: address.country,
       business_type: profile?.business_type === 'individual' ? 'individual' : 'company',
     });
     setBusy(false);
@@ -265,8 +285,8 @@ export default function SupplierOnboardingFlow({
     if (!screen || busy) return;
     setBusy(true);
     setError(null);
-    const country = normalizeCountryCode(profile?.address_country || 'FI') || 'FI';
-    const registration = country === 'FI' ? normalizeFinnishBusinessId(companyReg) : companyReg.trim();
+    const countryCode = normalizeCountryCode(companyCountry);
+    const registration = countryCode === 'FI' ? normalizeFinnishBusinessId(companyReg) : companyReg.trim();
     const companyOpen =
       (profile?.verification_status ?? '').toLowerCase() !== 'verified' &&
       !(
@@ -274,7 +294,7 @@ export default function SupplierOnboardingFlow({
         Boolean((profile?.verification_submitted_at ?? '').trim())
       );
     if (screen === 'company' && companyOpen) {
-      if (country === 'FI' && companyReg.trim() && !isValidFinnishBusinessId(registration)) {
+      if (countryCode === 'FI' && companyReg.trim() && !isValidFinnishBusinessId(registration)) {
         setBusy(false);
         setError('Enter a valid Finnish business ID before leaving, or clear it.');
         return;
@@ -284,11 +304,15 @@ export default function SupplierOnboardingFlow({
         company_registration_number?: string;
         address_city?: string;
         address_postal_code?: string;
+        address_street?: string;
+        address_country?: string;
       } = {};
       if (companyLegal.trim()) patch.company_legal_name = companyLegal.trim();
       if (registration) patch.company_registration_number = registration;
+      if (companyStreet.trim()) patch.address_street = companyStreet.trim();
       if (companyCity.trim()) patch.address_city = companyCity.trim();
       if (companyPostal.trim()) patch.address_postal_code = companyPostal.trim();
+      if (companyCountry.trim()) patch.address_country = companyCountry.trim();
       if (Object.keys(patch).length > 0) {
         const saved = await updateSupplierCompanyProfile(userId, patch);
         if (!saved.success) {
@@ -751,7 +775,9 @@ export default function SupplierOnboardingFlow({
         ? companyPresentation.title
         : meta.title;
   const body = screen === 'status' ? verification.summary : screen === 'company' ? companyPresentation.body : meta.body;
-  const cityLine = [profile?.address_postal_code, profile?.address_city].filter(Boolean).join(' ');
+  const addressLine = [profile?.address_street, profile?.address_postal_code, profile?.address_city, profile?.address_country]
+    .filter(Boolean)
+    .join(', ');
   const primary =
     screen === 'status'
       ? verification.actionLabel ?? 'Done'
@@ -858,12 +884,20 @@ export default function SupplierOnboardingFlow({
               >
                 <input className="tv-input" value={companyReg} onChange={(event) => setCompanyReg(event.target.value)} inputMode="text" />
               </OnboardingField>
-              <OnboardingField label="City">
-                <input className="tv-input" value={companyCity} onChange={(event) => setCompanyCity(event.target.value)} autoComplete="address-level2" />
-              </OnboardingField>
-              <OnboardingField label="Postal code">
-                <input className="tv-input" value={companyPostal} onChange={(event) => setCompanyPostal(event.target.value)} autoComplete="postal-code" />
-              </OnboardingField>
+              <RegisteredBusinessAddress
+                value={{
+                  street: companyStreet,
+                  postal: companyPostal,
+                  city: companyCity,
+                  country: companyCountry,
+                }}
+                onChange={(next) => {
+                  setCompanyStreet(next.street);
+                  setCompanyPostal(next.postal);
+                  setCompanyCity(next.city);
+                  setCompanyCountry(next.country);
+                }}
+              />
             </div>
           ) : null}
           {screen === 'company' && (companyPresentation.mode === 'verified' || companyPresentation.mode === 'pending') ? (
@@ -877,8 +911,8 @@ export default function SupplierOnboardingFlow({
                 <dd>{profile?.company_registration_number}</dd>
               </div>
               <div>
-                <dt>City</dt>
-                <dd>{cityLine}</dd>
+                <dt>Registered business address</dt>
+                <dd>{addressLine}</dd>
               </div>
             </dl>
           ) : null}
