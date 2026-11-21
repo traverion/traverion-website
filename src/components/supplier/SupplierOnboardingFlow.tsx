@@ -25,6 +25,8 @@ import {
   type StructuredBusinessAddress,
 } from '../../lib/business-address';
 import { feedback } from '../../lib/feedback';
+import { onboardingBusinessReviewDraft, onboardingReviewBlocker } from '../../lib/onboarding-final-submission';
+import { submitSupplierBusinessForReview } from '../../lib/submitSupplierBusinessForReview';
 import { PARTNER_AFTER_EMAIL_CONFIRM_PATH } from '../../lib/partnerPortalPaths';
 import {
   localDraftWouldEraseServer,
@@ -92,6 +94,20 @@ function blankOwner(): OwnerEntry {
   return { first_name: '', last_name: '', dob: '', percent_ownership: '' };
 }
 
+function ReviewSection({ title, detail, onEdit }: { title: string; detail: string; onEdit: () => void }) {
+  return (
+    <section className="supplier-review__section">
+      <div>
+        <h2>{title}</h2>
+        <p>{detail}</p>
+      </div>
+      <button type="button" className="tv-btn-ghost min-h-11 px-3 text-sm" onClick={onEdit}>
+        Edit
+      </button>
+    </section>
+  );
+}
+
 export default function SupplierOnboardingFlow({
   userId,
   profile,
@@ -127,6 +143,7 @@ export default function SupplierOnboardingFlow({
   const [documentBusy, setDocumentBusy] = useState(false);
   const booted = useRef(false);
   const submitting = useRef(false);
+  const finalizing = useRef(false);
   const navigating = useRef(false);
   const companyEdited = useRef(false);
   const draftEdited = useRef(false);
@@ -504,8 +521,16 @@ export default function SupplierOnboardingFlow({
     writeScreen(target, 'push');
   };
 
+  const editStep = (next: SupplierOnboardingScreenId) => {
+    setMotion('back');
+    setError(null);
+    historyStack.current = [...historyStack.current, next];
+    setScreen(next);
+    writeScreen(next, 'push');
+  };
+
   const onContinue = async () => {
-    if (busy || documentBusy || submitting.current || navigating.current) return;
+    if (busy || documentBusy || submitting.current || finalizing.current || navigating.current) return;
     navigating.current = true;
     window.setTimeout(() => {
       navigating.current = false;
@@ -609,11 +634,10 @@ export default function SupplierOnboardingFlow({
     }
     if (screen === 'consent') {
       if (!draft.verification_consent) {
-        setError('Confirm that Traverion may send these details.');
+        setError('Confirm that Traverion may send these details when you finish setup.');
         return;
       }
-      const ok = await submitIdentity();
-      if (ok) advance('consent', { identityOpen: false });
+      advance('consent');
       return;
     }
     if (screen === 'bank') {
@@ -622,60 +646,59 @@ export default function SupplierOnboardingFlow({
         setError(ibanError);
         return;
       }
-      if (!flags.termsOpen) {
-        const ok = await submitBank();
-        if (ok) advance('bank', { bankOpen: false });
-        return;
-      }
       advance('bank');
       return;
     }
     if (screen === 'terms') {
       if (!draft.tos_accepted) {
-        setError('Accept the terms before the bank account is sent.');
+        setError('Accept the payout terms before you finish setup.');
         return;
       }
-      const ok = await submitBank();
-      if (ok) advance('terms', { bankOpen: false, termsOpen: false });
+      advance('terms');
+      return;
+    }
+    if (draftReview) {
+      void completeSetup();
       return;
     }
     if (verification.actionLabel) go(snapshot.nextScreen);
     else onExit();
   };
 
-  const submitIdentity = async (): Promise<boolean> => {
-    if (submitting.current) return false;
+  const submitIdentity = async (quiet = false): Promise<string | null> => {
+    if (submitting.current) return 'Submission is already in progress.';
     const dob = parsePayoutWizardDob(repDob);
-    if (!dob) {
-      setError('Enter a valid date of birth.');
-      return false;
-    }
+    if (!dob) return 'Enter a valid date of birth.';
     const country = normalizeCountryCode(profile?.address_country || '') || 'FI';
     if (isCompany && country === 'FI' && !isValidFinnishBusinessId(profile?.company_registration_number)) {
-      setError('The Finnish Business ID on the company record needs to be corrected before it can be sent.');
-      return false;
+      return 'The Finnish Business ID on the company record needs to be corrected before it can be sent.';
     }
     if (!hasAccount) {
       const ensured = await invokeConnectSupplierOnboarding('ensure_account');
       if (!ensured.success) {
-        setError(connectOnboardingUserMessage(ensured.error) || 'A payout account could not be opened yet.');
-        return false;
+        return connectOnboardingUserMessage(ensured.error) || 'A payout account could not be opened yet.';
       }
       const refreshed = await fetchSupplierProfile(userId);
       if (refreshed) onProfile(refreshed);
-      if (!refreshed?.stripe_connected_account_id) {
-        setError('A payout account could not be opened yet.');
-        return false;
-      }
+      if (!refreshed?.stripe_connected_account_id) return 'A payout account could not be opened yet.';
     }
     submitting.current = true;
     setBusy(true);
     setError(null);
-    const transitionId = beginAuthTransition({
-      intent: 'setup',
-      title: 'Sending your details...',
-      message: 'One moment.',
-    });
+    const transitionId = quiet
+      ? 0
+      : beginAuthTransition({
+          intent: 'setup',
+          title: 'Sending your details...',
+          message: 'One moment.',
+        });
+    const fail = (message: string) => {
+      setBusy(false);
+      submitting.current = false;
+      setError(message);
+      if (!quiet) failAuthTransition(transitionId, message);
+      return message;
+    };
     const business = await invokeConnectSupplierOnboarding('submit_business', {
       business: {
         legal_name: profile?.company_legal_name?.trim() || undefined,
@@ -690,14 +713,7 @@ export default function SupplierOnboardingFlow({
         },
       },
     });
-    if (!business.success) {
-      setBusy(false);
-      submitting.current = false;
-      const message = connectOnboardingUserMessage(business.error);
-      setError(message);
-      failAuthTransition(transitionId, message);
-      return false;
-    }
+    if (!business.success) return fail(connectOnboardingUserMessage(business.error));
     const ownership = draft.rep_is_owner ? share : null;
     const person = await invokeConnectSupplierOnboarding('submit_representative', {
       representative: {
@@ -721,22 +737,12 @@ export default function SupplierOnboardingFlow({
         },
       },
     });
-    if (!person.success) {
-      setBusy(false);
-      submitting.current = false;
-      const message = connectOnboardingUserMessage(person.error);
-      setError(message);
-      failAuthTransition(transitionId, message);
-      return false;
-    }
+    if (!person.success) return fail(connectOnboardingUserMessage(person.error));
     if (others && owner.first_name.trim()) {
       const ownerDob = parsePayoutWizardDob(owner.dob);
       const ownerShare = parseOwnershipPercent(owner.percent_ownership);
       if (!ownerDob || ownerShare == null) {
-        setBusy(false);
-        submitting.current = false;
-        setError('Check the additional owner’s date of birth and share, then try again.');
-        return false;
+        return fail('Check the additional owner’s date of birth and share, then try again.');
       }
       const owners = await invokeConnectSupplierOnboarding('submit_beneficial_owners', {
         owners: [
@@ -754,60 +760,54 @@ export default function SupplierOnboardingFlow({
           },
         ],
       });
-      if (!owners.success) {
-        setBusy(false);
-        submitting.current = false;
-        const message = connectOnboardingUserMessage(owners.error);
-        setError(message);
-        failAuthTransition(transitionId, message);
-        return false;
-      }
+      if (!owners.success) return fail(connectOnboardingUserMessage(owners.error));
     }
     const next = await fetchSupplierProfile(userId);
     if (next) onProfile(next);
     setDraft((current) => ({ ...current, representativeSavedAt: new Date().toISOString(), rep_dob: '' }));
-    setRepDob('');
+    if (!quiet) setRepDob('');
     setBusy(false);
     submitting.current = false;
-    finishSupplierSetupStep(
-      transitionId,
-      next,
-      'Verification sent',
-      'We have your details for review. This is not an approval.',
-    );
-    return true;
+    if (!quiet) {
+      finishSupplierSetupStep(
+        transitionId,
+        next,
+        'Verification sent',
+        'We have your details for review. This is not an approval.',
+      );
+    }
+    return null;
   };
 
-  const submitBank = async (): Promise<boolean> => {
-    if (submitting.current) return false;
+  const submitBank = async (quiet = false): Promise<string | null> => {
+    if (submitting.current) return 'Submission is already in progress.';
     const country = normalizeCountryCode(profile?.address_country) || 'FI';
-    const holder = (profile?.company_legal_name || '').trim();
+    const holder = (profile?.company_legal_name || companyLegal || '').trim();
     const ibanError = validateIban(iban, country);
-    if (!holder || ibanError) {
-      setError(ibanError ?? 'The company legal name is missing.');
-      return false;
-    }
+    if (!holder || ibanError) return ibanError ?? 'The company legal name is missing.';
     submitting.current = true;
     setBusy(true);
     setError(null);
-    const transitionId = beginAuthTransition({
-      intent: 'setup',
-      title: 'Saving your payout account...',
-      message: 'One moment.',
-    });
-    if (flags.termsOpen) {
+    const transitionId = quiet
+      ? 0
+      : beginAuthTransition({
+          intent: 'setup',
+          title: 'Saving your payout account...',
+          message: 'One moment.',
+        });
+    const fail = (message: string) => {
+      setBusy(false);
+      submitting.current = false;
+      setError(message);
+      if (!quiet) failAuthTransition(transitionId, message);
+      return message;
+    };
+    if (flags.termsOpen || draft.tos_accepted) {
       const terms = await invokeConnectSupplierOnboarding('accept_tos', {
         tos_accepted: true,
         agreement_version: STRIPE_RECIPIENT_AGREEMENT.version,
       });
-      if (!terms.success) {
-        setBusy(false);
-        submitting.current = false;
-        const message = connectOnboardingUserMessage(terms.error);
-        setError(message);
-        failAuthTransition(transitionId, message);
-        return false;
-      }
+      if (!terms.success) return fail(connectOnboardingUserMessage(terms.error));
       setDraft((current) => ({ ...current, tos_accepted: true }));
     }
     const tokenized = await createBankAccountToken({
@@ -817,25 +817,12 @@ export default function SupplierOnboardingFlow({
       accountHolderName: holder,
       accountHolderType: isCompany ? 'company' : 'individual',
     });
-    if ('error' in tokenized) {
-      setBusy(false);
-      submitting.current = false;
-      setError(tokenized.error);
-      failAuthTransition(transitionId, tokenized.error);
-      return false;
-    }
+    if ('error' in tokenized) return fail(tokenized.error);
     const attached = await invokeConnectSupplierOnboarding('attach_bank_token', {
       bank_token: tokenized.tokenId,
     });
     setIban('');
-    if (!attached.success) {
-      setBusy(false);
-      submitting.current = false;
-      const message = connectOnboardingUserMessage(attached.error);
-      setError(message);
-      failAuthTransition(transitionId, message);
-      return false;
-    }
+    if (!attached.success) return fail(connectOnboardingUserMessage(attached.error));
     const next = await fetchSupplierProfile(userId);
     if (next) onProfile(next);
     setDraft((current) => ({
@@ -846,13 +833,106 @@ export default function SupplierOnboardingFlow({
     }));
     setBusy(false);
     submitting.current = false;
-    finishSupplierSetupStep(
-      transitionId,
-      next,
-      'Payout account saved',
-      'The account is saved. This does not enable payouts or approve the company.',
+    if (!quiet) {
+      finishSupplierSetupStep(
+        transitionId,
+        next,
+        'Payout account saved',
+        'The account is saved. This does not enable payouts or approve the company.',
+      );
+    }
+    return null;
+  };
+
+  const completeSetup = async () => {
+    if (submitting.current || finalizing.current || busy) return;
+    finalizing.current = true;
+    let done = false;
+    try {
+    const representativeName = [draft.rep_first_name, draft.rep_last_name].filter(Boolean).join(' ').trim();
+    const blocker = onboardingReviewBlocker({
+      legalName: companyLegal,
+      registrationNumber: companyReg,
+      street: companyStreet,
+      postal: companyPostal,
+      city: companyCity,
+      country: companyCountry || profile?.address_country || '',
+      phone: profile?.contact_phone || '',
+      displayName: profile?.display_name || '',
+      directors: profile?.managing_directors || '',
+      vatId: profile?.vat_id || '',
+      documentPath: profile?.company_registration_document_path || '',
+      representativeName,
+      consent: draft.verification_consent,
+      termsAccepted: draft.tos_accepted,
+      ibanPresent: iban.trim().length > 0,
+      dateOfBirthPresent: Boolean(parsePayoutWizardDob(repDob)),
+    });
+    if (blocker) {
+      setError(blocker);
+      return;
+    }
+    const transitionId = beginAuthTransition({
+      intent: 'setup',
+      title: 'Submitting your setup...',
+      message: 'Sending the company, representative, and payout details.',
+    });
+    const identityError = await submitIdentity(true);
+    if (identityError) {
+      setError(identityError);
+      failAuthTransition(transitionId, identityError);
+      return;
+    }
+    const bankError = await submitBank(true);
+    if (bankError) {
+      setError(bankError);
+      failAuthTransition(transitionId, bankError);
+      return;
+    }
+    const review = await submitSupplierBusinessForReview(
+      userId,
+      onboardingBusinessReviewDraft({
+        legalName: companyLegal,
+        registrationNumber: companyReg,
+        street: companyStreet,
+        postal: companyPostal,
+        city: companyCity,
+        country: companyCountry || profile?.address_country || '',
+        phone: profile?.contact_phone || '',
+        displayName: profile?.display_name || '',
+        directors: profile?.managing_directors || representativeName,
+        vatId: profile?.vat_id || '',
+        documentPath: profile?.company_registration_document_path || '',
+        representativeName,
+        consent: true,
+        termsAccepted: true,
+        ibanPresent: true,
+        dateOfBirthPresent: true,
+      })
     );
-    return true;
+    if (!review.ok) {
+      setError(review.error);
+      failAuthTransition(transitionId, review.error);
+      return;
+    }
+    if (review.profile) onProfile(review.profile);
+    setRepDob('');
+    const verified = Boolean(review.profile && onboardingLanesVerified(supplierOnboardingSnapshot(review.profile)));
+    const copy = supplierSetupCompletionCopy(
+      verified,
+      'Setup submitted',
+      'Your details were sent for review. This does not verify the company or enable payouts.',
+    );
+    done = true;
+    succeedAuthTransition(transitionId, {
+      title: copy.title,
+      message: copy.message,
+      page: 'partner',
+      navigate: onExit,
+    });
+    } finally {
+      if (!done) finalizing.current = false;
+    }
   };
 
   const onUpload = async (file: File) => {
@@ -914,8 +994,14 @@ export default function SupplierOnboardingFlow({
       Boolean((profile?.verification_submitted_at ?? '').trim()),
     hasCompany: Boolean(profile?.company_legal_name?.trim() && profile?.company_registration_number?.trim()),
   });
+  const submittedForReview = Boolean((profile?.verification_submitted_at ?? '').trim());
+  const companyStatus = (profile?.verification_status ?? '').toLowerCase();
+  const correctionOpen = companyStatus === 'rejected' || Boolean((profile?.business_verification_feedback ?? '').trim());
+  const draftReview = screen === 'status' && companyStatus !== 'verified' && (!submittedForReview || correctionOpen);
   const title =
-    screen === 'status'
+    draftReview
+      ? 'Review and submit'
+      : screen === 'status'
       ? verification.status === 'verified'
         ? 'Verified'
         : verification.status === 'action_required'
@@ -926,20 +1012,21 @@ export default function SupplierOnboardingFlow({
       : screen === 'company'
         ? companyPresentation.title
         : meta.title;
-  const body = screen === 'status' ? verification.summary : screen === 'company' ? companyPresentation.body : meta.body;
+  const body = draftReview
+    ? 'Check this draft. Nothing is sent for verification until you finish setup.'
+    : screen === 'status'
+      ? verification.summary
+      : screen === 'company'
+        ? companyPresentation.body
+        : meta.body;
   const addressLine = [profile?.address_street, profile?.address_postal_code, profile?.address_city, profile?.address_country]
     .filter(Boolean)
     .join(', ');
-  const primary =
-    screen === 'status'
+  const primary = draftReview
+    ? 'Complete setup & submit for verification'
+    : screen === 'status'
       ? verification.actionLabel ?? 'Done'
-      : screen === 'bank' && !flags.termsOpen
-        ? 'Save bank account'
-      : screen === 'consent'
-        ? 'Send for verification'
-        : screen === 'terms'
-          ? 'Save bank account'
-          : 'Continue';
+      : 'Continue';
 
   return (
     <div
@@ -1183,7 +1270,7 @@ export default function SupplierOnboardingFlow({
                   setDraft((current) => ({ ...current, verification_consent: event.target.checked }));
                 }}
               />
-              Send for verification
+              I confirm these details are correct and Traverion may send them when I finish setup.
             </label>
           ) : null}
           {screen === 'bank' ? (
@@ -1213,10 +1300,19 @@ export default function SupplierOnboardingFlow({
                 checked={draft.tos_accepted}
                 onChange={(event) => { draftEdited.current = true; setDraft((current) => ({ ...current, tos_accepted: event.target.checked })); }}
               />
-              Accept the terms
+              I accept the payout terms. The account is sent only when I finish setup.
             </label>
           ) : null}
-          {screen === 'status' ? (
+          {screen === 'status' && draftReview ? (
+            <div className="supplier-review">
+              <ReviewSection title="Company" detail={[profile?.company_legal_name, profile?.company_registration_number, addressLine].filter(Boolean).join(' · ') || 'Not added yet'} onEdit={() => editStep('company')} />
+              <ReviewSection title="Documents" detail={profile?.company_registration_document_path ? 'Registration extract uploaded' : 'Not uploaded'} onEdit={() => editStep('documents')} />
+              <ReviewSection title="Identity" detail={[draft.rep_first_name, draft.rep_last_name].filter(Boolean).join(' ') || 'Not added yet'} onEdit={() => editStep('person')} />
+              <ReviewSection title="Payouts" detail={iban.trim() ? `IBAN ending ${iban.replace(/\s/g, '').slice(-4)}` : 'Not added yet'} onEdit={() => editStep('bank')} />
+              <ReviewSection title="Declarations" detail={draft.verification_consent && draft.tos_accepted ? 'Confirmed' : 'Not confirmed'} onEdit={() => editStep('consent')} />
+            </div>
+          ) : null}
+          {screen === 'status' && !draftReview ? (
             <div className="supplier-onboarding-card supplier-onboarding-card--review">
               {verification.requirements.map((item) => (
                 <p key={item}>{item}</p>
