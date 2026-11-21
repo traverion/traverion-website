@@ -21,7 +21,13 @@ import {
   missingBusinessAddressField,
   type StructuredBusinessAddress,
 } from '../../lib/business-address';
-import { validateIsoDob } from '../../lib/date-of-birth';
+import { feedback } from '../../lib/feedback';
+import { PARTNER_AFTER_EMAIL_CONFIRM_PATH } from '../../lib/partnerPortalPaths';
+import {
+  localDraftWouldEraseServer,
+  onboardingPopAction,
+  previousOnboardingScreen,
+} from '../../lib/supplier-onboarding-nav';
 import {
   emptyBeneficialOwner,
   emptyPayoutWizardDraft,
@@ -113,6 +119,11 @@ export default function SupplierOnboardingFlow({
   const booted = useRef(false);
   const submitting = useRef(false);
   const navigating = useRef(false);
+  const companyEdited = useRef(false);
+  const draftEdited = useRef(false);
+  const historyStack = useRef<SupplierOnboardingScreenId[]>([]);
+  const screenRef = useRef<SupplierOnboardingScreenId | null>(null);
+  const exitRef = useRef<() => Promise<void>>(async () => undefined);
 
   const due = useMemo(() => {
     const current = profile?.connect_requirements_currently_due ?? [];
@@ -141,6 +152,19 @@ export default function SupplierOnboardingFlow({
   );
   const visible = useMemo(() => visibleSupplierOnboardingScreens(visibility), [visibility]);
   const snapshot = useMemo(() => supplierOnboardingSnapshot(profile), [profile]);
+  const draftRef = useRef(draft);
+  draftRef.current = draft;
+  screenRef.current = screen;
+
+  useEffect(() => {
+    if (companyEdited.current || !profile) return;
+    setCompanyLegal(profile.company_legal_name ?? '');
+    setCompanyReg(profile.company_registration_number ?? '');
+    setCompanyStreet(profile.address_street ?? '');
+    setCompanyPostal(profile.address_postal_code ?? '');
+    setCompanyCity(profile.address_city ?? '');
+    setCompanyCountry(profile.address_country ?? '');
+  }, [profile]);
 
   const writeScreen = useCallback((next: SupplierOnboardingScreenId, mode: 'push' | 'replace') => {
     const phase = supplierOnboardingScreen(next).phase;
@@ -164,6 +188,7 @@ export default function SupplierOnboardingFlow({
     const requested = explicit ? screenFromOnboardingUrl(window.location.search, visible) : resume;
     const next = visible.includes(requested) || requested === 'company' || requested === 'documents' ? requested : resume;
     setScreen(next);
+    historyStack.current = [next];
     writeScreen(next, 'replace');
     if (userId) void updateSupplierSetupProgress(userId, progressRecord(profile, next));
     // The first saved step is chosen once. Later edits must not jump the supplier back.
@@ -172,12 +197,43 @@ export default function SupplierOnboardingFlow({
 
   useEffect(() => {
     const onPop = () => {
-      const requested = screenFromOnboardingUrl(window.location.search, visible);
-      setScreen(visible.includes(requested) ? requested : snapshot.nextScreen);
+      const action = onboardingPopAction({
+        pathname: window.location.pathname,
+        search: window.location.search,
+        visible,
+      });
+      if (action.type === 'ignore-email') {
+        const current = screenRef.current;
+        if (current) writeScreen(current, 'push');
+        window.location.replace(PARTNER_AFTER_EMAIL_CONFIRM_PATH);
+        return;
+      }
+      if (action.type === 'leave') {
+        const current = screenRef.current;
+        if (current) writeScreen(current, 'push');
+        void exitRef.current();
+        return;
+      }
+      if (action.type === 'stay') {
+        const leaving = screenRef.current;
+        const idx = historyStack.current.lastIndexOf(action.screen);
+        if (idx >= 0) historyStack.current = historyStack.current.slice(0, idx + 1);
+        else historyStack.current = [...historyStack.current, action.screen];
+        if (leaving && leaving !== action.screen) {
+          void persistDraft().then((ok) => {
+            if (!ok) {
+              setScreen(leaving);
+              historyStack.current = [...historyStack.current, leaving];
+              writeScreen(leaving, 'push');
+            }
+          });
+        }
+        setScreen(action.screen);
+      }
     };
     window.addEventListener('popstate', onPop);
     return () => window.removeEventListener('popstate', onPop);
-  }, [visible, snapshot.nextScreen]);
+  }, [visible, writeScreen]);
 
 
   useEffect(() => {
@@ -192,7 +248,16 @@ export default function SupplierOnboardingFlow({
   }, [screen, userId, onProfile]);
 
   useEffect(() => {
-    if (!userId) return;
+    if (!userId || !booted.current) return;
+    if (
+      localDraftWouldEraseServer(
+        { firstName: draft.rep_first_name, lastName: draft.rep_last_name },
+        profile?.payout_wizard_draft ?? null
+      ) &&
+      !draftEdited.current
+    ) {
+      return;
+    }
     const stored = { ...draft, rep_dob: '', beneficial_owners: draft.beneficial_owners.map((row) => ({ ...row, dob: '' })) };
     savePayoutWizardDraft(userId, stored);
     const timer = window.setTimeout(() => {
@@ -201,7 +266,34 @@ export default function SupplierOnboardingFlow({
       });
     }, 800);
     return () => window.clearTimeout(timer);
-  }, [userId, draft]);
+  }, [userId, draft, profile?.payout_wizard_draft]);
+
+  const persistDraft = async (): Promise<boolean> => {
+    const current = draftRef.current;
+    if (
+      localDraftWouldEraseServer(
+        { firstName: current.rep_first_name, lastName: current.rep_last_name },
+        profile?.payout_wizard_draft ?? null
+      ) &&
+      !draftEdited.current
+    ) {
+      return true;
+    }
+    const stored = {
+      ...current,
+      rep_dob: '',
+      beneficial_owners: current.beneficial_owners.map((row) => ({ ...row, dob: '' })),
+    };
+    savePayoutWizardDraft(userId, stored);
+    const draftSaved = await invokeConnectSupplierOnboarding('save_wizard_draft', {
+      wizard_draft: toServerPayoutWizardDraft(stored),
+    });
+    if (!draftSaved.success) {
+      setError(connectOnboardingUserMessage(draftSaved.error) || 'Progress could not be saved. Your entries are still on this page.');
+      return false;
+    }
+    return true;
+  };
 
   const go = (next: SupplierOnboardingScreenId) => {
     setError(null);
@@ -212,6 +304,7 @@ export default function SupplierOnboardingFlow({
       return updated;
     });
     setScreen(next);
+    historyStack.current = [...historyStack.current, next];
     writeScreen(next, 'push');
     void updateSupplierSetupProgress(userId, progressRecord(profile, next));
   };
@@ -219,7 +312,12 @@ export default function SupplierOnboardingFlow({
   const sequence = (patch?: Partial<SupplierOnboardingVisibility>) =>
     visibleSupplierOnboardingScreens({ ...visibility, ...patch });
 
-  const advance = (id: SupplierOnboardingScreenId, patch?: Partial<SupplierOnboardingVisibility>) => {
+  const advance = async (id: SupplierOnboardingScreenId, patch?: Partial<SupplierOnboardingVisibility>) => {
+    if (busy) return;
+    setBusy(true);
+    const saved = await persistDraft();
+    setBusy(false);
+    if (!saved) return;
     const list = sequence(patch);
     const index = list.indexOf(id);
     if (index === -1) {
@@ -278,7 +376,9 @@ export default function SupplierOnboardingFlow({
     }
     const next = await fetchSupplierProfile(userId);
     if (next) onProfile(next);
-    return Boolean(next?.company_legal_name?.trim());
+    if (!next?.company_legal_name?.trim()) return false;
+    feedback.success('Saved');
+    return true;
   };
 
   const exitAndSave = async () => {
@@ -322,18 +422,9 @@ export default function SupplierOnboardingFlow({
         }
       }
     }
-    const stored = {
-      ...draft,
-      rep_dob: '',
-      beneficial_owners: draft.beneficial_owners.map((row) => ({ ...row, dob: '' })),
-    };
-    savePayoutWizardDraft(userId, stored);
-    const draftSaved = await invokeConnectSupplierOnboarding('save_wizard_draft', {
-      wizard_draft: toServerPayoutWizardDraft(stored),
-    });
-    if (!draftSaved.success) {
+    const draftSaved = await persistDraft();
+    if (!draftSaved) {
       setBusy(false);
-      setError(connectOnboardingUserMessage(draftSaved.error) || 'Progress could not be saved. Your entries are still on this page.');
       return;
     }
     const progressSaved = await updateSupplierSetupProgress(userId, progressRecord(profile, screen));
@@ -343,20 +434,37 @@ export default function SupplierOnboardingFlow({
       return;
     }
     setBusy(false);
+    feedback.success('Saved');
     onExit();
   };
+  exitRef.current = exitAndSave;
 
-  const back = () => {
-    if (window.history.state?.onboardingScreen) {
+  const back = async () => {
+    const previous = previousOnboardingScreen(visible, screen);
+    if (!previous || busy) return;
+    setBusy(true);
+    setError(null);
+    const saved = await persistDraft();
+    if (!saved) {
+      setBusy(false);
+      return;
+    }
+    const progressSaved = await updateSupplierSetupProgress(userId, progressRecord(profile, previous));
+    setBusy(false);
+    if (!progressSaved.success) {
+      setError(progressSaved.error || 'Progress could not be saved. Your entries are still on this page.');
+      return;
+    }
+    feedback.success('Saved');
+    const stack = historyStack.current;
+    if (stack.length > 1) {
+      historyStack.current = stack.slice(0, -1);
       window.history.back();
       return;
     }
-    if (screen === 'documents') {
-      go('company');
-      return;
-    }
-    const index = visible.indexOf(screen!);
-    if (index > 0) go(visible[index - 1]!);
+    historyStack.current = [previous];
+    setScreen(previous);
+    writeScreen(previous, 'replace');
   };
 
   const onContinue = async () => {
@@ -390,6 +498,10 @@ export default function SupplierOnboardingFlow({
         setError('Add the registration document.');
         return;
       }
+      setBusy(true);
+      const saved = await persistDraft();
+      setBusy(false);
+      if (!saved) return;
       const list = sequence();
       const afterCompany = list[list.indexOf('company') + 1] ?? 'status';
       go(afterCompany === 'documents' ? list[list.indexOf('documents') + 1] ?? 'status' : afterCompany);
@@ -806,7 +918,7 @@ export default function SupplierOnboardingFlow({
         currentLabel={meta.group}
         onSelectIndex={() => undefined}
         onExit={() => void exitAndSave()}
-        exitLabel="Exit & save"
+        exitLabel="Save & exit"
         exitDisabled={busy}
         exitBusy={busy}
         footer={
@@ -825,14 +937,25 @@ export default function SupplierOnboardingFlow({
               />
             </div>
             <div className="supplier-onboarding-footer grid grid-cols-[1fr_auto] items-center gap-3">
-              <button
-                type="button"
-                className="stay-nav-btn stay-nav-btn--start touch-manipulation tv-btn-ghost !min-h-11 disabled:opacity-40"
-                onClick={back}
-                disabled={busy || screen === 'company' || screen === visible[0]}
-              >
-                Back
-              </button>
+              {previousOnboardingScreen(visible, screen) ? (
+                <button
+                  type="button"
+                  className="stay-nav-btn stay-nav-btn--start touch-manipulation tv-btn-ghost !min-h-11 disabled:opacity-40"
+                  onClick={() => void back()}
+                  disabled={busy}
+                >
+                  Back
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="stay-nav-btn stay-nav-btn--start touch-manipulation tv-btn-ghost !min-h-11 disabled:opacity-40"
+                  onClick={() => void exitAndSave()}
+                  disabled={busy}
+                >
+                  Save & exit
+                </button>
+              )}
               <button
                 type="button"
                 className="stay-nav-btn stay-nav-btn--end touch-manipulation tv-btn-primary !min-h-11 disabled:opacity-50"
@@ -876,13 +999,13 @@ export default function SupplierOnboardingFlow({
           {screen === 'company' && (companyPresentation.mode === 'form' || companyPresentation.mode === 'draft') ? (
             <div className="supplier-onboarding-grid">
               <OnboardingField label="Registered legal business name" className="supplier-onboarding-grid__wide">
-                <input className="tv-input" value={companyLegal} onChange={(event) => setCompanyLegal(event.target.value)} autoComplete="organization" />
+                <input className="tv-input" value={companyLegal} onChange={(event) => { companyEdited.current = true; setCompanyLegal(event.target.value); }} autoComplete="organization" />
               </OnboardingField>
               <OnboardingField
                 label="Business ID"
                 help="Your official business registration number. In Finland, this is your Y-tunnus."
               >
-                <input className="tv-input" value={companyReg} onChange={(event) => setCompanyReg(event.target.value)} inputMode="text" />
+                <input className="tv-input" value={companyReg} onChange={(event) => { companyEdited.current = true; setCompanyReg(event.target.value); }} inputMode="text" />
               </OnboardingField>
               <RegisteredBusinessAddress
                 value={{
@@ -892,6 +1015,7 @@ export default function SupplierOnboardingFlow({
                   country: companyCountry,
                 }}
                 onChange={(next) => {
+                  companyEdited.current = true;
                   setCompanyStreet(next.street);
                   setCompanyPostal(next.postal);
                   setCompanyCity(next.city);
@@ -939,7 +1063,7 @@ export default function SupplierOnboardingFlow({
                   className="tv-input"
                   value={draft.rep_first_name}
                   autoComplete="given-name"
-                  onChange={(event) => setDraft((current) => ({ ...current, rep_first_name: event.target.value }))}
+                  onChange={(event) => { draftEdited.current = true; setDraft((current) => ({ ...current, rep_first_name: event.target.value })); }}
                 />
               </OnboardingField>
               <OnboardingField label="Last name">
@@ -947,7 +1071,7 @@ export default function SupplierOnboardingFlow({
                   className="tv-input"
                   value={draft.rep_last_name}
                   autoComplete="family-name"
-                  onChange={(event) => setDraft((current) => ({ ...current, rep_last_name: event.target.value }))}
+                  onChange={(event) => { draftEdited.current = true; setDraft((current) => ({ ...current, rep_last_name: event.target.value })); }}
                 />
               </OnboardingField>
             </div>
@@ -962,7 +1086,7 @@ export default function SupplierOnboardingFlow({
               value={draft.rep_is_director ? 'yes' : 'no'}
               yes="Yes, this person is a director"
               no="No"
-              onChange={(yes) => setDraft((current) => ({ ...current, rep_is_director: yes }))}
+              onChange={(yes) => { draftEdited.current = true; setDraft((current) => ({ ...current, rep_is_director: yes })); }}
             />
           ) : null}
           {screen === 'ownership' ? (
@@ -970,7 +1094,7 @@ export default function SupplierOnboardingFlow({
               value={draft.rep_is_owner ? 'yes' : 'no'}
               yes="Yes, they own a share"
               no="No"
-              onChange={(yes) => setDraft((current) => ({ ...current, rep_is_owner: yes }))}
+              onChange={(yes) => { draftEdited.current = true; setDraft((current) => ({ ...current, rep_is_owner: yes })); }}
             />
           ) : null}
           {screen === 'share' ? (
@@ -979,9 +1103,10 @@ export default function SupplierOnboardingFlow({
                 className="tv-input"
                 inputMode="decimal"
                 value={draft.rep_percent_ownership}
-                onChange={(event) =>
-                  setDraft((current) => ({ ...current, rep_percent_ownership: event.target.value }))
-                }
+                onChange={(event) => {
+                  draftEdited.current = true;
+                  setDraft((current) => ({ ...current, rep_percent_ownership: event.target.value }));
+                }}
               />
             </OnboardingField>
           ) : null}
@@ -1033,9 +1158,10 @@ export default function SupplierOnboardingFlow({
               <input
                 type="checkbox"
                 checked={draft.verification_consent}
-                onChange={(event) =>
-                  setDraft((current) => ({ ...current, verification_consent: event.target.checked }))
-                }
+                onChange={(event) => {
+                  draftEdited.current = true;
+                  setDraft((current) => ({ ...current, verification_consent: event.target.checked }));
+                }}
               />
               Send for verification
             </label>
@@ -1065,7 +1191,7 @@ export default function SupplierOnboardingFlow({
               <input
                 type="checkbox"
                 checked={draft.tos_accepted}
-                onChange={(event) => setDraft((current) => ({ ...current, tos_accepted: event.target.checked }))}
+                onChange={(event) => { draftEdited.current = true; setDraft((current) => ({ ...current, tos_accepted: event.target.checked })); }}
               />
               Accept the terms
             </label>

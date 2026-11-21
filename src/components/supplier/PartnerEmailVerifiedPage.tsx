@@ -6,7 +6,7 @@ import NoticeCallout from '../NoticeCallout';
 import {
   PARTNER_EMAIL_VERIFIED_PATH,
   PARTNER_LOGIN_PATH,
-  PARTNER_APP_BASE,
+  PARTNER_AFTER_EMAIL_CONFIRM_PATH,
 } from '../../lib/partnerPortalPaths';
 import { setPartnerAuthFlash } from '../../lib/partnerAuthFlash';
 import { beginAuthTransition, failAuthTransition, succeedAuthTransition } from '../../lib/auth-transition';
@@ -74,7 +74,7 @@ export default function PartnerEmailVerifiedPage() {
         title: 'Email verified!',
         message: 'Your email is confirmed. This does not approve the company.',
         page: 'partner',
-        navigate: () => window.location.replace(`${PARTNER_APP_BASE}/onboarding`),
+        navigate: () => window.location.replace(PARTNER_AFTER_EMAIL_CONFIRM_PATH),
       });
     };
 
@@ -98,7 +98,7 @@ export default function PartnerEmailVerifiedPage() {
         if (cancelled) return;
         if (data.session?.user?.email_confirmed_at) {
           setPhase('already');
-          window.location.replace(PARTNER_APP_BASE);
+          window.location.replace(PARTNER_AFTER_EMAIL_CONFIRM_PATH);
           return;
         }
         fail();

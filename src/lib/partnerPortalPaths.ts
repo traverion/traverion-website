@@ -24,6 +24,9 @@ export const PARTNER_EMAIL_VERIFIED_PATH = '/email-verified';
 /** Dashboard at /partner; sections at /partner/listings, /partner/discounts, /partner/bookings, … */
 export const PARTNER_APP_BASE = '/partner';
 
+/** Where a fresh partner email confirmation continues. Home, never the confirmation page or onboarding. */
+export const PARTNER_AFTER_EMAIL_CONFIRM_PATH = PARTNER_APP_BASE;
+
 export const PARTNER_CREATE_PATH = `${PARTNER_APP_BASE}/create`;
 export const PARTNER_RESERVATIONS_PATH = `${PARTNER_APP_BASE}/reservations`;
 export const PARTNER_RENTAL_BOOKINGS_PATH = `${PARTNER_APP_BASE}/rental-bookings`;
