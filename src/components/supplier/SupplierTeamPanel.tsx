@@ -2,12 +2,13 @@ import { useCallback, useEffect, useState } from 'react';
 import { Users } from 'lucide-react';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
 import { useSupplierRole } from '../../hooks/useSupplierRole';
-import { fetchSupplierTeamMembers } from '../../data/supabase-supplier-team';
-import { type SupplierTeamMember } from '../../lib/supplierTeamRoles';
+import { fetchSupplierTeamMembers, removeSupplierTeamMember } from '../../data/supabase-supplier-team';
+import { canManageTeam, type SupplierTeamMember } from '../../lib/supplierTeamRoles';
 import { userFacingError } from '../../lib/userFacingError';
 import NoticeCallout from '../NoticeCallout';
 import { SkeletonListItem } from '../ui/Skeleton';
 import { ProfileCard } from './businessProfileUi';
+import PartnerConfirmModal from './PartnerConfirmModal';
 
 function roleLabel(role: string): string {
   if (role === 'owner') return 'Owner';
@@ -24,16 +25,19 @@ type Props = {
 };
 
 /**
- * Team tab: show primary account identity and existing members.
- * Invitation UI is intentionally Coming Soon (backend memberships preserved).
+ * Team tab: primary account and existing members.
+ * New invitations are not offered here. Owners can remove an existing teammate.
  */
 export default function SupplierTeamPanel({ brandName, accountEmail }: Props) {
   const { user } = useSupplierAuth();
-  const { roleStatus } = useSupplierRole();
+  const { role, roleStatus, refresh } = useSupplierRole();
   const roleReady = roleStatus === 'ready' || roleStatus === 'error';
   const [members, setMembers] = useState<SupplierTeamMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [removing, setRemoving] = useState<SupplierTeamMember | null>(null);
+  const [removeBusy, setRemoveBusy] = useState(false);
+  const [removeError, setRemoveError] = useState<string | null>(null);
 
   const reload = useCallback(async () => {
     if (!user?.id) {
@@ -59,6 +63,22 @@ export default function SupplierTeamPanel({ brandName, accountEmail }: Props) {
 
   const displayName = brandName.trim() || 'Your business';
   const teammates = members.filter((m) => m.role !== 'owner' && m.id !== user?.id);
+  const manageTeam = canManageTeam(role);
+
+  const confirmRemove = async () => {
+    if (!user?.id || !removing || removeBusy) return;
+    setRemoveBusy(true);
+    setRemoveError(null);
+    const ok = await removeSupplierTeamMember(user.id, removing.id);
+    setRemoveBusy(false);
+    if (!ok) {
+      setRemoveError('Could not remove this teammate. Try again.');
+      return;
+    }
+    setRemoving(null);
+    await reload();
+    await refresh();
+  };
 
   return (
     <div className="space-y-4">
@@ -100,28 +120,45 @@ export default function SupplierTeamPanel({ brandName, accountEmail }: Props) {
                   <p className="truncate text-[14px] font-medium text-ink">{m.label?.trim() || 'Teammate'}</p>
                   <p className="text-[12px] text-ink-muted">{roleLabel(m.role)}</p>
                 </div>
+                {manageTeam ? (
+                  <button
+                    type="button"
+                    className="tv-btn-secondary h-8 shrink-0 px-2.5 text-[12px]"
+                    onClick={() => {
+                      setRemoveError(null);
+                      setRemoving(m);
+                    }}
+                  >
+                    Remove
+                  </button>
+                ) : null}
               </li>
             ))}
           </ul>
         </ProfileCard>
-      ) : null}
+      ) : (
+        <ProfileCard title="Teammates">
+          <p className="text-[13px] leading-snug text-ink-muted">Only the primary account has access.</p>
+        </ProfileCard>
+      )}
 
-      <ProfileCard title="Team management">
-        <div className="flex items-start gap-3 rounded-lg bg-finland/[0.03] px-3.5 py-3 ring-1 ring-finland/10">
-          <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white text-finland ring-1 ring-finland/15">
-            <Users className="h-4 w-4" aria-hidden />
-          </span>
-          <div className="min-w-0">
-            <p className="text-[13px] leading-snug text-ink">
-              Invite teammates and manage access from one place.
-            </p>
-            <p className="mt-1.5 text-[12px] font-semibold text-finland">Coming soon</p>
-            <p className="mt-0.5 text-[12px] leading-snug text-ink-muted">
-              Invitations and permission controls will be available here later.
-            </p>
-          </div>
-        </div>
-      </ProfileCard>
+      <PartnerConfirmModal
+        open={removing != null}
+        title="Remove teammate"
+        description={
+          removing
+            ? `${removing.label?.trim() || 'This teammate'} will lose access to this supplier account.`
+            : ''
+        }
+        confirmLabel="Remove access"
+        destructive
+        busy={removeBusy}
+        error={removeError}
+        onConfirm={() => void confirmRemove()}
+        onCancel={() => {
+          if (!removeBusy) setRemoving(null);
+        }}
+      />
     </div>
   );
 }
