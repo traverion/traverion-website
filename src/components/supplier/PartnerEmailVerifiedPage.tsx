@@ -11,6 +11,8 @@ import {
 import { setPartnerAuthFlash } from '../../lib/partnerAuthFlash';
 import { beginAuthTransition, failAuthTransition, succeedAuthTransition } from '../../lib/auth-transition';
 import { setPageMetaWithOg } from '../../lib/seo';
+import { fetchSupplierProfile } from '../../data/supabase-supplier-profile';
+import { supplierSetupResumeHref } from '../../lib/supplier-onboarding-progress';
 
 type Phase = 'checking' | 'verified' | 'already' | 'invalid' | 'unconfigured';
 
@@ -66,7 +68,7 @@ export default function PartnerEmailVerifiedPage() {
       }
     };
 
-    const succeed = () => {
+    const succeed = (destination: string) => {
       if (cancelled) return;
       setPhase('verified');
       stripSensitiveUrl();
@@ -74,8 +76,14 @@ export default function PartnerEmailVerifiedPage() {
         title: 'Email verified!',
         message: 'Your email is confirmed. This does not approve the company.',
         page: 'partner',
-        navigate: () => window.location.replace(PARTNER_AFTER_EMAIL_CONFIRM_PATH),
+        navigate: () => window.location.replace(destination),
       });
+    };
+
+    const enterAfterConfirm = async (userId: string) => {
+      const profile = await fetchSupplierProfile(userId);
+      if (cancelled) return;
+      succeed(supplierSetupResumeHref(profile) ?? PARTNER_AFTER_EMAIL_CONFIRM_PATH);
     };
 
     void (async () => {
@@ -88,7 +96,7 @@ export default function PartnerEmailVerifiedPage() {
           fail();
           return;
         }
-        succeed();
+        await enterAfterConfirm(data.session.user.id);
         return;
       }
 
@@ -129,7 +137,7 @@ export default function PartnerEmailVerifiedPage() {
         return;
       }
 
-      succeed();
+      await enterAfterConfirm(data.session.user.id);
     })();
 
     return () => {

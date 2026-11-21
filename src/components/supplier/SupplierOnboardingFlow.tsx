@@ -520,7 +520,7 @@ export default function SupplierOnboardingFlow({
       setBusy(false);
       return;
     }
-    const progressSaved = await updateSupplierSetupProgress(userId, progressRecord(profile, screen));
+    const progressSaved = await updateSupplierSetupProgress(userId, progressRecord(profile, screen, true));
     if (!progressSaved.success) {
       setBusy(false);
       setError(progressSaved.error || 'Progress could not be saved. Your entries are still on this page.');
@@ -1393,7 +1393,11 @@ export default function SupplierOnboardingFlow({
   );
 }
 
-function progressRecord(profile: SupplierProfileRow | null, next: SupplierOnboardingScreenId) {
+function progressRecord(
+  profile: SupplierProfileRow | null,
+  next: SupplierOnboardingScreenId,
+  exited = false
+) {
   const existing =
     profile?.setup_progress && typeof profile.setup_progress === 'object' && !Array.isArray(profile.setup_progress)
       ? profile.setup_progress
@@ -1403,6 +1407,7 @@ function progressRecord(profile: SupplierProfileRow | null, next: SupplierOnboar
     version: 1,
     phase: supplierOnboardingScreen(next).phase,
     screen: next,
+    exited,
     payout_step: wizardStepForScreen(next),
     updated_at: new Date().toISOString(),
   };

@@ -6,8 +6,7 @@ import StatusChip from '../../components/StatusChip';
 import { USER_ERROR } from '../../lib/userFacingError';
 import { AlertCircle, Calendar, ChevronRight } from 'lucide-react';
 import { supplierOperationalIndicators, supplierVerificationState } from '../../lib/supplier-verification-state';
-import { onboardingLanesVerified, supplierOnboardingSnapshot } from '../../lib/supplier-onboarding-progress';
-import { supplierOnboardingScreen } from '../../lib/supplier-onboarding-steps';
+import { supplierOnboardingSnapshot, supplierSetupResumeHref } from '../../lib/supplier-onboarding-progress';
 import PartnerOperationalStatus from '../../components/supplier/PartnerOperationalStatus';
 import { fetchPayoutExecutionGates } from '../../data/payout-execution-gates';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
@@ -733,7 +732,7 @@ export default function SupplierDashboard() {
         <PartnerOperationalStatus account={operations.account} payouts={operations.payouts} />
       ) : null}
 
-      {profile && !onboardingLanesVerified(supplierOnboardingSnapshot(profile)) ? (
+      {profile && supplierSetupResumeHref(profile) ? (
         <section className="partner-home-section" aria-labelledby="complete-business-setup">
           <div className="partner-home__panel px-4 py-4 sm:px-5">
             <h2 id="complete-business-setup" className="text-[1.05rem] font-semibold text-ink">
@@ -756,9 +755,8 @@ export default function SupplierDashboard() {
               type="button"
               className="tv-btn-primary mt-4 min-h-11 px-4"
               onClick={() => {
-                const next = supplierOnboardingSnapshot(profile).nextScreen;
-                const phase = supplierOnboardingScreen(next).phase;
-                navigateSupplierUrl(`${PARTNER_APP_BASE}/onboarding?phase=${phase}&screen=${next}`);
+                const href = supplierSetupResumeHref(profile);
+                if (href) navigateSupplierUrl(href);
               }}
             >
               Continue setup

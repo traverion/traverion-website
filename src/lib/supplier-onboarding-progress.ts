@@ -5,7 +5,8 @@
 
 import { humanizeConnectRequirements } from './connect-requirement-labels';
 import type { SupplierOnboardingScreenId } from './supplier-onboarding-steps';
-import { SUPPLIER_ONBOARDING_SCREENS } from './supplier-onboarding-steps';
+import { SUPPLIER_ONBOARDING_SCREENS, supplierOnboardingScreen } from './supplier-onboarding-steps';
+import { PARTNER_APP_BASE } from './partnerPortalPaths';
 
 export type OnboardingLaneStatus =
   | 'not_started'
@@ -44,7 +45,7 @@ export type OnboardingProgressProfile = {
     tos_accepted_intent?: boolean;
     markers?: { representativeSavedAt?: string | null; bankSavedAt?: string | null };
   } | null;
-  setup_progress?: { screen?: string | null } | null;
+  setup_progress?: { screen?: string | null; exited?: boolean | null } | null;
 };
 
 export type OnboardingLane = {
@@ -210,4 +211,17 @@ export function supplierSetupMenuLabel(snapshot: SupplierOnboardingSnapshot): st
   if (onboardingLanesVerified(snapshot)) return null;
   if (!snapshot.actionable) return 'Verification pending';
   return snapshot.nextAction;
+}
+
+/** Where a fresh email confirmation continues. Home once the application is submitted or verified. */
+export function supplierSetupResumeHref(profile: OnboardingProgressProfile | null | undefined): string | null {
+  if (!profile) return `${PARTNER_APP_BASE}/onboarding?phase=business&screen=company`;
+  const status = (profile.verification_status ?? '').trim().toLowerCase();
+  const submitted = Boolean((profile.verification_submitted_at ?? '').trim());
+  const feedback = Boolean((profile.business_verification_feedback ?? '').trim());
+  if (status === 'verified') return null;
+  if (submitted && status !== 'rejected' && !feedback) return null;
+  const next = supplierOnboardingSnapshot(profile).nextScreen;
+  const phase = supplierOnboardingScreen(next).phase;
+  return `${PARTNER_APP_BASE}/onboarding?phase=${phase}&screen=${next}`;
 }

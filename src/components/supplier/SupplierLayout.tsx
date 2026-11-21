@@ -41,6 +41,7 @@ import {
 } from '../../data/supabase-supplier-profile';
 import { type UnifiedSetupPhaseId } from '../../lib/partner-unified-setup';
 import { supplierVerificationState } from '../../lib/supplier-verification-state';
+import { supplierSetupResumeHref } from '../../lib/supplier-onboarding-progress';
 import {
   applyLegalPlaceholders,
   applyLegalDate,
@@ -1027,10 +1028,10 @@ export default function SupplierLayout() {
     navigateSupplierUrl(`${PARTNER_APP_BASE}/onboarding?phase=${phase}`);
   };
 
-  // A verified supplier stays out of onboarding. Legacy business-setup still opens it for everyone else.
+  // Submitted and verified suppliers stay on Home. A correction still opens the saved step.
   useEffect(() => {
-    if (section !== 'onboarding' || !onboardingProfileReady) return;
-    if (supplierVerificationState(onboardingProfile).status !== 'verified') return;
+    if (section !== 'onboarding' || !onboardingProfileReady || !onboardingProfile) return;
+    if (supplierSetupResumeHref(onboardingProfile)) return;
     navigateSupplierUrl(PARTNER_APP_BASE);
   }, [section, onboardingProfile, onboardingProfileReady]);
 

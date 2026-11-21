@@ -4,6 +4,7 @@ import {
   supplierOnboardingSnapshot,
   supplierSetupCompletionCopy,
   supplierSetupMenuLabel,
+  supplierSetupResumeHref,
 } from './supplier-onboarding-progress';
 
 const verifiedCompany = {
@@ -122,5 +123,29 @@ describe('supplier onboarding progress', () => {
     });
     expect(snapshot.company.status).toBe('rejected');
     expect(snapshot.nextScreen).toBe('documents');
+  });
+
+  it('sends a new supplier to Company and a submitted supplier home', () => {
+    expect(supplierSetupResumeHref(null)).toBe('/partner/onboarding?phase=business&screen=company');
+    expect(
+      supplierSetupResumeHref({
+        verification_status: 'pending',
+        verification_submitted_at: '2026-11-22T00:00:00.000Z',
+        company_legal_name: 'Example Oy',
+      })
+    ).toBeNull();
+    expect(
+      supplierSetupResumeHref({
+        verification_status: 'verified',
+        company_legal_name: 'Example Oy',
+      })
+    ).toBeNull();
+    expect(
+      supplierSetupResumeHref({
+        verification_status: null,
+        company_legal_name: 'Example Oy',
+        setup_progress: { screen: 'person', exited: true },
+      })
+    ).toBe('/partner/onboarding?phase=representative&screen=person');
   });
 });
