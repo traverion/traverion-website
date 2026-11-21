@@ -32,7 +32,11 @@ import {
   localDraftWouldEraseServer,
   onboardingDraftFlush,
   onboardingPopAction,
+  adjacentOnboardingScreen,
+  initialOnboardingJourney,
+  onboardingMoveDirection,
   previousOnboardingScreen,
+  reconcileOnboardingJourney,
 } from '../../lib/supplier-onboarding-nav';
 import {
   emptyBeneficialOwner,
@@ -137,6 +141,7 @@ export default function SupplierOnboardingFlow({
   const [companyStreet, setCompanyStreet] = useState(profile?.address_street ?? '');
   const [companyCountry, setCompanyCountry] = useState(profile?.address_country ?? '');
   const [screen, setScreen] = useState<SupplierOnboardingScreenId | null>(null);
+  const [journey, setJourney] = useState<SupplierOnboardingScreenId[]>([]);
   const [motion, setMotion] = useState<'forward' | 'back'>('forward');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -145,7 +150,9 @@ export default function SupplierOnboardingFlow({
   const ownerHydrated = useRef(false);
   const submitting = useRef(false);
   const finalizing = useRef(false);
-  const navigating = useRef(false);
+  const navLock = useRef(false);
+  const historyPending = useRef(false);
+  const journeyRef = useRef<SupplierOnboardingScreenId[]>([]);
   const companyEdited = useRef(false);
   const draftEdited = useRef(false);
   const historyStack = useRef<SupplierOnboardingScreenId[]>([]);
@@ -237,6 +244,9 @@ export default function SupplierOnboardingFlow({
           ? 'others'
           : requested;
     const next = visible.includes(folded) || folded === 'company' || folded === 'documents' ? folded : visible[0] ?? 'company';
+    const started = initialOnboardingJourney(visible, next);
+    journeyRef.current = started;
+    setJourney(started);
     setScreen(next);
     historyStack.current = [next];
     lastSavedSig.current = onboardingDraftSignature(nextDraft);
@@ -248,6 +258,13 @@ export default function SupplierOnboardingFlow({
 
   useEffect(() => {
     const onPop = () => {
+      const pending = historyPending.current;
+      historyPending.current = false;
+      if (navLock.current && !pending) {
+        const current = screenRef.current;
+        if (current) writeScreen(current, 'push');
+        return;
+      }
       const action = onboardingPopAction({
         pathname: window.location.pathname,
         search: window.location.search,
@@ -267,12 +284,12 @@ export default function SupplierOnboardingFlow({
       }
       if (action.type === 'stay') {
         const leaving = screenRef.current;
-        const idx = historyStack.current.lastIndexOf(action.screen);
-        if (idx >= 0) historyStack.current = historyStack.current.slice(0, idx + 1);
-        else historyStack.current = [...historyStack.current, action.screen];
+        const stack = historyStack.current;
+        const idx = stack.lastIndexOf(action.screen);
+        if (idx >= 0) historyStack.current = stack.slice(0, idx + 1);
+        else historyStack.current = [...stack, action.screen];
         if (leaving && leaving !== action.screen) {
-          const later = visible.indexOf(action.screen) > visible.indexOf(leaving);
-          setMotion(later ? 'forward' : 'back');
+          setMotion(onboardingMoveDirection(journeyRef.current, leaving, action.screen));
           void persistDraft('quiet').then((result) => {
             if (result !== 'failed' || !leaving) return;
             setMotion('forward');
@@ -282,6 +299,11 @@ export default function SupplierOnboardingFlow({
           });
         }
         setScreen(action.screen);
+        setDraft((current) => {
+          const updated = { ...current, step: wizardStepForScreen(action.screen) };
+          draftRef.current = updated;
+          return updated;
+        });
       }
     };
     window.addEventListener('popstate', onPop);
@@ -352,12 +374,15 @@ export default function SupplierOnboardingFlow({
     return 'saved';
   };
 
-  const go = (next: SupplierOnboardingScreenId) => {
+  const sequence = (patch?: Partial<SupplierOnboardingVisibility>) =>
+    visibleSupplierOnboardingScreens({ ...visibility, ...patch });
+
+  const publish = (next: SupplierOnboardingScreenId, direction: 'forward' | 'back') => {
     setError(null);
-    setMotion('forward');
-    const step = wizardStepForScreen(next);
+    setMotion(direction);
     setDraft((current) => {
-      const updated = { ...current, step };
+      const updated = { ...current, step: wizardStepForScreen(next) };
+      draftRef.current = updated;
       savePayoutWizardDraft(userId, updated);
       return updated;
     });
@@ -367,21 +392,21 @@ export default function SupplierOnboardingFlow({
     void updateSupplierSetupProgress(userId, progressRecord(profile, next));
   };
 
-  const sequence = (patch?: Partial<SupplierOnboardingVisibility>) =>
-    visibleSupplierOnboardingScreens({ ...visibility, ...patch });
-
   const advance = async (id: SupplierOnboardingScreenId, patch?: Partial<SupplierOnboardingVisibility>) => {
-    if (busy) return;
     const saved = await persistDraft();
     if (saved === 'failed') return;
     if (saved === 'saved') feedback.success('Saved');
-    const list = sequence(patch);
-    const index = list.indexOf(id);
-    if (index === -1) {
-      go(list.includes('bank') ? 'bank' : 'status');
-      return;
-    }
-    go(list[index + 1] ?? 'status');
+    const computed = sequence(patch);
+    const nextJourney = reconcileOnboardingJourney(
+      journeyRef.current.length ? journeyRef.current : computed,
+      id,
+      computed
+    );
+    journeyRef.current = nextJourney;
+    setJourney(nextJourney);
+    const next = adjacentOnboardingScreen(nextJourney, id, 1);
+    if (!next) return;
+    publish(next, 'forward');
   };
 
   const saveCompany = async (): Promise<boolean> => {
@@ -506,56 +531,66 @@ export default function SupplierOnboardingFlow({
   exitRef.current = exitAndSave;
 
   const back = async () => {
-    const previous = previousOnboardingScreen(visible, screen);
-    if (!previous || busy || documentBusy) return;
-    setError(null);
-    setMotion('back');
-    const saved = await persistDraft();
-    if (saved === 'failed') return;
-    if (saved === 'saved') feedback.success('Saved');
-    void updateSupplierSetupProgress(userId, progressRecord(profile, previous));
-    const stack = historyStack.current;
-    if (stack.length > 1) {
-      historyStack.current = stack.slice(0, -1);
-      window.history.back();
-      return;
+    const route = journeyRef.current.length ? journeyRef.current : visible;
+    const previous = previousOnboardingScreen(route, screen);
+    if (!previous || busy || documentBusy || navLock.current) return;
+    navLock.current = true;
+    try {
+      setError(null);
+      const saved = await persistDraft();
+      if (saved === 'failed') return;
+      if (saved === 'saved') feedback.success('Saved');
+      const stack = historyStack.current;
+      if (stack.length > 1 && stack[stack.length - 2] === previous) {
+        historyPending.current = true;
+        window.history.back();
+        return;
+      }
+      publish(previous, 'back');
+    } finally {
+      navLock.current = false;
     }
-    historyStack.current = [previous];
-    setScreen(previous);
-    writeScreen(previous, 'replace');
   };
 
   const openPhase = async (phase: SupplierOnboardingPhase) => {
-    if (!screen || busy || documentBusy) return;
-    const currentPhase = supplierOnboardingScreen(screen).phase;
-    if (!canRevisitOnboardingPhase(phase, currentPhase, visible)) return;
-    const target = onboardingPhaseEntryScreen(phase, visible);
-    if (!target || target === screen) return;
-    setError(null);
-    setMotion('back');
-    const saved = await persistDraft();
-    if (saved === 'failed') return;
-    if (saved === 'saved') feedback.success('Saved');
-    void updateSupplierSetupProgress(userId, progressRecord(profile, target));
-    historyStack.current = [...historyStack.current, target];
-    setScreen(target);
-    writeScreen(target, 'push');
+    if (!screen || busy || documentBusy || navLock.current) return;
+    navLock.current = true;
+    try {
+      const route = journeyRef.current.length ? journeyRef.current : visible;
+      const currentPhase = supplierOnboardingScreen(screen).phase;
+      if (!canRevisitOnboardingPhase(phase, currentPhase, route)) return;
+      const target = onboardingPhaseEntryScreen(phase, route);
+      if (!target || target === screen) return;
+      setError(null);
+      const saved = await persistDraft();
+      if (saved === 'failed') return;
+      if (saved === 'saved') feedback.success('Saved');
+      publish(target, 'back');
+    } finally {
+      navLock.current = false;
+    }
   };
 
   const editStep = (next: SupplierOnboardingScreenId) => {
-    setMotion('back');
-    setError(null);
-    historyStack.current = [...historyStack.current, next];
-    setScreen(next);
-    writeScreen(next, 'push');
+    if (navLock.current) return;
+    const route = journeyRef.current.length ? journeyRef.current : visible;
+    const nextJourney = initialOnboardingJourney(route, next);
+    journeyRef.current = nextJourney;
+    setJourney(nextJourney);
+    publish(next, onboardingMoveDirection(nextJourney, screen, next));
   };
 
   const onContinue = async () => {
-    if (busy || documentBusy || submitting.current || finalizing.current || navigating.current) return;
-    navigating.current = true;
-    window.setTimeout(() => {
-      navigating.current = false;
-    }, 600);
+    if (busy || documentBusy || submitting.current || finalizing.current || navLock.current) return;
+    navLock.current = true;
+    try {
+    await continueFromScreen();
+    } finally {
+      navLock.current = false;
+    }
+  };
+
+  const continueFromScreen = async () => {
     if (!canEdit && screen !== 'company' && screen !== 'status') {
       setError('Your role can view setup but cannot change it.');
       return;
@@ -569,11 +604,11 @@ export default function SupplierOnboardingFlow({
         hasCompany: Boolean(profile?.company_legal_name?.trim() && profile?.company_registration_number?.trim()),
       });
       if (presentation.mode === 'verified' || presentation.mode === 'pending') {
-        advance('company');
+        await advance('company');
         return;
       }
       const ok = await saveCompany();
-      if (ok) advance('company');
+      if (ok) await advance('company');
       return;
     }
     if (screen === 'documents') {
@@ -581,12 +616,7 @@ export default function SupplierOnboardingFlow({
         setError('Add the registration document.');
         return;
       }
-      const saved = await persistDraft();
-      if (saved === 'failed') return;
-      if (saved === 'saved') feedback.success('Saved');
-      const list = sequence();
-      const afterCompany = list[list.indexOf('company') + 1] ?? 'status';
-      go(afterCompany === 'documents' ? list[list.indexOf('documents') + 1] ?? 'status' : afterCompany);
+      await advance('documents');
       return;
     }
     if (screen === 'person') {
@@ -607,7 +637,7 @@ export default function SupplierOnboardingFlow({
         }
         if (share === 100) setOthers(false);
       }
-      advance('person', {
+      await advance('person', {
         owns: draft.rep_is_owner,
         share,
         others: isCompany && draft.rep_is_owner && share === 100 ? false : others,
@@ -626,19 +656,23 @@ export default function SupplierOnboardingFlow({
           setError(dobErr || percentErr || 'Enter the owner’s name, date of birth, and share.');
           return;
         }
-        setDraft((current) => ({
-          ...current,
-          beneficial_owners: [
-            emptyBeneficialOwner({
-              first_name: owner.first_name.trim(),
-              last_name: owner.last_name.trim(),
-              percent_ownership: owner.percent_ownership,
-              dob: '',
-            }),
-          ],
-        }));
+        setDraft((current) => {
+          const updated = {
+            ...current,
+            beneficial_owners: [
+              emptyBeneficialOwner({
+                first_name: owner.first_name.trim(),
+                last_name: owner.last_name.trim(),
+                percent_ownership: owner.percent_ownership,
+                dob: '',
+              }),
+            ],
+          };
+          draftRef.current = updated;
+          return updated;
+        });
       }
-      advance('others', { others, hasExtraOwner: others });
+      await advance('others', { others, hasExtraOwner: others });
       return;
     }
     if (screen === 'consent') {
@@ -646,7 +680,7 @@ export default function SupplierOnboardingFlow({
         setError('Confirm that Traverion may send these details when you finish setup.');
         return;
       }
-      advance('consent');
+      await advance('consent');
       return;
     }
     if (screen === 'bank') {
@@ -659,7 +693,7 @@ export default function SupplierOnboardingFlow({
         setError('Accept the payout terms before you finish setup.');
         return;
       }
-      advance('bank', flags.termsOpen ? { termsOpen: false } : undefined);
+      await advance('bank', flags.termsOpen ? { termsOpen: false } : undefined);
       return;
     }
     if (screen === 'terms') {
@@ -667,15 +701,22 @@ export default function SupplierOnboardingFlow({
         setError('Accept the payout terms before you finish setup.');
         return;
       }
-      advance('terms');
+      await advance('terms');
       return;
     }
     if (draftReview) {
       void completeSetup();
       return;
     }
-    if (verification.actionLabel) go(snapshot.nextScreen);
-    else onExit();
+    if (verification.actionLabel && snapshot.nextScreen !== screen) {
+      const route = journeyRef.current.length ? journeyRef.current : visible;
+      const nextJourney = initialOnboardingJourney(route, snapshot.nextScreen);
+      journeyRef.current = nextJourney;
+      setJourney(nextJourney);
+      publish(snapshot.nextScreen, onboardingMoveDirection(nextJourney, screen, snapshot.nextScreen));
+      return;
+    }
+    onExit();
   };
 
   const submitIdentity = async (quiet = false): Promise<string | null> => {
@@ -998,7 +1039,8 @@ export default function SupplierOnboardingFlow({
   }
 
   const meta = supplierOnboardingScreen(screen);
-  const overall = onboardingOverallStep(visible, screen);
+  const route = journey.length ? journey : visible;
+  const overall = onboardingOverallStep(route, screen);
   const verification = supplierVerificationState(profile);
   const companyPresentation = companyOnboardingPresentation({
     verified: (profile?.verification_status ?? '').toLowerCase() === 'verified',
@@ -1058,7 +1100,7 @@ export default function SupplierOnboardingFlow({
         currentLabel={meta.group}
         onSelectIndex={() => undefined}
         onExit={() => void exitAndSave()}
-        exitLabel="Save & exit"
+        exitLabel="Exit & save"
         exitDisabled={busy || documentBusy}
         exitBusy={busy}
         footer={
@@ -1077,7 +1119,7 @@ export default function SupplierOnboardingFlow({
               />
             </div>
             <div className="supplier-onboarding-footer grid grid-cols-[1fr_auto] items-center gap-3">
-              {previousOnboardingScreen(visible, screen) ? (
+              {previousOnboardingScreen(route, screen) ? (
                 <button
                   type="button"
                   className="stay-nav-btn stay-nav-btn--start touch-manipulation tv-btn-ghost !min-h-11 disabled:opacity-40"
@@ -1093,7 +1135,7 @@ export default function SupplierOnboardingFlow({
                   onClick={() => void exitAndSave()}
                   disabled={busy || documentBusy}
                 >
-                  Save & exit
+                  Exit & save
                 </button>
               )}
               <button
@@ -1111,7 +1153,7 @@ export default function SupplierOnboardingFlow({
         <div className="supplier-onboarding">
           <OnboardingStepper
             phase={meta.phase}
-            canSelect={(phase) => canRevisitOnboardingPhase(phase, meta.phase, visible)}
+            canSelect={(phase) => canRevisitOnboardingPhase(phase, meta.phase, route)}
             onSelect={(phase) => void openPhase(phase)}
           />
           <header className="supplier-onboarding__head">
