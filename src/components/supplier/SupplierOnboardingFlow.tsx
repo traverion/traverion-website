@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import DateOfBirthPicker from './DateOfBirthPicker';
 import { ListingCreationWorkspace } from './listing-creation/ListingCreationWorkspace';
 import {
@@ -102,7 +102,6 @@ export default function SupplierOnboardingFlow({
   const [screen, setScreen] = useState<SupplierOnboardingScreenId | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [editingName, setEditingName] = useState(false);
   const booted = useRef(false);
   const submitting = useRef(false);
   const navigating = useRef(false);
@@ -799,7 +798,7 @@ export default function SupplierOnboardingFlow({
                 style={{ width: `${(progress.index / Math.max(progress.total, 1)) * 100}%` }}
               />
             </div>
-            <div className="grid grid-cols-3 items-center gap-2">
+            <div className="supplier-onboarding-footer grid grid-cols-[1fr_auto] items-center gap-3">
               <button
                 type="button"
                 className="stay-nav-btn stay-nav-btn--start touch-manipulation tv-btn-ghost !min-h-11 disabled:opacity-40"
@@ -808,7 +807,6 @@ export default function SupplierOnboardingFlow({
               >
                 Back
               </button>
-              <span />
               <button
                 type="button"
                 className="stay-nav-btn stay-nav-btn--end touch-manipulation tv-btn-primary !min-h-11 disabled:opacity-50"
@@ -821,12 +819,9 @@ export default function SupplierOnboardingFlow({
           </div>
         }
       >
-        <div key={screen} className="onboarding-step mx-auto w-full max-w-[42.5rem]">
-          <header className="mb-5 space-y-2">
-            <p className="text-[12px] font-semibold uppercase tracking-[0.06em] text-ink-muted">
-              {progress.group} · {progress.index} of {progress.total}
-            </p>
-            <ol className="mb-3 flex flex-wrap gap-x-3 gap-y-1 text-[11px] font-semibold uppercase tracking-[0.04em] text-ink-muted">
+        <div key={screen} className="supplier-onboarding onboarding-step">
+          <header className="supplier-onboarding__head">
+            <ol className="supplier-onboarding-steps" aria-label="Setup progress">
               {(['Company', 'Documents', 'Representative', 'Payouts', 'Review'] as const).map((label, index) => {
                 const current =
                   (meta.phase === 'business' && index === 0) ||
@@ -834,114 +829,99 @@ export default function SupplierOnboardingFlow({
                   (meta.phase === 'representative' && index === 2) ||
                   (meta.phase === 'payout' && index === 3) ||
                   (meta.phase === 'status' && index === 4);
+                const done =
+                  (meta.phase === 'documents' && index < 1) ||
+                  (meta.phase === 'representative' && index < 2) ||
+                  (meta.phase === 'payout' && index < 3) ||
+                  (meta.phase === 'status' && index < 4);
                 return (
-                  <li key={label} className={current ? 'text-[#073b83]' : undefined} aria-current={current ? 'step' : undefined}>
-                    {label}
+                  <li key={label} className={done ? 'is-done' : undefined} aria-current={current ? 'step' : undefined}>
+                    <span>{label}</span>
                   </li>
                 );
               })}
             </ol>
-            <h1 className="font-display text-[1.45rem] font-bold leading-[1.15] tracking-tight text-ink sm:text-[1.7rem]">
-              {title}
-            </h1>
-            <p className="text-[14px] leading-relaxed text-ink-muted sm:text-[15px]">{body}</p>
+            <p className="supplier-onboarding__kicker">
+              {progress.group} · {progress.index} of {progress.total}
+            </p>
+            <h1 className="supplier-onboarding__title">{title}</h1>
+            <p className="supplier-onboarding__body">{body}</p>
           </header>
           {screen === 'company' && (companyPresentation.mode === 'form' || companyPresentation.mode === 'draft') ? (
-            <div className="grid gap-4">
-              <label className="block text-[13px] font-medium text-ink">
-                Registered legal name
-                <input className="tv-input mt-1.5 w-full" value={companyLegal} onChange={(event) => setCompanyLegal(event.target.value)} autoComplete="organization" />
-              </label>
-              <label className="block text-[13px] font-medium text-ink">
-                Business ID
-                <input className="tv-input mt-1.5 w-full" value={companyReg} onChange={(event) => setCompanyReg(event.target.value)} inputMode="text" />
-              </label>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <label className="block text-[13px] font-medium text-ink">
-                  Postal code
-                  <input className="tv-input mt-1.5 w-full" value={companyPostal} onChange={(event) => setCompanyPostal(event.target.value)} />
-                </label>
-                <label className="block text-[13px] font-medium text-ink">
-                  City
-                  <input className="tv-input mt-1.5 w-full" value={companyCity} onChange={(event) => setCompanyCity(event.target.value)} />
-                </label>
-              </div>
+            <div className="supplier-onboarding-grid">
+              <OnboardingField label="Registered legal business name" className="supplier-onboarding-grid__wide">
+                <input className="tv-input" value={companyLegal} onChange={(event) => setCompanyLegal(event.target.value)} autoComplete="organization" />
+              </OnboardingField>
+              <OnboardingField
+                label="Business ID"
+                help="Your official business registration number. In Finland, this is your Y-tunnus."
+              >
+                <input className="tv-input" value={companyReg} onChange={(event) => setCompanyReg(event.target.value)} inputMode="text" />
+              </OnboardingField>
+              <OnboardingField label="City">
+                <input className="tv-input" value={companyCity} onChange={(event) => setCompanyCity(event.target.value)} autoComplete="address-level2" />
+              </OnboardingField>
+              <OnboardingField label="Postal code">
+                <input className="tv-input" value={companyPostal} onChange={(event) => setCompanyPostal(event.target.value)} autoComplete="postal-code" />
+              </OnboardingField>
             </div>
           ) : null}
           {screen === 'company' && (companyPresentation.mode === 'verified' || companyPresentation.mode === 'pending') ? (
-            <dl className="space-y-3 rounded-2xl border border-[#E5E7EB] bg-white px-4 py-4 text-[15px]">
+            <dl className="supplier-onboarding-facts">
               <div>
-                <dt className="text-[12px] font-medium text-ink-muted">Legal name</dt>
-                <dd className="font-semibold text-ink">{profile?.company_legal_name}</dd>
+                <dt>Registered legal business name</dt>
+                <dd>{profile?.company_legal_name}</dd>
               </div>
               <div>
-                <dt className="text-[12px] font-medium text-ink-muted">Business ID</dt>
-                <dd className="font-semibold text-ink">{profile?.company_registration_number}</dd>
+                <dt>Business ID</dt>
+                <dd>{profile?.company_registration_number}</dd>
               </div>
               <div>
-                <dt className="text-[12px] font-medium text-ink-muted">City</dt>
-                <dd className="font-semibold text-ink">{cityLine}</dd>
+                <dt>City</dt>
+                <dd>{cityLine}</dd>
               </div>
             </dl>
           ) : null}
           {screen === 'documents' ? (
-            <div className="rounded-2xl border border-[#E5E7EB] bg-white px-4 py-4">
+            <div className="supplier-onboarding-card">
               {hasFile ? (
                 <p className="text-[15px] font-semibold text-ink">Registration document is on file.</p>
               ) : (
-                <label className="block text-[14px] font-semibold text-ink">
-                  Upload the registration document
+                <OnboardingField label="Registration document" help="A trade register extract or the equivalent official document.">
                   <input
-                    className="mt-3 block w-full text-[14px] font-medium"
+                    className="supplier-onboarding-file"
                     type="file"
                     accept="application/pdf,image/jpeg,image/png"
                     onChange={(event) => void onUpload(event.target.files?.[0] ?? null)}
                   />
-                </label>
+                </OnboardingField>
               )}
             </div>
           ) : null}
           {screen === 'person' ? (
-            <div className="rounded-2xl border border-[#E5E7EB] bg-white px-4 py-4">
-              {editingName ? (
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <label className="block text-[13px] font-medium text-ink">
-                    First name
-                    <input
-                      className="tv-input mt-1.5 w-full"
-                      value={draft.rep_first_name}
-                      onChange={(event) => setDraft((current) => ({ ...current, rep_first_name: event.target.value }))}
-                    />
-                  </label>
-                  <label className="block text-[13px] font-medium text-ink">
-                    Last name
-                    <input
-                      className="tv-input mt-1.5 w-full"
-                      value={draft.rep_last_name}
-                      onChange={(event) => setDraft((current) => ({ ...current, rep_last_name: event.target.value }))}
-                    />
-                  </label>
-                </div>
-              ) : (
-                <p
-                  className="text-[15px] font-semibold text-ink"
-                  data-saved-given={draft.rep_first_name.trim().length}
-                  data-saved-family={draft.rep_last_name.trim().length}
-                >
-                  {draft.rep_first_name} {draft.rep_last_name}
-                </p>
-              )}
-              <button
-                type="button"
-                className="mt-3 min-h-11 text-[13px] font-semibold text-[#073b83]"
-                onClick={() => setEditingName((value) => !value)}
-              >
-                {editingName ? 'Done' : 'Change name'}
-              </button>
+            <div className="supplier-onboarding-grid">
+              <OnboardingField label="First name">
+                <input
+                  className="tv-input"
+                  value={draft.rep_first_name}
+                  autoComplete="given-name"
+                  onChange={(event) => setDraft((current) => ({ ...current, rep_first_name: event.target.value }))}
+                />
+              </OnboardingField>
+              <OnboardingField label="Last name">
+                <input
+                  className="tv-input"
+                  value={draft.rep_last_name}
+                  autoComplete="family-name"
+                  onChange={(event) => setDraft((current) => ({ ...current, rep_last_name: event.target.value }))}
+                />
+              </OnboardingField>
             </div>
           ) : null}
           {screen === 'dob' ? (
-            <DateOfBirthPicker value={repDob} onChange={setRepDob} required />
+            <OnboardingField label="Date of birth" help="Used to confirm this person. Traverion does not keep the date.">
+              <DateOfBirthPicker value={repDob} onChange={setRepDob} required />
+            </OnboardingField>
           ) : null}
           {screen === 'director' ? (
             <Choice
@@ -960,17 +940,16 @@ export default function SupplierOnboardingFlow({
             />
           ) : null}
           {screen === 'share' ? (
-            <label className="block max-w-[12rem] text-[13px] font-medium text-ink">
-              Percent
+            <OnboardingField label="Ownership percent" help="The share of the company this person owns. Use 100 if they own it outright." className="supplier-onboarding-field--short">
               <input
-                className="tv-input mt-1.5 w-full"
+                className="tv-input"
                 inputMode="decimal"
                 value={draft.rep_percent_ownership}
                 onChange={(event) =>
                   setDraft((current) => ({ ...current, rep_percent_ownership: event.target.value }))
                 }
               />
-            </label>
+            </OnboardingField>
           ) : null}
           {screen === 'others' ? (
             <Choice
@@ -981,43 +960,42 @@ export default function SupplierOnboardingFlow({
             />
           ) : null}
           {screen === 'owner' ? (
-            <div className="grid gap-3">
-              <div className="grid gap-3 sm:grid-cols-2">
-                <label className="block text-[13px] font-medium text-ink">
-                  First name
-                  <input
-                    className="tv-input mt-1.5 w-full"
-                    value={owner.first_name}
-                    onChange={(event) => setOwner((current) => ({ ...current, first_name: event.target.value }))}
-                  />
-                </label>
-                <label className="block text-[13px] font-medium text-ink">
-                  Last name
-                  <input
-                    className="tv-input mt-1.5 w-full"
-                    value={owner.last_name}
-                    onChange={(event) => setOwner((current) => ({ ...current, last_name: event.target.value }))}
-                  />
-                </label>
-              </div>
-              <DateOfBirthPicker
-                value={owner.dob}
-                onChange={(value) => setOwner((current) => ({ ...current, dob: value }))}
-                required
-              />
-              <label className="block max-w-[12rem] text-[13px] font-medium text-ink">
-                Percent
+            <div className="supplier-onboarding-grid">
+              <OnboardingField label="First name">
                 <input
-                  className="tv-input mt-1.5 w-full"
+                  className="tv-input"
+                  value={owner.first_name}
+                  autoComplete="given-name"
+                  onChange={(event) => setOwner((current) => ({ ...current, first_name: event.target.value }))}
+                />
+              </OnboardingField>
+              <OnboardingField label="Last name">
+                <input
+                  className="tv-input"
+                  value={owner.last_name}
+                  autoComplete="family-name"
+                  onChange={(event) => setOwner((current) => ({ ...current, last_name: event.target.value }))}
+                />
+              </OnboardingField>
+              <OnboardingField label="Date of birth" help="Used to confirm this owner. Traverion does not keep the date." className="supplier-onboarding-grid__wide">
+                <DateOfBirthPicker
+                  value={owner.dob}
+                  onChange={(value) => setOwner((current) => ({ ...current, dob: value }))}
+                  required
+                />
+              </OnboardingField>
+              <OnboardingField label="Ownership percent" help="The share of the company this person owns." className="supplier-onboarding-field--short">
+                <input
+                  className="tv-input"
                   inputMode="decimal"
                   value={owner.percent_ownership}
                   onChange={(event) => setOwner((current) => ({ ...current, percent_ownership: event.target.value }))}
                 />
-              </label>
+              </OnboardingField>
             </div>
           ) : null}
           {screen === 'consent' ? (
-            <label className="lc-choice flex min-h-[3.25rem] items-center gap-3 rounded-2xl px-4 text-[15px] font-semibold text-ink">
+            <label className="supplier-onboarding-choice">
               <input
                 type="checkbox"
                 checked={draft.verification_consent}
@@ -1029,22 +1007,27 @@ export default function SupplierOnboardingFlow({
             </label>
           ) : null}
           {screen === 'bank' ? (
-            <div className="space-y-4">
-              <p className="text-[15px] font-semibold text-ink">{profile?.company_legal_name}</p>
-              <label className="block text-[13px] font-medium text-ink">
-                IBAN
+            <div className="supplier-onboarding-grid">
+              {profile?.company_legal_name ? (
+                <p className="supplier-onboarding-grid__wide text-[15px] font-semibold text-ink">{profile.company_legal_name}</p>
+              ) : null}
+              <OnboardingField
+                label="IBAN"
+                help="The company account that receives payouts. The full number is sent securely and is not shown again."
+                className="supplier-onboarding-grid__wide"
+              >
                 <input
-                  className="tv-input mt-1.5 w-full"
+                  className="tv-input"
                   value={iban}
                   autoComplete="off"
                   placeholder="FI00 0000 0000 0000 00"
                   onChange={(event) => setIban(event.target.value)}
                 />
-              </label>
+              </OnboardingField>
             </div>
           ) : null}
           {screen === 'terms' ? (
-            <label className="lc-choice flex min-h-[3.25rem] items-center gap-3 rounded-2xl px-4 text-[15px] font-semibold text-ink">
+            <label className="supplier-onboarding-choice">
               <input
                 type="checkbox"
                 checked={draft.tos_accepted}
@@ -1054,15 +1037,15 @@ export default function SupplierOnboardingFlow({
             </label>
           ) : null}
           {screen === 'status' ? (
-            <div className="mt-4 space-y-3">
+            <div className="supplier-onboarding-card supplier-onboarding-card--review">
               {verification.requirements.map((item) => (
-                <p key={item} className="text-[15px] text-ink">{item}</p>
+                <p key={item}>{item}</p>
               ))}
-              <p className="text-[14px] text-ink/60">{verification.next}</p>
+              <p className="supplier-onboarding__body">{verification.next}</p>
             </div>
           ) : null}
           {error ? (
-            <p className="mt-4 text-[14px] font-medium text-[#9f1239]" role="alert">
+            <p className="supplier-onboarding-error" role="alert">
               {error}
             </p>
           ) : null}
@@ -1095,6 +1078,39 @@ function wizardStepForScreen(id: SupplierOnboardingScreenId): PayoutWizardStepId
   return 'business';
 }
 
+function FieldHelp({ label, text }: { label: string; text: string }) {
+  return (
+    <button type="button" className="supplier-onboarding-help" aria-label={label}>
+      ?
+      <span className="supplier-onboarding-help__tip" role="tooltip">
+        {text}
+      </span>
+    </button>
+  );
+}
+
+function OnboardingField({
+  label,
+  help,
+  className,
+  children,
+}: {
+  label: string;
+  help?: string;
+  className?: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className={`supplier-onboarding-field${className ? ` ${className}` : ''}`}>
+      <div className="supplier-onboarding-field__label">
+        <span>{label}</span>
+        {help ? <FieldHelp label={`About ${label}`} text={help} /> : null}
+      </div>
+      {children}
+    </div>
+  );
+}
+
 function Choice({
   value,
   yes,
@@ -1107,7 +1123,7 @@ function Choice({
   onChange: (yes: boolean) => void;
 }) {
   return (
-    <div className="grid gap-3">
+    <div className="supplier-onboarding-choices">
       {([true, false] as const).map((isYes) => {
         const selected = value === (isYes ? 'yes' : 'no');
         return (
