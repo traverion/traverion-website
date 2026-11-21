@@ -213,6 +213,8 @@ import { userFacingError } from '../../lib/userFacingError';
 import { partnerToast } from '../../lib/partner-toast';
 import { beginMilestone, failMilestone, succeedMilestone } from '../../lib/feedback';
 import SavedIndicator from '../../components/feedback/SavedIndicator';
+import { useConfirmPrompt } from '../../components/feedback/useConfirmPrompt';
+import { feedback } from '../../lib/feedback';
 import { normalizeListingForDraftSave } from '../../lib/listingDraftUtils';
 import {
   MAX_LISTING_DESCRIPTION_LENGTH,
@@ -1850,6 +1852,7 @@ export default function SupplierListingForm({
    * which feels like “wizard jumped back to the start” when you reopen create.
    */
   const [lastStepSubmitArmed, setLastStepSubmitArmed] = useState(true);
+  const { ask: askConfirm, dialog: confirmDialog } = useConfirmPrompt();
   const [stepLockHint, setStepLockHint] = useState<string | null>(null);
   const submitInFlightRef = useRef(false);
   const lastFocused = useRef<string | null>(null);
@@ -3881,15 +3884,18 @@ export default function SupplierListingForm({
 
   const saveScheduleReady = useCallback(() => {
     if (!scheduleDraft || !optionModalDraft || scheduleSaveLockRef.current) return;
-    const ready = { ...scheduleDraft, status: 'ready' as const };
-    const gate = scheduleCanSaveReady(ready, optionModalDraft);
+    const draft = scheduleDraft;
+    const option = optionModalDraft;
+    void (async () => {
+    const ready = { ...draft, status: 'ready' as const };
+    const gate = scheduleCanSaveReady(ready, option);
     if (!gate.ok) {
       setScheduleAttempted(true);
       setScheduleSaveError(gate.error);
       focusListingField(
         firstScheduleIssueFocusId(ready, {
-          startMode: optionModalDraft.startMode,
-          option: optionModalDraft,
+          startMode: option.startMode,
+          option,
         })
       );
       return;
@@ -3910,7 +3916,7 @@ export default function SupplierListingForm({
       const occupyingPrevious = occupyingGuestsForOptionDeparture({
         bookings: listingOccupancyBookings,
         listingId: editingId,
-        optionId: optionModalDraft.id,
+        optionId: option.id,
         startTimeHm: previousStart,
       });
       // Phase 1100: sold seats stay on the purchased wall-clock — refuse startTime
@@ -3927,7 +3933,7 @@ export default function SupplierListingForm({
       const occupying = occupyingGuestsForOptionDeparture({
         bookings: listingOccupancyBookings,
         listingId: editingId,
-        optionId: optionModalDraft.id,
+        optionId: option.id,
         startTimeHm: ready.startTime,
       });
       const underSold = scheduleSpotsBelowSoldWarning({
@@ -3935,19 +3941,22 @@ export default function SupplierListingForm({
         occupyingGuests: occupying,
         startTimeHm: ready.startTime,
       });
-      if (
-        underSold &&
-        typeof window !== 'undefined' &&
-        !window.confirm(`${underSold}\n\nSave this schedule anyway?`)
-      ) {
-        return;
+      if (underSold) {
+        const ok = await askConfirm({
+          title: 'Save this schedule?',
+          description: `${underSold} Saved bookings stay on this departure.`,
+          confirmLabel: 'Save schedule',
+          destructive: true,
+        });
+        if (!ok) return;
       }
     }
     if (!persistScheduleDraft(ready)) return;
     setScheduleDraft(null);
     setScheduleLeaveOpen(false);
     scheduleSessionOpenedAsCreateRef.current = false;
-  }, [scheduleDraft, optionModalDraft, persistScheduleDraft, editingId, listingOccupancyBookings, listingOccupancyLoadError, listingOccupancyReady]);
+    })();
+  }, [scheduleDraft, optionModalDraft, persistScheduleDraft, editingId, listingOccupancyBookings, listingOccupancyLoadError, listingOccupancyReady, askConfirm]);
 
   const occupancyNoticeForSchedule = useCallback(
     (schedule: ListingOptionSchedule) => {
@@ -5081,16 +5090,22 @@ export default function SupplierListingForm({
                         aria-pressed={selected}
                         onClick={() => {
                           if (form.stayAccommodationMode === choice.id) return;
-                          if (
-                            choice.id === 'single' &&
-                            activeStayUnits(form.stayUnits).some((unit) => unit.name.trim())
-                          ) {
-                            const ok = window.confirm(
-                              'Switch to one accommodation? Room drafts stay saved. Guests would book this as a single property, and several room types cannot be published yet.'
-                            );
-                            if (!ok) return;
-                          }
-                          setForm((f) => ({ ...f, stayAccommodationMode: choice.id }));
+                          void (async () => {
+                            if (
+                              choice.id === 'single' &&
+                              activeStayUnits(form.stayUnits).some((unit) => unit.name.trim())
+                            ) {
+                              const ok = await askConfirm({
+                                title: 'Switch to one accommodation?',
+                                description:
+                                  'Room drafts stay saved. Guests would book this as a single property, and several room types cannot be published yet.',
+                                confirmLabel: 'Switch',
+                                destructive: true,
+                              });
+                              if (!ok) return;
+                            }
+                            setForm((f) => ({ ...f, stayAccommodationMode: choice.id }));
+                          })();
                         }}
                         className={`lc-choice rounded-xl px-4 py-4 text-left ${
                           selected ? 'lc-choice--selected' : ''
@@ -6038,8 +6053,7 @@ export default function SupplierListingForm({
                                 optionId: opt.id,
                               });
                               if (sold >= 1) {
-                                // Phase 1110: hard-refuse option delete with sold seats.
-                                window.alert(
+                                feedback.error(
                                   removeBookingOptionOccupancyNotice(sold) ??
                                     'This option still has booked guests and cannot be deleted.'
                                 );
@@ -6454,17 +6468,23 @@ export default function SupplierListingForm({
                 const hasSchedules = form.bookingOptions.some(
                   (o) => (o.schedules?.length ?? 0) > 0 || listingOptionHasSchedules(o)
                 );
-                if (hasSchedules) {
-                  const ok = window.confirm(
-                    'This timezone is shared by all options and schedules on this listing. Changing it can affect how departure times are interpreted. Continue?'
-                  );
-                  if (!ok) return;
-                }
-                setForm((f) => ({
-                  ...f,
-                  departureTimezone: next,
-                  departureTimezoneManual: true,
-                }));
+                void (async () => {
+                  if (hasSchedules) {
+                    const ok = await askConfirm({
+                      title: 'Change the listing timezone?',
+                      description:
+                        'This timezone is shared by all options and schedules. Changing it can affect how departure times are interpreted.',
+                      confirmLabel: 'Change timezone',
+                      destructive: true,
+                    });
+                    if (!ok) return;
+                  }
+                  setForm((f) => ({
+                    ...f,
+                    departureTimezone: next,
+                    departureTimezoneManual: true,
+                  }));
+                })();
               }}
             />
           </TourOptionWorkspace>
@@ -6569,6 +6589,7 @@ export default function SupplierListingForm({
           </div>
         ) : null}
       </form>
+      {confirmDialog}
       </div>
     </div>
   );

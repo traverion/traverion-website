@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { AlertTriangle, ArrowLeft, ChevronDown, MapPin, Printer, Download } from 'lucide-react';
 import { partnerToast } from '../../lib/partner-toast';
+import { useConfirmPrompt } from '../feedback/useConfirmPrompt';
 import PickupLocationSearch from '../checkout/PickupLocationSearch';
 import PickupCoverageMap from './PickupCoverageMap';
 import PartnerTimeSelect from './PartnerTimeSelect';
@@ -387,6 +388,7 @@ function DeparturePlanner({
   );
   const [meetingBusy, setMeetingBusy] = useState(false);
   const [meetingNote, setMeetingNote] = useState<string | null>(null);
+  const { ask: askConfirm, dialog: confirmDialog } = useConfirmPrompt();
   const meetingPlace =
     (isPurchaseSnapshot(sample.purchase_snapshot)
       ? (sample.purchase_snapshot.meetingPoint || '').trim()
@@ -545,14 +547,15 @@ function DeparturePlanner({
                 className="tv-btn-primary h-10"
                 disabled={!canEdit || meetingBusy || !/^\d{2}:\d{2}$/.test(meetingTime)}
                 onClick={() => {
-                  if (
-                    !window.confirm(
-                      `Save meeting time ${meetingTime} and notify ${rows.length} guest${rows.length === 1 ? '' : 's'}? Departure time ${scheduleMeetingHm || '—'} stays unchanged.`
-                    )
-                  ) {
-                    return;
-                  }
-                  void saveMeeting(true);
+                  void (async () => {
+                    const ok = await askConfirm({
+                      title: 'Notify guests?',
+                      description: `Save meeting time ${meetingTime} and notify ${rows.length} guest${rows.length === 1 ? '' : 's'}. Departure time ${scheduleMeetingHm || '—'} stays unchanged.`,
+                      confirmLabel: 'Save and notify',
+                    });
+                    if (!ok) return;
+                    void saveMeeting(true);
+                  })();
                 }}
               >
                 {meetingBusy ? 'Saving…' : 'Save & notify guests'}
@@ -669,6 +672,7 @@ function DeparturePlanner({
           onSave={onSave}
         />
       ) : null}
+      {confirmDialog}
     </div>
   );
 }
@@ -738,21 +742,32 @@ function PickupManageWorkspace({
       : null;
   const phone = guestPhoneFromBookingNotes(booking.special_requests);
   const place = splitAddress(address);
+  const { ask: askConfirm, dialog: confirmDialog } = useConfirmPrompt();
 
-  const requestClose = () => {
-    if (dirty && !window.confirm('Close without saving pickup changes?')) return;
-    onClose();
-  };
+  const requestClose = useCallback(() => {
+    if (!dirty) {
+      onClose();
+      return;
+    }
+    void askConfirm({
+      title: 'Close without saving?',
+      description: 'Pickup changes on this screen will be discarded.',
+      confirmLabel: 'Close without saving',
+      destructive: true,
+    }).then((ok) => {
+      if (ok) onClose();
+    });
+  }, [askConfirm, dirty, onClose]);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
-      if (dirty && !window.confirm('Close without saving pickup changes?')) return;
-      onClose();
+      event.preventDefault();
+      requestClose();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [dirty, onClose]);
+  }, [requestClose]);
 
   const payload = (notify: boolean): SaveSupplierPickupInput => ({
     notify,
@@ -988,6 +1003,7 @@ function PickupManageWorkspace({
           </button>
         </footer>
       </div>
+      {confirmDialog}
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useConfirmPrompt } from '../../feedback/useConfirmPrompt';
 import { formatMoney } from '../../../lib/money';
 import { quoteStayLodging, type StaySeasonWindow } from '../../../lib/stay-season-quote';
 import {
@@ -68,6 +69,7 @@ export default function StayOptionsStep({
   onChange,
 }: Props) {
   const [editingId, setEditingId] = useState<string | null>(null);
+  const { ask: askConfirm, dialog: confirmDialog } = useConfirmPrompt();
   const [editingScene, setEditingScene] = useState(0);
   const active = activeStayOptions(options);
   const separate = stayOptionsNeedSeparateInventory(options);
@@ -128,14 +130,22 @@ export default function StayOptionsStep({
                 }}
                 onArchive={() => {
                   const name = option.name.trim() || 'this option';
-                  if (!window.confirm(`Archive ${name}? Saved reservations stay on the listing.`)) return;
-                  onChange(options.map((row) => (row.id === option.id ? { ...row, archived: true } : row)));
+                  void askConfirm({
+                    title: `Archive ${name}?`,
+                    description: 'Saved reservations stay on the listing.',
+                    confirmLabel: 'Archive',
+                    destructive: true,
+                  }).then((ok) => {
+                    if (!ok) return;
+                    onChange(options.map((row) => (row.id === option.id ? { ...row, archived: true } : row)));
+                  });
                 }}
               />
             </li>
           ))}
         </ul>
       )}
+      {confirmDialog}
 
       {editing ? (
         <OptionEditor
