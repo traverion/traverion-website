@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import DateOfBirthPicker from './DateOfBirthPicker';
 import OnboardingDocumentCard from './OnboardingDocumentCard';
+import OnboardingStepper from './OnboardingStepper';
 import RegisteredBusinessAddress from './RegisteredBusinessAddress';
 import { ListingCreationWorkspace } from './listing-creation/ListingCreationWorkspace';
 import {
@@ -50,11 +51,14 @@ import { createBankAccountToken } from '../../lib/stripe-js-client';
 import { STRIPE_RECIPIENT_AGREEMENT } from '../../lib/stripe-recipient-agreement';
 import {
   companyOnboardingPresentation,
-  onboardingGroupProgress,
+  canRevisitOnboardingPhase,
+  onboardingOverallStep,
+  onboardingPhaseEntryScreen,
   requirementFlags,
   screenFromOnboardingUrl,
   supplierOnboardingScreen,
   visibleSupplierOnboardingScreens,
+  type SupplierOnboardingPhase,
   type SupplierOnboardingScreenId,
   type SupplierOnboardingVisibility,
 } from '../../lib/supplier-onboarding-steps';
@@ -483,6 +487,23 @@ export default function SupplierOnboardingFlow({
     writeScreen(previous, 'replace');
   };
 
+  const openPhase = async (phase: SupplierOnboardingPhase) => {
+    if (!screen || busy || documentBusy) return;
+    const currentPhase = supplierOnboardingScreen(screen).phase;
+    if (!canRevisitOnboardingPhase(phase, currentPhase, visible)) return;
+    const target = onboardingPhaseEntryScreen(phase, visible);
+    if (!target || target === screen) return;
+    setError(null);
+    setMotion('back');
+    const saved = await persistDraft();
+    if (saved === 'failed') return;
+    if (saved === 'saved') feedback.success('Saved');
+    void updateSupplierSetupProgress(userId, progressRecord(profile, target));
+    historyStack.current = [...historyStack.current, target];
+    setScreen(target);
+    writeScreen(target, 'push');
+  };
+
   const onContinue = async () => {
     if (busy || documentBusy || submitting.current || navigating.current) return;
     navigating.current = true;
@@ -884,10 +905,7 @@ export default function SupplierOnboardingFlow({
   }
 
   const meta = supplierOnboardingScreen(screen);
-  const progress = onboardingGroupProgress(
-    screen === 'documents' ? ['company', 'documents', ...visible.filter((id) => id !== 'company')] : visible,
-    screen === 'documents' ? 'documents' : visible.includes(screen) ? screen : visible[0] ?? 'company'
-  );
+  const overall = onboardingOverallStep(visible, screen);
   const verification = supplierVerificationState(profile);
   const companyPresentation = companyOnboardingPresentation({
     verified: (profile?.verification_status ?? '').toLowerCase() === 'verified',
@@ -949,13 +967,13 @@ export default function SupplierOnboardingFlow({
               className="pointer-events-none absolute inset-x-0 top-0 h-0.5 bg-[#E6EAF0]"
               role="progressbar"
               aria-valuemin={1}
-              aria-valuemax={Math.max(progress.total, 1)}
-              aria-valuenow={progress.index}
-              aria-label={`${progress.group}, step ${progress.index} of ${progress.total}`}
+              aria-valuemax={Math.max(overall.total, 1)}
+              aria-valuenow={overall.index}
+              aria-label={`Step ${overall.index} of ${overall.total}`}
             >
               <div
                 className="h-full bg-[#073b83] transition-[width] duration-200 motion-reduce:transition-none"
-                style={{ width: `${(progress.index / Math.max(progress.total, 1)) * 100}%` }}
+                style={{ width: `${(overall.index / Math.max(overall.total, 1)) * 100}%` }}
               />
             </div>
             <div className="supplier-onboarding-footer grid grid-cols-[1fr_auto] items-center gap-3">
@@ -991,34 +1009,17 @@ export default function SupplierOnboardingFlow({
         }
       >
         <div className="supplier-onboarding">
-          <ol className="supplier-onboarding-steps" aria-label="Setup progress">
-            {(['Company', 'Documents', 'Representative', 'Payouts', 'Review'] as const).map((label, index) => {
-              const current =
-                (meta.phase === 'business' && index === 0) ||
-                (meta.phase === 'documents' && index === 1) ||
-                (meta.phase === 'representative' && index === 2) ||
-                (meta.phase === 'payout' && index === 3) ||
-                (meta.phase === 'status' && index === 4);
-              const done =
-                (meta.phase === 'documents' && index < 1) ||
-                (meta.phase === 'representative' && index < 2) ||
-                (meta.phase === 'payout' && index < 3) ||
-                (meta.phase === 'status' && index < 4);
-              return (
-                <li key={label} className={done ? 'is-done' : undefined} aria-current={current ? 'step' : undefined}>
-                  <span>{label}</span>
-                </li>
-              );
-            })}
-          </ol>
-          <div key={screen} className={`supplier-onboarding-pane supplier-onboarding-pane--${motion}`}>
+          <OnboardingStepper
+            phase={meta.phase}
+            canSelect={(phase) => canRevisitOnboardingPhase(phase, meta.phase, visible)}
+            onSelect={(phase) => void openPhase(phase)}
+          />
           <header className="supplier-onboarding__head">
-            <p className="supplier-onboarding__kicker">
-              {progress.group} · {progress.index} of {progress.total}
-            </p>
+            <p className="supplier-onboarding__kicker">Step {overall.index} of {overall.total}</p>
             <h1 className="supplier-onboarding__title">{title}</h1>
-            <p className="supplier-onboarding__body">{body}</p>
           </header>
+          <div key={screen} className={`supplier-onboarding-pane supplier-onboarding-pane--${motion}`}>
+            <p className="supplier-onboarding__body">{body}</p>
           {screen === 'company' && (companyPresentation.mode === 'form' || companyPresentation.mode === 'draft') ? (
             <div className="supplier-onboarding-grid">
               <OnboardingField label="Registered legal business name" className="supplier-onboarding-grid__wide">

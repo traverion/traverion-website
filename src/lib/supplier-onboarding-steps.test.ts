@@ -3,6 +3,8 @@ import { readFileSync } from 'node:fs';
 import {
   companyOnboardingPresentation,
   onboardingGroupProgress,
+  onboardingOverallStep,
+  canRevisitOnboardingPhase,
   requirementFlags,
   screenFromOnboardingUrl,
   visibleSupplierOnboardingScreens,
@@ -111,5 +113,14 @@ describe('supplier onboarding screens', () => {
     expect(companyOnboardingPresentation({ verified: false, pendingReview: true, hasCompany: true }).mode).toBe(
       'pending'
     );
+  });
+
+  it('lets a supplier reopen an earlier phase and not a later one', () => {
+    const visible = visibleSupplierOnboardingScreens(open);
+    expect(canRevisitOnboardingPhase('business', 'representative', visible)).toBe(true);
+    expect(canRevisitOnboardingPhase('documents', 'representative', visible)).toBe(false);
+    expect(canRevisitOnboardingPhase('payout', 'representative', visible)).toBe(false);
+    expect(canRevisitOnboardingPhase('representative', 'payout', ['company', 'bank', 'status'])).toBe(false);
+    expect(onboardingOverallStep(visible, 'person')).toEqual({ index: 2, total: visible.length });
   });
 });

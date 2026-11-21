@@ -153,6 +153,43 @@ export function onboardingGroupProgress(
   return { group: screen.group, index: index + 1, total: group.length };
 }
 
+export const ONBOARDING_PHASE_STEPS = [
+  { phase: 'business', label: 'Company' },
+  { phase: 'documents', label: 'Documents' },
+  { phase: 'representative', label: 'Identity' },
+  { phase: 'payout', label: 'Payouts' },
+  { phase: 'status', label: 'Review' },
+] as const;
+
+export function onboardingPhaseIndex(phase: SupplierOnboardingPhase): number {
+  return ONBOARDING_PHASE_STEPS.findIndex((step) => step.phase === phase);
+}
+
+export function onboardingPhaseEntryScreen(
+  phase: SupplierOnboardingPhase,
+  visible: readonly SupplierOnboardingScreenId[]
+): SupplierOnboardingScreenId | null {
+  return visible.find((id) => supplierOnboardingScreen(id).phase === phase) ?? null;
+}
+
+/** Completed phases can be reopened only when that phase still has a screen in the journey. */
+export function canRevisitOnboardingPhase(
+  phase: SupplierOnboardingPhase,
+  current: SupplierOnboardingPhase,
+  visible: readonly SupplierOnboardingScreenId[]
+): boolean {
+  if (onboardingPhaseIndex(phase) < 0 || onboardingPhaseIndex(phase) >= onboardingPhaseIndex(current)) return false;
+  return onboardingPhaseEntryScreen(phase, visible) != null;
+}
+
+export function onboardingOverallStep(
+  visible: readonly SupplierOnboardingScreenId[],
+  screen: SupplierOnboardingScreenId
+): { index: number; total: number } {
+  const steps = visible.includes(screen) ? [...visible] : [...visible, screen];
+  return { index: Math.max(1, steps.indexOf(screen) + 1), total: Math.max(steps.length, 1) };
+}
+
 export function companyOnboardingPresentation(input: {
   verified: boolean;
   pendingReview: boolean;
