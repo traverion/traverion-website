@@ -74,7 +74,7 @@ export default function PartnerEmailVerifiedPage() {
         title: 'Email verified!',
         message: 'Your email is confirmed. This does not approve the company.',
         page: 'partner',
-        navigate: () => window.location.replace(PARTNER_APP_BASE),
+        navigate: () => window.location.replace(`${PARTNER_APP_BASE}/onboarding`),
       });
     };
 

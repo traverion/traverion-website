@@ -7,6 +7,7 @@ import { notifySupplierEvent } from '../../data/supabase-supplier-messaging';
 import { partnerPortalAuthRedirectUrl, supplierPortalPublicBaseUrl } from '../../lib/partnerHost';
 import {
   PARTNER_EMAIL_VERIFIED_PATH,
+  PARTNER_LOGIN_PATH,
   PARTNER_RESET_PASSWORD_PATH,
 } from '../../lib/partnerPortalPaths';
 import { isSignUpEmailAlreadyRegistered } from '../../lib/supabaseAuthHelpers';
@@ -26,15 +27,19 @@ import ForgotPasswordInline, { type ForgotPasswordSendResult } from '../../compo
 import { AUTH_CONFIRMATION_EMAIL_REQUESTED, AUTH_PASSWORD_RESET_REQUESTED } from '../../lib/booking-confirmation-copy';
 import {
   beginAuthTransition,
+  cancelAuthTransition,
   checkEmailAuthTransition,
   failAuthTransition,
   succeedAuthTransition,
 } from '../../lib/auth-transition';
+import { clearLoginHandoff, rememberLoginHandoff, takeLoginHandoff } from '../../lib/login-handoff';
+import { confirmationResendRemainingMs, startConfirmationResendCooldown } from '../../lib/confirmation-resend';
+import { softPushPathIfChanged } from '../../lib/authNavigation';
+import UnverifiedLoginNotice from '../../components/auth/UnverifiedLoginNotice';
 import NoticeCallout from '../../components/NoticeCallout';
 import {
   isEmailConfirmationRequiredMessage,
   mapPartnerConfirmationResendError,
-  shouldShowPartnerConfirmationResend,
 } from '../../lib/partnerLoginConfirmationUi';
 
 /** Fire-and-forget welcome email (Edge Function dedupes via welcome_email_sent_at). */
@@ -82,11 +87,12 @@ export default function SupplierAuth({
   compact = false,
   onModeChange,
 }: SupplierAuthProps) {
+  const [handoff] = useState(takeLoginHandoff);
   const [mode, setMode] = useState<Mode>(initialMode);
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(handoff?.email ?? '');
   const [businessName, setBusinessName] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
-  const [password, setPassword] = useState('');
+  const [password, setPassword] = useState(handoff?.password ?? '');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -99,10 +105,15 @@ export default function SupplierAuth({
   const [resetPasswordFieldError, setResetPasswordFieldError] = useState<string | null>(null);
   const [resetPasswordSuccess, setResetPasswordSuccess] = useState<string | null>(null);
   const [resendSending, setResendSending] = useState(false);
-  /** True only when Auth has indicated this account still needs email verification. */
   const [needsEmailConfirmation, setNeedsEmailConfirmation] = useState(false);
-  /** True only after a confirmation email was actually requested (signup or resend). */
-  const [confirmationEmailRequested, setConfirmationEmailRequested] = useState(false);
+  const [unverifiedLogin, setUnverifiedLogin] = useState(false);
+  const [cooldownNow, setCooldownNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    if (!unverifiedLogin) return;
+    const timer = window.setInterval(() => setCooldownNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, [unverifiedLogin]);
 
   useEffect(() => {
     if (!isSupabase || !supabase) return;
@@ -123,17 +134,30 @@ export default function SupplierAuth({
     setMode(flash.tab === 'signup' ? 'signup' : 'signin');
     if (flash.email) setEmail(flash.email);
     setSuccessMessage(null);
-    setConfirmationEmailRequested(false);
     setNeedsEmailConfirmation(
-      Boolean(flash.needsEmailConfirmation) || isEmailConfirmationRequiredMessage(flash.message)
+      (Boolean(flash.needsEmailConfirmation) || isEmailConfirmationRequiredMessage(flash.message)) &&
+        !flash.message.toLowerCase().includes('expired')
     );
     setPasswordResetPanel(false);
   }, []);
 
   const clearConfirmationUi = () => {
     setNeedsEmailConfirmation(false);
-    setConfirmationEmailRequested(false);
     setSuccessMessage(null);
+  };
+
+  const continuePartnerToLogin = (normalizedEmail: string) => {
+    setUnverifiedLogin(false);
+    setFieldErrors({});
+    setSuccessMessage(null);
+    if (compact) {
+      rememberLoginHandoff(normalizedEmail, password);
+      softPushPathIfChanged(PARTNER_LOGIN_PATH);
+      return;
+    }
+    clearLoginHandoff();
+    setMode('signin');
+    onModeChange?.('signin');
   };
 
   const mapAuthError = (message: string): string => {
@@ -203,9 +227,8 @@ export default function SupplierAuth({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFieldErrors({});
-    // Keep confirmation UI if Auth already required verification; drop "check email" until a new request.
     setSuccessMessage(null);
-    setConfirmationEmailRequested(false);
+    setUnverifiedLogin(false);
 
     const next: SupplierFieldErrors = {};
     const trimmedEmail = email.trim();
@@ -293,12 +316,12 @@ export default function SupplierAuth({
             if (!data.user?.email_confirmed_at) {
               await supabase.auth.signOut();
               setNeedsEmailConfirmation(true);
-              setConfirmationEmailRequested(true);
-              setSuccessMessage(AUTH_CONFIRMATION_EMAIL_REQUESTED);
-              setMode('signin');
               checkEmailAuthTransition(transitionId, {
                 title: 'Check your email',
-                message: 'Open the confirmation link to finish creating your partner account. It is not active until you do.',
+                email: normalizedEmail,
+                actionLabel: 'Continue to login',
+                message: 'Open the confirmation link for this address. The account is not active until you do.',
+                onContinue: () => continuePartnerToLogin(normalizedEmail),
               });
               return;
             }
@@ -324,12 +347,12 @@ export default function SupplierAuth({
             return;
           }
           setNeedsEmailConfirmation(true);
-          setConfirmationEmailRequested(true);
-          setSuccessMessage(AUTH_CONFIRMATION_EMAIL_REQUESTED);
-          setMode('signin');
           checkEmailAuthTransition(transitionId, {
             title: 'Check your email',
-            message: 'Open the confirmation link to finish creating your partner account. It is not active until you do.',
+            email: normalizedEmail,
+            actionLabel: 'Continue to login',
+            message: 'Open the confirmation link for this address. The account is not active until you do.',
+            onContinue: () => continuePartnerToLogin(normalizedEmail),
           });
         } else {
           const transitionId = beginAuthTransition({
@@ -339,27 +362,24 @@ export default function SupplierAuth({
           });
           const { data, error: err } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password });
           if (err) {
+            if (isEmailConfirmationRequiredMessage(err.message)) {
+              cancelAuthTransition(transitionId);
+              setUnverifiedLogin(true);
+              setNeedsEmailConfirmation(true);
+              setFieldErrors({});
+              return;
+            }
             const fields = serverMessageToFields(err.message);
             setFieldErrors(fields);
-            if (
-              isEmailConfirmationRequiredMessage(err.message) ||
-              isEmailConfirmationRequiredMessage(fields.email) ||
-              isEmailConfirmationRequiredMessage(fields.form)
-            ) {
-              setNeedsEmailConfirmation(true);
-            }
             failAuthTransition(transitionId, fields.form || fields.email || mapAuthError(err.message));
             return;
           }
           if (data.user && !data.user.email_confirmed_at) {
             await supabase.auth.signOut();
-            setSuccessMessage(null);
-            setConfirmationEmailRequested(false);
+            cancelAuthTransition(transitionId);
+            setUnverifiedLogin(true);
             setNeedsEmailConfirmation(true);
-            setFieldErrors({
-              email: 'Please confirm your email before signing in.',
-            });
-            failAuthTransition(transitionId, 'Please confirm your email before signing in.');
+            setFieldErrors({});
             return;
           }
           if (data.user) {
@@ -499,6 +519,7 @@ export default function SupplierAuth({
   };
 
   const handleResendConfirmation = async () => {
+    if (confirmationResendRemainingMs() > 0) return;
     setFieldErrors((prev) => {
       const next = { ...prev };
       delete next.form;
@@ -516,6 +537,11 @@ export default function SupplierAuth({
       setFieldErrors({ form: 'Email confirmation is not configured.' });
       return;
     }
+    const transitionId = beginAuthTransition({
+      intent: 'verify',
+      title: 'Requesting a confirmation email...',
+      message: 'One moment.',
+    });
     setResendSending(true);
     const normalizedEmail = email.trim().toLowerCase();
     const { error: err } = await supabase.auth.resend({
@@ -526,23 +552,25 @@ export default function SupplierAuth({
     setResendSending(false);
     if (err) {
       const mapped = mapPartnerConfirmationResendError(err.message);
-      if (mapped.kind === 'rate_limit' || mapped.kind === 'generic_failure') {
-        setFieldErrors({ form: mapped.message });
+      if (mapped.kind !== 'treat_as_requested') {
+        failAuthTransition(transitionId, mapped.message);
         return;
       }
-      // treat_as_requested — same notice as success; do not disclose account existence
     }
+    startConfirmationResendCooldown();
+    setCooldownNow(Date.now());
     setNeedsEmailConfirmation(true);
-    setConfirmationEmailRequested(true);
-    setSuccessMessage(AUTH_CONFIRMATION_EMAIL_REQUESTED);
+    checkEmailAuthTransition(transitionId, {
+      title: 'Check your email',
+      email: normalizedEmail,
+      actionLabel: 'Back to login',
+      message: AUTH_CONFIRMATION_EMAIL_REQUESTED,
+      onContinue: () => {
+        setMode('signin');
+        onModeChange?.('signin');
+      },
+    });
   };
-
-  const showConfirmationResend = shouldShowPartnerConfirmationResend({
-    needsEmailConfirmation,
-    confirmationEmailRequested,
-    emailError: fieldErrors.email,
-    formError: fieldErrors.form,
-  });
 
   return (
     <div className={`w-full ${compact ? '' : 'flex flex-col lg:flex-row lg:items-stretch xl:items-center lg:justify-between xl:justify-center gap-10 lg:gap-12 xl:gap-16 2xl:gap-20 px-0 sm:px-2 py-6 sm:py-8'}`}>
@@ -654,10 +682,12 @@ export default function SupplierAuth({
                 {fieldErrors.form}
               </NoticeCallout>
             ) : null}
-            {confirmationEmailRequested && successMessage ? (
-              <NoticeCallout title="Check your email" tone="info" className="!py-2.5">
-                {successMessage}
-              </NoticeCallout>
+            {mode === 'signin' && (unverifiedLogin || needsEmailConfirmation) ? (
+              <UnverifiedLoginNotice
+                sending={resendSending}
+                remainingMs={confirmationResendRemainingMs(cooldownNow)}
+                onResend={() => void handleResendConfirmation()}
+              />
             ) : null}
             <div>
               <label className="block text-[11px] font-medium uppercase tracking-wide text-ink-muted mb-1.5" htmlFor="supplier-auth-email">
@@ -865,18 +895,6 @@ export default function SupplierAuth({
                 )}
               </div>
             )}
-            {showConfirmationResend ? (
-              <div className="pt-0.5">
-                <button
-                  type="button"
-                  onClick={() => void handleResendConfirmation()}
-                  disabled={resendSending}
-                  className="text-sm font-medium text-finland hover:underline disabled:opacity-50"
-                >
-                  {resendSending ? 'Sending…' : 'Resend confirmation email'}
-                </button>
-              </div>
-            ) : null}
             <button
               type="submit"
               disabled={submitting}

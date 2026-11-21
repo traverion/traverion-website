@@ -236,7 +236,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (availability.error) return { error: availability.error };
     if (!availability.available) return { error: 'An account with this phone number already exists. Try signing in instead.' };
 
-    const fallbackRedirect = travelerEmailConfirmRedirectUrl();
+    const fallbackRedirect = travelerEmailConfirmRedirectUrl(options?.afterConfirmNext);
     const redirectTo = sanitizeAuthRedirectTo(options?.redirectTo ?? fallbackRedirect, publicSiteBaseUrl(), fallbackRedirect);
     const { data, error } = await supabase.auth.signUp({
       email: normalizedEmail,

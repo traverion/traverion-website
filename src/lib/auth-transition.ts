@@ -9,6 +9,8 @@ export type AuthTransition = {
   message: string;
   page: string | null;
   navigated: boolean;
+  email: string | null;
+  actionLabel: string | null;
 };
 
 export const AUTH_TRANSITION_STALL_MS = 20_000;
@@ -24,6 +26,7 @@ export function authTransitionCloseDelay(reducedMotion: boolean): number {
 let sequence = 0;
 let current: AuthTransition | null = null;
 let navigateOnce: (() => void) | null = null;
+let continueCheckEmail: (() => void) | null = null;
 const listeners = new Set<(next: AuthTransition | null) => void>();
 
 function emit() {
@@ -50,6 +53,7 @@ export function beginAuthTransition(input: {
   if (current && isBusy()) return current.id;
   sequence += 1;
   navigateOnce = null;
+  continueCheckEmail = null;
   current = {
     id: sequence,
     intent: input.intent,
@@ -58,6 +62,8 @@ export function beginAuthTransition(input: {
     message: input.message,
     page: null,
     navigated: false,
+    email: null,
+    actionLabel: null,
   };
   emit();
   return current.id;
@@ -77,6 +83,8 @@ export function succeedAuthTransition(
     message: input.message,
     page: input.page,
     navigated: false,
+    email: null,
+    actionLabel: null,
   };
   emit();
 }
@@ -100,14 +108,20 @@ export function showConfirmedAuthTransition(input: {
     message: input.message,
     page: input.page,
     navigated: false,
+    email: null,
+    actionLabel: null,
   };
   emit();
   return current.id;
 }
 
-export function checkEmailAuthTransition(id: number, input: { title: string; message: string }): void {
+export function checkEmailAuthTransition(
+  id: number,
+  input: { title: string; message: string; email?: string; actionLabel?: string; onContinue?: () => void }
+): void {
   if (!current || current.id !== id || current.phase !== 'pending') return;
   navigateOnce = null;
+  continueCheckEmail = input.onContinue ?? null;
   current = {
     ...current,
     phase: 'check-email',
@@ -115,6 +129,8 @@ export function checkEmailAuthTransition(id: number, input: { title: string; mes
     message: input.message,
     page: null,
     navigated: false,
+    email: input.email?.trim() || null,
+    actionLabel: input.actionLabel?.trim() || null,
   };
   emit();
 }
@@ -129,8 +145,30 @@ export function failAuthTransition(id: number, message: string): void {
     message: message.trim() || 'Something went wrong. Try again.',
     page: null,
     navigated: false,
+    email: null,
+    actionLabel: null,
   };
   emit();
+}
+
+/** Closes the spinner when the form itself should explain the result. */
+export function cancelAuthTransition(id: number): void {
+  if (!current || current.id !== id || current.phase !== 'pending') return;
+  current = null;
+  navigateOnce = null;
+  continueCheckEmail = null;
+  emit();
+}
+
+/** Leaves the check-email modal and runs the login handoff once. */
+export function continueAuthCheckEmail(): void {
+  if (!current || current.phase !== 'check-email') return;
+  const go = continueCheckEmail;
+  continueCheckEmail = null;
+  current = null;
+  navigateOnce = null;
+  emit();
+  go?.();
 }
 
 /** Runs the destination change once, after the checkmark has been shown. */
@@ -155,6 +193,7 @@ export function dismissAuthTransition(): void {
   if (!current || current.phase === 'pending' || current.phase === 'success') return;
   current = null;
   navigateOnce = null;
+  continueCheckEmail = null;
   emit();
 }
 
@@ -162,6 +201,7 @@ export function resetAuthTransitionForTests(): void {
   sequence = 0;
   current = null;
   navigateOnce = null;
+  continueCheckEmail = null;
   emit();
 }
 

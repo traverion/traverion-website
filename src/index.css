@@ -24872,6 +24872,14 @@ details:not([open]) > :not(summary) {
   color: #1c1917;
 }
 
+.tv-auth-transition__email {
+  margin: 0.35rem 0 0;
+  font-size: 0.92rem;
+  font-weight: 650;
+  color: #18181b;
+  word-break: break-word;
+}
+
 .tv-auth-transition__message {
   margin: 0.4rem 0 0;
   font-size: 0.875rem;

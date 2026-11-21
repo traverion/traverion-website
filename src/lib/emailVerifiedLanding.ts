@@ -1,9 +1,13 @@
 import { publicSiteBaseUrl } from './publicSiteUrl';
 import { supabase } from './supabase';
+import { sanitizeTravelerAuthNext } from './travelerAuthLinks';
 
-/** New confirmation emails land on the homepage. The modal reads `verified=1`, then the URL is replaced with `/`. */
-export function travelerEmailConfirmRedirectUrl(): string {
-  return `${publicSiteBaseUrl()}/?verified=1`;
+/** Confirmation links land on the homepage. `next` keeps the page the traveler was opening. */
+export function travelerEmailConfirmRedirectUrl(next?: string | null): string {
+  const page = sanitizeTravelerAuthNext(next);
+  const base = `${publicSiteBaseUrl()}/?verified=1`;
+  if (!next || page === 'home') return base;
+  return `${base}&next=${encodeURIComponent(page)}`;
 }
 
 export type EmailVerifyNotice = 'success' | 'expired' | 'invalid' | 'partner';

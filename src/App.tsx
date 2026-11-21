@@ -60,7 +60,7 @@ import {
   isProductDetailHistoryState,
 } from './lib/navReturn';
 import { failCloseOrphanStayCheckout } from './lib/marketplaceBrowse';
-import { takeTravelerReturnStay } from './lib/travelerAuthLinks';
+import { sanitizeTravelerAuthNext, takeTravelerReturnStay } from './lib/travelerAuthLinks';
 import {
   clearEmailVerifyNotice,
   emailConfirmHashNotice,
@@ -314,10 +314,11 @@ function App() {
       const notice = await settleTravelerEmailConfirm();
       if (cancelled) return;
       if (notice === 'success') {
+        const next = sanitizeTravelerAuthNext(new URLSearchParams(window.location.search).get('next'));
         clearEmailVerifyNotice();
         window.history.replaceState({}, '', '/');
-        setCurrentPage('home');
-        openVerifiedWelcome(() => setCurrentPage('home'));
+        setCurrentPage(next);
+        openVerifiedWelcome(next, () => setCurrentPage(next));
         return;
       }
       show(notice);

@@ -7,6 +7,7 @@ import {
   authTransitionSuccessHold,
   beginAuthTransition,
   completeAuthTransition,
+  continueAuthCheckEmail,
   dismissAuthTransition,
   failAuthTransition,
   markAuthTransitionNavigated,
@@ -80,10 +81,15 @@ function AuthTransitionCard({ state, page }: { state: AuthTransition; page: stri
         <h2 id={titleId} className="tv-auth-transition__title">
           {state.title}
         </h2>
+        {state.email ? <p className="tv-auth-transition__email">{state.email}</p> : null}
         <p className="tv-auth-transition__message">{state.message}</p>
         {recoverable ? (
-          <button type="button" className="tv-auth-transition__action" onClick={() => dismissAuthTransition()}>
-            {state.phase === 'check-email' ? 'Back to sign in' : 'Try again'}
+          <button
+            type="button"
+            className="tv-auth-transition__action"
+            onClick={() => (state.phase === 'check-email' && state.actionLabel ? continueAuthCheckEmail() : dismissAuthTransition())}
+          >
+            {state.phase === 'check-email' ? state.actionLabel || 'Back to sign in' : 'Try again'}
           </button>
         ) : null}
       </div>
@@ -175,12 +181,12 @@ export default function AuthTransitionModal({
   );
 }
 
-export function openVerifiedWelcome(onHome: () => void): void {
+export function openVerifiedWelcome(destination: string, onArrive: () => void): void {
   showConfirmedAuthTransition({
     intent: 'signup',
     title: 'Email verified!',
     message: 'Your email is confirmed. You can continue.',
-    page: 'home',
-    navigate: onHome,
+    page: destination,
+    navigate: onArrive,
   });
 }

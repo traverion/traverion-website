@@ -1,8 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   beginAuthTransition,
+  cancelAuthTransition,
   checkEmailAuthTransition,
   completeAuthTransition,
+  continueAuthCheckEmail,
   dismissAuthTransition,
   failAuthTransition,
   markAuthTransitionNavigated,
@@ -55,15 +57,26 @@ describe('auth transition modal state', () => {
 
   it('uses check-email without marking the account active', () => {
     const id = beginAuthTransition({ intent: 'signup', title: 'Creating your account...', message: 'Setting things up.' });
+    const go = vi.fn();
     checkEmailAuthTransition(id, {
       title: 'Check your email',
-      message: 'Open the confirmation link to finish creating your account. It is not active until you do.',
+      message: 'Open the confirmation link for this address. The account is not active until you do.',
+      email: 'owner@example.com',
+      actionLabel: 'Continue to login',
+      onContinue: go,
     });
     const state = peekAuthTransition();
     expect(state?.phase).toBe('check-email');
-    expect(state?.title).toBe('Check your email');
+    expect(state?.email).toBe('owner@example.com');
     expect(state?.message.toLowerCase()).not.toContain('ready');
-    dismissAuthTransition();
+    continueAuthCheckEmail();
+    expect(go).toHaveBeenCalledTimes(1);
+    expect(peekAuthTransition()).toBeNull();
+  });
+
+  it('closes the spinner for an unverified login so the form can explain it', () => {
+    const id = beginAuthTransition({ intent: 'login', title: 'Signing you in...', message: 'Checking your account.' });
+    cancelAuthTransition(id);
     expect(peekAuthTransition()).toBeNull();
   });
 

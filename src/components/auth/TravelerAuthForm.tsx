@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
@@ -17,11 +17,15 @@ import { APPLE_AUTH_ENABLED, GOOGLE_AUTH_ENABLED } from '../../lib/googleAuth';
 import { TRAVELER_MAGIC_LINK_REQUESTED, travelerMagicLinkRedirect } from '../../lib/travelerMagicLink';
 import {
   beginAuthTransition,
+  cancelAuthTransition,
   checkEmailAuthTransition,
   failAuthTransition,
   peekAuthTransition,
   succeedAuthTransition,
 } from '../../lib/auth-transition';
+import { isEmailConfirmationRequiredMessage, mapPartnerConfirmationResendError } from '../../lib/partnerLoginConfirmationUi';
+import { confirmationResendRemainingMs, startConfirmationResendCooldown } from '../../lib/confirmation-resend';
+import UnverifiedLoginNotice from './UnverifiedLoginNotice';
 import NoticeCallout from '../NoticeCallout';
 
 export type TravelerAuthTab = 'signin' | 'signup';
@@ -127,9 +131,17 @@ export default function TravelerAuthForm({
   const [linkPanel, setLinkPanel] = useState(false);
   const [linkSending, setLinkSending] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [unverifiedLogin, setUnverifiedLogin] = useState(false);
+  const [cooldownNow, setCooldownNow] = useState(() => Date.now());
   const [resetPasswordEmail, setResetPasswordEmail] = useState('');
   const [resetPasswordFieldError, setResetPasswordFieldError] = useState<string | null>(null);
   const [resetPasswordSuccess, setResetPasswordSuccess] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!unverifiedLogin) return;
+    const timer = window.setInterval(() => setCooldownNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, [unverifiedLogin]);
 
   const clearField = (key: FieldKey) => {
     setFieldErrors((prev) => {
@@ -154,6 +166,7 @@ export default function TravelerAuthForm({
     e.preventDefault();
     setFieldErrors({});
     setSuccessMessage(null);
+    setUnverifiedLogin(false);
     const next: FieldErrors = {};
     const trimmedEmail = email.trim();
     if (!trimmedEmail) next.email = 'Enter your email address.';
@@ -191,6 +204,12 @@ export default function TravelerAuthForm({
       if (tab === 'signin') {
         const { error: err } = await signIn(trimmedEmail, password);
         if (err) {
+          if (isEmailConfirmationRequiredMessage(err)) {
+            cancelAuthTransition(transitionId);
+            setUnverifiedLogin(true);
+            setFieldErrors({});
+            return;
+          }
           const fields = serverMessageToFields(err);
           setFieldErrors(fields);
           failAuthTransition(transitionId, fields.form || fields.email || mapAuthError(err));
@@ -228,7 +247,10 @@ export default function TravelerAuthForm({
         } else {
           checkEmailAuthTransition(transitionId, {
             title: 'Check your email',
-            message: 'Open the confirmation link to finish creating your account. It is not active until you do.',
+            email: trimmedEmail.toLowerCase(),
+            actionLabel: 'Continue to login',
+            message: 'Open the confirmation link for this address. The account is not active until you do.',
+            onContinue: () => switchTab('signin'),
           });
         }
       }
@@ -240,18 +262,35 @@ export default function TravelerAuthForm({
   };
 
   const handleResend = async () => {
+    if (confirmationResendRemainingMs() > 0) return;
     if (!isValidEmailFormat(email)) {
       setFieldErrors({ email: 'Enter a valid email address, then resend confirmation.' });
       return;
     }
+    const transitionId = beginAuthTransition({
+      intent: 'verify',
+      title: 'Requesting a confirmation email...',
+      message: 'One moment.',
+    });
     setResendSending(true);
     const { error: err } = await resendTravelerConfirmation(email);
     setResendSending(false);
     if (err) {
-      setFieldErrors({ form: err });
-      return;
+      const mapped = mapPartnerConfirmationResendError(err);
+      if (mapped.kind !== 'treat_as_requested') {
+        failAuthTransition(transitionId, mapped.message);
+        return;
+      }
     }
-    setSuccessMessage(AUTH_CONFIRMATION_EMAIL_REQUESTED);
+    startConfirmationResendCooldown();
+    setCooldownNow(Date.now());
+    checkEmailAuthTransition(transitionId, {
+      title: 'Check your email',
+      email: email.trim().toLowerCase(),
+      actionLabel: 'Back to login',
+      message: AUTH_CONFIRMATION_EMAIL_REQUESTED,
+      onContinue: () => switchTab('signin'),
+    });
   };
 
   const sendMagicLink = async () => {
@@ -343,10 +382,6 @@ export default function TravelerAuthForm({
             ? 'Log in to your trips and saved places.'
             : 'One account for tours, stays, and the trips you save.';
 
-  const needsResend =
-    Boolean(successMessage) ||
-    (fieldErrors.email ?? '').toLowerCase().includes('confirm your email') ||
-    (fieldErrors.form ?? '').toLowerCase().includes('confirm your email');
   const formError = fieldErrors.form || bannerError;
 
   return (
@@ -646,15 +681,12 @@ export default function TravelerAuthForm({
               </label>
             ) : null}
 
-            {needsResend ? (
-              <button
-                type="button"
-                className="text-sm font-semibold text-finland hover:underline disabled:opacity-50"
-                disabled={resendSending}
-                onClick={() => void handleResend()}
-              >
-                {resendSending ? 'Sending…' : 'Resend confirmation email'}
-              </button>
+            {tab === 'signin' && unverifiedLogin ? (
+              <UnverifiedLoginNotice
+                sending={resendSending}
+                remainingMs={confirmationResendRemainingMs(cooldownNow)}
+                onResend={() => void handleResend()}
+              />
             ) : null}
 
             <button type="submit" className="tv-btn-primary w-full" disabled={submitting}>
