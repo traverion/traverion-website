@@ -10089,6 +10089,7 @@ details:not([open]) > :not(summary) {
 .partner-onboarding-frame .supplier-onboarding-footer {
   width: min(67.5rem, 100%);
   margin-inline: auto;
+  overflow-x: clip;
 }
 
 .supplier-onboarding__head {
@@ -10347,6 +10348,43 @@ details:not([open]) > :not(summary) {
   .supplier-onboarding-choice,
   .supplier-onboarding-choices .lc-choice {
     transition: none;
+  }
+}
+
+.supplier-onboarding-pane--forward {
+  animation: supplier-onboarding-in-forward 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.supplier-onboarding-pane--back {
+  animation: supplier-onboarding-in-back 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes supplier-onboarding-in-forward {
+  from {
+    opacity: 0.72;
+    transform: translate3d(1.25rem, 0, 0);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes supplier-onboarding-in-back {
+  from {
+    opacity: 0.72;
+    transform: translate3d(-1.25rem, 0, 0);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .supplier-onboarding-pane--forward,
+  .supplier-onboarding-pane--back {
+    animation: none;
   }
 }
 

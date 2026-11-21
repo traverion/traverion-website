@@ -25,6 +25,7 @@ import { feedback } from '../../lib/feedback';
 import { PARTNER_AFTER_EMAIL_CONFIRM_PATH } from '../../lib/partnerPortalPaths';
 import {
   localDraftWouldEraseServer,
+  onboardingDraftFlush,
   onboardingPopAction,
   previousOnboardingScreen,
 } from '../../lib/supplier-onboarding-nav';
@@ -114,6 +115,7 @@ export default function SupplierOnboardingFlow({
   const [companyStreet, setCompanyStreet] = useState(profile?.address_street ?? '');
   const [companyCountry, setCompanyCountry] = useState(profile?.address_country ?? '');
   const [screen, setScreen] = useState<SupplierOnboardingScreenId | null>(null);
+  const [motion, setMotion] = useState<'forward' | 'back'>('forward');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const booted = useRef(false);
@@ -122,6 +124,8 @@ export default function SupplierOnboardingFlow({
   const companyEdited = useRef(false);
   const draftEdited = useRef(false);
   const historyStack = useRef<SupplierOnboardingScreenId[]>([]);
+  const lastSavedSig = useRef<string | null>(null);
+  const draftTimer = useRef<number | null>(null);
   const screenRef = useRef<SupplierOnboardingScreenId | null>(null);
   const exitRef = useRef<() => Promise<void>>(async () => undefined);
 
@@ -189,6 +193,7 @@ export default function SupplierOnboardingFlow({
     const next = visible.includes(requested) || requested === 'company' || requested === 'documents' ? requested : resume;
     setScreen(next);
     historyStack.current = [next];
+    lastSavedSig.current = onboardingDraftSignature(nextDraft);
     writeScreen(next, 'replace');
     if (userId) void updateSupplierSetupProgress(userId, progressRecord(profile, next));
     // The first saved step is chosen once. Later edits must not jump the supplier back.
@@ -220,12 +225,14 @@ export default function SupplierOnboardingFlow({
         if (idx >= 0) historyStack.current = historyStack.current.slice(0, idx + 1);
         else historyStack.current = [...historyStack.current, action.screen];
         if (leaving && leaving !== action.screen) {
-          void persistDraft().then((ok) => {
-            if (!ok) {
-              setScreen(leaving);
-              historyStack.current = [...historyStack.current, leaving];
-              writeScreen(leaving, 'push');
-            }
+          const later = visible.indexOf(action.screen) > visible.indexOf(leaving);
+          setMotion(later ? 'forward' : 'back');
+          void persistDraft('quiet').then((result) => {
+            if (result !== 'failed' || !leaving) return;
+            setMotion('forward');
+            setScreen(leaving);
+            historyStack.current = [...historyStack.current, leaving];
+            writeScreen(leaving, 'push');
           });
         }
         setScreen(action.screen);
@@ -249,54 +256,59 @@ export default function SupplierOnboardingFlow({
 
   useEffect(() => {
     if (!userId || !booted.current) return;
-    if (
-      localDraftWouldEraseServer(
-        { firstName: draft.rep_first_name, lastName: draft.rep_last_name },
-        profile?.payout_wizard_draft ?? null
-      ) &&
-      !draftEdited.current
-    ) {
-      return;
-    }
-    const stored = { ...draft, rep_dob: '', beneficial_owners: draft.beneficial_owners.map((row) => ({ ...row, dob: '' })) };
-    savePayoutWizardDraft(userId, stored);
-    const timer = window.setTimeout(() => {
-      void invokeConnectSupplierOnboarding('save_wizard_draft', {
-        wizard_draft: toServerPayoutWizardDraft(stored),
-      });
-    }, 800);
-    return () => window.clearTimeout(timer);
-  }, [userId, draft, profile?.payout_wizard_draft]);
-
-  const persistDraft = async (): Promise<boolean> => {
-    const current = draftRef.current;
-    if (
+    const current = draft;
+    const signature = onboardingDraftSignature(current);
+    const erase =
       localDraftWouldEraseServer(
         { firstName: current.rep_first_name, lastName: current.rep_last_name },
         profile?.payout_wizard_draft ?? null
-      ) &&
-      !draftEdited.current
-    ) {
-      return true;
-    }
+      ) && !draftEdited.current;
+    if (onboardingDraftFlush(lastSavedSig.current, signature, erase) === 'skip') return;
+    if (draftTimer.current) window.clearTimeout(draftTimer.current);
+    draftTimer.current = window.setTimeout(() => {
+      draftTimer.current = null;
+      void persistDraft('quiet');
+    }, 500);
+    return () => {
+      if (draftTimer.current) window.clearTimeout(draftTimer.current);
+    };
+  }, [userId, draft, profile?.payout_wizard_draft]);
+
+  const persistDraft = async (mode: 'quiet' | 'blocking' = 'blocking'): Promise<'current' | 'saved' | 'failed'> => {
+    const current = draftRef.current;
     const stored = {
       ...current,
       rep_dob: '',
       beneficial_owners: current.beneficial_owners.map((row) => ({ ...row, dob: '' })),
     };
+    const signature = onboardingDraftSignature(stored);
+    const erase =
+      localDraftWouldEraseServer(
+        { firstName: current.rep_first_name, lastName: current.rep_last_name },
+        profile?.payout_wizard_draft ?? null
+      ) && !draftEdited.current;
+    if (onboardingDraftFlush(lastSavedSig.current, signature, erase) === 'skip') return 'current';
+    if (draftTimer.current) {
+      window.clearTimeout(draftTimer.current);
+      draftTimer.current = null;
+    }
+    if (mode === 'blocking') setBusy(true);
     savePayoutWizardDraft(userId, stored);
     const draftSaved = await invokeConnectSupplierOnboarding('save_wizard_draft', {
       wizard_draft: toServerPayoutWizardDraft(stored),
     });
+    if (mode === 'blocking') setBusy(false);
     if (!draftSaved.success) {
       setError(connectOnboardingUserMessage(draftSaved.error) || 'Progress could not be saved. Your entries are still on this page.');
-      return false;
+      return 'failed';
     }
-    return true;
+    lastSavedSig.current = signature;
+    return 'saved';
   };
 
   const go = (next: SupplierOnboardingScreenId) => {
     setError(null);
+    setMotion('forward');
     const step = wizardStepForScreen(next);
     setDraft((current) => {
       const updated = { ...current, step };
@@ -314,10 +326,9 @@ export default function SupplierOnboardingFlow({
 
   const advance = async (id: SupplierOnboardingScreenId, patch?: Partial<SupplierOnboardingVisibility>) => {
     if (busy) return;
-    setBusy(true);
     const saved = await persistDraft();
-    setBusy(false);
-    if (!saved) return;
+    if (saved === 'failed') return;
+    if (saved === 'saved') feedback.success('Saved');
     const list = sequence(patch);
     const index = list.indexOf(id);
     if (index === -1) {
@@ -374,9 +385,18 @@ export default function SupplierOnboardingFlow({
       setError(saved.error || 'The company details could not be saved.');
       return false;
     }
-    const next = await fetchSupplierProfile(userId);
-    if (next) onProfile(next);
-    if (!next?.company_legal_name?.trim()) return false;
+    if (profile) {
+      onProfile({
+        ...profile,
+        company_legal_name: legal,
+        company_registration_number: registration,
+        address_street: address.street,
+        address_city: address.city,
+        address_postal_code: address.postal,
+        address_country: address.country,
+        business_type: profile.business_type === 'individual' ? 'individual' : 'company',
+      });
+    }
     feedback.success('Saved');
     return true;
   };
@@ -422,8 +442,8 @@ export default function SupplierOnboardingFlow({
         }
       }
     }
-    const draftSaved = await persistDraft();
-    if (!draftSaved) {
+    const draftSaved = await persistDraft('quiet');
+    if (draftSaved === 'failed') {
       setBusy(false);
       return;
     }
@@ -442,20 +462,12 @@ export default function SupplierOnboardingFlow({
   const back = async () => {
     const previous = previousOnboardingScreen(visible, screen);
     if (!previous || busy) return;
-    setBusy(true);
     setError(null);
+    setMotion('back');
     const saved = await persistDraft();
-    if (!saved) {
-      setBusy(false);
-      return;
-    }
-    const progressSaved = await updateSupplierSetupProgress(userId, progressRecord(profile, previous));
-    setBusy(false);
-    if (!progressSaved.success) {
-      setError(progressSaved.error || 'Progress could not be saved. Your entries are still on this page.');
-      return;
-    }
-    feedback.success('Saved');
+    if (saved === 'failed') return;
+    if (saved === 'saved') feedback.success('Saved');
+    void updateSupplierSetupProgress(userId, progressRecord(profile, previous));
     const stack = historyStack.current;
     if (stack.length > 1) {
       historyStack.current = stack.slice(0, -1);
@@ -498,10 +510,9 @@ export default function SupplierOnboardingFlow({
         setError('Add the registration document.');
         return;
       }
-      setBusy(true);
       const saved = await persistDraft();
-      setBusy(false);
-      if (!saved) return;
+      if (saved === 'failed') return;
+      if (saved === 'saved') feedback.success('Saved');
       const list = sequence();
       const afterCompany = list[list.indexOf('company') + 1] ?? 'status';
       go(afterCompany === 'documents' ? list[list.indexOf('documents') + 1] ?? 'status' : afterCompany);
@@ -968,28 +979,29 @@ export default function SupplierOnboardingFlow({
           </div>
         }
       >
-        <div key={screen} className="supplier-onboarding onboarding-step">
+        <div className="supplier-onboarding">
+          <ol className="supplier-onboarding-steps" aria-label="Setup progress">
+            {(['Company', 'Documents', 'Representative', 'Payouts', 'Review'] as const).map((label, index) => {
+              const current =
+                (meta.phase === 'business' && index === 0) ||
+                (meta.phase === 'documents' && index === 1) ||
+                (meta.phase === 'representative' && index === 2) ||
+                (meta.phase === 'payout' && index === 3) ||
+                (meta.phase === 'status' && index === 4);
+              const done =
+                (meta.phase === 'documents' && index < 1) ||
+                (meta.phase === 'representative' && index < 2) ||
+                (meta.phase === 'payout' && index < 3) ||
+                (meta.phase === 'status' && index < 4);
+              return (
+                <li key={label} className={done ? 'is-done' : undefined} aria-current={current ? 'step' : undefined}>
+                  <span>{label}</span>
+                </li>
+              );
+            })}
+          </ol>
+          <div key={screen} className={`supplier-onboarding-pane supplier-onboarding-pane--${motion}`}>
           <header className="supplier-onboarding__head">
-            <ol className="supplier-onboarding-steps" aria-label="Setup progress">
-              {(['Company', 'Documents', 'Representative', 'Payouts', 'Review'] as const).map((label, index) => {
-                const current =
-                  (meta.phase === 'business' && index === 0) ||
-                  (meta.phase === 'documents' && index === 1) ||
-                  (meta.phase === 'representative' && index === 2) ||
-                  (meta.phase === 'payout' && index === 3) ||
-                  (meta.phase === 'status' && index === 4);
-                const done =
-                  (meta.phase === 'documents' && index < 1) ||
-                  (meta.phase === 'representative' && index < 2) ||
-                  (meta.phase === 'payout' && index < 3) ||
-                  (meta.phase === 'status' && index < 4);
-                return (
-                  <li key={label} className={done ? 'is-done' : undefined} aria-current={current ? 'step' : undefined}>
-                    <span>{label}</span>
-                  </li>
-                );
-              })}
-            </ol>
             <p className="supplier-onboarding__kicker">
               {progress.group} · {progress.index} of {progress.total}
             </p>
@@ -1209,6 +1221,7 @@ export default function SupplierOnboardingFlow({
               {error}
             </p>
           ) : null}
+          </div>
         </div>
       </ListingCreationWorkspace>
     </div>
@@ -1300,6 +1313,16 @@ function Choice({
       })}
     </div>
   );
+}
+
+function onboardingDraftSignature(current: PayoutWizardDraft): string {
+  const payload = toServerPayoutWizardDraft({
+    ...current,
+    rep_dob: '',
+    beneficial_owners: current.beneficial_owners.map((row) => ({ ...row, dob: '' })),
+  });
+  const { step: _step, ...rest } = payload;
+  return JSON.stringify(rest);
 }
 
 function initialDraft(userId: string, profile: SupplierProfileRow | null): PayoutWizardDraft {

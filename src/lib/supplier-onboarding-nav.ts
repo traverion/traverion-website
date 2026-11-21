@@ -34,7 +34,16 @@ export function onboardingPopAction(input: {
   return { type: 'stay', screen: input.visible[0] ?? 'company' };
 }
 
-/** An empty local representative must not replace a server draft that already has a name. */
+/** Skip a server write when this draft was already saved, or when it would erase a stored name. */
+export function onboardingDraftFlush(
+  lastSignature: string | null,
+  nextSignature: string,
+  wouldErase: boolean
+): 'skip' | 'write' {
+  if (wouldErase) return 'skip';
+  if (lastSignature === nextSignature) return 'skip';
+  return 'write';
+}
 export function localDraftWouldEraseServer(
   local: { firstName: string; lastName: string },
   server: Record<string, unknown> | null | undefined

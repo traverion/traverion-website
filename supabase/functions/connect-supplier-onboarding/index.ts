@@ -1245,31 +1245,8 @@ serve(async (req) => {
       (profile as { payout_wizard_draft?: unknown }).payout_wizard_draft = cleaned;
       (profile as { payout_wizard_draft_updated_at?: string | null }).payout_wizard_draft_updated_at =
         now;
-      const extras = await statusExtras();
-      if (profile.stripe_connected_account_id) {
-        const { mirror } = await syncAccount(profile.stripe_connected_account_id);
-        return json({
-          action: 'save_wizard_draft',
-          ...statusPayload(mirror, mirror.stripe_connected_account_id, extras),
-        });
-      }
-      return json({
-        action: 'save_wizard_draft',
-        ...statusPayload(
-          {
-            connect_onboarding_status: 'not_started',
-            connect_payouts_enabled: false,
-            connect_charges_enabled: false,
-            connect_details_submitted: false,
-            connect_requirements_currently_due: [],
-            connect_requirements_past_due: [],
-            connect_account_type: null,
-            payout_rail: profile.payout_rail ?? 'manual_iban',
-          },
-          null,
-          extras
-        ),
-      });
+      // The draft row is the saved copy. Do not retrieve the payout account on every step.
+      return json({ success: true, action: 'save_wizard_draft' });
     }
 
     if (action === 'status' || action === 'refresh') {

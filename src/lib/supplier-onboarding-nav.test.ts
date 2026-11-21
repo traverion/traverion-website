@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { PARTNER_AFTER_EMAIL_CONFIRM_PATH } from './partnerPortalPaths';
-import { localDraftWouldEraseServer, onboardingPopAction, previousOnboardingScreen } from './supplier-onboarding-nav';
+import { localDraftWouldEraseServer, onboardingDraftFlush, onboardingPopAction, previousOnboardingScreen } from './supplier-onboarding-nav';
 
 const visible = ['company', 'documents', 'person', 'bank', 'status'] as const;
 
@@ -22,6 +22,12 @@ describe('onboarding navigation', () => {
   it('sends a confirmed email to supplier home', () => {
     expect(PARTNER_AFTER_EMAIL_CONFIRM_PATH).toBe('/partner');
     expect(PARTNER_AFTER_EMAIL_CONFIRM_PATH.includes('onboarding')).toBe(false);
+  });
+
+  it('skips a draft write that is already saved', () => {
+    expect(onboardingDraftFlush('same', 'same', false)).toBe('skip');
+    expect(onboardingDraftFlush('saved', 'edited', false)).toBe('write');
+    expect(onboardingDraftFlush('saved', 'empty', true)).toBe('skip');
   });
 
   it('refuses to replace a saved representative with an empty local draft', () => {
