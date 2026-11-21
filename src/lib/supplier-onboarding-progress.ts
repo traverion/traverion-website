@@ -147,7 +147,7 @@ export function supplierOnboardingSnapshot(
   if (company.status === 'not_started') nextScreen = 'company';
   else if (company.status === 'rejected' || company.status === 'action_required') nextScreen = 'documents';
   else if (identity.status === 'action_required') {
-    nextScreen = hasName && matches(keys, /dob/) ? 'dob' : 'person';
+    nextScreen = 'person';
   } else if (bankDue) nextScreen = 'bank';
   else if (termsDue) nextScreen = 'terms';
   else if (company.status === 'saved') {

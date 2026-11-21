@@ -26,7 +26,7 @@ describe('supplier onboarding progress', () => {
     expect(snapshot.identity.status).toBe('action_required');
     expect(snapshot.identity.detail).toBe('Director date of birth');
     expect(snapshot.payout.status).toBe('action_required');
-    expect(snapshot.nextScreen).toBe('dob');
+    expect(snapshot.nextScreen).toBe('person');
     expect(snapshot.actionable).toBe(true);
     expect(supplierSetupMenuLabel(snapshot)).toBe('Director date of birth');
   });

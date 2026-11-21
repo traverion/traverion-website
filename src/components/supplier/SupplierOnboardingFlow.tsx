@@ -142,6 +142,7 @@ export default function SupplierOnboardingFlow({
   const [busy, setBusy] = useState(false);
   const [documentBusy, setDocumentBusy] = useState(false);
   const booted = useRef(false);
+  const ownerHydrated = useRef(false);
   const submitting = useRef(false);
   const finalizing = useRef(false);
   const navigating = useRef(false);
@@ -186,6 +187,20 @@ export default function SupplierOnboardingFlow({
   screenRef.current = screen;
 
   useEffect(() => {
+    if (ownerHydrated.current) return;
+    const row = draft.beneficial_owners[0];
+    if (!row?.first_name.trim() && !row?.last_name.trim()) return;
+    ownerHydrated.current = true;
+    setOwner({
+      first_name: row.first_name,
+      last_name: row.last_name,
+      dob: '',
+      percent_ownership: row.percent_ownership,
+    });
+    setOthers(true);
+  }, [draft.beneficial_owners]);
+
+  useEffect(() => {
     if (companyEdited.current || !profile) return;
     setCompanyLegal(profile.company_legal_name ?? '');
     setCompanyReg(profile.company_registration_number ?? '');
@@ -215,7 +230,13 @@ export default function SupplierOnboardingFlow({
     const explicit = params.has('screen') || params.has('phase');
     const resume = supplierOnboardingSnapshot(profile).nextScreen;
     const requested = explicit ? screenFromOnboardingUrl(window.location.search, visible) : resume;
-    const next = visible.includes(requested) || requested === 'company' || requested === 'documents' ? requested : resume;
+    const folded =
+      requested === 'dob' || requested === 'director' || requested === 'ownership' || requested === 'share'
+        ? 'person'
+        : requested === 'owner'
+          ? 'others'
+          : requested;
+    const next = visible.includes(folded) || folded === 'company' || folded === 'documents' ? folded : visible[0] ?? 'company';
     setScreen(next);
     historyStack.current = [next];
     lastSavedSig.current = onboardingDraftSignature(nextDraft);
@@ -573,34 +594,24 @@ export default function SupplierOnboardingFlow({
         setError('Enter the first and last name.');
         return;
       }
-      advance('person');
-      return;
-    }
-    if (screen === 'dob') {
       const dobErr = validateIsoDob(repDob, { required: true });
       if (dobErr) {
         setError(dobErr);
         return;
       }
-      advance('dob');
-      return;
-    }
-    if (screen === 'director') {
-      advance('director');
-      return;
-    }
-    if (screen === 'ownership') {
-      advance('ownership', { owns: draft.rep_is_owner });
-      return;
-    }
-    if (screen === 'share') {
-      const percentErr = validateOwnershipPercent(draft.rep_percent_ownership, { required: true });
-      if (percentErr || share == null || share <= 0) {
-        setError(percentErr ?? 'Enter a share between 1 and 100.');
-        return;
+      if (isCompany && draft.rep_is_owner) {
+        const percentErr = validateOwnershipPercent(draft.rep_percent_ownership, { required: true });
+        if (percentErr || share == null || share <= 0) {
+          setError(percentErr ?? 'Enter a share between 1 and 100.');
+          return;
+        }
+        if (share === 100) setOthers(false);
       }
-      if (share === 100) setOthers(false);
-      advance('share', { owns: true, share, others: share === 100 ? false : others });
+      advance('person', {
+        owns: draft.rep_is_owner,
+        share,
+        others: isCompany && draft.rep_is_owner && share === 100 ? false : others,
+      });
       return;
     }
     if (screen === 'others') {
@@ -608,28 +619,26 @@ export default function SupplierOnboardingFlow({
         setError('Choose yes or no.');
         return;
       }
-      advance('others', { others });
-      return;
-    }
-    if (screen === 'owner') {
-      const percentErr = validateOwnershipPercent(owner.percent_ownership, { required: true });
-      const dobErr = validateIsoDob(owner.dob, { required: true });
-      if (!owner.first_name.trim() || !owner.last_name.trim() || dobErr || percentErr) {
-        setError(dobErr || percentErr || 'Enter the owner’s name, date of birth, and share.');
-        return;
+      if (others) {
+        const percentErr = validateOwnershipPercent(owner.percent_ownership, { required: true });
+        const dobErr = validateIsoDob(owner.dob, { required: true });
+        if (!owner.first_name.trim() || !owner.last_name.trim() || dobErr || percentErr) {
+          setError(dobErr || percentErr || 'Enter the owner’s name, date of birth, and share.');
+          return;
+        }
+        setDraft((current) => ({
+          ...current,
+          beneficial_owners: [
+            emptyBeneficialOwner({
+              first_name: owner.first_name.trim(),
+              last_name: owner.last_name.trim(),
+              percent_ownership: owner.percent_ownership,
+              dob: '',
+            }),
+          ],
+        }));
       }
-      setDraft((current) => ({
-        ...current,
-        beneficial_owners: [
-          emptyBeneficialOwner({
-            first_name: owner.first_name.trim(),
-            last_name: owner.last_name.trim(),
-            percent_ownership: owner.percent_ownership,
-            dob: '',
-          }),
-        ],
-      }));
-      advance('owner', { others: true, hasExtraOwner: true });
+      advance('others', { others, hasExtraOwner: others });
       return;
     }
     if (screen === 'consent') {
@@ -646,7 +655,11 @@ export default function SupplierOnboardingFlow({
         setError(ibanError);
         return;
       }
-      advance('bank');
+      if (flags.termsOpen && !draft.tos_accepted) {
+        setError('Accept the payout terms before you finish setup.');
+        return;
+      }
+      advance('bank', flags.termsOpen ? { termsOpen: false } : undefined);
       return;
     }
     if (screen === 'terms') {
@@ -1181,83 +1194,73 @@ export default function SupplierOnboardingFlow({
                   onChange={(event) => { draftEdited.current = true; setDraft((current) => ({ ...current, rep_last_name: event.target.value })); }}
                 />
               </OnboardingField>
+              <OnboardingField label="Date of birth" help="Used to confirm this person. Traverion does not keep the date." className="supplier-onboarding-grid__wide">
+                <DateOfBirthPicker value={repDob} onChange={setRepDob} required />
+              </OnboardingField>
+              {isCompany ? (
+                <>
+                  <div className="supplier-onboarding-grid__wide">
+                    <p className="supplier-onboarding-field__label">Is this person a director?</p>
+                    <Choice
+                      value={draft.rep_is_director ? 'yes' : 'no'}
+                      yes="Yes, a director"
+                      no="No"
+                      onChange={(yes) => { draftEdited.current = true; setDraft((current) => ({ ...current, rep_is_director: yes })); }}
+                    />
+                  </div>
+                  <div className="supplier-onboarding-grid__wide">
+                    <p className="supplier-onboarding-field__label">Do they own part of the company?</p>
+                    <Choice
+                      value={draft.rep_is_owner ? 'yes' : 'no'}
+                      yes="Yes, they own a share"
+                      no="No"
+                      onChange={(yes) => { draftEdited.current = true; setDraft((current) => ({ ...current, rep_is_owner: yes })); }}
+                    />
+                  </div>
+                  {draft.rep_is_owner ? (
+                    <OnboardingField label="Ownership percent" help="The share of the company this person owns. Use 100 if they own it outright." className="supplier-onboarding-field--short">
+                      <input
+                        className="tv-input"
+                        inputMode="decimal"
+                        value={draft.rep_percent_ownership}
+                        onChange={(event) => {
+                          draftEdited.current = true;
+                          setDraft((current) => ({ ...current, rep_percent_ownership: event.target.value }));
+                        }}
+                      />
+                    </OnboardingField>
+                  ) : null}
+                </>
+              ) : null}
             </div>
           ) : null}
-          {screen === 'dob' ? (
-            <OnboardingField label="Date of birth" help="Used to confirm this person. Traverion does not keep the date.">
-              <DateOfBirthPicker value={repDob} onChange={setRepDob} required />
-            </OnboardingField>
-          ) : null}
-          {screen === 'director' ? (
-            <Choice
-              value={draft.rep_is_director ? 'yes' : 'no'}
-              yes="Yes, this person is a director"
-              no="No"
-              onChange={(yes) => { draftEdited.current = true; setDraft((current) => ({ ...current, rep_is_director: yes })); }}
-            />
-          ) : null}
-          {screen === 'ownership' ? (
-            <Choice
-              value={draft.rep_is_owner ? 'yes' : 'no'}
-              yes="Yes, they own a share"
-              no="No"
-              onChange={(yes) => { draftEdited.current = true; setDraft((current) => ({ ...current, rep_is_owner: yes })); }}
-            />
-          ) : null}
-          {screen === 'share' ? (
-            <OnboardingField label="Ownership percent" help="The share of the company this person owns. Use 100 if they own it outright." className="supplier-onboarding-field--short">
-              <input
-                className="tv-input"
-                inputMode="decimal"
-                value={draft.rep_percent_ownership}
-                onChange={(event) => {
-                  draftEdited.current = true;
-                  setDraft((current) => ({ ...current, rep_percent_ownership: event.target.value }));
-                }}
-              />
-            </OnboardingField>
-          ) : null}
           {screen === 'others' ? (
-            <Choice
-              value={others == null ? '' : others ? 'yes' : 'no'}
-              yes="Yes, add them"
-              no="No one else"
-              onChange={(yes) => setOthers(yes)}
-            />
-          ) : null}
-          {screen === 'owner' ? (
             <div className="supplier-onboarding-grid">
-              <OnboardingField label="First name">
-                <input
-                  className="tv-input"
-                  value={owner.first_name}
-                  autoComplete="given-name"
-                  onChange={(event) => setOwner((current) => ({ ...current, first_name: event.target.value }))}
+              <div className="supplier-onboarding-grid__wide">
+                <p className="supplier-onboarding-field__label">Does anyone else own 25% or more?</p>
+                <Choice
+                  value={others == null ? '' : others ? 'yes' : 'no'}
+                  yes="Yes, add them"
+                  no="No one else"
+                  onChange={(yes) => setOthers(yes)}
                 />
-              </OnboardingField>
-              <OnboardingField label="Last name">
-                <input
-                  className="tv-input"
-                  value={owner.last_name}
-                  autoComplete="family-name"
-                  onChange={(event) => setOwner((current) => ({ ...current, last_name: event.target.value }))}
-                />
-              </OnboardingField>
-              <OnboardingField label="Date of birth" help="Used to confirm this owner. Traverion does not keep the date." className="supplier-onboarding-grid__wide">
-                <DateOfBirthPicker
-                  value={owner.dob}
-                  onChange={(value) => setOwner((current) => ({ ...current, dob: value }))}
-                  required
-                />
-              </OnboardingField>
-              <OnboardingField label="Ownership percent" help="The share of the company this person owns." className="supplier-onboarding-field--short">
-                <input
-                  className="tv-input"
-                  inputMode="decimal"
-                  value={owner.percent_ownership}
-                  onChange={(event) => setOwner((current) => ({ ...current, percent_ownership: event.target.value }))}
-                />
-              </OnboardingField>
+              </div>
+              {others ? (
+                <>
+                  <OnboardingField label="First name">
+                    <input className="tv-input" value={owner.first_name} autoComplete="given-name" onChange={(event) => setOwner((current) => ({ ...current, first_name: event.target.value }))} />
+                  </OnboardingField>
+                  <OnboardingField label="Last name">
+                    <input className="tv-input" value={owner.last_name} autoComplete="family-name" onChange={(event) => setOwner((current) => ({ ...current, last_name: event.target.value }))} />
+                  </OnboardingField>
+                  <OnboardingField label="Date of birth" help="Used to confirm this owner. Traverion does not keep the date." className="supplier-onboarding-grid__wide">
+                    <DateOfBirthPicker value={owner.dob} onChange={(value) => setOwner((current) => ({ ...current, dob: value }))} required />
+                  </OnboardingField>
+                  <OnboardingField label="Ownership percent" help="The share of the company this person owns." className="supplier-onboarding-field--short">
+                    <input className="tv-input" inputMode="decimal" value={owner.percent_ownership} onChange={(event) => setOwner((current) => ({ ...current, percent_ownership: event.target.value }))} />
+                  </OnboardingField>
+                </>
+              ) : null}
             </div>
           ) : null}
           {screen === 'consent' ? (
@@ -1291,6 +1294,16 @@ export default function SupplierOnboardingFlow({
                   onChange={(event) => setIban(event.target.value)}
                 />
               </OnboardingField>
+              {flags.termsOpen ? (
+                <label className="supplier-onboarding-choice supplier-onboarding-grid__wide">
+                  <input
+                    type="checkbox"
+                    checked={draft.tos_accepted}
+                    onChange={(event) => { draftEdited.current = true; setDraft((current) => ({ ...current, tos_accepted: event.target.checked })); }}
+                  />
+                  I accept the payout terms. The account is sent only when I finish setup.
+                </label>
+              ) : null}
             </div>
           ) : null}
           {screen === 'terms' ? (

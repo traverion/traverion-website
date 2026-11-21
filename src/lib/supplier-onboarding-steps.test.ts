@@ -28,29 +28,22 @@ describe('supplier onboarding screens', () => {
     expect(visibleSupplierOnboardingScreens(open)).toEqual([
       'company',
       'person',
-      'dob',
-      'director',
-      'ownership',
       'others',
       'consent',
       'bank',
-      'terms',
       'status',
     ]);
   });
 
-  it('asks for a share, and skips other owners at 100 percent', () => {
-    expect(
-      visibleSupplierOnboardingScreens({ ...open, owns: true, share: 100, others: false }).includes('share')
-    ).toBe(true);
-    expect(
-      visibleSupplierOnboardingScreens({ ...open, owns: true, share: 100 }).includes('others')
-    ).toBe(false);
+  it('keeps ownership on the representative screen and skips other owners at 100 percent', () => {
+    expect(visibleSupplierOnboardingScreens({ ...open, owns: true, share: 100 }).includes('share')).toBe(false);
+    expect(visibleSupplierOnboardingScreens({ ...open, owns: true, share: 100 }).includes('others')).toBe(false);
+    expect(visibleSupplierOnboardingScreens({ ...open, owns: true, share: 40 }).includes('others')).toBe(true);
   });
 
-  it('shows another owner only after the supplier says yes', () => {
-    expect(visibleSupplierOnboardingScreens({ ...open, others: true })).toContain('owner');
-    expect(visibleSupplierOnboardingScreens(open)).not.toContain('owner');
+  it('keeps an extra owner on the other-owners screen', () => {
+    expect(visibleSupplierOnboardingScreens({ ...open, others: true })).not.toContain('owner');
+    expect(visibleSupplierOnboardingScreens({ ...open, others: true })).toContain('others');
   });
 
   it('skips identity once Stripe has no person requirements', () => {
@@ -65,7 +58,7 @@ describe('supplier onboarding screens', () => {
 
   it('resumes the requested screen', () => {
     const visible = visibleSupplierOnboardingScreens(open);
-    expect(screenFromOnboardingUrl('?phase=representative&screen=dob', visible)).toBe('dob');
+    expect(screenFromOnboardingUrl('?phase=representative&screen=dob', visible)).toBe('person');
     expect(screenFromOnboardingUrl('?phase=payout', visible)).toBe('bank');
   });
 
@@ -81,7 +74,7 @@ describe('supplier onboarding screens', () => {
 
   it('numbers screens inside their group', () => {
     const visible = visibleSupplierOnboardingScreens(open);
-    expect(onboardingGroupProgress(visible, 'dob')).toEqual({ group: 'Identity', index: 2, total: 6 });
+    expect(onboardingGroupProgress(visible, 'person')).toEqual({ group: 'Identity', index: 1, total: 3 });
   });
 
   it('reads open Stripe requirements', () => {

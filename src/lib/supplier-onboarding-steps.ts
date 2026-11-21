@@ -22,8 +22,8 @@ export const SUPPLIER_ONBOARDING_SCREENS = [
     id: 'person',
     group: 'Identity',
     phase: 'representative',
-    title: 'Who acts for this company?',
-    body: 'The name of the person who acts for the company.',
+    title: 'Representative details',
+    body: 'The person who legally represents the business. The date of birth is used for verification and is not kept by Traverion.',
   },
   {
     id: 'dob',
@@ -57,8 +57,8 @@ export const SUPPLIER_ONBOARDING_SCREENS = [
     id: 'others',
     group: 'Identity',
     phase: 'representative',
-    title: 'Does anyone else own 25% or more?',
-    body: 'Only people with a significant share need to be added.',
+    title: 'Other owners',
+    body: 'Add anyone else who owns 25% or more. This stays in the draft until you finish setup.',
   },
   {
     id: 'owner',
@@ -71,15 +71,15 @@ export const SUPPLIER_ONBOARDING_SCREENS = [
     id: 'consent',
     group: 'Identity',
     phase: 'representative',
-    title: 'Send this for verification?',
-    body: 'Traverion sends the company record and this person’s name and date of birth for review.',
+    title: 'Confirm the representative',
+    body: 'This confirmation is saved with the draft. Nothing is sent until you finish setup.',
   },
   {
     id: 'bank',
     group: 'Bank',
     phase: 'payout',
-    title: 'Where should payouts go?',
-    body: 'Payouts are sent to the company. The full account number is not shown again.',
+    title: 'Payout account',
+    body: 'The company account that receives payouts. The number is checked here and sent only when you finish setup.',
   },
   {
     id: 'terms',
@@ -128,17 +128,12 @@ export function visibleSupplierOnboardingScreens(
   const ids: SupplierOnboardingScreenId[] = ['company'];
   if (!input.hasRegistrationFile || input.businessRejected) ids.push('documents');
   if (input.identityOpen) {
-    ids.push('person', 'dob');
-    if (input.isCompany) {
-      ids.push('director', 'ownership');
-      if (input.owns) ids.push('share');
-      if (!(input.owns && input.share === 100)) ids.push('others');
-      if (input.others === true || input.hasExtraOwner) ids.push('owner');
-    }
+    ids.push('person');
+    if (input.isCompany && !(input.owns && input.share === 100)) ids.push('others');
     ids.push('consent');
   }
   if (input.bankOpen) ids.push('bank');
-  if (input.termsOpen) ids.push('terms');
+  if (input.termsOpen && !input.bankOpen) ids.push('terms');
   ids.push('status');
   return ids;
 }
@@ -230,7 +225,13 @@ export function screenFromOnboardingUrl(
 ): SupplierOnboardingScreenId {
   if (opts?.forceCompany) return 'company';
   const params = new URLSearchParams(search.startsWith('?') ? search.slice(1) : search);
-  const requested = params.get('screen');
+  const raw = params.get('screen');
+  const requested =
+    raw === 'dob' || raw === 'director' || raw === 'ownership' || raw === 'share'
+      ? 'person'
+      : raw === 'owner'
+        ? 'others'
+        : raw;
   if (requested === 'documents' || requested === 'company') {
     return requested;
   }
