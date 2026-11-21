@@ -8,6 +8,7 @@ import {
   updatePasswordAfterRecovery,
 } from '../../lib/passwordRecoveryFlow';
 import NoticeCallout from '../NoticeCallout';
+import { beginAuthTransition, failAuthTransition, succeedAuthTransition } from '../../lib/auth-transition';
 
 type Phase = 'loading' | 'form' | 'invalid' | 'timeout' | 'success';
 
@@ -82,6 +83,11 @@ export default function SetNewPasswordForm({
       return;
     }
 
+    const transitionId = beginAuthTransition({
+      intent: 'password',
+      title: 'Updating your password...',
+      message: 'One moment.',
+    });
     setSubmitting(true);
     try {
       const { error: err } = await updatePasswordAfterRecovery(supabase, password, {
@@ -89,10 +95,18 @@ export default function SetNewPasswordForm({
       });
       if (err) {
         setFieldErrors({ password: err });
+        failAuthTransition(transitionId, err);
         return;
       }
       await supabase.auth.signOut();
-      setPhase('success');
+      succeedAuthTransition(transitionId, {
+        title: 'Password updated!',
+        message: successHint,
+        page: 'login',
+        navigate: onSuccess,
+      });
+    } catch {
+      failAuthTransition(transitionId, 'Something went wrong. Try again.');
     } finally {
       setSubmitting(false);
     }
@@ -212,7 +226,7 @@ export default function SetNewPasswordForm({
         )}
       </div>
       <button type="submit" disabled={submitting} className="tv-btn-primary w-full disabled:opacity-50">
-        {submitting ? 'Saving…' : 'Update password'}
+        Update password
       </button>
       <a href={loginHref} className="lux-flat block text-center text-sm text-ink-muted hover:text-ink">
         {loginLabel}

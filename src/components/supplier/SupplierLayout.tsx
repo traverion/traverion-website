@@ -22,6 +22,7 @@ import PartnerAuthPage from './PartnerAuthPage';
 import PartnerLandingPage from './PartnerLandingPage';
 import PartnerSidebar from './PartnerSidebar';
 import PartnerToastViewport from './PartnerToastViewport';
+import { beginAuthTransition, failAuthTransition, succeedAuthTransition } from '../../lib/auth-transition';
 import {
   PARTNER_MORE_GROUPS,
   PARTNER_SIDEBAR_FOOTER,
@@ -991,9 +992,24 @@ export default function SupplierLayout() {
     setSigningOut(true);
     setAccountMenuOpen(false);
     setMobileAccountOpen(false);
-    void signOut().finally(() => {
-      window.location.replace(PARTNER_LOGIN_PATH);
+    const transitionId = beginAuthTransition({
+      intent: 'logout',
+      title: 'Signing you out...',
+      message: 'Ending this session.',
     });
+    void signOut()
+      .then(() => {
+        succeedAuthTransition(transitionId, {
+          title: 'Successfully logged out!',
+          message: 'See you on your next adventure.',
+          page: 'login',
+          navigate: () => window.location.replace(PARTNER_LOGIN_PATH),
+        });
+      })
+      .catch(() => {
+        setSigningOut(false);
+        failAuthTransition(transitionId, 'Could not sign out. Try again.');
+      });
   };
 
   void pathEpoch;

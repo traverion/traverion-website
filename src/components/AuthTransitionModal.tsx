@@ -94,9 +94,11 @@ function AuthTransitionCard({ state, page }: { state: AuthTransition; page: stri
 export default function AuthTransitionModal({
   page,
   onNavigate,
+  product = 'traveler',
 }: {
   page: string;
   onNavigate: (page: string) => void;
+  product?: 'traveler' | 'partner';
 }) {
   const { user, loading } = useAuth();
   const [state, setState] = useState<AuthTransition | null>(null);
@@ -132,7 +134,7 @@ export default function AuthTransitionModal({
   }, [state]);
 
   useEffect(() => {
-    if (loading || !user?.email_confirmed_at || linkHandled.current) return;
+    if (product !== 'traveler' || loading || !user?.email_confirmed_at || linkHandled.current) return;
     const params = new URLSearchParams(window.location.search);
     if (params.get('via') !== 'link') return;
     linkHandled.current = true;
@@ -161,7 +163,7 @@ export default function AuthTransitionModal({
         if (destination !== page) onNavigate(destination);
       },
     });
-  }, [loading, user, page, onNavigate]);
+  }, [loading, user, page, onNavigate, product]);
 
   if (!state || typeof document === 'undefined') return null;
 
@@ -176,8 +178,8 @@ export default function AuthTransitionModal({
 export function openVerifiedWelcome(onHome: () => void): void {
   showConfirmedAuthTransition({
     intent: 'signup',
-    title: 'Welcome to Traverion!',
-    message: 'Your account is ready. Start exploring.',
+    title: 'Email verified!',
+    message: 'Your email is confirmed. You can continue.',
     page: 'home',
     navigate: onHome,
   });

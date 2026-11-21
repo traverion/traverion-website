@@ -1,4 +1,4 @@
-export type AuthTransitionIntent = 'login' | 'signup' | 'logout';
+export type AuthTransitionIntent = 'login' | 'signup' | 'logout' | 'verify' | 'password' | 'setup';
 export type AuthTransitionPhase = 'pending' | 'success' | 'check-email' | 'error';
 
 export type AuthTransition = {
@@ -14,7 +14,7 @@ export type AuthTransition = {
 export const AUTH_TRANSITION_STALL_MS = 20_000;
 
 export function authTransitionSuccessHold(reducedMotion: boolean): number {
-  return reducedMotion ? 180 : 720;
+  return reducedMotion ? 180 : 1000;
 }
 
 export function authTransitionCloseDelay(reducedMotion: boolean): number {

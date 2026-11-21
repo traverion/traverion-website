@@ -440,7 +440,7 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                             void signOut()
                               .then(() => {
                                 succeedAuthTransition(transitionId, {
-                                  title: 'Successfully logged out.',
+                                  title: 'Successfully logged out!',
                                   message: 'See you on your next adventure.',
                                   page: 'home',
                                   navigate: () => onNavigate('home'),
@@ -688,7 +688,7 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                         void signOut()
                           .then(() => {
                             succeedAuthTransition(transitionId, {
-                              title: 'Successfully logged out.',
+                              title: 'Successfully logged out!',
                               message: 'See you on your next adventure.',
                               page: 'home',
                               navigate: () => onNavigate('home'),

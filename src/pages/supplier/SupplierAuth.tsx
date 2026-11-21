@@ -24,6 +24,12 @@ import { fetchConsumerProfile } from '../../data/supabase-consumer-profile';
 import { isValidEmailFormat } from '../../lib/authFormValidation';
 import ForgotPasswordInline, { type ForgotPasswordSendResult } from '../../components/auth/ForgotPasswordInline';
 import { AUTH_CONFIRMATION_EMAIL_REQUESTED, AUTH_PASSWORD_RESET_REQUESTED } from '../../lib/booking-confirmation-copy';
+import {
+  beginAuthTransition,
+  checkEmailAuthTransition,
+  failAuthTransition,
+  succeedAuthTransition,
+} from '../../lib/auth-transition';
 import NoticeCallout from '../../components/NoticeCallout';
 import {
   isEmailConfirmationRequiredMessage,
@@ -252,6 +258,11 @@ export default function SupplierAuth({
             return;
           }
           }
+          const transitionId = beginAuthTransition({
+            intent: 'signup',
+            title: 'Creating your account...',
+            message: 'Setting up your partner account.',
+          });
           const { data, error: err } = await supabase.auth.signUp({
             email: normalizedEmail,
             password,
@@ -265,11 +276,15 @@ export default function SupplierAuth({
             },
           });
           if (err) {
-            setFieldErrors(serverMessageToFields(err.message));
+            const fields = serverMessageToFields(err.message);
+            setFieldErrors(fields);
+            failAuthTransition(transitionId, fields.form || fields.email || mapAuthError(err.message));
             return;
           }
           if (isSignUpEmailAlreadyRegistered(data.user)) {
-            setFieldErrors({ email: partnerSignUpDuplicateEmailMessage(`${publicSiteBaseUrl()}/log-in`) });
+            const duplicate = partnerSignUpDuplicateEmailMessage(`${publicSiteBaseUrl()}/log-in`);
+            setFieldErrors({ email: duplicate });
+            failAuthTransition(transitionId, duplicate);
             clearConfirmationUi();
             setMode('signin');
             return;
@@ -281,6 +296,10 @@ export default function SupplierAuth({
               setConfirmationEmailRequested(true);
               setSuccessMessage(AUTH_CONFIRMATION_EMAIL_REQUESTED);
               setMode('signin');
+              checkEmailAuthTransition(transitionId, {
+                title: 'Check your email',
+                message: 'Open the confirmation link to finish creating your partner account. It is not active until you do.',
+              });
               return;
             }
             const ensured = await ensureSupplierProfile(data.session.user.id, {
@@ -289,19 +308,35 @@ export default function SupplierAuth({
             });
             if (!ensured.success) {
               await supabase.auth.signOut();
-              setFieldErrors({ form: mapAuthError(ensured.error ?? 'Could not create your supplier profile.') });
+              const message = mapAuthError(ensured.error ?? 'Could not create your supplier profile.');
+              setFieldErrors({ form: message });
+              failAuthTransition(transitionId, message);
               return;
             }
             clearConfirmationUi();
             sendSupplierWelcomeEmail(data.session.user.id);
-            onAuthenticated();
+            succeedAuthTransition(transitionId, {
+              title: 'Welcome to Traverion Partner!',
+              message: 'Your partner account is ready. Continue with company setup.',
+              page: 'partner',
+              navigate: onAuthenticated,
+            });
             return;
           }
           setNeedsEmailConfirmation(true);
           setConfirmationEmailRequested(true);
           setSuccessMessage(AUTH_CONFIRMATION_EMAIL_REQUESTED);
           setMode('signin');
+          checkEmailAuthTransition(transitionId, {
+            title: 'Check your email',
+            message: 'Open the confirmation link to finish creating your partner account. It is not active until you do.',
+          });
         } else {
+          const transitionId = beginAuthTransition({
+            intent: 'login',
+            title: 'Signing you in...',
+            message: 'Checking your partner account.',
+          });
           const { data, error: err } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password });
           if (err) {
             const fields = serverMessageToFields(err.message);
@@ -313,6 +348,7 @@ export default function SupplierAuth({
             ) {
               setNeedsEmailConfirmation(true);
             }
+            failAuthTransition(transitionId, fields.form || fields.email || mapAuthError(err.message));
             return;
           }
           if (data.user && !data.user.email_confirmed_at) {
@@ -323,6 +359,7 @@ export default function SupplierAuth({
             setFieldErrors({
               email: 'Please confirm your email before signing in.',
             });
+            failAuthTransition(transitionId, 'Please confirm your email before signing in.');
             return;
           }
           if (data.user) {
@@ -336,12 +373,19 @@ export default function SupplierAuth({
             ]);
             if (existingProfile) {
               clearConfirmationUi();
-              onAuthenticated();
+              succeedAuthTransition(transitionId, {
+                title: 'Welcome back!',
+                message: "You're signed in.",
+                page: 'partner',
+                navigate: onAuthenticated,
+              });
               return;
             }
             if (consumerRow) {
               await supabase.auth.signOut();
-              setFieldErrors({ email: partnerSignInTravelerOnlyEmailError(travelerSignInUrl) });
+              const message = partnerSignInTravelerOnlyEmailError(travelerSignInUrl);
+              setFieldErrors({ email: message });
+              failAuthTransition(transitionId, message);
               setMode('signin');
               return;
             }
@@ -351,7 +395,9 @@ export default function SupplierAuth({
               Boolean(userMeta?.supplier_phone?.trim());
             if (!signedUpAsPartner) {
               await supabase.auth.signOut();
-              setFieldErrors({ email: partnerSignInTravelerOnlyEmailError(travelerSignInUrl) });
+              const message = partnerSignInTravelerOnlyEmailError(travelerSignInUrl);
+              setFieldErrors({ email: message });
+              failAuthTransition(transitionId, message);
               setMode('signin');
               return;
             }
@@ -361,16 +407,28 @@ export default function SupplierAuth({
             });
             if (!ensured.success) {
               await supabase.auth.signOut();
-              setFieldErrors({ form: mapAuthError(ensured.error ?? 'Could not load your supplier profile.') });
+              const message = mapAuthError(ensured.error ?? 'Could not load your supplier profile.');
+              setFieldErrors({ form: message });
+              failAuthTransition(transitionId, message);
               return;
             }
             clearConfirmationUi();
             sendSupplierWelcomeEmail(data.user.id);
-            onAuthenticated();
+            succeedAuthTransition(transitionId, {
+              title: 'Welcome to Traverion Partner!',
+              message: 'Your partner account is ready. Continue with company setup.',
+              page: 'partner',
+              navigate: onAuthenticated,
+            });
             return;
           }
           clearConfirmationUi();
-          onAuthenticated();
+          succeedAuthTransition(transitionId, {
+            title: 'Welcome back!',
+            message: "You're signed in.",
+            page: 'partner',
+            navigate: onAuthenticated,
+          });
         }
       } else {
         setFieldErrors({
@@ -387,12 +445,25 @@ export default function SupplierAuth({
 
   const sendPasswordResetEmail = async (normalizedEmail: string): Promise<ForgotPasswordSendResult> => {
     if (!supabase) return { ok: false, error: 'Password reset is not configured.' };
+    const transitionId = beginAuthTransition({
+      intent: 'password',
+      title: 'Sending a reset link...',
+      message: 'One moment.',
+    });
     setResetSending(true);
     const { error: err } = await supabase.auth.resetPasswordForEmail(normalizedEmail, {
       redirectTo: partnerPortalAuthRedirectUrl(PARTNER_RESET_PASSWORD_PATH),
     });
     setResetSending(false);
-    if (err) return { ok: false, error: mapAuthError(err.message) };
+    if (err) {
+      const message = mapAuthError(err.message);
+      failAuthTransition(transitionId, message);
+      return { ok: false, error: message };
+    }
+    checkEmailAuthTransition(transitionId, {
+      title: 'Check your email',
+      message: AUTH_PASSWORD_RESET_REQUESTED(normalizedEmail),
+    });
     return { ok: true };
   };
 
@@ -811,13 +882,7 @@ export default function SupplierAuth({
               disabled={submitting}
               className="tv-btn-primary w-full disabled:opacity-50"
             >
-              {mode === 'signup'
-                ? submitting
-                  ? 'Creating account…'
-                  : 'Create account'
-                : submitting
-                  ? 'Signing in…'
-                  : 'Log in'}
+              {mode === 'signup' ? 'Create account' : 'Log in'}
             </button>
           </form>
           )}

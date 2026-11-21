@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   onboardingLanesVerified,
   supplierOnboardingSnapshot,
+  supplierSetupCompletionCopy,
   supplierSetupMenuLabel,
 } from './supplier-onboarding-progress';
 
@@ -90,6 +91,15 @@ describe('supplier onboarding progress', () => {
     expect(snapshot.company.status).toBe('pending_verification');
     expect(snapshot.nextScreen).toBe('status');
     expect(snapshot.actionable).toBe(false);
+  });
+
+  it('does not present a pending review as completed setup', () => {
+    const pending = supplierSetupCompletionCopy(false, 'Verification sent', 'This is not an approval.');
+    expect(pending.title).toBe('Verification sent');
+    expect(pending.message.toLowerCase()).not.toContain('approved');
+    expect(supplierSetupCompletionCopy(true, 'Verification sent', 'This is not an approval.').title).toBe(
+      'Setup completed!',
+    );
   });
 
   it('does not call a rejected company verified', () => {

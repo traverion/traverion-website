@@ -4,6 +4,7 @@ import { SUPPLIER_PAGE_CLASS, SupplierPageHero } from '../../components/supplier
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { userFacingError } from '../../lib/userFacingError';
 import NoticeCallout from '../../components/NoticeCallout';
+import { beginAuthTransition, failAuthTransition, succeedAuthTransition } from '../../lib/auth-transition';
 
 type Props = {
   onBack: () => void;
@@ -63,6 +64,11 @@ export default function SupplierChangePassword({ onBack, userEmail, isSupabase, 
       return;
     }
 
+    const transitionId = beginAuthTransition({
+      intent: 'password',
+      title: 'Updating your password...',
+      message: 'One moment.',
+    });
     setSaving(true);
     try {
       const { error: signErr } = await supabase.auth.signInWithPassword({
@@ -70,13 +76,17 @@ export default function SupplierChangePassword({ onBack, userEmail, isSupabase, 
         password: currentPassword,
       });
       if (signErr) {
-        setError(mapAuthError(signErr.message));
+        const message = mapAuthError(signErr.message);
+        setError(message);
+        failAuthTransition(transitionId, message);
         return;
       }
 
       const { error: updErr } = await supabase.auth.updateUser({ password: newPassword });
       if (updErr) {
-        setError(mapAuthError(updErr.message));
+        const message = mapAuthError(updErr.message);
+        setError(message);
+        failAuthTransition(transitionId, message);
         return;
       }
 
@@ -84,8 +94,15 @@ export default function SupplierChangePassword({ onBack, userEmail, isSupabase, 
       setNewPassword('');
       setConfirmPassword('');
       setSuccess(true);
+      succeedAuthTransition(transitionId, {
+        title: 'Password updated!',
+        message: 'Your new password is saved.',
+        page: 'partner',
+      });
     } catch (e) {
-      setError(userFacingError(e, 'Something went wrong. Check your details and try again.'));
+      const message = userFacingError(e, 'Something went wrong. Check your details and try again.');
+      setError(message);
+      failAuthTransition(transitionId, message);
     } finally {
       setSaving(false);
     }
@@ -234,7 +251,7 @@ export default function SupplierChangePassword({ onBack, userEmail, isSupabase, 
             onClick={() => void submit()}
             className="tv-btn-primary disabled:opacity-50"
           >
-            {saving ? 'Updating…' : 'Update password'}
+            Update password
           </button>
         </div>
       </div>

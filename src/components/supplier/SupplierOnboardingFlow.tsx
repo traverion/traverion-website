@@ -42,10 +42,28 @@ import {
   type SupplierOnboardingVisibility,
 } from '../../lib/supplier-onboarding-steps';
 import {
+  onboardingLanesVerified,
   supplierOnboardingSnapshot,
+  supplierSetupCompletionCopy,
 } from '../../lib/supplier-onboarding-progress';
+import { beginAuthTransition, failAuthTransition, succeedAuthTransition } from '../../lib/auth-transition';
 import { supplierVerificationState } from '../../lib/supplier-verification-state';
 import { partnerToast } from '../../lib/partner-toast';
+
+function finishSupplierSetupStep(
+  id: number,
+  profile: SupplierProfileRow | null | undefined,
+  pendingTitle: string,
+  pendingMessage: string,
+) {
+  const verified = Boolean(profile && onboardingLanesVerified(supplierOnboardingSnapshot(profile)));
+  const copy = supplierSetupCompletionCopy(verified, pendingTitle, pendingMessage);
+  succeedAuthTransition(id, {
+    title: copy.title,
+    message: copy.message,
+    page: 'partner',
+  });
+}
 
 type OwnerEntry = { first_name: string; last_name: string; dob: string; percent_ownership: string };
 
@@ -348,6 +366,11 @@ export default function SupplierOnboardingFlow({
     submitting.current = true;
     setBusy(true);
     setError(null);
+    const transitionId = beginAuthTransition({
+      intent: 'setup',
+      title: 'Sending your details...',
+      message: 'One moment.',
+    });
     const business = await invokeConnectSupplierOnboarding('submit_business', {
       business: {
         legal_name: profile?.company_legal_name?.trim() || undefined,
@@ -365,8 +388,9 @@ export default function SupplierOnboardingFlow({
     if (!business.success) {
       setBusy(false);
       submitting.current = false;
-      setError(connectOnboardingUserMessage(business.error));
-      partnerToast.error(connectOnboardingUserMessage(business.error));
+      const message = connectOnboardingUserMessage(business.error);
+      setError(message);
+      failAuthTransition(transitionId, message);
       return false;
     }
     const ownership = draft.rep_is_owner ? share : null;
@@ -395,8 +419,9 @@ export default function SupplierOnboardingFlow({
     if (!person.success) {
       setBusy(false);
       submitting.current = false;
-      setError(connectOnboardingUserMessage(person.error));
-      partnerToast.error(connectOnboardingUserMessage(person.error));
+      const message = connectOnboardingUserMessage(person.error);
+      setError(message);
+      failAuthTransition(transitionId, message);
       return false;
     }
     if (others && owner.first_name.trim()) {
@@ -427,8 +452,9 @@ export default function SupplierOnboardingFlow({
       if (!owners.success) {
         setBusy(false);
         submitting.current = false;
-        setError(connectOnboardingUserMessage(owners.error));
-        partnerToast.error(connectOnboardingUserMessage(owners.error));
+        const message = connectOnboardingUserMessage(owners.error);
+        setError(message);
+        failAuthTransition(transitionId, message);
         return false;
       }
     }
@@ -438,7 +464,12 @@ export default function SupplierOnboardingFlow({
     setRepDob('');
     setBusy(false);
     submitting.current = false;
-    partnerToast.success('Verification sent');
+    finishSupplierSetupStep(
+      transitionId,
+      next,
+      'Verification sent',
+      'We have your details for review. This is not an approval.',
+    );
     return true;
   };
 
@@ -454,6 +485,11 @@ export default function SupplierOnboardingFlow({
     submitting.current = true;
     setBusy(true);
     setError(null);
+    const transitionId = beginAuthTransition({
+      intent: 'setup',
+      title: 'Saving your payout account...',
+      message: 'One moment.',
+    });
     if (flags.termsOpen) {
       const terms = await invokeConnectSupplierOnboarding('accept_tos', {
         tos_accepted: true,
@@ -462,8 +498,9 @@ export default function SupplierOnboardingFlow({
       if (!terms.success) {
         setBusy(false);
         submitting.current = false;
-        setError(connectOnboardingUserMessage(terms.error));
-        partnerToast.error(connectOnboardingUserMessage(terms.error));
+        const message = connectOnboardingUserMessage(terms.error);
+        setError(message);
+        failAuthTransition(transitionId, message);
         return false;
       }
       setDraft((current) => ({ ...current, tos_accepted: true }));
@@ -479,7 +516,7 @@ export default function SupplierOnboardingFlow({
       setBusy(false);
       submitting.current = false;
       setError(tokenized.error);
-      partnerToast.error(tokenized.error);
+      failAuthTransition(transitionId, tokenized.error);
       return false;
     }
     const attached = await invokeConnectSupplierOnboarding('attach_bank_token', {
@@ -489,8 +526,9 @@ export default function SupplierOnboardingFlow({
     if (!attached.success) {
       setBusy(false);
       submitting.current = false;
-      setError(connectOnboardingUserMessage(attached.error));
-      partnerToast.error(connectOnboardingUserMessage(attached.error));
+      const message = connectOnboardingUserMessage(attached.error);
+      setError(message);
+      failAuthTransition(transitionId, message);
       return false;
     }
     const next = await fetchSupplierProfile(userId);
@@ -503,7 +541,12 @@ export default function SupplierOnboardingFlow({
     }));
     setBusy(false);
     submitting.current = false;
-    partnerToast.success('Payout account saved');
+    finishSupplierSetupStep(
+      transitionId,
+      next,
+      'Payout account saved',
+      'The account is saved. This does not enable payouts or approve the company.',
+    );
     return true;
   };
 
@@ -511,24 +554,34 @@ export default function SupplierOnboardingFlow({
     if (!file || !canEdit || !userId) return;
     setBusy(true);
     setError(null);
+    const transitionId = beginAuthTransition({
+      intent: 'setup',
+      title: 'Uploading your document...',
+      message: 'One moment.',
+    });
     const up = await uploadSupplierVerificationDocument(userId, file);
     if (!up.path) {
       setBusy(false);
       setError('That document could not be uploaded.');
-      partnerToast.error('That document could not be uploaded.');
+      failAuthTransition(transitionId, 'That document could not be uploaded.');
       return;
     }
     const saved = await patchSupplierProfile(userId, { company_registration_document_path: up.path });
     if (!saved.success) {
       setBusy(false);
       setError('That document could not be saved.');
-      partnerToast.error("Couldn't save changes. Try again.");
+      failAuthTransition(transitionId, 'That document could not be saved.');
       return;
     }
     const next = await fetchSupplierProfile(userId);
     if (next) onProfile(next);
     setBusy(false);
-    partnerToast.success('Verification sent');
+    finishSupplierSetupStep(
+      transitionId,
+      next,
+      'Verification sent',
+      'The document is saved for review. This is not an approval.',
+    );
   };
 
   if (!screen) {

@@ -168,6 +168,21 @@ export function supplierOnboardingSnapshot(
   };
 }
 
+/** Confirmed lanes may say setup is complete. A pending review must not. */
+export function supplierSetupCompletionCopy(
+  verified: boolean,
+  pendingTitle: string,
+  pendingMessage: string,
+): { title: string; message: string } {
+  if (verified) {
+    return {
+      title: 'Setup completed!',
+      message: 'Your company, identity, and payout details are confirmed.',
+    };
+  }
+  return { title: pendingTitle, message: pendingMessage };
+}
+
 export function onboardingLanesVerified(snapshot: SupplierOnboardingSnapshot): boolean {
   return (
     snapshot.company.status === 'verified' &&

@@ -383,7 +383,7 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
                     void signOut()
                       .then(() => {
                         succeedAuthTransition(transitionId, {
-                          title: 'Successfully logged out.',
+                          title: 'Successfully logged out!',
                           message: 'See you on your next adventure.',
                           page: 'home',
                           navigate: () => {

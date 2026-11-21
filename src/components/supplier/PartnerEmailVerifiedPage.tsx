@@ -9,6 +9,7 @@ import {
   PARTNER_APP_BASE,
 } from '../../lib/partnerPortalPaths';
 import { setPartnerAuthFlash } from '../../lib/partnerAuthFlash';
+import { beginAuthTransition, failAuthTransition, succeedAuthTransition } from '../../lib/auth-transition';
 import { setPageMetaWithOg } from '../../lib/seo';
 
 type Phase = 'checking' | 'verified' | 'already' | 'invalid' | 'unconfigured';
@@ -47,20 +48,33 @@ export default function PartnerEmailVerifiedPage() {
       window.history.replaceState({}, document.title, PARTNER_EMAIL_VERIFIED_PATH);
     };
 
+    const transitionId = beginAuthTransition({
+      intent: 'verify',
+      title: 'Confirming your email...',
+      message: 'Checking this link.',
+    });
+
     const fail = () => {
       if (!cancelled) {
         stripSensitiveUrl();
         setPhase('invalid');
+        failAuthTransition(transitionId, 'This confirmation link has expired or was already used.');
       }
     };
 
-    const succeed = async (kind: 'verified' | 'already') => {
+    const succeed = (kind: 'verified' | 'already') => {
       if (cancelled) return;
       setPhase(kind);
       stripSensitiveUrl();
-      await new Promise((r) => setTimeout(r, 900));
-      if (cancelled) return;
-      window.location.replace(`${PARTNER_APP_BASE}/onboarding`);
+      succeedAuthTransition(transitionId, {
+        title: 'Email verified!',
+        message:
+          kind === 'already'
+            ? 'This email is already confirmed. Continue to company setup.'
+            : 'Your partner email is confirmed. Continue to company setup. This does not approve the company.',
+        page: 'onboarding',
+        navigate: () => window.location.replace(`${PARTNER_APP_BASE}/onboarding`),
+      });
     };
 
     void (async () => {
@@ -69,11 +83,11 @@ export default function PartnerEmailVerifiedPage() {
       if (code) {
         const { data, error } = await supabase.auth.exchangeCodeForSession(window.location.href);
         if (cancelled) return;
-        if (error || !data.session) {
+        if (error || !data.session?.user?.email_confirmed_at) {
           fail();
           return;
         }
-        await succeed('verified');
+        succeed('verified');
         return;
       }
 
@@ -82,7 +96,7 @@ export default function PartnerEmailVerifiedPage() {
         const { data } = await supabase.auth.getSession();
         if (cancelled) return;
         if (data.session?.user?.email_confirmed_at) {
-          await succeed('already');
+          succeed('already');
           return;
         }
         fail();
@@ -108,12 +122,12 @@ export default function PartnerEmailVerifiedPage() {
         refresh_token,
       });
       if (cancelled) return;
-      if (error || !data.session) {
+      if (error || !data.session?.user?.email_confirmed_at) {
         fail();
         return;
       }
 
-      await succeed('verified');
+      succeed('verified');
     })();
 
     return () => {

@@ -302,12 +302,25 @@ export default function TravelerAuthForm({
 
   const sendPasswordResetEmail = async (normalizedEmail: string): Promise<ForgotPasswordSendResult> => {
     if (!supabase) return { ok: false, error: 'Password reset is not configured.' };
+    const transitionId = beginAuthTransition({
+      intent: 'password',
+      title: 'Sending a reset link...',
+      message: 'One moment.',
+    });
     setResetSending(true);
     const { error: err } = await supabase.auth.resetPasswordForEmail(normalizedEmail, {
       redirectTo: `${publicSiteBaseUrl()}${TRAVELER_RESET_PASSWORD_PATH}?next=${encodeURIComponent(afterConfirmNext)}`,
     });
     setResetSending(false);
-    if (err) return { ok: false, error: mapAuthError(err.message) };
+    if (err) {
+      const message = mapAuthError(err.message);
+      failAuthTransition(transitionId, message);
+      return { ok: false, error: message };
+    }
+    checkEmailAuthTransition(transitionId, {
+      title: 'Check your email',
+      message: AUTH_PASSWORD_RESET_REQUESTED(normalizedEmail),
+    });
     return { ok: true };
   };
 

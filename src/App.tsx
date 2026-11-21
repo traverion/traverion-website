@@ -1114,6 +1114,7 @@ function App() {
         <AuthProvider>
           <SupplierAuthProvider>
             <SupplierRoleProvider>
+            <AuthTransitionModal page="partner" product="partner" onNavigate={() => undefined} />
               <ChunkLoadErrorBoundary resetKey="supplier">
                 <Suspense fallback={<PartnerRouteFallback />}>
                   <SupplierLayout />
