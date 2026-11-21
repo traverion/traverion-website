@@ -10388,6 +10388,128 @@ details:not([open]) > :not(summary) {
   }
 }
 
+.supplier-document h2 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.supplier-document__intro {
+  display: flex;
+  gap: 0.85rem;
+  align-items: flex-start;
+}
+
+.supplier-document__icon {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 999px;
+  background: rgba(7, 59, 131, 0.08);
+  color: #073b83;
+}
+
+.supplier-document__status {
+  margin: 0.65rem 0 0;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #71717a;
+}
+
+.supplier-document__status--uploaded,
+.supplier-document__status--under_review,
+.supplier-document__status--approved {
+  color: #073b83;
+}
+
+.supplier-document__status--action_required {
+  color: #9f1239;
+}
+
+.supplier-document__drop {
+  display: flex;
+  min-height: 8.5rem;
+  width: 100%;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  padding: 1.25rem;
+  text-align: center;
+}
+
+.supplier-document__file {
+  display: grid;
+  gap: 0.85rem;
+  align-items: center;
+}
+
+@media (min-width: 768px) {
+  .supplier-document__file {
+    grid-template-columns: 7.5rem minmax(0, 1fr);
+  }
+}
+
+.supplier-document__preview {
+  width: 100%;
+  max-height: 7.5rem;
+  object-fit: cover;
+  border: 1px solid #e6eaf0;
+  border-radius: 0.75rem;
+  background: #f8fafc;
+}
+
+.supplier-document__name {
+  margin: 0;
+  overflow: hidden;
+  font-size: 0.95rem;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.supplier-document__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.65rem;
+}
+
+.supplier-document__progress {
+  height: 3px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e6eaf0;
+}
+
+.supplier-document__progress > span {
+  display: block;
+  width: 35%;
+  height: 100%;
+  background: #073b83;
+  animation: supplier-document-progress 900ms ease-in-out infinite;
+}
+
+@keyframes supplier-document-progress {
+  from { transform: translateX(-120%); }
+  to { transform: translateX(320%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .supplier-document__progress > span {
+    width: 100%;
+    transform: none;
+    animation: none;
+    opacity: 0.45;
+  }
+}
+
 .supplier-onboarding-address .supplier-onboarding-grid {
   margin-top: 1rem;
 }

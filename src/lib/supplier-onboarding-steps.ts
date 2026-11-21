@@ -16,7 +16,7 @@ export const SUPPLIER_ONBOARDING_SCREENS = [
     group: 'Documents',
     phase: 'documents',
     title: 'Registration document',
-    body: 'One document for the company.',
+    body: 'The official registration extract. Saving it does not approve the company.',
   },
   {
     id: 'person',

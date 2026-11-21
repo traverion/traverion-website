@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import DateOfBirthPicker from './DateOfBirthPicker';
+import OnboardingDocumentCard from './OnboardingDocumentCard';
 import RegisteredBusinessAddress from './RegisteredBusinessAddress';
 import { ListingCreationWorkspace } from './listing-creation/ListingCreationWorkspace';
 import {
   fetchSupplierProfile,
   invalidateSupplierProfileCache,
   patchSupplierProfile,
+  removeSupplierVerificationDocumentFile,
   updateSupplierCompanyProfile,
   updateSupplierSetupProgress,
   uploadSupplierVerificationDocument,
@@ -118,6 +120,7 @@ export default function SupplierOnboardingFlow({
   const [motion, setMotion] = useState<'forward' | 'back'>('forward');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [documentBusy, setDocumentBusy] = useState(false);
   const booted = useRef(false);
   const submitting = useRef(false);
   const navigating = useRef(false);
@@ -126,6 +129,7 @@ export default function SupplierOnboardingFlow({
   const historyStack = useRef<SupplierOnboardingScreenId[]>([]);
   const lastSavedSig = useRef<string | null>(null);
   const draftTimer = useRef<number | null>(null);
+  const docLock = useRef(false);
   const screenRef = useRef<SupplierOnboardingScreenId | null>(null);
   const exitRef = useRef<() => Promise<void>>(async () => undefined);
 
@@ -402,7 +406,7 @@ export default function SupplierOnboardingFlow({
   };
 
   const exitAndSave = async () => {
-    if (!screen || busy) return;
+    if (!screen || busy || documentBusy) return;
     setBusy(true);
     setError(null);
     const countryCode = normalizeCountryCode(companyCountry);
@@ -461,7 +465,7 @@ export default function SupplierOnboardingFlow({
 
   const back = async () => {
     const previous = previousOnboardingScreen(visible, screen);
-    if (!previous || busy) return;
+    if (!previous || busy || documentBusy) return;
     setError(null);
     setMotion('back');
     const saved = await persistDraft();
@@ -480,7 +484,7 @@ export default function SupplierOnboardingFlow({
   };
 
   const onContinue = async () => {
-    if (busy || submitting.current || navigating.current) return;
+    if (busy || documentBusy || submitting.current || navigating.current) return;
     navigating.current = true;
     window.setTimeout(() => {
       navigating.current = false;
@@ -830,38 +834,45 @@ export default function SupplierOnboardingFlow({
     return true;
   };
 
-  const onUpload = async (file: File | null) => {
-    if (!file || !canEdit || !userId) return;
-    setBusy(true);
+  const onUpload = async (file: File) => {
+    if (!canEdit || !userId || docLock.current) return;
+    docLock.current = true;
+    setDocumentBusy(true);
     setError(null);
-    const transitionId = beginAuthTransition({
-      intent: 'setup',
-      title: 'Uploading your document...',
-      message: 'One moment.',
-    });
     const up = await uploadSupplierVerificationDocument(userId, file);
     if (!up.path) {
-      setBusy(false);
-      setError('That document could not be uploaded.');
-      failAuthTransition(transitionId, 'That document could not be uploaded.');
+      setDocumentBusy(false);
+      docLock.current = false;
+      setError(up.error || 'That document could not be uploaded.');
       return;
     }
     const saved = await patchSupplierProfile(userId, { company_registration_document_path: up.path });
+    setDocumentBusy(false);
+    docLock.current = false;
     if (!saved.success) {
-      setBusy(false);
-      setError('That document could not be saved.');
-      failAuthTransition(transitionId, 'That document could not be saved.');
+      setError(saved.error || 'That document could not be saved.');
       return;
     }
-    const next = await fetchSupplierProfile(userId);
-    if (next) onProfile(next);
-    setBusy(false);
-    finishSupplierSetupStep(
-      transitionId,
-      next,
-      'Verification sent',
-      'The document is saved for review. This is not an approval.',
-    );
+    if (profile) onProfile({ ...profile, company_registration_document_path: up.path });
+    feedback.success('Document saved');
+  };
+
+  const onRemoveDocument = async () => {
+    const path = profile?.company_registration_document_path?.trim() ?? '';
+    if (!canEdit || !userId || !path || docLock.current) return;
+    docLock.current = true;
+    setDocumentBusy(true);
+    setError(null);
+    await removeSupplierVerificationDocumentFile(path);
+    const saved = await patchSupplierProfile(userId, { company_registration_document_path: null });
+    setDocumentBusy(false);
+    docLock.current = false;
+    if (!saved.success) {
+      setError(saved.error || 'The document could not be removed.');
+      return;
+    }
+    if (profile) onProfile({ ...profile, company_registration_document_path: null });
+    feedback.success('Document removed');
   };
 
   if (!screen) {
@@ -930,7 +941,7 @@ export default function SupplierOnboardingFlow({
         onSelectIndex={() => undefined}
         onExit={() => void exitAndSave()}
         exitLabel="Save & exit"
-        exitDisabled={busy}
+        exitDisabled={busy || documentBusy}
         exitBusy={busy}
         footer={
           <div className="listing-creation-footer-actions flex flex-col gap-2">
@@ -953,7 +964,7 @@ export default function SupplierOnboardingFlow({
                   type="button"
                   className="stay-nav-btn stay-nav-btn--start touch-manipulation tv-btn-ghost !min-h-11 disabled:opacity-40"
                   onClick={() => void back()}
-                  disabled={busy}
+                  disabled={busy || documentBusy}
                 >
                   Back
                 </button>
@@ -962,7 +973,7 @@ export default function SupplierOnboardingFlow({
                   type="button"
                   className="stay-nav-btn stay-nav-btn--start touch-manipulation tv-btn-ghost !min-h-11 disabled:opacity-40"
                   onClick={() => void exitAndSave()}
-                  disabled={busy}
+                  disabled={busy || documentBusy}
                 >
                   Save & exit
                 </button>
@@ -971,7 +982,7 @@ export default function SupplierOnboardingFlow({
                 type="button"
                 className="stay-nav-btn stay-nav-btn--end touch-manipulation tv-btn-primary !min-h-11 disabled:opacity-50"
                 onClick={() => void onContinue()}
-                disabled={busy}
+                disabled={busy || documentBusy}
               >
                 {busy ? 'Saving…' : primary}
               </button>
@@ -1053,20 +1064,16 @@ export default function SupplierOnboardingFlow({
             </dl>
           ) : null}
           {screen === 'documents' ? (
-            <div className="supplier-onboarding-card">
-              {hasFile ? (
-                <p className="text-[15px] font-semibold text-ink">Registration document is on file.</p>
-              ) : (
-                <OnboardingField label="Registration document" help="A trade register extract or the equivalent official document.">
-                  <input
-                    className="supplier-onboarding-file"
-                    type="file"
-                    accept="application/pdf,image/jpeg,image/png"
-                    onChange={(event) => void onUpload(event.target.files?.[0] ?? null)}
-                  />
-                </OnboardingField>
-              )}
-            </div>
+            <OnboardingDocumentCard
+              country={companyCountry || profile?.address_country || null}
+              path={profile?.company_registration_document_path ?? null}
+              verificationStatus={profile?.verification_status ?? null}
+              submittedAt={profile?.verification_submitted_at ?? null}
+              busy={documentBusy}
+              error={null}
+              onUpload={onUpload}
+              onRemove={onRemoveDocument}
+            />
           ) : null}
           {screen === 'person' ? (
             <div className="supplier-onboarding-grid">
