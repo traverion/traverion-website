@@ -164,6 +164,11 @@ type Body = {
     | 'marketplace_reset'
     | 'users_list'
     | 'suppliers_directory'
+    | 'supplier_archive_detail'
+    | 'archive_supplier'
+    | 'restore_supplier'
+    | 'suspend_supplier'
+    | 'unsuspend_supplier'
     | 'consumers_directory'
     | 'list_live_v2_pilot_candidates'
     | 'assess_live_v2_pilot'
@@ -175,6 +180,7 @@ type Body = {
   confirmLivePilot?: boolean;
   livePilotNote?: string;
   feedback?: string | null;
+  archiveReason?: string | null;
   notificationTitle?: string;
   notificationBody?: string;
   notificationVariant?: string;
@@ -411,11 +417,13 @@ serve(async (req) => {
         .from('supplier_profiles')
         .select('*', { count: 'exact', head: true })
         .eq('verification_status', 'pending')
+        .is('archived_at', null)
         .not('verification_submitted_at', 'is', null),
       admin
         .from('supplier_profiles')
         .select('*', { count: 'exact', head: true })
         .eq('payout_verification_status', 'pending')
+        .is('archived_at', null)
         .not('payout_verification_submitted_at', 'is', null),
       admin.from('listings').select('*', { count: 'exact', head: true }),
       admin.from('listings').select('*', { count: 'exact', head: true }).eq('status', 'published'),
@@ -1725,7 +1733,7 @@ serve(async (req) => {
     const { data: profiles, error } = await admin
       .from('supplier_profiles')
       .select(
-        'id, display_name, verification_status, payout_verification_status, created_at, contact_phone, default_currency'
+        'id, display_name, verification_status, verification_submitted_at, payout_verification_status, created_at, archived_at, archive_reason, suspended_at, stripe_connected_account_id, connect_account_livemode'
       )
       .order('created_at', { ascending: false })
       .limit(500);
@@ -1766,12 +1774,131 @@ serve(async (req) => {
       }
     }
     return json({
-      items: (profiles ?? []).map((p) => ({
-        ...p,
-        email: emailById[p.id as string] ?? null,
-        listings_count: listingCounts[p.id as string] ?? 0,
-        bookings_count: bookingCounts[p.id as string] ?? 0,
-      })),
+      items: (profiles ?? []).map((p) => {
+        const archivedAt = (p.archived_at as string | null) ?? null;
+        const suspendedAt = (p.suspended_at as string | null) ?? null;
+        const submitted = Boolean(String(p.verification_submitted_at ?? '').trim());
+        const lifecycle = archivedAt
+          ? 'archived'
+          : suspendedAt
+            ? 'suspended'
+            : p.verification_status === 'pending' && submitted
+              ? 'pending'
+              : 'active';
+        return {
+          id: p.id,
+          display_name: p.display_name ?? null,
+          email: emailById[p.id as string] ?? null,
+          lifecycle,
+          verification_status: p.verification_status ?? null,
+          payout_verification_status: p.payout_verification_status ?? null,
+          archived_at: archivedAt,
+          archive_reason: p.archive_reason ?? null,
+          suspended_at: suspendedAt,
+          listings_count: listingCounts[p.id as string] ?? 0,
+          bookings_count: bookingCounts[p.id as string] ?? 0,
+          has_connect_account: Boolean(String(p.stripe_connected_account_id ?? '').trim()),
+          connect_account_livemode: p.connect_account_livemode ?? null,
+        };
+      }),
+    });
+  }
+
+  if (
+    body.action === 'archive_supplier' ||
+    body.action === 'restore_supplier' ||
+    body.action === 'suspend_supplier' ||
+    body.action === 'unsuspend_supplier'
+  ) {
+    const supplierId = body.supplierId?.trim();
+    if (!supplierId) return json({ error: 'supplierId required' }, 400);
+    const reason = (body.archiveReason ?? body.feedback ?? '').trim();
+    const rpc =
+      body.action === 'archive_supplier'
+        ? 'archive_supplier'
+        : body.action === 'restore_supplier'
+          ? 'restore_supplier'
+          : body.action === 'suspend_supplier'
+            ? 'suspend_supplier'
+            : 'unsuspend_supplier';
+    const args =
+      body.action === 'restore_supplier' || body.action === 'unsuspend_supplier'
+        ? { p_supplier_id: supplierId, p_actor: adminUserId }
+        : { p_supplier_id: supplierId, p_reason: reason, p_actor: adminUserId };
+    const { data, error } = await admin.rpc(rpc, args);
+    if (error) return json({ error: error.message }, 400);
+    return json({ ok: true, result: data });
+  }
+
+  if (body.action === 'supplier_archive_detail') {
+    const supplierId = body.supplierId?.trim();
+    if (!supplierId) return json({ error: 'supplierId required' }, 400);
+    const { data: profile, error } = await admin
+      .from('supplier_profiles')
+      .select(
+        'id, display_name, company_legal_name, verification_status, verification_submitted_at, payout_verification_status, archived_at, archive_reason, archived_by, archive_released_email, archive_released_phone, suspended_at, stripe_connected_account_id, connect_account_livemode, connect_payouts_enabled, company_registration_document_path, identity_document_path'
+      )
+      .eq('id', supplierId)
+      .maybeSingle();
+    if (error) return json({ error: error.message }, 500);
+    if (!profile) return json({ error: 'Supplier not found' }, 404);
+    const [terms, reviews, audits] = await Promise.all([
+      admin
+        .from('supplier_commercial_terms')
+        .select('plan_code, commission_bps, payout_cadence, status')
+        .eq('supplier_id', supplierId)
+        .maybeSingle(),
+      admin
+        .from('supplier_verification_review_events')
+        .select('id', { count: 'exact', head: true })
+        .eq('supplier_id', supplierId),
+      admin
+        .from('financial_audit_log')
+        .select('id', { count: 'exact', head: true })
+        .eq('supplier_id', supplierId),
+    ]);
+    const archivedAt = (profile.archived_at as string | null) ?? null;
+    const suspendedAt = (profile.suspended_at as string | null) ?? null;
+    const submitted = Boolean(String(profile.verification_submitted_at ?? '').trim());
+    const lifecycle = archivedAt
+      ? 'archived'
+      : suspendedAt
+        ? 'suspended'
+        : profile.verification_status === 'pending' && submitted
+          ? 'pending'
+          : 'active';
+    return json({
+      profile: {
+        id: profile.id,
+        display_name: profile.display_name ?? null,
+        company_legal_name: profile.company_legal_name ?? null,
+        lifecycle,
+        verification_status: profile.verification_status ?? null,
+        payout_verification_status: profile.payout_verification_status ?? null,
+        archived_at: archivedAt,
+        archive_reason: profile.archive_reason ?? null,
+        archived_by: profile.archived_by ?? null,
+        released_email: profile.archive_released_email ?? null,
+        phone_released: Boolean(String(profile.archive_released_phone ?? '').trim()),
+        suspended_at: suspendedAt,
+        has_connect_account: Boolean(String(profile.stripe_connected_account_id ?? '').trim()),
+        connect_account_livemode: profile.connect_account_livemode ?? null,
+        connect_payouts_enabled: profile.connect_payouts_enabled ?? null,
+      },
+      agreement: terms.data
+        ? {
+            plan_code: terms.data.plan_code ?? null,
+            commission_bps: terms.data.commission_bps ?? null,
+            payout_cadence: terms.data.payout_cadence ?? null,
+            status: terms.data.status ?? null,
+          }
+        : null,
+      counts: {
+        review_events: reviews.count ?? 0,
+        financial_audit: audits.count ?? 0,
+        documents:
+          (profile.company_registration_document_path ? 1 : 0) + (profile.identity_document_path ? 1 : 0),
+      },
     });
   }
 
@@ -1933,11 +2060,13 @@ serve(async (req) => {
         .from('supplier_profiles')
         .select(listSel)
         .eq('verification_status', 'pending')
+        .is('archived_at', null)
         .not('verification_submitted_at', 'is', null),
       admin
         .from('supplier_profiles')
         .select(listSel)
         .eq('payout_verification_status', 'pending')
+        .is('archived_at', null)
         .not('payout_verification_submitted_at', 'is', null),
     ]);
 
@@ -1962,6 +2091,7 @@ serve(async (req) => {
       .select(listSel)
       .eq('verification_status', 'verified')
       .eq('payout_verification_status', 'verified')
+      .is('archived_at', null)
       .order('updated_at', { ascending: false })
       .limit(300);
     if (error) return json({ error: error.message }, 500);

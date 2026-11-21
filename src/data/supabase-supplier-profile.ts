@@ -44,6 +44,7 @@ export type SupplierProfileRow = {
   payout_threshold_min: number | null;
   /** Stripe Connect account id (acct_…). Null until onboarding starts. */
   stripe_connected_account_id?: string | null;
+  archived_at?: string | null;
   /** Mirrored account type: custom = Traverion API forms; express = legacy embedded path. */
   connect_account_type?: 'express' | 'custom' | 'standard' | null;
   /** Archived previous connected account when switching to native Custom (TEST). */

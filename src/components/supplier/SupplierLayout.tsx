@@ -731,6 +731,10 @@ export default function SupplierLayout() {
       setOnboardingListingCount(listings.length);
       const firstTour = listings.find((l) => inventoryFamilyFromListing(l) === 'tour');
       setOnboardingFirstTourListingId(firstTour?.id ?? null);
+      if (profile?.archived_at) {
+        await signOut();
+        return;
+      }
       setOnboardingProfile(profile);
       setOnboardingProfileReady(true);
       setProfileDisplayName((profile?.display_name ?? '').trim());
@@ -750,7 +754,7 @@ export default function SupplierLayout() {
       setOnboardingListingCount(null);
       setOnboardingProfileReady(true);
     }
-  }, [user?.id, isSupabase]);
+  }, [user?.id, isSupabase, signOut]);
 
   useEffect(() => {
     void refreshSupplierOnboardingSignals();

@@ -37,6 +37,10 @@ export function prefetchAdminTab(tab: string): void {
     case 'suppliers':
       warm(tab, () => import('../components/admin/AdminSupplierVerificationPanel'));
       break;
+    case 'suppliers_dir':
+    case 'supplier_archive':
+      warm(tab, () => import('../components/admin/AdminSupplierArchivePanel'));
+      break;
     case 'past_verifications':
       warm(tab, () => import('../components/admin/AdminPastVerificationsPanel'));
       break;

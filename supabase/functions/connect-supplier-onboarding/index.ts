@@ -857,12 +857,15 @@ serve(async (req) => {
     const { data: profile, error: profileErr } = await admin
       .from('supplier_profiles')
       .select(
-        'id, display_name, company_legal_name, business_type, address_street, address_city, address_postal_code, address_country, contact_phone, company_registration_number, tax_id, verification_status, company_registration_document_path, verification_submitted_at, stripe_connected_account_id, connect_account_type, connect_legacy_account_id, connect_account_livemode, connect_onboarding_status, connect_charges_enabled, connect_payouts_enabled, connect_details_submitted, connect_disabled_reason, connect_requirements_currently_due, connect_requirements_past_due, connect_default_currency, connect_country, connect_debit_negative_balances, connect_last_synced_at, payout_rail, payment_cycle, payout_wizard_draft, payout_wizard_draft_updated_at'
+        'id, display_name, company_legal_name, business_type, address_street, address_city, address_postal_code, address_country, contact_phone, company_registration_number, tax_id, verification_status, company_registration_document_path, verification_submitted_at, stripe_connected_account_id, connect_account_type, connect_legacy_account_id, connect_account_livemode, connect_onboarding_status, connect_charges_enabled, connect_payouts_enabled, connect_details_submitted, connect_disabled_reason, connect_requirements_currently_due, connect_requirements_past_due, connect_default_currency, connect_country, connect_debit_negative_balances, connect_last_synced_at, payout_rail, payment_cycle, payout_wizard_draft, payout_wizard_draft_updated_at, archived_at'
       )
       .eq('id', supplierId)
       .maybeSingle();
     if (profileErr || !profile) {
       return json({ success: false, error: profileErr?.message ?? 'Supplier profile not found' }, 404);
+    }
+    if ((profile as { archived_at?: string | null }).archived_at) {
+      return json({ success: false, error: 'This supplier account is archived.' }, 403);
     }
 
     const origin = allowlistedOrigin(body.returnOrigin, publicSiteUrl, extraOrigins);

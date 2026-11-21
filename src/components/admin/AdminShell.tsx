@@ -15,6 +15,7 @@ import {
   Search,
   ShieldCheck,
   ShieldOff,
+  Archive,
   Store,
   UserCircle,
   Users,
@@ -29,6 +30,7 @@ import AdminStripeTestNotice from './AdminStripeTestNotice';
 import { prefetchAdminTab } from '../../lib/admin-tab-prefetch';
 
 const AdminSupplierVerificationPanel = lazy(() => import('./AdminSupplierVerificationPanel'));
+const AdminSupplierArchivePanel = lazy(() => import('./AdminSupplierArchivePanel'));
 const AdminPastVerificationsPanel = lazy(() => import('./AdminPastVerificationsPanel'));
 const AdminSupplierPortalMessagesPanel = lazy(() => import('./AdminSupplierPortalMessagesPanel'));
 const AdminBookingsPanel = lazy(() => import('./AdminBookingsPanel'));
@@ -58,6 +60,7 @@ export type AdminTab =
   | 'live_v2_pilot'
   | 'users'
   | 'suppliers_dir'
+  | 'supplier_archive'
   | 'customers'
   | 'suppliers'
   | 'past_verifications'
@@ -80,6 +83,7 @@ const NAV: NavItem[] = [
   { id: 'commercial', label: 'Commercial & payouts', icon: Percent, group: 'Money' },
   { id: 'live_v2_pilot', label: 'LIVE v2 pilot', icon: ShieldCheck, group: 'Money' },
   { id: 'suppliers_dir', label: 'All suppliers', icon: Store, group: 'People' },
+  { id: 'supplier_archive', label: 'Archived suppliers', icon: Archive, group: 'People' },
   { id: 'customers', label: 'All customers', icon: UserCircle, group: 'People' },
   { id: 'users', label: 'Auth users', icon: Users, group: 'People' },
   { id: 'inquiries', label: 'Inquiries', icon: Mail, group: 'People' },
@@ -429,108 +433,6 @@ function UsersPanel() {
   );
 }
 
-function SuppliersDirectoryPanel() {
-  const [items, setItems] = useState<
-    {
-      id: string;
-      display_name: string | null;
-      email: string | null;
-      verification_status: string | null;
-      payout_verification_status: string | null;
-      listings_count: number;
-      bookings_count: number;
-      created_at: string;
-      contact_phone: string | null;
-      default_currency: string | null;
-    }[]
-  >([]);
-  const [q, setQ] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await invokeAdminEdgeFunction<{ items: typeof items }>({ action: 'suppliers_directory' });
-      setItems(Array.isArray(data.items) ? data.items : []);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not load suppliers');
-      setItems([]);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
-
-  const filtered = useMemo(() => {
-    const needle = q.trim().toLowerCase();
-    if (!needle) return items;
-    return items.filter(
-      (s) =>
-        (s.display_name ?? '').toLowerCase().includes(needle) ||
-        (s.email ?? '').toLowerCase().includes(needle) ||
-        s.id.toLowerCase().includes(needle) ||
-        (s.verification_status ?? '').toLowerCase().includes(needle)
-    );
-  }, [items, q]);
-
-  return (
-    <PanelFrame
-      title="All suppliers"
-      subtitle="Full provider directory — identity, verification, listing and booking counts. Use Commercial for commission terms."
-      actions={
-        <div className="flex flex-wrap items-center gap-2">
-          <SearchField value={q} onChange={setQ} placeholder="Search suppliers…" />
-          <button type="button" onClick={() => void load()} className="tv-btn-secondary text-sm" disabled={loading}>
-            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Refresh'}
-          </button>
-        </div>
-      }
-    >
-      {error ? (
-        <NoticeCallout title="Could not load suppliers" tone="danger">
-          {error}
-        </NoticeCallout>
-      ) : null}
-      <div className="tv-table-wrap">
-        <table className="tv-table min-w-[640px]">
-          <thead>
-            <tr>
-              <th>Supplier</th>
-              <th>Business</th>
-              <th>Payout</th>
-              <th className="tabular-nums">Listings</th>
-              <th className="tabular-nums">Bookings</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map((s) => (
-              <tr key={s.id} className="hover:bg-finland/[0.03] transition-colors">
-                <td>
-                  <p className="font-medium text-ink">{s.display_name || '—'}</p>
-                  <p className="text-xs text-ink-muted">{s.email || 'no email'}</p>
-                  <p className="text-[10px] font-mono text-ink-faint mt-0.5">{s.id.slice(0, 8)}…</p>
-                </td>
-                <td className="text-ink-muted">{s.verification_status ?? '—'}</td>
-                <td className="text-ink-muted">{s.payout_verification_status ?? '—'}</td>
-                <td className="tabular-nums">{s.listings_count}</td>
-                <td className="tabular-nums">{s.bookings_count}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        {!loading && filtered.length === 0 ? (
-          <p className="px-4 py-8 text-sm text-ink-muted text-center">No suppliers yet — clean slate.</p>
-        ) : null}
-      </div>
-    </PanelFrame>
-  );
-}
-
 function CustomersDirectoryPanel() {
   const [items, setItems] = useState<
     {
@@ -823,7 +725,16 @@ export default function AdminShell() {
             </PanelFrame>
           )}
           {activeTab === 'users' && <UsersPanel />}
-          {activeTab === 'suppliers_dir' && <SuppliersDirectoryPanel />}
+          {activeTab === 'suppliers_dir' && (
+            <Suspense fallback={<AdminPanelFallback />}>
+              <AdminSupplierArchivePanel initialView="active" />
+            </Suspense>
+          )}
+          {activeTab === 'supplier_archive' && (
+            <Suspense fallback={<AdminPanelFallback />}>
+              <AdminSupplierArchivePanel initialView="archived" />
+            </Suspense>
+          )}
           {activeTab === 'customers' && <CustomersDirectoryPanel />}
           {activeTab === 'suppliers' && (
             <PanelFrame title="Verification queue" subtitle="Approve or reject business and payout submissions.">
