@@ -9,6 +9,7 @@
  */
 
 import { parseIsoDob, validateIsoDob } from './date-of-birth';
+import { PARTNER_TERMS_VERSION } from './partnerPortalPaths';
 
 export type PayoutWizardStepId =
   | 'business'
@@ -102,6 +103,10 @@ export type PayoutWizardDraft = {
   rep_is_director: boolean;
   /** Supplier agreed Traverion may send the verified company record and this person’s identity. */
   verification_consent: boolean;
+  /** Published Partner Terms of Service version the supplier accepted, or null. */
+  supplier_terms_version: string | null;
+  /** When the supplier accepted that version. */
+  supplier_terms_accepted_at: string | null;
   rep_percent_ownership: string;
   /** Stripe Person id after native submit (session only). */
   rep_person_id: string;
@@ -455,6 +460,8 @@ export function emptyPayoutWizardDraft(
     rep_is_owner: false,
     rep_is_director: true,
     verification_consent: false,
+    supplier_terms_version: null,
+    supplier_terms_accepted_at: null,
     rep_percent_ownership: '',
     rep_person_id: '',
     tos_accepted: false,
@@ -692,6 +699,8 @@ export function toServerPayoutWizardDraft(draft: PayoutWizardDraft): Record<stri
       bankDeferredAt: draft.bankDeferredAt,
       bankSavedAt: draft.bankSavedAt,
       bankLast4: draft.bankLast4,
+      supplierTermsVersion: draft.supplier_terms_version,
+      supplierTermsAcceptedAt: draft.supplier_terms_accepted_at,
       preferencesSavedAt: draft.preferencesSavedAt,
       wizardCompletedAt: draft.wizardCompletedAt,
     },
@@ -826,6 +835,18 @@ export function mergeServerPayoutWizardDraft(
       rep.verification_consent,
       serverSupersedes ? false : local.verification_consent
     ),
+    supplier_terms_version:
+      markers.supplierTermsVersion === PARTNER_TERMS_VERSION
+        ? PARTNER_TERMS_VERSION
+        : serverSupersedes
+          ? null
+          : local.supplier_terms_version,
+    supplier_terms_accepted_at:
+      markers.supplierTermsVersion === PARTNER_TERMS_VERSION
+        ? marker(markers.supplierTermsAcceptedAt, local.supplier_terms_accepted_at)
+        : serverSupersedes
+          ? null
+          : local.supplier_terms_accepted_at,
     rep_percent_ownership: text(rep.percent_ownership, local.rep_percent_ownership),
     // Full DOB is never restored from server — partner re-enters before Stripe submit.
     rep_dob: serverSupersedes ? '' : local.rep_dob,

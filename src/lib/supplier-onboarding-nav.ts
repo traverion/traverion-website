@@ -93,7 +93,9 @@ export function onboardingPopAction(input: {
       ? 'person'
       : raw === 'owner'
         ? 'others'
-        : raw;
+        : raw === 'consent'
+          ? 'status'
+          : raw;
   if (named && ORDER.includes(named as SupplierOnboardingScreenId)) {
     return { type: 'stay', screen: named as SupplierOnboardingScreenId };
   }

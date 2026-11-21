@@ -27,7 +27,7 @@ import {
 import { feedback } from '../../lib/feedback';
 import { onboardingBusinessReviewDraft, onboardingReviewBlocker } from '../../lib/onboarding-final-submission';
 import { submitSupplierBusinessForReview } from '../../lib/submitSupplierBusinessForReview';
-import { PARTNER_AFTER_EMAIL_CONFIRM_PATH } from '../../lib/partnerPortalPaths';
+import { PARTNER_AFTER_EMAIL_CONFIRM_PATH, PARTNER_TERMS_OF_SERVICE_PATH, PARTNER_TERMS_VERSION } from '../../lib/partnerPortalPaths';
 import {
   localDraftWouldEraseServer,
   onboardingDraftFlush,
@@ -242,7 +242,9 @@ export default function SupplierOnboardingFlow({
         ? 'person'
         : requested === 'owner'
           ? 'others'
-          : requested;
+          : requested === 'consent'
+            ? 'status'
+            : requested;
     const next = visible.includes(folded) || folded === 'company' || folded === 'documents' ? folded : visible[0] ?? 'company';
     const started = initialOnboardingJourney(visible, next);
     journeyRef.current = started;
@@ -675,33 +677,13 @@ export default function SupplierOnboardingFlow({
       await advance('others', { others, hasExtraOwner: others });
       return;
     }
-    if (screen === 'consent') {
-      if (!draft.verification_consent) {
-        setError('Confirm that Traverion may send these details when you finish setup.');
-        return;
-      }
-      await advance('consent');
-      return;
-    }
     if (screen === 'bank') {
       const ibanError = validateIban(iban, normalizeCountryCode(profile?.address_country) || 'FI');
       if (ibanError) {
         setError(ibanError);
         return;
       }
-      if (flags.termsOpen && !draft.tos_accepted) {
-        setError('Accept the payout terms before you finish setup.');
-        return;
-      }
-      await advance('bank', flags.termsOpen ? { termsOpen: false } : undefined);
-      return;
-    }
-    if (screen === 'terms') {
-      if (!draft.tos_accepted) {
-        setError('Accept the payout terms before you finish setup.');
-        return;
-      }
-      await advance('terms');
+      await advance('bank');
       return;
     }
     if (draftReview) {
@@ -904,6 +886,8 @@ export default function SupplierOnboardingFlow({
     let done = false;
     try {
     const representativeName = [draft.rep_first_name, draft.rep_last_name].filter(Boolean).join(' ').trim();
+    const supplierTermsAccepted =
+      draft.supplier_terms_version === PARTNER_TERMS_VERSION && Boolean(draft.supplier_terms_accepted_at);
     const blocker = onboardingReviewBlocker({
       legalName: companyLegal,
       registrationNumber: companyReg,
@@ -917,8 +901,8 @@ export default function SupplierOnboardingFlow({
       vatId: profile?.vat_id || '',
       documentPath: profile?.company_registration_document_path || '',
       representativeName,
-      consent: draft.verification_consent,
-      termsAccepted: draft.tos_accepted,
+      consent: supplierTermsAccepted,
+      termsAccepted: supplierTermsAccepted,
       ibanPresent: iban.trim().length > 0,
       dateOfBirthPresent: Boolean(parsePayoutWizardDob(repDob)),
     });
@@ -926,6 +910,8 @@ export default function SupplierOnboardingFlow({
       setError(blocker);
       return;
     }
+    const saved = await persistDraft();
+    if (saved === 'failed') return;
     const transitionId = beginAuthTransition({
       intent: 'setup',
       title: 'Submitting your setup...',
@@ -1068,7 +1054,7 @@ export default function SupplierOnboardingFlow({
         ? companyPresentation.title
         : meta.title;
   const body = draftReview
-    ? 'Check this draft. Nothing is sent for verification until you finish setup.'
+    ? 'Check the company, documents, representative, and payout details. Nothing is submitted until you choose Submit for verification.'
     : screen === 'status'
       ? verification.summary
       : screen === 'company'
@@ -1077,8 +1063,30 @@ export default function SupplierOnboardingFlow({
   const addressLine = [profile?.address_street, profile?.address_postal_code, profile?.address_city, profile?.address_country]
     .filter(Boolean)
     .join(', ');
+  const supplierTermsAccepted =
+    draft.supplier_terms_version === PARTNER_TERMS_VERSION && Boolean(draft.supplier_terms_accepted_at);
+  const reviewBlocker = draftReview
+    ? onboardingReviewBlocker({
+        legalName: companyLegal,
+        registrationNumber: companyReg,
+        street: companyStreet,
+        postal: companyPostal,
+        city: companyCity,
+        country: companyCountry || profile?.address_country || '',
+        phone: profile?.contact_phone || '',
+        displayName: profile?.display_name || '',
+        directors: profile?.managing_directors || '',
+        vatId: profile?.vat_id || '',
+        documentPath: profile?.company_registration_document_path || '',
+        representativeName: [draft.rep_first_name, draft.rep_last_name].filter(Boolean).join(' ').trim(),
+        consent: supplierTermsAccepted,
+        termsAccepted: supplierTermsAccepted,
+        ibanPresent: iban.trim().length > 0,
+        dateOfBirthPresent: Boolean(parsePayoutWizardDob(repDob)),
+      })
+    : null;
   const primary = draftReview
-    ? 'Complete setup & submit for verification'
+    ? 'Submit for verification'
     : screen === 'status'
       ? verification.actionLabel ?? 'Done'
       : 'Continue';
@@ -1142,7 +1150,7 @@ export default function SupplierOnboardingFlow({
                 type="button"
                 className="stay-nav-btn stay-nav-btn--end touch-manipulation tv-btn-primary !min-h-11 disabled:opacity-50"
                 onClick={() => void onContinue()}
-                disabled={busy || documentBusy}
+                disabled={busy || documentBusy || Boolean(reviewBlocker)}
               >
                 {busy ? 'Saving…' : primary}
               </button>
@@ -1305,19 +1313,6 @@ export default function SupplierOnboardingFlow({
               ) : null}
             </div>
           ) : null}
-          {screen === 'consent' ? (
-            <label className="supplier-onboarding-choice">
-              <input
-                type="checkbox"
-                checked={draft.verification_consent}
-                onChange={(event) => {
-                  draftEdited.current = true;
-                  setDraft((current) => ({ ...current, verification_consent: event.target.checked }));
-                }}
-              />
-              I confirm these details are correct and Traverion may send them when I finish setup.
-            </label>
-          ) : null}
           {screen === 'bank' ? (
             <div className="supplier-onboarding-grid">
               {profile?.company_legal_name ? (
@@ -1336,27 +1331,7 @@ export default function SupplierOnboardingFlow({
                   onChange={(event) => setIban(event.target.value)}
                 />
               </OnboardingField>
-              {flags.termsOpen ? (
-                <label className="supplier-onboarding-choice supplier-onboarding-grid__wide">
-                  <input
-                    type="checkbox"
-                    checked={draft.tos_accepted}
-                    onChange={(event) => { draftEdited.current = true; setDraft((current) => ({ ...current, tos_accepted: event.target.checked })); }}
-                  />
-                  I accept the payout terms. The account is sent only when I finish setup.
-                </label>
-              ) : null}
             </div>
-          ) : null}
-          {screen === 'terms' ? (
-            <label className="supplier-onboarding-choice">
-              <input
-                type="checkbox"
-                checked={draft.tos_accepted}
-                onChange={(event) => { draftEdited.current = true; setDraft((current) => ({ ...current, tos_accepted: event.target.checked })); }}
-              />
-              I accept the payout terms. The account is sent only when I finish setup.
-            </label>
           ) : null}
           {screen === 'status' && draftReview ? (
             <div className="supplier-review">
@@ -1364,7 +1339,34 @@ export default function SupplierOnboardingFlow({
               <ReviewSection title="Documents" detail={profile?.company_registration_document_path ? 'Registration extract uploaded' : 'Not uploaded'} onEdit={() => editStep('documents')} />
               <ReviewSection title="Identity" detail={[draft.rep_first_name, draft.rep_last_name].filter(Boolean).join(' ') || 'Not added yet'} onEdit={() => editStep('person')} />
               <ReviewSection title="Payouts" detail={iban.trim() ? `IBAN ending ${iban.replace(/\s/g, '').slice(-4)}` : 'Not added yet'} onEdit={() => editStep('bank')} />
-              <ReviewSection title="Declarations" detail={draft.verification_consent && draft.tos_accepted ? 'Confirmed' : 'Not confirmed'} onEdit={() => editStep('consent')} />
+              <label className="supplier-onboarding-choice">
+                <input
+                  type="checkbox"
+                  checked={supplierTermsAccepted}
+                  onChange={(event) => {
+                    const checked = event.target.checked;
+                    draftEdited.current = true;
+                    setDraft((current) => {
+                      const updated = {
+                        ...current,
+                        verification_consent: checked,
+                        supplier_terms_version: checked ? PARTNER_TERMS_VERSION : null,
+                        supplier_terms_accepted_at: checked ? new Date().toISOString() : null,
+                      };
+                      draftRef.current = updated;
+                      return updated;
+                    });
+                  }}
+                />
+                <span>
+                  I have read and agree to the{' '}
+                  <a href={PARTNER_TERMS_OF_SERVICE_PATH} target="_blank" rel="noreferrer">
+                    Traverion Supplier Terms
+                  </a>
+                  .
+                </span>
+              </label>
+              {reviewBlocker ? <p className="text-sm text-ink/70">{reviewBlocker}</p> : null}
             </div>
           ) : null}
           {screen === 'status' && !draftReview ? (

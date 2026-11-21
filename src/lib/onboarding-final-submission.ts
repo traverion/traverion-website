@@ -34,8 +34,7 @@ export function onboardingReviewBlocker(input: OnboardingReviewInput): string | 
   if (!input.documentPath.trim()) return 'Add the registration document.';
   if (!input.representativeName.trim()) return 'Enter the representative’s name.';
   if (!input.dateOfBirthPresent) return 'Enter the representative’s date of birth.';
-  if (!input.consent) return 'Confirm that Traverion may send these details.';
-  if (!input.termsAccepted) return 'Accept the payout terms.';
+  if (!input.termsAccepted) return 'Agree to the Traverion Supplier Terms.';
   if (!input.ibanPresent) return 'Enter the company IBAN.';
   if (!input.phone.trim()) return 'A contact phone is required before setup can be submitted.';
   return null;
@@ -68,6 +67,6 @@ export function onboardingBusinessReviewDraft(input: OnboardingReviewInput): Bus
     address_city: input.city.trim(),
     address_country: input.country.trim(),
     company_registration_document_path: input.documentPath.trim(),
-    owner_authority_confirmed: input.consent,
+    owner_authority_confirmed: input.termsAccepted,
   });
 }

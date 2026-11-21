@@ -29,7 +29,6 @@ describe('supplier onboarding screens', () => {
       'company',
       'person',
       'others',
-      'consent',
       'bank',
       'status',
     ]);
@@ -74,7 +73,7 @@ describe('supplier onboarding screens', () => {
 
   it('numbers screens inside their group', () => {
     const visible = visibleSupplierOnboardingScreens(open);
-    expect(onboardingGroupProgress(visible, 'person')).toEqual({ group: 'Identity', index: 1, total: 3 });
+    expect(onboardingGroupProgress(visible, 'person')).toEqual({ group: 'Identity', index: 1, total: 2 });
   });
 
   it('reads open Stripe requirements', () => {

@@ -130,10 +130,8 @@ export function visibleSupplierOnboardingScreens(
   if (input.identityOpen) {
     ids.push('person');
     if (input.isCompany && !(input.owns && input.share === 100)) ids.push('others');
-    ids.push('consent');
   }
   if (input.bankOpen) ids.push('bank');
-  if (input.termsOpen && !input.bankOpen) ids.push('terms');
   ids.push('status');
   return ids;
 }
@@ -231,7 +229,9 @@ export function screenFromOnboardingUrl(
       ? 'person'
       : raw === 'owner'
         ? 'others'
-        : raw;
+        : raw === 'consent'
+          ? 'status'
+          : raw;
   if (requested === 'documents' || requested === 'company') {
     return requested;
   }

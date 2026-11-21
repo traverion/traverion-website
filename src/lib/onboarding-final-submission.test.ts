@@ -24,6 +24,7 @@ describe('final onboarding submission', () => {
   it('blocks submission until the draft is complete', () => {
     expect(onboardingReviewBlocker({ ...ready, documentPath: '' })).toMatch(/registration document/i);
     expect(onboardingReviewBlocker({ ...ready, ibanPresent: false })).toMatch(/IBAN/);
+    expect(onboardingReviewBlocker({ ...ready, termsAccepted: false })).toMatch(/Supplier Terms/i);
     expect(onboardingReviewBlocker(ready)).toBeNull();
   });
 

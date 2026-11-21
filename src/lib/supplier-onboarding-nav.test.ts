@@ -20,7 +20,7 @@ describe('onboarding navigation', () => {
   });
 
   it('moves one screen at a time and keeps the screen that was just left', () => {
-    const full = ['company', 'documents', 'person', 'others', 'consent', 'bank', 'status'] as const;
+    const full = ['company', 'documents', 'person', 'others', 'bank', 'status'] as const;
     let journey = initialOnboardingJourney(full, 'company');
     for (let index = 0; index < full.length - 1; index += 1) {
       expect(adjacentOnboardingScreen(journey, full[index], 1)).toBe(full[index + 1]);
@@ -30,10 +30,10 @@ describe('onboarding navigation', () => {
     const afterUpload = reconcileOnboardingJourney(
       full,
       'person',
-      ['company', 'person', 'consent', 'bank', 'status']
+      ['company', 'person', 'bank', 'status']
     );
-    expect(afterUpload).toEqual(['company', 'documents', 'person', 'consent', 'bank', 'status']);
-    expect(adjacentOnboardingScreen(afterUpload, 'person', 1)).toBe('consent');
+    expect(afterUpload).toEqual(['company', 'documents', 'person', 'bank', 'status']);
+    expect(adjacentOnboardingScreen(afterUpload, 'person', 1)).toBe('bank');
     expect(previousOnboardingScreen(afterUpload, 'person')).toBe('documents');
   });
 

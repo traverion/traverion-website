@@ -37,6 +37,8 @@ export const PARTNER_HELP_PATH = `${PARTNER_APP_BASE}/help`;
 
 /** Public legal & info pages on the partner host (not used on www — see `isPartnerMarketingPathForCurrentHost` in partnerHost). */
 export const PARTNER_TERMS_OF_SERVICE_PATH = '/termsofservice';
+/** Matches the published Partner Terms of Service “Last updated 6 April 2026”. */
+export const PARTNER_TERMS_VERSION = '2026-04-06';
 export const PARTNER_PRIVACY_POLICY_PATH = '/privacypolicy';
 export const PARTNER_LEGAL_NOTICE_PATH = '/legalnotice';
 export const PARTNER_COOKIES_POLICY_PATH = '/cookiespolicy';
