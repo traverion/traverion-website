@@ -262,6 +262,67 @@ export default function SupplierOnboardingFlow({
     return Boolean(next?.company_legal_name?.trim());
   };
 
+  const exitAndSave = async () => {
+    if (!screen || busy) return;
+    setBusy(true);
+    setError(null);
+    const country = normalizeCountryCode(profile?.address_country || 'FI') || 'FI';
+    const registration = country === 'FI' ? normalizeFinnishBusinessId(companyReg) : companyReg.trim();
+    const companyOpen =
+      (profile?.verification_status ?? '').toLowerCase() !== 'verified' &&
+      !(
+        (profile?.verification_status ?? '').toLowerCase() === 'pending' &&
+        Boolean((profile?.verification_submitted_at ?? '').trim())
+      );
+    if (screen === 'company' && companyOpen) {
+      if (country === 'FI' && companyReg.trim() && !isValidFinnishBusinessId(registration)) {
+        setBusy(false);
+        setError('Enter a valid Finnish business ID before leaving, or clear it.');
+        return;
+      }
+      const patch: {
+        company_legal_name?: string;
+        company_registration_number?: string;
+        address_city?: string;
+        address_postal_code?: string;
+      } = {};
+      if (companyLegal.trim()) patch.company_legal_name = companyLegal.trim();
+      if (registration) patch.company_registration_number = registration;
+      if (companyCity.trim()) patch.address_city = companyCity.trim();
+      if (companyPostal.trim()) patch.address_postal_code = companyPostal.trim();
+      if (Object.keys(patch).length > 0) {
+        const saved = await updateSupplierCompanyProfile(userId, patch);
+        if (!saved.success) {
+          setBusy(false);
+          setError(saved.error || 'The company details could not be saved. They are still on this page.');
+          return;
+        }
+      }
+    }
+    const stored = {
+      ...draft,
+      rep_dob: '',
+      beneficial_owners: draft.beneficial_owners.map((row) => ({ ...row, dob: '' })),
+    };
+    savePayoutWizardDraft(userId, stored);
+    const draftSaved = await invokeConnectSupplierOnboarding('save_wizard_draft', {
+      wizard_draft: toServerPayoutWizardDraft(stored),
+    });
+    if (!draftSaved.success) {
+      setBusy(false);
+      setError(connectOnboardingUserMessage(draftSaved.error) || 'Progress could not be saved. Your entries are still on this page.');
+      return;
+    }
+    const progressSaved = await updateSupplierSetupProgress(userId, progressRecord(profile, screen));
+    if (!progressSaved.success) {
+      setBusy(false);
+      setError(progressSaved.error || 'Progress could not be saved. Your entries are still on this page.');
+      return;
+    }
+    setBusy(false);
+    onExit();
+  };
+
   const back = () => {
     if (window.history.state?.onboardingScreen) {
       window.history.back();
@@ -719,7 +780,8 @@ export default function SupplierOnboardingFlow({
         navLabel="Setup"
         currentLabel={meta.group}
         onSelectIndex={() => undefined}
-        onExit={onExit}
+        onExit={() => void exitAndSave()}
+        exitLabel="Exit & save"
         exitDisabled={busy}
         exitBusy={busy}
         footer={
@@ -1019,6 +1081,7 @@ function progressRecord(profile: SupplierProfileRow | null, next: SupplierOnboar
     ...existing,
     version: 1,
     phase: supplierOnboardingScreen(next).phase,
+    screen: next,
     payout_step: wizardStepForScreen(next),
     updated_at: new Date().toISOString(),
   };

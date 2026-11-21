@@ -70,6 +70,19 @@ describe('supplier onboarding progress', () => {
     expect(supplierSetupMenuLabel(snapshot)).toBeNull();
   });
 
+  it('resumes a saved company at the bookmarked step', () => {
+    const snapshot = supplierOnboardingSnapshot({
+      verification_status: 'pending',
+      verification_submitted_at: null,
+      company_legal_name: 'Example Oy',
+      company_registration_number: '1234567-8',
+      setup_progress: { screen: 'person' },
+    });
+    expect(snapshot.company.status).toBe('saved');
+    expect(snapshot.nextScreen).toBe('person');
+    expect(snapshot.company.detail.toLowerCase()).not.toContain('verified');
+  });
+
   it('keeps a default pending profile on the company step until it is submitted', () => {
     const snapshot = supplierOnboardingSnapshot({
       verification_status: 'pending',

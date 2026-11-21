@@ -5,6 +5,7 @@
 
 import { humanizeConnectRequirements } from './connect-requirement-labels';
 import type { SupplierOnboardingScreenId } from './supplier-onboarding-steps';
+import { SUPPLIER_ONBOARDING_SCREENS } from './supplier-onboarding-steps';
 
 export type OnboardingLaneStatus =
   | 'not_started'
@@ -43,6 +44,7 @@ export type OnboardingProgressProfile = {
     tos_accepted_intent?: boolean;
     markers?: { representativeSavedAt?: string | null; bankSavedAt?: string | null };
   } | null;
+  setup_progress?: { screen?: string | null } | null;
 };
 
 export type OnboardingLane = {
@@ -69,6 +71,14 @@ function dueKeys(profile: OnboardingProgressProfile): string[] {
 
 function matches(keys: string[], pattern: RegExp): boolean {
   return keys.some((key) => pattern.test(key));
+}
+
+function bookmarkedScreen(row: OnboardingProgressProfile): SupplierOnboardingScreenId | null {
+  const raw = row.setup_progress?.screen;
+  if (typeof raw !== 'string') return null;
+  return SUPPLIER_ONBOARDING_SCREENS.some((screen) => screen.id === raw)
+    ? (raw as SupplierOnboardingScreenId)
+    : null;
 }
 
 export function supplierOnboardingSnapshot(
@@ -134,12 +144,16 @@ export function supplierOnboardingSnapshot(
           : { status: 'saved', detail: 'No payout requirement is open' };
 
   let nextScreen: SupplierOnboardingScreenId = 'status';
-  if (company.status === 'rejected' || company.status === 'action_required') nextScreen = 'documents';
-  else if (company.status === 'not_started' || company.status === 'saved') nextScreen = 'company';
+  if (company.status === 'not_started') nextScreen = 'company';
+  else if (company.status === 'rejected' || company.status === 'action_required') nextScreen = 'documents';
   else if (identity.status === 'action_required') {
     nextScreen = hasName && matches(keys, /dob/) ? 'dob' : 'person';
   } else if (bankDue) nextScreen = 'bank';
   else if (termsDue) nextScreen = 'terms';
+  else if (company.status === 'saved') {
+    const bookmark = bookmarkedScreen(row);
+    nextScreen = bookmark ?? 'documents';
+  }
 
   const actionable =
     company.status === 'not_started' ||

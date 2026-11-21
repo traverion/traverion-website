@@ -739,30 +739,30 @@ export default function SupplierDashboard() {
             <h2 id="complete-business-setup" className="text-[1.05rem] font-semibold text-ink">
               Complete your business setup
             </h2>
-            <p className="mt-1 max-w-xl text-[14px] leading-relaxed text-ink-muted">
-              {supplierOnboardingSnapshot(profile).company.status === 'not_started'
-                ? 'Add your company when you are ready. Publishing and payouts stay locked until verification is finished.'
-                : supplierOnboardingSnapshot(profile).nextAction}
-            </p>
-            {supplierOnboardingSnapshot(profile).actionable ? (
-              <button
-                type="button"
-                className="tv-btn-primary mt-4 min-h-11 px-4"
-                onClick={() => {
-                  const next = supplierOnboardingSnapshot(profile).nextScreen;
-                  const phase = supplierOnboardingScreen(next).phase;
-                  const start =
-                    supplierOnboardingSnapshot(profile).company.status === 'not_started'
-                      ? `${PARTNER_APP_BASE}/onboarding`
-                      : `${PARTNER_APP_BASE}/onboarding?phase=${phase}&screen=${next}`;
-                  navigateSupplierUrl(start);
-                }}
-              >
-                {supplierOnboardingSnapshot(profile).company.status === 'not_started' ? 'Get started' : 'Resume setup'}
-              </button>
-            ) : (
-              <p className="mt-3 text-[13px] text-ink-muted">Verification pending. This is not an approval.</p>
-            )}
+            <ul className="mt-3 space-y-1 text-[14px] leading-relaxed text-ink-muted">
+              {(
+                [
+                  ['Company', supplierOnboardingSnapshot(profile).company.detail],
+                  ['Representative', supplierOnboardingSnapshot(profile).identity.detail],
+                  ['Payouts', supplierOnboardingSnapshot(profile).payout.detail],
+                ] as const
+              ).map(([label, detail]) => (
+                <li key={label}>
+                  <span className="font-semibold text-ink">{label}.</span> {detail}
+                </li>
+              ))}
+            </ul>
+            <button
+              type="button"
+              className="tv-btn-primary mt-4 min-h-11 px-4"
+              onClick={() => {
+                const next = supplierOnboardingSnapshot(profile).nextScreen;
+                const phase = supplierOnboardingScreen(next).phase;
+                navigateSupplierUrl(`${PARTNER_APP_BASE}/onboarding?phase=${phase}&screen=${next}`);
+              }}
+            >
+              Continue setup
+            </button>
           </div>
         </section>
       ) : null}
