@@ -25,6 +25,12 @@ describe('supplier verification state', () => {
     expect(view.actionLabel).toBe('Start verification');
   });
 
+  it('does not treat the default pending status as a submitted review', () => {
+    const view = supplierVerificationState({ verification_status: 'pending' });
+    expect(view.status).toBe('not_verified');
+    expect(view.title).toBe('Not verified');
+  });
+
   it('asks for action when requirements are still open', () => {
     const view = supplierVerificationState({
       ...verifiedAccount,

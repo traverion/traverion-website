@@ -513,7 +513,7 @@ export default function SupplierListings() {
     }
     if ((createFam === 'tour' || createFam === 'stay' || createFam === 'rental') && !edit) {
       // Phase 1857: wait for shared role roster — do not strip ?create= while still loading.
-      if (!roleReady) return;
+      if (!roleReady || !user?.id) return;
       // Phase 1755: deep-link create must not open the editor for finance/viewer.
       if (!canEditListings) {
         window.history.replaceState(window.history.state, '', `${PARTNER_APP_BASE}/listings`);
@@ -565,7 +565,7 @@ export default function SupplierListings() {
       setFormFocusSection(null);
       // Keep local "Add listing" / edit-without-URL state; only URL drives deep links.
     }
-  }, [bumpEditorInstanceIfOpening, canEditListings, clearCanonicalListingSession, roleReady]);
+  }, [bumpEditorInstanceIfOpening, canEditListings, clearCanonicalListingSession, roleReady, user?.id]);
 
   useEffect(() => {
     syncListingsUrlToState();
@@ -576,7 +576,7 @@ export default function SupplierListings() {
 
   useEffect(() => {
     // Phase 1857: only close editor / strip edit deep-links after roster is resolved.
-    if (!roleReady || canEditListings) return;
+    if (!user?.id || !roleReady || canEditListings) return;
     editorSessionTokenRef.current = null;
     showFormRef.current = false;
     setShowForm(false);
@@ -587,7 +587,7 @@ export default function SupplierListings() {
     if (params.get('edit') || params.get('create')) {
       window.history.replaceState({}, '', `${PARTNER_APP_BASE}/listings`);
     }
-  }, [canEditListings, clearCanonicalListingSession, roleReady]);
+  }, [canEditListings, clearCanonicalListingSession, roleReady, user?.id]);
 
   useEffect(() => {
     if (editNotFoundCloseTimerRef.current) {

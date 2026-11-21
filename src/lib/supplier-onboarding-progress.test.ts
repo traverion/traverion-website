@@ -69,6 +69,29 @@ describe('supplier onboarding progress', () => {
     expect(supplierSetupMenuLabel(snapshot)).toBeNull();
   });
 
+  it('keeps a default pending profile on the company step until it is submitted', () => {
+    const snapshot = supplierOnboardingSnapshot({
+      verification_status: 'pending',
+      verification_submitted_at: null,
+      company_legal_name: null,
+    });
+    expect(snapshot.company.status).toBe('not_started');
+    expect(snapshot.nextScreen).toBe('company');
+    expect(snapshot.actionable).toBe(true);
+    expect(supplierSetupMenuLabel(snapshot)).not.toBe('Verification pending');
+  });
+
+  it('waits for review only after a submission timestamp exists', () => {
+    const snapshot = supplierOnboardingSnapshot({
+      verification_status: 'pending',
+      verification_submitted_at: '2026-11-21T12:00:00.000Z',
+      company_legal_name: 'Example Oy',
+    });
+    expect(snapshot.company.status).toBe('pending_verification');
+    expect(snapshot.nextScreen).toBe('status');
+    expect(snapshot.actionable).toBe(false);
+  });
+
   it('does not call a rejected company verified', () => {
     const snapshot = supplierOnboardingSnapshot({
       verification_status: 'rejected',

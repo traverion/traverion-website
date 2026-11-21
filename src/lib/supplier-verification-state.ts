@@ -82,11 +82,12 @@ export function supplierVerificationState(
     connectStatus === 'complete' &&
     liveOk;
 
+  const submittedForReview = Boolean((row.verification_submitted_at ?? '').trim());
   const started =
     company === 'verified' ||
-    company === 'pending' ||
     company === 'rejected' ||
-    Boolean((row.verification_submitted_at ?? '').trim()) ||
+    (company === 'pending' && submittedForReview) ||
+    Boolean((row.company_legal_name ?? '').trim()) ||
     hasAccount ||
     details;
 

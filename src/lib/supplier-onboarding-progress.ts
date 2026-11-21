@@ -78,6 +78,7 @@ export function supplierOnboardingSnapshot(
   const keys = dueKeys(row);
   const labels = humanizeConnectRequirements(keys);
   const companyStatus = (row.verification_status ?? '').trim().toLowerCase();
+  const submittedForReview = Boolean((row.verification_submitted_at ?? '').trim());
   const hasAccount = Boolean(row.stripe_connected_account_id?.trim());
   const detailsSubmitted = row.connect_details_submitted === true;
   const payoutsEnabled = row.connect_payouts_enabled === true;
@@ -98,7 +99,7 @@ export function supplierOnboardingSnapshot(
       ? { status: 'verified', detail: 'Company record approved' }
       : companyStatus === 'rejected'
         ? { status: 'rejected', detail: 'Update the company record' }
-        : companyStatus === 'pending'
+        : companyStatus === 'pending' && submittedForReview
           ? {
               status: (row.business_verification_feedback ?? '').trim() ? 'action_required' : 'pending_verification',
               detail: (row.business_verification_feedback ?? '').trim()
