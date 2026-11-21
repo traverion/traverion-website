@@ -9,6 +9,7 @@ import { SupplierRoleProvider } from './contexts/SupplierRoleContext';
 import { AuthProvider } from './contexts/AuthContext';
 import AuthModal from './components/AuthModal';
 import AuthTransitionModal, { openVerifiedWelcome } from './components/AuthTransitionModal';
+import PartnerToastViewport from './components/supplier/PartnerToastViewport';
 import EmailVerifiedModal from './components/EmailVerifiedModal';
 import {
   setPageMetaWithOg,
@@ -1173,7 +1174,12 @@ function App() {
             <AuthModal page={currentPage} />
           </div>
         )}
-        {staffShell ? null : <AuthTransitionModal page={currentPage} onNavigate={handleNavigate} />}
+        <AuthTransitionModal
+          page={staffShell ? 'admin' : currentPage}
+          product={staffShell ? 'partner' : 'traveler'}
+          onNavigate={handleNavigate}
+        />
+        <PartnerToastViewport />
         {emailVerifyNotice && !staffShell ? (
           <EmailVerifiedModal
             notice={emailVerifyNotice}

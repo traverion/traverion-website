@@ -9,6 +9,8 @@ import {
 import NoticeCallout from '../NoticeCallout';
 import StatusChip from '../StatusChip';
 import EmptyState from '../EmptyState';
+import ConfirmDialog from '../feedback/ConfirmDialog';
+import { beginMilestone, failMilestone, succeedMilestone } from '../../lib/feedback';
 
 type QueueRow = {
   id: string;
@@ -95,6 +97,59 @@ export default function AdminSupplierVerificationPanel() {
     void loadDetail(id);
   };
 
+  const [pendingReview, setPendingReview] = useState<{
+    supplierId: string;
+    action: 'approve_business' | 'reject_business' | 'request_changes_business' | 'approve_payout' | 'reject_payout';
+  } | null>(null);
+
+  const reviewCopy = {
+    approve_business: {
+      title: 'Approve this business?',
+      description: 'The company review is marked approved. This does not send a payout.',
+      confirm: 'Approve business',
+      pending: 'Saving the business review...',
+      success: 'Business approved',
+      message: 'The company review is saved. This does not send a payout.',
+      destructive: false,
+    },
+    reject_business: {
+      title: 'Reject this business?',
+      description: 'The supplier sees the rejection and your note. This does not change the payout account.',
+      confirm: 'Reject business',
+      pending: 'Saving the business review...',
+      success: 'Business rejected',
+      message: 'The rejection is saved for the supplier.',
+      destructive: true,
+    },
+    request_changes_business: {
+      title: 'Request changes?',
+      description: 'The supplier is asked to update the company details. This is not an approval.',
+      confirm: 'Request changes',
+      pending: 'Sending the request...',
+      success: 'Changes requested',
+      message: 'The supplier can update the details. The company is not approved.',
+      destructive: false,
+    },
+    approve_payout: {
+      title: 'Approve payout verification?',
+      description: 'This updates the payout review only. No money is sent.',
+      confirm: 'Approve payout review',
+      pending: 'Saving the payout review...',
+      success: 'Payout review saved',
+      message: 'Verification was updated. No money was sent.',
+      destructive: false,
+    },
+    reject_payout: {
+      title: 'Reject payout verification?',
+      description: 'The supplier sees the note. No money is sent.',
+      confirm: 'Reject payout review',
+      pending: 'Saving the payout review...',
+      success: 'Payout review saved',
+      message: 'The payout details were not approved. No money was sent.',
+      destructive: true,
+    },
+  } as const;
+
   const runAction = async (
     supplierId: string,
     action:
@@ -104,8 +159,11 @@ export default function AdminSupplierVerificationPanel() {
       | 'approve_payout'
       | 'reject_payout'
   ) => {
+    setPendingReview(null);
     setError(null);
     setActingId(supplierId);
+    const copy = reviewCopy[action];
+    const milestoneId = beginMilestone(copy.pending, 'Waiting for the server.');
     try {
       const drafts = feedbackDraft[supplierId];
       const feedback =
@@ -117,6 +175,7 @@ export default function AdminSupplierVerificationPanel() {
       if (action === 'request_changes_business' && !feedback) {
         setError('Add a note before requesting changes.');
         setActingId(null);
+        failMilestone(milestoneId, 'Add a note before requesting changes.');
         return;
       }
       const result = await invokeAdminEdgeFunction<{
@@ -124,18 +183,28 @@ export default function AdminSupplierVerificationPanel() {
         email?: { sent?: boolean; skipped?: boolean; error?: string };
       }>({ action, supplierId, feedback });
       // Phase 1795: approval can succeed while supplier email fails — surface it.
-      if (
+      const emailFailed =
         result &&
         typeof result === 'object' &&
         result.email &&
         result.email.sent === false &&
-        !result.email.skipped
-      ) {
-        setError(
-          `Saved, but supplier email failed${
-            result.email.error ? `: ${result.email.error}` : ''
-          }. They may not have been notified.`
-        );
+        !result.email.skipped;
+      if (emailFailed) {
+        const message = `Saved, but supplier email failed${
+          result.email?.error ? `: ${result.email.error}` : ''
+        }. They may not have been notified.`;
+        setError(message);
+        succeedMilestone(milestoneId, true, {
+          title: 'Decision saved',
+          message,
+          page: 'admin',
+        });
+      } else {
+        succeedMilestone(milestoneId, true, {
+          title: copy.success,
+          message: copy.message,
+          page: 'admin',
+        });
       }
       setDetailById((prev) => {
         const next = { ...prev };
@@ -144,7 +213,9 @@ export default function AdminSupplierVerificationPanel() {
       });
       await loadQueue();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Action failed');
+      const message = e instanceof Error ? e.message : 'Action failed';
+      setError(message);
+      failMilestone(milestoneId, message);
     } finally {
       setActingId(null);
     }
@@ -288,7 +359,7 @@ export default function AdminSupplierVerificationPanel() {
                         <button
                           type="button"
                           disabled={actingId === row.id}
-                          onClick={() => void runAction(row.id, 'approve_business')}
+                          onClick={() => setPendingReview({ supplierId: row.id, action: 'approve_business' })}
                           className="tv-btn-primary text-xs h-8 px-3 disabled:opacity-50"
                         >
                           Approve
@@ -296,7 +367,7 @@ export default function AdminSupplierVerificationPanel() {
                         <button
                           type="button"
                           disabled={actingId === row.id}
-                          onClick={() => void runAction(row.id, 'request_changes_business')}
+                          onClick={() => setPendingReview({ supplierId: row.id, action: 'request_changes_business' })}
                           className="tv-btn-secondary text-xs h-8 px-3 disabled:opacity-50"
                         >
                           Request changes
@@ -304,7 +375,7 @@ export default function AdminSupplierVerificationPanel() {
                         <button
                           type="button"
                           disabled={actingId === row.id}
-                          onClick={() => void runAction(row.id, 'reject_business')}
+                          onClick={() => setPendingReview({ supplierId: row.id, action: 'reject_business' })}
                           className="tv-btn-secondary text-xs h-8 px-3 text-rose-800 ring-rose-200 disabled:opacity-50"
                         >
                           Reject
@@ -351,7 +422,7 @@ export default function AdminSupplierVerificationPanel() {
                         <button
                           type="button"
                           disabled={actingId === row.id}
-                          onClick={() => void runAction(row.id, 'approve_payout')}
+                          onClick={() => setPendingReview({ supplierId: row.id, action: 'approve_payout' })}
                           className="tv-btn-primary text-xs h-8 px-3 disabled:opacity-50"
                         >
                           Approve
@@ -359,7 +430,7 @@ export default function AdminSupplierVerificationPanel() {
                         <button
                           type="button"
                           disabled={actingId === row.id}
-                          onClick={() => void runAction(row.id, 'reject_payout')}
+                          onClick={() => setPendingReview({ supplierId: row.id, action: 'reject_payout' })}
                           className="tv-btn-secondary text-xs h-8 px-3 text-rose-800 ring-rose-200 disabled:opacity-50"
                         >
                           Reject
@@ -388,6 +459,17 @@ export default function AdminSupplierVerificationPanel() {
           );
         })}
       </div>
+      <ConfirmDialog
+        open={pendingReview != null}
+        title={pendingReview ? reviewCopy[pendingReview.action].title : ''}
+        description={pendingReview ? reviewCopy[pendingReview.action].description : ''}
+        confirmLabel={pendingReview ? reviewCopy[pendingReview.action].confirm : 'Continue'}
+        destructive={pendingReview ? reviewCopy[pendingReview.action].destructive : false}
+        onConfirm={() => {
+          if (pendingReview) void runAction(pendingReview.supplierId, pendingReview.action);
+        }}
+        onCancel={() => setPendingReview(null)}
+      />
     </div>
   );
 }

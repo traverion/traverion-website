@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import NoticeCallout from '../NoticeCallout';
+import ConfirmDialog from '../feedback/ConfirmDialog';
+import { beginMilestone, failMilestone, succeedMilestone } from '../../lib/feedback';
 import { invokeAdminEdgeFunction } from '../../lib/adminEdgeFunction';
 
 type Lifecycle = 'active' | 'pending' | 'suspended' | 'archived';
@@ -114,8 +116,54 @@ export default function AdminSupplierArchivePanel({ initialView = 'active' }: { 
     });
   }, [items, query, view]);
 
+  const [pendingAction, setPendingAction] = useState<
+    'archive_supplier' | 'restore_supplier' | 'suspend_supplier' | 'unsuspend_supplier' | null
+  >(null);
+
+  const actionCopy = {
+    archive_supplier: {
+      title: 'Archive this supplier?',
+      description: 'Sign-in stops and the email and phone can be registered again. The Stripe account, agreement, and audit history stay.',
+      confirm: 'Archive supplier',
+      pending: 'Archiving supplier...',
+      success: 'Supplier archived',
+      successMessage: 'The record, agreement, and payout account stay in place.',
+      destructive: true,
+    },
+    restore_supplier: {
+      title: 'Restore supplier access?',
+      description: 'The supplier can sign in again. Verification and payout status stay as they are.',
+      confirm: 'Restore access',
+      pending: 'Restoring access...',
+      success: 'Access restored',
+      successMessage: 'The supplier can sign in. Verification was not changed.',
+      destructive: false,
+    },
+    suspend_supplier: {
+      title: 'Suspend supplier access?',
+      description: 'The supplier cannot sign in until the suspension ends. Records and the payout account stay.',
+      confirm: 'Suspend access',
+      pending: 'Suspending access...',
+      success: 'Access suspended',
+      successMessage: 'Sign-in is paused. The record and payout account stay in place.',
+      destructive: true,
+    },
+    unsuspend_supplier: {
+      title: 'End this suspension?',
+      description: 'The supplier can sign in again. Verification and payout status stay as they are.',
+      confirm: 'End suspension',
+      pending: 'Ending suspension...',
+      success: 'Suspension ended',
+      successMessage: 'The supplier can sign in. Verification was not changed.',
+      destructive: false,
+    },
+  } as const;
+
   const run = async (action: 'archive_supplier' | 'restore_supplier' | 'suspend_supplier' | 'unsuspend_supplier') => {
     if (!selectedId) return;
+    const copy = actionCopy[action];
+    setPendingAction(null);
+    const milestoneId = beginMilestone(copy.pending, 'Waiting for the server.');
     setBusy(true);
     setError(null);
     try {
@@ -123,8 +171,15 @@ export default function AdminSupplierArchivePanel({ initialView = 'active' }: { 
       setReason('');
       await load();
       await loadDetail(selectedId);
+      succeedMilestone(milestoneId, true, {
+        title: copy.success,
+        message: copy.successMessage,
+        page: 'admin',
+      });
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Action failed');
+      const message = e instanceof Error ? e.message : 'Action failed';
+      setError(message);
+      failMilestone(milestoneId, message);
     } finally {
       setBusy(false);
     }
@@ -172,7 +227,10 @@ export default function AdminSupplierArchivePanel({ initialView = 'active' }: { 
 
       {error ? (
         <NoticeCallout title="Supplier archive" tone="danger">
-          {error}
+          <span>{error}</span>
+          <button type="button" className="mt-2 tv-btn-secondary text-sm" onClick={() => void load()}>
+            Try again
+          </button>
         </NoticeCallout>
       ) : null}
 
@@ -300,12 +358,12 @@ export default function AdminSupplierArchivePanel({ initialView = 'active' }: { 
                     type="button"
                     className="tv-btn-primary text-sm"
                     disabled={busy || reason.trim().length < 8}
-                    onClick={() => void run('archive_supplier')}
+                    onClick={() => setPendingAction('archive_supplier')}
                   >
                     Archive supplier
                   </button>
                 ) : (
-                  <button type="button" className="tv-btn-primary text-sm" disabled={busy} onClick={() => void run('restore_supplier')}>
+                  <button type="button" className="tv-btn-primary text-sm" disabled={busy} onClick={() => setPendingAction('restore_supplier')}>
                     Restore access
                   </button>
                 )}
@@ -314,13 +372,13 @@ export default function AdminSupplierArchivePanel({ initialView = 'active' }: { 
                     type="button"
                     className="tv-btn-secondary text-sm"
                     disabled={busy || reason.trim().length < 8}
-                    onClick={() => void run('suspend_supplier')}
+                    onClick={() => setPendingAction('suspend_supplier')}
                   >
                     Suspend access
                   </button>
                 ) : null}
                 {detail.profile.lifecycle === 'suspended' ? (
-                  <button type="button" className="tv-btn-secondary text-sm" disabled={busy} onClick={() => void run('unsuspend_supplier')}>
+                  <button type="button" className="tv-btn-secondary text-sm" disabled={busy} onClick={() => setPendingAction('unsuspend_supplier')}>
                     End suspension
                   </button>
                 ) : null}
@@ -332,6 +390,17 @@ export default function AdminSupplierArchivePanel({ initialView = 'active' }: { 
           )}
         </aside>
       </div>
+      <ConfirmDialog
+        open={pendingAction != null}
+        title={pendingAction ? actionCopy[pendingAction].title : ''}
+        description={pendingAction ? actionCopy[pendingAction].description : ''}
+        confirmLabel={pendingAction ? actionCopy[pendingAction].confirm : 'Continue'}
+        destructive={pendingAction ? actionCopy[pendingAction].destructive : false}
+        onConfirm={() => {
+          if (pendingAction) void run(pendingAction);
+        }}
+        onCancel={() => setPendingAction(null)}
+      />
     </div>
   );
 }

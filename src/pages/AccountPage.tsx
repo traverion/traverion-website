@@ -14,6 +14,7 @@ import { USER_ERROR, userFacingError } from '../lib/userFacingError';
 import ErrorState from '../components/ErrorState';
 import { travelerLoginHref } from '../lib/travelerAuthLinks';
 import { beginAuthTransition, failAuthTransition, succeedAuthTransition } from '../lib/auth-transition';
+import { feedback } from '../lib/feedback';
 import { useAuth } from '../contexts/AuthContext';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { fetchMyBookings } from '../data/supabase-bookings';
@@ -452,8 +453,10 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
                       setBaselineName(nextName);
                       setBaselinePhone(nextPhone);
                       setProfileMessage({ kind: 'ok', text: 'Profile saved.' });
+                      feedback.success('Profile saved');
                     } else {
                       setProfileMessage({ kind: 'err', text: userFacingError(res.error, 'Could not save.') });
+                      feedback.error(userFacingError(res.error, 'Could not save.'));
                     }
                   })();
                 }}

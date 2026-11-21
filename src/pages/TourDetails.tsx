@@ -110,6 +110,7 @@ import { rememberAccountCart } from '../data/supabase-cart';
 import { scrubListingBookingSelectionFromLocation } from '../lib/listing-booking-fresh';
 import { travelerDisplayNameFromSources } from '../lib/traveler-display-name';
 import { fetchWishlistListingIds, toggleWishlist } from '../data/supabase-wishlist';
+import { feedback } from '../lib/feedback';
 import { formatMoney, normalizeCurrency } from '../lib/money';
 import NoticeCallout from '../components/NoticeCallout';
 import TourQuickFacts from '../components/tour-detail/TourQuickFacts';
@@ -848,11 +849,14 @@ export default function TourDetails({ tourId, onBack, backLabel = 'Tours', onChe
         const res = await toggleWishlist(uid, listingId);
         if (res.error) {
           setSavedToWishlist(previous);
+          feedback.error('Could not update Saved. Try again.');
         } else {
           setSavedToWishlist(res.inWishlist);
+          feedback.success(res.inWishlist ? 'Saved' : 'Removed from Saved');
         }
       } catch {
         setSavedToWishlist(previous);
+        feedback.error('Could not update Saved. Try again.');
       } finally {
         setWishlistBusy(false);
       }

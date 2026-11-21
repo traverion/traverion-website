@@ -211,6 +211,8 @@ import {
 } from '../../lib/listing-creation-persist';
 import { userFacingError } from '../../lib/userFacingError';
 import { partnerToast } from '../../lib/partner-toast';
+import { beginMilestone, failMilestone, succeedMilestone } from '../../lib/feedback';
+import SavedIndicator from '../../components/feedback/SavedIndicator';
 import { normalizeListingForDraftSave } from '../../lib/listingDraftUtils';
 import {
   MAX_LISTING_DESCRIPTION_LENGTH,
@@ -3137,11 +3139,15 @@ export default function SupplierListingForm({
         setDraftCloseError(null);
         setSaveFlash(null);
         setSubmitting(true);
+        const milestoneId = enteringPublished
+          ? beginMilestone('Publishing your listing...', 'Saving it for travelers.')
+          : 0;
         try {
           const result = await onSave(listing);
           if (!result.success) {
             const msg = userFacingError(result.error, 'Could not save your listing. Please try again.');
-            partnerToast.error(msg);
+            if (enteringPublished) failMilestone(milestoneId, msg);
+            else partnerToast.error(msg);
             if (opts?.closeOnSuccess) {
               setDraftCloseError(msg);
               setLeaveConfirmOpen(true);
@@ -3160,15 +3166,21 @@ export default function SupplierListingForm({
           });
           setLastSavedAt(Date.now());
           setSaveFlash(effectiveStatus === 'published' ? 'published' : 'draft');
-          partnerToast.success(
-            enteringPublished
-              ? 'Listing published'
-              : !editingId
+          if (enteringPublished) {
+            succeedMilestone(milestoneId, true, {
+              title: 'Listing published',
+              message: 'This listing is live for travelers.',
+              page: 'partner',
+            });
+          } else {
+            partnerToast.success(
+              !editingId
                 ? 'Listing created'
                 : effectiveStatus === 'published'
                   ? 'Listing updated'
                   : 'Listing saved'
-          );
+            );
+          }
           if (opts?.closeOnSuccess) {
             clearListingDraftBackup(editingId);
             finishCloseEditor({ animated: true });
@@ -4516,6 +4528,7 @@ export default function SupplierListingForm({
                 />
               </div>
             ) : null}
+            <SavedIndicator saving={submitting || draftCloseBusy} savedAt={lastSavedAt} />
             <div className={isFocusedCreator ? 'grid grid-cols-3 items-center gap-2' : 'flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3'}>
               <div className={isFocusedCreator ? 'contents' : 'order-2 flex gap-2 sm:order-1 sm:contents'}>
                 <button

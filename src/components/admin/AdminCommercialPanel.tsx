@@ -6,6 +6,7 @@ import { formatMoney } from '../../lib/money';
 import { COMMERCIAL_PLANS, formatBpsAsPercent, fromMinorUnits } from '../../lib/commercial-money';
 import NoticeCallout from '../NoticeCallout';
 import EmptyState from '../EmptyState';
+import ConfirmDialog from '../feedback/ConfirmDialog';
 
 type TermsRow = {
   id: string;
@@ -1426,6 +1427,7 @@ function BookingFinancialInvestigation() {
   const [holdReason, setHoldReason] = useState('manual_review');
   const [holdNote, setHoldNote] = useState('');
   const [refundReason, setRefundReason] = useState('');
+  const [refundConfirmOpen, setRefundConfirmOpen] = useState(false);
 
   const investigate = async () => {
     const id = bookingId.trim();
@@ -1497,13 +1499,7 @@ function BookingFinancialInvestigation() {
       setMsg('Prepare refund requires booking ID and reason (≥3 chars).');
       return;
     }
-    if (
-      !window.confirm(
-        'Prepare a READY refund instruction only? This does NOT execute a Stripe refund.'
-      )
-    ) {
-      return;
-    }
+    setRefundConfirmOpen(false);
     setBusy(true);
     setMsg(null);
     try {
@@ -1683,7 +1679,13 @@ function BookingFinancialInvestigation() {
               />
               <button
                 type="button"
-                onClick={() => void prepareRefund()}
+                onClick={() => {
+                  if (!bookingId.trim() || refundReason.trim().length < 3) {
+                    setMsg('Prepare refund requires booking ID and reason (≥3 chars).');
+                    return;
+                  }
+                  setRefundConfirmOpen(true);
+                }}
                 disabled={busy}
                 className="tv-btn-secondary text-sm disabled:opacity-50"
               >
@@ -1699,6 +1701,18 @@ function BookingFinancialInvestigation() {
           </details>
         </div>
       ) : null}
+      <ConfirmDialog
+        open={refundConfirmOpen}
+        title="Prepare a refund instruction?"
+        description="This records a ready instruction only. It does not execute a Stripe refund."
+        confirmLabel="Prepare instruction"
+        destructive
+        busy={busy}
+        onConfirm={() => void prepareRefund()}
+        onCancel={() => {
+          if (!busy) setRefundConfirmOpen(false);
+        }}
+      />
     </div>
   );
 }

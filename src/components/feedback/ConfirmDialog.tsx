@@ -1,0 +1,84 @@
+import { useRef } from 'react';
+import { createPortal } from 'react-dom';
+import { useDialogFocus } from '../../hooks/useDialogFocus';
+import { SUPPLIER_MODAL_OVERLAY_CLASS, SUPPLIER_MODAL_PANEL_CLASS } from '../supplier/supplierUi';
+
+type Props = {
+  open: boolean;
+  title: string;
+  description: string;
+  confirmLabel: string;
+  cancelLabel?: string;
+  destructive?: boolean;
+  busy?: boolean;
+  error?: string | null;
+  onConfirm: () => void;
+  onCancel: () => void;
+};
+
+/** Confirmation before a destructive or financial action. Escape and the backdrop cancel it. */
+export default function ConfirmDialog({
+  open,
+  title,
+  description,
+  confirmLabel,
+  cancelLabel = 'Cancel',
+  destructive = false,
+  busy = false,
+  error = null,
+  onConfirm,
+  onCancel,
+}: Props) {
+  const panelRef = useRef<HTMLDivElement>(null);
+  useDialogFocus(open, panelRef, () => {
+    if (!busy) onCancel();
+  });
+
+  if (!open) return null;
+
+  return createPortal(
+    <div className={`${SUPPLIER_MODAL_OVERLAY_CLASS} z-[55000]`}>
+      <button type="button" tabIndex={-1} className="absolute inset-0" aria-label="Close" onClick={() => !busy && onCancel()} />
+      <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="tv-confirm-title"
+        className={`${SUPPLIER_MODAL_PANEL_CLASS} z-[55001] mx-auto w-full max-w-[22rem] p-4 sm:p-4`}
+      >
+        <h2 id="tv-confirm-title" className="text-[1rem] font-semibold tracking-tight text-[color:var(--partner-ink,#0c1118)]">
+          {title}
+        </h2>
+        <p className="mt-1.5 text-[13px] leading-relaxed text-[color:var(--partner-ink-muted,#5a6472)]">{description}</p>
+        {error ? (
+          <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-[13px] text-red-900 ring-1 ring-red-200/80" role="alert">
+            {error}
+          </p>
+        ) : null}
+        <div className="mt-4 flex flex-wrap justify-end gap-2">
+          <button
+            type="button"
+            disabled={busy}
+            onClick={onCancel}
+            className="tv-btn-ghost inline-flex h-9 items-center justify-center px-3 text-[13px]"
+          >
+            {cancelLabel}
+          </button>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={onConfirm}
+            className={
+              destructive
+                ? 'inline-flex h-9 items-center justify-center rounded-[var(--partner-radius,0.5rem)] bg-[#b91c1c] px-3 text-[13px] font-semibold text-white hover:bg-[#991b1b] disabled:opacity-60'
+                : 'tv-btn-primary inline-flex h-9 items-center justify-center px-3 text-[13px]'
+            }
+          >
+            {busy ? 'Working…' : confirmLabel}
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}

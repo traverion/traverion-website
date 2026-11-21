@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { AlertCircle, Check } from 'lucide-react';
+import { AlertCircle, AlertTriangle, Check } from 'lucide-react';
 import {
   dismissPartnerToast,
   subscribePartnerToasts,
@@ -48,13 +48,15 @@ function ToastCard({ toast }: { toast: PartnerToast }) {
     >
       {toast.tone === 'error' ? (
         <AlertCircle className="partner-toast__icon" aria-hidden />
+      ) : toast.tone === 'warning' ? (
+        <AlertTriangle className="partner-toast__icon" aria-hidden />
       ) : toast.tone === 'success' ? (
         <Check className="partner-toast__icon" aria-hidden />
       ) : (
         <span className="partner-toast__dot" aria-hidden />
       )}
       <p className="partner-toast__message">{toast.message}</p>
-      {toast.tone === 'error' ? (
+      {toast.tone === 'error' || toast.tone === 'warning' ? (
         <button type="button" className="partner-toast__dismiss" onClick={() => setLeaving(true)}>
           Dismiss
         </button>

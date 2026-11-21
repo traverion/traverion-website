@@ -1,4 +1,4 @@
-export type PartnerToastTone = 'success' | 'error' | 'info';
+export type PartnerToastTone = 'success' | 'error' | 'warning' | 'info';
 
 export type PartnerToast = {
   id: string;
@@ -14,6 +14,7 @@ let sequence = 0;
 export function toastDuration(tone: PartnerToastTone): number {
   if (tone === 'success') return 3000;
   if (tone === 'error') return 5500;
+  if (tone === 'warning') return 4500;
   return 4000;
 }
 
@@ -58,6 +59,9 @@ export const partnerToast = {
   },
   error(message: string) {
     return showPartnerToast('error', message);
+  },
+  warning(message: string) {
+    return showPartnerToast('warning', message);
   },
   info(message: string) {
     return showPartnerToast('info', message);

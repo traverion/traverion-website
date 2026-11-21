@@ -24678,7 +24678,7 @@ details:not([open]) > :not(summary) {
   position: fixed;
   left: 50%;
   bottom: 28px;
-  z-index: 80;
+  z-index: 50000;
   display: flex;
   width: min(420px, calc(100vw - 32px));
   transform: translateX(-50%);
@@ -24721,6 +24721,11 @@ details:not([open]) > :not(summary) {
   border-color: #9f1239;
 }
 
+.partner-toast--warning {
+  background: #1c160d;
+  border-color: #b45309;
+}
+
 .partner-toast--info {
   background: #14181e;
   border-color: #334155;
@@ -24738,6 +24743,10 @@ details:not([open]) > :not(summary) {
 
 .partner-toast--error .partner-toast__icon {
   color: #fb7185;
+}
+
+.partner-toast--warning .partner-toast__icon {
+  color: #fbbf24;
 }
 
 .partner-toast__dot {
@@ -24785,6 +24794,22 @@ details:not([open]) > :not(summary) {
   .partner-toast--out {
     animation: none;
   }
+}
+
+.tv-saved-indicator {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.5rem;
+  color: #003580;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.tv-inline-error {
+  margin: 0.35rem 0 0;
+  color: #9f1239;
+  font-size: 13px;
+  line-height: 1.4;
 }
 
 .tv-auth-transition {

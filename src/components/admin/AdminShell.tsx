@@ -22,6 +22,7 @@ import {
   Wallet,
 } from 'lucide-react';
 import NoticeCallout from '../NoticeCallout';
+import ConfirmDialog from '../feedback/ConfirmDialog';
 import { useAuth } from '../../contexts/AuthContext';
 import { invokeAdminEdgeFunction, type AdminStatsPayload } from '../../lib/adminEdgeFunction';
 import { isSupabaseConfigured } from '../../lib/supabase';
@@ -520,6 +521,7 @@ function CustomersDirectoryPanel() {
 
 function SystemResetPanel() {
   const [confirm, setConfirm] = useState('');
+  const [wipeConfirmOpen, setWipeConfirmOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<string | null>(null);
 
@@ -528,13 +530,7 @@ function SystemResetPanel() {
       setResult('Type exactly: RESET MARKETPLACE');
       return;
     }
-    if (
-      !window.confirm(
-        'Deletes ALL tours, stays, bookings, suppliers, customers, and auth users except info.traverion@gmail.com. Irreversible. Continue?'
-      )
-    ) {
-      return;
-    }
+    setWipeConfirmOpen(false);
     setBusy(true);
     setResult(null);
     try {
@@ -589,7 +585,7 @@ function SystemResetPanel() {
       </label>
       <button
         type="button"
-        onClick={() => void run()}
+        onClick={() => setWipeConfirmOpen(true)}
         disabled={busy || confirm.trim() !== 'RESET MARKETPLACE'}
         className="tv-btn-primary text-sm disabled:opacity-50 inline-flex items-center gap-2"
       >
@@ -601,6 +597,18 @@ function SystemResetPanel() {
           <pre className="whitespace-pre-wrap text-xs mt-1 font-mono max-h-80 overflow-auto">{result}</pre>
         </NoticeCallout>
       ) : null}
+      <ConfirmDialog
+        open={wipeConfirmOpen}
+        title="Wipe the marketplace?"
+        description="This deletes tours, stays, bookings, suppliers, customers, and auth users except info.traverion@gmail.com. It does not change Stripe keys."
+        confirmLabel="Wipe marketplace"
+        destructive
+        busy={busy}
+        onConfirm={() => void run()}
+        onCancel={() => {
+          if (!busy) setWipeConfirmOpen(false);
+        }}
+      />
     </PanelFrame>
   );
 }
