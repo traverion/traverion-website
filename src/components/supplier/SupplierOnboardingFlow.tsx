@@ -5,6 +5,7 @@ import {
   fetchSupplierProfile,
   invalidateSupplierProfileCache,
   patchSupplierProfile,
+  updateSupplierCompanyProfile,
   updateSupplierSetupProgress,
   uploadSupplierVerificationDocument,
   type SupplierProfileRow,
@@ -13,7 +14,7 @@ import {
   connectOnboardingUserMessage,
   invokeConnectSupplierOnboarding,
 } from '../../data/supabase-connect-onboarding';
-import { isValidFinnishBusinessId, normalizeCountryCode } from '../../lib/business-identity-validation';
+import { isValidFinnishBusinessId, normalizeCountryCode, normalizeFinnishBusinessId } from '../../lib/business-identity-validation';
 import { validateIsoDob } from '../../lib/date-of-birth';
 import {
   emptyBeneficialOwner,
@@ -33,6 +34,7 @@ import {
 import { createBankAccountToken } from '../../lib/stripe-js-client';
 import { STRIPE_RECIPIENT_AGREEMENT } from '../../lib/stripe-recipient-agreement';
 import {
+  companyOnboardingPresentation,
   onboardingGroupProgress,
   requirementFlags,
   screenFromOnboardingUrl,
@@ -93,6 +95,10 @@ export default function SupplierOnboardingFlow({
   const [owner, setOwner] = useState<OwnerEntry>(blankOwner);
   const [others, setOthers] = useState<boolean | null>(null);
   const [iban, setIban] = useState('');
+  const [companyLegal, setCompanyLegal] = useState(profile?.company_legal_name ?? '');
+  const [companyReg, setCompanyReg] = useState(profile?.company_registration_number ?? '');
+  const [companyCity, setCompanyCity] = useState(profile?.address_city ?? '');
+  const [companyPostal, setCompanyPostal] = useState(profile?.address_postal_code ?? '');
   const [screen, setScreen] = useState<SupplierOnboardingScreenId | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -141,15 +147,21 @@ export default function SupplierOnboardingFlow({
   }, []);
 
   useEffect(() => {
-    if (!profile || booted.current) return;
+    if (booted.current) return;
     booted.current = true;
     const nextDraft = initialDraft(userId, profile);
     setDraft(nextDraft);
-    const next = supplierOnboardingSnapshot(profile).nextScreen;
+    const params = new URLSearchParams(typeof window === 'undefined' ? '' : window.location.search);
+    const explicit = params.has('screen') || params.has('phase');
+    const resume = supplierOnboardingSnapshot(profile).nextScreen;
+    const requested = explicit ? screenFromOnboardingUrl(window.location.search, visible) : resume;
+    const next = visible.includes(requested) || requested === 'company' || requested === 'documents' ? requested : resume;
     setScreen(next);
     writeScreen(next, 'replace');
-    void updateSupplierSetupProgress(userId, progressRecord(profile, next));
-  }, [profile, userId, writeScreen]);
+    if (userId) void updateSupplierSetupProgress(userId, progressRecord(profile, next));
+    // The first saved step is chosen once. Later edits must not jump the supplier back.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     const onPop = () => {
@@ -210,6 +222,46 @@ export default function SupplierOnboardingFlow({
     go(list[index + 1] ?? 'status');
   };
 
+  const saveCompany = async (): Promise<boolean> => {
+    const legal = companyLegal.trim();
+    const country = normalizeCountryCode(profile?.address_country || 'FI') || 'FI';
+    const registration = country === 'FI' ? normalizeFinnishBusinessId(companyReg) : companyReg.trim();
+    if (!legal) {
+      setError('Enter the registered legal name.');
+      return false;
+    }
+    if (country === 'FI' && !isValidFinnishBusinessId(registration)) {
+      setError('Enter a valid Finnish business ID.');
+      return false;
+    }
+    if (country !== 'FI' && registration.length < 3) {
+      setError('Enter the business registration number.');
+      return false;
+    }
+    if (!companyCity.trim()) {
+      setError('Enter the city.');
+      return false;
+    }
+    setBusy(true);
+    setError(null);
+    const saved = await updateSupplierCompanyProfile(userId, {
+      company_legal_name: legal,
+      company_registration_number: registration,
+      address_city: companyCity.trim(),
+      address_postal_code: companyPostal.trim() || null,
+      address_country: country,
+      business_type: profile?.business_type === 'individual' ? 'individual' : 'company',
+    });
+    setBusy(false);
+    if (!saved.success) {
+      setError(saved.error || 'The company details could not be saved.');
+      return false;
+    }
+    const next = await fetchSupplierProfile(userId);
+    if (next) onProfile(next);
+    return Boolean(next?.company_legal_name?.trim());
+  };
+
   const back = () => {
     if (window.history.state?.onboardingScreen) {
       window.history.back();
@@ -234,7 +286,19 @@ export default function SupplierOnboardingFlow({
       return;
     }
     if (screen === 'company') {
-      advance('company');
+      const presentation = companyOnboardingPresentation({
+        verified: (profile?.verification_status ?? '').toLowerCase() === 'verified',
+        pendingReview:
+          (profile?.verification_status ?? '').toLowerCase() === 'pending' &&
+          Boolean((profile?.verification_submitted_at ?? '').trim()),
+        hasCompany: Boolean(profile?.company_legal_name?.trim() && profile?.company_registration_number?.trim()),
+      });
+      if (presentation.mode === 'verified' || presentation.mode === 'pending') {
+        advance('company');
+        return;
+      }
+      const ok = await saveCompany();
+      if (ok) advance('company');
       return;
     }
     if (screen === 'documents') {
@@ -360,8 +424,17 @@ export default function SupplierOnboardingFlow({
       return false;
     }
     if (!hasAccount) {
-      setError('This supplier already has a payout account path. Refresh and try again.');
-      return false;
+      const ensured = await invokeConnectSupplierOnboarding('ensure_account');
+      if (!ensured.success) {
+        setError(connectOnboardingUserMessage(ensured.error) || 'A payout account could not be opened yet.');
+        return false;
+      }
+      const refreshed = await fetchSupplierProfile(userId);
+      if (refreshed) onProfile(refreshed);
+      if (!refreshed?.stripe_connected_account_id) {
+        setError('A payout account could not be opened yet.');
+        return false;
+      }
     }
     submitting.current = true;
     setBusy(true);
@@ -598,8 +671,26 @@ export default function SupplierOnboardingFlow({
     screen === 'documents' ? 'documents' : visible.includes(screen) ? screen : visible[0] ?? 'company'
   );
   const verification = supplierVerificationState(profile);
-  const title = screen === 'status' ? verification.title : meta.title;
-  const body = screen === 'status' ? verification.summary : meta.body;
+  const companyPresentation = companyOnboardingPresentation({
+    verified: (profile?.verification_status ?? '').toLowerCase() === 'verified',
+    pendingReview:
+      (profile?.verification_status ?? '').toLowerCase() === 'pending' &&
+      Boolean((profile?.verification_submitted_at ?? '').trim()),
+    hasCompany: Boolean(profile?.company_legal_name?.trim() && profile?.company_registration_number?.trim()),
+  });
+  const title =
+    screen === 'status'
+      ? verification.status === 'verified'
+        ? 'Verified'
+        : verification.status === 'action_required'
+          ? 'Action required'
+          : verification.status === 'verification_pending'
+            ? 'Verification pending'
+            : 'Setup submitted'
+      : screen === 'company'
+        ? companyPresentation.title
+        : meta.title;
+  const body = screen === 'status' ? verification.summary : screen === 'company' ? companyPresentation.body : meta.body;
   const cityLine = [profile?.address_postal_code, profile?.address_city].filter(Boolean).join(' ');
   const primary =
     screen === 'status'
@@ -614,7 +705,7 @@ export default function SupplierOnboardingFlow({
 
   return (
     <div
-      className="partner-unified-setup-shell payout-wizard flex h-full min-h-0 w-full flex-1 overflow-hidden"
+      className="partner-unified-setup-shell payout-wizard partner-onboarding-frame flex h-full min-h-0 w-full flex-1 overflow-hidden"
       data-cert="p953"
       data-onboarding-screen={screen}
     >
@@ -668,17 +759,54 @@ export default function SupplierOnboardingFlow({
           </div>
         }
       >
-        <div key={screen} className="onboarding-step mx-auto w-full max-w-[40rem]">
+        <div key={screen} className="onboarding-step mx-auto w-full max-w-[42.5rem]">
           <header className="mb-5 space-y-2">
             <p className="text-[12px] font-semibold uppercase tracking-[0.06em] text-ink-muted">
               {progress.group} · {progress.index} of {progress.total}
             </p>
+            <ol className="mb-3 flex flex-wrap gap-x-3 gap-y-1 text-[11px] font-semibold uppercase tracking-[0.04em] text-ink-muted">
+              {(['Company', 'Documents', 'Representative', 'Payouts', 'Review'] as const).map((label, index) => {
+                const current =
+                  (meta.phase === 'business' && index === 0) ||
+                  (meta.phase === 'documents' && index === 1) ||
+                  (meta.phase === 'representative' && index === 2) ||
+                  (meta.phase === 'payout' && index === 3) ||
+                  (meta.phase === 'status' && index === 4);
+                return (
+                  <li key={label} className={current ? 'text-[#073b83]' : undefined} aria-current={current ? 'step' : undefined}>
+                    {label}
+                  </li>
+                );
+              })}
+            </ol>
             <h1 className="font-display text-[1.45rem] font-bold leading-[1.15] tracking-tight text-ink sm:text-[1.7rem]">
               {title}
             </h1>
             <p className="text-[14px] leading-relaxed text-ink-muted sm:text-[15px]">{body}</p>
           </header>
-          {screen === 'company' ? (
+          {screen === 'company' && (companyPresentation.mode === 'form' || companyPresentation.mode === 'draft') ? (
+            <div className="grid gap-4">
+              <label className="block text-[13px] font-medium text-ink">
+                Registered legal name
+                <input className="tv-input mt-1.5 w-full" value={companyLegal} onChange={(event) => setCompanyLegal(event.target.value)} autoComplete="organization" />
+              </label>
+              <label className="block text-[13px] font-medium text-ink">
+                Business ID
+                <input className="tv-input mt-1.5 w-full" value={companyReg} onChange={(event) => setCompanyReg(event.target.value)} inputMode="text" />
+              </label>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <label className="block text-[13px] font-medium text-ink">
+                  Postal code
+                  <input className="tv-input mt-1.5 w-full" value={companyPostal} onChange={(event) => setCompanyPostal(event.target.value)} />
+                </label>
+                <label className="block text-[13px] font-medium text-ink">
+                  City
+                  <input className="tv-input mt-1.5 w-full" value={companyCity} onChange={(event) => setCompanyCity(event.target.value)} />
+                </label>
+              </div>
+            </div>
+          ) : null}
+          {screen === 'company' && (companyPresentation.mode === 'verified' || companyPresentation.mode === 'pending') ? (
             <dl className="space-y-3 rounded-2xl border border-[#E5E7EB] bg-white px-4 py-4 text-[15px]">
               <div>
                 <dt className="text-[12px] font-medium text-ink-muted">Legal name</dt>

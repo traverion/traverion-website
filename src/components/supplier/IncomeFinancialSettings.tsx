@@ -221,7 +221,7 @@ export default function IncomeFinancialSettings({
             {operations.account.actionLabel ? (
               <button
                 type="button"
-                className="tv-btn-secondary mt-4 h-9 px-3 text-[13px]"
+                className="tv-btn-secondary mt-4 min-h-11 px-4 text-sm"
                 onClick={() => navigateSupplierUrl(`${PARTNER_APP_BASE}/onboarding`)}
               >
                 {operations.account.actionLabel}

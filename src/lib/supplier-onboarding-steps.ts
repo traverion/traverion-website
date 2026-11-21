@@ -9,7 +9,7 @@ export const SUPPLIER_ONBOARDING_SCREENS = [
     group: 'Company',
     phase: 'business',
     title: 'Confirm your company',
-    body: 'This is the verified company record.',
+    body: 'Add the legal name and business ID. This is not a verified record until it is reviewed.',
   },
   {
     id: 'documents',
@@ -23,7 +23,7 @@ export const SUPPLIER_ONBOARDING_SCREENS = [
     group: 'Identity',
     phase: 'representative',
     title: 'Who acts for this company?',
-    body: 'The name already saved for this person.',
+    body: 'The name of the person who acts for the company.',
   },
   {
     id: 'dob',
@@ -72,14 +72,14 @@ export const SUPPLIER_ONBOARDING_SCREENS = [
     group: 'Identity',
     phase: 'representative',
     title: 'Send this for verification?',
-    body: 'Traverion sends the verified company record and this person’s name and date of birth.',
+    body: 'Traverion sends the company record and this person’s name and date of birth for review.',
   },
   {
     id: 'bank',
     group: 'Bank',
     phase: 'payout',
     title: 'Where should payouts go?',
-    body: 'The account holder is the verified company.',
+    body: 'Payouts are sent to the company. The full account number is not shown again.',
   },
   {
     id: 'terms',
@@ -151,6 +151,39 @@ export function onboardingGroupProgress(
   const group = visible.filter((item) => supplierOnboardingScreen(item).group === screen.group);
   const index = Math.max(0, group.indexOf(id));
   return { group: screen.group, index: index + 1, total: group.length };
+}
+
+export function companyOnboardingPresentation(input: {
+  verified: boolean;
+  pendingReview: boolean;
+  hasCompany: boolean;
+}): { title: string; body: string; mode: 'form' | 'draft' | 'pending' | 'verified' } {
+  if (input.verified && input.hasCompany) {
+    return {
+      title: 'Confirm your company',
+      body: 'This is the verified company record.',
+      mode: 'verified',
+    };
+  }
+  if (input.pendingReview && input.hasCompany) {
+    return {
+      title: 'Verification pending',
+      body: 'These company details were sent for review. They are not verified yet.',
+      mode: 'pending',
+    };
+  }
+  if (input.hasCompany) {
+    return {
+      title: 'Company details saved',
+      body: 'These details are saved on your account. They are not verified yet.',
+      mode: 'draft',
+    };
+  }
+  return {
+    title: 'Your company',
+    body: 'Add the legal name, business ID, and city. Nothing here is verified until it is reviewed.',
+    mode: 'form',
+  };
 }
 
 export function screenFromOnboardingUrl(

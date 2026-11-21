@@ -6,6 +6,8 @@ import StatusChip from '../../components/StatusChip';
 import { USER_ERROR } from '../../lib/userFacingError';
 import { AlertCircle, Calendar, ChevronRight } from 'lucide-react';
 import { supplierOperationalIndicators, supplierVerificationState } from '../../lib/supplier-verification-state';
+import { onboardingLanesVerified, supplierOnboardingSnapshot } from '../../lib/supplier-onboarding-progress';
+import { supplierOnboardingScreen } from '../../lib/supplier-onboarding-steps';
 import PartnerOperationalStatus from '../../components/supplier/PartnerOperationalStatus';
 import { fetchPayoutExecutionGates } from '../../data/payout-execution-gates';
 import { useSupplierAuth } from '../../contexts/SupplierAuthContext';
@@ -729,6 +731,40 @@ export default function SupplierDashboard() {
 
       {operations && !dashboardLoading ? (
         <PartnerOperationalStatus account={operations.account} payouts={operations.payouts} />
+      ) : null}
+
+      {profile && !onboardingLanesVerified(supplierOnboardingSnapshot(profile)) ? (
+        <section className="partner-home-section" aria-labelledby="complete-business-setup">
+          <div className="partner-home__panel px-4 py-4 sm:px-5">
+            <h2 id="complete-business-setup" className="text-[1.05rem] font-semibold text-ink">
+              Complete your business setup
+            </h2>
+            <p className="mt-1 max-w-xl text-[14px] leading-relaxed text-ink-muted">
+              {supplierOnboardingSnapshot(profile).company.status === 'not_started'
+                ? 'Add your company when you are ready. Publishing and payouts stay locked until verification is finished.'
+                : supplierOnboardingSnapshot(profile).nextAction}
+            </p>
+            {supplierOnboardingSnapshot(profile).actionable ? (
+              <button
+                type="button"
+                className="tv-btn-primary mt-4 min-h-11 px-4"
+                onClick={() => {
+                  const next = supplierOnboardingSnapshot(profile).nextScreen;
+                  const phase = supplierOnboardingScreen(next).phase;
+                  const start =
+                    supplierOnboardingSnapshot(profile).company.status === 'not_started'
+                      ? `${PARTNER_APP_BASE}/onboarding`
+                      : `${PARTNER_APP_BASE}/onboarding?phase=${phase}&screen=${next}`;
+                  navigateSupplierUrl(start);
+                }}
+              >
+                {supplierOnboardingSnapshot(profile).company.status === 'not_started' ? 'Get started' : 'Resume setup'}
+              </button>
+            ) : (
+              <p className="mt-3 text-[13px] text-ink-muted">Verification pending. This is not an approval.</p>
+            )}
+          </div>
+        </section>
       ) : null}
 
       {attentionCount > 0 && (

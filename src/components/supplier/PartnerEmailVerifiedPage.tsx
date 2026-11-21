@@ -48,32 +48,33 @@ export default function PartnerEmailVerifiedPage() {
       window.history.replaceState({}, document.title, PARTNER_EMAIL_VERIFIED_PATH);
     };
 
-    const transitionId = beginAuthTransition({
-      intent: 'verify',
-      title: 'Confirming your email...',
-      message: 'Checking this link.',
-    });
+    let transitionId: string | null = null;
+    const start = () => {
+      transitionId ??= beginAuthTransition({
+        intent: 'verify',
+        title: 'Confirming your email...',
+        message: 'Checking this link.',
+      });
+      return transitionId;
+    };
 
     const fail = () => {
       if (!cancelled) {
         stripSensitiveUrl();
         setPhase('invalid');
-        failAuthTransition(transitionId, 'This confirmation link has expired or was already used.');
+        failAuthTransition(start(), 'This confirmation link has expired or was already used.');
       }
     };
 
-    const succeed = (kind: 'verified' | 'already') => {
+    const succeed = () => {
       if (cancelled) return;
-      setPhase(kind);
+      setPhase('verified');
       stripSensitiveUrl();
-      succeedAuthTransition(transitionId, {
+      succeedAuthTransition(start(), {
         title: 'Email verified!',
-        message:
-          kind === 'already'
-            ? 'This email is already confirmed. Continue to company setup.'
-            : 'Your partner email is confirmed. Continue to company setup. This does not approve the company.',
-        page: 'onboarding',
-        navigate: () => window.location.replace(`${PARTNER_APP_BASE}/onboarding`),
+        message: 'Your email is confirmed. This does not approve the company.',
+        page: 'partner',
+        navigate: () => window.location.replace(PARTNER_APP_BASE),
       });
     };
 
@@ -87,7 +88,7 @@ export default function PartnerEmailVerifiedPage() {
           fail();
           return;
         }
-        succeed('verified');
+        succeed();
         return;
       }
 
@@ -96,7 +97,8 @@ export default function PartnerEmailVerifiedPage() {
         const { data } = await supabase.auth.getSession();
         if (cancelled) return;
         if (data.session?.user?.email_confirmed_at) {
-          succeed('already');
+          setPhase('already');
+          window.location.replace(PARTNER_APP_BASE);
           return;
         }
         fail();
@@ -127,7 +129,7 @@ export default function PartnerEmailVerifiedPage() {
         return;
       }
 
-      succeed('verified');
+      succeed();
     })();
 
     return () => {

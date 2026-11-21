@@ -317,7 +317,7 @@ export default function SupplierAuth({
             sendSupplierWelcomeEmail(data.session.user.id);
             succeedAuthTransition(transitionId, {
               title: 'Welcome to Traverion Partner!',
-              message: 'Your partner account is ready. Continue with company setup.',
+              message: 'Your partner account is ready.',
               page: 'partner',
               navigate: onAuthenticated,
             });
@@ -416,7 +416,7 @@ export default function SupplierAuth({
             sendSupplierWelcomeEmail(data.user.id);
             succeedAuthTransition(transitionId, {
               title: 'Welcome to Traverion Partner!',
-              message: 'Your partner account is ready. Continue with company setup.',
+              message: 'Your partner account is ready.',
               page: 'partner',
               navigate: onAuthenticated,
             });

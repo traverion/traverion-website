@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import {
+  companyOnboardingPresentation,
   onboardingGroupProgress,
   requirementFlags,
   screenFromOnboardingUrl,
@@ -95,5 +96,20 @@ describe('supplier onboarding screens', () => {
     const src = readFileSync('supabase/functions/connect-supplier-onboarding/index.ts', 'utf8');
     expect(src).not.toMatch(/persons\?limit=100/);
     expect(src).toMatch(/limit: '20'/);
+  });
+
+  it('does not describe an empty company as verified', () => {
+    expect(companyOnboardingPresentation({ verified: false, pendingReview: false, hasCompany: false })).toMatchObject({
+      mode: 'form',
+    });
+    expect(
+      companyOnboardingPresentation({ verified: false, pendingReview: false, hasCompany: false }).body
+    ).not.toMatch(/verified company record/i);
+    expect(companyOnboardingPresentation({ verified: true, pendingReview: false, hasCompany: true }).mode).toBe(
+      'verified'
+    );
+    expect(companyOnboardingPresentation({ verified: false, pendingReview: true, hasCompany: true }).mode).toBe(
+      'pending'
+    );
   });
 });
