@@ -10085,6 +10085,20 @@ details:not([open]) > :not(summary) {
   max-height: min(92dvh, 40rem);
 }
 
+@media (max-width: 639px) {
+  .tv-guest-sheet {
+    position: fixed;
+    left: 0.75rem;
+    right: 0.75rem;
+    top: auto;
+    bottom: max(0.75rem, env(safe-area-inset-bottom));
+    width: auto;
+    max-height: min(70dvh, 24rem);
+    overflow: auto;
+    z-index: 140;
+  }
+}
+
 .tv-cancel-check {
   animation: tv-cancel-check-in 280ms ease-out;
 }

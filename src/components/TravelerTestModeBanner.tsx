@@ -19,7 +19,7 @@ export default function TravelerTestModeBanner({ variant = 'chip' }: Props) {
   if (variant === 'chip') {
     return (
       <span
-        className="inline-flex items-center rounded-full border border-finland/20 bg-finland/[0.07] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-finland"
+        className="inline-flex max-w-full shrink items-center rounded-full border border-finland/20 bg-finland/[0.07] px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-finland min-[400px]:px-2.5 min-[400px]:tracking-[0.14em]"
         title={TRAVELER_TEST_MODE_DETAIL}
         role="status"
       >

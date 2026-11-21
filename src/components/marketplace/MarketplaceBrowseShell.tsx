@@ -56,10 +56,10 @@ export function MarketplaceBrowseShell({
           {familyNav}
           {mobileSearch}
           {search}
-          <div className="flex items-center gap-2 lg:hidden">
+          <div className="flex min-w-0 items-stretch gap-2 lg:hidden">
             <button
               type="button"
-              className="tv-btn-secondary h-11 flex-1"
+              className="tv-btn-secondary h-11 shrink-0"
               onClick={onOpenFilters}
               aria-expanded={filtersOpen}
               aria-controls={`${headingId}-filters`}
@@ -67,7 +67,7 @@ export function MarketplaceBrowseShell({
               <Filter className="w-4 h-4" />
               Filters{filterCount > 0 ? ` · ${filterCount}` : ''}
             </button>
-            <div className="flex-1">{sortControl}</div>
+            <div className="min-w-0 flex-1">{sortControl}</div>
           </div>
         </div>
 
@@ -174,12 +174,12 @@ export function MarketplaceSortSelect({
   options: { id: string; label: string }[];
 }) {
   return (
-    <label className="inline-flex max-w-full items-center gap-2 rounded-full border border-black/[0.1] bg-white px-3 py-1 text-sm text-ink-muted">
-      <span className="text-[11px] font-semibold tracking-wide text-finland">Sort</span>
+    <label className="flex h-11 w-full min-w-0 items-center gap-2 rounded-full border border-black/[0.1] bg-white px-3 text-sm text-ink-muted">
+      <span className="shrink-0 text-[11px] font-semibold tracking-wide text-finland">Sort</span>
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="h-8 min-w-0 max-w-[11rem] bg-transparent text-sm font-medium text-ink"
+        className="h-full min-w-0 flex-1 bg-transparent text-sm font-medium text-ink"
         aria-label="Sort"
       >
         {options.map((opt) => (

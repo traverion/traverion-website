@@ -245,7 +245,7 @@ export function MarketplaceSearchStack({
   return (
     <form
       onSubmit={onSubmit ?? ((e) => e.preventDefault())}
-      className={`tv-hero-search overflow-hidden rounded-[1.25rem] bg-white ring-1 ring-black/[0.05] ${className}`}
+      className={`tv-hero-search overflow-visible rounded-[1.25rem] bg-white ring-1 ring-black/[0.05] ${className}`}
       aria-label={ariaLabel ?? (isRental ? 'Search rentals' : isStay ? 'Search stays' : 'Search tours')}
     >
       {header}

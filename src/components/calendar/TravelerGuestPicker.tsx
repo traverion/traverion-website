@@ -144,7 +144,7 @@ export function TravelerGuestPicker({
           role="dialog"
           aria-modal="true"
           aria-label={label}
-          className="absolute right-0 top-[calc(100%+0.5rem)] z-50 w-[min(18rem,calc(100vw-2rem))] rounded-2xl bg-paper-raised p-4 shadow-soft-lg ring-1 ring-black/[0.08] motion-safe:animate-fade-in"
+          className="tv-guest-sheet absolute right-0 top-[calc(100%+0.5rem)] z-50 w-[min(18rem,calc(100vw-2rem))] rounded-2xl bg-paper-raised p-4 shadow-soft-lg ring-1 ring-black/[0.08] motion-safe:animate-fade-in"
         >
           <GuestRow
             label="Adults"

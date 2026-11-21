@@ -171,7 +171,9 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                 e.currentTarget.style.display = 'none';
               }}
             />
-            <span className="font-sans text-[0.9375rem] font-bold tracking-tight text-[#111827]">Traverion</span>
+            <span className="hidden min-w-0 truncate font-sans text-[0.9375rem] font-bold tracking-tight text-[#111827] min-[400px]:inline">
+              Traverion
+            </span>
           </button>
 
           <nav className="tv-header-nav hidden items-center gap-1 justify-self-center lg:flex" aria-label="Primary">
@@ -226,7 +228,7 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
             </button>
           </nav>
 
-          <div className="flex items-center justify-end gap-1 sm:gap-1.5 justify-self-end">
+          <div className="flex min-w-0 items-center justify-end gap-1 sm:gap-1.5 justify-self-end">
             <button
               type="button"
               className="lux-flat inline-flex h-10 w-10 items-center justify-center rounded-full text-ink transition-colors duration-150 hover:bg-black/[0.04] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-finland"

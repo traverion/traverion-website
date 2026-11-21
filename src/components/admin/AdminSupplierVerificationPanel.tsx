@@ -360,7 +360,7 @@ export default function AdminSupplierVerificationPanel() {
                           type="button"
                           disabled={actingId === row.id}
                           onClick={() => setPendingReview({ supplierId: row.id, action: 'approve_business' })}
-                          className="tv-btn-primary text-xs h-8 px-3 disabled:opacity-50"
+                          className="tv-btn-primary min-h-11 px-3 text-sm disabled:opacity-50"
                         >
                           Approve
                         </button>
@@ -368,7 +368,7 @@ export default function AdminSupplierVerificationPanel() {
                           type="button"
                           disabled={actingId === row.id}
                           onClick={() => setPendingReview({ supplierId: row.id, action: 'request_changes_business' })}
-                          className="tv-btn-secondary text-xs h-8 px-3 disabled:opacity-50"
+                          className="tv-btn-secondary min-h-11 px-3 text-sm disabled:opacity-50"
                         >
                           Request changes
                         </button>
@@ -376,7 +376,7 @@ export default function AdminSupplierVerificationPanel() {
                           type="button"
                           disabled={actingId === row.id}
                           onClick={() => setPendingReview({ supplierId: row.id, action: 'reject_business' })}
-                          className="tv-btn-secondary text-xs h-8 px-3 text-rose-800 ring-rose-200 disabled:opacity-50"
+                          className="tv-btn-secondary min-h-11 px-3 text-sm text-rose-800 ring-rose-200 disabled:opacity-50"
                         >
                           Reject
                         </button>
@@ -423,7 +423,7 @@ export default function AdminSupplierVerificationPanel() {
                           type="button"
                           disabled={actingId === row.id}
                           onClick={() => setPendingReview({ supplierId: row.id, action: 'approve_payout' })}
-                          className="tv-btn-primary text-xs h-8 px-3 disabled:opacity-50"
+                          className="tv-btn-primary min-h-11 px-3 text-sm disabled:opacity-50"
                         >
                           Approve
                         </button>
@@ -431,7 +431,7 @@ export default function AdminSupplierVerificationPanel() {
                           type="button"
                           disabled={actingId === row.id}
                           onClick={() => setPendingReview({ supplierId: row.id, action: 'reject_payout' })}
-                          className="tv-btn-secondary text-xs h-8 px-3 text-rose-800 ring-rose-200 disabled:opacity-50"
+                          className="tv-btn-secondary min-h-11 px-3 text-sm text-rose-800 ring-rose-200 disabled:opacity-50"
                         >
                           Reject
                         </button>
