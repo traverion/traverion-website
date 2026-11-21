@@ -11545,29 +11545,33 @@ details:not([open]) > :not(summary) {
   }
 }
 .tv-auth-tabs {
-  display: flex;
-  gap: 1.35rem;
-  border-bottom: 1px solid rgba(28, 25, 23, 0.12);
-  margin-bottom: 1rem;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.2rem;
+  margin-bottom: 1.35rem;
+  padding: 0.2rem;
+  border-radius: 999px;
+  background: rgba(28, 25, 23, 0.045);
 }
 .tv-auth-tabs button,
 .tv-auth-tabs a {
   appearance: none;
   background: transparent;
   border: 0;
-  border-bottom: 2px solid transparent;
-  margin-bottom: -1px;
-  padding: 0.2rem 0 0.55rem;
+  border-radius: 999px;
+  margin: 0;
+  padding: 0.55rem 0.75rem;
   min-height: 2.5rem;
   font-size: 0.875rem;
-  font-weight: 700;
-  color: #6b6560;
+  font-weight: 650;
+  color: #57534e;
   text-decoration: none;
 }
 .tv-auth-tabs button[aria-selected='true'],
 .tv-auth-tabs a[aria-current='page'] {
   color: #1c1917;
-  border-bottom-color: #003580;
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
 }
 .tv-auth-label {
   display: block;
@@ -11693,6 +11697,12 @@ details:not([open]) > :not(summary) {
   .tv-auth-panel {
     padding: 1.35rem 1.5rem 1.55rem;
   }
+}
+
+.tv-auth-panel--flat {
+  background: transparent;
+  box-shadow: none;
+  padding: 0;
 }
 
 /* Phase 1817: Analytics metric tiles */
@@ -15176,10 +15186,9 @@ details:not([open]) > :not(summary) {
   align-items: center;
   gap: 0.7rem;
   min-width: 0;
-  margin: 0.15rem 0.15rem 0.35rem;
-  padding: 0.65rem 0.7rem;
-  border-radius: 0.65rem;
-  background: rgba(0, 53, 128, 0.035);
+  margin: 0.2rem 0.2rem 0.15rem;
+  padding: 0.45rem 0.55rem 0.7rem;
+  background: transparent;
 }
 .tv-profile-menu__avatar {
   display: inline-flex;

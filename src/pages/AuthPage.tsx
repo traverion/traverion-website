@@ -9,6 +9,7 @@ import { HERO_IMG } from '../lib/heroImages';
 import SkipLink from '../components/SkipLink';
 import { navigateBackOrFallback } from '../lib/appRouting';
 import TravelerAuthForm, { type TravelerAuthTab } from '../components/auth/TravelerAuthForm';
+import { useAuth } from '../contexts/AuthContext';
 
 interface AuthPageProps {
   onNavigate: (page: string) => void;
@@ -42,6 +43,7 @@ function destinationHint(nextPage: string): string | null {
 }
 
 export default function AuthPage({ onNavigate }: AuthPageProps) {
+  const { user, loading } = useAuth();
   const [{ tab: initialTab, next }] = useState(readAuthQuery);
   const [tab, setTab] = useState<TravelerAuthTab>(initialTab);
   const [bannerError, setBannerError] = useState<string | null>(null);
@@ -71,6 +73,10 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
   }, []);
 
   useEffect(() => {
+    if (!loading && user) onNavigate(nextPage);
+  }, [loading, user, nextPage, onNavigate]);
+
+  useEffect(() => {
     const params = new URLSearchParams();
     params.set('next', nextPage);
     const path = tab === 'signup' ? '/sign-up' : '/log-in';
@@ -80,8 +86,8 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
   return (
     <div className="min-h-[100dvh] bg-paper text-ink flex flex-col lg:flex-row">
       <SkipLink />
-      <aside className="relative isolate overflow-hidden lg:w-[44%] lg:min-h-[100dvh] lg:sticky lg:top-0 lg:self-start">
-        <div className="relative h-40 sm:h-48 lg:h-[100dvh] min-h-[10rem]">
+      <aside className="relative isolate overflow-hidden lg:w-[42%] lg:max-w-[34rem] lg:min-h-[100dvh] lg:sticky lg:top-0 lg:self-start">
+        <div className="relative h-[34vh] min-h-[11.5rem] max-h-[18rem] sm:h-56 lg:h-[100dvh] lg:max-h-none lg:min-h-[100dvh]">
           <img
             src={HERO_IMG.vacation}
             alt=""
@@ -106,17 +112,17 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
             </a>
             <div className="max-w-sm pb-1 lg:pb-4">
               <p className="mb-2 text-[11px] uppercase tracking-[0.2em] text-white/70">For travelers</p>
-              <p className="font-display text-2xl leading-tight tracking-tight text-white sm:text-3xl lg:text-4xl">
-                Book with operators. Manage every trip in one place.
+              <p className="font-display text-[1.65rem] leading-[1.15] tracking-tight text-white sm:text-4xl lg:text-[2.65rem]">
+                Book with operators. Keep every trip in one place.
               </p>
             </div>
           </div>
         </div>
       </aside>
 
-      <main id="main-content" tabIndex={-1} className="flex flex-1 flex-col outline-none">
-        <div className="flex-1 px-5 py-6 pb-12 sm:px-8 sm:py-8">
-          <div className="mx-auto w-full max-w-[28.5rem]">
+      <main id="main-content" tabIndex={-1} className="flex min-w-0 flex-1 flex-col overflow-y-auto outline-none">
+        <div className="flex flex-1 items-center px-5 py-8 pb-14 sm:px-8 lg:px-10">
+          <div className="mx-auto w-full max-w-[24.5rem]">
             <button
               type="button"
               onClick={() => navigateBackOrFallback(() => onNavigate('home'))}
@@ -125,7 +131,7 @@ export default function AuthPage({ onNavigate }: AuthPageProps) {
               <ArrowLeft className="h-4 w-4" />
               Back to Traverion
             </button>
-            <div className="tv-auth-panel">
+            <div className="tv-auth-panel tv-auth-panel--flat">
               <TravelerAuthForm
                 idPrefix="auth-page"
                 tab={tab}

@@ -13,7 +13,8 @@ import { AUTH_CONFIRMATION_EMAIL_REQUESTED, AUTH_PASSWORD_RESET_REQUESTED } from
 import { resendTravelerConfirmation } from '../../lib/emailVerifiedLanding';
 import { splitTravelerFullName } from '../../lib/splitTravelerFullName';
 import { TRAVELER_PASSWORD_HINT, travelerPasswordError } from '../../lib/travelerPassword';
-import { GOOGLE_AUTH_ENABLED } from '../../lib/googleAuth';
+import { APPLE_AUTH_ENABLED, GOOGLE_AUTH_ENABLED } from '../../lib/googleAuth';
+import { TRAVELER_MAGIC_LINK_REQUESTED, travelerMagicLinkRedirect } from '../../lib/travelerMagicLink';
 import NoticeCallout from '../NoticeCallout';
 
 export type TravelerAuthTab = 'signin' | 'signup';
@@ -27,6 +28,8 @@ type Props = {
   onTabChange: (tab: TravelerAuthTab) => void;
   intent?: 'checkout' | null;
   afterConfirmNext?: string;
+  /** Same-origin page to reopen after an email link, such as the checkout the guest already filled. */
+  returnHref?: string | null;
   onAuthenticated: () => void;
   showPartnerLink?: boolean;
   destinationHint?: string | null;
@@ -94,6 +97,7 @@ export default function TravelerAuthForm({
   onTabChange,
   intent = null,
   afterConfirmNext = 'account',
+  returnHref = null,
   onAuthenticated,
   showPartnerLink = false,
   destinationHint = null,
@@ -111,6 +115,9 @@ export default function TravelerAuthForm({
   const [resendSending, setResendSending] = useState(false);
   const [resetSending, setResetSending] = useState(false);
   const [passwordResetPanel, setPasswordResetPanel] = useState(false);
+  const [linkPanel, setLinkPanel] = useState(false);
+  const [linkSending, setLinkSending] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [resetPasswordEmail, setResetPasswordEmail] = useState('');
   const [resetPasswordFieldError, setResetPasswordFieldError] = useState<string | null>(null);
   const [resetPasswordSuccess, setResetPasswordSuccess] = useState<string | null>(null);
@@ -131,6 +138,7 @@ export default function TravelerAuthForm({
     setFieldErrors({});
     setSuccessMessage(null);
     setPasswordResetPanel(false);
+    setLinkPanel(false);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -151,6 +159,7 @@ export default function TravelerAuthForm({
       }
       const passwordProblem = travelerPasswordError(password);
       if (passwordProblem) next.password = passwordProblem;
+      if (!acceptedTerms) next.form = 'Accept the Terms and Privacy Policy to create an account.';
     } else if (!password) {
       next.password = 'Enter your password.';
     }
@@ -207,6 +216,38 @@ export default function TravelerAuthForm({
     setSuccessMessage(AUTH_CONFIRMATION_EMAIL_REQUESTED);
   };
 
+  const sendMagicLink = async () => {
+    setFieldErrors({});
+    setSuccessMessage(null);
+    const trimmed = email.trim().toLowerCase();
+    if (!trimmed) {
+      setFieldErrors({ email: 'Enter your email address.' });
+      return;
+    }
+    if (!isValidEmailFormat(trimmed)) {
+      setFieldErrors({ email: 'Enter a valid email address.' });
+      return;
+    }
+    if (!supabase) {
+      setFieldErrors({ form: 'Email sign-in is not configured.' });
+      return;
+    }
+    setLinkSending(true);
+    const { error: err } = await supabase.auth.signInWithOtp({
+      email: trimmed,
+      options: {
+        shouldCreateUser: false,
+        emailRedirectTo: travelerMagicLinkRedirect(afterConfirmNext, returnHref),
+      },
+    });
+    setLinkSending(false);
+    if (err && !/signups not allowed|user not found|otp_disabled/i.test(err.message)) {
+      setFieldErrors({ form: mapAuthError(err.message) });
+      return;
+    }
+    setSuccessMessage(TRAVELER_MAGIC_LINK_REQUESTED);
+  };
+
   const sendPasswordResetEmail = async (normalizedEmail: string): Promise<ForgotPasswordSendResult> => {
     if (!supabase) return { ok: false, error: 'Password reset is not configured.' };
     setResetSending(true);
@@ -220,18 +261,22 @@ export default function TravelerAuthForm({
 
   const title = passwordResetPanel
     ? 'Reset password'
-    : tab === 'signin'
-      ? 'Welcome back'
-      : 'Create your Traverion account';
+    : linkPanel
+      ? 'Email sign-in'
+      : tab === 'signin'
+        ? 'Welcome back'
+        : 'Create your account';
   const subtitle = passwordResetPanel
     ? 'We will email a reset link if an account exists for that address.'
-    : intent === 'checkout' && tab === 'signin'
-      ? 'Log in to continue to checkout. Your selection stays on this page.'
-      : intent === 'checkout'
-        ? 'Create an account to continue to checkout. Your selection stays on this page.'
-        : tab === 'signin'
-          ? 'Log in to continue your journey.'
-          : 'Save your bookings and explore more experiences.';
+    : linkPanel
+      ? 'We will email a one-time link. No password needed.'
+      : intent === 'checkout' && tab === 'signin'
+        ? 'Log in to pay. Your dates and party stay on this page.'
+        : intent === 'checkout'
+          ? 'Create an account to pay. Your dates and party stay on this page.'
+          : tab === 'signin'
+            ? 'Log in to your trips and saved places.'
+            : 'One account for tours, stays, and the trips you save.';
 
   const needsResend =
     Boolean(successMessage) ||
@@ -241,7 +286,7 @@ export default function TravelerAuthForm({
 
   return (
     <div>
-      {passwordResetPanel ? null : (
+      {passwordResetPanel || linkPanel ? null : (
         <div className="tv-auth-tabs" role="tablist" aria-label="Account">
           <button type="button" role="tab" aria-selected={tab === 'signin'} onClick={() => switchTab('signin')}>
             Log in
@@ -256,10 +301,10 @@ export default function TravelerAuthForm({
         {title}
       </h2>
       <p className="mt-1.5 text-sm text-ink-muted leading-relaxed">{subtitle}</p>
-      {destinationHint && !passwordResetPanel ? (
+      {destinationHint && !passwordResetPanel && !linkPanel ? (
         <p className="mt-2 text-sm text-finland leading-relaxed">{destinationHint}</p>
       ) : null}
-      {showPartnerLink && !passwordResetPanel ? (
+      {showPartnerLink && !passwordResetPanel && !linkPanel ? (
         <p className="mt-2 text-xs text-ink-faint">
           Want to list experiences?{' '}
           <a href={supplierPortalLandingHref()} className="font-semibold text-finland hover:underline">
@@ -269,7 +314,63 @@ export default function TravelerAuthForm({
       ) : null}
 
       <div className="mt-4">
-        {passwordResetPanel ? (
+        {linkPanel ? (
+          <form
+            noValidate
+            className="tv-auth-fields space-y-3"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void sendMagicLink();
+            }}
+          >
+            {formError ? (
+              <NoticeCallout title="Could not continue" tone="danger">
+                {formError}
+              </NoticeCallout>
+            ) : null}
+            {successMessage ? (
+              <NoticeCallout title="Check your email" tone="success">
+                {successMessage}
+              </NoticeCallout>
+            ) : null}
+            <div>
+              <label className="tv-auth-label" htmlFor={`${idPrefix}-link-email`}>
+                Email address
+              </label>
+              <input
+                id={`${idPrefix}-link-email`}
+                className="tv-auth-input"
+                type="email"
+                name="email"
+                inputMode="email"
+                autoComplete="email"
+                autoCapitalize="none"
+                spellCheck={false}
+                placeholder="you@email.com"
+                value={email}
+                onChange={(event) => {
+                  setEmail(event.target.value);
+                  clearField('email');
+                }}
+              />
+              <FieldError id={`${idPrefix}-link-email-err`} message={fieldErrors.email} />
+            </div>
+            <button type="submit" className="tv-btn-primary w-full" disabled={linkSending}>
+              {linkSending ? 'Sending link…' : 'Send sign-in link'}
+            </button>
+            <button
+              type="button"
+              className="w-full text-sm font-semibold text-finland"
+              onClick={() => {
+                setLinkPanel(false);
+                setSuccessMessage(null);
+                setFieldErrors({});
+              }}
+            >
+              Use a password instead
+            </button>
+          </form>
+        ) : passwordResetPanel ? (
           <ForgotPasswordInline
             title="Reset your password"
             email={resetPasswordEmail}
@@ -455,6 +556,31 @@ export default function TravelerAuthForm({
               <FieldError id={`${idPrefix}-password-err`} message={fieldErrors.password} />
             </div>
 
+            {tab === 'signup' ? (
+              <label className="flex items-start gap-2.5 text-sm leading-relaxed text-ink-muted">
+                <input
+                  type="checkbox"
+                  className="mt-1 h-4 w-4 accent-[#003580]"
+                  checked={acceptedTerms}
+                  onChange={(event) => {
+                    setAcceptedTerms(event.target.checked);
+                    clearField('form');
+                  }}
+                />
+                <span>
+                  I agree to the{' '}
+                  <a href="/terms" className="font-semibold text-ink underline underline-offset-2">
+                    Terms
+                  </a>{' '}
+                  and{' '}
+                  <a href="/privacy" className="font-semibold text-ink underline underline-offset-2">
+                    Privacy Policy
+                  </a>
+                  .
+                </span>
+              </label>
+            ) : null}
+
             {needsResend ? (
               <button
                 type="button"
@@ -470,30 +596,69 @@ export default function TravelerAuthForm({
               {tab === 'signin' ? (submitting ? 'Logging in…' : 'Log in') : submitting ? 'Creating account…' : 'Create account'}
             </button>
 
-            {GOOGLE_AUTH_ENABLED ? (
-              <>
-                <div className="tv-auth-or" aria-hidden>
-                  <span />
-                  <span>OR</span>
-                  <span />
-                </div>
-                <button type="button" className="tv-auth-google">
-                  <GoogleMark />
-                  Continue with Google
-                </button>
-              </>
+            {tab === 'signin' ? (
+              <button
+                type="button"
+                className="w-full text-sm font-semibold text-finland"
+                onClick={() => {
+                  setLinkPanel(true);
+                  setSuccessMessage(null);
+                  setFieldErrors({});
+                }}
+              >
+                Email me a sign-in link
+              </button>
             ) : null}
-            <p className="text-center text-xs leading-relaxed text-ink-muted">
-              By continuing, you log in or sign up and accept our{' '}
-              <a href="/terms" className="whitespace-nowrap font-semibold text-ink underline underline-offset-2">
-                Terms
-              </a>{' '}
-              and{' '}
-              <a href="/privacy" className="whitespace-nowrap font-semibold text-ink underline underline-offset-2">
-                Privacy Policy
-              </a>
-              .
-            </p>
+
+            {GOOGLE_AUTH_ENABLED || APPLE_AUTH_ENABLED ? (
+              <div className="tv-auth-or" aria-hidden>
+                <span />
+                <span>OR</span>
+                <span />
+              </div>
+            ) : null}
+            {GOOGLE_AUTH_ENABLED ? (
+              <button
+                type="button"
+                className="tv-auth-google"
+                onClick={() =>
+                  void supabase?.auth.signInWithOAuth({
+                    provider: 'google',
+                    options: { redirectTo: travelerMagicLinkRedirect(afterConfirmNext, returnHref) },
+                  })
+                }
+              >
+                <GoogleMark />
+                Continue with Google
+              </button>
+            ) : null}
+            {APPLE_AUTH_ENABLED ? (
+              <button
+                type="button"
+                className="tv-auth-google"
+                onClick={() =>
+                  void supabase?.auth.signInWithOAuth({
+                    provider: 'apple',
+                    options: { redirectTo: travelerMagicLinkRedirect(afterConfirmNext, returnHref) },
+                  })
+                }
+              >
+                Continue with Apple
+              </button>
+            ) : null}
+            {tab === 'signin' ? (
+              <p className="text-center text-xs leading-relaxed text-ink-muted">
+                By logging in you agree to the{' '}
+                <a href="/terms" className="font-semibold text-ink underline underline-offset-2">
+                  Terms
+                </a>{' '}
+                and{' '}
+                <a href="/privacy" className="font-semibold text-ink underline underline-offset-2">
+                  Privacy Policy
+                </a>
+                .
+              </p>
+            ) : null}
           </form>
         )}
       </div>

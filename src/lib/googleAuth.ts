@@ -13,3 +13,10 @@
  *    with a same-origin redirect that returns the traveler to the page they left.
  */
 export const GOOGLE_AUTH_ENABLED = false;
+
+/**
+ * Apple sign-in stays off until Supabase has an Apple Services ID and key.
+ * Enable only after Auth → Providers → Apple is on, then set this flag
+ * and call `signInWithOAuth({ provider: 'apple' })` with the same redirect rules as Google.
+ */
+export const APPLE_AUTH_ENABLED = false;

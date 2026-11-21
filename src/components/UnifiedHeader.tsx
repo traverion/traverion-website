@@ -608,7 +608,7 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                       onNavigate('auth');
                       setIsMobileMenuOpen(false);
                     }}
-                    className="lux-flat w-full text-left px-4 py-3 rounded-lg text-ink hover:bg-black/[0.04] transition-colors duration-300 ease-lux flex items-center gap-2"
+                    className="tv-btn-primary w-full justify-center"
                   >
                     <User className="w-5 h-5" />
                     Log in / Sign up

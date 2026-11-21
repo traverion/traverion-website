@@ -110,6 +110,7 @@ export default function AuthModal() {
             onTabChange={setTab}
             intent={authIntent}
             afterConfirmNext="account"
+            returnHref={`${window.location.pathname}${window.location.search}`}
             showPartnerLink
             onAuthenticated={() => {
               void triggerAuthSuccess();
