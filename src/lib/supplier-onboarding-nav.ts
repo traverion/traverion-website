@@ -91,11 +91,11 @@ export function onboardingPopAction(input: {
   const named =
     raw === 'dob' || raw === 'director' || raw === 'ownership' || raw === 'share'
       ? 'person'
-      : raw === 'owner'
-        ? 'others'
-        : raw === 'consent'
-          ? 'status'
-          : raw;
+        : raw === 'owner'
+          ? 'others'
+          : raw === 'consent' || raw === 'terms'
+            ? 'bank'
+            : raw;
   if (named && ORDER.includes(named as SupplierOnboardingScreenId)) {
     return { type: 'stay', screen: named as SupplierOnboardingScreenId };
   }

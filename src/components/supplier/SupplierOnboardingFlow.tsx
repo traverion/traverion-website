@@ -240,11 +240,11 @@ export default function SupplierOnboardingFlow({
     const folded =
       requested === 'dob' || requested === 'director' || requested === 'ownership' || requested === 'share'
         ? 'person'
-        : requested === 'owner'
-          ? 'others'
-          : requested === 'consent'
-            ? 'status'
-            : requested;
+          : requested === 'owner'
+            ? 'others'
+            : requested === 'consent' || requested === 'terms'
+              ? 'bank'
+              : requested;
     const next = visible.includes(folded) || folded === 'company' || folded === 'documents' ? folded : visible[0] ?? 'company';
     const started = initialOnboardingJourney(visible, next);
     journeyRef.current = started;
@@ -678,6 +678,10 @@ export default function SupplierOnboardingFlow({
       return;
     }
     if (screen === 'bank') {
+      if (!iban.trim() && draft.bankSavedAt) {
+        await advance('bank');
+        return;
+      }
       const ibanError = validateIban(iban, normalizeCountryCode(profile?.address_country) || 'FI');
       if (ibanError) {
         setError(ibanError);
@@ -903,7 +907,7 @@ export default function SupplierOnboardingFlow({
       representativeName,
       consent: supplierTermsAccepted,
       termsAccepted: supplierTermsAccepted,
-      ibanPresent: iban.trim().length > 0,
+      ibanPresent: iban.trim().length > 0 || Boolean(draft.bankSavedAt),
       dateOfBirthPresent: Boolean(parsePayoutWizardDob(repDob)),
     });
     if (blocker) {
@@ -1081,7 +1085,7 @@ export default function SupplierOnboardingFlow({
         representativeName: [draft.rep_first_name, draft.rep_last_name].filter(Boolean).join(' ').trim(),
         consent: supplierTermsAccepted,
         termsAccepted: supplierTermsAccepted,
-        ibanPresent: iban.trim().length > 0,
+        ibanPresent: iban.trim().length > 0 || Boolean(draft.bankSavedAt),
         dateOfBirthPresent: Boolean(parsePayoutWizardDob(repDob)),
       })
     : null;
@@ -1338,7 +1342,7 @@ export default function SupplierOnboardingFlow({
               <ReviewSection title="Company" detail={[profile?.company_legal_name, profile?.company_registration_number, addressLine].filter(Boolean).join(' · ') || 'Not added yet'} onEdit={() => editStep('company')} />
               <ReviewSection title="Documents" detail={profile?.company_registration_document_path ? 'Registration extract uploaded' : 'Not uploaded'} onEdit={() => editStep('documents')} />
               <ReviewSection title="Identity" detail={[draft.rep_first_name, draft.rep_last_name].filter(Boolean).join(' ') || 'Not added yet'} onEdit={() => editStep('person')} />
-              <ReviewSection title="Payouts" detail={iban.trim() ? `IBAN ending ${iban.replace(/\s/g, '').slice(-4)}` : 'Not added yet'} onEdit={() => editStep('bank')} />
+              <ReviewSection title="Payouts" detail={iban.trim() ? `IBAN ending ${iban.replace(/\s/g, '').slice(-4)}` : draft.bankLast4 ? `Account ending ${draft.bankLast4}` : draft.bankSavedAt ? 'Payout account saved' : 'Not added yet'} onEdit={() => editStep('bank')} />
               <label className="supplier-onboarding-choice">
                 <input
                   type="checkbox"

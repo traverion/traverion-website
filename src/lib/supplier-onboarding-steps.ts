@@ -130,8 +130,8 @@ export function visibleSupplierOnboardingScreens(
   if (input.identityOpen) {
     ids.push('person');
     if (input.isCompany && !(input.owns && input.share === 100)) ids.push('others');
-  }
-  if (input.bankOpen) ids.push('bank');
+    ids.push('bank');
+  } else if (input.bankOpen) ids.push('bank');
   ids.push('status');
   return ids;
 }
@@ -229,10 +229,10 @@ export function screenFromOnboardingUrl(
       ? 'person'
       : raw === 'owner'
         ? 'others'
-        : raw === 'consent'
-          ? 'status'
+        : raw === 'consent' || raw === 'terms'
+          ? 'bank'
           : raw;
-  if (requested === 'documents' || requested === 'company') {
+  if (requested === 'documents' || requested === 'company' || requested === 'bank') {
     return requested;
   }
   if (requested && visible.includes(requested as SupplierOnboardingScreenId)) {

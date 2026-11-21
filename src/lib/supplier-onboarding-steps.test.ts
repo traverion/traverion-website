@@ -40,6 +40,19 @@ describe('supplier onboarding screens', () => {
     expect(visibleSupplierOnboardingScreens({ ...open, owns: true, share: 40 }).includes('others')).toBe(true);
   });
 
+  it('opens payouts after representative details even when no payout account exists', () => {
+    const screens = visibleSupplierOnboardingScreens({
+      ...open,
+      bankOpen: false,
+      termsOpen: false,
+      owns: true,
+      share: 100,
+    });
+    expect(screens[screens.indexOf('person') + 1]).toBe('bank');
+    expect(screens).not.toContain('consent');
+    expect(screenFromOnboardingUrl('?phase=representative&screen=consent', screens)).toBe('bank');
+  });
+
   it('keeps an extra owner on the other-owners screen', () => {
     expect(visibleSupplierOnboardingScreens({ ...open, others: true })).not.toContain('owner');
     expect(visibleSupplierOnboardingScreens({ ...open, others: true })).toContain('others');
@@ -84,6 +97,19 @@ describe('supplier onboarding screens', () => {
       )
     ).toEqual({ identityOpen: true, bankOpen: true, termsOpen: true });
     expect(requirementFlags(['external_account'], true).identityOpen).toBe(false);
+  });
+
+  it('saves the representative draft without opening a payout account', () => {
+    const flow = readFileSync('src/components/supplier/SupplierOnboardingFlow.tsx', 'utf8');
+    const person = flow.slice(flow.indexOf("if (screen === 'person')"), flow.indexOf("if (screen === 'others')"));
+    const others = flow.slice(flow.indexOf("if (screen === 'others')"), flow.indexOf("if (screen === 'bank')"));
+    expect(person).toMatch(/advance\('person'/);
+    expect(others).toMatch(/advance\('others'/);
+    expect(`${person}\n${others}`).not.toMatch(/ensure_account|submitIdentity|completeSetup|submit_business/);
+    const edge = readFileSync('supabase/functions/connect-supplier-onboarding/index.ts', 'utf8');
+    const draftSave = edge.slice(edge.indexOf("action === 'save_wizard_draft'"), edge.indexOf("action === 'status'"));
+    expect(draftSave).not.toMatch(/ensureConnectedAccount|syncAccount/);
+    expect(draftSave).toMatch(/success: true, action: 'save_wizard_draft'/);
   });
 
   it('asks Stripe for at most 20 people per page', () => {
