@@ -91,19 +91,19 @@ export function supplierVerificationState(
     hasAccount ||
     details;
 
+  const providerNeedsInput =
+    due.length > 0 ||
+    Boolean(feedback) ||
+    company === 'rejected' ||
+    connectStatus === 'restricted' ||
+    connectStatus === 'rejected';
+
   let status: SupplierVerificationStatus;
   if (payoutAccountVerified) status = 'verified';
   else if (!started) status = 'not_verified';
-  else if (
-    details &&
-    due.length === 0 &&
-    !feedback &&
-    connectStatus !== 'restricted' &&
-    connectStatus !== 'rejected' &&
-    company !== 'rejected'
-  ) {
-    status = 'verification_pending';
-  } else status = 'action_required';
+  else if (providerNeedsInput) status = 'action_required';
+  else if ((company === 'pending' && submittedForReview) || details) status = 'verification_pending';
+  else status = 'action_required';
 
   const copy = COPY[status];
   return {

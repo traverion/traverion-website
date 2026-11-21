@@ -44,6 +44,30 @@ describe('supplier verification state', () => {
     expect(view.requirements).toContain('Accept payout terms');
   });
 
+  it('stays pending after the supplier submits, before a payout account exists', () => {
+    const view = supplierVerificationState({
+      verification_status: 'pending',
+      verification_submitted_at: '2026-11-22T00:00:00.000Z',
+      company_legal_name: 'Nordic Oy',
+      connect_details_submitted: false,
+      connect_payouts_enabled: false,
+    });
+    expect(view.status).toBe('verification_pending');
+    expect(view.actionLabel).toBeNull();
+    expect(view.requirements).toEqual([]);
+  });
+
+  it('shows the staff reason when a submitted application needs a correction', () => {
+    const view = supplierVerificationState({
+      verification_status: 'rejected',
+      verification_submitted_at: '2026-11-22T00:00:00.000Z',
+      business_verification_feedback: 'Replace the registration document.',
+      company_legal_name: 'Nordic Oy',
+    });
+    expect(view.status).toBe('action_required');
+    expect(view.requirements[0]).toBe('Replace the registration document.');
+  });
+
   it('stays pending after submission until the payout account is approved', () => {
     const view = supplierVerificationState({
       ...verifiedAccount,
