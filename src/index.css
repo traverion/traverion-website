@@ -3134,7 +3134,7 @@ body[data-partner-overlay='1'] .partner-bottom-nav {
   height: 100%;
   border-radius: inherit;
   background: var(--lc-accent, #073b83);
-  transition: width 320ms var(--lc-ease, cubic-bezier(0.22, 1, 0.36, 1));
+  transition: width var(--tv-duration-page, 220ms) var(--lc-ease, cubic-bezier(0.22, 1, 0.36, 1));
 }
 
 @keyframes listing-creation-scene-in-forward {
@@ -3171,15 +3171,15 @@ body[data-partner-overlay='1'] .partner-bottom-nav {
 }
 
 .listing-creation-scene--forward {
-  animation: listing-creation-scene-in-forward 280ms var(--lc-ease, cubic-bezier(0.22, 1, 0.36, 1)) both;
+  animation: listing-creation-scene-in-forward var(--tv-duration-page, 220ms) var(--lc-ease, cubic-bezier(0.22, 1, 0.36, 1)) both;
 }
 
 .listing-creation-scene--back {
-  animation: listing-creation-scene-in-back 280ms var(--lc-ease, cubic-bezier(0.22, 1, 0.36, 1)) both;
+  animation: listing-creation-scene-in-back var(--tv-duration-page, 220ms) var(--lc-ease, cubic-bezier(0.22, 1, 0.36, 1)) both;
 }
 
 .listing-creation-scene > header {
-  animation: listing-creation-rise 320ms 40ms var(--lc-ease, cubic-bezier(0.22, 1, 0.36, 1)) both;
+  animation: listing-creation-rise var(--tv-duration-page, 220ms) var(--lc-ease, cubic-bezier(0.22, 1, 0.36, 1)) both;
 }
 
 .listing-creation-scene__body {
@@ -4147,7 +4147,7 @@ body[data-partner-overlay='1'] .partner-bottom-nav {
 /* Pointer devices only — avoid sticky hover lift on touch */
 @media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
   .tv-browse-card:hover {
-    transform: translateY(-2px);
+    transform: translateY(-1px);
   }
 
   .tv-browse-card:hover .tv-browse-card__surface {
@@ -4159,7 +4159,7 @@ body[data-partner-overlay='1'] .partner-bottom-nav {
   }
 
   .tv-dest-tile:hover {
-    transform: translateY(-2px);
+    transform: translateY(-1px);
   }
 }
 
@@ -4194,7 +4194,7 @@ body[data-partner-overlay='1'] .partner-bottom-nav {
 }
 
 .page-hero-content {
-  animation: fade-in-up 0.28s ease-out both;
+  animation: fade-in-up var(--tv-duration-page, 220ms) var(--tv-ease, ease-out) both;
 }
 
 /* Hero copy on photos: keep brand/title/subtitle white */
@@ -4315,7 +4315,7 @@ html {
 }
 
 .lux-page-enter--slide {
-  animation: lux-page-enter-slide 0.28s var(--lux-ease, cubic-bezier(0.22, 1, 0.36, 1));
+  animation: lux-page-enter-slide var(--tv-duration-page, 220ms) var(--lux-ease, cubic-bezier(0.22, 1, 0.36, 1));
 }
 
 /* Inbox ↔ Booking Details: main content only (sidebar/top nav stay put). */
@@ -4398,17 +4398,19 @@ html {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .lux-page-enter {
-    animation: lux-page-enter-subtle 0.22s ease-out both;
-  }
-  .page-hero-content {
-    animation: lux-page-enter-subtle 0.3s ease-out both;
-  }
+  .lux-page-enter,
+  .lux-page-enter--slide,
+  .page-hero-content,
   .animate-fade-in,
   .animate-fade-in-up,
   .animate-bounce-in,
-  .animate-scale-in {
+  .animate-scale-in,
+  .animate-pulse,
+  .stagger-item,
+  .listing-card,
+  .listing-card-image {
     animation: none;
+    transition: none;
   }
 }
 
@@ -4418,13 +4420,13 @@ input[type='submit']:not(:disabled):not(.no-lux-interaction),
 input[type='button']:not(:disabled):not(.no-lux-interaction),
 input[type='reset']:not(:disabled):not(.no-lux-interaction) {
   transition:
-    transform var(--lux-duration) var(--lux-ease),
-    box-shadow var(--lux-duration) var(--lux-ease),
-    filter 0.35s var(--lux-ease),
-    background-color 0.3s var(--lux-ease),
-    border-color 0.3s var(--lux-ease),
-    color 0.25s var(--lux-ease),
-    opacity 0.2s ease;
+    transform var(--tv-duration-hover, 140ms) var(--lux-ease),
+    box-shadow var(--tv-duration-hover, 140ms) var(--lux-ease),
+    filter var(--tv-duration-hover, 140ms) var(--lux-ease),
+    background-color var(--tv-duration-hover, 140ms) var(--lux-ease),
+    border-color var(--tv-duration-hover, 140ms) var(--lux-ease),
+    color var(--tv-duration-hover, 140ms) var(--lux-ease),
+    opacity var(--tv-duration-hover, 140ms) ease;
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -4459,16 +4461,16 @@ input.lux-flat:not(.partner-nav-item):active {
 /* Icon / compact header targets: subtle scale instead of lift */
 .lux-tap-target:not(:disabled) {
   transition:
-    transform 0.35s var(--lux-ease),
-    color 0.25s var(--lux-ease),
-    background-color 0.25s var(--lux-ease),
-    filter 0.25s ease;
+    transform var(--tv-duration-hover, 140ms) var(--lux-ease),
+    color var(--tv-duration-hover, 140ms) var(--lux-ease),
+    background-color var(--tv-duration-hover, 140ms) var(--lux-ease),
+    filter var(--tv-duration-hover, 140ms) ease;
 }
 
 @media (prefers-reduced-motion: no-preference) {
   .lux-tap-target:not(:disabled):hover {
-    transform: scale(1.04);
-    filter: brightness(1.05);
+    transform: scale(1.02);
+    filter: brightness(1.03);
   }
   .lux-tap-target:not(:disabled):active {
     transform: scale(0.97);
@@ -4480,18 +4482,18 @@ input.lux-flat:not(.partner-nav-item):active {
 a[href].inline-flex:not(.no-lux-interaction),
 a[href].flex:not(.no-lux-interaction) {
   transition:
-    transform var(--lux-duration) var(--lux-ease),
-    box-shadow var(--lux-duration) var(--lux-ease),
-    filter 0.35s var(--lux-ease),
-    background-color 0.3s var(--lux-ease),
-    border-color 0.3s var(--lux-ease),
-    color 0.25s var(--lux-ease);
+    transform var(--tv-duration-hover, 140ms) var(--lux-ease),
+    box-shadow var(--tv-duration-hover, 140ms) var(--lux-ease),
+    filter var(--tv-duration-hover, 140ms) var(--lux-ease),
+    background-color var(--tv-duration-hover, 140ms) var(--lux-ease),
+    border-color var(--tv-duration-hover, 140ms) var(--lux-ease),
+    color var(--tv-duration-hover, 140ms) var(--lux-ease);
 }
 
 @media (prefers-reduced-motion: no-preference) {
   a[href].inline-flex:not(.no-lux-interaction):not(.lux-flat):hover,
   a[href].flex:not(.no-lux-interaction):not(.lux-flat):hover {
-    transform: translateY(-2px);
+    transform: translateY(-1px);
     box-shadow: var(--lux-shadow-hover-sm);
     filter: brightness(1.02);
   }
@@ -4542,8 +4544,8 @@ a[href].flex:not(.no-lux-interaction) {
   position: relative;
   padding-bottom: 2px;
   transition:
-    color 0.35s var(--lux-ease),
-    transform 0.35s var(--lux-ease);
+    color var(--tv-duration-hover, 140ms) var(--lux-ease),
+    transform var(--tv-duration-hover, 140ms) var(--lux-ease);
 }
 
 .lux-nav-link::after {
@@ -4556,7 +4558,7 @@ a[href].flex:not(.no-lux-interaction) {
   background: currentColor;
   transform: scaleX(0);
   transform-origin: right center;
-  transition: transform 0.4s var(--lux-ease);
+  transition: transform var(--tv-duration-hover, 140ms) var(--lux-ease);
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -4751,25 +4753,27 @@ a:focus-visible,
 
 /* --- Listing / card animations (GetYourGuide, TripAdvisor, Airbnb style) --- */
 .listing-card {
-  transition: transform 0.25s ease-out, box-shadow 0.25s ease-out;
+  transition: transform var(--tv-duration-hover, 140ms) var(--tv-ease, ease-out), box-shadow var(--tv-duration-ui, 180ms) var(--tv-ease, ease-out);
 }
-.listing-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 12px 24px -8px rgba(0, 0, 0, 0.15), 0 4px 12px -4px rgba(0, 0, 0, 0.08);
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  .listing-card:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 12px 24px -8px rgba(0, 0, 0, 0.15), 0 4px 12px -4px rgba(0, 0, 0, 0.08);
+  }
+  .listing-card:hover .listing-card-image {
+    transform: scale(1.02);
+  }
 }
 
 .listing-card-image {
-  transition: transform 0.4s ease-out;
-}
-.listing-card:hover .listing-card-image {
-  transform: scale(1.03);
+  transition: transform var(--tv-duration-page, 220ms) var(--tv-ease, ease-out);
 }
 
 /* Staggered fade-in for listing grid */
 @keyframes listing-fade-in {
   from {
     opacity: 0;
-    transform: translateY(12px);
+    transform: translateY(6px);
   }
   to {
     opacity: 1;
@@ -4777,7 +4781,7 @@ a:focus-visible,
   }
 }
 .stagger-item {
-  animation: listing-fade-in 0.4s ease-out both;
+  animation: listing-fade-in var(--tv-duration-page, 220ms) var(--tv-ease, ease-out) both;
 }
 .stagger-item:nth-child(1) { animation-delay: 0.02s; }
 .stagger-item:nth-child(2) { animation-delay: 0.05s; }
@@ -5276,11 +5280,13 @@ a:focus-visible,
   --tv-ease: cubic-bezier(0.22, 1, 0.36, 1);
   --tv-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --tv-duration-micro: 140ms;
-  --tv-duration: 200ms;
+  --tv-duration: 180ms;
   --tv-duration-fast: 150ms;
-  --tv-duration-hover: 180ms;
-  --tv-duration-ui: 200ms;
-  --tv-duration-drawer: 240ms;
+  --tv-duration-hover: 140ms;
+  --tv-duration-ui: 180ms;
+  --tv-duration-menu: 180ms;
+  --tv-duration-page: 220ms;
+  --tv-duration-drawer: 220ms;
   /* Elevation 0–4 — soft, diffuse, role-based (do not stack nested heavy shadows) */
   --tv-elev-0: none;
   --tv-elev-1: 0 1px 2px rgba(15, 23, 42, 0.04), 0 0 0 1px rgba(28, 25, 23, 0.06);
@@ -6844,7 +6850,7 @@ details:not([open]) > :not(summary) {
     transform 150ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 .tv-review-journey__star:hover .tv-review-journey__star-icon {
-  transform: scale(1.08);
+  transform: scale(1.04);
 }
 .tv-review-journey__star-icon.is-filled {
   color: #073b83;

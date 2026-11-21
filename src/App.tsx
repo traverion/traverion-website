@@ -1164,7 +1164,7 @@ function App() {
               <UnifiedHeader currentPage={currentPage} onNavigate={handleNavigate} />
             )}
             <main id="main-content" tabIndex={-1} className="flex-grow min-w-0 outline-none">
-              <div key={currentPage} className="min-h-[min(50vh,480px)]">
+              <div key={currentPage} className="lux-page-enter min-h-[min(50vh,480px)]">
                 <ChunkLoadErrorBoundary resetKey={currentPage}>
                   <Suspense fallback={<RouteFallback />}>{renderPage()}</Suspense>
                 </ChunkLoadErrorBoundary>
