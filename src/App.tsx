@@ -8,7 +8,7 @@ import { SupplierAuthProvider } from './contexts/SupplierAuthContext';
 import { SupplierRoleProvider } from './contexts/SupplierRoleContext';
 import { AuthProvider } from './contexts/AuthContext';
 import AuthModal from './components/AuthModal';
-import TravelerToastHost from './components/TravelerToastHost';
+import AuthTransitionModal, { openVerifiedWelcome } from './components/AuthTransitionModal';
 import EmailVerifiedModal from './components/EmailVerifiedModal';
 import {
   setPageMetaWithOg,
@@ -70,7 +70,6 @@ import {
   type EmailVerifyNotice,
 } from './lib/emailVerifiedLanding';
 import { settleTravelerEmailConfirm } from './lib/settleTravelerEmailConfirm';
-import { armTravelerToast } from './lib/traveler-toast';
 import type { TourPackage as TourPackageType } from './types/tour';
 import { SkeletonCardGrid, SkeletonPageHero } from './components/ui/Skeleton';
 import { HERO_IMG } from './lib/heroImages';
@@ -317,7 +316,7 @@ function App() {
         clearEmailVerifyNotice();
         window.history.replaceState({}, '', '/');
         setCurrentPage('home');
-        armTravelerToast('welcome', 'home');
+        openVerifiedWelcome(() => setCurrentPage('home'));
         return;
       }
       show(notice);
@@ -1173,7 +1172,7 @@ function App() {
             <AuthModal page={currentPage} />
           </div>
         )}
-        {staffShell ? null : <TravelerToastHost page={currentPage} />}
+        {staffShell ? null : <AuthTransitionModal page={currentPage} onNavigate={handleNavigate} />}
         {emailVerifyNotice && !staffShell ? (
           <EmailVerifiedModal
             notice={emailVerifyNotice}

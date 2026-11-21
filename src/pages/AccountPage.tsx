@@ -13,7 +13,7 @@ import { SkeletonFormFields, SkeletonConsumerPage } from '../components/ui/Skele
 import { USER_ERROR, userFacingError } from '../lib/userFacingError';
 import ErrorState from '../components/ErrorState';
 import { travelerLoginHref } from '../lib/travelerAuthLinks';
-import { armTravelerToast } from '../lib/traveler-toast';
+import { beginAuthTransition, failAuthTransition, succeedAuthTransition } from '../lib/auth-transition';
 import { useAuth } from '../contexts/AuthContext';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { fetchMyBookings } from '../data/supabase-bookings';
@@ -375,10 +375,27 @@ export default function AccountPage({ onNavigate }: AccountPageProps) {
                   className="tv-account-security__btn lux-flat"
                   onClick={() => {
                     setSigningOut(true);
-                    void signOut().then(() => {
-                      armTravelerToast('logout', 'home');
-                      onNavigate('home');
+                    const transitionId = beginAuthTransition({
+                      intent: 'logout',
+                      title: 'Signing you out...',
+                      message: 'Ending this session.',
                     });
+                    void signOut()
+                      .then(() => {
+                        succeedAuthTransition(transitionId, {
+                          title: 'Successfully logged out.',
+                          message: 'See you on your next adventure.',
+                          page: 'home',
+                          navigate: () => {
+                            setSigningOut(false);
+                            onNavigate('home');
+                          },
+                        });
+                      })
+                      .catch(() => {
+                        setSigningOut(false);
+                        failAuthTransition(transitionId, 'Could not sign out. Try again.');
+                      });
                   }}
                 >
                   <LogOut className="h-4 w-4 shrink-0" aria-hidden />

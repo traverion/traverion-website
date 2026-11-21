@@ -15,7 +15,13 @@ import { splitTravelerFullName } from '../../lib/splitTravelerFullName';
 import { TRAVELER_PASSWORD_HINT, travelerPasswordError } from '../../lib/travelerPassword';
 import { APPLE_AUTH_ENABLED, GOOGLE_AUTH_ENABLED } from '../../lib/googleAuth';
 import { TRAVELER_MAGIC_LINK_REQUESTED, travelerMagicLinkRedirect } from '../../lib/travelerMagicLink';
-import { TRAVELER_CHECK_EMAIL } from '../../lib/traveler-toast';
+import {
+  beginAuthTransition,
+  checkEmailAuthTransition,
+  failAuthTransition,
+  peekAuthTransition,
+  succeedAuthTransition,
+} from '../../lib/auth-transition';
 import NoticeCallout from '../NoticeCallout';
 
 export type TravelerAuthTab = 'signin' | 'signup';
@@ -32,6 +38,7 @@ type Props = {
   /** Same-origin page to reopen after an email link, such as the checkout the guest already filled. */
   returnHref?: string | null;
   onAuthenticated: (kind: 'login' | 'welcome') => void;
+  destinationPage?: string;
   showPartnerLink?: boolean;
   destinationHint?: string | null;
   bannerError?: string | null;
@@ -100,6 +107,7 @@ export default function TravelerAuthForm({
   afterConfirmNext = 'account',
   returnHref = null,
   onAuthenticated,
+  destinationPage = 'home',
   showPartnerLink = false,
   destinationHint = null,
   bannerError = null,
@@ -170,17 +178,32 @@ export default function TravelerAuthForm({
       return;
     }
 
+    const busy = peekAuthTransition();
+    if (busy && (busy.phase === 'pending' || busy.phase === 'success')) return;
+
+    const transitionId = beginAuthTransition({
+      intent: tab === 'signin' ? 'login' : 'signup',
+      title: tab === 'signin' ? 'Signing you in...' : 'Creating your account...',
+      message: tab === 'signin' ? 'Checking your account.' : 'Setting things up.',
+    });
     setSubmitting(true);
     try {
       if (tab === 'signin') {
         const { error: err } = await signIn(trimmedEmail, password);
         if (err) {
-          setFieldErrors(serverMessageToFields(err));
+          const fields = serverMessageToFields(err);
+          setFieldErrors(fields);
+          failAuthTransition(transitionId, fields.form || fields.email || mapAuthError(err));
           return;
         }
         // Phase 1704: session must be readable before checkout onAuthenticated resumes Pay.
         if (supabase) await supabase.auth.getSession();
-        onAuthenticated('login');
+        succeedAuthTransition(transitionId, {
+          title: 'Welcome back!',
+          message: "You're signed in.",
+          page: destinationPage,
+          navigate: () => onAuthenticated('login'),
+        });
       } else {
         const name = splitTravelerFullName(fullName);
         const { error: err, hasSession } = await signUp(trimmedEmail, password, {
@@ -189,14 +212,28 @@ export default function TravelerAuthForm({
           afterConfirmNext,
         });
         if (err) {
-          setFieldErrors(serverMessageToFields(err));
+          const fields = serverMessageToFields(err);
+          setFieldErrors(fields);
+          failAuthTransition(transitionId, fields.form || fields.email || mapAuthError(err));
           return;
         }
         if (hasSession) {
           if (supabase) await supabase.auth.getSession();
-          onAuthenticated('welcome');
-        } else setSuccessMessage(TRAVELER_CHECK_EMAIL.message);
+          succeedAuthTransition(transitionId, {
+            title: 'Welcome to Traverion!',
+            message: 'Your account is ready. Start exploring.',
+            page: destinationPage,
+            navigate: () => onAuthenticated('welcome'),
+          });
+        } else {
+          checkEmailAuthTransition(transitionId, {
+            title: 'Check your email',
+            message: 'Open the confirmation link to finish creating your account. It is not active until you do.',
+          });
+        }
       }
+    } catch {
+      failAuthTransition(transitionId, 'Something went wrong. Try again.');
     } finally {
       setSubmitting(false);
     }
@@ -233,20 +270,34 @@ export default function TravelerAuthForm({
       setFieldErrors({ form: 'Email sign-in is not configured.' });
       return;
     }
-    setLinkSending(true);
-    const { error: err } = await supabase.auth.signInWithOtp({
-      email: trimmed,
-      options: {
-        shouldCreateUser: false,
-        emailRedirectTo: travelerMagicLinkRedirect(afterConfirmNext, returnHref),
-      },
+    const transitionId = beginAuthTransition({
+      intent: 'login',
+      title: 'Sending your sign-in link...',
+      message: 'One moment.',
     });
-    setLinkSending(false);
-    if (err && !/signups not allowed|user not found|otp_disabled/i.test(err.message)) {
-      setFieldErrors({ form: mapAuthError(err.message) });
-      return;
+    setLinkSending(true);
+    try {
+      const { error: err } = await supabase.auth.signInWithOtp({
+        email: trimmed,
+        options: {
+          shouldCreateUser: false,
+          emailRedirectTo: travelerMagicLinkRedirect(afterConfirmNext, returnHref),
+        },
+      });
+      if (err && !/signups not allowed|user not found|otp_disabled/i.test(err.message)) {
+        setFieldErrors({ form: mapAuthError(err.message) });
+        failAuthTransition(transitionId, mapAuthError(err.message));
+        return;
+      }
+      checkEmailAuthTransition(transitionId, {
+        title: 'Check your email',
+        message: TRAVELER_MAGIC_LINK_REQUESTED,
+      });
+    } catch {
+      failAuthTransition(transitionId, 'Something went wrong. Try again.');
+    } finally {
+      setLinkSending(false);
     }
-    setSuccessMessage(TRAVELER_MAGIC_LINK_REQUESTED);
   };
 
   const sendPasswordResetEmail = async (normalizedEmail: string): Promise<ForgotPasswordSendResult> => {
@@ -357,7 +408,7 @@ export default function TravelerAuthForm({
               <FieldError id={`${idPrefix}-link-email-err`} message={fieldErrors.email} />
             </div>
             <button type="submit" className="tv-btn-primary w-full" disabled={linkSending}>
-              {linkSending ? 'Sending link…' : 'Send sign-in link'}
+              Send sign-in link
             </button>
             <button
               type="button"
@@ -594,7 +645,7 @@ export default function TravelerAuthForm({
             ) : null}
 
             <button type="submit" className="tv-btn-primary w-full" disabled={submitting}>
-              {tab === 'signin' ? (submitting ? 'Logging in…' : 'Log in') : submitting ? 'Creating account…' : 'Create account'}
+              {tab === 'signin' ? 'Log in' : 'Create account'}
             </button>
 
             {tab === 'signin' ? (

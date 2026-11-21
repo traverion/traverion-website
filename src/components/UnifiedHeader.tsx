@@ -29,7 +29,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { BRAND_LOGO_SRC } from '../lib/brandAssets';
 import { supplierPortalLandingHref } from '../lib/partnerHost';
-import { armTravelerToast } from '../lib/traveler-toast';
+import { beginAuthTransition, failAuthTransition, succeedAuthTransition } from '../lib/auth-transition';
 import { travelerDisplayNameFromSources } from '../lib/traveler-display-name';
 import TravelerTestModeBanner from './TravelerTestModeBanner';
 import {
@@ -432,7 +432,21 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                           type="button"
                           onClick={() => {
                             setIsUserMenuOpen(false);
-                            void signOut().then(() => armTravelerToast('logout', currentPage));
+                            const transitionId = beginAuthTransition({
+                              intent: 'logout',
+                              title: 'Signing you out...',
+                              message: 'Ending this session.',
+                            });
+                            void signOut()
+                              .then(() => {
+                                succeedAuthTransition(transitionId, {
+                                  title: 'Successfully logged out.',
+                                  message: 'See you on your next adventure.',
+                                  page: 'home',
+                                  navigate: () => onNavigate('home'),
+                                });
+                              })
+                              .catch(() => failAuthTransition(transitionId, 'Could not sign out. Try again.'));
                           }}
                           className="lux-flat tv-profile-menu__item"
                         >
@@ -666,7 +680,21 @@ export default function UnifiedHeader({ currentPage, onNavigate }: UnifiedHeader
                       type="button"
                       onClick={() => {
                         setIsMobileMenuOpen(false);
-                        void signOut().then(() => armTravelerToast('logout', currentPage));
+                        const transitionId = beginAuthTransition({
+                          intent: 'logout',
+                          title: 'Signing you out...',
+                          message: 'Ending this session.',
+                        });
+                        void signOut()
+                          .then(() => {
+                            succeedAuthTransition(transitionId, {
+                              title: 'Successfully logged out.',
+                              message: 'See you on your next adventure.',
+                              page: 'home',
+                              navigate: () => onNavigate('home'),
+                            });
+                          })
+                          .catch(() => failAuthTransition(transitionId, 'Could not sign out. Try again.'));
                       }}
                       className="lux-flat tv-profile-menu__item w-full"
                     >

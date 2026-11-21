@@ -3,7 +3,6 @@ import { X } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useDialogFocus } from '../hooks/useDialogFocus';
 import TravelerAuthForm, { type TravelerAuthTab } from './auth/TravelerAuthForm';
-import { armTravelerToast } from '../lib/traveler-toast';
 
 const EXIT_MS = 200;
 
@@ -113,8 +112,8 @@ export default function AuthModal({ page }: { page: string }) {
             afterConfirmNext="account"
             returnHref={`${window.location.pathname}${window.location.search}`}
             showPartnerLink
-            onAuthenticated={(kind) => {
-              armTravelerToast(kind, page);
+            destinationPage={page}
+            onAuthenticated={() => {
               void triggerAuthSuccess();
             }}
           />
