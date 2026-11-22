@@ -48,7 +48,7 @@ import {
   PAYOUT_WIZARD_TOS_COPY,
   firstOutstandingWizardStep,
   payoutWizardStepIndex,
-  sanitizeOwnershipPercentInput,
+  nextOwnershipPercentInput,
   savePayoutWizardDraft,
   sumDeclaredOwnershipPercent,
   mergeServerPayoutWizardDraft,
@@ -199,7 +199,17 @@ function OwnershipPercentInput({
         inputMode="decimal"
         value={value}
         disabled={disabled}
-        onChange={(e) => onChange(sanitizeOwnershipPercentInput(e.target.value))}
+        onChange={(e) => {
+          const next = nextOwnershipPercentInput(value, e.target.value);
+          if (next.value === value) e.target.value = value;
+          onChange(next.value);
+        }}
+        onPaste={(e) => {
+          e.preventDefault();
+          const next = nextOwnershipPercentInput(value, e.clipboardData.getData('text'));
+          if (next.value === value) e.currentTarget.value = value;
+          onChange(next.value);
+        }}
         aria-label="Ownership percent"
       />
       <button type="button" aria-label="Increase ownership" disabled={disabled} onClick={() => bump(1)}>

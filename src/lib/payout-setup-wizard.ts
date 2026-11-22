@@ -677,7 +677,7 @@ export function toServerPayoutWizardDraft(draft: PayoutWizardDraft): Record<stri
       is_owner: draft.rep_is_owner,
       is_director: draft.rep_is_director,
       verification_consent: draft.verification_consent,
-      percent_ownership: draft.rep_percent_ownership,
+      percent_ownership: ownershipPercentForDraft(draft.rep_percent_ownership, draft.rep_is_owner),
       dob_year: dobYear(draft.rep_dob),
     },
     owners: draft.beneficial_owners.map((o) => ({
@@ -685,7 +685,7 @@ export function toServerPayoutWizardDraft(draft: PayoutWizardDraft): Record<stri
       first_name: o.first_name,
       last_name: o.last_name,
       email: o.email,
-      percent_ownership: o.percent_ownership,
+      percent_ownership: ownershipPercentForDraft(o.percent_ownership, true),
       dob_year: dobYear(o.dob),
     })),
     tos_accepted_intent: draft.tos_accepted,
@@ -930,14 +930,64 @@ export type PayoutWizardFieldErrors = Partial<
   >
 >;
 
-/** Normalize ownership input: digits + optional single decimal separator. */
+/** Digits and one decimal separator. Letters, signs, and extra dots are removed. */
 export function sanitizeOwnershipPercentInput(raw: string): string {
   const cleaned = raw.replace(/[^\d.,]/g, '').replace(/,/g, '.');
   const firstDot = cleaned.indexOf('.');
-  if (firstDot === -1) return cleaned.slice(0, 6);
-  const head = cleaned.slice(0, firstDot + 1);
-  const tail = cleaned.slice(firstDot + 1).replace(/\./g, '');
-  return `${head}${tail.slice(0, 2)}`.slice(0, 8);
+  const body =
+    firstDot === -1
+      ? cleaned
+      : `${cleaned.slice(0, firstDot)}.${cleaned.slice(firstDot + 1).replace(/\./g, '').slice(0, 2)}`;
+  const collapsed = body.replace(/^0+(?=\d)/, '');
+  const normalized = collapsed.startsWith('.') ? `0${collapsed}` : collapsed;
+  if (ownershipPercentWithinEntry(normalized)) return normalized;
+  for (let end = normalized.length - 1; end > 0; end -= 1) {
+    const prefix = normalized.slice(0, end).replace(/\.$/, '');
+    if (prefix && ownershipPercentWithinEntry(prefix)) return prefix;
+  }
+  return '';
+}
+
+/** True for an empty field, a trailing decimal, or a number from 0 through 100. */
+export function ownershipPercentWithinEntry(value: string): boolean {
+  if (!value || value === '.') return true;
+  const numeric = value.endsWith('.') ? value.slice(0, -1) : value;
+  if (!numeric) return true;
+  if (!/^\d+(\.\d{0,2})?$/.test(numeric)) return false;
+  const n = Number(numeric);
+  return Number.isFinite(n) && n >= 0 && n <= 100;
+}
+
+/**
+ * Next field value. Numbers above 100 stay out of the field.
+ * A complete 0 is kept visible so the greater-than-zero message can sit beside it.
+ */
+export function nextOwnershipPercentInput(
+  current: string,
+  raw: string
+): { value: string; error: string | null } {
+  const cleaned = sanitizeOwnershipPercentInput(raw);
+  const attempted = raw.replace(/[^\d.,]/g, '').replace(/,/g, '.').replace(/^0+(?=\d)/, '');
+  const numeric = attempted.endsWith('.') ? attempted.slice(0, -1) : attempted;
+  if (numeric && /^\d+(\.\d+)?$/.test(numeric) && Number(numeric) > 100) {
+    return { value: current, error: 'Ownership cannot be more than 100%.' };
+  }
+  if (!cleaned && /[a-z]/i.test(raw)) {
+    return { value: current, error: 'Use numbers only (for example 25 or 25.5).' };
+  }
+  const complete = parseOwnershipPercent(cleaned);
+  if (complete != null && complete <= 0) {
+    return { value: cleaned, error: 'Enter an ownership percentage greater than 0 and up to 100.' };
+  }
+  return { value: cleaned, error: null };
+}
+
+/** Stored share when this person owns part of the company. Invalid values are omitted. */
+export function ownershipPercentForDraft(raw: string | null | undefined, isOwner: boolean): string {
+  if (!isOwner) return '';
+  const n = parseOwnershipPercent(raw);
+  if (n == null || n <= 0 || n > 100) return '';
+  return String(n);
 }
 
 /**
@@ -959,17 +1009,23 @@ export function validateOwnershipPercent(
   opts?: { required?: boolean }
 ): string | null {
   const t = (raw ?? '').trim();
-  if (!t) {
-    return opts?.required ? 'Enter an ownership percentage from 0 to 100.' : null;
+  if (!t || t === '.') {
+    return opts?.required ? 'Enter an ownership percentage greater than 0 and up to 100.' : null;
   }
   if (/[^\d.,]/.test(t)) {
     return 'Use numbers only (for example 25 or 25.5).';
+  }
+  if (t.endsWith('.')) {
+    return opts?.required ? 'Enter an ownership percentage greater than 0 and up to 100.' : null;
   }
   const n = parseOwnershipPercent(t);
   if (n == null) {
     if (Number(t.replace(',', '.')) < 0) return 'Ownership cannot be negative.';
     if (Number(t.replace(',', '.')) > 100) return 'Ownership cannot be more than 100%.';
-    return 'Enter a valid ownership percentage from 0 to 100.';
+    return 'Enter an ownership percentage greater than 0 and up to 100.';
+  }
+  if (opts?.required && n <= 0) {
+    return 'Enter an ownership percentage greater than 0 and up to 100.';
   }
   return null;
 }

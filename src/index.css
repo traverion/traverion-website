@@ -10339,6 +10339,27 @@ details:not([open]) > :not(summary) {
   animation: supplier-field-invalid 180ms ease;
 }
 
+.supplier-onboarding-percent {
+  position: relative;
+  display: flex;
+  align-items: center;
+  max-width: 8.5rem;
+}
+
+.supplier-onboarding-percent .tv-input {
+  padding-right: 1.7rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.supplier-onboarding-percent__suffix {
+  position: absolute;
+  right: 0.75rem;
+  color: #71717a;
+  font-size: 0.875rem;
+  font-weight: 600;
+  pointer-events: none;
+}
+
 .supplier-onboarding-field__error {
   margin: 0.35rem 0 0;
   color: #b42318;

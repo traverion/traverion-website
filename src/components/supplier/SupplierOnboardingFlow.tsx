@@ -43,6 +43,8 @@ import {
   emptyPayoutWizardDraft,
   loadPayoutWizardDraft,
   mergeServerPayoutWizardDraft,
+  nextOwnershipPercentInput,
+  ownershipPercentForDraft,
   parseOwnershipPercent,
   parsePayoutWizardDob,
   savePayoutWizardDraft,
@@ -758,11 +760,7 @@ export default function SupplierOnboardingFlow({
       const errors: Record<string, string> = {};
       if (isCompany && draft.rep_is_owner) {
         const percentErr = validateOwnershipPercent(draft.rep_percent_ownership, { required: true });
-        if (percentErr === 'Use numbers only (for example 25 or 25.5).' || percentErr === 'Ownership cannot be more than 100%.' || percentErr === 'Ownership cannot be negative.') {
-          errors['rep-share'] = percentErr;
-        } else if (percentErr || share == null || share <= 0) {
-          errors['rep-share'] = 'Enter a share between 1 and 100.';
-        }
+        if (percentErr) errors['rep-share'] = percentErr;
       }
       if (Object.keys(errors).length > 0) {
         revealFieldErrors(errors);
@@ -773,7 +771,7 @@ export default function SupplierOnboardingFlow({
         ...draftRef.current,
         rep_is_director: draft.rep_is_director,
         rep_is_owner: draft.rep_is_owner,
-        rep_percent_ownership: draft.rep_percent_ownership,
+        rep_percent_ownership: ownershipPercentForDraft(draft.rep_percent_ownership, draft.rep_is_owner),
         representativeSavedAt: new Date().toISOString(),
       };
       draftRef.current = updated;
@@ -797,7 +795,9 @@ export default function SupplierOnboardingFlow({
         if (!owner.first_name.trim()) errors['owner-first'] = 'Enter the first name.';
         if (!owner.last_name.trim()) errors['owner-last'] = 'Enter the last name.';
         if (dobErr) errors['owner-dob'] = dobErr;
-        if (percentErr) errors['owner-share'] = percentErr;
+        if (percentErr || parseOwnershipPercent(owner.percent_ownership) == null || (parseOwnershipPercent(owner.percent_ownership) ?? 0) <= 0) {
+          errors['owner-share'] = percentErr ?? 'Enter an ownership percentage greater than 0 and up to 100.';
+        }
         if (Object.keys(errors).length > 0) {
           revealFieldErrors(errors);
           return;
@@ -809,7 +809,7 @@ export default function SupplierOnboardingFlow({
               emptyBeneficialOwner({
                 first_name: owner.first_name.trim(),
                 last_name: owner.last_name.trim(),
-                percent_ownership: owner.percent_ownership,
+                percent_ownership: ownershipPercentForDraft(owner.percent_ownership, true),
                 dob: '',
               }),
             ],
@@ -1447,21 +1447,28 @@ export default function SupplierOnboardingFlow({
                   onChange={(yes) => {
                     draftEdited.current = true;
                     if (!yes) clearFieldError('rep-share');
-                    setDraft((current) => ({ ...current, rep_is_owner: yes }));
+                    setDraft((current) => ({
+                      ...current,
+                      rep_is_owner: yes,
+                      rep_percent_ownership: yes ? current.rep_percent_ownership : '',
+                    }));
                   }}
                 />
               </div>
               {draft.rep_is_owner ? (
                 <OnboardingField id="rep-share" label="Ownership percent" help="The share of the company this person owns. Use 100 if they own it outright." error={fieldErrors['rep-share']} className="supplier-onboarding-field--short">
-                  <input
-                    className="tv-input"
-                    inputMode="decimal"
+                  <OwnershipPercentField
                     value={draft.rep_percent_ownership}
-                    aria-invalid={Boolean(fieldErrors['rep-share']) || undefined}
-                    onChange={(event) => {
+                    invalid={Boolean(fieldErrors['rep-share'])}
+                    onChange={(next, error) => {
                       draftEdited.current = true;
-                      clearFieldError('rep-share');
-                      setDraft((current) => ({ ...current, rep_percent_ownership: event.target.value }));
+                      setFieldErrors((current) => {
+                        const updated = { ...current };
+                        if (error) updated['rep-share'] = error;
+                        else delete updated['rep-share'];
+                        return updated;
+                      });
+                      setDraft((current) => ({ ...current, rep_percent_ownership: next }));
                     }}
                   />
                 </OnboardingField>
@@ -1493,7 +1500,19 @@ export default function SupplierOnboardingFlow({
                     <DateOfBirthPicker value={owner.dob} onChange={(value) => { clearFieldError('owner-dob'); setOwner((current) => ({ ...current, dob: value })); }} required />
                   </OnboardingField>
                   <OnboardingField id="owner-share" label="Ownership percent" help="The share of the company this person owns." error={fieldErrors['owner-share']} className="supplier-onboarding-field--short">
-                    <input className="tv-input" inputMode="decimal" value={owner.percent_ownership} aria-invalid={Boolean(fieldErrors['owner-share']) || undefined} onChange={(event) => { clearFieldError('owner-share'); setOwner((current) => ({ ...current, percent_ownership: event.target.value })); }} />
+                    <OwnershipPercentField
+                      value={owner.percent_ownership}
+                      invalid={Boolean(fieldErrors['owner-share'])}
+                      onChange={(next, error) => {
+                        setFieldErrors((current) => {
+                          const updated = { ...current };
+                          if (error) updated['owner-share'] = error;
+                          else delete updated['owner-share'];
+                          return updated;
+                        });
+                        setOwner((current) => ({ ...current, percent_ownership: next }));
+                      }}
+                    />
                   </OnboardingField>
                 </>
               ) : null}
@@ -1617,6 +1636,41 @@ function FieldHelp({ label, text }: { label: string; text: string }) {
         {text}
       </span>
     </button>
+  );
+}
+
+function OwnershipPercentField({
+  value,
+  invalid,
+  onChange,
+}: {
+  value: string;
+  invalid?: boolean;
+  onChange: (next: string, error: string | null) => void;
+}) {
+  const apply = (raw: string, input?: HTMLInputElement) => {
+    const next = nextOwnershipPercentInput(value, raw);
+    if (input && next.value === value) input.value = value;
+    onChange(next.value, next.error);
+  };
+  return (
+    <div className="supplier-onboarding-percent">
+      <input
+        className="tv-input"
+        inputMode="decimal"
+        autoComplete="off"
+        value={value}
+        aria-invalid={invalid || undefined}
+        onChange={(event) => apply(event.target.value, event.target)}
+        onPaste={(event) => {
+          event.preventDefault();
+          apply(event.clipboardData.getData('text'), event.currentTarget);
+        }}
+      />
+      <span className="supplier-onboarding-percent__suffix" aria-hidden>
+        %
+      </span>
+    </div>
   );
 }
 

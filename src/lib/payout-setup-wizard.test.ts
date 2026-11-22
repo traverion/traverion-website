@@ -13,6 +13,8 @@ import {
   payoutVerificationPresentation,
   payoutWizardStepForRequirement,
   sanitizeDevicePayoutWizardDraft,
+  nextOwnershipPercentInput,
+  ownershipPercentForDraft,
   sanitizeOwnershipPercentInput,
   sumDeclaredOwnershipPercent,
   summarizePayoutWizardLocalProgress,
@@ -92,9 +94,39 @@ describe('ownership percent validation', () => {
   });
 
   it('sanitizes input to digits and one decimal', () => {
-    expect(sanitizeOwnershipPercentInput('12a3')).toBe('123');
+    expect(sanitizeOwnershipPercentInput('12a3')).toBe('12');
     expect(sanitizeOwnershipPercentInput('12.3.4')).toBe('12.34');
     expect(sanitizeOwnershipPercentInput('50%')).toBe('50');
+    expect(sanitizeOwnershipPercentInput('-5')).toBe('5');
+    expect(sanitizeOwnershipPercentInput('33,5')).toBe('33.5');
+    expect(sanitizeOwnershipPercentInput('100')).toBe('100');
+    expect(sanitizeOwnershipPercentInput('100.5')).toBe('100');
+    expect(sanitizeOwnershipPercentInput('0')).toBe('0');
+    expect(sanitizeOwnershipPercentInput('0.5')).toBe('0.5');
+  });
+
+  it('keeps an over-cap keystroke out of the field and requires a share above 0', () => {
+    expect(nextOwnershipPercentInput('100', '1001')).toEqual({
+      value: '100',
+      error: 'Ownership cannot be more than 100%.',
+    });
+    expect(nextOwnershipPercentInput('', '33.5%')).toEqual({ value: '33.5', error: null });
+    expect(nextOwnershipPercentInput('40', 'abc')).toEqual({
+      value: '40',
+      error: 'Use numbers only (for example 25 or 25.5).',
+    });
+    expect(nextOwnershipPercentInput('', '0')).toEqual({
+      value: '0',
+      error: 'Enter an ownership percentage greater than 0 and up to 100.',
+    });
+    expect(nextOwnershipPercentInput('', '-1')).toEqual({ value: '1', error: null });
+    expect(validateOwnershipPercent('0', { required: true })).toMatch(/greater than 0/);
+    expect(validateOwnershipPercent('100', { required: true })).toBeNull();
+    expect(validateOwnershipPercent('33.5', { required: true })).toBeNull();
+    expect(ownershipPercentForDraft('33.5', true)).toBe('33.5');
+    expect(ownershipPercentForDraft('0', true)).toBe('');
+    expect(ownershipPercentForDraft('150', true)).toBe('');
+    expect(ownershipPercentForDraft('33.5', false)).toBe('');
   });
 
   it('requires ownership when representative is an owner', () => {

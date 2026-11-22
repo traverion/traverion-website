@@ -514,7 +514,17 @@ serve(async (req) => {
           };
     }
 
-    /** Strip secrets before persisting — never store IBAN, tokens, or full DOB. */
+    /** A saved share is greater than 0 and at most 100, with at most two decimal places. */
+    function draftOwnershipPercent(value: unknown, active: boolean): string {
+      if (!active || typeof value !== 'string') return '';
+      const t = value.trim().replace(',', '.');
+      if (!/^\d+(\.\d{1,2})?$/.test(t)) return '';
+      const n = Number(t);
+      if (!Number.isFinite(n) || n <= 0 || n > 100) return '';
+      return String(n);
+    }
+
+    /** Strip secrets before persisting — never store IBAN, tokens, full DOB, or an invalid share. */
     function sanitizeWizardDraft(raw: unknown): Record<string, unknown> {
       if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
       const src = raw as Record<string, unknown>;
@@ -553,8 +563,7 @@ serve(async (req) => {
           is_owner: Boolean(repIn.is_owner),
           is_director: Boolean(repIn.is_director),
           verification_consent: Boolean(repIn.verification_consent),
-          percent_ownership:
-            typeof repIn.percent_ownership === 'string' ? repIn.percent_ownership.slice(0, 8) : '',
+          percent_ownership: draftOwnershipPercent(repIn.percent_ownership, Boolean(repIn.is_owner)),
           dob_year: redactDobYear(repIn.dob_year ?? repIn.dob),
         },
         owners: ownersIn.slice(0, 8).map((owner) => {
@@ -567,8 +576,7 @@ serve(async (req) => {
             first_name: typeof o.first_name === 'string' ? o.first_name.slice(0, 80) : '',
             last_name: typeof o.last_name === 'string' ? o.last_name.slice(0, 80) : '',
             email: typeof o.email === 'string' ? o.email.slice(0, 120) : '',
-            percent_ownership:
-              typeof o.percent_ownership === 'string' ? o.percent_ownership.slice(0, 8) : '',
+            percent_ownership: draftOwnershipPercent(o.percent_ownership, true),
             dob_year: redactDobYear(o.dob_year ?? o.dob),
           };
         }),
@@ -1596,9 +1604,24 @@ serve(async (req) => {
         return json({ success: false, error: 'Enter a valid email address' }, 400);
       }
       const ownership = r.relationship?.percent_ownership;
+      const ownershipNumber = ownership == null || ownership === '' ? null : Number(ownership);
+      const ownerClaim = Boolean(r.relationship?.owner);
       if (
-        ownership != null &&
-        (!Number.isFinite(Number(ownership)) || Number(ownership) < 0 || Number(ownership) > 100)
+        ownerClaim &&
+        (ownershipNumber == null ||
+          !Number.isFinite(ownershipNumber) ||
+          ownershipNumber <= 0 ||
+          ownershipNumber > 100)
+      ) {
+        return json(
+          { success: false, error: 'Enter an ownership percentage greater than 0 and up to 100.' },
+          400
+        );
+      }
+      if (
+        !ownerClaim &&
+        ownershipNumber != null &&
+        (!Number.isFinite(ownershipNumber) || ownershipNumber < 0 || ownershipNumber > 100)
       ) {
         return json({ success: false, error: 'Ownership percent must be between 0 and 100' }, 400);
       }
@@ -1630,7 +1653,7 @@ serve(async (req) => {
               executive: r.relationship?.executive !== false,
               director: Boolean(r.relationship?.director),
               owner: ownerDeclared,
-              percent_ownership: ownership != null ? Number(ownership) : undefined,
+              percent_ownership: ownerClaim ? ownershipNumber ?? undefined : undefined,
               title: r.title?.trim() || 'Representative',
             },
           }),
@@ -1676,11 +1699,8 @@ serve(async (req) => {
           representative: true,
           executive: r.relationship?.executive !== false,
           director: Boolean(r.relationship?.director),
-          owner: Boolean(r.relationship?.owner),
-          percent_ownership:
-            r.relationship?.percent_ownership != null
-              ? Number(r.relationship.percent_ownership)
-              : undefined,
+          owner: ownerClaim,
+          percent_ownership: ownerClaim ? ownershipNumber ?? undefined : undefined,
           title: r.title?.trim() || 'Representative',
         },
       };
@@ -1736,10 +1756,10 @@ serve(async (req) => {
           o.percent_ownership != null && Number.isFinite(Number(o.percent_ownership))
             ? Number(o.percent_ownership)
             : null;
-        if (ownership == null || ownership < 0 || ownership > 100) {
+        if (ownership == null || ownership <= 0 || ownership > 100) {
           return json({
             success: false,
-            error: 'Each beneficial owner needs an ownership percentage from 0 to 100.',
+            error: 'Each beneficial owner needs an ownership percentage greater than 0 and up to 100.',
           }, 400);
         }
         const dob = o.dob;
