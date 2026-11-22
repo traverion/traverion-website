@@ -89,8 +89,10 @@ export function onboardingPopAction(input: {
   const params = new URLSearchParams(input.search.startsWith('?') ? input.search.slice(1) : input.search);
   const raw = params.get('screen');
   const named =
-    raw === 'dob' || raw === 'director' || raw === 'ownership' || raw === 'share'
+    raw === 'dob'
       ? 'person'
+      : raw === 'ownership' || raw === 'share'
+        ? 'director'
         : raw === 'owner'
           ? 'others'
           : raw === 'consent' || raw === 'terms'

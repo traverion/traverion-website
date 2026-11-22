@@ -29,6 +29,7 @@ describe('supplier onboarding screens', () => {
       'company',
       'address',
       'person',
+      'director',
       'others',
       'bank',
       'status',
@@ -49,7 +50,8 @@ describe('supplier onboarding screens', () => {
       owns: true,
       share: 100,
     });
-    expect(screens[screens.indexOf('person') + 1]).toBe('bank');
+    expect(screens[screens.indexOf('person') + 1]).toBe('director');
+    expect(screens[screens.indexOf('director') + 1]).toBe('bank');
     expect(screens).not.toContain('consent');
     expect(screenFromOnboardingUrl('?phase=representative&screen=consent', screens)).toBe('bank');
   });
@@ -72,6 +74,7 @@ describe('supplier onboarding screens', () => {
   it('resumes the requested screen', () => {
     const visible = visibleSupplierOnboardingScreens(open);
     expect(screenFromOnboardingUrl('?phase=representative&screen=dob', visible)).toBe('person');
+    expect(screenFromOnboardingUrl('?phase=representative&screen=ownership', visible)).toBe('director');
     expect(screenFromOnboardingUrl('?phase=payout', visible)).toBe('bank');
   });
 
@@ -87,7 +90,7 @@ describe('supplier onboarding screens', () => {
 
   it('numbers screens inside their group', () => {
     const visible = visibleSupplierOnboardingScreens(open);
-    expect(onboardingGroupProgress(visible, 'person')).toEqual({ group: 'Identity', index: 1, total: 2 });
+    expect(onboardingGroupProgress(visible, 'person')).toEqual({ group: 'Identity', index: 1, total: 3 });
   });
 
   it('reads open Stripe requirements', () => {
@@ -105,6 +108,7 @@ describe('supplier onboarding screens', () => {
     const person = flow.slice(flow.indexOf("if (screen === 'person')"), flow.indexOf("if (screen === 'others')"));
     const others = flow.slice(flow.indexOf("if (screen === 'others')"), flow.indexOf("if (screen === 'bank')"));
     expect(person).toMatch(/advance\('person'/);
+    expect(person).toMatch(/advance\('director'/);
     expect(others).toMatch(/advance\('others'/);
     expect(`${person}\n${others}`).not.toMatch(/ensure_account|submitIdentity|completeSetup|submit_business/);
     const edge = readFileSync('supabase/functions/connect-supplier-onboarding/index.ts', 'utf8');

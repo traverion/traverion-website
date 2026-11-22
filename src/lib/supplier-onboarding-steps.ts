@@ -29,7 +29,7 @@ export const SUPPLIER_ONBOARDING_SCREENS = [
     id: 'person',
     group: 'Identity',
     phase: 'representative',
-    title: 'Representative details',
+    title: 'Personal details',
     body: 'The person who legally represents the business. The date of birth is used for verification and is not kept by Traverion.',
   },
   {
@@ -43,8 +43,8 @@ export const SUPPLIER_ONBOARDING_SCREENS = [
     id: 'director',
     group: 'Identity',
     phase: 'representative',
-    title: 'Is this person a director?',
-    body: 'A director is named on the company record.',
+    title: 'Role and ownership',
+    body: 'Whether this person is a director, and whether they own part of the company.',
   },
   {
     id: 'ownership',
@@ -136,6 +136,7 @@ export function visibleSupplierOnboardingScreens(
   if (!input.hasRegistrationFile || input.businessRejected) ids.push('documents');
   if (input.identityOpen) {
     ids.push('person');
+    if (input.isCompany) ids.push('director');
     if (input.isCompany && !(input.owns && input.share === 100)) ids.push('others');
     ids.push('bank');
   } else if (input.bankOpen) ids.push('bank');
@@ -232,13 +233,15 @@ export function screenFromOnboardingUrl(
   const params = new URLSearchParams(search.startsWith('?') ? search.slice(1) : search);
   const raw = params.get('screen');
   const requested =
-    raw === 'dob' || raw === 'director' || raw === 'ownership' || raw === 'share'
+    raw === 'dob'
       ? 'person'
-      : raw === 'owner'
-        ? 'others'
-        : raw === 'consent' || raw === 'terms'
-          ? 'bank'
-          : raw;
+      : raw === 'ownership' || raw === 'share'
+        ? 'director'
+        : raw === 'owner'
+          ? 'others'
+          : raw === 'consent' || raw === 'terms'
+            ? 'bank'
+            : raw;
   if (requested === 'documents' || requested === 'company' || requested === 'bank') {
     return requested;
   }

@@ -697,6 +697,15 @@ export default function SupplierOnboardingFlow({
       if (!draft.rep_last_name.trim()) errors['rep-last'] = 'Enter the last name.';
       const dobErr = validateIsoDob(repDob, { required: true });
       if (dobErr) errors['rep-dob'] = dobErr;
+      if (Object.keys(errors).length > 0) {
+        revealFieldErrors(errors);
+        return;
+      }
+      await advance('person');
+      return;
+    }
+    if (screen === 'director') {
+      const errors: Record<string, string> = {};
       if (isCompany && draft.rep_is_owner) {
         const percentErr = validateOwnershipPercent(draft.rep_percent_ownership, { required: true });
         if (percentErr || share == null || share <= 0) errors['rep-share'] = percentErr ?? 'Enter a share between 1 and 100.';
@@ -706,7 +715,7 @@ export default function SupplierOnboardingFlow({
         return;
       }
       if (isCompany && draft.rep_is_owner && share === 100) setOthers(false);
-      await advance('person', {
+      await advance('director', {
         owns: draft.rep_is_owner,
         share,
         others: isCompany && draft.rep_is_owner && share === 100 ? false : others,
@@ -1350,42 +1359,46 @@ export default function SupplierOnboardingFlow({
               <OnboardingField id="rep-dob" label="Date of birth" help="Used to confirm this person. Traverion does not keep the date." error={fieldErrors['rep-dob']} className="supplier-onboarding-grid__wide">
                 <DateOfBirthPicker value={repDob} onChange={(value) => { clearFieldError('rep-dob'); setRepDob(value); }} required />
               </OnboardingField>
-              {isCompany ? (
-                <>
-                  <div className="supplier-onboarding-grid__wide">
-                    <p className="supplier-onboarding-field__label">Is this person a director?</p>
-                    <Choice
-                      value={draft.rep_is_director ? 'yes' : 'no'}
-                      yes="Yes, a director"
-                      no="No"
-                      onChange={(yes) => { draftEdited.current = true; setDraft((current) => ({ ...current, rep_is_director: yes })); }}
-                    />
-                  </div>
-                  <div className="supplier-onboarding-grid__wide">
-                    <p className="supplier-onboarding-field__label">Do they own part of the company?</p>
-                    <Choice
-                      value={draft.rep_is_owner ? 'yes' : 'no'}
-                      yes="Yes, they own a share"
-                      no="No"
-                      onChange={(yes) => { draftEdited.current = true; setDraft((current) => ({ ...current, rep_is_owner: yes })); }}
-                    />
-                  </div>
-                  {draft.rep_is_owner ? (
-                    <OnboardingField id="rep-share" label="Ownership percent" help="The share of the company this person owns. Use 100 if they own it outright." error={fieldErrors['rep-share']} className="supplier-onboarding-field--short">
-                      <input
-                        className="tv-input"
-                        inputMode="decimal"
-                        value={draft.rep_percent_ownership}
-                        aria-invalid={Boolean(fieldErrors['rep-share']) || undefined}
-                        onChange={(event) => {
-                          draftEdited.current = true;
-                          clearFieldError('rep-share');
-                          setDraft((current) => ({ ...current, rep_percent_ownership: event.target.value }));
-                        }}
-                      />
-                    </OnboardingField>
-                  ) : null}
-                </>
+            </div>
+          ) : null}
+          {screen === 'director' ? (
+            <div className="supplier-onboarding-grid">
+              <div className="supplier-onboarding-grid__wide" data-field="rep-director">
+                <p className="supplier-onboarding-field__label">Is this person a director?</p>
+                <Choice
+                  value={draft.rep_is_director ? 'yes' : 'no'}
+                  yes="Yes, a director"
+                  no="No"
+                  onChange={(yes) => { draftEdited.current = true; setDraft((current) => ({ ...current, rep_is_director: yes })); }}
+                />
+              </div>
+              <div className="supplier-onboarding-grid__wide" data-field="rep-owner">
+                <p className="supplier-onboarding-field__label">Do they own part of the company?</p>
+                <Choice
+                  value={draft.rep_is_owner ? 'yes' : 'no'}
+                  yes="Yes, they own a share"
+                  no="No"
+                  onChange={(yes) => {
+                    draftEdited.current = true;
+                    if (!yes) clearFieldError('rep-share');
+                    setDraft((current) => ({ ...current, rep_is_owner: yes }));
+                  }}
+                />
+              </div>
+              {draft.rep_is_owner ? (
+                <OnboardingField id="rep-share" label="Ownership percent" help="The share of the company this person owns. Use 100 if they own it outright." error={fieldErrors['rep-share']} className="supplier-onboarding-field--short">
+                  <input
+                    className="tv-input"
+                    inputMode="decimal"
+                    value={draft.rep_percent_ownership}
+                    aria-invalid={Boolean(fieldErrors['rep-share']) || undefined}
+                    onChange={(event) => {
+                      draftEdited.current = true;
+                      clearFieldError('rep-share');
+                      setDraft((current) => ({ ...current, rep_percent_ownership: event.target.value }));
+                    }}
+                  />
+                </OnboardingField>
               ) : null}
             </div>
           ) : null}
@@ -1589,10 +1602,11 @@ function Choice({
           <button
             key={isYes ? 'yes' : 'no'}
             type="button"
-            className={`lc-choice min-h-[3.25rem] rounded-2xl px-4 text-left text-[15px] font-semibold text-ink ${selected ? 'lc-choice--selected' : ''}`}
+            className={`lc-choice supplier-onboarding-choice min-h-11 rounded-xl px-3.5 text-left text-sm font-semibold text-ink ${selected ? 'lc-choice--selected' : ''}`}
             aria-pressed={selected}
             onClick={() => onChange(isYes)}
           >
+            <span className="supplier-onboarding-choice__mark" aria-hidden />
             {isYes ? yes : no}
           </button>
         );
