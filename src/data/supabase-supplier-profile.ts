@@ -246,6 +246,24 @@ export async function getVerificationDocumentDisplayLabel(storagePath: string): 
   return fallback;
 }
 
+export async function getVerificationDocumentFileInfo(
+  storagePath: string
+): Promise<{ name: string; sizeBytes: number | null }> {
+  const name = await getVerificationDocumentDisplayLabel(storagePath);
+  if (!supabase || !storagePath.trim()) return { name, sizeBytes: null };
+  const segments = storagePath.trim().split('/').filter(Boolean);
+  if (segments.length < 2) return { name, sizeBytes: null };
+  const objectName = segments[segments.length - 1]!;
+  const folder = segments.slice(0, -1).join('/');
+  const { data, error } = await supabase.storage.from(VERIFICATION_BUCKET).list(folder, { limit: 100 });
+  if (error || !data?.length) return { name, sizeBytes: null };
+  const row = data.find((file) => file.name === objectName);
+  const meta = (row?.metadata ?? {}) as Record<string, unknown>;
+  const raw = meta.size;
+  const sizeBytes = typeof raw === 'number' ? raw : typeof raw === 'string' ? Number(raw) : NaN;
+  return { name, sizeBytes: Number.isFinite(sizeBytes) ? sizeBytes : null };
+}
+
 /**
  * Open verification file in a new tab without navigating to supabase.co: fetch signed URL, then blob URL on this origin.
  */

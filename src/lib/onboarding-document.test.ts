@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  formatDocumentSize,
   onboardingDocumentState,
   registrationDocumentFileError,
   registrationDocumentGuidance,
@@ -51,5 +52,6 @@ describe('onboarding document status', () => {
       /5 MB/
     );
     expect(registrationDocumentFileError({ name: 'notes.txt', size: 100, type: 'text/plain' })).toMatch(/PDF/);
+    expect(formatDocumentSize(240 * 1024)).toBe('240 KB');
   });
 });

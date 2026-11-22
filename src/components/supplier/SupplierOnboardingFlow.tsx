@@ -1052,8 +1052,8 @@ export default function SupplierOnboardingFlow({
     }
   };
 
-  const onUpload = async (file: File) => {
-    if (!canEdit || !userId || docLock.current) return;
+  const onUpload = async (file: File): Promise<boolean> => {
+    if (!canEdit || !userId || docLock.current) return false;
     docLock.current = true;
     setDocumentBusy(true);
     setError(null);
@@ -1062,17 +1062,17 @@ export default function SupplierOnboardingFlow({
       setDocumentBusy(false);
       docLock.current = false;
       setError(up.error || 'That document could not be uploaded.');
-      return;
+      return false;
     }
     const saved = await patchSupplierProfile(userId, { company_registration_document_path: up.path });
     setDocumentBusy(false);
     docLock.current = false;
     if (!saved.success) {
       setError(saved.error || 'That document could not be saved.');
-      return;
+      return false;
     }
     if (profile) onProfile({ ...profile, company_registration_document_path: up.path });
-    feedback.success('Document saved');
+    return true;
   };
 
   const onRemoveDocument = async () => {
@@ -1081,16 +1081,17 @@ export default function SupplierOnboardingFlow({
     docLock.current = true;
     setDocumentBusy(true);
     setError(null);
-    await removeSupplierVerificationDocumentFile(path);
     const saved = await patchSupplierProfile(userId, { company_registration_document_path: null });
-    setDocumentBusy(false);
-    docLock.current = false;
     if (!saved.success) {
+      setDocumentBusy(false);
+      docLock.current = false;
       setError(saved.error || 'The document could not be removed.');
       return;
     }
+    await removeSupplierVerificationDocumentFile(path);
+    setDocumentBusy(false);
+    docLock.current = false;
     if (profile) onProfile({ ...profile, company_registration_document_path: null });
-    feedback.success('Document removed');
   };
 
   if (!screen) {
@@ -1203,7 +1204,9 @@ export default function SupplierOnboardingFlow({
                 style={{ width: `${(overall.index / Math.max(overall.total, 1)) * 100}%` }}
               />
             </div>
-            <div className="supplier-onboarding-footer grid grid-cols-[1fr_auto] items-center gap-3">
+            <div className="supplier-onboarding-footer">
+              <span className="supplier-onboarding-footer__rail" aria-hidden />
+              <div className="supplier-onboarding-footer__actions">
               {previousOnboardingScreen(route, screen) ? (
                 <button
                   type="button"
@@ -1231,16 +1234,18 @@ export default function SupplierOnboardingFlow({
               >
                 {busy ? 'Saving…' : primary}
               </button>
+              </div>
             </div>
           </div>
         }
       >
-        <div className="supplier-onboarding">
+        <div className="supplier-onboarding-shell">
           <OnboardingStepper
             phase={meta.phase}
             canSelect={(phase) => canRevisitOnboardingPhase(phase, meta.phase, route)}
             onSelect={(phase) => void openPhase(phase)}
           />
+          <div className="supplier-onboarding">
           <header className="supplier-onboarding__head">
             <p className="supplier-onboarding__kicker">Step {overall.index} of {overall.total}</p>
             <h1 className="supplier-onboarding__title">{title}</h1>
@@ -1316,7 +1321,7 @@ export default function SupplierOnboardingFlow({
               verificationStatus={profile?.verification_status ?? null}
               submittedAt={profile?.verification_submitted_at ?? null}
               busy={documentBusy}
-              error={fieldErrors.documents ?? null}
+              error={fieldErrors.documents || error}
               onUpload={onUpload}
               onRemove={onRemoveDocument}
             />
@@ -1483,11 +1488,12 @@ export default function SupplierOnboardingFlow({
               <p className="supplier-onboarding__body">{verification.next}</p>
             </div>
           ) : null}
-          {error ? (
+          {error && screen !== 'documents' ? (
             <p className="supplier-onboarding-error" role="alert">
               {error}
             </p>
           ) : null}
+          </div>
           </div>
         </div>
       </ListingCreationWorkspace>
