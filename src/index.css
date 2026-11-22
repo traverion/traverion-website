@@ -10509,6 +10509,11 @@ details:not([open]) > :not(summary) {
   border-color: rgba(7, 59, 131, 0.45);
 }
 
+.supplier-onboarding-choices .lc-choice:focus-visible {
+  outline: 2px solid #073b83;
+  outline-offset: 2px;
+}
+
 .supplier-onboarding-field--short {
   max-width: 16rem;
 }

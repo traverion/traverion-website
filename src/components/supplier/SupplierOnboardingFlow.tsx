@@ -24,6 +24,7 @@ import {
   type StructuredBusinessAddress,
 } from '../../lib/business-address';
 import { feedback } from '../../lib/feedback';
+import { validateIsoDob } from '../../lib/date-of-birth';
 import { onboardingBusinessReviewDraft, onboardingReviewBlocker } from '../../lib/onboarding-final-submission';
 import { submitSupplierBusinessForReview } from '../../lib/submitSupplierBusinessForReview';
 import { PARTNER_AFTER_EMAIL_CONFIRM_PATH, PARTNER_TERMS_OF_SERVICE_PATH, PARTNER_TERMS_VERSION } from '../../lib/partnerPortalPaths';
@@ -116,6 +117,31 @@ function presentationLocked(profile: SupplierProfileRow | null | undefined) {
   return status === 'verified' || (status === 'pending' && Boolean((profile?.verification_submitted_at ?? '').trim()));
 }
 
+function representativeDobKey(userId: string) {
+  return `traverion.onboarding.rep-dob.${userId}`;
+}
+
+function readRepresentativeDob(userId: string): string {
+  if (!userId || typeof window === 'undefined') return '';
+  try {
+    const value = window.sessionStorage.getItem(representativeDobKey(userId)) ?? '';
+    return validateIsoDob(value, { required: true }) ? '' : value;
+  } catch {
+    return '';
+  }
+}
+
+function writeRepresentativeDob(userId: string, value: string) {
+  if (!userId || typeof window === 'undefined') return;
+  try {
+    const key = representativeDobKey(userId);
+    if (validateIsoDob(value, { required: true })) window.sessionStorage.removeItem(key);
+    else window.sessionStorage.setItem(key, value);
+  } catch {
+    // Private mode can block session storage. The date stays in this view.
+  }
+}
+
 export default function SupplierOnboardingFlow({
   userId,
   profile,
@@ -134,7 +160,7 @@ export default function SupplierOnboardingFlow({
   hasListing: boolean;
 }) {
   const [draft, setDraft] = useState<PayoutWizardDraft>(() => initialDraft(userId, profile));
-  const [repDob, setRepDob] = useState('');
+  const [repDob, setRepDob] = useState(() => readRepresentativeDob(userId));
   const [owner, setOwner] = useState<OwnerEntry>(blankOwner);
   const [others, setOthers] = useState<boolean | null>(null);
   const [iban, setIban] = useState('');
@@ -242,15 +268,14 @@ export default function SupplierOnboardingFlow({
     const explicit = params.has('screen') || params.has('phase');
     const resume = supplierOnboardingSnapshot(profile).nextScreen;
     const requested = explicit ? screenFromOnboardingUrl(window.location.search, visible) : resume;
-    const folded =
-      requested === 'dob' || requested === 'director' || requested === 'ownership' || requested === 'share'
-        ? 'person'
-          : requested === 'owner'
-            ? 'others'
-            : requested === 'consent' || requested === 'terms'
-              ? 'bank'
-              : requested;
-    const next = visible.includes(folded) || folded === 'company' || folded === 'documents' ? folded : visible[0] ?? 'company';
+    const next =
+      visible.includes(requested) ||
+      requested === 'company' ||
+      requested === 'documents' ||
+      requested === 'address' ||
+      requested === 'bank'
+        ? requested
+        : visible[0] ?? 'company';
     const started = initialOnboardingJourney(visible, next);
     journeyRef.current = started;
     setJourney(started);
@@ -351,6 +376,7 @@ export default function SupplierOnboardingFlow({
 
   const persistDraft = async (mode: 'quiet' | 'blocking' = 'blocking'): Promise<'current' | 'saved' | 'failed'> => {
     const current = draftRef.current;
+    if (!validateIsoDob(current.rep_dob, { required: true })) writeRepresentativeDob(userId, current.rep_dob);
     const stored = {
       ...current,
       rep_dob: '',
@@ -458,7 +484,10 @@ export default function SupplierOnboardingFlow({
     journeyRef.current = nextJourney;
     setJourney(nextJourney);
     const next = adjacentOnboardingScreen(nextJourney, id, 1);
-    if (!next) return;
+    if (!next) {
+      setError('The next step could not be opened. Your answers are still on this page.');
+      return;
+    }
     publish(next, 'forward');
   };
 
@@ -612,6 +641,18 @@ export default function SupplierOnboardingFlow({
       if (saved === 'saved') feedback.success('Saved');
       const stack = historyStack.current;
       if (stack.length > 1 && stack[stack.length - 2] === previous) {
+        // Apply the previous screen before history moves. A late popstate must not
+        // leave the URL on one step and the form on another.
+        historyStack.current = stack.slice(0, -1);
+        screenRef.current = previous;
+        setMotion('back');
+        setDraft((current) => {
+          const updated = { ...current, step: wizardStepForScreen(previous) };
+          draftRef.current = updated;
+          return updated;
+        });
+        setScreen(previous);
+        void updateSupplierSetupProgress(userId, progressRecord(profile, previous));
         historyPending.current = true;
         window.history.back();
         return;
@@ -701,6 +742,15 @@ export default function SupplierOnboardingFlow({
         revealFieldErrors(errors);
         return;
       }
+      const updated = {
+        ...draftRef.current,
+        rep_first_name: draft.rep_first_name.trim(),
+        rep_last_name: draft.rep_last_name.trim(),
+        rep_dob: repDob,
+      };
+      draftRef.current = updated;
+      setDraft(updated);
+      writeRepresentativeDob(userId, repDob);
       await advance('person');
       return;
     }
@@ -708,13 +758,26 @@ export default function SupplierOnboardingFlow({
       const errors: Record<string, string> = {};
       if (isCompany && draft.rep_is_owner) {
         const percentErr = validateOwnershipPercent(draft.rep_percent_ownership, { required: true });
-        if (percentErr || share == null || share <= 0) errors['rep-share'] = percentErr ?? 'Enter a share between 1 and 100.';
+        if (percentErr === 'Use numbers only (for example 25 or 25.5).' || percentErr === 'Ownership cannot be more than 100%.' || percentErr === 'Ownership cannot be negative.') {
+          errors['rep-share'] = percentErr;
+        } else if (percentErr || share == null || share <= 0) {
+          errors['rep-share'] = 'Enter a share between 1 and 100.';
+        }
       }
       if (Object.keys(errors).length > 0) {
         revealFieldErrors(errors);
         return;
       }
       if (isCompany && draft.rep_is_owner && share === 100) setOthers(false);
+      const updated = {
+        ...draftRef.current,
+        rep_is_director: draft.rep_is_director,
+        rep_is_owner: draft.rep_is_owner,
+        rep_percent_ownership: draft.rep_percent_ownership,
+        representativeSavedAt: new Date().toISOString(),
+      };
+      draftRef.current = updated;
+      setDraft(updated);
       await advance('director', {
         owns: draft.rep_is_owner,
         share,
@@ -1042,6 +1105,7 @@ export default function SupplierOnboardingFlow({
       return;
     }
     if (review.profile) onProfile(review.profile);
+    writeRepresentativeDob(userId, '');
     setRepDob('');
     const verified = Boolean(review.profile && onboardingLanesVerified(supplierOnboardingSnapshot(review.profile)));
     const copy = supplierSetupCompletionCopy(
@@ -1357,7 +1421,7 @@ export default function SupplierOnboardingFlow({
                 />
               </OnboardingField>
               <OnboardingField id="rep-dob" label="Date of birth" help="Used to confirm this person. Traverion does not keep the date." error={fieldErrors['rep-dob']} className="supplier-onboarding-grid__wide">
-                <DateOfBirthPicker value={repDob} onChange={(value) => { clearFieldError('rep-dob'); setRepDob(value); }} required />
+                <DateOfBirthPicker id="rep-dob" value={repDob} onChange={(value) => { clearFieldError('rep-dob'); writeRepresentativeDob(userId, value); setRepDob(value); }} required aria-invalid={Boolean(fieldErrors['rep-dob'])} />
               </OnboardingField>
             </div>
           ) : null}
@@ -1366,6 +1430,7 @@ export default function SupplierOnboardingFlow({
               <div className="supplier-onboarding-grid__wide" data-field="rep-director">
                 <p className="supplier-onboarding-field__label">Is this person a director?</p>
                 <Choice
+                  label="Is this person a director?"
                   value={draft.rep_is_director ? 'yes' : 'no'}
                   yes="Yes, a director"
                   no="No"
@@ -1375,6 +1440,7 @@ export default function SupplierOnboardingFlow({
               <div className="supplier-onboarding-grid__wide" data-field="rep-owner">
                 <p className="supplier-onboarding-field__label">Do they own part of the company?</p>
                 <Choice
+                  label="Do they own part of the company?"
                   value={draft.rep_is_owner ? 'yes' : 'no'}
                   yes="Yes, they own a share"
                   no="No"
@@ -1407,6 +1473,7 @@ export default function SupplierOnboardingFlow({
               <div className="supplier-onboarding-grid__wide" data-field="other-owners">
                 <p className="supplier-onboarding-field__label">Does anyone else own 25% or more?</p>
                 <Choice
+                  label="Does anyone else own 25% or more?"
                   value={others == null ? '' : others ? 'yes' : 'no'}
                   yes="Yes, add them"
                   no="No one else"
@@ -1584,26 +1651,30 @@ function OnboardingField({
 }
 
 function Choice({
+  label,
   value,
   yes,
   no,
   onChange,
 }: {
+  label: string;
   value: 'yes' | 'no' | '';
   yes: string;
   no: string;
   onChange: (yes: boolean) => void;
 }) {
   return (
-    <div className="supplier-onboarding-choices">
+    <div className="supplier-onboarding-choices" role="radiogroup" aria-label={label}>
       {([true, false] as const).map((isYes) => {
         const selected = value === (isYes ? 'yes' : 'no');
         return (
           <button
             key={isYes ? 'yes' : 'no'}
             type="button"
+            role="radio"
             className={`lc-choice supplier-onboarding-choice min-h-11 rounded-xl px-3.5 text-left text-sm font-semibold text-ink ${selected ? 'lc-choice--selected' : ''}`}
-            aria-pressed={selected}
+            aria-checked={selected}
+            data-selected={selected ? 'true' : 'false'}
             onClick={() => onChange(isYes)}
           >
             <span className="supplier-onboarding-choice__mark" aria-hidden />

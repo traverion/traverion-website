@@ -109,6 +109,8 @@ describe('supplier onboarding screens', () => {
     const others = flow.slice(flow.indexOf("if (screen === 'others')"), flow.indexOf("if (screen === 'bank')"));
     expect(person).toMatch(/advance\('person'/);
     expect(person).toMatch(/advance\('director'/);
+    expect(flow).not.toContain("requested === 'director'");
+    expect(flow).toContain("import { validateIsoDob } from '../../lib/date-of-birth'");
     expect(others).toMatch(/advance\('others'/);
     expect(`${person}\n${others}`).not.toMatch(/ensure_account|submitIdentity|completeSetup|submit_business/);
     const edge = readFileSync('supabase/functions/connect-supplier-onboarding/index.ts', 'utf8');
