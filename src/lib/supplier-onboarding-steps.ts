@@ -8,8 +8,15 @@ export const SUPPLIER_ONBOARDING_SCREENS = [
     id: 'company',
     group: 'Company',
     phase: 'business',
-    title: 'Confirm your company',
-    body: 'Add the legal name and business ID. This is not a verified record until it is reviewed.',
+    title: 'Business details',
+    body: 'The registered legal name and business ID. Nothing here is verified until it is reviewed.',
+  },
+  {
+    id: 'address',
+    group: 'Company',
+    phase: 'business',
+    title: 'Business address',
+    body: 'The company’s official registered address. Search fills the fields, and you can edit any of them.',
   },
   {
     id: 'documents',
@@ -125,7 +132,7 @@ export type SupplierOnboardingVisibility = {
 export function visibleSupplierOnboardingScreens(
   input: SupplierOnboardingVisibility
 ): SupplierOnboardingScreenId[] {
-  const ids: SupplierOnboardingScreenId[] = ['company'];
+  const ids: SupplierOnboardingScreenId[] = ['company', 'address'];
   if (!input.hasRegistrationFile || input.businessRejected) ids.push('documents');
   if (input.identityOpen) {
     ids.push('person');
@@ -204,14 +211,14 @@ export function companyOnboardingPresentation(input: {
   }
   if (input.hasCompany) {
     return {
-      title: 'Company details saved',
+      title: 'Business details',
       body: 'These details are saved on your account. They are not verified yet.',
       mode: 'draft',
     };
   }
   return {
-    title: 'Your company',
-    body: 'Add the legal name, business ID, and city. Nothing here is verified until it is reviewed.',
+    title: 'Business details',
+    body: 'The registered legal name and business ID. Nothing here is verified until it is reviewed.',
     mode: 'form',
   };
 }

@@ -11,6 +11,7 @@ import { autocompleteAddresses, placesSearchConfigured, resolveAddress, type Pla
 type Props = {
   value: StructuredBusinessAddress;
   onChange: (next: StructuredBusinessAddress) => void;
+  errors?: Record<string, string>;
 };
 
 function isAbortError(err: unknown): boolean {
@@ -22,7 +23,7 @@ function composed(value: StructuredBusinessAddress): string {
   return [value.street, locality, value.country].filter(Boolean).join(', ');
 }
 
-export default function RegisteredBusinessAddress({ value, onChange }: Props) {
+export default function RegisteredBusinessAddress({ value, onChange, errors = {} }: Props) {
   const listId = useId();
   const inputId = useId();
   const rootRef = useRef<HTMLDivElement>(null);
@@ -183,7 +184,7 @@ export default function RegisteredBusinessAddress({ value, onChange }: Props) {
 
   return (
     <div ref={rootRef} className="supplier-onboarding-grid__wide supplier-onboarding-address">
-      <div className="supplier-onboarding-field">
+      <div className={`supplier-onboarding-field${errors['address-street'] ? ' supplier-onboarding-field--invalid' : ''}`} data-field="address-search">
         <div className="supplier-onboarding-field__label">
           <label htmlFor={inputId}>Registered business address</label>
           <button type="button" className="supplier-onboarding-help" aria-label="About registered business address">
@@ -201,6 +202,7 @@ export default function RegisteredBusinessAddress({ value, onChange }: Props) {
           aria-controls={listId}
           aria-autocomplete="list"
           aria-busy={loading || resolving}
+          aria-invalid={Boolean(errors['address-street']) || undefined}
           aria-activedescendant={open && suggestions[activeIndex] ? `${listId}-opt-${activeIndex}` : undefined}
           className="tv-input"
           value={draft ?? composed(value)}
@@ -241,6 +243,7 @@ export default function RegisteredBusinessAddress({ value, onChange }: Props) {
             }
           }}
         />
+        {errors['address-street'] ? <p className="supplier-onboarding-field__error">{errors['address-street']}</p> : null}
         {error ? (
           <p className="supplier-onboarding-error" role="alert">
             {error}
@@ -249,7 +252,7 @@ export default function RegisteredBusinessAddress({ value, onChange }: Props) {
         {!configured ? <p className="supplier-onboarding__body">Address search is unavailable. Enter each field below.</p> : null}
       </div>
       <div className="supplier-onboarding-grid">
-        <div className="supplier-onboarding-field supplier-onboarding-grid__wide">
+        <div className={`supplier-onboarding-field supplier-onboarding-grid__wide${errors['address-street'] ? ' supplier-onboarding-field--invalid' : ''}`} data-field="address-street">
           <div className="supplier-onboarding-field__label">
             <label htmlFor={`${inputId}-street`}>Street address</label>
           </div>
@@ -258,10 +261,12 @@ export default function RegisteredBusinessAddress({ value, onChange }: Props) {
             className="tv-input"
             value={value.street}
             autoComplete="street-address"
+            aria-invalid={Boolean(errors['address-street']) || undefined}
             onChange={(event) => edit({ street: event.target.value })}
           />
+          {errors['address-street'] ? <p className="supplier-onboarding-field__error">{errors['address-street']}</p> : null}
         </div>
-        <div className="supplier-onboarding-field">
+        <div className={`supplier-onboarding-field${errors['address-postal'] ? ' supplier-onboarding-field--invalid' : ''}`} data-field="address-postal">
           <div className="supplier-onboarding-field__label">
             <label htmlFor={`${inputId}-postal`}>Postal code</label>
           </div>
@@ -270,10 +275,12 @@ export default function RegisteredBusinessAddress({ value, onChange }: Props) {
             className="tv-input"
             value={value.postal}
             autoComplete="postal-code"
+            aria-invalid={Boolean(errors['address-postal']) || undefined}
             onChange={(event) => edit({ postal: event.target.value })}
           />
+          {errors['address-postal'] ? <p className="supplier-onboarding-field__error">{errors['address-postal']}</p> : null}
         </div>
-        <div className="supplier-onboarding-field">
+        <div className={`supplier-onboarding-field${errors['address-city'] ? ' supplier-onboarding-field--invalid' : ''}`} data-field="address-city">
           <div className="supplier-onboarding-field__label">
             <label htmlFor={`${inputId}-city`}>City</label>
           </div>
@@ -282,10 +289,12 @@ export default function RegisteredBusinessAddress({ value, onChange }: Props) {
             className="tv-input"
             value={value.city}
             autoComplete="address-level2"
+            aria-invalid={Boolean(errors['address-city']) || undefined}
             onChange={(event) => edit({ city: event.target.value })}
           />
+          {errors['address-city'] ? <p className="supplier-onboarding-field__error">{errors['address-city']}</p> : null}
         </div>
-        <div className="supplier-onboarding-field">
+        <div className={`supplier-onboarding-field${errors['address-country'] ? ' supplier-onboarding-field--invalid' : ''}`} data-field="address-country">
           <div className="supplier-onboarding-field__label">
             <label htmlFor={`${inputId}-country`}>Country</label>
           </div>
@@ -294,8 +303,10 @@ export default function RegisteredBusinessAddress({ value, onChange }: Props) {
             className="tv-input"
             value={value.country}
             autoComplete="country-name"
+            aria-invalid={Boolean(errors['address-country']) || undefined}
             onChange={(event) => edit({ country: event.target.value })}
           />
+          {errors['address-country'] ? <p className="supplier-onboarding-field__error">{errors['address-country']}</p> : null}
         </div>
       </div>
       {menu ? createPortal(menu, document.body) : null}

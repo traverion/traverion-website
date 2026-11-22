@@ -44,3 +44,11 @@ export const BUSINESS_ADDRESS_FIELD_ERROR: Record<'street' | 'postal' | 'city' |
   city: 'Enter the city.',
   country: 'Enter the country.',
 };
+
+export function addressFieldErrors(address: StructuredBusinessAddress): Record<string, string> {
+  const errors: Record<string, string> = {};
+  (['street', 'postal', 'city', 'country'] as const).forEach((key) => {
+    if (!address[key].trim()) errors[`address-${key}`] = BUSINESS_ADDRESS_FIELD_ERROR[key];
+  });
+  return errors;
+}

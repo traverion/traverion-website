@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { missingBusinessAddressField, structuredBusinessAddress } from './business-address';
+import { addressFieldErrors, missingBusinessAddressField, structuredBusinessAddress } from './business-address';
 
 describe('structured business address', () => {
   it('keeps only the components the provider returned', () => {
@@ -27,5 +27,6 @@ describe('structured business address', () => {
       country: '',
     });
     expect(missingBusinessAddressField(structuredBusinessAddress({ street: 'Siljotie 2' }))).toBe('postal');
+    expect(addressFieldErrors(structuredBusinessAddress({ street: 'Siljotie 2' }))['address-postal']).toMatch(/postal/i);
   });
 });

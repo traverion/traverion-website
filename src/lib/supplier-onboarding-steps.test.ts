@@ -27,6 +27,7 @@ describe('supplier onboarding screens', () => {
   it('skips a stored registration document and unneeded owner questions', () => {
     expect(visibleSupplierOnboardingScreens(open)).toEqual([
       'company',
+      'address',
       'person',
       'others',
       'bank',
@@ -65,7 +66,7 @@ describe('supplier onboarding screens', () => {
       bankOpen: false,
       termsOpen: false,
     });
-    expect(screens).toEqual(['company', 'status']);
+    expect(screens).toEqual(['company', 'address', 'status']);
   });
 
   it('resumes the requested screen', () => {
@@ -139,6 +140,6 @@ describe('supplier onboarding screens', () => {
     expect(canRevisitOnboardingPhase('documents', 'representative', visible)).toBe(false);
     expect(canRevisitOnboardingPhase('payout', 'representative', visible)).toBe(false);
     expect(canRevisitOnboardingPhase('representative', 'payout', ['company', 'bank', 'status'])).toBe(false);
-    expect(onboardingOverallStep(visible, 'person')).toEqual({ index: 2, total: visible.length });
+    expect(onboardingOverallStep(visible, 'person')).toEqual({ index: 3, total: visible.length });
   });
 });

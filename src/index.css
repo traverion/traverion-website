@@ -10280,6 +10280,33 @@ details:not([open]) > :not(summary) {
   font-weight: 600;
 }
 
+.listing-creation-workspace .supplier-onboarding-field--invalid .tv-input {
+  border-color: #b42318;
+  animation: supplier-field-invalid 180ms ease;
+}
+
+.supplier-onboarding-field__error {
+  margin: 0.35rem 0 0;
+  color: #b42318;
+  font-size: 0.8125rem;
+  line-height: 1.35;
+}
+
+.supplier-onboarding-field {
+  scroll-margin: 6.5rem;
+}
+
+@keyframes supplier-field-invalid {
+  from { box-shadow: 0 0 0 0 rgba(180, 35, 24, 0.28); }
+  to { box-shadow: 0 0 0 3px rgba(180, 35, 24, 0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .listing-creation-workspace .supplier-onboarding-field--invalid .tv-input {
+    animation: none;
+  }
+}
+
 .supplier-onboarding-help {
   position: relative;
   display: inline-flex;

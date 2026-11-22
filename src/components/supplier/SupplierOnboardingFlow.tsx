@@ -20,8 +20,7 @@ import {
 } from '../../data/supabase-connect-onboarding';
 import { isValidFinnishBusinessId, normalizeCountryCode, normalizeFinnishBusinessId } from '../../lib/business-identity-validation';
 import {
-  BUSINESS_ADDRESS_FIELD_ERROR,
-  missingBusinessAddressField,
+  addressFieldErrors,
   type StructuredBusinessAddress,
 } from '../../lib/business-address';
 import { feedback } from '../../lib/feedback';
@@ -112,6 +111,11 @@ function ReviewSection({ title, detail, onEdit }: { title: string; detail: strin
   );
 }
 
+function presentationLocked(profile: SupplierProfileRow | null | undefined) {
+  const status = (profile?.verification_status ?? '').toLowerCase();
+  return status === 'verified' || (status === 'pending' && Boolean((profile?.verification_submitted_at ?? '').trim()));
+}
+
 export default function SupplierOnboardingFlow({
   userId,
   profile,
@@ -144,6 +148,7 @@ export default function SupplierOnboardingFlow({
   const [journey, setJourney] = useState<SupplierOnboardingScreenId[]>([]);
   const [motion, setMotion] = useState<'forward' | 'back'>('forward');
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const [documentBusy, setDocumentBusy] = useState(false);
   const booted = useRef(false);
@@ -376,8 +381,54 @@ export default function SupplierOnboardingFlow({
     return 'saved';
   };
 
+  const revealFieldErrors = (errors: Record<string, string>) => {
+    setFieldErrors(errors);
+    setError(null);
+    const first = Object.keys(errors)[0];
+    if (!first) return;
+    window.setTimeout(() => {
+      const root = document.querySelector(`[data-field="${first}"]`);
+      if (!(root instanceof HTMLElement)) return;
+      const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      root.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'center' });
+      const target = root.querySelector('input, select, button, textarea');
+      if (target instanceof HTMLElement) target.focus({ preventScroll: true });
+    }, 120);
+  };
+
+  const clearFieldError = (id: string) => {
+    setFieldErrors((current) => {
+      if (!current[id]) return current;
+      const next = { ...current };
+      delete next[id];
+      return next;
+    });
+  };
+
+  const registrationValue = () => {
+    const countryCode = normalizeCountryCode(companyCountry);
+    return countryCode === 'FI' ? normalizeFinnishBusinessId(companyReg) : companyReg.trim();
+  };
+
+  const businessIdError = () => {
+    const registration = companyReg.trim();
+    if (!registration) return 'Enter the business registration number.';
+    const countryCode = normalizeCountryCode(companyCountry);
+    const normalized = normalizeFinnishBusinessId(registration);
+    const finnishShape = /^\d{7}-\d$/.test(normalized);
+    if ((countryCode === 'FI' || finnishShape) && !isValidFinnishBusinessId(normalized)) {
+      return 'Enter a valid Finnish business ID.';
+    }
+    if (!finnishShape && countryCode !== 'FI' && registration.length < 3) {
+      return 'Enter the business registration number.';
+    }
+    return null;
+  };
+
   const sequence = (patch?: Partial<SupplierOnboardingVisibility>) =>
     visibleSupplierOnboardingScreens({ ...visibility, ...patch });
+
+  const companyLocked = presentationLocked(profile);
 
   const publish = (next: SupplierOnboardingScreenId, direction: 'forward' | 'back') => {
     setError(null);
@@ -411,46 +462,22 @@ export default function SupplierOnboardingFlow({
     publish(next, 'forward');
   };
 
-  const saveCompany = async (): Promise<boolean> => {
+  const saveBusinessDetails = async (): Promise<boolean> => {
     const legal = companyLegal.trim();
-    const countryCode = normalizeCountryCode(companyCountry);
-    const registration = countryCode === 'FI' ? normalizeFinnishBusinessId(companyReg) : companyReg.trim();
-    const address: StructuredBusinessAddress = {
-      street: companyStreet.trim(),
-      postal: companyPostal.trim(),
-      city: companyCity.trim(),
-      country: companyCountry.trim(),
-    };
-    const missingAddress = missingBusinessAddressField(address);
-    if (!legal) {
-      setError('Enter the registered legal name.');
+    const idError = businessIdError();
+    const errors: Record<string, string> = {};
+    if (!legal) errors['company-legal'] = 'Enter the registered legal name.';
+    if (idError) errors['company-reg'] = idError;
+    if (Object.keys(errors).length > 0) {
+      revealFieldErrors(errors);
       return false;
     }
-    if (!companyCountry.trim()) {
-      setError(BUSINESS_ADDRESS_FIELD_ERROR.country);
-      return false;
-    }
-    if (countryCode === 'FI' && !isValidFinnishBusinessId(registration)) {
-      setError('Enter a valid Finnish business ID.');
-      return false;
-    }
-    if (countryCode !== 'FI' && registration.length < 3) {
-      setError('Enter the business registration number.');
-      return false;
-    }
-    if (missingAddress) {
-      setError(BUSINESS_ADDRESS_FIELD_ERROR[missingAddress]);
-      return false;
-    }
+    setFieldErrors({});
     setBusy(true);
     setError(null);
     const saved = await updateSupplierCompanyProfile(userId, {
       company_legal_name: legal,
-      company_registration_number: registration,
-      address_street: address.street,
-      address_city: address.city,
-      address_postal_code: address.postal,
-      address_country: address.country,
+      company_registration_number: registrationValue(),
       business_type: profile?.business_type === 'individual' ? 'individual' : 'company',
     });
     setBusy(false);
@@ -462,12 +489,53 @@ export default function SupplierOnboardingFlow({
       onProfile({
         ...profile,
         company_legal_name: legal,
-        company_registration_number: registration,
+        company_registration_number: registrationValue(),
+        business_type: profile.business_type === 'individual' ? 'individual' : 'company',
+      });
+    }
+    feedback.success('Saved');
+    return true;
+  };
+
+  const saveBusinessAddress = async (): Promise<boolean> => {
+    const address: StructuredBusinessAddress = {
+      street: companyStreet.trim(),
+      postal: companyPostal.trim(),
+      city: companyCity.trim(),
+      country: companyCountry.trim(),
+    };
+    const errors = addressFieldErrors(address);
+    const idError = businessIdError();
+    if (normalizeCountryCode(address.country) === 'FI' && idError) {
+      revealFieldErrors({ 'company-reg': idError });
+      publish('company', 'back');
+      return false;
+    }
+    if (Object.keys(errors).length > 0) {
+      revealFieldErrors(errors);
+      return false;
+    }
+    setFieldErrors({});
+    setBusy(true);
+    setError(null);
+    const saved = await updateSupplierCompanyProfile(userId, {
+      address_street: address.street,
+      address_city: address.city,
+      address_postal_code: address.postal,
+      address_country: address.country,
+    });
+    setBusy(false);
+    if (!saved.success) {
+      setError(saved.error || 'The address could not be saved.');
+      return false;
+    }
+    if (profile) {
+      onProfile({
+        ...profile,
         address_street: address.street,
         address_city: address.city,
         address_postal_code: address.postal,
         address_country: address.country,
-        business_type: profile.business_type === 'individual' ? 'individual' : 'company',
       });
     }
     feedback.success('Saved');
@@ -486,7 +554,7 @@ export default function SupplierOnboardingFlow({
         (profile?.verification_status ?? '').toLowerCase() === 'pending' &&
         Boolean((profile?.verification_submitted_at ?? '').trim())
       );
-    if (screen === 'company' && companyOpen) {
+    if ((screen === 'company' || screen === 'address') && companyOpen) {
       if (countryCode === 'FI' && companyReg.trim() && !isValidFinnishBusinessId(registration)) {
         setBusy(false);
         setError('Enter a valid Finnish business ID before leaving, or clear it.');
@@ -593,52 +661,51 @@ export default function SupplierOnboardingFlow({
   };
 
   const continueFromScreen = async () => {
-    if (!canEdit && screen !== 'company' && screen !== 'status') {
+    if (!canEdit && screen !== 'company' && screen !== 'address' && screen !== 'status') {
       setError('Your role can view setup but cannot change it.');
       return;
     }
     if (screen === 'company') {
-      const presentation = companyOnboardingPresentation({
-        verified: (profile?.verification_status ?? '').toLowerCase() === 'verified',
-        pendingReview:
-          (profile?.verification_status ?? '').toLowerCase() === 'pending' &&
-          Boolean((profile?.verification_submitted_at ?? '').trim()),
-        hasCompany: Boolean(profile?.company_legal_name?.trim() && profile?.company_registration_number?.trim()),
-      });
-      if (presentation.mode === 'verified' || presentation.mode === 'pending') {
+      if (presentationLocked(profile)) {
         await advance('company');
         return;
       }
-      const ok = await saveCompany();
+      const ok = await saveBusinessDetails();
       if (ok) await advance('company');
+      return;
+    }
+    if (screen === 'address') {
+      if (presentationLocked(profile)) {
+        await advance('address');
+        return;
+      }
+      const ok = await saveBusinessAddress();
+      if (ok) await advance('address');
       return;
     }
     if (screen === 'documents') {
       if (!hasFile) {
-        setError('Add the registration document.');
+        revealFieldErrors({ documents: 'Add the registration document.' });
         return;
       }
       await advance('documents');
       return;
     }
     if (screen === 'person') {
-      if (!draft.rep_first_name.trim() || !draft.rep_last_name.trim()) {
-        setError('Enter the first and last name.');
-        return;
-      }
+      const errors: Record<string, string> = {};
+      if (!draft.rep_first_name.trim()) errors['rep-first'] = 'Enter the first name.';
+      if (!draft.rep_last_name.trim()) errors['rep-last'] = 'Enter the last name.';
       const dobErr = validateIsoDob(repDob, { required: true });
-      if (dobErr) {
-        setError(dobErr);
-        return;
-      }
+      if (dobErr) errors['rep-dob'] = dobErr;
       if (isCompany && draft.rep_is_owner) {
         const percentErr = validateOwnershipPercent(draft.rep_percent_ownership, { required: true });
-        if (percentErr || share == null || share <= 0) {
-          setError(percentErr ?? 'Enter a share between 1 and 100.');
-          return;
-        }
-        if (share === 100) setOthers(false);
+        if (percentErr || share == null || share <= 0) errors['rep-share'] = percentErr ?? 'Enter a share between 1 and 100.';
       }
+      if (Object.keys(errors).length > 0) {
+        revealFieldErrors(errors);
+        return;
+      }
+      if (isCompany && draft.rep_is_owner && share === 100) setOthers(false);
       await advance('person', {
         owns: draft.rep_is_owner,
         share,
@@ -648,14 +715,19 @@ export default function SupplierOnboardingFlow({
     }
     if (screen === 'others') {
       if (others == null) {
-        setError('Choose yes or no.');
+        revealFieldErrors({ 'other-owners': 'Choose yes or no.' });
         return;
       }
       if (others) {
         const percentErr = validateOwnershipPercent(owner.percent_ownership, { required: true });
         const dobErr = validateIsoDob(owner.dob, { required: true });
-        if (!owner.first_name.trim() || !owner.last_name.trim() || dobErr || percentErr) {
-          setError(dobErr || percentErr || 'Enter the owner’s name, date of birth, and share.');
+        const errors: Record<string, string> = {};
+        if (!owner.first_name.trim()) errors['owner-first'] = 'Enter the first name.';
+        if (!owner.last_name.trim()) errors['owner-last'] = 'Enter the last name.';
+        if (dobErr) errors['owner-dob'] = dobErr;
+        if (percentErr) errors['owner-share'] = percentErr;
+        if (Object.keys(errors).length > 0) {
+          revealFieldErrors(errors);
           return;
         }
         setDraft((current) => {
@@ -684,7 +756,7 @@ export default function SupplierOnboardingFlow({
       }
       const ibanError = validateIban(iban, normalizeCountryCode(profile?.address_country) || 'FI');
       if (ibanError) {
-        setError(ibanError);
+        revealFieldErrors({ iban: ibanError });
         return;
       }
       await advance('bank');
@@ -911,7 +983,8 @@ export default function SupplierOnboardingFlow({
       dateOfBirthPresent: Boolean(parsePayoutWizardDob(repDob)),
     });
     if (blocker) {
-      setError(blocker);
+      if (/supplier terms/i.test(blocker)) revealFieldErrors({ 'supplier-terms': blocker });
+      else setError(blocker);
       return;
     }
     const saved = await persistDraft();
@@ -1176,31 +1249,48 @@ export default function SupplierOnboardingFlow({
             <p className="supplier-onboarding__body">{body}</p>
           {screen === 'company' && (companyPresentation.mode === 'form' || companyPresentation.mode === 'draft') ? (
             <div className="supplier-onboarding-grid">
-              <OnboardingField label="Registered legal business name" className="supplier-onboarding-grid__wide">
-                <input className="tv-input" value={companyLegal} onChange={(event) => { companyEdited.current = true; setCompanyLegal(event.target.value); }} autoComplete="organization" />
+              <OnboardingField id="company-legal" label="Registered legal business name" error={fieldErrors['company-legal']} className="supplier-onboarding-grid__wide">
+                <input className="tv-input" value={companyLegal} aria-invalid={Boolean(fieldErrors['company-legal']) || undefined} onChange={(event) => { companyEdited.current = true; clearFieldError('company-legal'); setCompanyLegal(event.target.value); }} autoComplete="organization" />
               </OnboardingField>
               <OnboardingField
+                id="company-reg"
                 label="Business ID"
                 help="Your official business registration number. In Finland, this is your Y-tunnus."
+                error={fieldErrors['company-reg']}
               >
-                <input className="tv-input" value={companyReg} onChange={(event) => { companyEdited.current = true; setCompanyReg(event.target.value); }} inputMode="text" />
+                <input className="tv-input" value={companyReg} aria-invalid={Boolean(fieldErrors['company-reg']) || undefined} onChange={(event) => { companyEdited.current = true; clearFieldError('company-reg'); setCompanyReg(event.target.value); }} inputMode="text" />
               </OnboardingField>
-              <RegisteredBusinessAddress
-                value={{
-                  street: companyStreet,
-                  postal: companyPostal,
-                  city: companyCity,
-                  country: companyCountry,
-                }}
-                onChange={(next) => {
-                  companyEdited.current = true;
-                  setCompanyStreet(next.street);
-                  setCompanyPostal(next.postal);
-                  setCompanyCity(next.city);
-                  setCompanyCountry(next.country);
-                }}
-              />
             </div>
+          ) : null}
+          {screen === 'address' && !companyLocked ? (
+            <RegisteredBusinessAddress
+              value={{
+                street: companyStreet,
+                postal: companyPostal,
+                city: companyCity,
+                country: companyCountry,
+              }}
+              errors={fieldErrors}
+              onChange={(next) => {
+                companyEdited.current = true;
+                if (next.street !== companyStreet) clearFieldError('address-street');
+                if (next.postal !== companyPostal) clearFieldError('address-postal');
+                if (next.city !== companyCity) clearFieldError('address-city');
+                if (next.country !== companyCountry) clearFieldError('address-country');
+                setCompanyStreet(next.street);
+                setCompanyPostal(next.postal);
+                setCompanyCity(next.city);
+                setCompanyCountry(next.country);
+              }}
+            />
+          ) : null}
+          {screen === 'address' && companyLocked ? (
+            <dl className="supplier-onboarding-facts">
+              <div>
+                <dt>Registered business address</dt>
+                <dd>{addressLine}</dd>
+              </div>
+            </dl>
           ) : null}
           {screen === 'company' && (companyPresentation.mode === 'verified' || companyPresentation.mode === 'pending') ? (
             <dl className="supplier-onboarding-facts">
@@ -1219,37 +1309,41 @@ export default function SupplierOnboardingFlow({
             </dl>
           ) : null}
           {screen === 'documents' ? (
+            <div data-field="documents" className={fieldErrors.documents ? 'supplier-onboarding-field--invalid' : undefined}>
             <OnboardingDocumentCard
               country={companyCountry || profile?.address_country || null}
               path={profile?.company_registration_document_path ?? null}
               verificationStatus={profile?.verification_status ?? null}
               submittedAt={profile?.verification_submitted_at ?? null}
               busy={documentBusy}
-              error={null}
+              error={fieldErrors.documents ?? null}
               onUpload={onUpload}
               onRemove={onRemoveDocument}
             />
+            </div>
           ) : null}
           {screen === 'person' ? (
             <div className="supplier-onboarding-grid">
-              <OnboardingField label="First name">
+              <OnboardingField id="rep-first" label="First name" error={fieldErrors['rep-first']}>
                 <input
                   className="tv-input"
                   value={draft.rep_first_name}
                   autoComplete="given-name"
-                  onChange={(event) => { draftEdited.current = true; setDraft((current) => ({ ...current, rep_first_name: event.target.value })); }}
+                  aria-invalid={Boolean(fieldErrors['rep-first']) || undefined}
+                  onChange={(event) => { draftEdited.current = true; clearFieldError('rep-first'); setDraft((current) => ({ ...current, rep_first_name: event.target.value })); }}
                 />
               </OnboardingField>
-              <OnboardingField label="Last name">
+              <OnboardingField id="rep-last" label="Last name" error={fieldErrors['rep-last']}>
                 <input
                   className="tv-input"
                   value={draft.rep_last_name}
                   autoComplete="family-name"
-                  onChange={(event) => { draftEdited.current = true; setDraft((current) => ({ ...current, rep_last_name: event.target.value })); }}
+                  aria-invalid={Boolean(fieldErrors['rep-last']) || undefined}
+                  onChange={(event) => { draftEdited.current = true; clearFieldError('rep-last'); setDraft((current) => ({ ...current, rep_last_name: event.target.value })); }}
                 />
               </OnboardingField>
-              <OnboardingField label="Date of birth" help="Used to confirm this person. Traverion does not keep the date." className="supplier-onboarding-grid__wide">
-                <DateOfBirthPicker value={repDob} onChange={setRepDob} required />
+              <OnboardingField id="rep-dob" label="Date of birth" help="Used to confirm this person. Traverion does not keep the date." error={fieldErrors['rep-dob']} className="supplier-onboarding-grid__wide">
+                <DateOfBirthPicker value={repDob} onChange={(value) => { clearFieldError('rep-dob'); setRepDob(value); }} required />
               </OnboardingField>
               {isCompany ? (
                 <>
@@ -1272,13 +1366,15 @@ export default function SupplierOnboardingFlow({
                     />
                   </div>
                   {draft.rep_is_owner ? (
-                    <OnboardingField label="Ownership percent" help="The share of the company this person owns. Use 100 if they own it outright." className="supplier-onboarding-field--short">
+                    <OnboardingField id="rep-share" label="Ownership percent" help="The share of the company this person owns. Use 100 if they own it outright." error={fieldErrors['rep-share']} className="supplier-onboarding-field--short">
                       <input
                         className="tv-input"
                         inputMode="decimal"
                         value={draft.rep_percent_ownership}
+                        aria-invalid={Boolean(fieldErrors['rep-share']) || undefined}
                         onChange={(event) => {
                           draftEdited.current = true;
+                          clearFieldError('rep-share');
                           setDraft((current) => ({ ...current, rep_percent_ownership: event.target.value }));
                         }}
                       />
@@ -1290,28 +1386,29 @@ export default function SupplierOnboardingFlow({
           ) : null}
           {screen === 'others' ? (
             <div className="supplier-onboarding-grid">
-              <div className="supplier-onboarding-grid__wide">
+              <div className="supplier-onboarding-grid__wide" data-field="other-owners">
                 <p className="supplier-onboarding-field__label">Does anyone else own 25% or more?</p>
                 <Choice
                   value={others == null ? '' : others ? 'yes' : 'no'}
                   yes="Yes, add them"
                   no="No one else"
-                  onChange={(yes) => setOthers(yes)}
+                  onChange={(yes) => { clearFieldError('other-owners'); setOthers(yes); }}
                 />
+                {fieldErrors['other-owners'] ? <p className="supplier-onboarding-field__error">{fieldErrors['other-owners']}</p> : null}
               </div>
               {others ? (
                 <>
-                  <OnboardingField label="First name">
-                    <input className="tv-input" value={owner.first_name} autoComplete="given-name" onChange={(event) => setOwner((current) => ({ ...current, first_name: event.target.value }))} />
+                  <OnboardingField id="owner-first" label="First name" error={fieldErrors['owner-first']}>
+                    <input className="tv-input" value={owner.first_name} autoComplete="given-name" aria-invalid={Boolean(fieldErrors['owner-first']) || undefined} onChange={(event) => { clearFieldError('owner-first'); setOwner((current) => ({ ...current, first_name: event.target.value })); }} />
                   </OnboardingField>
-                  <OnboardingField label="Last name">
-                    <input className="tv-input" value={owner.last_name} autoComplete="family-name" onChange={(event) => setOwner((current) => ({ ...current, last_name: event.target.value }))} />
+                  <OnboardingField id="owner-last" label="Last name" error={fieldErrors['owner-last']}>
+                    <input className="tv-input" value={owner.last_name} autoComplete="family-name" aria-invalid={Boolean(fieldErrors['owner-last']) || undefined} onChange={(event) => { clearFieldError('owner-last'); setOwner((current) => ({ ...current, last_name: event.target.value })); }} />
                   </OnboardingField>
-                  <OnboardingField label="Date of birth" help="Used to confirm this owner. Traverion does not keep the date." className="supplier-onboarding-grid__wide">
-                    <DateOfBirthPicker value={owner.dob} onChange={(value) => setOwner((current) => ({ ...current, dob: value }))} required />
+                  <OnboardingField id="owner-dob" label="Date of birth" help="Used to confirm this owner. Traverion does not keep the date." error={fieldErrors['owner-dob']} className="supplier-onboarding-grid__wide">
+                    <DateOfBirthPicker value={owner.dob} onChange={(value) => { clearFieldError('owner-dob'); setOwner((current) => ({ ...current, dob: value })); }} required />
                   </OnboardingField>
-                  <OnboardingField label="Ownership percent" help="The share of the company this person owns." className="supplier-onboarding-field--short">
-                    <input className="tv-input" inputMode="decimal" value={owner.percent_ownership} onChange={(event) => setOwner((current) => ({ ...current, percent_ownership: event.target.value }))} />
+                  <OnboardingField id="owner-share" label="Ownership percent" help="The share of the company this person owns." error={fieldErrors['owner-share']} className="supplier-onboarding-field--short">
+                    <input className="tv-input" inputMode="decimal" value={owner.percent_ownership} aria-invalid={Boolean(fieldErrors['owner-share']) || undefined} onChange={(event) => { clearFieldError('owner-share'); setOwner((current) => ({ ...current, percent_ownership: event.target.value })); }} />
                   </OnboardingField>
                 </>
               ) : null}
@@ -1323,8 +1420,10 @@ export default function SupplierOnboardingFlow({
                 <p className="supplier-onboarding-grid__wide text-[15px] font-semibold text-ink">{profile.company_legal_name}</p>
               ) : null}
               <OnboardingField
+                id="iban"
                 label="IBAN"
                 help="The company account that receives payouts. The full number is sent securely and is not shown again."
+                error={fieldErrors.iban}
                 className="supplier-onboarding-grid__wide"
               >
                 <input
@@ -1332,7 +1431,8 @@ export default function SupplierOnboardingFlow({
                   value={iban}
                   autoComplete="off"
                   placeholder="FI00 0000 0000 0000 00"
-                  onChange={(event) => setIban(event.target.value)}
+                  aria-invalid={Boolean(fieldErrors.iban) || undefined}
+                  onChange={(event) => { clearFieldError('iban'); setIban(event.target.value); }}
                 />
               </OnboardingField>
             </div>
@@ -1343,13 +1443,14 @@ export default function SupplierOnboardingFlow({
               <ReviewSection title="Documents" detail={profile?.company_registration_document_path ? 'Registration extract uploaded' : 'Not uploaded'} onEdit={() => editStep('documents')} />
               <ReviewSection title="Identity" detail={[draft.rep_first_name, draft.rep_last_name].filter(Boolean).join(' ') || 'Not added yet'} onEdit={() => editStep('person')} />
               <ReviewSection title="Payouts" detail={iban.trim() ? `IBAN ending ${iban.replace(/\s/g, '').slice(-4)}` : draft.bankLast4 ? `Account ending ${draft.bankLast4}` : draft.bankSavedAt ? 'Payout account saved' : 'Not added yet'} onEdit={() => editStep('bank')} />
-              <label className="supplier-onboarding-choice">
+              <label className={`supplier-onboarding-choice${fieldErrors['supplier-terms'] ? ' supplier-onboarding-field--invalid' : ''}`} data-field="supplier-terms">
                 <input
                   type="checkbox"
                   checked={supplierTermsAccepted}
                   onChange={(event) => {
                     const checked = event.target.checked;
                     draftEdited.current = true;
+                    clearFieldError('supplier-terms');
                     setDraft((current) => {
                       const updated = {
                         ...current,
@@ -1370,7 +1471,8 @@ export default function SupplierOnboardingFlow({
                   .
                 </span>
               </label>
-              {reviewBlocker ? <p className="text-sm text-ink/70">{reviewBlocker}</p> : null}
+              {fieldErrors['supplier-terms'] ? <p className="supplier-onboarding-field__error">{fieldErrors['supplier-terms']}</p> : null}
+              {reviewBlocker && !fieldErrors['supplier-terms'] ? <p className="text-sm text-ink/70">{reviewBlocker}</p> : null}
             </div>
           ) : null}
           {screen === 'status' && !draftReview ? (
@@ -1433,23 +1535,31 @@ function FieldHelp({ label, text }: { label: string; text: string }) {
 }
 
 function OnboardingField({
+  id,
   label,
   help,
+  error,
   className,
   children,
 }: {
+  id?: string;
   label: string;
   help?: string;
+  error?: string;
   className?: string;
   children: ReactNode;
 }) {
   return (
-    <div className={`supplier-onboarding-field${className ? ` ${className}` : ''}`}>
+    <div
+      className={`supplier-onboarding-field${error ? ' supplier-onboarding-field--invalid' : ''}${className ? ` ${className}` : ''}`}
+      data-field={id}
+    >
       <div className="supplier-onboarding-field__label">
         <span>{label}</span>
         {help ? <FieldHelp label={`About ${label}`} text={help} /> : null}
       </div>
       {children}
+      {error ? <p className="supplier-onboarding-field__error">{error}</p> : null}
     </div>
   );
 }
