@@ -58,7 +58,7 @@ export function registrationDocumentGuidance(country: string | null | undefined)
   const finnish = code === 'FI' || code === 'FIN' || code === 'FINLAND' || code === 'SUOMI';
   return {
     summary:
-      'Upload an official extract that shows the legal name, business ID, and registered address. Saving it does not approve the company.',
+      'Upload an official extract that shows the legal name, business ID, and registered address.',
     example: finnish
       ? 'In Finland, a PRH trade register extract is the usual document.'
       : 'Use the official company-registration extract for the country where the company is registered.',

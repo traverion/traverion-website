@@ -18,6 +18,7 @@ export function ListingCreationWorkspace({
   onSelectIndex,
   onExit,
   exitLabel = 'Exit',
+  headerExit = true,
   exitDisabled,
   exitBusy,
   contextNav,
@@ -38,6 +39,8 @@ export function ListingCreationWorkspace({
   onSelectIndex: (index: number) => void;
   onExit: () => void;
   exitLabel?: string;
+  /** Focused flows can keep exit in the footer and omit the header action. */
+  headerExit?: boolean;
   exitDisabled: boolean;
   exitBusy: boolean;
   /** Nested creation rail. Omit until a real nested workflow exists. */
@@ -73,9 +76,13 @@ export function ListingCreationWorkspace({
       <div className="listing-creation-main relative flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         {focused ? (
           <div className="flex items-center justify-between gap-3 border-b border-[#E5E7EB] px-4 py-2.5 pt-[max(0.6rem,env(safe-area-inset-top))] sm:px-6">
-            <button type="button" className="min-h-11 text-sm font-semibold text-ink" onClick={onExit} disabled={exitDisabled}>
-              {exitBusy ? 'Saving…' : exitLabel}
-            </button>
+            {headerExit ? (
+              <button type="button" className="min-h-11 text-sm font-semibold text-ink" onClick={onExit} disabled={exitDisabled}>
+                {exitBusy ? 'Saving…' : exitLabel}
+              </button>
+            ) : (
+              <span className="min-w-16" aria-hidden />
+            )}
             <p className="truncate text-sm font-semibold text-ink">Traverion</p>
             <p className={`min-w-16 text-right text-xs ${persistLabel === 'Save failed' ? 'text-red-700' : 'text-ink-muted'}`} aria-live="polite">{persistLabel ?? ''}</p>
           </div>

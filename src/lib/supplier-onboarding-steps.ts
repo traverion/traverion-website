@@ -9,35 +9,35 @@ export const SUPPLIER_ONBOARDING_SCREENS = [
     group: 'Company',
     phase: 'business',
     title: 'Business details',
-    body: 'The registered legal name and business ID. Nothing here is verified until it is reviewed.',
+    body: 'Enter your company details as they appear in the official business register.',
   },
   {
     id: 'address',
     group: 'Company',
     phase: 'business',
     title: 'Business address',
-    body: 'The company’s official registered address. Search fills the fields, and you can edit any of them.',
+    body: 'The company’s official registered address.',
   },
   {
     id: 'documents',
     group: 'Documents',
     phase: 'documents',
     title: 'Registration document',
-    body: 'The official registration extract. Saving it does not approve the company.',
+    body: 'Upload the official registration extract.',
   },
   {
     id: 'person',
     group: 'Identity',
     phase: 'representative',
     title: 'Personal details',
-    body: 'The person who legally represents the business. The date of birth is used for verification and is not kept by Traverion.',
+    body: 'The person who legally represents the business.',
   },
   {
     id: 'dob',
     group: 'Identity',
     phase: 'representative',
     title: 'What is their date of birth?',
-    body: 'Used for verification. Traverion does not store the date.',
+    body: 'Enter the date of birth for the person who represents the business.',
   },
   {
     id: 'director',
@@ -65,7 +65,7 @@ export const SUPPLIER_ONBOARDING_SCREENS = [
     group: 'Identity',
     phase: 'representative',
     title: 'Other owners',
-    body: 'Add anyone else who owns 25% or more. This stays in the draft until you finish setup.',
+    body: 'Add anyone else who owns 25% or more.',
   },
   {
     id: 'owner',
@@ -79,28 +79,28 @@ export const SUPPLIER_ONBOARDING_SCREENS = [
     group: 'Identity',
     phase: 'representative',
     title: 'Confirm the representative',
-    body: 'This confirmation is saved with the draft. Nothing is sent until you finish setup.',
+    body: 'Confirm that these details are correct.',
   },
   {
     id: 'bank',
     group: 'Bank',
     phase: 'payout',
     title: 'Payout account',
-    body: 'The company account that receives payouts. The number is checked here and sent only when you finish setup.',
+    body: 'The company account that receives payouts.',
   },
   {
     id: 'terms',
     group: 'Bank',
     phase: 'payout',
     title: 'Accept the payout terms',
-    body: 'The IBAN is checked on this device, then sent as a secure token.',
+    body: 'Review and accept the payout terms.',
   },
   {
     id: 'status',
     group: 'Verification',
     phase: 'status',
-    title: 'Verification pending',
-    body: 'This page updates when the review moves forward.',
+    title: 'Review',
+    body: 'Check the details before you continue.',
   },
 ] as const;
 
@@ -199,27 +199,27 @@ export function companyOnboardingPresentation(input: {
   if (input.verified && input.hasCompany) {
     return {
       title: 'Confirm your company',
-      body: 'This is the verified company record.',
+      body: '',
       mode: 'verified',
     };
   }
   if (input.pendingReview && input.hasCompany) {
     return {
-      title: 'Verification pending',
-      body: 'These company details were sent for review. They are not verified yet.',
+      title: 'Business details',
+      body: '',
       mode: 'pending',
     };
   }
   if (input.hasCompany) {
     return {
       title: 'Business details',
-      body: 'These details are saved on your account. They are not verified yet.',
+      body: 'Enter your company details as they appear in the official business register.',
       mode: 'draft',
     };
   }
   return {
     title: 'Business details',
-    body: 'The registered legal name and business ID. Nothing here is verified until it is reviewed.',
+    body: 'Enter your company details as they appear in the official business register.',
     mode: 'form',
   };
 }

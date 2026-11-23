@@ -1205,7 +1205,7 @@ export default function SupplierOnboardingFlow({
         ? companyPresentation.title
         : meta.title;
   const body = draftReview
-    ? 'Check the company, documents, representative, and payout details. Nothing is submitted until you choose Submit for verification.'
+    ? 'Check the company, documents, representative, and payout details.'
     : screen === 'status'
       ? verification.summary
       : screen === 'company'
@@ -1241,6 +1241,32 @@ export default function SupplierOnboardingFlow({
     : screen === 'status'
       ? verification.actionLabel ?? 'Done'
       : 'Continue';
+  const mandatoryReady = screenReady({
+    screen,
+    companyLocked,
+    companyLegal,
+    businessIdError: businessIdError(),
+    addressErrors: addressFieldErrors({
+      street: companyStreet.trim(),
+      postal: companyPostal.trim(),
+      city: companyCity.trim(),
+      country: companyCountry.trim(),
+    }),
+    hasFile,
+    firstName: draft.rep_first_name,
+    lastName: draft.rep_last_name,
+    repDob,
+    isCompany,
+    owns: draft.rep_is_owner,
+    shareInput: draft.rep_percent_ownership,
+    others,
+    owner,
+    iban,
+    bankSaved: Boolean(draft.bankSavedAt),
+    country: normalizeCountryCode(profile?.address_country) || 'FI',
+    draftReview,
+    reviewBlocked: Boolean(reviewBlocker),
+  });
 
   return (
     <div
@@ -1259,6 +1285,7 @@ export default function SupplierOnboardingFlow({
         currentLabel={meta.group}
         onSelectIndex={() => undefined}
         onExit={() => void exitAndSave()}
+        headerExit={false}
         exitLabel="Exit & save"
         exitDisabled={busy || documentBusy}
         exitBusy={busy}
@@ -1301,9 +1328,9 @@ export default function SupplierOnboardingFlow({
               )}
               <button
                 type="button"
-                className="stay-nav-btn stay-nav-btn--end touch-manipulation tv-btn-primary !min-h-11 disabled:opacity-50"
+                className={`stay-nav-btn stay-nav-btn--end touch-manipulation tv-btn-primary !min-h-11 disabled:opacity-50${primary === 'Continue' ? ' supplier-onboarding-continue' : ''}`}
                 onClick={() => void onContinue()}
-                disabled={busy || documentBusy || Boolean(reviewBlocker)}
+                disabled={busy || documentBusy || !mandatoryReady}
               >
                 {busy ? 'Saving…' : primary}
               </button>
@@ -1324,7 +1351,7 @@ export default function SupplierOnboardingFlow({
             <h1 className="supplier-onboarding__title">{title}</h1>
           </header>
           <div key={screen} className={`supplier-onboarding-pane supplier-onboarding-pane--${motion}`}>
-            <p className="supplier-onboarding__body">{body}</p>
+            {body ? <p className="supplier-onboarding__body">{body}</p> : null}
           {screen === 'company' && (companyPresentation.mode === 'form' || companyPresentation.mode === 'draft') ? (
             <div className="supplier-onboarding-grid">
               <OnboardingField id="company-legal" label="Registered legal business name" error={fieldErrors['company-legal']} className="supplier-onboarding-grid__wide">
@@ -1420,7 +1447,7 @@ export default function SupplierOnboardingFlow({
                   onChange={(event) => { draftEdited.current = true; clearFieldError('rep-last'); setDraft((current) => ({ ...current, rep_last_name: event.target.value })); }}
                 />
               </OnboardingField>
-              <OnboardingField id="rep-dob" label="Date of birth" help="Used to confirm this person. Traverion does not keep the date." error={fieldErrors['rep-dob']} className="supplier-onboarding-grid__wide">
+              <OnboardingField id="rep-dob" label="Date of birth" error={fieldErrors['rep-dob']} className="supplier-onboarding-grid__wide">
                 <DateOfBirthPicker id="rep-dob" value={repDob} onChange={(value) => { clearFieldError('rep-dob'); writeRepresentativeDob(userId, value); setRepDob(value); }} required aria-invalid={Boolean(fieldErrors['rep-dob'])} />
               </OnboardingField>
             </div>
@@ -1496,7 +1523,7 @@ export default function SupplierOnboardingFlow({
                   <OnboardingField id="owner-last" label="Last name" error={fieldErrors['owner-last']}>
                     <input className="tv-input" value={owner.last_name} autoComplete="family-name" aria-invalid={Boolean(fieldErrors['owner-last']) || undefined} onChange={(event) => { clearFieldError('owner-last'); setOwner((current) => ({ ...current, last_name: event.target.value })); }} />
                   </OnboardingField>
-                  <OnboardingField id="owner-dob" label="Date of birth" help="Used to confirm this owner. Traverion does not keep the date." error={fieldErrors['owner-dob']} className="supplier-onboarding-grid__wide">
+                  <OnboardingField id="owner-dob" label="Date of birth" error={fieldErrors['owner-dob']} className="supplier-onboarding-grid__wide">
                     <DateOfBirthPicker value={owner.dob} onChange={(value) => { clearFieldError('owner-dob'); setOwner((current) => ({ ...current, dob: value })); }} required />
                   </OnboardingField>
                   <OnboardingField id="owner-share" label="Ownership percent" help="The share of the company this person owns." error={fieldErrors['owner-share']} className="supplier-onboarding-field--short">
@@ -1526,7 +1553,6 @@ export default function SupplierOnboardingFlow({
               <OnboardingField
                 id="iban"
                 label="IBAN"
-                help="The company account that receives payouts. The full number is sent securely and is not shown again."
                 error={fieldErrors.iban}
                 className="supplier-onboarding-grid__wide"
               >
@@ -1598,6 +1624,68 @@ export default function SupplierOnboardingFlow({
       </ListingCreationWorkspace>
     </div>
   );
+}
+
+function screenReady(input: {
+  screen: SupplierOnboardingScreenId;
+  companyLocked: boolean;
+  companyLegal: string;
+  businessIdError: string | null;
+  addressErrors: Record<string, string>;
+  hasFile: boolean;
+  firstName: string;
+  lastName: string;
+  repDob: string;
+  isCompany: boolean;
+  owns: boolean;
+  shareInput: string;
+  others: boolean | null;
+  owner: { first_name: string; last_name: string; dob: string; percent_ownership: string };
+  iban: string;
+  bankSaved: boolean;
+  country: string;
+  draftReview: boolean;
+  reviewBlocked: boolean;
+}): boolean {
+  if (input.screen === 'company') {
+    if (input.companyLocked) return true;
+    return input.companyLegal.trim().length > 0 && input.businessIdError == null;
+  }
+  if (input.screen === 'address') {
+    if (input.companyLocked) return true;
+    return Object.keys(input.addressErrors).length === 0;
+  }
+  if (input.screen === 'documents') return input.hasFile;
+  if (input.screen === 'person') {
+    return (
+      input.firstName.trim().length > 0 &&
+      input.lastName.trim().length > 0 &&
+      validateIsoDob(input.repDob, { required: true }) == null
+    );
+  }
+  if (input.screen === 'director') {
+    if (!(input.isCompany && input.owns)) return true;
+    return validateOwnershipPercent(input.shareInput, { required: true }) == null;
+  }
+  if (input.screen === 'others') {
+    if (input.others == null) return false;
+    if (!input.others) return true;
+    const percent = parseOwnershipPercent(input.owner.percent_ownership);
+    return (
+      input.owner.first_name.trim().length > 0 &&
+      input.owner.last_name.trim().length > 0 &&
+      validateIsoDob(input.owner.dob, { required: true }) == null &&
+      percent != null &&
+      percent > 0 &&
+      validateOwnershipPercent(input.owner.percent_ownership, { required: true }) == null
+    );
+  }
+  if (input.screen === 'bank') {
+    if (!input.iban.trim() && input.bankSaved) return true;
+    return validateIban(input.iban, input.country) == null;
+  }
+  if (input.draftReview) return !input.reviewBlocked;
+  return true;
 }
 
 function progressRecord(
