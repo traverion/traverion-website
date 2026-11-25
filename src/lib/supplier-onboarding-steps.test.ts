@@ -147,5 +147,10 @@ describe('supplier onboarding screens', () => {
     expect(canRevisitOnboardingPhase('payout', 'representative', visible)).toBe(false);
     expect(canRevisitOnboardingPhase('representative', 'payout', ['company', 'bank', 'status'])).toBe(false);
     expect(onboardingOverallStep(visible, 'person')).toEqual({ index: 3, total: visible.length });
+    expect(onboardingOverallStep(['company', 'address', 'bank', 'status'], 'documents')).toEqual({
+      index: 3,
+      total: 5,
+    });
+    expect(onboardingOverallStep(['company', 'address', 'person', 'bank', 'status'], 'documents').index).toBe(3);
   });
 });

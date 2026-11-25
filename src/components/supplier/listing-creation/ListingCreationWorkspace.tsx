@@ -83,7 +83,9 @@ export function ListingCreationWorkspace({
             ) : (
               <span className="min-w-16" aria-hidden />
             )}
-            <p className="truncate text-sm font-semibold text-ink">Traverion</p>
+            <p className="supplier-onboarding-brand" aria-label="Traverion">
+              TRAVERION
+            </p>
             <p className={`min-w-16 text-right text-xs ${persistLabel === 'Save failed' ? 'text-red-700' : 'text-ink-muted'}`} aria-live="polite">{persistLabel ?? ''}</p>
           </div>
         ) : (

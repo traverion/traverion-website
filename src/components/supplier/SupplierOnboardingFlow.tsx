@@ -322,8 +322,12 @@ export default function SupplierOnboardingFlow({
         const idx = stack.lastIndexOf(action.screen);
         if (idx >= 0) historyStack.current = stack.slice(0, idx + 1);
         else historyStack.current = [...stack, action.screen];
+        const base = journeyRef.current.length ? journeyRef.current : visible;
+        const synced = initialOnboardingJourney(base, action.screen);
+        journeyRef.current = synced;
+        setJourney(synced);
         if (leaving && leaving !== action.screen) {
-          setMotion(onboardingMoveDirection(journeyRef.current, leaving, action.screen));
+          setMotion(onboardingMoveDirection(synced, leaving, action.screen));
           void persistDraft('quiet').then((result) => {
             if (result !== 'failed' || !leaving) return;
             setMotion('forward');
@@ -344,6 +348,12 @@ export default function SupplierOnboardingFlow({
     return () => window.removeEventListener('popstate', onPop);
   }, [visible, writeScreen]);
 
+
+  useEffect(() => {
+    if (!screen) return;
+    const node = document.querySelector('.partner-onboarding-frame .listing-creation-content');
+    if (node instanceof HTMLElement) node.scrollTop = 0;
+  }, [screen]);
 
   useEffect(() => {
     if (screen !== 'status' || !userId) return;
@@ -1178,6 +1188,7 @@ export default function SupplierOnboardingFlow({
   const meta = supplierOnboardingScreen(screen);
   const route = journey.length ? journey : visible;
   const overall = onboardingOverallStep(route, screen);
+  const progressPct = (overall.index / Math.max(overall.total, 1)) * 100;
   const verification = supplierVerificationState(profile);
   const companyPresentation = companyOnboardingPresentation({
     verified: (profile?.verification_status ?? '').toLowerCase() === 'verified',
@@ -1300,8 +1311,8 @@ export default function SupplierOnboardingFlow({
               aria-label={`Step ${overall.index} of ${overall.total}`}
             >
               <div
-                className="h-full bg-[#073b83] transition-[width] duration-200 motion-reduce:transition-none"
-                style={{ width: `${(overall.index / Math.max(overall.total, 1)) * 100}%` }}
+                className="supplier-onboarding-progress h-full bg-[#073b83]"
+                style={{ width: `${progressPct}%` }}
               />
             </div>
             <div className="supplier-onboarding-footer">

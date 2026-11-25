@@ -183,12 +183,27 @@ export function canRevisitOnboardingPhase(
   return onboardingPhaseEntryScreen(phase, visible) != null;
 }
 
+const ONBOARDING_SCREEN_ORDER = SUPPLIER_ONBOARDING_SCREENS.map((screen) => screen.id);
+
+/** Place the open screen in journey order so the counter and bar share one position. */
 export function onboardingOverallStep(
   visible: readonly SupplierOnboardingScreenId[],
   screen: SupplierOnboardingScreenId
 ): { index: number; total: number } {
-  const steps = visible.includes(screen) ? [...visible] : [...visible, screen];
-  return { index: Math.max(1, steps.indexOf(screen) + 1), total: Math.max(steps.length, 1) };
+  const steps = visible.includes(screen) ? [...visible] : insertOnboardingScreen(visible, screen);
+  const index = Math.max(0, steps.indexOf(screen));
+  return { index: index + 1, total: Math.max(steps.length, 1) };
+}
+
+function insertOnboardingScreen(
+  visible: readonly SupplierOnboardingScreenId[],
+  screen: SupplierOnboardingScreenId
+): SupplierOnboardingScreenId[] {
+  const next = [...visible];
+  const order = ONBOARDING_SCREEN_ORDER.indexOf(screen);
+  const at = next.findIndex((id) => ONBOARDING_SCREEN_ORDER.indexOf(id) > order);
+  next.splice(at === -1 ? next.length : at, 0, screen);
+  return next;
 }
 
 export function companyOnboardingPresentation(input: {
