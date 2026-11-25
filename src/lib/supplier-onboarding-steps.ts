@@ -16,7 +16,7 @@ export const SUPPLIER_ONBOARDING_SCREENS = [
     group: 'Company',
     phase: 'business',
     title: 'Business address',
-    body: 'The company’s official registered address.',
+    body: 'Enter your company’s registered business address.',
   },
   {
     id: 'documents',

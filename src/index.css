@@ -10354,6 +10354,10 @@ details:not([open]) > :not(summary) {
   text-transform: uppercase;
 }
 
+.supplier-onboarding__title:focus {
+  outline: none;
+}
+
 .supplier-onboarding__title {
   margin: 0;
   color: #18181b;

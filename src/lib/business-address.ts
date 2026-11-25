@@ -1,3 +1,5 @@
+import { getCountries, type CountryCode } from 'libphonenumber-js';
+
 /** Structured company address. Empty parts stay empty — nothing is inferred from a formatted line. */
 
 export type StructuredBusinessAddress = {
@@ -44,6 +46,44 @@ export const BUSINESS_ADDRESS_FIELD_ERROR: Record<'street' | 'postal' | 'city' |
   city: 'Enter the city.',
   country: 'Enter the country.',
 };
+
+const PRIORITY_COUNTRY_CODES = ['FI', 'SE', 'NO', 'DK', 'EE', 'DE', 'GB', 'US', 'FR', 'ES', 'IT', 'NL'];
+
+function regionName(code: string): string {
+  try {
+    return new Intl.DisplayNames(['en'], { type: 'region' }).of(code) ?? code;
+  } catch {
+    return code;
+  }
+}
+
+/** English country name for a stored ISO code or an existing country name. */
+export function businessCountryName(codeOrName: string | null | undefined): string {
+  const raw = (codeOrName ?? '').trim();
+  if (!raw) return '';
+  if (/^[A-Za-z]{2}$/.test(raw)) return regionName(raw.toUpperCase());
+  return raw;
+}
+
+/** Searchable country list. The current value stays selectable even if it is not a known region. */
+export function businessCountryOptions(current?: string | null): { value: string; label: string }[] {
+  const codes = getCountries();
+  const priority = PRIORITY_COUNTRY_CODES.filter((code) => codes.includes(code as CountryCode));
+  const rest = codes
+    .filter((code) => !priority.includes(code))
+    .sort((a, b) => regionName(a).localeCompare(regionName(b)));
+  const seen = new Set<string>();
+  const options: { value: string; label: string }[] = [];
+  for (const code of [...priority, ...rest]) {
+    const name = regionName(code);
+    if (!name || seen.has(name)) continue;
+    seen.add(name);
+    options.push({ value: name, label: name });
+  }
+  const extra = businessCountryName(current);
+  if (extra && !seen.has(extra)) options.unshift({ value: extra, label: extra });
+  return options;
+}
 
 export function addressFieldErrors(address: StructuredBusinessAddress): Record<string, string> {
   const errors: Record<string, string> = {};

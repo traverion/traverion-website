@@ -21,6 +21,7 @@ import {
 import { isValidFinnishBusinessId, normalizeCountryCode, normalizeFinnishBusinessId } from '../../lib/business-identity-validation';
 import {
   addressFieldErrors,
+  businessCountryName,
   type StructuredBusinessAddress,
 } from '../../lib/business-address';
 import { feedback } from '../../lib/feedback';
@@ -247,8 +248,14 @@ export default function SupplierOnboardingFlow({
     setCompanyStreet(profile.address_street ?? '');
     setCompanyPostal(profile.address_postal_code ?? '');
     setCompanyCity(profile.address_city ?? '');
-    setCompanyCountry(profile.address_country ?? '');
+    setCompanyCountry(businessCountryName(profile.address_country ?? ''));
   }, [profile]);
+
+  useEffect(() => {
+    if (screen !== 'address' || companyCountry.trim()) return;
+    if (!isValidFinnishBusinessId(companyReg)) return;
+    setCompanyCountry(businessCountryName('FI') || 'Finland');
+  }, [screen, companyCountry, companyReg]);
 
   const writeScreen = useCallback((next: SupplierOnboardingScreenId, mode: 'push' | 'replace') => {
     const phase = supplierOnboardingScreen(next).phase;
@@ -353,6 +360,19 @@ export default function SupplierOnboardingFlow({
     if (!screen) return;
     const node = document.querySelector('.partner-onboarding-frame .listing-creation-content');
     if (node instanceof HTMLElement) node.scrollTop = 0;
+    const frame = window.requestAnimationFrame(() => {
+      const active = document.activeElement;
+      if (
+        active instanceof HTMLInputElement ||
+        active instanceof HTMLTextAreaElement ||
+        active instanceof HTMLSelectElement
+      ) {
+        if (active.closest('.supplier-onboarding')) active.blur();
+      }
+      const title = document.getElementById('supplier-onboarding-step-title');
+      if (title instanceof HTMLElement) title.focus({ preventScroll: true });
+    });
+    return () => window.cancelAnimationFrame(frame);
   }, [screen]);
 
   useEffect(() => {
@@ -486,7 +506,6 @@ export default function SupplierOnboardingFlow({
   const advance = async (id: SupplierOnboardingScreenId, patch?: Partial<SupplierOnboardingVisibility>) => {
     const saved = await persistDraft();
     if (saved === 'failed') return;
-    if (saved === 'saved') feedback.success('Saved');
     const computed = sequence(patch);
     const nextJourney = reconcileOnboardingJourney(
       journeyRef.current.length ? journeyRef.current : computed,
@@ -534,7 +553,6 @@ export default function SupplierOnboardingFlow({
         business_type: profile.business_type === 'individual' ? 'individual' : 'company',
       });
     }
-    feedback.success('Saved');
     return true;
   };
 
@@ -579,7 +597,6 @@ export default function SupplierOnboardingFlow({
         address_country: address.country,
       });
     }
-    feedback.success('Saved');
     return true;
   };
 
@@ -650,7 +667,6 @@ export default function SupplierOnboardingFlow({
       setError(null);
       const saved = await persistDraft();
       if (saved === 'failed') return;
-      if (saved === 'saved') feedback.success('Saved');
       const stack = historyStack.current;
       if (stack.length > 1 && stack[stack.length - 2] === previous) {
         // Apply the previous screen before history moves. A late popstate must not
@@ -687,7 +703,6 @@ export default function SupplierOnboardingFlow({
       setError(null);
       const saved = await persistDraft();
       if (saved === 'failed') return;
-      if (saved === 'saved') feedback.success('Saved');
       publish(target, 'back');
     } finally {
       navLock.current = false;
@@ -1359,7 +1374,9 @@ export default function SupplierOnboardingFlow({
           <div className="supplier-onboarding">
           <header className="supplier-onboarding__head">
             <p className="supplier-onboarding__kicker">Step {overall.index} of {overall.total}</p>
-            <h1 className="supplier-onboarding__title">{title}</h1>
+            <h1 id="supplier-onboarding-step-title" className="supplier-onboarding__title" tabIndex={-1}>
+              {title}
+            </h1>
           </header>
           <div key={screen} className={`supplier-onboarding-pane supplier-onboarding-pane--${motion}`}>
             {body ? <p className="supplier-onboarding__body">{body}</p> : null}

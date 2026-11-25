@@ -1,12 +1,15 @@
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { computeAnchoredActionMenuBox } from '../../lib/anchored-popover';
 import {
   businessAddressSuggestionText,
+  businessCountryName,
+  businessCountryOptions,
   structuredBusinessAddress,
   type StructuredBusinessAddress,
 } from '../../lib/business-address';
 import { autocompleteAddresses, placesSearchConfigured, resolveAddress, type PlaceSuggestion } from '../../lib/places-client';
+import PartnerSelect from './PartnerSelect';
 
 type Props = {
   value: StructuredBusinessAddress;
@@ -16,11 +19,6 @@ type Props = {
 
 function isAbortError(err: unknown): boolean {
   return err instanceof DOMException && err.name === 'AbortError';
-}
-
-function composed(value: StructuredBusinessAddress): string {
-  const locality = [value.postal, value.city].filter(Boolean).join(' ');
-  return [value.street, locality, value.country].filter(Boolean).join(', ');
 }
 
 export default function RegisteredBusinessAddress({ value, onChange, errors = {} }: Props) {
@@ -39,6 +37,8 @@ export default function RegisteredBusinessAddress({ value, onChange, errors = {}
   const [activeIndex, setActiveIndex] = useState(0);
   const [menuBox, setMenuBox] = useState<{ top: number; left: number; width: number } | null>(null);
   const configured = placesSearchConfigured();
+  const countryOptions = useMemo(() => businessCountryOptions(value.country), [value.country]);
+  const countryValue = businessCountryName(value.country);
 
   useEffect(() => {
     if (!open) {
@@ -134,8 +134,13 @@ export default function RegisteredBusinessAddress({ value, onChange, errors = {}
       }
       const next = structuredBusinessAddress(place);
       if (resolveSeq.current !== seq) return;
-      onChange(next);
-      setDraft(null);
+      onChange({
+        street: next.street,
+        postal: next.postal,
+        city: next.city,
+        country: businessCountryName(next.country) || next.country,
+      });
+      setDraft('');
       setOpen(false);
       setSuggestions([]);
       setEmpty(false);
@@ -184,15 +189,10 @@ export default function RegisteredBusinessAddress({ value, onChange, errors = {}
 
   return (
     <div ref={rootRef} className="supplier-onboarding-grid__wide supplier-onboarding-address">
-      <div className={`supplier-onboarding-field${errors['address-street'] ? ' supplier-onboarding-field--invalid' : ''}`} data-field="address-search">
+      {configured ? (
+      <div className="supplier-onboarding-field" data-field="address-search">
         <div className="supplier-onboarding-field__label">
-          <label htmlFor={inputId}>Registered business address</label>
-          <button type="button" className="supplier-onboarding-help" aria-label="About registered business address">
-            ?
-            <span className="supplier-onboarding-help__tip" role="tooltip">
-              This should be the company&apos;s official registered address.
-            </span>
-          </button>
+          <label htmlFor={inputId}>Search address</label>
         </div>
         <input
           ref={inputRef}
@@ -202,22 +202,17 @@ export default function RegisteredBusinessAddress({ value, onChange, errors = {}
           aria-controls={listId}
           aria-autocomplete="list"
           aria-busy={loading || resolving}
-          aria-invalid={Boolean(errors['address-street']) || undefined}
           aria-activedescendant={open && suggestions[activeIndex] ? `${listId}-opt-${activeIndex}` : undefined}
           className="tv-input"
-          value={draft ?? composed(value)}
+          value={draft ?? ''}
           autoComplete="off"
-          placeholder={configured ? 'Search for the street address' : 'Enter the address below'}
+          placeholder="Optional"
           onChange={(event) => {
             resolveSeq.current += 1;
             setResolving(false);
             setDraft(event.target.value);
             setOpen(true);
             setError(null);
-          }}
-          onFocus={() => {
-            setDraft(composed(value));
-            setOpen(true);
           }}
           onBlur={() => {
             window.setTimeout(() => {
@@ -243,14 +238,13 @@ export default function RegisteredBusinessAddress({ value, onChange, errors = {}
             }
           }}
         />
-        {errors['address-street'] ? <p className="supplier-onboarding-field__error">{errors['address-street']}</p> : null}
         {error ? (
           <p className="supplier-onboarding-error" role="alert">
             {error}
           </p>
         ) : null}
-        {!configured ? <p className="supplier-onboarding__body">Address search is unavailable. Enter each field below.</p> : null}
       </div>
+      ) : null}
       <div className="supplier-onboarding-grid">
         <div className={`supplier-onboarding-field supplier-onboarding-grid__wide${errors['address-street'] ? ' supplier-onboarding-field--invalid' : ''}`} data-field="address-street">
           <div className="supplier-onboarding-field__label">
@@ -298,13 +292,15 @@ export default function RegisteredBusinessAddress({ value, onChange, errors = {}
           <div className="supplier-onboarding-field__label">
             <label htmlFor={`${inputId}-country`}>Country</label>
           </div>
-          <input
+          <PartnerSelect
             id={`${inputId}-country`}
-            className="tv-input"
-            value={value.country}
-            autoComplete="country-name"
+            value={countryValue}
+            options={countryOptions}
+            searchable
+            placeholder="Select a country"
+            aria-label="Country"
             aria-invalid={Boolean(errors['address-country']) || undefined}
-            onChange={(event) => edit({ country: event.target.value })}
+            onChange={(next) => edit({ country: next })}
           />
           {errors['address-country'] ? <p className="supplier-onboarding-field__error">{errors['address-country']}</p> : null}
         </div>

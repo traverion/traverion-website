@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { addressFieldErrors, missingBusinessAddressField, structuredBusinessAddress } from './business-address';
+import { addressFieldErrors, businessCountryName, businessCountryOptions, missingBusinessAddressField, structuredBusinessAddress } from './business-address';
 
 describe('structured business address', () => {
   it('keeps only the components the provider returned', () => {
@@ -28,5 +28,11 @@ describe('structured business address', () => {
     });
     expect(missingBusinessAddressField(structuredBusinessAddress({ street: 'Siljotie 2' }))).toBe('postal');
     expect(addressFieldErrors(structuredBusinessAddress({ street: 'Siljotie 2' }))['address-postal']).toMatch(/postal/i);
+  });
+
+  it('names a stored country code and keeps Finland selectable', () => {
+    expect(businessCountryName('FI')).toBe('Finland');
+    expect(businessCountryName('Finland')).toBe('Finland');
+    expect(businessCountryOptions('FI').some((option) => option.value === 'Finland')).toBe(true);
   });
 });
