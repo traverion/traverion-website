@@ -369,8 +369,6 @@ export default function SupplierOnboardingFlow({
       ) {
         if (active.closest('.supplier-onboarding')) active.blur();
       }
-      const title = document.getElementById('supplier-onboarding-step-title');
-      if (title instanceof HTMLElement) title.focus({ preventScroll: true });
     });
     return () => window.cancelAnimationFrame(frame);
   }, [screen]);
@@ -1374,9 +1372,7 @@ export default function SupplierOnboardingFlow({
           <div className="supplier-onboarding">
           <header className="supplier-onboarding__head">
             <p className="supplier-onboarding__kicker">Step {overall.index} of {overall.total}</p>
-            <h1 id="supplier-onboarding-step-title" className="supplier-onboarding__title" tabIndex={-1}>
-              {title}
-            </h1>
+            <h1 className="supplier-onboarding__title">{title}</h1>
           </header>
           <div key={screen} className={`supplier-onboarding-pane supplier-onboarding-pane--${motion}`}>
             {body ? <p className="supplier-onboarding__body">{body}</p> : null}

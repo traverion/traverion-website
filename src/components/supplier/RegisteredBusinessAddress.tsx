@@ -39,6 +39,9 @@ export default function RegisteredBusinessAddress({ value, onChange, errors = {}
   const configured = placesSearchConfigured();
   const countryOptions = useMemo(() => businessCountryOptions(value.country), [value.country]);
   const countryValue = businessCountryName(value.country);
+  const [manual, setManual] = useState(false);
+  const saved = Boolean(value.street.trim() || value.postal.trim() || value.city.trim());
+  const showDetails = saved || manual;
 
   useEffect(() => {
     if (!open) {
@@ -129,13 +132,18 @@ export default function RegisteredBusinessAddress({ value, onChange, errors = {}
       const place = await resolveAddress(suggestion.placeId);
       if (resolveSeq.current !== seq) return;
       if (!place) {
+        setManual(true);
         setError('That address could not be read. Enter the street, postal code, city, and country.');
         return;
       }
       const next = structuredBusinessAddress(place);
       if (resolveSeq.current !== seq) return;
+      const unit = place.unit.trim();
+      const street = unit && !next.street.toLowerCase().includes(unit.toLowerCase())
+        ? [next.street, unit].filter(Boolean).join(', ')
+        : next.street;
       onChange({
-        street: next.street,
+        street,
         postal: next.postal,
         city: next.city,
         country: businessCountryName(next.country) || next.country,
@@ -146,6 +154,7 @@ export default function RegisteredBusinessAddress({ value, onChange, errors = {}
       setEmpty(false);
     } catch {
       if (resolveSeq.current !== seq) return;
+      setManual(true);
       setError('That address could not be read. Enter the street, postal code, city, and country.');
     } finally {
       if (resolveSeq.current === seq) setResolving(false);
@@ -189,7 +198,6 @@ export default function RegisteredBusinessAddress({ value, onChange, errors = {}
 
   return (
     <div ref={rootRef} className="supplier-onboarding-grid__wide supplier-onboarding-address">
-      {configured ? (
       <div className="supplier-onboarding-field" data-field="address-search">
         <div className="supplier-onboarding-field__label">
           <label htmlFor={inputId}>Search address</label>
@@ -206,7 +214,7 @@ export default function RegisteredBusinessAddress({ value, onChange, errors = {}
           className="tv-input"
           value={draft ?? ''}
           autoComplete="off"
-          placeholder="Optional"
+          placeholder="Search for your business address"
           onChange={(event) => {
             resolveSeq.current += 1;
             setResolving(false);
@@ -243,8 +251,17 @@ export default function RegisteredBusinessAddress({ value, onChange, errors = {}
             {error}
           </p>
         ) : null}
+        {showDetails ? null : (
+          <button type="button" className="supplier-onboarding-address__manual" onClick={() => setManual(true)}>
+            Enter address manually
+          </button>
+        )}
       </div>
-      ) : null}
+      <div
+        className={`supplier-onboarding-address__details${showDetails ? ' supplier-onboarding-address__details--open' : ''}`}
+        inert={showDetails ? undefined : true}
+        aria-hidden={showDetails ? undefined : true}
+      >
       <div className="supplier-onboarding-grid">
         <div className={`supplier-onboarding-field supplier-onboarding-grid__wide${errors['address-street'] ? ' supplier-onboarding-field--invalid' : ''}`} data-field="address-street">
           <div className="supplier-onboarding-field__label">
@@ -255,6 +272,7 @@ export default function RegisteredBusinessAddress({ value, onChange, errors = {}
             className="tv-input"
             value={value.street}
             autoComplete="street-address"
+            placeholder="Street, apartment, suite, or unit"
             aria-invalid={Boolean(errors['address-street']) || undefined}
             onChange={(event) => edit({ street: event.target.value })}
           />
@@ -304,6 +322,7 @@ export default function RegisteredBusinessAddress({ value, onChange, errors = {}
           />
           {errors['address-country'] ? <p className="supplier-onboarding-field__error">{errors['address-country']}</p> : null}
         </div>
+      </div>
       </div>
       {menu ? createPortal(menu, document.body) : null}
     </div>
