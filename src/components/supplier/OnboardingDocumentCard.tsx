@@ -1,7 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
-import { Check, Eye, FileText, Image as ImageIcon, RefreshCw, Trash2, Upload } from 'lucide-react';
-import { useDialogFocus } from '../../hooks/useDialogFocus';
+import { Check, ExternalLink, FileText, Image as ImageIcon, RefreshCw, Trash2, Upload } from 'lucide-react';
 import { useConfirmPrompt } from '../feedback/useConfirmPrompt';
 import { getSignedVerificationDocumentUrl, getVerificationDocumentFileInfo } from '../../data/supabase-supplier-profile';
 import {
@@ -33,15 +31,12 @@ export default function OnboardingDocumentCard({
   onRemove,
 }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const previewRef = useRef<HTMLDivElement>(null);
   const [dragOver, setDragOver] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
   const [label, setLabel] = useState('');
   const [sizeBytes, setSizeBytes] = useState<number | null>(null);
   const [pending, setPending] = useState<{ name: string; size: number } | null>(null);
   const [progress, setProgress] = useState<number | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [previewKind, setPreviewKind] = useState<'image' | 'pdf'>('pdf');
   const [previewBusy, setPreviewBusy] = useState(false);
   const { ask, dialog } = useConfirmPrompt();
   const guidance = registrationDocumentGuidance(country);
@@ -50,8 +45,6 @@ export default function OnboardingDocumentCard({
   const name = saved ? label || 'Business registration document' : pending?.name || 'Business registration document';
   const sizeLabel = formatDocumentSize(saved ? sizeBytes : pending?.size);
   const progressLabel = progress == null ? null : `${Math.round(progress * 100)}%`;
-
-  useDialogFocus(previewUrl != null, previewRef, closePreview);
 
   useEffect(() => {
     let cancelled = false;
@@ -71,20 +64,6 @@ export default function OnboardingDocumentCard({
     };
   }, [path]);
 
-  useEffect(() => {
-    return () => {
-      if (previewUrl) URL.revokeObjectURL(previewUrl);
-    };
-  }, [previewUrl]);
-
-  function closePreview() {
-    setPreviewUrl((current) => {
-      if (current) URL.revokeObjectURL(current);
-      return null;
-    });
-    setPreviewBusy(false);
-  }
-
   async function take(file: File | null) {
     if (!file || busy) return;
     const problem = registrationDocumentFileError(file);
@@ -102,23 +81,36 @@ export default function OnboardingDocumentCard({
 
   async function preview() {
     if (!path || previewBusy) return;
-    setPreviewBusy(true);
-    setLocalError(null);
-    const signed = await getSignedVerificationDocumentUrl(path);
-    if (!signed) {
-      setPreviewBusy(false);
-      setLocalError('Could not open document.');
+    const tab = window.open('about:blank', '_blank');
+    if (!tab) {
+      setLocalError('Allow popups for this site to preview the document.');
       return;
     }
+    tab.opener = null;
+    setPreviewBusy(true);
+    setLocalError(null);
+    const fail = (message: string) => {
+      tab.close();
+      setLocalError(message);
+    };
     try {
-      const response = await fetch(signed);
-      if (!response.ok) throw new Error('load');
-      const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
-      setPreviewKind(blob.type.startsWith('image/') || registrationDocumentIsImage(path) ? 'image' : 'pdf');
-      setPreviewUrl(url);
+      const signed = await getSignedVerificationDocumentUrl(path, 300);
+      if (!signed) {
+        fail('Could not open the document. Try Preview again.');
+        return;
+      }
+      const probe = await fetch(signed, { method: 'GET', headers: { Range: 'bytes=0-0' } });
+      if (probe.status === 400 || probe.status === 401 || probe.status === 403) {
+        fail('This preview link expired. Try Preview again.');
+        return;
+      }
+      if (!probe.ok && probe.status !== 206) {
+        fail('Could not open the document. Try Preview again.');
+        return;
+      }
+      tab.location.replace(signed);
     } catch {
-      setLocalError('Could not open document.');
+      fail('Could not open the document. Try Preview again.');
     } finally {
       setPreviewBusy(false);
     }
@@ -168,8 +160,8 @@ export default function OnboardingDocumentCard({
             </div>
             <div className="supplier-document__actions">
               <button type="button" className="supplier-document__action" disabled={previewBusy} onClick={() => void preview()}>
-                <Eye className="h-4 w-4" strokeWidth={1.75} aria-hidden />
                 Preview
+                <ExternalLink className="h-3.5 w-3.5" strokeWidth={1.75} aria-hidden />
               </button>
               <button type="button" className="supplier-document__action" onClick={() => inputRef.current?.click()}>
                 <RefreshCw className="h-4 w-4" strokeWidth={1.75} aria-hidden />
@@ -240,32 +232,6 @@ export default function OnboardingDocumentCard({
         </p>
       ) : null}
       {dialog}
-      {previewUrl
-        ? createPortal(
-            <div className="tv-sheet-overlay tv-sheet-overlay--portal supplier-document-modal">
-              <div
-                ref={previewRef}
-                className="supplier-document-modal__panel"
-                role="dialog"
-                aria-modal="true"
-                aria-labelledby="supplier-document-preview-title"
-              >
-                <header className="supplier-document-modal__bar">
-                  <h2 id="supplier-document-preview-title">{name}</h2>
-                  <button type="button" className="supplier-document__action" onClick={closePreview}>
-                    Close
-                  </button>
-                </header>
-                {previewKind === 'image' ? (
-                  <img src={previewUrl} alt={name} className="supplier-document-modal__image" />
-                ) : (
-                  <iframe title={name} src={previewUrl} className="supplier-document-modal__frame" />
-                )}
-              </div>
-            </div>,
-            document.body
-          )
-        : null}
     </section>
   );
 }

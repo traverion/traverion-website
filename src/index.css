@@ -10890,49 +10890,6 @@ details:not([open]) > :not(summary) {
   opacity: 0.5;
 }
 
-.supplier-document-modal__panel {
-  display: flex;
-  width: min(52rem, 100%);
-  max-height: min(86dvh, 48rem);
-  flex-direction: column;
-  overflow: hidden;
-  border-radius: 1rem;
-  background: #fff;
-  box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.08), 0 18px 48px rgba(15, 23, 42, 0.16);
-}
-
-.supplier-document-modal__bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 0.85rem 1rem;
-  border-bottom: 1px solid #e6eaf0;
-}
-
-.supplier-document-modal__bar h2 {
-  margin: 0;
-  overflow: hidden;
-  font-size: 0.95rem;
-  font-weight: 650;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.supplier-document-modal__frame,
-.supplier-document-modal__image {
-  width: 100%;
-  min-height: 0;
-  flex: 1 1 auto;
-  border: 0;
-  background: #f4f6f8;
-}
-
-.supplier-document-modal__image {
-  max-height: 72dvh;
-  object-fit: contain;
-}
-
 @media (max-width: 639px) {
   .supplier-document__actions {
     width: 100%;
