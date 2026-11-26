@@ -1148,12 +1148,13 @@ export default function SupplierOnboardingFlow({
     }
   };
 
-  const onUpload = async (file: File): Promise<boolean> => {
+  const onUpload = async (file: File, reportProgress?: (ratio: number) => void): Promise<boolean> => {
     if (!canEdit || !userId || docLock.current) return false;
     docLock.current = true;
     setDocumentBusy(true);
     setError(null);
-    const up = await uploadSupplierVerificationDocument(userId, file);
+    clearFieldError('documents');
+    const up = await uploadSupplierVerificationDocument(userId, file, { onProgress: reportProgress });
     if (!up.path) {
       setDocumentBusy(false);
       docLock.current = false;

@@ -59,7 +59,7 @@ const KNOWN_HUMAN: Array<{ test: RegExp; copy: string }> = [
   },
   {
     test: /mime type .+ is not supported|object exceeded the maximum allowed size/i,
-    copy: 'Use a PDF or image (JPEG, PNG, or WebP) up to 5 MB.',
+    copy: 'Use a PDF or image (JPEG, PNG, or WebP) up to 10 MB.',
   },
   {
     test: /supplier_profiles_contact_phone_norm_unique|contact_phone.*unique|duplicate key.*contact_phone/i,

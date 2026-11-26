@@ -33,10 +33,10 @@ export function onboardingDocumentState(input: {
   return 'uploaded';
 }
 
-const MAX_BYTES = 5 * 1024 * 1024;
+export const REGISTRATION_DOCUMENT_MAX_BYTES = 10 * 1024 * 1024;
 
 export function registrationDocumentFileError(file: { name: string; size: number; type: string }): string | null {
-  if (file.size > MAX_BYTES) return 'File must be 5 MB or smaller.';
+  if (file.size > REGISTRATION_DOCUMENT_MAX_BYTES) return 'File must be 10 MB or smaller.';
   const name = file.name.trim().toLowerCase();
   const type = file.type.trim().toLowerCase();
   const allowed =

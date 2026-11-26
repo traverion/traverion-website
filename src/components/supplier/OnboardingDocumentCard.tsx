@@ -5,9 +5,7 @@ import { useDialogFocus } from '../../hooks/useDialogFocus';
 import { useConfirmPrompt } from '../feedback/useConfirmPrompt';
 import { getSignedVerificationDocumentUrl, getVerificationDocumentFileInfo } from '../../data/supabase-supplier-profile';
 import {
-  ONBOARDING_DOCUMENT_LABEL,
   formatDocumentSize,
-  onboardingDocumentState,
   registrationDocumentFileError,
   registrationDocumentGuidance,
   registrationDocumentIsImage,
@@ -20,15 +18,15 @@ type Props = {
   submittedAt: string | null;
   busy: boolean;
   error: string | null;
-  onUpload: (file: File) => Promise<boolean>;
+  onUpload: (file: File, reportProgress?: (ratio: number) => void) => Promise<boolean>;
   onRemove: () => Promise<void>;
 };
 
 export default function OnboardingDocumentCard({
   country,
   path,
-  verificationStatus,
-  submittedAt,
+  verificationStatus: _verificationStatus,
+  submittedAt: _submittedAt,
   busy,
   error,
   onUpload,
@@ -41,24 +39,17 @@ export default function OnboardingDocumentCard({
   const [label, setLabel] = useState('');
   const [sizeBytes, setSizeBytes] = useState<number | null>(null);
   const [pending, setPending] = useState<{ name: string; size: number } | null>(null);
+  const [progress, setProgress] = useState<number | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewKind, setPreviewKind] = useState<'image' | 'pdf'>('pdf');
   const [previewBusy, setPreviewBusy] = useState(false);
   const { ask, dialog } = useConfirmPrompt();
   const guidance = registrationDocumentGuidance(country);
-  const state = onboardingDocumentState({
-    uploading: busy,
-    path,
-    verificationStatus,
-    submittedAt,
-  });
-  const status = ONBOARDING_DOCUMENT_LABEL[state];
   const shownError = localError || error;
-  const saved = Boolean(path);
-  const showFile = saved || Boolean(pending && busy);
-  const name = saved ? label || 'Registration extract' : pending?.name || 'Registration extract';
+  const saved = Boolean(path?.trim()) && !busy;
+  const name = saved ? label || 'Business registration document' : pending?.name || 'Business registration document';
   const sizeLabel = formatDocumentSize(saved ? sizeBytes : pending?.size);
-  const savedOk = saved && !busy && (state === 'uploaded' || state === 'under_review' || state === 'approved');
+  const progressLabel = progress == null ? null : `${Math.round(progress * 100)}%`;
 
   useDialogFocus(previewUrl != null, previewRef, closePreview);
 
@@ -103,7 +94,9 @@ export default function OnboardingDocumentCard({
     }
     setLocalError(null);
     setPending({ name: file.name, size: file.size });
-    const ok = await onUpload(file);
+    setProgress(0);
+    const ok = await onUpload(file, setProgress);
+    setProgress(null);
     if (!ok) setPending(null);
   }
 
@@ -147,8 +140,8 @@ export default function OnboardingDocumentCard({
     <section className="supplier-document">
       <header className="supplier-document__head">
         <div className="supplier-onboarding-field__label">
-          <h2>Registration extract</h2>
-          <button type="button" className="supplier-onboarding-help" aria-label="About the registration extract">
+          <h2>Business registration document</h2>
+          <button type="button" className="supplier-onboarding-help" aria-label="About the business registration document">
             ?
             <span className="supplier-onboarding-help__tip" role="tooltip">
               {guidance.summary} {guidance.example} The legal name, business ID, and registered address need to be readable.
@@ -157,17 +150,10 @@ export default function OnboardingDocumentCard({
         </div>
       </header>
 
-      <div className={`supplier-document__panel${showFile ? ' supplier-document__panel--file' : ''}`}>
-        {busy ? (
-          <div className="supplier-document__progress" aria-hidden>
-            <span />
-          </div>
-        ) : null}
-
-        {showFile ? (
+      {saved ? (
           <div className="supplier-document__file">
             <span className="supplier-document__icon" aria-hidden>
-              {registrationDocumentIsImage(path || pending?.name || '') ? (
+              {registrationDocumentIsImage(path || '') ? (
                 <ImageIcon className="h-5 w-5" strokeWidth={1.75} />
               ) : (
                 <FileText className="h-5 w-5" strokeWidth={1.75} />
@@ -176,27 +162,24 @@ export default function OnboardingDocumentCard({
             <div className="supplier-document__meta">
               <p className="supplier-document__name" title={name}>
                 <span>{name}</span>
-                {savedOk ? <Check className="supplier-document__check h-3.5 w-3.5" strokeWidth={2.5} aria-hidden /> : null}
+                <Check className="supplier-document__check h-3.5 w-3.5" strokeWidth={2.5} aria-label="Document saved" />
               </p>
-              <p className={`supplier-document__status supplier-document__status--${state}`}>
-                {[sizeLabel, status].filter(Boolean).join(' · ')}
-              </p>
+              {sizeLabel ? <p className="supplier-document__size">{sizeLabel}</p> : null}
             </div>
-            {saved ? (
-              <div className="supplier-document__actions">
-                <button type="button" className="supplier-document__action" disabled={busy || previewBusy} onClick={() => void preview()}>
-                  <Eye className="h-4 w-4" strokeWidth={1.75} aria-hidden />
-                  Preview
-                </button>
-                <button type="button" className="supplier-document__action" disabled={busy} onClick={() => inputRef.current?.click()}>
-                  <RefreshCw className="h-4 w-4" strokeWidth={1.75} aria-hidden />
-                  Replace
-                </button>
-                <button type="button" className="supplier-document__remove" aria-label="Remove document" disabled={busy} onClick={() => void remove()}>
-                  <Trash2 className="h-4 w-4" strokeWidth={1.75} aria-hidden />
-                </button>
-              </div>
-            ) : null}
+            <div className="supplier-document__actions">
+              <button type="button" className="supplier-document__action" disabled={previewBusy} onClick={() => void preview()}>
+                <Eye className="h-4 w-4" strokeWidth={1.75} aria-hidden />
+                Preview
+              </button>
+              <button type="button" className="supplier-document__action" onClick={() => inputRef.current?.click()}>
+                <RefreshCw className="h-4 w-4" strokeWidth={1.75} aria-hidden />
+                Replace
+              </button>
+              <button type="button" className="supplier-document__remove" onClick={() => void remove()}>
+                <Trash2 className="h-4 w-4" strokeWidth={1.75} aria-hidden />
+                Remove
+              </button>
+            </div>
           </div>
         ) : (
           <button
@@ -218,18 +201,31 @@ export default function OnboardingDocumentCard({
             <span className="supplier-document__icon" aria-hidden>
               <Upload className="h-4 w-4" strokeWidth={1.85} />
             </span>
-            <span className="supplier-document__drop-title">Choose a file or drop it here</span>
-            <span className="supplier-document__drop-meta">PDF, JPEG, PNG, or WebP · 5 MB maximum</span>
+            <span className="supplier-document__drop-title">{busy ? pending?.name || 'Uploading…' : 'Choose a file or drop it here'}</span>
+            <span className="supplier-document__drop-meta">
+              {busy ? progressLabel || 'Uploading…' : 'PDF, JPEG, PNG, or WebP · 10 MB maximum'}
+            </span>
+            {busy ? (
+              <span
+                className="supplier-document__progress"
+                role="progressbar"
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={Math.round((progress ?? 0) * 100)}
+                aria-label="Upload progress"
+              >
+                <span style={{ width: `${Math.round((progress ?? 0) * 100)}%` }} />
+              </span>
+            ) : null}
           </button>
         )}
-      </div>
 
       <input
         ref={inputRef}
         type="file"
         className="sr-only"
         accept="application/pdf,image/jpeg,image/png,image/webp"
-        aria-label="Registration extract"
+        aria-label="Business registration document"
         disabled={busy}
         onChange={(event) => {
           const file = event.target.files?.[0] ?? null;

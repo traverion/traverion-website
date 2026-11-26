@@ -60,10 +60,10 @@ describe('userFacingError', () => {
       userFacingError('new row violates row-level security policy', USER_ERROR.verificationUpload)
     ).toBe('Your session ended or this action is not allowed. Sign in again and try once more.');
     expect(userFacingError('mime type image/heic is not supported', USER_ERROR.verificationUpload)).toBe(
-      'Use a PDF or image (JPEG, PNG, or WebP) up to 5 MB.'
+      'Use a PDF or image (JPEG, PNG, or WebP) up to 10 MB.'
     );
     expect(
       userFacingError('The object exceeded the maximum allowed size', USER_ERROR.verificationUpload)
-    ).toBe('Use a PDF or image (JPEG, PNG, or WebP) up to 5 MB.');
+    ).toBe('Use a PDF or image (JPEG, PNG, or WebP) up to 10 MB.');
   });
 });

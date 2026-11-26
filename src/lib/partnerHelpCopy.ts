@@ -14,7 +14,7 @@ export const PARTNER_HELP = {
   contactPhone: 'A number Traverion can use if we need to reach you.',
   registeredAddress: 'The official registered address of the business.',
   registrationDocument:
-    'Official company registration proof only — for Finland, a PRH Trade Register extract (kaupparekisteriote) or equivalent YTJ registry evidence. Marketing posters, brochures, and websites are not accepted. Clear PDF or image, max 5 MB.',
+    'Official company registration proof only — for Finland, a PRH Trade Register extract (kaupparekisteriote) or equivalent YTJ registry evidence. Marketing posters, brochures, and websites are not accepted. Clear PDF or image, max 10 MB.',
   businessStatus: 'Business approval is separate from payout verification. Saved details are not the same as verified.',
   payoutStatus: 'Bank and identity checks are separate from business approval. Saved payout details are not payout readiness.',
   underReview: 'We are checking your details. You can draft listings while you wait.',

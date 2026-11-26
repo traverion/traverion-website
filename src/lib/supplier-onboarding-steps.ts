@@ -23,7 +23,7 @@ export const SUPPLIER_ONBOARDING_SCREENS = [
     group: 'Documents',
     phase: 'documents',
     title: 'Registration document',
-    body: 'Upload the official registration extract.',
+    body: 'Upload your company’s official registration document.',
   },
   {
     id: 'person',

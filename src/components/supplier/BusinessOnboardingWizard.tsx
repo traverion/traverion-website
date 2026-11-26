@@ -1070,7 +1070,7 @@ export default function BusinessOnboardingWizard({
                         <span className="text-[14px] font-semibold text-[#17191d]">
                           {uploading ? 'Uploading…' : 'Upload PDF or image'}
                         </span>
-                        <span className="text-[12px] text-[#5c6570]">Max 5 MB</span>
+                        <span className="text-[12px] text-[#5c6570]">Max 10 MB</span>
                         <input
                           type="file"
                           accept=".pdf,image/jpeg,image/png,image/webp,application/pdf"

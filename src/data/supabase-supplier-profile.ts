@@ -1,3 +1,4 @@
+import { REGISTRATION_DOCUMENT_MAX_BYTES } from '../lib/onboarding-document';
 import { supabase } from '../lib/supabase';
 import { normalizePhoneNumber } from '../lib/phoneNormalize';
 import { createInflightCache } from '../lib/inflight-dedupe';
@@ -163,11 +164,11 @@ function verificationExtFromFile(file: File): 'pdf' | 'jpg' | 'png' | 'webp' | n
 /** Upload business registration proof (PDF or image). Returns storage path for DB. */
 export async function uploadSupplierVerificationDocument(
   userId: string,
-  file: File
+  file: File,
+  options?: { onProgress?: (ratio: number) => void }
 ): Promise<{ path: string | null; error?: string }> {
   if (!supabase) return { path: null, error: 'Supabase not configured' };
-  const max = 5 * 1024 * 1024;
-  if (file.size > max) return { path: null, error: 'File must be 5 MB or smaller.' };
+  if (file.size > REGISTRATION_DOCUMENT_MAX_BYTES) return { path: null, error: 'File must be 10 MB or smaller.' };
   const ext = verificationExtFromFile(file);
   if (!ext) return { path: null, error: 'Use PDF, JPEG, PNG, or WebP.' };
 
@@ -188,6 +189,10 @@ export async function uploadSupplierVerificationDocument(
   const originalName =
     file.name.trim().slice(0, 200) || `company-registration.${ext}`;
 
+  if (options?.onProgress && typeof XMLHttpRequest !== 'undefined') {
+    return uploadVerificationObject(path, file, originalName, options.onProgress);
+  }
+
   const { error: upErr } = await supabase.storage.from(VERIFICATION_BUCKET).upload(path, file, {
     upsert: true,
     contentType,
@@ -198,7 +203,60 @@ export async function uploadSupplierVerificationDocument(
     console.warn('[Traverion] supplier-verification upload failed:', upErr.message, { path });
     return { path: null, error: upErr.message };
   }
+  options?.onProgress?.(1);
   return { path };
+}
+
+function uploadVerificationObject(
+  path: string,
+  file: File,
+  originalName: string,
+  onProgress: (ratio: number) => void
+): Promise<{ path: string | null; error?: string }> {
+  const base = (import.meta.env.VITE_SUPABASE_URL as string | undefined)?.replace(/\/$/, '');
+  const anon = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
+  if (!supabase || !base || !anon) return Promise.resolve({ path: null, error: 'Supabase not configured' });
+  return supabase.auth.getSession().then(({ data }) => {
+    const token = data.session?.access_token;
+    if (!token) return { path: null, error: 'Your session ended. Sign in again to continue.' };
+    const endpoint = `${base}/storage/v1/object/${VERIFICATION_BUCKET}/${path
+      .split('/')
+      .map((part) => encodeURIComponent(part))
+      .join('/')}`;
+    const body = new FormData();
+    body.append('cacheControl', '3600');
+    body.append('metadata', JSON.stringify({ original_filename: originalName }));
+    body.append('', file, originalName);
+    return new Promise((resolve) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', endpoint);
+      xhr.setRequestHeader('apikey', anon);
+      xhr.setRequestHeader('authorization', `Bearer ${token}`);
+      xhr.setRequestHeader('x-upsert', 'true');
+      xhr.upload.onprogress = (event) => {
+        if (!event.lengthComputable || event.total <= 0) return;
+        onProgress(Math.min(0.99, event.loaded / event.total));
+      };
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          onProgress(1);
+          resolve({ path });
+          return;
+        }
+        let message = 'That document could not be uploaded.';
+        try {
+          const parsed = JSON.parse(xhr.responseText) as { message?: string; error?: string };
+          message = parsed.message || parsed.error || message;
+        } catch {
+          /* Storage returned a non-JSON error. */
+        }
+        console.warn('[Traverion] supplier-verification upload failed:', message, { path });
+        resolve({ path: null, error: message });
+      };
+      xhr.onerror = () => resolve({ path: null, error: 'That document could not be uploaded.' });
+      xhr.send(body);
+    });
+  });
 }
 
 export async function removeSupplierVerificationDocumentFile(path: string): Promise<void> {
@@ -227,41 +285,26 @@ export function verificationDocumentBasename(storagePath: string): string {
 /**
  * Human-readable file label: original name from upload metadata when present, else storage basename.
  */
+function storedOriginalFilename(metadata: Record<string, unknown> | null | undefined, fallback: string): string {
+  const meta = metadata ?? {};
+  const orig = meta.originalFilename ?? meta.original_filename;
+  return typeof orig === 'string' && orig.trim() ? orig.trim() : fallback;
+}
+
 export async function getVerificationDocumentDisplayLabel(storagePath: string): Promise<string> {
-  const fallback = verificationDocumentBasename(storagePath);
-  if (!supabase || !storagePath.trim()) return fallback;
-
-  const segments = storagePath.trim().split('/').filter(Boolean);
-  if (segments.length < 2) return fallback;
-  const objectName = segments[segments.length - 1]!;
-  const folder = segments.slice(0, -1).join('/');
-
-  const { data, error } = await supabase.storage.from(VERIFICATION_BUCKET).list(folder, { limit: 100 });
-  if (error || !data?.length) return fallback;
-
-  const row = data.find((f) => f.name === objectName);
-  const meta = (row?.metadata ?? {}) as Record<string, unknown>;
-  const orig = meta.original_filename;
-  if (typeof orig === 'string' && orig.trim()) return orig.trim();
-  return fallback;
+  return (await getVerificationDocumentFileInfo(storagePath)).name;
 }
 
 export async function getVerificationDocumentFileInfo(
   storagePath: string
 ): Promise<{ name: string; sizeBytes: number | null }> {
-  const name = await getVerificationDocumentDisplayLabel(storagePath);
-  if (!supabase || !storagePath.trim()) return { name, sizeBytes: null };
-  const segments = storagePath.trim().split('/').filter(Boolean);
-  if (segments.length < 2) return { name, sizeBytes: null };
-  const objectName = segments[segments.length - 1]!;
-  const folder = segments.slice(0, -1).join('/');
-  const { data, error } = await supabase.storage.from(VERIFICATION_BUCKET).list(folder, { limit: 100 });
-  if (error || !data?.length) return { name, sizeBytes: null };
-  const row = data.find((file) => file.name === objectName);
-  const meta = (row?.metadata ?? {}) as Record<string, unknown>;
-  const raw = meta.size;
-  const sizeBytes = typeof raw === 'number' ? raw : typeof raw === 'string' ? Number(raw) : NaN;
-  return { name, sizeBytes: Number.isFinite(sizeBytes) ? sizeBytes : null };
+  const fallback = verificationDocumentBasename(storagePath);
+  if (!supabase || !storagePath.trim()) return { name: fallback, sizeBytes: null };
+  const { data, error } = await supabase.storage.from(VERIFICATION_BUCKET).info(storagePath);
+  if (error || !data) return { name: fallback, sizeBytes: null };
+  const info = data as { size?: number; metadata?: Record<string, unknown> | null };
+  const sizeBytes = typeof info.size === 'number' && Number.isFinite(info.size) ? info.size : null;
+  return { name: storedOriginalFilename(info.metadata, fallback), sizeBytes };
 }
 
 /**
